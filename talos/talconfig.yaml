@@ -1,0 +1,148 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/budimanjojo/talhelper/master/pkg/config/schemas/talconfig.json
+---
+# renovate: datasource=docker depName=ghcr.io/siderolabs/installer
+talosVersion: v1.9.4
+# renovate: datasource=docker depName=ghcr.io/siderolabs/kubelet
+kubernetesVersion: v1.32.2
+
+clusterName: kubernetes
+endpoint: https://10.32.8.85:6443
+
+clusterPodNets:
+  - "10.42.0.0/16"
+clusterSvcNets:
+  - "10.43.0.0/16"
+
+additionalApiServerCertSans: &sans
+  - "127.0.0.1"
+  - "10.32.8.85"
+  - "talos-cluster.codelooks.com"
+  - "talos-cluster.core.codelooks.com"
+additionalMachineCertSans: *sans
+
+# Disable built-in CNI to use Cilium
+cniConfig:
+  name: none
+
+nodes:
+  - hostname: "cr-talos-01"
+    ipAddress: "10.32.8.80"
+    installDiskSelector:
+      serial: "SJC5N430411205H4H"
+    machineSpec:
+      secureboot: true
+    talosImageURL: factory.talos.dev/installer-secureboot/a5ce1cbe595e5d591428776691466c07b2b681eabb65fbb7ff943621689937de
+    controlPlane: true
+    networkInterfaces:
+      - deviceSelector:
+          hardwareAddr: "0c:c4:7a:ea:bf:0e"
+        dhcp: false
+        addresses:
+          - "10.32.8.80/24"
+        routes:
+          - network: "0.0.0.0/0"
+            gateway: "10.32.8.10"
+        mtu: 1500
+        vip:
+          ip: "10.32.8.85"
+    patches:
+      - # Encrypt system disk with TPM
+        |-
+        machine:
+          systemDiskEncryption:
+            state:
+              provider: luks2
+              keys:
+                - slot: 0
+                  tpm: {}
+            ephemeral:
+              provider: luks2
+              keys:
+                - slot: 0
+                  tpm: {}
+  - hostname: "cr-talos-02"
+    ipAddress: "10.32.8.81"
+    installDiskSelector:
+      serial: "SNC6N446610806B52"
+    machineSpec:
+      secureboot: true
+    talosImageURL: factory.talos.dev/installer-secureboot/a5ce1cbe595e5d591428776691466c07b2b681eabb65fbb7ff943621689937de
+    controlPlane: true
+    networkInterfaces:
+      - deviceSelector:
+          hardwareAddr: "0c:c4:7a:ea:be:7a"
+        dhcp: false
+        addresses:
+          - "10.32.8.81/24"
+        routes:
+          - network: "0.0.0.0/0"
+            gateway: "10.32.8.10"
+        mtu: 1500
+        vip:
+          ip: "10.32.8.85"
+    patches:
+      - # Encrypt system disk with TPM
+        |-
+        machine:
+          systemDiskEncryption:
+            state:
+              provider: luks2
+              keys:
+                - slot: 0
+                  tpm: {}
+            ephemeral:
+              provider: luks2
+              keys:
+                - slot: 0
+                  tpm: {}
+  - hostname: "cr-talos-03"
+    ipAddress: "10.32.8.82"
+    installDiskSelector:
+      serial: "SJC5N430410305H24"
+    machineSpec:
+      secureboot: true
+    talosImageURL: factory.talos.dev/installer-secureboot/a5ce1cbe595e5d591428776691466c07b2b681eabb65fbb7ff943621689937de
+    controlPlane: true
+    networkInterfaces:
+      - deviceSelector:
+          hardwareAddr: "0c:c4:7a:ea:bf:0f"
+        dhcp: false
+        addresses:
+          - "10.32.8.82/24"
+        routes:
+          - network: "0.0.0.0/0"
+            gateway: "10.32.8.10"
+        mtu: 1500
+        vip:
+          ip: "10.32.8.85"
+    patches:
+      - # Encrypt system disk with TPM
+        |-
+        machine:
+          systemDiskEncryption:
+            state:
+              provider: luks2
+              keys:
+                - slot: 0
+                  tpm: {}
+            ephemeral:
+              provider: luks2
+              keys:
+                - slot: 0
+                  tpm: {}
+
+# Global patches
+patches:
+  - "@./patches/global/machine-files.yaml"
+  - "@./patches/global/machine-kernel.yaml"
+  - "@./patches/global/machine-kubelet.yaml"
+  - "@./patches/global/machine-network.yaml"
+  - "@./patches/global/machine-sysctls.yaml"
+  - "@./patches/global/machine-time.yaml"
+
+# Controller patches
+controlPlane:
+  patches:
+    - "@./patches/controller/admission-controller-patch.yaml"
+    - "@./patches/controller/cluster.yaml"
+
