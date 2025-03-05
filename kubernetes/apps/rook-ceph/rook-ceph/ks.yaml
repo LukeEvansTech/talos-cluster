@@ -38,11 +38,13 @@ spec:
   commonMetadata:
     labels:
       app.kubernetes.io/name: *app
-  components:
-    - ../../../../components/gatus/guarded
+  # TODO remove this once the gatus is ready
+  # components:
+  #   - ../../../../components/gatus/guarded
   dependsOn:
     - name: rook-ceph
       namespace: *namespace
+    # TODO remove this once the volsync is ready
     # - name: volsync
     #   namespace: volsync-system
   healthChecks:
