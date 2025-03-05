@@ -29,3 +29,11 @@ tasks:
       - test -f {{.ROOT_DIR}}/.sops.yaml
       - test -f {{.SCRIPTS_DIR}}/bootstrap-apps.sh
       - test -f {{.SOPS_AGE_KEY_FILE}}
+
+  secrets:
+      desc: Creates required secrets for cluster
+      cmd: minijinja-cli "{{.ROOT_DIR}}/bootstrap/secrets.yaml.tpl" | op inject | kubectl apply -f -
+      preconditions:
+        - test -f {{.ROOT_DIR}}/kubeconfig
+        - test -f {{.ROOT_DIR}}/bootstrap/secrets.yaml.tpl
+        - op user get --me | read -r _ && echo "true" || echo "false"
