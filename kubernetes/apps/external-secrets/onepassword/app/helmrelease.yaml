@@ -39,7 +39,7 @@ spec:
                 valueFrom:
                   secretKeyRef:
                     name: onepassword-secret
-                    key: onepassword-credentials.json
+                    key: 1password-credentials.json
             probes:
               liveness:
                 enabled: true
@@ -81,7 +81,7 @@ spec:
                 valueFrom:
                   secretKeyRef:
                     name: onepassword-secret
-                    key: onepassword-credentials.json
+                    key: 1password-credentials.json
             probes:
               liveness:
                 enabled: true
