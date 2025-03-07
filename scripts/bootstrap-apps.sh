@@ -53,35 +53,6 @@ function apply_namespaces() {
     done
 }
 
-# ConfigMaps to be applied before the helmfile charts are installed
-function apply_configmaps() {
-    log debug "Applying ConfigMaps"
-
-    local -r configmaps=(
-        "${ROOT_DIR}/kubernetes/components/common/cluster-settings.yaml"
-    )
-
-    for configmap in "${configmaps[@]}"; do
-        if [ ! -f "${configmap}" ]; then
-            log warn "File does not exist" file "${configmap}"
-            continue
-        fi
-
-        # Check if the configmap resources are up-to-date
-        if kubectl --namespace flux-system diff --filename "${configmap}" &>/dev/null; then
-            log info "ConfigMap resource is up-to-date" "resource=$(basename "${configmap}" ".yaml")"
-            continue
-        fi
-
-        # Apply configmap resources
-        if kubectl --namespace flux-system apply --server-side --filename "${configmap}" &>/dev/null; then
-            log info "ConfigMap resource applied successfully" "resource=$(basename "${configmap}" ".yaml")"
-        else
-            log error "Failed to apply ConfigMap resource" "resource=$(basename "${configmap}" ".yaml")"
-        fi
-    done
-}
-
 # SOPS secrets to be applied before the helmfile charts are installed
 function apply_sops_secrets() {
     log debug "Applying secrets"
@@ -138,18 +109,31 @@ function apply_resources() {
     local -r resources_file="${ROOT_DIR}/bootstrap/resources.yaml.j2"
 
     if ! output=$(render_template "${resources_file}") || [[ -z "${output}" ]]; then
+        log error "Failed to render template or empty output"
         exit 1
     fi
 
-    if echo "${output}" | kubectl diff --filename - &>/dev/null; then
+    # kubectl diff returns exit code 1 if there are differences, which is not an error for us
+    # We need to check the actual exit code to determine if there was a real error
+    if ! echo "${output}" | kubectl diff --filename - > /dev/null; then
+        # Check if exit code is 1 (differences found) or something else (error)
+        if [[ $? -eq 1 ]]; then
+            log debug "Changes detected, applying resources..."
+        else
+            log error "kubectl diff failed"
+            exit 1
+        fi
+    else
         log info "Resources are up-to-date"
         return
     fi
 
-    if echo "${output}" | kubectl apply --server-side --filename - &>/dev/null; then
+    # Apply the resources
+    if echo "${output}" | kubectl apply --server-side --filename -; then
         log info "Resources applied"
     else
         log error "Failed to apply resources"
+        exit 1
     fi
 }
 
@@ -201,7 +185,6 @@ function main() {
     apply_resources
     wipe_rook_disks
     apply_namespaces
-    apply_configmaps
     apply_sops_secrets
     apply_helm_releases
 
