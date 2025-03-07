@@ -29,8 +29,6 @@ tasks:
         sh: '[ ! -z "${ROOK_DISK}" ]'
       - test -f {{.SCRIPTS_DIR}}/wipe-rook-disks.sh
       - test -f {{.KUBECONFIG}}
-    deps:
-      - talos
 
   secrets:
       desc: Creates required secrets for cluster
