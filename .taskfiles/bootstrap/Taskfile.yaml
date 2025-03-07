@@ -25,7 +25,7 @@ tasks:
     cmds:
       - ./wipe-rook-disks.sh
     preconditions:
-      - msg: ROOK_DISK environment variable is not set. Please set it with 'export ROOK_DISK="INTEL_SSDPE21D015TA"' or similar.
+      - msg: ROOK_DISK environment variable is not set. Please set it with 'export ROOK_DISK="INTEL SSDPE21D015TA"' or similar.
         sh: '[ ! -z "${ROOK_DISK}" ]'
       - test -f {{.SCRIPTS_DIR}}/wipe-rook-disks.sh
       - test -f {{.KUBECONFIG}}
