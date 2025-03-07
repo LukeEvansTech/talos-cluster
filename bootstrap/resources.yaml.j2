@@ -1,13 +1,15 @@
+{% for namespace in ["external-secrets"] %}
 ---
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: external-secrets
+  name: {{ namespace }}
+{% endfor %}
 ---
 apiVersion: v1
 kind: Secret
 metadata:
-  name: onepassword
+  name: onepassword-secret
   namespace: external-secrets
 stringData:
   1password-credentials.json: op://Talos/1password/OP_CONNECT_JSON
