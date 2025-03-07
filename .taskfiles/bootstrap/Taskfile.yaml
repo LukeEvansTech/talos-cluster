@@ -19,6 +19,27 @@ tasks:
       - test -f {{.TALOS_DIR}}/talconfig.yaml
       - which talhelper talosctl sops
 
+  wipe-rook:
+    desc: Wipe Rook disks on cluster nodes
+    dir: '{{.SCRIPTS_DIR}}'
+    cmds:
+      - ./wipe-rook-disks.sh
+    preconditions:
+      - msg: ROOK_DISK environment variable is not set. Please set it with 'export ROOK_DISK="INTEL_SSDPE21D015TA"' or similar.
+        sh: '[ ! -z "${ROOK_DISK}" ]'
+      - test -f {{.SCRIPTS_DIR}}/wipe-rook-disks.sh
+      - test -f {{.KUBECONFIG}}
+    deps:
+      - talos
+
+  secrets:
+      desc: Creates required secrets for cluster
+      cmd: minijinja-cli "{{.ROOT_DIR}}/bootstrap/secrets.yaml.tpl" | op inject | kubectl apply -f -
+      preconditions:
+        - test -f {{.ROOT_DIR}}/kubeconfig
+        - test -f {{.ROOT_DIR}}/bootstrap/secrets.yaml.tpl
+        - op user get --me | read -r _ && echo "true" || echo "false"
+        -
   apps:
     desc: Bootstrap apps into the Talos cluster
     cmd: bash {{.SCRIPTS_DIR}}/bootstrap-apps.sh
@@ -29,11 +50,3 @@ tasks:
       - test -f {{.ROOT_DIR}}/.sops.yaml
       - test -f {{.SCRIPTS_DIR}}/bootstrap-apps.sh
       - test -f {{.SOPS_AGE_KEY_FILE}}
-
-  secrets:
-      desc: Creates required secrets for cluster
-      cmd: minijinja-cli "{{.ROOT_DIR}}/bootstrap/secrets.yaml.tpl" | op inject | kubectl apply -f -
-      preconditions:
-        - test -f {{.ROOT_DIR}}/kubeconfig
-        - test -f {{.ROOT_DIR}}/bootstrap/secrets.yaml.tpl
-        - op user get --me | read -r _ && echo "true" || echo "false"
