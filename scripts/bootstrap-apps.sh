@@ -101,39 +101,34 @@ function apply_helm_releases() {
     log info "Helm releases applied successfully"
 }
 
-
-# Resources to be applied before the helmfile charts are installed
 function apply_resources() {
     log debug "Applying resources"
 
     local -r resources_file="${ROOT_DIR}/bootstrap/resources.yaml.j2"
 
-    if ! output=$(render_template "${resources_file}") || [[ -z "${output}" ]]; then
-        log error "Failed to render template or empty output"
+    if ! output=$(render_template "${resources_file}"); then
+        log error "Failed to render template"
         exit 1
     fi
 
-    # kubectl diff returns exit code 1 if there are differences, which is not an error for us
-    # We need to check the actual exit code to determine if there was a real error
-    if ! echo "${output}" | kubectl diff --filename - > /dev/null; then
-        # Check if exit code is 1 (differences found) or something else (error)
-        if [[ $? -eq 1 ]]; then
-            log debug "Changes detected, applying resources..."
-        else
-            log error "kubectl diff failed"
-            exit 1
-        fi
-    else
+    if [[ -z "${output}" ]]; then
+        log error "Template rendered to empty output"
+        exit 1
+    fi
+
+    # Debug: Print the rendered template
+    # log debug "Rendered template:"
+    # echo "${output}"
+
+    if echo "${output}" | kubectl diff --filename - &>/dev/null; then
         log info "Resources are up-to-date"
         return
     fi
 
-    # Apply the resources
-    if echo "${output}" | kubectl apply --server-side --filename -; then
+    if echo "${output}" | kubectl apply --server-side --filename - &>/dev/null; then
         log info "Resources applied"
     else
         log error "Failed to apply resources"
-        exit 1
     fi
 }
 
