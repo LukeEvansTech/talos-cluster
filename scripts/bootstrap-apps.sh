@@ -194,15 +194,15 @@ function wipe_rook_disks() {
 
 
 function main() {
-    check_cli helmfile kubectl kustomize sops talhelper yq
+    check_cli helmfile jq kubectl kustomize minijinja-cli op talosctl yq
 
     # Apply resources and Helm releases
     wait_for_nodes
+    apply_resources
     wipe_rook_disks
     apply_namespaces
     apply_configmaps
     apply_sops_secrets
-    apply_resources
     apply_helm_releases
 
     log info "Congrats! The cluster is bootstrapped and Flux is syncing the Git repository"
