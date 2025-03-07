@@ -19,17 +19,6 @@ tasks:
       - test -f {{.TALOS_DIR}}/talconfig.yaml
       - which talhelper talosctl sops
 
-  wipe-rook:
-    desc: Wipe Rook disks on cluster nodes
-    dir: '{{.SCRIPTS_DIR}}'
-    cmds:
-      - ./wipe-rook-disks.sh
-    preconditions:
-      - msg: ROOK_DISK environment variable is not set. Please set it with 'export ROOK_DISK="INTEL SSDPE21D015TA"' or similar.
-        sh: '[ ! -z "${ROOK_DISK}" ]'
-      - test -f {{.SCRIPTS_DIR}}/wipe-rook-disks.sh
-      - test -f {{.KUBECONFIG}}
-
   secrets:
       desc: Creates required secrets for cluster
       cmd: minijinja-cli "{{.ROOT_DIR}}/bootstrap/secrets.yaml.tpl" | op inject | kubectl apply -f -
@@ -44,6 +33,8 @@ tasks:
     preconditions:
       - msg: Unsupported bash version, run `brew install bash` to upgrade
         sh: '{{if eq OS "darwin"}}test -f /opt/homebrew/bin/bash{{end}}'
+      - msg: ROOK_DISK environment variable is not set. Please set it with 'export ROOK_DISK="INTEL SSDPE21D015TA"' or similar.
+        sh: '[ ! -z "${ROOK_DISK}" ]'
       - test -f {{.KUBECONFIG}}
       - test -f {{.ROOT_DIR}}/.sops.yaml
       - test -f {{.SCRIPTS_DIR}}/bootstrap-apps.sh
