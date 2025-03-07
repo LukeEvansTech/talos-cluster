@@ -39,7 +39,7 @@ tasks:
         - test -f {{.ROOT_DIR}}/kubeconfig
         - test -f {{.ROOT_DIR}}/bootstrap/secrets.yaml.tpl
         - op user get --me | read -r _ && echo "true" || echo "false"
-        -
+
   apps:
     desc: Bootstrap apps into the Talos cluster
     cmd: bash {{.SCRIPTS_DIR}}/bootstrap-apps.sh
