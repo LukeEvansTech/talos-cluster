@@ -71,7 +71,7 @@ spec:
           requireMsgr2: true
       storage:
         useAllNodes: true
-        useAllDevices: false
+        useAllDevices: true
         # deviceFilter: ^nvme[12]n1$
         devicePathFilter: /dev/disk/by-id/nvme-INTEL_SSDPE21D015TA_.*
         config:
