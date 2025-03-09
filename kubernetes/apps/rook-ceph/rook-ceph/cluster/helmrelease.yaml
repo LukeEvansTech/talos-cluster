@@ -72,8 +72,8 @@ spec:
       storage:
         useAllNodes: true
         useAllDevices: true
-        # deviceFilter: ^nvme[12]n1$
-        devicePathFilter: /dev/disk/by-id/nvme-INTEL_SSDPE21D015TA_.*
+        deviceFilter: ^nvme[12]n1$
+        # devicePathFilter: /dev/disk/by-id/nvme-INTEL_SSDPE21D015TA_.*
         config:
           osdsPerDevice: "1"
     cephBlockPools:
