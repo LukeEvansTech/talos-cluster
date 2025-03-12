@@ -160,15 +160,31 @@ function wipe_rook_disks() {
 
         log debug "Talos node and disk discovered" "node=${node}" "disks=${disks}"
 
-        # Wipe each disk on the node
-        for disk in ${disks}; do
-            if talosctl --nodes "${node}" wipe disk "${disk}" &>/dev/null; then
-                log info "Disk wiped" "node=${node}" "disk=${disk}"
-            else
-                log error "Failed to wipe disk" "node=${node}" "disk=${disk}"
-            fi
-        done
+    # Wipe each disk on the node
+    for disk in ${disks}; do
+        log info "Attempting to wipe disk" "node=${node}" "disk=${disk}"
+
+        # Execute the wipe command and capture both output and exit code
+        # Don't redirect to /dev/null so we can see the actual output
+        output=$(talosctl --nodes "${node}" wipe disk --method ZEROES "${disk}" 2>&1)
+        exit_code=$?
+
+        if [ $exit_code -eq 0 ]; then
+            log info "Disk wiped successfully" "node=${node}" "disk=${disk}"
+            # Print the command output for additional information
+            echo "Command output: ${output}"
+        else
+            log error "Failed to wipe disk" "node=${node}" "disk=${disk}" "exit_code=${exit_code}"
+            # Print the error output to help with debugging
+            echo "Error output: ${output}"
+
+            # Optionally, you can decide whether to continue or exit
+            log warn "Continuing with next disk despite error"
+            # Uncomment the following line if you want to exit on first error
+            # exit $exit_code
+        fi
     done
+done
 }
 
 
