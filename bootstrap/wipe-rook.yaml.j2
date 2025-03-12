@@ -1,0 +1,96 @@
+---
+{% for node in NODE_NAMES %}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: wipe-rook-{{ node }}
+  namespace: default
+  labels:
+    app.kubernetes.io/name: wipe-rook
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: wipe-rook
+        node: {{ node }}
+    spec:
+      nodeName: {{ node }}
+      restartPolicy: Never
+      initContainers:
+        - name: data
+          image: docker.io/library/alpine:latest
+          command: ["/bin/sh", "-c"]
+          args: ["rm -rf /mnt/host_var/lib/rook"]
+          volumeMounts:
+            - mountPath: /mnt/host_var
+              name: host-var
+          securityContext:
+            privileged: true
+          resources: {}
+      containers:
+        - name: disk
+          image: docker.io/library/alpine:latest
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              apk add --no-cache device-mapper findutils nvme-cli parted sgdisk util-linux util-linux-misc;
+
+              # Find all matching disks and resolve to real paths
+              echo "Finding and deduplicating disks..."
+              find /dev/disk/by-id/ -iname "*{{ MODEL }}*" -not -name "*-part[0-9]*" | while read SYMLINK; do
+                REAL_DEVICE=$(readlink -f $SYMLINK)
+                echo "$REAL_DEVICE"
+              done | sort | uniq > /tmp/unique_disks.txt
+
+              # Check if we found any disks
+              if [ ! -s /tmp/unique_disks.txt ]; then
+                echo "No matching disks found on $(hostname)!"
+                exit 0  # Don't fail if no disks found
+              fi
+
+              # Show what we found
+              echo "Found these unique physical disks on $(hostname):"
+              cat /tmp/unique_disks.txt
+              DISK_COUNT=$(wc -l < /tmp/unique_disks.txt)
+              echo "Found $DISK_COUNT unique physical disks"
+              echo "------------------------"
+
+              # Process each unique physical disk
+              while read DISK; do
+                echo "=== Wiping $DISK on $(hostname) ==="
+                sgdisk --zap-all $DISK
+                dd if=/dev/zero of="$DISK" bs=1M count=100 oflag=direct
+                blkdiscard $DISK
+                partprobe $DISK
+                echo "=== Completed wiping $DISK on $(hostname) ==="
+                echo ""
+              done < /tmp/unique_disks.txt
+
+              echo "All disks wiped successfully on $(hostname)"
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - name: host-dev
+              mountPath: /dev/disk/by-id
+            - name: host-dev-root
+              mountPath: /dev
+          resources: {}
+      volumes:
+        - name: host-var
+          hostPath:
+            path: /var
+        - name: host-dev
+          hostPath:
+            path: /dev/disk/by-id
+            type: Directory
+        - name: host-dev-root
+          hostPath:
+            path: /dev
+            type: Directory
+      tolerations:
+      - key: "node.kubernetes.io/not-ready"
+        operator: "Exists"
+        effect: "NoSchedule"
+---
+{% endfor %}
