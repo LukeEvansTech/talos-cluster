@@ -1,5 +1,5 @@
 ---
-# yaml-language-server: $schema=https://kube-schemas.pages.dev/monitoring.coreos.com/prometheusrule_v1.json
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/monitoring.coreos.com/prometheusrule_v1.json
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
@@ -10,7 +10,7 @@ spec:
       rules:
         - alert: GatusEndpointDown
           expr: |
-            gatus_results_endpoint_success{group="${CLUSTER}-external"} == 0
+            gatus_results_endpoint_success{group="external"} == 0
           for: 5m
           annotations:
             summary: >-
@@ -20,7 +20,7 @@ spec:
 
         - alert: GatusEndpointExposed
           expr: |
-            gatus_results_endpoint_success{group="${CLUSTER}-guarded"} == 0
+            gatus_results_endpoint_success{group="guarded"} == 0
           for: 5m
           annotations:
             summary: >-
