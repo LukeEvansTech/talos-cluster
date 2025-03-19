@@ -22,6 +22,9 @@ spec:
       APP: *app
       GATUS_SUBDOMAIN: sh
       VOLSYNC_CAPACITY: 5Gi
+    substituteFrom:
+      - name: cluster-secrets
+        kind: Secret
   prune: true
   retryInterval: 2m
   sourceRef:
