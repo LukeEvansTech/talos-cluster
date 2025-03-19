@@ -1,5 +1,9 @@
 machine:
   features:
+    hostDNS:
+      enabled: true
+      resolveMemberNames: true
+      forwardKubeDNSToHost: false
     kubernetesTalosAPIAccess:
       enabled: true
       allowedRoles:
