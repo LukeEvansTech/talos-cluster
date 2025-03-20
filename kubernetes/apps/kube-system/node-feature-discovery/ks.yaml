@@ -9,7 +9,7 @@ spec:
     labels:
       app.kubernetes.io/name: *app
   interval: 1h
-  path: ./kubernetes/apps/kube-tools/node-feature-discovery
+  path: ./kubernetes/apps/kube-system/node-feature-discovery
   prune: true
   retryInterval: 2m
   sourceRef:
@@ -33,7 +33,7 @@ spec:
     - name: node-feature-discovery
       namespace: kube-tools
   interval: 1h
-  path: ./kubernetes/apps/kube-tools/node-feature-discovery/rules
+  path: ./kubernetes/apps/kube-system/node-feature-discovery/rules
   prune: true
   retryInterval: 2m
   sourceRef:
