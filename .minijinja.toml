@@ -1,0 +1,5 @@
+autoescape = "none"
+env = true
+lstrip-blocks = true
+newline = true
+trim-blocks = true
