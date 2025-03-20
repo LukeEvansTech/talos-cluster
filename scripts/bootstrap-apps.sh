@@ -58,7 +58,7 @@ function apply_sops_secrets() {
     log debug "Applying secrets"
 
     local -r secrets=(
-        "${ROOT_DIR}/bootstrap/github-deploy-key.sops.yaml"
+        # "${ROOT_DIR}/bootstrap/github-deploy-key.sops.yaml"
         "${ROOT_DIR}/kubernetes/components/common/global-vars/cluster-secrets.sops.yaml"
         "${ROOT_DIR}/kubernetes/components/common/sops/sops-age.sops.yaml"
     )
@@ -69,30 +69,46 @@ function apply_sops_secrets() {
             continue
         fi
 
-        # Check if the secret resources are up-to-date
-        if sops exec-file "${secret}" "kubectl --namespace flux-system diff --filename {}" &>/dev/null; then
-            log info "Secret resource is up-to-date" "resource=$(basename "${secret}" ".sops.yaml")"
+        local resource_name=$(basename "${secret}" ".sops.yaml")
+        log info "Processing secret" "resource=${resource_name}"
+
+        # Try to decrypt and see if there are any issues
+        if ! sops --decrypt "${secret}" > /dev/null 2>&1; then
+            log error "Failed to decrypt secret" "resource=${resource_name}"
+            sops --decrypt "${secret}" 2>&1 | head -10  # Show the first few lines of the error
             continue
         fi
 
-        # Apply secret resources
-        if sops exec-file "${secret}" "kubectl --namespace flux-system apply --server-side --filename {}" &>/dev/null; then
-            log info "Secret resource applied successfully" "resource=$(basename "${secret}" ".sops.yaml")"
+        # Check if the secret resources are up-to-date, but show errors if they occur
+        if ! sops exec-file "${secret}" "kubectl --namespace flux-system diff --filename {}"; then
+            log info "Secret resource needs to be updated" "resource=${resource_name}"
+
+            # Apply secret resources and capture the output
+            log info "Attempting to apply secret" "resource=${resource_name}"
+            if output=$(sops exec-file "${secret}" "kubectl --namespace flux-system apply --server-side --filename {}" 2>&1); then
+                log info "Secret resource applied successfully" "resource=${resource_name}"
+            else
+                log error "Failed to apply secret resource" "resource=${resource_name}"
+                echo "Error output: ${output}"
+            fi
         else
-            log error "Failed to apply secret resource" "resource=$(basename "${secret}" ".sops.yaml")"
+            log info "Secret resource is up-to-date" "resource=${resource_name}"
         fi
     done
 }
+
 
 # CRDs to be applied before the helmfile charts are installed
 function apply_crds() {
     log debug "Applying CRDs"
 
     local -r crds=(
+        # No Gateway API at present
         # renovate: datasource=github-releases depName=kubernetes-sigs/gateway-api
-        https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.1/experimental-install.yaml
+        # https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.1/experimental-install.yaml
+        # Prometheus Operator CRDs in Talconfig
         # renovate: datasource=github-releases depName=prometheus-operator/prometheus-operator
-        https://github.com/prometheus-operator/prometheus-operator/releases/download/v0.81.0/stripped-down-crds.yaml
+        # https://github.com/prometheus-operator/prometheus-operator/releases/download/v0.81.0/stripped-down-crds.yaml
         # renovate: datasource=github-releases depName=kubernetes-sigs/external-dns
         https://raw.githubusercontent.com/kubernetes-sigs/external-dns/refs/tags/v0.16.1/docs/sources/crd/crd-manifest.yaml
     )
@@ -109,6 +125,8 @@ function apply_crds() {
         fi
     done
 }
+
+
 
 # Apply Helm releases using helmfile
 function apply_helm_releases() {
@@ -206,8 +224,8 @@ done
 
 
 function main() {
-    check_env KUBECONFIG KUBERNETES_VERSION ROOK_DISK TALOS_VERSION
-    check_cli helmfile jq kubectl kustomize minijinja-cli op talosctl yq
+    check_env KUBECONFIG ROOK_DISK
+    check_cli helmfile jq kubectl kustomize op talosctl yq minijinja-cli
 
     if ! op whoami --format=json &>/dev/null; then
         log error "Failed to authenticate with 1Password CLI"
@@ -215,11 +233,11 @@ function main() {
 
     # Apply resources and Helm releases
     wait_for_nodes
-    wipe_rook_disks
+    # wipe_rook_disks
     apply_crds
+    apply_namespaces
     apply_sops_secrets
     apply_resources
-    apply_namespaces
     apply_helm_releases
 
     log info "Congrats! The cluster is bootstrapped and Flux is syncing the Git repository"
