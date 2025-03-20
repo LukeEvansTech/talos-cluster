@@ -23,7 +23,7 @@ function wait_for_nodes() {
     done
 }
 
-# The application namespaces are created before applying the resources
+# Namespaces to be applied before the SOPS secrets are installed
 function apply_namespaces() {
     log debug "Applying namespaces"
 
@@ -59,8 +59,8 @@ function apply_sops_secrets() {
 
     local -r secrets=(
         "${ROOT_DIR}/bootstrap/github-deploy-key.sops.yaml"
-        "${ROOT_DIR}/kubernetes/components/common/cluster-secrets.sops.yaml"
-        "${ROOT_DIR}/kubernetes/components/common/sops-age.sops.yaml"
+        "${ROOT_DIR}/kubernetes/components/common/global-vars/cluster-secrets.sops.yaml"
+        "${ROOT_DIR}/kubernetes/components/common/sops/sops-age.sops.yaml"
     )
 
     for secret in "${secrets[@]}"; do
@@ -127,24 +127,15 @@ function apply_helm_releases() {
     log info "Helm releases applied successfully"
 }
 
+# Resources to be applied before the helmfile charts are installed
 function apply_resources() {
     log debug "Applying resources"
 
     local -r resources_file="${ROOT_DIR}/bootstrap/resources.yaml.j2"
 
-    if ! output=$(render_template "${resources_file}"); then
-        log error "Failed to render template"
+    if ! output=$(render_template "${resources_file}") || [[ -z "${output}" ]]; then
         exit 1
     fi
-
-    if [[ -z "${output}" ]]; then
-        log error "Template rendered to empty output"
-        exit 1
-    fi
-
-    # Debug: Print the rendered template
-    # log debug "Rendered template:"
-    # echo "${output}"
 
     if echo "${output}" | kubectl diff --filename - &>/dev/null; then
         log info "Resources are up-to-date"
@@ -164,7 +155,7 @@ function wipe_rook_disks() {
     log debug "Wiping Rook disks"
 
     # Skip disk wipe if Rook is detected running in the cluster
-    # TODO: Is there a better way to detect Rook / OSDs?
+    # NOTE: Is there a better way to detect Rook / OSDs?
     if kubectl --namespace rook-ceph get kustomization rook-ceph &>/dev/null; then
         log warn "Rook is detected running in the cluster, skipping disk wipe"
         return
@@ -215,15 +206,20 @@ done
 
 
 function main() {
+    check_env KUBECONFIG KUBERNETES_VERSION ROOK_DISK TALOS_VERSION
     check_cli helmfile jq kubectl kustomize minijinja-cli op talosctl yq
+
+    if ! op whoami --format=json &>/dev/null; then
+        log error "Failed to authenticate with 1Password CLI"
+    fi
 
     # Apply resources and Helm releases
     wait_for_nodes
-    apply_resources
     wipe_rook_disks
-    apply_namespaces
-    apply_sops_secrets
     apply_crds
+    apply_sops_secrets
+    apply_resources
+    apply_namespaces
     apply_helm_releases
 
     log info "Congrats! The cluster is bootstrapped and Flux is syncing the Git repository"
