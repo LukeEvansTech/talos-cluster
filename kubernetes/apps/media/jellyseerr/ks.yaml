@@ -23,6 +23,9 @@ spec:
       GATUS_PATH: /api/v1/status
       GATUS_SUBDOMAIN: requests
       VOLSYNC_CAPACITY: 5Gi
+    substituteFrom:
+      - name: cluster-secrets
+        kind: Secret
   prune: true
   retryInterval: 2m
   sourceRef:
