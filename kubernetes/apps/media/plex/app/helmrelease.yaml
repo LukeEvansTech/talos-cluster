@@ -72,6 +72,13 @@ spec:
       runtimeClassName: nvidia
       # nodeSelector:
       #   nvidia.feature.node.kubernetes.io/gpu: "true"
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: extensions.talos.dev/nonfree-kmod-nvidia-production
+                    operator: Exists
       securityContext:
         runAsNonRoot: true
         runAsUser: 568
