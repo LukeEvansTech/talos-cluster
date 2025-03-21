@@ -70,8 +70,8 @@ spec:
                 memory: 8Gi
     defaultPodOptions:
       runtimeClassName: nvidia
-      nodeSelector:
-        nvidia.feature.node.kubernetes.io/gpu: "true"
+      # nodeSelector:
+      #   nvidia.feature.node.kubernetes.io/gpu: "true"
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
