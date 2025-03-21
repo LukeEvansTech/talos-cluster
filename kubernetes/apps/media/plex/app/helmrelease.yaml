@@ -74,11 +74,11 @@ spec:
       #   nvidia.feature.node.kubernetes.io/gpu: "true"
       securityContext:
         runAsNonRoot: true
-        runAsUser: 1000
-        runAsGroup: 1000
-        fsGroup: 1000
+        runAsUser: 568
+        runAsGroup: 568
+        fsGroup: 568
         fsGroupChangePolicy: OnRootMismatch
-        supplementalGroups: [44]
+        supplementalGroups: [44, 10000] # TODO: Tidy up supplementalGroups when we have a better understanding of what's needed from a TrueNAS perspective
     service:
       app:
         controller: plex
@@ -122,8 +122,8 @@ spec:
       config:
         existingClaim: *app
         # TODO: If setting up Plex for the first time, you'll want to add the globalMounts section
-        # globalMounts:
-        #   - path: /config/Library/Application Support/Plex Media Server
+        globalMounts:
+          - path: /config/Library/Application Support/Plex Media Server
       # Separate PVC for cache to avoid backing up cache files
       cache:
         existingClaim: plex-cache
