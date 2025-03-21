@@ -12,11 +12,11 @@ spec:
   components:
     - ../../../../components/gatus/external
     - ../../../../components/volsync
-  # dependsOn:
-  #   - name: nvidia-device-plugin
-  #     namespace: kube-system
-  #   - name: rook-ceph-cluster
-  #     namespace: rook-ceph
+  dependsOn:
+    - name: nvidia-device-plugin
+      namespace: kube-system
+    - name: rook-ceph-cluster
+      namespace: rook-ceph
   interval: 1h
   path: ./kubernetes/apps/media/plex/app
   postBuild:
@@ -24,7 +24,7 @@ spec:
       APP: *app
       GATUS_PATH: /web/index.html
       VOLSYNC_CAPACITY: 200Gi
-      VOLSYNC_CACHE_CAPACITY: 100Gi
+      # VOLSYNC_CACHE_CAPACITY: 100Gi
   prune: true
   retryInterval: 2m
   sourceRef:
