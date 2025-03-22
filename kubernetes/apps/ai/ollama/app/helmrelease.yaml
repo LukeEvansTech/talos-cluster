@@ -22,10 +22,6 @@ spec:
       ollama:
         annotations:
           reloader.stakater.com/auto: "true"
-        pod:
-          nodeSelector:
-            nvidia.feature.node.kubernetes.io/gpu: "true"
-          runtimeClassName: nvidia
         containers:
           app:
             image:
@@ -48,6 +44,15 @@ spec:
               limits:
                 memory: 8Gi
                 nvidia.com/gpu: 1 # requesting 1 GPU
+    defaultPodOptions:
+      runtimeClassName: nvidia
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: extensions.talos.dev/nonfree-kmod-nvidia-production
+                    operator: Exists
     service:
       app:
         controller: ollama
