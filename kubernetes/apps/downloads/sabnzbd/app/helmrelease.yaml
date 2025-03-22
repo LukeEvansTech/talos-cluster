@@ -193,7 +193,7 @@ spec:
           - path: /var/run
       downloads:
         type: nfs
-        server: storage.${SECRET_INTERNAL_DOMAIN}
+        server: ${SECRET_STORAGE_SERVER}
         path: ${SECRET_STORAGE_SERVER_DOWNLOADS_NFS}
         globalMounts:
           - path: /downloads
