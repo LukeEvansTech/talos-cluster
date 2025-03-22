@@ -3,7 +3,7 @@
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
-  name: &app homebox
+  name: &app uptimekuma
   namespace: &namespace default
 spec:
   commonMetadata:
@@ -13,11 +13,11 @@ spec:
     - ../../../../components/gatus/guarded
     - ../../../../components/volsync
   interval: 1h
-  path: ./kubernetes/apps/default/homebox/app
+  path: ./kubernetes/apps/default/uptimekuma/app
   postBuild:
     substitute:
       APP: *app
-      VOLSYNC_CAPACITY: 15Gi
+      VOLSYNC_CAPACITY: 5Gi
     substituteFrom:
       - name: cluster-secrets
         kind: Secret
