@@ -10,3 +10,4 @@ resources:
   - ./changedetection/ks.yaml
   - ./echo-server/ks.yaml
   - ./homebox/ks.yaml
+  - ./uptimekuma/ks.yaml
