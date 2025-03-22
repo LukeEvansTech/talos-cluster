@@ -1,0 +1,171 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: &app prowlarr
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: app-template
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      strategy: rollback
+      retries: 3
+  values:
+    controllers:
+      prowlarr:
+        labels:
+          gluetun: "true"
+        annotations:
+          reloader.stakater.com/auto: "true"
+        initContainers:
+          gluetun:
+            image:
+              repository: ghcr.io/qdm12/gluetun
+              tag: v3.40.0
+            env:
+              # BLOCK_MALICIOUS: off # save 300MB of RAM; https://github.com/qdm12/gluetun/issues/2054
+              DOT: off
+              DOT_CACHING: off
+              DOT_IPV6: off
+              # is absolutely needed if the container is expected to be able to resolve or communicate to any cluster services, without it cluster services cannot be resolved consistently or at all in many setups.
+              DNS_KEEP_NAMESERVER: on
+              FIREWALL: true
+              FIREWALL_DEBUG: on
+              FIREWALL_INPUT_PORTS: 80,9999
+              FIREWALL_OUTBOUND_SUBNETS: "${CLUSTER_PODS_CIDR},${CLUSTER_SVCS_CIDR},${CR_LAN_CIDR},${GH_LAN_CIDR},${PW_LAN_CIDR}"
+              HEALTH_SERVER_ADDRESS: ":9999"
+              HEALTH_SERVER_DISABLE_LOOP: on
+              HEALTH_VPN_DURATION_INITIAL: 60s
+              LOG_LEVEL: debug
+              #TODO - Enable when ready - https://github.com/qdm12/gluetun-wiki/blob/main/setup/options/others.md. Getting ""ERROR public ip check settings: API name: API name is not valid: "cloudflare" can only be "ipinfo" or "ip2location""
+              # PUBLICIP_API: cloudflare
+              # STORAGE_FILEPATH: "" # prevent memory spike and avoid I/O
+              TZ: ${TIMEZONE}
+              UPDATER_PERIOD: 12h
+              VERSION_INFORMATION: off
+              VPN_INTERFACE: wg0
+              VPN_IPV6_SERVER: off
+              VPN_TYPE: wireguard
+            envFrom: &envFrom
+              - secretRef:
+                  name: prowlarr-secret
+            probes:
+              liveness:
+                enabled: false
+                custom: true
+                spec:
+                  httpGet:
+                    path: /
+                    port: 9999
+                  timeoutSeconds: 10
+                  periodSeconds: 30
+                  failureThreshold: 5
+              startup:
+                enabled: false
+                custom: true
+                spec:
+                  httpGet:
+                    path: /
+                    port: 9999
+                  initialDelaySeconds: 10
+                  periodSeconds: 10
+                  failureThreshold: 5
+            restartPolicy: Always
+            securityContext:
+              capabilities:
+                add:
+                  - NET_ADMIN
+              allowPrivilegeEscalation: false
+            resources:
+              limits:
+                kernel.org/tun: 1
+        containers:
+          app:
+            image:
+              repository: ghcr.io/home-operations/prowlarr
+              tag: 1.32.2.4987@sha256:77f6b6850d6191f68d2d2d4d21655b103acc5c6f6243d8cb62bb75888499b78a
+            env:
+              TZ: ${TIMEZONE}
+              PROWLARR__APP__INSTANCENAME: Prowlarr
+              PROWLARR__APP__THEME: dark
+              PROWLARR__LOG__LEVEL: info
+              PROWLARR__SERVER__PORT: &port 80
+              PROWLARR__UPDATE__BRANCH: develop
+            envFrom: *envFrom
+            probes:
+              liveness: &probes
+                enabled: false
+                custom: true
+                spec:
+                  httpGet:
+                    path: /ping
+                    port: *port
+                  initialDelaySeconds: 0
+                  periodSeconds: 10
+                  timeoutSeconds: 1
+                  failureThreshold: 3
+              readiness: *probes
+            securityContext:
+              runAsNonRoot: true
+              runAsUser: 568
+              runAsGroup: 568
+              fsGroup: 568
+              fsGroupChangePolicy: OnRootMismatch
+              supplementalGroups: [10000]
+              seccompProfile: { type: RuntimeDefault }
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities: { drop: ["ALL"] }
+            resources:
+              requests:
+                cpu: 100m
+              limits:
+                memory: 1Gi
+        pod:
+          labels:
+            gluetun: "true"
+    service:
+      app:
+        controller: *app
+        ports:
+          http:
+            port: *port
+    ingress:
+      app:
+        className: internal
+        annotations:
+          # gethomepage.dev/enabled: "true"
+          # gethomepage.dev/group: Downloads
+          # gethomepage.dev/name: Prowlarr
+          # gethomepage.dev/icon: prowlarr.png
+          # gethomepage.dev/description: Torrent/NZB Indexer Management
+          # gethomepage.dev/widget.type: prowlarr
+          # gethomepage.dev/widget.url: http://prowlarr.downloads.svc.cluster.local
+          # gethomepage.dev/widget.key: "{{ `{{HOMEPAGE_VAR_PROWLARR_TOKEN}}` }}"
+          external-dns.alpha.kubernetes.io/target: internal.${SECRET_DOMAIN}
+        hosts:
+          - host: "{{ .Release.Name }}.${SECRET_DOMAIN}"
+            paths:
+              - path: /
+                pathType: Prefix
+                service:
+                  identifier: app
+                  port: http
+          - host: "{{ .Release.Name }}.${SECRET_INTERNAL_DOMAIN}"
+            paths:
+              - path: /
+                service:
+                  identifier: app
+                  port: http
+    persistence:
+      config:
+        type: emptyDir
+      tmp:
+        type: emptyDir

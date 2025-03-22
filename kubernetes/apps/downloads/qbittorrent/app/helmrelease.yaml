@@ -1,0 +1,225 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: &app qbittorrent
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: app-template
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      strategy: rollback
+      retries: 3
+  values:
+    controllers:
+      qbittorrent:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        containers:
+          app:
+            nameOverride: *app
+            image:
+              repository: ghcr.io/home-operations/qbittorrent
+              tag: 5.0.4@sha256:ffb02dfa7f017a55efc2718853689216ef2a85746b95981e575e29ef34234c75
+            env:
+              # UMASK: "022"
+              QBT_WEBUI_PORT: &port 80
+              QBT_TORRENTING_PORT: &BT-port 51749
+              # QBT_Preferences__WebUI__AlternativeUIEnabled: true
+              # QBT_Preferences__WebUI__AuthSubnetWhitelistEnabled: true
+              # QBT_Preferences__WebUI__AuthSubnetWhitelist: "${CLUSTER_PODS_CIDR},${CLUSTER_SVCS_CIDR},${CR_LAN_CIDR},${GH_LAN_CIDR},${PW_LAN_CIDR}"
+              QBT_Preferences__WebUI__LocalHostAuth: false
+              # QBT_Preferences__WebUI__RootFolder: /addons/VueTorrent
+            probes:
+              liveness: &probes
+                enabled: false
+                custom: true
+                spec:
+                  httpGet:
+                    path: /api/v2/app/version
+                    port: *port
+                  initialDelaySeconds: 0
+                  timeoutSeconds: 10
+                  periodSeconds: 5
+                  failureThreshold: 5
+              readiness: *probes
+            securityContext:
+              runAsUser: 568
+              runAsGroup: 568
+              runAsNonRoot: true
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop:
+                  - ALL
+          vuetorrent:
+            dependsOn: app
+            image:
+              repository: registry.k8s.io/git-sync/git-sync
+              tag: v4.4.0
+            args:
+              - --repo=https://github.com/WDaan/VueTorrent
+              - --ref=latest-release
+              - --period=86400s
+              - --root=/addons
+            resources:
+              requests:
+                cpu: 10m
+                memory: 25Mi
+        initContainers:
+          gluetun:
+            image:
+              repository: ghcr.io/qdm12/gluetun
+              tag: v3.40.0
+            env:
+              # BLOCK_MALICIOUS: off # save 300MB of RAM; https://github.com/qdm12/gluetun/issues/2054
+              DOT: off
+              DOT_CACHING: off
+              DOT_IPV6: off
+              # is absolutely needed if the container is expected to be able to resolve or communicate to any cluster services, without it cluster services cannot be resolved consistently or at all in many setups.
+              DNS_KEEP_NAMESERVER: on
+              FIREWALL: true
+              FIREWALL_DEBUG: on
+              FIREWALL_INPUT_PORTS: 80,9999
+              FIREWALL_OUTBOUND_SUBNETS: "${CLUSTER_PODS_CIDR},${CLUSTER_SVCS_CIDR},${CR_LAN_CIDR},${GH_LAN_CIDR},${PW_LAN_CIDR}"
+              HEALTH_SERVER_ADDRESS: ":9999"
+              HEALTH_SERVER_DISABLE_LOOP: on
+              HEALTH_VPN_DURATION_INITIAL: 60s
+              LOG_LEVEL: debug
+              #TODO - Enable when ready - https://github.com/qdm12/gluetun-wiki/blob/main/setup/options/others.md. Getting ""ERROR public ip check settings: API name: API name is not valid: "cloudflare" can only be "ipinfo" or "ip2location""
+              # PUBLICIP_API: cloudflare
+              # STORAGE_FILEPATH: "" # prevent memory spike and avoid I/O
+              TZ: ${TIMEZONE}
+              UPDATER_PERIOD: 12h
+              VERSION_INFORMATION: off
+              VPN_INTERFACE: wg0
+              VPN_IPV6_SERVER: off
+              VPN_TYPE: wireguard
+            envFrom:
+              - secretRef:
+                  name: qbittorrent-secret
+            probes:
+              liveness:
+                enabled: false
+                custom: true
+                spec:
+                  httpGet:
+                    path: /
+                    port: 9999
+                  timeoutSeconds: 10
+                  periodSeconds: 30
+                  failureThreshold: 5
+              startup:
+                enabled: false
+                custom: true
+                spec:
+                  httpGet:
+                    path: /
+                    port: 9999
+                  initialDelaySeconds: 10
+                  periodSeconds: 10
+                  failureThreshold: 5
+            restartPolicy: Always
+            securityContext:
+              capabilities:
+                add:
+                  - NET_ADMIN
+              allowPrivilegeEscalation: false
+            resources:
+              limits:
+                kernel.org/tun: 1
+        pod:
+          labels:
+            gluetun: "true"
+
+          # dnsdist:
+          #   image:
+          #     repository: docker.io/powerdns/dnsdist-19
+          #     tag: 1.9.7
+          #   restartPolicy: Always
+    defaultPodOptions:
+      terminationGracePeriodSeconds: 300
+      securityContext:
+        fsGroup: 568
+        fsGroupChangePolicy: "OnRootMismatch"
+    service:
+      app:
+        controller: *app
+        nameOverride: *app
+        ports:
+          http:
+            port: *port
+
+      gluetun:
+        controller: *app
+        nameOverride: gluetun
+        ports:
+          http:
+            port: 8888
+    ingress:
+      app:
+        className: internal
+        annotations:
+          external-dns.alpha.kubernetes.io/target: internal.${SECRET_DOMAIN}
+          # gethomepage.dev/enabled: "true"
+          # gethomepage.dev/group: Downloads
+          # gethomepage.dev/name: QBittorrent
+          # gethomepage.dev/icon: qbittorrent.svg
+          # gethomepage.dev/widget.type: qbittorrent
+          # gethomepage.dev/widget.url: http://qbittorrent.downloads.svc.cluster.local
+        hosts:
+          - host: "{{ .Release.Name }}.${SECRET_DOMAIN}"
+            paths:
+              - path: /
+                pathType: Prefix
+                service:
+                  identifier: app
+                  port: http
+          - host: "{{ .Release.Name }}.${SECRET_INTERNAL_DOMAIN}"
+            paths:
+              - path: /
+                service:
+                  identifier: app
+                  port: http
+    persistence:
+      config:
+        existingClaim: *app
+        advancedMounts:
+          qbittorrent:
+            app:
+              - path: /config
+      downloads:
+        type: nfs
+        server: ${SECRET_STORAGE_SERVER}
+        path: ${SECRET_STORAGE_SERVER_DOWNLOADS_NFS}
+        globalMounts:
+          - path: /downloads
+      addons:
+        type: emptyDir
+        globalMounts:
+          - path: /addons
+
+      # dnsdist:
+      #   type: configMap
+      #   name: qbittorrent-dnsdist
+      #   advancedMounts:
+      #     qbittorrent:
+      #       dnsdist:
+      #         - path: /etc/dnsdist/dnsdist.conf
+      #           subPath: dnsdist.conf
+      #           readOnly: true
+
+      # # TODO: Remove once snatches are sufficient
+      # tempmedia:
+      #   type: nfs
+      #   server: ${TRUENAS_IP}
+      #   path: /mnt/speed/snatch
+      #   globalMounts:
+      #     - path: /speed/snatch
