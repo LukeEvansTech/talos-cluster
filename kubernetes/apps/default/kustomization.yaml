@@ -9,3 +9,4 @@ resources:
   - ./atuin/ks.yaml
   - ./changedetection/ks.yaml
   - ./echo-server/ks.yaml
+  - ./homebox/ks.yaml
