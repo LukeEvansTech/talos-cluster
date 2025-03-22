@@ -7,13 +7,15 @@ resources:
   - ./pvc.yaml
   - ./helmrelease.yaml
 configMapGenerator:
-  - name: radarr-configmap
+  - name: sonarr-configmap
     files:
+      - codec-tagger.sh=./resources/codec-tagger.sh
       - pushover-notifier.sh=./resources/pushover-notifier.sh
-  #TODO: Uncomment this block when you have a loki rule for Radarr
-  # - name: radarr-loki-rules
+      - tba-refresher.sh=./resources/tba-refresher.sh
+  #TODO: Uncomment this block when you have a loki rule for Sonarr
+  # - name: sonarr-loki-rules
   #   files:
-  #     - radarr.yaml=./lokirule.yaml
+  #     - sonarr.yaml=./lokirule.yaml
   #   options:
   #     labels:
   #       loki_rule: "true"
