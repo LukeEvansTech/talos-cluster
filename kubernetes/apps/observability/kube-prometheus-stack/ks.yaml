@@ -20,6 +20,9 @@ spec:
     substitute:
       APP: kube-prometheus-stack
       GATUS_SUBDOMAIN: prometheus
+    substituteFrom:
+      - name: cluster-secrets
+        kind: Secret
   prune: true
   retryInterval: 2m
   sourceRef:
