@@ -116,4 +116,4 @@ Be sure to check out [kubesearch.dev](https://kubesearch.dev/) for ideas on how 
 
 ## 📜 Changelog
 
-See my commit histroy [commit history](https://github.com/lukeevanstech/talos-cluster/commits/)
+See my commit history [commit history](https://github.com/lukeevanstech/talos-cluster/commits/)
