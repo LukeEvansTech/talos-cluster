@@ -1,0 +1,326 @@
+*** Targets ***
+
+probe = FPing
+
+menu = Top
+title = Network Latency Grapher
+remark = Welcome to the SmokePing website of WORKS Company. \
+         Here you will learn all about the latency of our network.
+
++ InternetSites
+
+menu = Internet Sites
+title = Internet Sites
+
+++ Facebook
+menu = Facebook
+title = Facebook
+host = facebook.com
+
+++ Youtube
+menu = YouTube
+title = YouTube
+host = youtube.com
+
+++ GoogleSearch
+menu = Google
+title = google.com
+host = google.com
+
+++ GitHubPages
+menu = GitHub Pages
+title = GitHub Pages
+host = pages.github.com
+
+++ GitHub
+menu = GitHub
+title = GitHub
+host = github.com
+
+++ GitHubAPI
+menu = GitHub API
+title = GitHub API
+host = api.github.com
+
+++ ChatGPT
+menu = ChatGPT
+title = ChatGPT
+host = chatgpt.com
+
+++ Claude
+menu = Claude
+title = Claude
+host = claude.ai
+
+++ OpenAI
+menu = OpenAI
+title = OpenAI
+host = api.openai.com
+
+++ Anthropic
+menu = Anthropic
+title = Anthropic
+host = api.anthropic.com
+
+++ Reddit
+menu = Reddit
+title = Reddit
+host = reddit.com
+
+++ Instagram
+menu = Instagram
+title = Instagram
+host = instagram.com
+
+
++ CDN
+menu = CDN
+title = CDN
+
+++ EdgeCast
+menu = adn.20765.psicdn.net
+title = adn.20765.psicdn.net (EdgeCast)
+host = adn.20765.psicdn.net
+
+++ Google
+menu = ajax.googleapis.com
+title = ajax.googleapis.com (Google)
+host = ajax.googleapis.com
+
+++ Microsoft
+menu = ajax.microsoft.com
+title = ajax.microsoft.com (Microsoft)
+host = ajax.microsoft.com
+
+++ Akamai
+menu = bahamut.akamaized.net
+title = bahamut.akamaized.net (Akamai)
+host = bahamut.akamaized.net
+
+++ CacheFly
+menu = cachefly.cachefly.net
+title = cachefly.cachefly.net (CacheFly)
+host = cachefly.cachefly.net
+
+++ FastlyGithub
+menu = github.global.ssl.fastly.net
+title = github.global.ssl.fastly.net (Fastly)
+host = github.global.ssl.fastly.net
+
+++ NetDNA
+menu = netdna.bootstrapcdn.com
+title = netdna.bootstrapcdn.com (NetDNA)
+host = netdna.bootstrapcdn.com
+
+++ CloudFront
+menu = d1bxh8uas1mnw7.cloudfront.net
+title = d1bxh8uas1mnw7.cloudfront.net (CloudFront)
+host = d1bxh8uas1mnw7.cloudfront.net
+
+++ CloudFlare
+menu = cdnjs.cloudflare.com
+title = cdnjs.cloudflare.com (CloudFlare)
+host = cdnjs.cloudflare.com
+
+++ FastlyReddit
+menu = dualstack.reddit.map.fastly.net
+title = dualstack.reddit.map.fastly.net (Fastly)
+host = dualstack.reddit.map.fastly.net
+
+
++ DNS
+menu = DNS
+title = DNS
+
+++ GoogleDNS1
+menu = Google DNS 1
+title = Google DNS 8.8.8.8
+host = 8.8.8.8
+
+++ GoogleDNS2
+menu = Google DNS 2
+title = Google DNS 8.8.4.4
+host = 8.8.4.4
+
+++ OpenDNS1
+menu = OpenDNS1
+title = OpenDNS1
+host = 208.67.222.222
+
+++ OpenDNS2
+menu = OpenDNS2
+title = OpenDNS2
+host = 208.67.220.220
+
+++ CloudflareDNS1
+menu = Cloudflare DNS 1
+title = Cloudflare DNS 1.1.1.1
+host = 1.1.1.1
+
+++ CloudflareDNS2
+menu = Cloudflare DNS 2
+title = Cloudflare DNS 1.0.0.1
+host = 1.0.0.1
+
+++ L3-1
+menu = Level3 DNS 1
+title = Level3 DNS 4.2.2.1
+host = 4.2.2.1
+
+++ L3-2
+menu = Level3 DNS 2
+title = Level3 DNS 4.2.2.2
+host = 4.2.2.2
+
+++ Quad9
+menu = Quad9
+title = Quad9 DNS 9.9.9.9
+host = 9.9.9.9
+
++ DNSProbes
+menu = DNS Probes
+title = DNS Probes
+probe = DNS
+
+++ GoogleDNS1
+menu = Google DNS 1
+title = Google DNS 8.8.8.8
+host = 8.8.8.8
+
+++ GoogleDNS2
+menu = Google DNS 2
+title = Google DNS 8.8.4.4
+host = 8.8.4.4
+
+++ OpenDNS1
+menu = OpenDNS1
+title = OpenDNS1
+host = 208.67.222.222
+
+++ OpenDNS2
+menu = OpenDNS2
+title = OpenDNS2
+host = 208.67.220.220
+
+++ CloudflareDNS1
+menu = Cloudflare DNS 1
+title = Cloudflare DNS 1.1.1.1
+host = 1.1.1.1
+
+++ CloudflareDNS2
+menu = Cloudflare DNS 2
+title = Cloudflare DNS 1.0.0.1
+host = 1.0.0.1
+
+++ L3-1
+menu = Level3 DNS 1
+title = Level3 DNS 4.2.2.1
+host = 4.2.2.1
+
+++ L3-2
+menu = Level3 DNS 2
+title = Level3 DNS 4.2.2.2
+host = 4.2.2.2
+
+++ Quad9
+menu = Quad9
+title = Quad9 DNS 9.9.9.9
+host = 9.9.9.9
+
++ LocalInternet
+
+menu = Local Internet
+title = Local Internet Connectivity
+
++ AWS
+
+menu = AWS Regions
+title = AWS Regions
+# probe = Curl
+# urlformat = https://%host%/latency-test.json
+# insecure_ssl = 1
+
+++ Sydney
+menu = Sydney
+title = Sydney - ap-southeast-2
+host = ec2.ap-southeast-2.amazonaws.com
+
+++ Melbourne
+menu = Melbourne
+title = Melbourne - ap-southeast-4
+host = ec2.ap-southeast-4.amazonaws.com
+
+++ NCalifornia
+menu = N. California
+title = N. California - us-west-1
+host = ec2.us-west-1.amazonaws.com
+
+++ Oregon
+menu = Oregon
+title = Oregon - us-west-2
+host = ec2.us-west-2.amazonaws.com
+
+++ NVirginia
+menu = N. Virginia
+title = N. Virginia - us-east-1
+host = ec2.us-east-1.amazonaws.com
+
+++ Ohio
+menu = Ohio
+title = Ohio - us-east-2
+host = ec2.us-east-2.amazonaws.com
+
+++ London
+menu = London
+title = London - eu-west-2
+host = ec2.eu-west-2.amazonaws.com
+
++ Azure
+
+menu = Azure Services
+title = Azure Services
+
+++ AzurePortal
+menu = Azure Portal
+title = Azure Portal - portal.azure.com
+host = portal.azure.com
+
+++ OfficeAdmin
+menu = O365 Admin Portal
+title = O365 Admin Portal - admin.microsoft.com
+host = admin.microsoft.com
+
+++ OfficeAuthService
+menu = O365 Authentication Service
+title = O365 Auth Service - login.microsoftonline.com
+host = login.microsoftonline.com
+
+++ IntuneEnrollment
+menu = Intune Enrollment Service
+title = Intune Enrollment Service - enrollment.manage.microsoft.com
+host = enrollment.manage.microsoft.com
+
+++ AzureADRegistration
+menu = AAD Registration Service
+title = AAD Registration Service - enterpriseregistration.windows.net
+host = enterpriseregistration.windows.net
+
+++ AADIAM
+menu = AAD IAM Service
+title = AAD IAM Service - main.iam.ad.ext.azure.com
+host = main.iam.ad.ext.azure.com
+
+++ AADGraph
+menu = AAD Graph API
+title = AAD Graph API - graph.windows.net
+host = graph.windows.net
+
+++ MSGraph
+menu = Microsoft Graph API
+title = MS Graph API - graph.microsoft.com
+host = graph.microsoft.com
+
+++ AzureRESTAPI
+menu = Azure REST API
+title = Azure REST API - management.azure.com
+host = management.azure.com
