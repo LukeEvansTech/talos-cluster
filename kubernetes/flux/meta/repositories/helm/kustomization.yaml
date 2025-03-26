@@ -9,8 +9,8 @@ resources:
   - ./cilium.yaml
   - ./cloudnative-pg.yaml
   - ./controlplaneio.yaml
-  - ./coredns.yaml
-  - ./descheduler.yaml
+  # - ./coredns.yaml
+  # - ./descheduler.yaml
   - ./external-dns.yaml
   - ./external-secrets.yaml
   - ./grafana.yaml
@@ -18,12 +18,12 @@ resources:
   - ./jetstack.yaml
   - ./k8s-gateway.yaml
   - ./metrics-server.yaml
-  - ./node-feature-discovery.yaml
-  - ./nvidia-device-plugin-charts.yaml
+  # - ./node-feature-discovery.yaml
+  # - ./nvidia-device-plugin-charts.yaml
   # - ./openebs.yaml
-  - ./piraeus.yaml
+  # - ./piraeus.yaml
   - ./postfinance.yaml
   - ./prometheus-community.yaml
   - ./rook-ceph.yaml
-  - ./spegel.yaml
-  - ./stakater.yaml
+  # - ./spegel.yaml
+  # - ./stakater.yaml
