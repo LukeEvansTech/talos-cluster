@@ -95,13 +95,7 @@ spec:
           - path: /data/maddy.conf
             subPath: maddy.conf
             readOnly: true
-      tls:
-        enabled: true
-        type: secret
-        name: tls.smtp-relay
-        globalMounts:
-          - path: /data
-            readOnly: true
+      # TLS certificate mount removed as we're using insecure mode
       cache:
         type: emptyDir
         globalMounts:
