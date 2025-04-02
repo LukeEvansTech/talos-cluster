@@ -94,12 +94,12 @@ Alternative solutions to the first two of these problems would be to host a Kube
 
 | Service                                     | Use                                                               | Cost          |
 | ------------------------------------------- | ----------------------------------------------------------------- | ------------- |
-| [BitWarden](https://bitwarden.com/)         | Secrets with [External Secrets](https://external-secrets.io/)     | ~$10/yr       |
+| [1Password](https://1password.com/)         | Secrets with [External Secrets](https://external-secrets.io/)     | ~$65/yr       |
 | [Cloudflare](https://www.cloudflare.com/)   | Domain and S3                                                     | ~$30/yr       |
 | [GitHub](https://github.com/)               | Hosting this repository and continuous integration/deployments    | Free          |
 | [Pushover](https://pushover.net/)           | Kubernetes Alerts and application notifications                   | $5 OTP        |
 | [Healthchecks.io](https://healthchecks.io/) | Monitoring internet connectivity and external facing applications | Free          |
-|                                             |                                                                   | Total: ~$5/mo |
+|                                             |                                                                   | Total: ~$7/mo |
 
 ---
 ## 🤝 Thanks
