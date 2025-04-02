@@ -67,8 +67,9 @@ spec:
     service:
       app:
         controller: *app
-        type: LoadBalancer
-        loadBalancerIP: ${SVC_SMTP_RELAY_ADDR}
+        annotations:
+          external-dns.alpha.kubernetes.io/hostname: smtp.${SECRET_DOMAIN}
+          io.cilium/lb-ipam-ips: ${SVC_SMTP_RELAY_ADDR}
         ports:
           http:
             port: *metricsPort
