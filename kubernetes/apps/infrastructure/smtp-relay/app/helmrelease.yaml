@@ -92,6 +92,16 @@ spec:
           - path: /data/maddy.conf
             subPath: maddy.conf
             readOnly: true
+      tls:
+        type: secret
+        name: tls.smtp-relay
+        globalMounts:
+          - path: /data/tls.crt
+            subPath: tls.crt
+            readOnly: true
+          - path: /data/tls.key
+            subPath: tls.key
+            readOnly: true
       cache:
         type: emptyDir
         globalMounts:
