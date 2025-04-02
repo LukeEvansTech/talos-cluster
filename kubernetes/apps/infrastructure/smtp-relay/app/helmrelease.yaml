@@ -100,7 +100,7 @@ spec:
         type: secret
         name: tls.smtp-relay
         globalMounts:
-          - path: /tls
+          - path: /data
             readOnly: true
       cache:
         type: emptyDir
