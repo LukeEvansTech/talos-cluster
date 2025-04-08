@@ -10,5 +10,6 @@ resources:
   - ./changedetection/ks.yaml
   - ./echo-server/ks.yaml
   - ./homebox/ks.yaml
+  - ./karakeep/ks.yaml
   - ./smokeping/ks.yaml
   - ./uptimekuma/ks.yaml
