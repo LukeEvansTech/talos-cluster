@@ -149,13 +149,13 @@ spec:
               - path: /
                 pathType: Prefix
                 service:
-                  identifier: karakeep
+                  identifier: app
                   port: http
           - host: "{{ .Release.Name }}.${SECRET_INTERNAL_DOMAIN}"
             paths:
               - path: /
                 service:
-                  identifier: karakeep
+                  identifier: app
                   port: http
 
     persistence:
