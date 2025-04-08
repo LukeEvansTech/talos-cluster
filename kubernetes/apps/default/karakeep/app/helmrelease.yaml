@@ -111,11 +111,9 @@ spec:
               - --experimental-dumpless-upgrade
             env:
               MEILI_NO_ANALYTICS: true
-              MEILI_MASTER_KEY:
-                valueFrom:
-                  secretKeyRef:
-                    name: karakeep-secret
-                    key: meilisearch_master_key
+            envFrom:
+              - secretRef:
+                  name: karakeep-secret
             resources:
               requests:
                 cpu: 10m
