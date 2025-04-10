@@ -156,9 +156,11 @@ spec:
             readOnly: true
       scripts:
         type: configMap
-        name: bazarr-configmap
+        name: bazarr-scripts
         defaultMode: 0775
         globalMounts:
-          - readOnly: true
+          - path: /scripts/subcleaner.sh
+            subPath: subcleaner.sh
+            readOnly: true
       tmp:
         type: emptyDir
