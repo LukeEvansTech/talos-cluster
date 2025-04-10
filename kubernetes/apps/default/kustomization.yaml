@@ -15,4 +15,5 @@ resources:
   - ./homebox/ks.yaml
   - ./karakeep/ks.yaml
   - ./smokeping/ks.yaml
+  - ./stirling-pdf/ks.yaml
   - ./uptimekuma/ks.yaml
