@@ -15,6 +15,9 @@ spec:
   interval: 1h
   path: ./kubernetes/apps/default/stirling-pdf/app
   postBuild:
+    substitute:
+      APP: *app
+      VOLSYNC_CAPACITY: 5Gi
     substituteFrom:
       - name: cluster-secrets
         kind: Secret
