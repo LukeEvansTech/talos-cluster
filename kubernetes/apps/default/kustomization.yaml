@@ -13,6 +13,7 @@ resources:
   - ./echo-server/ks.yaml
   - ./fusion/ks.yaml
   - ./homebox/ks.yaml
+  - ./it-tools/ks.yaml
   - ./karakeep/ks.yaml
   - ./smokeping/ks.yaml
   - ./stirling-pdf/ks.yaml
