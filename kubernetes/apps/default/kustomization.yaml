@@ -8,6 +8,7 @@ components:
 resources:
   - ./atuin/ks.yaml
   - ./changedetection/ks.yaml
+  - ./cyberchef/ks.yaml
   - ./echo-server/ks.yaml
   - ./fusion/ks.yaml
   - ./homebox/ks.yaml
