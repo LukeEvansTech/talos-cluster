@@ -23,8 +23,8 @@ spec:
         containers:
           app:
             image:
-              repository: ghcr.io/onedr0p/atuin-server-sqlite
-              tag: v18.3.0@sha256:9d8e8b983d8a8113d87a72111b158552d49ad050ef98ebfe3e7bdd12a5207466
+              repository: ghcr.io/home-operations/atuin-server-sqlite
+              tag: 18.4.0@sha256:ba9807985d6d8f601f6887894b01ae65dee2280c0a0bb8b2f7bba50e7376f39a
             env:
               ATUIN_PORT: &port 80
               ATUIN_OPEN_REGISTRATION: "true"
