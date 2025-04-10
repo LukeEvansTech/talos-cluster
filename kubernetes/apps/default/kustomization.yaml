@@ -9,6 +9,7 @@ resources:
   - ./atuin/ks.yaml
   - ./changedetection/ks.yaml
   - ./echo-server/ks.yaml
+  - ./fusion/ks.yaml
   - ./homebox/ks.yaml
   - ./karakeep/ks.yaml
   - ./smokeping/ks.yaml
