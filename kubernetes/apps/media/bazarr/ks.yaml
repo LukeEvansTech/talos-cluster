@@ -16,11 +16,14 @@ spec:
     - name: rook-ceph-cluster
       namespace: rook-ceph
   interval: 1h
-  path: ./kubernetes/apps/default/media/app
+  path: ./kubernetes/apps/media/bazarr/app
   postBuild:
     substitute:
       APP: *app
       VOLSYNC_CAPACITY: 5Gi
+    substituteFrom:
+      - name: cluster-secrets
+        kind: Secret
   prune: true
   retryInterval: 2m
   sourceRef:
