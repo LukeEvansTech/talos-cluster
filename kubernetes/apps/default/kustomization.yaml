@@ -9,6 +9,7 @@ resources:
   - ./actual/ks.yaml
   - ./atuin/ks.yaml
   - ./changedetection/ks.yaml
+  - ./convertx/ks.yaml
   - ./cyberchef/ks.yaml
   - ./echo-server/ks.yaml
   - ./fusion/ks.yaml
