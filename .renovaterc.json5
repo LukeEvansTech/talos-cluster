@@ -11,7 +11,6 @@
     "github>LukeEvansTech/talos-cluster//.renovate/labels.json5",
     "github>LukeEvansTech/talos-cluster//.renovate/semanticCommits.json5",
     ":automergeBranch",
-    ":disableRateLimiting",
     ":dependencyDashboard",
     ":semanticCommits",
     ":timezone(Europe/London)",
