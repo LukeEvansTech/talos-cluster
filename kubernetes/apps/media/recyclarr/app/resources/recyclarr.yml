@@ -1,106 +1,249 @@
 ---
 # yaml-language-server: $schema=https://raw.githubusercontent.com/recyclarr/recyclarr/master/schemas/config-schema.json
+
+##########################################
+# SONARR CONFIGURATION
+##########################################
+# This section configures Recyclarr to sync quality profiles, custom formats, and
+# scoring from TRaSH guides to your Sonarr instance. It helps automate the process
+# of maintaining optimal download settings for TV shows.
 sonarr:
   sonarr:
-    base_url: http://sonarr.default.svc.cluster.local
+    # Connection Settings
+    # ------------------
+    # The URL where your Sonarr instance can be reached inside the cluster
+    base_url: http://sonarr.media.svc.cluster.local
+    # API key from Sonarr (stored in environment variable for security)
     api_key: !env_var SONARR_API_KEY
-    delete_old_custom_formats: true
-    replace_existing_custom_formats: true
+
+    # Custom Format Management
+    # -----------------------
+    # Controls how existing custom formats are handled when syncing
+    # Setting both to true ensures you always have the latest recommended formats
+    delete_old_custom_formats: true      # Remove formats no longer in the config
+    replace_existing_custom_formats: true # Update existing formats with new definitions
+
+    # Templates to Include
+    # -------------------
+    # These templates come from TRaSH guides and represent recommended configurations
+    # Each template contains pre-defined quality definitions, profiles or custom formats
     include:
+      # Base quality definition for TV series
       - template: sonarr-quality-definition-series
-      - template: sonarr-v4-quality-profile-web-1080p
-      - template: sonarr-v4-custom-formats-web-1080p
+
+      # 1080p specific templates for web content
+      - template: sonarr-v4-quality-profile-web-1080p   # Creates the quality profile
+      - template: sonarr-v4-custom-formats-web-1080p    # Adds custom formats for 1080p
+
+      # 4K/2160p specific templates for web content
+      - template: sonarr-v4-quality-profile-web-2160p   # Creates the quality profile
+      - template: sonarr-v4-custom-formats-web-2160p    # Adds custom formats for 2160p
+
+      # Anime specific templates
+      - template: sonarr-v4-quality-profile-anime       # Creates anime quality profile
+      - template: sonarr-v4-custom-formats-anime        # Adds anime-specific formats
+
+    # Quality Profiles Configuration
+    # ----------------------------
+    # These define or modify quality profiles in Sonarr
     quality_profiles:
+      # Simple profile that uses all settings from the template
       - name: WEB-1080p
+
+      # Custom "ANY" profile with detailed quality preferences
+      - name: ANY
+        # Reset scores for formats not explicitly defined
+        reset_unmatched_scores:
+          enabled: true
+
+        # Automatic upgrade settings
+        upgrade:
+          allowed: true                   # Enable upgrading to better quality
+          until_quality: WEB 1080p        # Stop upgrading when reaching this quality
+          until_score: 10000              # Stop upgrading when reaching this score
+
+        # How to sort qualities (top = highest quality first)
+        quality_sort: top
+
+        # Quality preference hierarchy (in descending order)
+        qualities:
+          # 1080p Web sources are top priority
+          - name: WEB 1080p
+            qualities: ["WEBDL-1080p", "WEBRip-1080p"]
+
+          # TV broadcast in 1080p is second choice
+          - name: HDTV-1080p
+
+          # 720p web sources are third choice
+          - name: WEB 720p
+            qualities: ["WEBDL-720p", "WEBRip-720p"]
+
+          # Lower quality sources in descending order of preference
+          - name: HDTV-720p
+          - name: WEB 480p
+            qualities: ["WEBDL-480p", "WEBRip-480p"]
+          - name: DVD
+          - name: SDTV
+
+    # Custom Formats and Scoring
+    # -------------------------
+    # These define which release characteristics to prefer or avoid
+    # Each entry contains "trash_ids" that reference specific formats from TRaSH guides
     custom_formats:
+      # Problematic Release Group Formats
+      # --------------------------------
+      # These formats identify releases with quality issues
+      # Negative scores discourage downloading these releases
       - trash_ids:
-          - 32b367365729d530ca1c124a0b180c64 # Bad Dual Groups
-          - 82d40da2bc6923f41e14394075dd4b03 # No-RlsGroup
-          - e1a997ddb54e3ecbfe06341ad323c458 # Obfuscated
-          - 06d66ab109d4d2eddb2794d21526d140 # Retags
+          - 32b367365729d530ca1c124a0b180c64 # Bad Dual Groups - Groups known for poor quality dual audio
+          - 82d40da2bc6923f41e14394075dd4b03 # No-RlsGroup - Releases missing proper group identification
+          - e1a997ddb54e3ecbfe06341ad323c458 # Obfuscated - Releases with deliberately obscured naming
+          - 06d66ab109d4d2eddb2794d21526d140 # Retags - Releases that have been renamed/retagged
+        # Apply these scores to the following profiles
         assign_scores_to:
-          - name: WEB-1080p
+          - name: WEB-2160p  # Apply to 4K profile
+          - name: WEB-1080p  # Apply to 1080p profile
+          - name: ANY        # Apply to ANY profile
+
+      # Scene Release Format
+      # ------------------
+      # Scene releases often don't follow preferred naming standards
+      # Setting score to 0 in ANY profile makes them neutral (neither preferred nor avoided)
       - trash_ids:
-          - 1b3994c551cbb92a2c781af061f4ab44 # Scene
+          - 1b3994c551cbb92a2c781af061f4ab44 # Scene - Scene released content
         assign_scores_to:
+          - name: WEB-2160p
           - name: WEB-1080p
-            score: 0
+          - name: ANY
+            score: 0  # Override default negative score for ANY profile
 
-###################################################################################################
-# Recyclarr Configuration Template: WEB-1080p (V4)                                                #
-# Updated: 2024-10-02                                                                             #
-# Documentation: https://recyclarr.dev                                                            #
-# Note: If you are using multiple profiles in a single instance, please read the following        #
-# documentation about file merging:                                                               #
-# https://recyclarr.dev/wiki/yaml/config-examples/#merge-single-instance                          #
-# This config file is for use with Sonarr V4 only                                                 #
-###################################################################################################
-
-# Instance Definition: https://recyclarr.dev/wiki/yaml/config-reference/basic/
-sonarr:
-  web-1080p-v4:
-    base_url: http://sonarr.default.svc.cluster.local
-    api_key: !env_var SONARR_API_KEY
-    delete_old_custom_formats: true
-    replace_existing_custom_formats: true
-
-    include:
-      # Comment out any of the following includes to disable them
-      - template: sonarr-quality-definition-series
-      # Choose between the standard or alternative quality profile setup (choose one only)
-      - template: sonarr-v4-quality-profile-web-1080p
-      # - template: sonarr-v4-quality-profile-web-1080p-alternative
-      - template: sonarr-v4-custom-formats-web-1080p
-
-# Custom Formats: https://recyclarr.dev/wiki/yaml/config-reference/custom-formats/
-    custom_formats:
-      # Optional
+      # HDR Format Preferences for 4K Content
+      # ------------------------------------
+      # These boost specific HDR formats for 4K content only
       - trash_ids:
-          # - 32b367365729d530ca1c124a0b180c64 # Bad Dual Groups
-          # - 82d40da2bc6923f41e14394075dd4b03 # No-RlsGroup
-          # - e1a997ddb54e3ecbfe06341ad323c458 # Obfuscated
-          # - 06d66ab109d4d2eddb2794d21526d140 # Retags
-          # - 1b3994c551cbb92a2c781af061f4ab44 # Scene
+          - 9b27ab6498ec0f31a3353992e19434ca # DV (WEBDL) - Dolby Vision
+          - 0dad0a507451acddd754fe6dc3a7f5e7 # HDR10+ Boost - Improved HDR format
+          - 385e9e8581d33133c3961bdcdeffb7b4 # DV HDR10+ Boost - Combined Dolby Vision and HDR10+
         assign_scores_to:
-          - name: WEB-1080p
+          - name: WEB-2160p  # Only apply to 4K profile
+
+      # Anime-Specific Format Settings
+      # ----------------------------
+      # These handle anime-specific characteristics
+      # All are set to score 0 (neutral) but can be adjusted as desired
+      - trash_ids:
+          - 026d5aadd1a6b4e550b134cb6c72b3ca # Uncensored - Anime without censorship
+        assign_scores_to:
+          - name: Remux-1080p - Anime
+            score: 0 # Neutral score (change if you prefer uncensored)
 
       - trash_ids:
-          # Uncomment the next six lines to allow x265 HD releases with HDR/DV
-          # - 47435ece6b99a0b477caf360e79ba0bb # x265 (HD)
-        # assign_scores_to:
-          # - name: WEB-1080p
-            # score: 0
-      # - trash_ids:
-          # - 9b64dff695c2115facf1b6ea59c9bd07 # x265 (no HDR/DV)
+          - b2550eb333d27b75833e25b8c2557b38 # 10bit - Higher color depth encoding
         assign_scores_to:
-          - name: WEB-1080p
+          - name: Remux-1080p - Anime
+            score: 0 # Neutral score (change if you prefer 10bit)
 
+      - trash_ids:
+          - 418f50b10f1907201b6cfdf881f467b7 # Anime Dual Audio - Both Japanese and English audio
+        assign_scores_to:
+          - name: Remux-1080p - Anime
+            score: 0 # Neutral score (change if you prefer dual audio)
 
+##########################################
+# RADARR CONFIGURATION
+##########################################
+# This section configures Recyclarr to sync quality profiles, custom formats, and
+# scoring from TRaSH guides to your Radarr instance. It helps automate the process
+# of maintaining optimal download settings for movies.
 radarr:
   radarr:
-    base_url: http://radarr.default.svc.cluster.local
+    # Connection Settings
+    # ------------------
+    # The URL where your Radarr instance can be reached inside the cluster
+    base_url: http://radarr.media.svc.cluster.local
+    # API key from Radarr (stored in environment variable for security)
     api_key: !env_var RADARR_API_KEY
-    delete_old_custom_formats: true
-    replace_existing_custom_formats: true
+
+    # Custom Format Management
+    # -----------------------
+    # Controls how existing custom formats are handled when syncing
+    delete_old_custom_formats: true       # Remove formats no longer in the config
+    replace_existing_custom_formats: true  # Update existing formats with new definitions
+
+    # Quality Definition Type
+    # ---------------------
+    # Sets the base quality definition type for the entire configuration
+    quality_definition:
+      type: movie  # Use movie-specific quality definitions
+
+    # Quality Profiles
+    # ---------------
+    # Only a single profile is defined - focused on 4K/2160p content
     quality_profiles:
-      - name: SQP-1 (2160p)
+      - name: SQP-1 (2160p)  # SQP = Standard Quality Profile from TRaSH guides
+
+    # Templates to Include
+    # -------------------
+    # These templates import recommended settings from TRaSH guides
     include:
+      # Base quality definition template
       - template: radarr-quality-definition-sqp-streaming
-      - template: radarr-quality-profile-sqp-1-2160p-default
-      - template: radarr-custom-formats-sqp-1-2160p
+
+      # 4K/2160p specific templates
+      - template: radarr-quality-profile-sqp-1-2160p-default  # Quality profile
+      - template: radarr-custom-formats-sqp-1-2160p           # Custom formats
+
+      # Anime specific templates
+      - template: radarr-quality-profile-anime
+      - template: radarr-custom-formats-anime
+
+    # Custom Formats and Scoring
+    # -------------------------
+    # These define which release characteristics to prefer or avoid for movies
     custom_formats:
+      # x265 Encoding without HDR/DV
+      # --------------------------
+      # For 4K content, x265 without HDR is usually not preferred
+      # Setting score to 0 makes it neutral (neither preferred nor avoided)
       - trash_ids:
           - 839bea857ed2c0a8e084f3cbdbd65ecb # x265 (no HDR/DV)
         assign_scores_to:
           - name: SQP-1 (2160p)
-            score: 0
+            score: 0  # Don't penalize, but don't prioritize
+
+      # Problematic Release Group Formats
+      # --------------------------------
+      # These identify releases with various quality issues
+      # Negative scores discourage downloading these releases
       - trash_ids:
-          - 7a0d1ad358fee9f5b074af3ef3f9d9ef # hallowed
-          - b6832f586342ef70d9c128d40c07b872 # Bad Dual Groups
-          - 90cedc1fea7ea5d11298bebd3d1d3223 # EVO (no WEBDL)
-          - ae9b7c9ebde1f3bd336a8cbd1ec4c5e5 # No-RlsGroup
-          - 7357cf5161efbf8c4d5d0c30b4815ee2 # Obfuscated
-          - 5c44f52a8714fdd79bb4d98e2673be1f # Retags
-          - f537cf427b64c38c8e36298f657e4828 # Scene
+          - b6832f586342ef70d9c128d40c07b872 # Bad Dual Groups - Groups known for poor quality dual audio
+          - cc444569854e9de0b084ab2b8b1532b2 # Black and White Editions - Monochrome versions of color films
+          - 90cedc1fea7ea5d11298bebd3d1d3223 # EVO (no WEBDL) - EVO group (except their WEBDL releases)
+          - ae9b7c9ebde1f3bd336a8cbd1ec4c5e5 # No-RlsGroup - Releases missing proper group identification
+          - 7357cf5161efbf8c4d5d0c30b4815ee2 # Obfuscated - Releases with deliberately obscured naming
+          - 5c44f52a8714fdd79bb4d98e2673be1f # Retags - Releases that have been renamed/retagged
+          - f537cf427b64c38c8e36298f657e4828 # Scene - Scene released content
         assign_scores_to:
-          - name: SQP-1 (2160p)
+          - name: SQP-1 (2160p)  # Apply to 4K profile (with default negative scores)
+
+      # Anime-Specific Format Settings
+      # ----------------------------
+      # These handle anime-specific characteristics
+
+      - trash_ids:
+          - 064af5f084a0a24458cc8ecd3220f93f # Uncensored - Anime without censorship
+        assign_scores_to:
+          - name: Remux-1080p - Anime
+            score: 0  # Neutral score
+
+      - trash_ids:
+          - a5d148168c4506b55cf53984107c396e # 10bit - Higher color depth encoding
+        assign_scores_to:
+          - name: Remux-1080p - Anime
+            score: 0  # Neutral score
+
+      - trash_ids:
+          - 4a3b087eea2ce012fcc1ce319259a3be # Anime Dual Audio - Both Japanese and English audio
+        assign_scores_to:
+          - name: Remux-1080p - Anime
+            score: 0  # Neutral score
