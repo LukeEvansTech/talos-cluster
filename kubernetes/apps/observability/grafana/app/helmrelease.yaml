@@ -220,22 +220,10 @@ spec:
     serviceMonitor:
       enabled: true
     ingress:
-      app:
-        className: internal
-        hosts:
-          - host: "{{ .Release.Name }}.${SECRET_DOMAIN}"
-            paths:
-              - path: /
-                pathType: Prefix
-                service:
-                  identifier: app
-                  port: http
-          - host: "{{ .Release.Name }}.${SECRET_INTERNAL_DOMAIN}"
-            paths:
-              - path: /
-                service:
-                  identifier: app
-                  port: http
+          enabled: true
+          ingressClassName: internal
+          hosts:
+            - "{{ .Release.Name }}.${SECRET_DOMAIN}"
     persistence:
       enabled: false
     testFramework:
