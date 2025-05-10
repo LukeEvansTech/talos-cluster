@@ -32,13 +32,17 @@ spec:
               TZ: ${TIMEZONE}
               DOCKER_ENABLE_SECURITY: false
               SECURITY_ENABLE_LOGIN: false
+              INSTALL_BOOK_AND_ADVANCED_HTML_OPS: true
+              METRICS_ENABLED: false
+              SYSTEM_ENABLEANALYTICS: false
+              SYSTEM_GOOGLEVISIBILITY: false
             resources:
               requests:
-                cpu: 10m
-                memory: 500Mi
+                cpu: "10m"
+                memory: "512Mi"
               limits:
-                memory: 500Mi
-
+                cpu: "1"
+                memory: 2Gi
     service:
       app:
         controller: *app
