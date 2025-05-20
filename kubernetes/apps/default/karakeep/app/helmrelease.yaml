@@ -58,9 +58,6 @@ spec:
       chrome:
         annotations:
           reloader.stakater.com/auto: "true"
-        pod:
-          labels:
-            app.kubernetes.io/controller: chrome
         containers:
           app:
             image:
