@@ -159,7 +159,7 @@ spec:
 
     persistence:
       data:
-        existingClaim: karakeep-data
+        existingClaim: karakeep
         advancedMounts:
           karakeep:
             app:
