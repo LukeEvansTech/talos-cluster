@@ -122,6 +122,7 @@ spec:
 
     service:
       app:
+        forceRename: karakeep
         primary: true
         controller: karakeep
         ports:
