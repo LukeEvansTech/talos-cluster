@@ -125,23 +125,21 @@ function apply_crds() {
     done
 }
 
-
-
-# Apply Helm releases using helmfile
-function apply_helm_releases() {
-    log debug "Applying Helm releases with helmfile"
+# Sync Helm releases
+function sync_helm_releases() {
+    log debug "Syncing Helm releases"
 
     local -r helmfile_file="${ROOT_DIR}/bootstrap/helmfile.yaml"
 
     if [[ ! -f "${helmfile_file}" ]]; then
         log error "File does not exist" "file=${helmfile_file}"
     fi
-
-    if ! helmfile --file "${helmfile_file}" apply --hide-notes --skip-diff-on-install --suppress-diff --suppress-secrets; then
-        log error "Failed to apply Helm releases"
+Add commentMore actions
+    if ! helmfile --file "${helmfile_file}" sync --hide-notes; then
+        log error "Failed to sync Helm releases"
     fi
 
-    log info "Helm releases applied successfully"
+    log info "Helm releases synced successfully"
 }
 
 # Resources to be applied before the helmfile charts are installed
@@ -237,7 +235,7 @@ function main() {
     apply_namespaces
     apply_sops_secrets
     apply_resources
-    apply_helm_releases
+    sync_helm_releases
 
     log info "Congrats! The cluster is bootstrapped and Flux is syncing the Git repository"
 }
