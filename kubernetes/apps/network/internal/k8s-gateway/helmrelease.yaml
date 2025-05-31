@@ -1,4 +1,5 @@
 ---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/source.toolkit.fluxcd.io/ocirepository_v1.json
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository
 metadata:
@@ -19,7 +20,6 @@ metadata:
   name: k8s-gateway
 spec:
   interval: 1h
-  timeout: 15m
   chartRef:
     kind: OCIRepository
     name: k8s-gateway
