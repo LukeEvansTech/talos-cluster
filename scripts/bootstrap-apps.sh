@@ -134,7 +134,7 @@ function sync_helm_releases() {
     if [[ ! -f "${helmfile_file}" ]]; then
         log error "File does not exist" "file=${helmfile_file}"
     fi
-Add commentMore actions
+
     if ! helmfile --file "${helmfile_file}" sync --hide-notes; then
         log error "Failed to sync Helm releases"
     fi
