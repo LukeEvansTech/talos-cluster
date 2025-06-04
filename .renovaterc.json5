@@ -12,6 +12,7 @@
     "github>LukeEvansTech/talos-cluster//.renovate/semanticCommits.json5",
     ":automergeBranch",
     ":dependencyDashboard",
+    ":disableRateLimiting",
     ":semanticCommits",
     ":timezone(Europe/London)",
   ],
