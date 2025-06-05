@@ -25,7 +25,7 @@ spec:
           app:
             image:
               repository: ghcr.io/c4illin/convertx
-              tag: v0.13.0@sha256:e6d0cf24c1ab3de5835dadd3d69f17f09dfef3353ac2b2c09c172d5e8f9dfe2c
+              tag: v0.14.1@sha256:346589f154332997329fdc888417d4b24c49cc9140eab80e637a68cfbdd8041b
             env:
               TZ: ${TIMEZONE}
 
