@@ -15,7 +15,7 @@ run = "uv pip install -r requirements.txt"
 
 [tools]
 "aqua:FiloSottile/age" = "1.2.1"
-"aqua:budimanjojo/talhelper" = "3.0.28"
+"aqua:budimanjojo/talhelper" = "3.0.29"
 "aqua:cli/cli" = "2.74.1"
 "aqua:cloudflare/cloudflared" = "2025.6.0"
 "aqua:cue-lang/cue" = "0.13.1"
