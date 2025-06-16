@@ -37,7 +37,6 @@ spec:
               DATA_DIR: /data
               DISABLE_SIGNUPS: "false"
               MEILI_ADDR: http://karakeep-meilisearch.default.svc.cluster.local:7700
-              NEXTAUTH_URL: "https://karakeep.${SECRET_DOMAIN}"
               DISABLE_NEW_RELEASE_CHECK: true
               COREPACK_INTEGRITY_KEYS: 0
             envFrom:
