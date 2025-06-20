@@ -25,8 +25,6 @@ tasks:
     preconditions:
       - msg: Unsupported bash version, run `brew install bash` to upgrade
         sh: '{{if eq OS "darwin"}}test -f /opt/homebrew/bin/bash || test -f /usr/local/bin/bash{{end}}'
-      - msg: ROOK_DISK environment variable is not set. Please set it with 'export ROOK_DISK="INTEL SSDPE21D015TA"' or similar.
-        sh: '[ ! -z "${ROOK_DISK}" ]'
       - test -f {{.KUBECONFIG}}
       - test -f {{.ROOT_DIR}}/.sops.yaml
       - test -f {{.SCRIPTS_DIR}}/bootstrap-apps.sh

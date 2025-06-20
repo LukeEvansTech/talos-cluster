@@ -163,65 +163,9 @@ function apply_resources() {
         log error "Failed to apply resources"
     fi
 }
-
-
-# Disks in use by rook-ceph must be wiped before Rook is installed
-function wipe_rook_disks() {
-    log debug "Wiping Rook disks"
-
-    # Skip disk wipe if Rook is detected running in the cluster
-    # NOTE: Is there a better way to detect Rook / OSDs?
-    if kubectl --namespace rook-ceph get kustomization rook-ceph &>/dev/null; then
-        log warn "Rook is detected running in the cluster, skipping disk wipe"
-        return
-    fi
-
-    if ! nodes=$(talosctl config info --output json 2>/dev/null | jq --exit-status --raw-output '.nodes | join(" ")') || [[ -z "${nodes}" ]]; then
-        log error "No Talos nodes found"
-    fi
-
-    log debug "Talos nodes discovered" "nodes=${nodes}"
-
-    # Wipe disks on each node that match the ROOK_DISK environment variable
-    for node in ${nodes}; do
-        if ! disks=$(talosctl --nodes "${node}" get disk --output json 2>/dev/null \
-            | jq --exit-status --raw-output --slurp '. | map(select(.spec.model == env.ROOK_DISK) | .metadata.id) | join(" ")') || [[ -z "${nodes}" ]];
-        then
-            log error "No disks found" "node=${node}" "model=${ROOK_DISK}"
-        fi
-
-        log debug "Talos node and disk discovered" "node=${node}" "disks=${disks}"
-
-    # Wipe each disk on the node
-    for disk in ${disks}; do
-        log info "Attempting to wipe disk" "node=${node}" "disk=${disk}"
-
-        # Execute the wipe command and capture both output and exit code
-        # Don't redirect to /dev/null so we can see the actual output
-        output=$(talosctl --nodes "${node}" wipe disk --method ZEROES "${disk}" 2>&1)
-        exit_code=$?
-
-        if [ $exit_code -eq 0 ]; then
-            log info "Disk wiped successfully" "node=${node}" "disk=${disk}"
-            # Print the command output for additional information
-            echo "Command output: ${output}"
-        else
-            log error "Failed to wipe disk" "node=${node}" "disk=${disk}" "exit_code=${exit_code}"
-            # Print the error output to help with debugging
-            echo "Error output: ${output}"
-
-            # Optionally, you can decide whether to continue or exit
-            log warn "Continuing with next disk despite error"
-            # Uncomment the following line if you want to exit on first error
-            # exit $exit_code
-        fi
-    done
-done
-}
-
-
+Developer
 function main() {
-    check_env KUBECONFIG ROOK_DISK
+    check_env KUBECONFIG
     check_cli helmfile jq kubectl kustomize op talosctl yq minijinja-cli
 
     if ! op whoami --format=json &>/dev/null; then
@@ -230,7 +174,6 @@ function main() {
 
     # Apply resources and Helm releases
     wait_for_nodes
-    wipe_rook_disks
     apply_crds
     apply_namespaces
     apply_sops_secrets
