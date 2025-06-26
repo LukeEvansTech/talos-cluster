@@ -16,6 +16,7 @@ resources:
   - ./homebox/ks.yaml
   - ./it-tools/ks.yaml
   - ./karakeep/ks.yaml
+  - ./powershelluniversal/ks.yaml
   - ./smokeping/ks.yaml
   - ./stirling-pdf/ks.yaml
   - ./uptimekuma/ks.yaml
