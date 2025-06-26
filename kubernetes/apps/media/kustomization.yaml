@@ -8,6 +8,7 @@ components:
 resources:
   - ./bazarr/ks.yaml
   - ./jellyseerr/ks.yaml
+  - ./maintainerr/ks.yaml
   - ./pinchflat/ks.yaml
   - ./plex/ks.yaml
   - ./radarr/ks.yaml
