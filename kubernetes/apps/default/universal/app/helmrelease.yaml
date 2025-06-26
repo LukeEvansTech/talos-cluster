@@ -49,7 +49,7 @@ spec:
         runAsGroup: 568
         fsGroup: 568
         fsGroupChangePolicy: OnRootMismatch
-        # seccompProfile: { type: RuntimeDefault }
+        seccompProfile: { type: RuntimeDefault }
     service:
       app:
         controller: universal
@@ -78,3 +78,13 @@ spec:
     persistence:
       data:
         existingClaim: universal
+        advancedMounts:
+          universal:
+            app:
+              - path: /data
+      powershell-universal:
+        type: emptyDir
+        advancedMounts:
+          universal:
+            app:
+              - path: /.PowerShellUniversal
