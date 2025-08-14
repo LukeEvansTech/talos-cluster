@@ -43,7 +43,9 @@ spec:
           requiredDuringSchedulingIgnoredDuringExecution:
             nodeSelectorTerms:
               - matchExpressions:
-                  - key: extensions.talos.dev/nonfree-kmod-nvidia-production
+                  - key: extensions.talos.dev/nvidia-open-gpu-kernel-modules-production
+                    operator: Exists
+                  - key: extensions.talos.dev/nvidia-container-toolkit-production
                     operator: Exists
     config:
       map:
