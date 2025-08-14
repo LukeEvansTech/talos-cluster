@@ -1,9 +1,9 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/budimanjojo/talhelper/master/pkg/config/schemas/talconfig.json
 ---
 # renovate: datasource=docker depName=ghcr.io/siderolabs/installer
-talosVersion: v1.10.5
+talosVersion: v1.10.6
 # renovate: datasource=docker depName=ghcr.io/siderolabs/kubelet
-kubernetesVersion: v1.33.2
+kubernetesVersion: v1.33.3
 
 clusterName: kubernetes
 endpoint: https://10.32.8.85:6443
@@ -28,10 +28,10 @@ nodes:
   - hostname: "cr-talos-01"
     ipAddress: "10.32.8.80"
     installDiskSelector:
-      serial: "SJC5N430411205H4H"
+      serial: "22443D5C45C9"
     machineSpec:
       secureboot: true
-    talosImageURL: factory.talos.dev/installer-secureboot/a5ce1cbe595e5d591428776691466c07b2b681eabb65fbb7ff943621689937de
+    talosImageURL: factory.talos.dev/installer-secureboot/44186a005dfca322f81df634a457384455475fbfa518777f3ee58d35f173d73b
     controlPlane: true
     networkInterfaces:
       - deviceSelector:
@@ -63,10 +63,10 @@ nodes:
   - hostname: "cr-talos-02"
     ipAddress: "10.32.8.81"
     installDiskSelector:
-      serial: "SNC6N446610806B52"
+      serial: "22443D5C50A3"
     machineSpec:
       secureboot: true
-    talosImageURL: factory.talos.dev/installer-secureboot/a5ce1cbe595e5d591428776691466c07b2b681eabb65fbb7ff943621689937de
+    talosImageURL: factory.talos.dev/installer-secureboot/44186a005dfca322f81df634a457384455475fbfa518777f3ee58d35f173d73b
     controlPlane: true
     networkInterfaces:
       - deviceSelector:
@@ -98,10 +98,10 @@ nodes:
   - hostname: "cr-talos-03"
     ipAddress: "10.32.8.82"
     installDiskSelector:
-      serial: "SJC5N430410305H24"
+      serial: "22443D5C5114"
     machineSpec:
       secureboot: true
-    talosImageURL: factory.talos.dev/installer-secureboot/a5ce1cbe595e5d591428776691466c07b2b681eabb65fbb7ff943621689937de
+    talosImageURL: factory.talos.dev/installer-secureboot/44186a005dfca322f81df634a457384455475fbfa518777f3ee58d35f173d73b
     controlPlane: true
     networkInterfaces:
       - deviceSelector:
