@@ -88,9 +88,9 @@ spec:
                   port: http
     persistence:
       config:
-        existingClaim: "{{ .Release.Name }}"
+        existingClaim: tautulli
       config-cache:
-        existingClaim: "{{ .Release.Name }}-cache"
+        existingClaim: tautulli-cache
         globalMounts:
           - path: /config/cache
       tmpfs:
