@@ -1,3 +1,4 @@
+---
 doublestar: true
 exclude:
   - "**/*.sops.yaml"
