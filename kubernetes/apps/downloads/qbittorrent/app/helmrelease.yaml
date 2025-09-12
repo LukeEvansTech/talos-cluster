@@ -8,7 +8,7 @@ spec:
   interval: 1h
   chartRef:
     kind: OCIRepository
-    name: app-template
+    name: qbittorrent
   install:
     remediation:
       retries: 3
@@ -205,21 +205,20 @@ spec:
         type: emptyDir
         globalMounts:
           - path: /addons
+            # dnsdist:
+            #   type: configMap
+            #   name: qbittorrent-dnsdist
+            #   advancedMounts:
+            #     qbittorrent:
+            #       dnsdist:
+            #         - path: /etc/dnsdist/dnsdist.conf
+            #           subPath: dnsdist.conf
+            #           readOnly: true
 
-      # dnsdist:
-      #   type: configMap
-      #   name: qbittorrent-dnsdist
-      #   advancedMounts:
-      #     qbittorrent:
-      #       dnsdist:
-      #         - path: /etc/dnsdist/dnsdist.conf
-      #           subPath: dnsdist.conf
-      #           readOnly: true
-
-      # # TODO: Remove once snatches are sufficient
-      # tempmedia:
-      #   type: nfs
-      #   server: ${TRUENAS_IP}
-      #   path: /mnt/speed/snatch
-      #   globalMounts:
-      #     - path: /speed/snatch
+            # # TODO: Remove once snatches are sufficient
+            # tempmedia:
+            #   type: nfs
+            #   server: ${TRUENAS_IP}
+            #   path: /mnt/speed/snatch
+            #   globalMounts:
+            #     - path: /speed/snatch

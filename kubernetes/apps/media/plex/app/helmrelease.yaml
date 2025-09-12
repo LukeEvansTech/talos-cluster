@@ -8,7 +8,7 @@ spec:
   interval: 1h
   chartRef:
     kind: OCIRepository
-    name: app-template
+    name: plex
   install:
     remediation:
       retries: 3
@@ -59,7 +59,7 @@ spec:
             securityContext:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: true
-              capabilities: { drop: ["ALL"] }
+              capabilities: {drop: ["ALL"]}
             resources:
               requests:
                 cpu: 100m
@@ -85,9 +85,11 @@ spec:
         runAsGroup: 568
         fsGroup: 568
         fsGroupChangePolicy: OnRootMismatch
-        supplementalGroups: [44, 10000] # TODO: Tidy up supplementalGroups when we have a better understanding of what's needed from a TrueNAS perspective
-        seccompProfile: { type: RuntimeDefault }
-    service:
+        supplementalGroups:
+          - 44
+          - 10000
+        seccompProfile: {type: RuntimeDefault}
+    service: # TODO: Tidy up supplementalGroups when we have a better understanding of what's needed from a TrueNAS perspective
       app:
         controller: plex
         type: LoadBalancer
@@ -120,12 +122,12 @@ spec:
                 service:
                   identifier: app
                   port: http
-          # - host: "{{ .Release.Name }}.${SECRET_INTERNAL_DOMAIN}"
-          #   paths:
-          #     - path: /
-          #       service:
-          #         identifier: app
-          #         port: http
+                  # - host: "{{ .Release.Name }}.${SECRET_INTERNAL_DOMAIN}"
+                  #   paths:
+                  #     - path: /
+                  #       service:
+                  #         identifier: app
+                  #         port: http
     persistence:
       config:
         existingClaim: plex
