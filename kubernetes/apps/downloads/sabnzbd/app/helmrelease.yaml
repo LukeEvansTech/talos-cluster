@@ -8,7 +8,7 @@ spec:
   interval: 1h
   chartRef:
     kind: OCIRepository
-    name: app-template
+    name: sabnzbd
   install:
     remediation:
       retries: 3
@@ -52,14 +52,15 @@ spec:
             securityContext:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: true
-              capabilities: { drop: ["ALL"] }
+              capabilities: {drop: ["ALL"]}
               runAsNonRoot: true
               runAsUser: 568
               runAsGroup: 568
               fsGroup: 568
               fsGroupChangePolicy: OnRootMismatch
-              supplementalGroups: [10000]
-              seccompProfile: { type: RuntimeDefault }
+              supplementalGroups:
+                - 10000
+              seccompProfile: {type: RuntimeDefault}
             resources:
               requests:
                 cpu: 100m

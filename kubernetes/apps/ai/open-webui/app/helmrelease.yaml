@@ -8,7 +8,7 @@ spec:
   interval: 1h
   chartRef:
     kind: OCIRepository
-    name: app-template
+    name: open-webui
   install:
     remediation:
       retries: 3
@@ -32,10 +32,10 @@ spec:
                 value: http://ollama.ai.svc.cluster.local:11434
               - name: ENABLE_RAG_WEB_SEARCH
                 value: false
-              # - name: RAG_WEB_SEARCH_ENGINE
-              #   value: searxng
-              # - name: SEARXNG_QUERY_URL
-              #   value: http://searxng.default.svc.cluster.local:8080/search?q=<query>
+                # - name: RAG_WEB_SEARCH_ENGINE
+                #   value: searxng
+                # - name: SEARXNG_QUERY_URL
+                #   value: http://searxng.default.svc.cluster.local:8080/search?q=<query>
             resources:
               requests:
                 cpu: 500m
