@@ -8,7 +8,7 @@ spec:
   interval: 1h
   chartRef:
     kind: OCIRepository
-    name: app-template
+    name: prowlarr
   install:
     remediation:
       retries: 3
@@ -118,11 +118,12 @@ spec:
               runAsGroup: 568
               fsGroup: 568
               fsGroupChangePolicy: OnRootMismatch
-              supplementalGroups: [10000]
-              seccompProfile: { type: RuntimeDefault }
+              supplementalGroups:
+                - 10000
+              seccompProfile: {type: RuntimeDefault}
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: true
-              capabilities: { drop: ["ALL"] }
+              capabilities: {drop: ["ALL"]}
             resources:
               requests:
                 cpu: 100m
@@ -141,14 +142,14 @@ spec:
       app:
         className: internal
         # annotations:
-          # gethomepage.dev/enabled: "true"
-          # gethomepage.dev/group: Downloads
-          # gethomepage.dev/name: Prowlarr
-          # gethomepage.dev/icon: prowlarr.png
-          # gethomepage.dev/description: Torrent/NZB Indexer Management
-          # gethomepage.dev/widget.type: prowlarr
-          # gethomepage.dev/widget.url: http://prowlarr.downloads.svc.cluster.local
-          # gethomepage.dev/widget.key: "{{ `{{HOMEPAGE_VAR_PROWLARR_TOKEN}}` }}"
+        # gethomepage.dev/enabled: "true"
+        # gethomepage.dev/group: Downloads
+        # gethomepage.dev/name: Prowlarr
+        # gethomepage.dev/icon: prowlarr.png
+        # gethomepage.dev/description: Torrent/NZB Indexer Management
+        # gethomepage.dev/widget.type: prowlarr
+        # gethomepage.dev/widget.url: http://prowlarr.downloads.svc.cluster.local
+        # gethomepage.dev/widget.key: "{{ `{{HOMEPAGE_VAR_PROWLARR_TOKEN}}` }}"
         hosts:
           - host: "{{ .Release.Name }}.${SECRET_DOMAIN}"
             paths:
