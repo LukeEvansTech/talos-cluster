@@ -29,6 +29,7 @@ metadata:
 spec:
   decryption:
     provider: sops
+  deletionPolicy: WaitForTermination
   dependsOn:
     - name: cluster-meta
       namespace: flux-system
@@ -43,7 +44,7 @@ spec:
   timeout: 5m
   wait: false
   patches:
-    - # Add SOPS decryption to child Kustomizations
+    - # Add Kustomization defaults and HelmRelease patching to child Kustomizations
       patch: |-
         apiVersion: kustomize.toolkit.fluxcd.io/v1
         kind: Kustomization
@@ -52,6 +53,32 @@ spec:
         spec:
           decryption:
             provider: sops
+          deletionPolicy: WaitForTermination
+          patches:
+            - patch: |-
+                apiVersion: helm.toolkit.fluxcd.io/v2
+                kind: HelmRelease
+                metadata:
+                  name: not-used
+                spec:
+                  install:
+                    crds: CreateReplace
+                    strategy:
+                      name: RetryOnFailure
+                  rollback:
+                    cleanupOnFail: true
+                    recreate: true
+                  upgrade:
+                    cleanupOnFail: true
+                    crds: CreateReplace
+                    strategy:
+                      name: RemediateOnFailure
+                    remediation:
+                      remediateLastFailure: true
+                      retries: 2
+              target:
+                group: helm.toolkit.fluxcd.io
+                kind: HelmRelease
       target:
         group: kustomize.toolkit.fluxcd.io
         kind: Kustomization
