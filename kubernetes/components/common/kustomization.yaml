@@ -6,4 +6,3 @@ resources:
   - ./namespace.yaml
   - ./global-vars
   - ./repos
-  - ./sops
