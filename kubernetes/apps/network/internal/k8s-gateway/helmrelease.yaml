@@ -14,13 +14,6 @@ spec:
         kind: HelmRepository
         name: k8s-gateway
         namespace: flux-system
-  install:
-    remediation:
-      retries: 3
-  upgrade:
-    cleanupOnFail: true
-    remediation:
-      retries: 3
   values:
     fullnameOverride: k8s-gateway
     domain: "${SECRET_DOMAIN}"
@@ -31,4 +24,6 @@ spec:
       annotations:
         lbipam.cilium.io/ips: "10.32.8.86"
       externalTrafficPolicy: Cluster
-    watchedResources: ["Ingress", "Service"]
+    watchedResources:
+      - "Ingress"
+      - "Service"

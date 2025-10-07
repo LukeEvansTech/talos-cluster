@@ -14,13 +14,6 @@ spec:
         kind: HelmRepository
         name: ingress-nginx
         namespace: flux-system
-  install:
-    remediation:
-      retries: 3
-  upgrade:
-    cleanupOnFail: true
-    remediation:
-      retries: 3
   values:
     fullnameOverride: external-ingress-nginx
     controller:
@@ -38,7 +31,8 @@ spec:
           matchExpressions:
             - key: ingress-class
               operator: In
-              values: ["external"]
+              values:
+                - "external"
       config:
         allow-snippet-annotations: true
         annotations-risk-level: Critical
