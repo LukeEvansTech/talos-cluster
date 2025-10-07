@@ -8,6 +8,8 @@ metadata:
 spec:
   decryption:
     provider: sops
+    secretRef:
+      name: sops-age-secret
   interval: 1h
   path: ./kubernetes/flux/meta
   prune: true
@@ -29,6 +31,8 @@ metadata:
 spec:
   decryption:
     provider: sops
+    secretRef:
+      name: sops-age-secret
   dependsOn:
     - name: cluster-meta
       namespace: flux-system
@@ -52,6 +56,8 @@ spec:
         spec:
           decryption:
             provider: sops
+            secretRef:
+              name: sops-age-secret
       target:
         group: kustomize.toolkit.fluxcd.io
         kind: Kustomization
