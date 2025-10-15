@@ -6,6 +6,7 @@ namespace: infrastructure
 components:
   - ../../components/common
 resources:
+  - ./namespace.yaml
   - ./certwarden/ks.yaml
   - ./smtp-relay/ks.yaml
   - ./vlmcsd/ks.yaml
