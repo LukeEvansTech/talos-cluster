@@ -36,15 +36,19 @@ function apply_namespaces() {
     for app in "${apps_dir}"/*/; do
         namespace=$(basename "${app}")
 
-        # Check if the namespace resources are up-to-date
-        if kubectl get namespace "${namespace}" &>/dev/null; then
+        log info "Processing namespace directory" "namespace=${namespace}"
+
+        # Build and apply namespace using kustomize
+        if kustomize build "${app}" | yq eval 'select(.kind == "Namespace")' | \
+            kubectl diff --filename - &>/dev/null;
+        then
             log info "Namespace resource is up-to-date" "resource=${namespace}"
             continue
         fi
 
         # Apply the namespace resources
-        if kubectl create namespace "${namespace}" --dry-run=client --output=yaml \
-            | kubectl apply --server-side --filename - &>/dev/null;
+        if kustomize build "${app}" | yq eval 'select(.kind == "Namespace")' | \
+            kubectl apply --server-side --field-manager=bootstrap --force-conflicts --filename - &>/dev/null;
         then
             log info "Namespace resource applied" "resource=${namespace}"
         else
@@ -84,7 +88,7 @@ function apply_sops_secrets() {
 
             # Apply secret resources and capture the output
             log info "Attempting to apply secret" "resource=${resource_name}"
-            if output=$(sops exec-file "${secret}" "kubectl --namespace flux-system apply --server-side --filename {}" 2>&1); then
+            if output=$(sops exec-file "${secret}" "kubectl --namespace flux-system apply --server-side --field-manager=bootstrap --filename {}" 2>&1); then
                 log info "Secret resource applied successfully" "resource=${resource_name}"
             else
                 log error "Failed to apply secret resource" "resource=${resource_name}"
@@ -115,7 +119,7 @@ function apply_crds() {
             log info "CRDs are up-to-date" "crd" "${crd}"
             continue
         fi
-        if ! kubectl apply --server-side --filename "${crd}" &>/dev/null; then
+        if ! kubectl apply --server-side --field-manager=bootstrap --filename "${crd}" &>/dev/null; then
             log fatal "Failed to apply CRDs" "crd" "${crd}"
         fi
         log info "CRDs applied" "crd" "${crd}"
@@ -154,7 +158,7 @@ function apply_resources() {
         return
     fi
 
-    if echo "${output}" | kubectl apply --server-side --filename - &>/dev/null; then
+    if echo "${output}" | kubectl apply --server-side --field-manager=bootstrap --filename - &>/dev/null; then
         log info "Resources applied"
     else
         log error "Failed to apply resources"
