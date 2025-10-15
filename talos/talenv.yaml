@@ -3,6 +3,6 @@ prometheusOperatorVersion: v0.86.1
 
 # Versions used by Taskfile helpers
 # renovate: datasource=docker depName=ghcr.io/siderolabs/installer
-talosVersion: v1.11.2
+talosVersion: v1.11.3
 # renovate: datasource=docker depName=ghcr.io/siderolabs/kubelet
 kubernetesVersion: v1.34.1
