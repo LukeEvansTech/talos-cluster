@@ -6,4 +6,5 @@ namespace: games
 components:
   - ../../components/common
 resources:
+  - ./namespace.yaml
   - ./satisfactory/ks.yaml
