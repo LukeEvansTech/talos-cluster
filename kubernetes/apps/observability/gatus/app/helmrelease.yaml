@@ -57,7 +57,8 @@ spec:
               NAMESPACE: ALL
               RESOURCE: both
               UNIQUE_FILENAMES: true
-              METHOD: WATCH
+              METHOD: SLEEP
+              SLEEP_TIME: "60"
             resources:
               requests:
                 cpu: 10m
