@@ -1,0 +1,97 @@
+---
+# yaml-language-server: $schema=https://kube-schemas.pages.dev/grafana.integreatly.org/grafana_v1beta1.json
+apiVersion: grafana.integreatly.org/v1beta1
+kind: Grafana
+metadata:
+  name: grafana
+  labels:
+    dashboards: grafana
+spec:
+  deployment:
+    spec:
+      replicas: 1
+      strategy:
+        type: Recreate
+      template:
+        spec:
+          serviceAccountName: grafana-sa
+          containers:
+            - name: grafana
+              image: docker.io/grafana/grafana:11.5.0
+              imagePullPolicy: IfNotPresent
+              envFrom:
+                - secretRef:
+                    name: grafana-secret
+              env:
+                - name: GF_DATE_FORMATS_USE_BROWSER_LOCALE
+                  value: "true"
+                - name: GF_EXPLORE_ENABLED
+                  value: "true"
+                - name: GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS
+                  value: natel-discrete-panel,pr0ps-trackmap-panel,panodata-map-panel
+                - name: GF_SECURITY_ANGULAR_SUPPORT_ENABLED
+                  value: "true"
+                - name: GF_SERVER_ROOT_URL
+                  value: "https://grafana.${SECRET_DOMAIN}"
+                - name: GF_INSTALL_PLUGINS
+                  value: grafana-clock-panel,grafana-piechart-panel,grafana-worldmap-panel,natel-discrete-panel,pr0ps-trackmap-panel,vonage-status-panel
+              volumeMounts:
+                - name: grafana-dashboards
+                  mountPath: /var/lib/grafana/dashboards
+                - name: grafana-dashboard-provider
+                  mountPath: /etc/grafana/provisioning/dashboards
+            - name: sidecar
+              image: ghcr.io/home-operations/k8s-sidecar:1.30.11@sha256:d8a53f834b0fe70030df75f3f956d1c5e56fbb067b09803708b2bc26e26cfc12
+              imagePullPolicy: IfNotPresent
+              env:
+                - name: METHOD
+                  value: WATCH
+                - name: LABEL
+                  value: grafana_dashboard
+                - name: FOLDER
+                  value: /var/lib/grafana/dashboards
+                - name: NAMESPACE
+                  value: ALL
+                - name: FOLDER_ANNOTATION
+                  value: grafana_folder
+                - name: RESOURCE
+                  value: configmap
+                - name: REQ_URL
+                  value: http://localhost:3000/api/admin/provisioning/dashboards/reload
+                - name: REQ_METHOD
+                  value: POST
+                - name: REQ_USERNAME
+                  valueFrom:
+                    secretKeyRef:
+                      name: grafana-secret
+                      key: GF_SECURITY_ADMIN_USER
+                - name: REQ_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: grafana-secret
+                      key: GF_SECURITY_ADMIN_PASSWORD
+              volumeMounts:
+                - name: grafana-dashboards
+                  mountPath: /var/lib/grafana/dashboards
+          volumes:
+            - name: grafana-dashboards
+              emptyDir: {}
+            - name: grafana-dashboard-provider
+              configMap:
+                name: grafana-sidecar-provider
+  config:
+    analytics:
+      check_for_updates: "false"
+      check_for_plugin_updates: "false"
+      reporting_enabled: "false"
+    auth.anonymous:
+      enabled: "true"
+      org_id: "1"
+      org_name: "Main Org."
+      org_role: "Viewer"
+    news:
+      news_feed_enabled: "false"
+    log:
+      mode: "console"
+    log.console:
+      format: "text"
