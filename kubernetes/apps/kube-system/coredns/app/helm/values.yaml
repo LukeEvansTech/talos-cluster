@@ -4,6 +4,9 @@ image:
   repository: mirror.gcr.io/coredns/coredns
 replicaCount: 2
 k8sAppLabelOverride: kube-dns
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
 serviceAccount:
   create: true
 service:

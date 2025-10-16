@@ -56,6 +56,12 @@ operator:
       enabled: true
   replicas: 2
   rollOutPods: true
+  podDisruptionBudget:
+    enabled: true
+    maxUnavailable: 1
+podDisruptionBudget:
+  enabled: true
+  maxUnavailable: 1
 prometheus:
   enabled: true
   serviceMonitor:
