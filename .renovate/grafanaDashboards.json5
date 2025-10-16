@@ -24,7 +24,7 @@
       customType: "regex",
       managerFilePatterns: ["/(^|/)kubernetes/.+\\.ya?ml$/"],
       matchStrings: [
-        '# renovate: depName="(?<depName>.*)"\\n(?<indentation>\\s+)id: (?<packageName>\\d+)\\n(?<indentation>\\s+)revision: (?<currentValue>\\d+)',
+        '# renovate: depName="(?<depName>.*)"\\n(?<indentation>\\s+)id: (?<packageName>\\d+)\\n\\s+revision: (?<currentValue>\\d+)',
       ],
       autoReplaceStringTemplate: '# renovate: depName="{{{depName}}}"\n{{{indentation}}}id: {{{packageName}}}\n{{{indentation}}}revision: {{{newValue}}}',
       datasourceTemplate: "custom.grafana-dashboards",
