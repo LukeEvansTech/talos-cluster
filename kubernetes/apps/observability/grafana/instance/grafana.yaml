@@ -17,7 +17,7 @@ spec:
           serviceAccountName: grafana-sa
           containers:
             - name: grafana
-              image: docker.io/grafana/grafana:11.5.0
+              image: docker.io/grafana/grafana:11.6.6
               imagePullPolicy: IfNotPresent
               envFrom:
                 - secretRef:
