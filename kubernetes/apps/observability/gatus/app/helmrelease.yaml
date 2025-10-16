@@ -14,6 +14,24 @@ spec:
       gatus:
         annotations:
           reloader.stakater.com/auto: "true"
+        initContainers:
+          init-config:
+            image:
+              repository: ghcr.io/home-operations/k8s-sidecar
+              tag: 1.30.10@sha256:dd3b1f0c4e6b4512b2deb50c58acf65fd0f0927120a59a95eec854d32a6c9ce3
+            env:
+              FOLDER: /config
+              LABEL: gatus.io/enabled
+              NAMESPACE: ALL
+              RESOURCE: both
+              UNIQUE_FILENAMES: true
+              METHOD: WATCH
+            restartPolicy: Always
+            resources:
+              requests:
+                cpu: 10m
+              limits:
+                memory: 128Mi
         containers:
           app:
             image:
@@ -47,24 +65,6 @@ spec:
                 cpu: 100m
               limits:
                 memory: 256Mi
-          config-sync:
-            image:
-              repository: kiwigrid/k8s-sidecar
-              tag: 1.30.11
-            env:
-              FOLDER: /config
-              LABEL: gatus.io/enabled
-              NAMESPACE: ALL
-              RESOURCE: both
-              UNIQUE_FILENAMES: true
-              METHOD: SLEEP
-              SLEEP_TIME: "60"
-            resources:
-              requests:
-                cpu: 10m
-                memory: 256Mi
-              limits:
-                memory: 512Mi
         serviceAccount:
           identifier: gatus
     defaultPodOptions:
