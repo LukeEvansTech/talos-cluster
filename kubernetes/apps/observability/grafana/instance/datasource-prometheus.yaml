@@ -7,14 +7,10 @@ metadata:
 spec:
   instanceSelector:
     matchLabels:
-      dashboards: grafana
+      grafana.internal/instance: grafana
   datasource:
-    name: Prometheus
     type: prometheus
-    uid: prometheus
+    name: prometheus
     access: proxy
-    url: http://prometheus-operated.observability.svc.cluster.local:9090
     isDefault: true
-    jsonData:
-      timeInterval: 30s
-    editable: true
+    url: http://prometheus-operated.observability.svc.cluster.local:9090

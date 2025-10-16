@@ -18,8 +18,7 @@ spec:
     remediation:
       retries: 3
   values:
-    serviceAccount:
-      create: true
-    env:
-      - name: WATCH_NAMESPACE
-        value: ""
+    dashboard:
+      enabled: true
+    serviceMonitor:
+      enabled: true

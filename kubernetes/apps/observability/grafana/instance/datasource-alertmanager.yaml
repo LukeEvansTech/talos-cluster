@@ -7,13 +7,11 @@ metadata:
 spec:
   instanceSelector:
     matchLabels:
-      dashboards: grafana
+      grafana.internal/instance: grafana
   datasource:
-    name: Alertmanager
     type: alertmanager
-    uid: alertmanager
+    name: alertmanager
     access: proxy
-    url: http://alertmanager-operated.observability.svc.cluster.local:9093
     jsonData:
       implementation: prometheus
-    editable: true
+    url: http://alertmanager-operated.observability.svc.cluster.local:9093
