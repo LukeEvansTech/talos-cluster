@@ -20,27 +20,16 @@ spec:
     image:
       repository: quay.io/prometheus/snmp-exporter
       tag: v0.29.0
-    extraArgs:
-      - "--config.file=/config/snmp.yml"
-    extraConfigmapMounts:
-      - name: snmp-config
-        mountPath: /config/snmp.yml
-        subPath: snmp.yml
-        configMap: snmp-exporter-config
-        readOnly: true
-        defaultMode: 420
     serviceMonitor:
       enabled: true
-    params:
-    # Add your UPS devices here, e.g.:
+    params: []
+    # Add your UPS devices here once you have targets, e.g.:
     # - name: ups01
-    #   module: ["apcups"]
+    #   module:
+    #     - if_mib
     #   target: ups01.${SECRET_DOMAIN_INT}
-    #   auth: ["public_v2"]
-    # - name: ups02
-    #   module: ["apcups"]
-    #   target: ups02.${SECRET_DOMAIN_INT}
-    #   auth: ["public_v2"]
+    #   auth:
+    #     - public_v2
     path: /snmp
     scrapeTimeout: 10s
     relabelings:
