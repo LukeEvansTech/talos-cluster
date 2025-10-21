@@ -7,4 +7,5 @@ resources:
   - ./externalsecret.yaml
   - ./ocirepository.yaml
   - ./helmrelease.yaml
+  - ./grafanadashboard.yaml
   # - ./scrapeconfig.yaml
