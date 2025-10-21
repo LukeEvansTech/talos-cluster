@@ -1,0 +1,55 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/helm.toolkit.fluxcd.io/helmrelease_v2.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: &app snmp-exporter
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: prometheus-snmp-exporter
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    remediation:
+      retries: 3
+  values:
+    fullnameOverride: *app
+    image:
+      repository: quay.io/prometheus/snmp-exporter
+      tag: v0.27.1
+    extraArgs:
+      - "--config.file=/config/snmp.yml"
+    extraConfigmapMounts:
+      - name: snmp-config
+        mountPath: /config/snmp.yml
+        subPath: snmp.yml
+        configMap: snmp-exporter-config
+        readOnly: true
+        defaultMode: 420
+    serviceMonitor:
+      enabled: true
+    params:
+    # Add your UPS devices here, e.g.:
+    # - name: ups01
+    #   module: ["apcups"]
+    #   target: ups01.${SECRET_DOMAIN_INT}
+    #   auth: ["public_v2"]
+    # - name: ups02
+    #   module: ["apcups"]
+    #   target: ups02.${SECRET_DOMAIN_INT}
+    #   auth: ["public_v2"]
+    path: /snmp
+    scrapeTimeout: 10s
+    relabelings:
+      - sourceLabels:
+          - __param_target
+        targetLabel: instance
+    resources:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+      limits:
+        memory: 64Mi
