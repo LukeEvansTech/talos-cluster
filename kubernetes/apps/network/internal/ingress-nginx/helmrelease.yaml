@@ -6,14 +6,9 @@ metadata:
   name: internal-ingress-nginx
 spec:
   interval: 1h
-  chart:
-    spec:
-      chart: ingress-nginx
-      version: 4.13.3
-      sourceRef:
-        kind: HelmRepository
-        name: ingress-nginx
-        namespace: flux-system
+  chartRef:
+    kind: OCIRepository
+    name: ingress-nginx
   values:
     fullnameOverride: internal-ingress-nginx
     controller:
