@@ -1,0 +1,71 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/helm.toolkit.fluxcd.io/helmrelease_v2.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: blackbox-exporter-lan
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: blackbox-exporter-lan
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+      strategy: rollback
+  values:
+    fullnameOverride: blackbox-exporter-lan
+    podSecurityContext:
+      sysctls:
+        - name: net.ipv4.ping_group_range
+          value: "0 2147483647"
+    securityContext:
+      readOnlyRootFilesystem: true
+      allowPrivilegeEscalation: false
+      capabilities:
+        add:
+          - NET_RAW
+    config:
+      modules:
+        http_2xx:
+          prober: http
+          timeout: 5s
+          http:
+            valid_http_versions:
+              - HTTP/1.1
+              - HTTP/2.0
+            follow_redirects: true
+            preferred_ip_protocol: ip4
+        icmp:
+          prober: icmp
+          timeout: 5s
+          icmp:
+            preferred_ip_protocol: ip4
+        tcp_connect:
+          prober: tcp
+          timeout: 5s
+    serviceMonitor:
+      enabled: true
+      defaults:
+        labels:
+          release: kube-prometheus-stack
+        interval: 1m
+        scrapeTimeout: 30s
+      targets:
+        - module: http_2xx
+          name: http_2xx
+          url: http://blackbox-exporter-lan.observability.svc.cluster.local:9115/metrics
+    prometheusRule:
+      enabled: true
+      rules:
+        - alert: LanProbeFailed
+          expr: probe_success{job="blackbox-exporter-lan"} == 0
+          for: 15m
+          labels:
+            severity: critical
+          annotations:
+            summary: "LAN probe failed: {{ $labels.instance }}"
