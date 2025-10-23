@@ -21,7 +21,7 @@ spec:
               UPTIME_KUMA_PORT: &port 3001
             image:
               repository: louislam/uptime-kuma
-              tag: 1.23.17@sha256:3d632903e6af34139a37f18055c4f1bfd9b7205ae1138f1e5e8940ddc1d176f9
+              tag: 2.0.2@sha256:4c364ef96aaddac7ec4c85f5e5f31c3394d35f631381ccbbf93f18fd26ac7cba
             probes:
               liveness:
                 enabled: true
