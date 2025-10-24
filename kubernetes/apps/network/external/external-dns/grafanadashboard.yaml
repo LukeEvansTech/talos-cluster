@@ -9,7 +9,7 @@ spec:
   instanceSelector:
     matchLabels:
       grafana.internal/instance: grafana
-  grafanaCom:
-    # renovate: depName="External-dns"
-    id: 15038
-    revision: 3
+  datasources:
+    - datasourceName: prometheus
+      inputName: DS_PROMETHEUS
+  url: https://grafana.com/api/dashboards/15038/revisions/3/download

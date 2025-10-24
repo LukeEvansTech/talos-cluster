@@ -9,7 +9,7 @@ spec:
   instanceSelector:
     matchLabels:
       grafana.internal/instance: grafana
-  grafanaCom:
-    # renovate: depName="Cert-manager-Kubernetes"
-    id: 20842
-    revision: 3
+  datasources:
+    - datasourceName: prometheus
+      inputName: DS_PROMETHEUS
+  url: https://grafana.com/api/dashboards/20842/revisions/3/download
