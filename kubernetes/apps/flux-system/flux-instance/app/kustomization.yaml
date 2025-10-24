@@ -4,7 +4,10 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - ./externalsecret.yaml
-  - ./ocirepository.yaml
+  - ./grafanadashboard.yaml
   - ./helmrelease.yaml
   - ./ingress.yaml
+  - ./ocirepository.yaml
+  - ./podmonitor.yaml
+  - ./prometheusrule.yaml
   - ./receiver.yaml
