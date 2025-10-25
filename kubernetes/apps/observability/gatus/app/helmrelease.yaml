@@ -12,8 +12,15 @@ spec:
   values:
     controllers:
       gatus:
+        type: statefulset
         annotations:
           reloader.stakater.com/auto: "true"
+        statefulset:
+          volumeClaimTemplates:
+            - name: config
+              storageClass: ceph-block
+              accessMode: ReadWriteOnce
+              size: 5Gi
         initContainers:
           init-config:
             image:
@@ -107,8 +114,6 @@ spec:
     serviceAccount:
       gatus: {}
     persistence:
-      config:
-        existingClaim: gatus
       config-file:
         type: configMap
         name: gatus-configmap
