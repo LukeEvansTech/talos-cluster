@@ -41,7 +41,7 @@
       matchDatasources: ["docker"],
       automerge: true,
       automergeType: "pr",
-      matchUpdateTypes: ["digest","minor","patch"],
+      matchUpdateTypes: ["digest", "minor", "patch"],
       matchPackageNames: ["/home-operations/"],
       ignoreTests: false,
     },
@@ -55,6 +55,14 @@
       minimumReleaseAge: "1 minute",
       ignoreTests: true,
     },
+    {
+      description: "Auto-merge changedetection.io patch updates",
+      matchDatasources: ["docker"],
+      automerge: true,
+      automergeType: "pr",
+      matchUpdateTypes: ["patch"],
+      matchPackageNames: ["/changedetection\\.io/"],
+      ignoreTests: false,
+    },
   ],
 }
-
