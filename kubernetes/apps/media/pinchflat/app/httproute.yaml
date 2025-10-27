@@ -10,8 +10,8 @@ spec:
       namespace: network
       sectionName: https
   hostnames:
-    - "pinchflat-gw.${SECRET_DOMAIN}"
-    - "pinchflat-gw.${SECRET_INTERNAL_DOMAIN}"
+    - "pinchflat.${SECRET_DOMAIN}"
+    - "pinchflat.${SECRET_INTERNAL_DOMAIN}"
   rules:
     - matches:
         - path:
