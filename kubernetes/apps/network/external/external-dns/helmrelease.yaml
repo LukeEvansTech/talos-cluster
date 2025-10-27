@@ -26,10 +26,12 @@ spec:
       - --events
       - --ignore-ingress-tls-spec
       - --ingress-class=external
+      - --gateway-label-filter=type=external
     policy: sync
     sources:
       - "crd"
       - "ingress"
+      - "gateway-httproute"
     txtPrefix: k8s.
     txtOwnerId: default
     domainFilters:
