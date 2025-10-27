@@ -9,6 +9,14 @@ spec:
   chartRef:
     kind: OCIRepository
     name: envoy-gateway
+  install:
+    crds: Create
+    remediation:
+      retries: 3
+  upgrade:
+    crds: CreateReplace
+    remediation:
+      retries: 3
   values:
     global:
       images:
