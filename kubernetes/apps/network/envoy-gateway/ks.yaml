@@ -10,6 +10,8 @@ spec:
     labels:
       app.kubernetes.io/name: *app
   dependsOn:
+    - name: certificates-import
+      namespace: flux-system
     - name: cert-manager
       namespace: cert-manager
   interval: 1h
