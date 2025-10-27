@@ -75,7 +75,6 @@ spec:
         certificateRefs:
           - kind: Secret
             name: "${SECRET_DOMAIN/./-}-production-tls"
-            namespace: cert-manager
 ---
 # yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/gateway.networking.k8s.io/gateway_v1.json
 apiVersion: gateway.networking.k8s.io/v1
@@ -109,7 +108,6 @@ spec:
         certificateRefs:
           - kind: Secret
             name: "${SECRET_DOMAIN/./-}-production-tls"
-            namespace: cert-manager
 ---
 # yaml-language-server: $schema=https://raw.githubusercontent.com/envoyproxy/gateway/refs/heads/main/charts/gateway-helm/crds/generated/gateway.envoyproxy.io_clienttrafficpolicies.yaml
 apiVersion: gateway.envoyproxy.io/v1alpha1
