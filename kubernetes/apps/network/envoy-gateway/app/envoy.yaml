@@ -57,7 +57,7 @@ spec:
   infrastructure:
     annotations:
       external-dns.alpha.kubernetes.io/hostname: *hostname
-      lbipam.cilium.io/ips: 10.32.8.88
+      lbipam.cilium.io/ips: 10.32.8.89
   listeners:
     - name: http
       protocol: HTTP
@@ -90,7 +90,7 @@ spec:
   infrastructure:
     annotations:
       external-dns.alpha.kubernetes.io/hostname: *hostname
-      lbipam.cilium.io/ips: 10.32.8.87
+      lbipam.cilium.io/ips: 10.32.8.90
   listeners:
     - name: http
       protocol: HTTP
