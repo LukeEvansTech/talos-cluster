@@ -1,15 +1,14 @@
 ---
-# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/source.toolkit.fluxcd.io/ocirepository_v1beta2.json
-apiVersion: source.toolkit.fluxcd.io/v1beta2
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/source.toolkit.fluxcd.io/ocirepository_v1.json
+apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository
 metadata:
   name: fluent-bit
 spec:
   interval: 15m
-  provider: generic
-  url: oci://ghcr.io/fluent/helm-charts
-  ref:
-    tag: fluent-bit-0.54.0
   layerSelector:
     mediaType: application/vnd.cncf.helm.chart.content.v1.tar+gzip
     operation: copy
+  ref:
+    tag: 0.54.0
+  url: oci://ghcr.io/home-operations/charts-mirror/fluent-bit
