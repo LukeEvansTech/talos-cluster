@@ -11,10 +11,7 @@ spec:
       app.kubernetes.io/name: *app
   interval: 1h
   path: ./kubernetes/apps/external-secrets/external-secrets/app
-  postBuild:
-    substituteFrom:
-      - name: cluster-secrets
-        kind: Secret
+  postBuild: {}
   prune: true
   retryInterval: 2m
   sourceRef:
