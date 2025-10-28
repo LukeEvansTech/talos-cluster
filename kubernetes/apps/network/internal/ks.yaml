@@ -14,10 +14,7 @@ spec:
       namespace: cert-manager
   interval: 1h
   path: ./kubernetes/apps/network/internal/ingress-nginx
-  postBuild:
-    substituteFrom:
-      - name: cluster-secrets
-        kind: Secret
+  postBuild: {}
   prune: true
   retryInterval: 2m
   sourceRef:
@@ -40,10 +37,7 @@ spec:
       app.kubernetes.io/name: *app
   interval: 1h
   path: ./kubernetes/apps/network/internal/k8s-gateway
-  postBuild:
-    substituteFrom:
-      - name: cluster-secrets
-        kind: Secret
+  postBuild: {}
   prune: true
   retryInterval: 2m
   sourceRef:
