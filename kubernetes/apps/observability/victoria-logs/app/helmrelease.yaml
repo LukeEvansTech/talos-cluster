@@ -17,6 +17,26 @@ spec:
         storageClass: ceph-block
         size: 20Gi
       retentionPeriod: 28d
+      route:
+        enabled: true
+        hostnames:
+          - victorialogs.${SECRET_DOMAIN}
+        parentRefs:
+          - name: envoy-internal
+            namespace: network
+            sectionName: https
+        extraRules:
+          - matches:
+              - path:
+                  type: Exact
+                  value: /
+            filters:
+              - type: RequestRedirect
+                requestRedirect:
+                  path:
+                    type: ReplaceFullPath
+                    replaceFullPath: /select/vmui/
+                  statusCode: 302
     serviceMonitor:
       enabled: true
     dashboards:
