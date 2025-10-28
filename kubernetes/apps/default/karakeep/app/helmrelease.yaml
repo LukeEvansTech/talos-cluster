@@ -146,7 +146,7 @@ spec:
             namespace: network
         rules:
           - backendRefs:
-              - name: app
+              - name: karakeep-app
                 port: 3000
 
     persistence:
