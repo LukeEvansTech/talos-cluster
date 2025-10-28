@@ -11,10 +11,7 @@ spec:
       app.kubernetes.io/name: *app
   interval: 1h
   path: ./kubernetes/apps/network/external/external-dns
-  postBuild:
-    substituteFrom:
-      - name: cluster-secrets
-        kind: Secret
+  postBuild: {}
   prune: true
   retryInterval: 2m
   sourceRef:
@@ -37,10 +34,7 @@ spec:
       app.kubernetes.io/name: *app
   interval: 1h
   path: ./kubernetes/apps/network/external/cloudflared
-  postBuild:
-    substituteFrom:
-      - name: cluster-secrets
-        kind: Secret
+  postBuild: {}
   prune: true
   retryInterval: 2m
   sourceRef:
@@ -66,10 +60,7 @@ spec:
       namespace: cert-manager
   interval: 1h
   path: ./kubernetes/apps/network/external/ingress-nginx
-  postBuild:
-    substituteFrom:
-      - name: cluster-secrets
-        kind: Secret
+  postBuild: {}
   prune: true
   retryInterval: 2m
   sourceRef:

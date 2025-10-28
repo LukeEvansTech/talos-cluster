@@ -16,10 +16,7 @@ spec:
       namespace: *namespace
   interval: 1h
   path: ./kubernetes/apps/openebs-system/openebs/app
-  postBuild:
-    substituteFrom:
-      - name: cluster-secrets
-        kind: Secret
+  postBuild: {}
   prune: true
   retryInterval: 2m
   sourceRef:

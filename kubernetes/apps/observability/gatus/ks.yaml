@@ -18,9 +18,6 @@ spec:
     substitute:
       APP: *app
       GATUS_SUBDOMAIN: status
-    substituteFrom:
-      - name: cluster-secrets
-        kind: Secret
   prune: true
   retryInterval: 2m
   sourceRef:
