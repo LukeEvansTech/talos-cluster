@@ -10,7 +10,7 @@ spec:
     labels:
       app.kubernetes.io/name: *app
   interval: 1h
-  path: ./kubernetes/apps/network/external/external-dns
+  path: ./kubernetes/apps/network/external/external-dns/app
   postBuild: {}
   prune: true
   retryInterval: 2m
@@ -33,7 +33,7 @@ spec:
     labels:
       app.kubernetes.io/name: *app
   interval: 1h
-  path: ./kubernetes/apps/network/external/cloudflared
+  path: ./kubernetes/apps/network/external/cloudflared/app
   postBuild: {}
   prune: true
   retryInterval: 2m
