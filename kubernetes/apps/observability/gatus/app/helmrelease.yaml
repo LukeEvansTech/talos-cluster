@@ -43,7 +43,7 @@ spec:
           init-config-routes:
             image:
               repository: docker.io/bitnami/kubectl
-              tag: 1.32.1@sha256:a2e29be4321c66e3b21b3b92ff4be88d06c7cb7cf0de5e89e43d5f24c0f66c72
+              tag: 1.32.1
             command:
               - "/bin/sh"
               - "-c"
