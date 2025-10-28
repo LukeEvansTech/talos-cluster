@@ -42,23 +42,34 @@ spec:
                 memory: 128Mi
           init-config-routes:
             image:
-              repository: ghcr.io/home-operations/k8s-sidecar
-              tag: 1.30.10@sha256:dd3b1f0c4e6b4512b2deb50c58acf65fd0f0927120a59a95eec854d32a6c9ce3
-            env:
-              FOLDER: /config
-              LABEL: gatus.io/enabled
-              LABEL_VALUE: "true"
-              NAMESPACE: ALL
-              RESOURCE: httproutes.gateway.networking.k8s.io
-              UNIQUE_FILENAMES: true
-              METHOD: WATCH
-              ENABLE_5XX: "true"
+              repository: ghcr.io/kubectl
+              tag: v1.34.1@sha256:3e64e02f06fc37e5aa3d74e4c1f1de45c2b05c7d3809e8fc12ec2e6e48fd9c3b
+            command:
+              - "/bin/sh"
+              - "-c"
+              - |
+                #!/bin/sh
+                set -e
+                echo "Starting HTTPRoute discovery for Gatus..."
+                while true; do
+                  kubectl get httproutes -A -l gatus.io/enabled=true -o json | \
+                  jq -r '.items[] | select(.metadata.annotations["gatus.io/endpoint"] != null) |
+                    "endpoints:\n  - " + .metadata.annotations["gatus.io/endpoint"]' | \
+                  awk 'BEGIN{RS="endpoints:\n"} NR>1{print "endpoints:\n" $0 > "/config/" FILENAME "_httproute_" NR-1 ".yaml"}'
+
+                  # List discovered endpoints
+                  echo "Discovered HTTPRoute endpoints:"
+                  kubectl get httproutes -A -l gatus.io/enabled=true -o custom-columns=NAMESPACE:.metadata.namespace,NAME:.metadata.name --no-headers
+
+                  # Watch for changes (sleep and re-check every 60s)
+                  sleep 60
+                done
             restartPolicy: Always
             resources:
               requests:
                 cpu: 10m
               limits:
-                memory: 128Mi
+                memory: 64Mi
         containers:
           app:
             image:
