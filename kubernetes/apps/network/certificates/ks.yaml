@@ -11,7 +11,7 @@ spec:
     labels:
       app.kubernetes.io/name: *app
   interval: 1h
-  path: ./kubernetes/apps/network/certificates/import
+  path: ./kubernetes/apps/network/certificates/app
   prune: true
   sourceRef:
     kind: GitRepository
