@@ -72,13 +72,10 @@ spec:
                 target &remote_smtp
             }
             target.smtp remote_smtp {
-                # Use TLS client certificate authentication
-                targets tls://{env:SMTP_RELAY_SERVER}:25
-                tls_client {
-                    cert /certs/tls.crt
-                    key /certs/tls.key
-                }
-                auth external
+                # Connect to upstream SMTP server with STARTTLS
+                targets tcp://{env:SMTP_RELAY_SERVER}:587
+                starttls yes
+                auth off
             }
     persistence:
       cache:
@@ -89,9 +86,3 @@ spec:
         globalMounts:
           - path: /data/maddy.conf
             subPath: maddy.conf
-      tls-cert:
-        type: secret
-        name: tls.smtp-relay
-        globalMounts:
-          - path: /certs
-            readOnly: true
