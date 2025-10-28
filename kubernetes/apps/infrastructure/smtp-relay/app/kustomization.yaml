@@ -7,9 +7,3 @@ resources:
   - ./externalsecret.yaml
   - ./ocirepository.yaml
   - ./helmrelease.yaml
-configMapGenerator:
-  - name: smtp-relay-configmap
-    files:
-      - ./resources/maddy.conf
-generatorOptions:
-  disableNameSuffixHash: true
