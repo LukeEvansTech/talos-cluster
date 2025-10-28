@@ -87,10 +87,10 @@ spec:
         resources:
           requests:
             cpu: 500m
-            memory: 2Gi
+            memory: 4Gi
           limits:
             cpu: 2000m
-            memory: 6Gi
+            memory: 10Gi
         storageSpec:
           volumeClaimTemplate:
             spec:
