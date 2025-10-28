@@ -165,7 +165,7 @@ spec:
             namespace: network
         rules:
           - backendRefs:
-              - name: app
+              - name: qbittorrent-app
                 port: 80
     persistence:
       config:
