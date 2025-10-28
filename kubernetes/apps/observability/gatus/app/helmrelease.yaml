@@ -77,6 +77,10 @@ spec:
           identifier: gatus
     defaultPodOptions:
       hostUsers: false
+      securityContext:
+        sysctls:
+          - name: user.max_user_namespaces
+            value: "11255"
     service:
       app:
         controller: gatus
