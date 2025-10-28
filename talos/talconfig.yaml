@@ -46,8 +46,8 @@ nodes:
         vip:
           ip: "10.32.8.85"
     patches:
-      - # Encrypt system disk with TPM
-        |-
+      # Encrypt system disk with TPM
+      - |-
         machine:
           systemDiskEncryption:
             state:
@@ -81,8 +81,8 @@ nodes:
         vip:
           ip: "10.32.8.85"
     patches:
-      - # Encrypt system disk with TPM
-        |-
+      # Encrypt system disk with TPM
+      - |-
         machine:
           systemDiskEncryption:
             state:
@@ -116,8 +116,8 @@ nodes:
         vip:
           ip: "10.32.8.85"
     patches:
-      - # Encrypt system disk with TPM
-        |-
+      # Encrypt system disk with TPM
+      - |-
         machine:
           systemDiskEncryption:
             state:
@@ -143,6 +143,5 @@ patches:
 # Controller patches
 controlPlane:
   patches:
-    - "@./patches/controller/admission-controller-patch.yaml"
     - "@./patches/controller/cluster.yaml"
     - "@./patches/controller/machine-features.yaml"
