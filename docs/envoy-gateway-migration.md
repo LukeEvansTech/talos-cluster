@@ -72,9 +72,21 @@ When ready to decommission nginx, update Envoy Gateway IPs to:
 
 ## Migrating Applications to Envoy Gateway
 
-### Step 1: Add Route Configuration to HelmRelease
+### Step 1: Choose Gateway Type
 
-For apps using the **bjw-s app-template** chart, embed the route configuration directly in the HelmRelease values:
+**Internal Gateway** (`envoy-internal`):
+- Use for services only accessible within your network
+- Examples: Home automation, internal tools, private apps
+
+**External Gateway** (`envoy-external`):
+- Use for publicly accessible services
+- Examples: Public websites, external APIs
+
+### Step 2: Add Route Configuration
+
+#### For apps using bjw-s app-template chart (RECOMMENDED)
+
+Embed the route configuration directly in the HelmRelease values:
 
 **Example:** `kubernetes/apps/media/pinchflat/app/helmrelease.yaml`
 
@@ -106,7 +118,11 @@ spec:
     #     hosts: [...]
 ```
 
-**For apps NOT using app-template**, create a separate HTTPRoute file:
+**No kustomization.yaml changes needed** - the app-template chart handles HTTPRoute creation automatically.
+
+#### For apps NOT using app-template
+
+Create a separate HTTPRoute file:
 
 **Example:** `kubernetes/apps/<namespace>/<app>/app/httproute.yaml`
 
@@ -142,15 +158,13 @@ resources:
   - ./httproute.yaml
 ```
 
-### Step 3: Choose Gateway Type
+### Step 3: Commit and Deploy
 
-**Internal Gateway** (`envoy-internal`):
-- Use for services only accessible within your network
-- Examples: Home automation, internal tools, private apps
-
-**External Gateway** (`envoy-external`):
-- Use for publicly accessible services
-- Examples: Public websites, external APIs
+```bash
+git add -A
+git commit -m "feat(namespace): migrate app to Envoy Gateway"
+git push
+```
 
 ### Step 4: Test the HTTPRoute
 
@@ -183,7 +197,9 @@ kubectl logs -n envoy-gateway-system -l app.kubernetes.io/name=envoy-gateway
 kubectl logs -n envoy-gateway-system -l gateway.envoyproxy.io/owning-gateway-name=envoy-internal
 ```
 
-## Common HTTPRoute Patterns
+## Advanced HTTPRoute Patterns
+
+**Note:** These patterns are for standalone HTTPRoute files (apps not using app-template). For app-template apps, advanced routing requires creating a separate HTTPRoute file alongside the HelmRelease.
 
 ### Path-Based Routing
 
@@ -246,27 +262,40 @@ sources:
 
 ## Migration Checklist
 
+### For app-template apps:
+- [ ] Add `route` section to HelmRelease values
+- [ ] Choose correct parent Gateway (envoy-internal or envoy-external)
+- [ ] Comment out or remove `ingress` section
+- [ ] Commit and push changes
+- [ ] Reconcile Flux
+- [ ] Verify HTTPRoute is Accepted
+- [ ] Test application access
+- [ ] Monitor for errors in Envoy Gateway logs
+- [ ] (Optional) Keep old Ingress temporarily for rollback
+- [ ] Remove old Ingress once confident
+
+### For non-app-template apps:
 - [ ] Create HTTPRoute YAML file
 - [ ] Add HTTPRoute to app kustomization
 - [ ] Commit and push changes
 - [ ] Reconcile Flux
 - [ ] Verify HTTPRoute is Accepted
-- [ ] Test application access via new hostname
+- [ ] Test application access
 - [ ] Monitor for errors in Envoy Gateway logs
 - [ ] (Optional) Keep old Ingress temporarily for rollback
 - [ ] Remove old Ingress once confident
-- [ ] Update any hardcoded URLs in application configs
 
-## Comparison: Ingress vs HTTPRoute
+## Comparison: Ingress vs Gateway API
 
-| Feature | Nginx Ingress | Gateway API HTTPRoute |
-|---------|---------------|----------------------|
-| Resource Type | `kind: Ingress` | `kind: HTTPRoute` |
-| Gateway Reference | `ingressClassName: internal` | `parentRefs: envoy-internal` |
-| Hostname | `spec.rules[].host` | `spec.hostnames[]` |
-| Path Matching | `spec.rules[].http.paths[]` | `spec.rules[].matches[]` |
-| Backend | `backend.service.name/port` | `backendRefs[].name/port` |
-| TLS | `spec.tls[]` | Configured on Gateway |
+| Feature | Nginx Ingress (app-template) | Gateway API (app-template) |
+|---------|------------------------------|----------------------------|
+| Configuration Location | `ingress` section in values | `route` section in values |
+| Resource Created | `Ingress` | `HTTPRoute` |
+| Gateway Reference | `className: internal` | `parentRefs: envoy-internal` |
+| Hostname | `hosts[].host` | `hostnames[]` |
+| Path Matching | `hosts[].paths[]` | Automatic for simple cases |
+| Backend | Automatic from service | Automatic from service |
+| TLS | Per-ingress config | Configured on Gateway |
 
 ## Example Migration
 
