@@ -30,6 +30,17 @@
       datasourceTemplate: "custom.grafana-dashboards",
       versioningTemplate: "regex:^(?<major>\\d+)$",
     },
+    {
+      description: "Process Grafana dashboards (URL format)",
+      customType: "regex",
+      managerFilePatterns: ["/grafanadashboard\\.ya?ml(?:\\.j2)?$/"],
+      matchStrings: [
+        'dashboards\\/(?<depName>\\d+)\\/revisions\\/(?<currentValue>\\d+)\\/download',
+      ],
+      datasourceTemplate: "custom.grafana-dashboards",
+      versioningTemplate: "regex:^(?<major>\\d+)$",
+      autoReplaceStringTemplate: "dashboards/{{depName}}/revisions/{{newValue}}/download",
+    },
   ],
   packageRules: [
     {
