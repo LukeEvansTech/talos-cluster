@@ -73,8 +73,10 @@ spec:
             }
             target.smtp remote_smtp {
                 # Use TLS client certificate authentication
-                tls client /certs/tls.crt /certs/tls.key
                 targets tls://{env:SMTP_RELAY_SERVER}:25
+                tls_client {
+                    certs /certs/tls.crt /certs/tls.key
+                }
             }
     persistence:
       cache:
