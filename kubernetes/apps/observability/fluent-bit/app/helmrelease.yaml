@@ -27,12 +27,11 @@ spec:
       inputs: |
         [INPUT]
             Name tail
+            Alias kubernetes
             Path /var/log/containers/*.log
-            Tag kube.*
             Parser containerd
-            multiline.parser containerd
-            Refresh_Interval 10
-            Mem_Buf_Limit 50MB
+            Tag kubernetes.*
+            Skip_Empty_Lines on
             Skip_Long_Lines on
       filters: |
         [FILTER]
