@@ -76,7 +76,12 @@ spec:
                 debug yes
                 targets tcp://{env:SMTP_RELAY_SERVER}:25
                 starttls yes
-                auth off
+                auth external
+                tls_client {
+                    cert /tls/tls.crt
+                    key /tls/tls.key
+                    protocols tls1.2 tls1.3
+                }
             }
     persistence:
       cache:
@@ -87,3 +92,9 @@ spec:
         globalMounts:
           - path: /data/maddy.conf
             subPath: maddy.conf
+      tls:
+        type: secret
+        name: tls.smtp-relay
+        globalMounts:
+          - path: /tls
+            readOnly: true
