@@ -7,9 +7,9 @@ metadata:
 spec:
   interval: 15m
   provider: generic
-  url: oci://ghcr.io/fluent/helm-charts/fluent-bit
+  url: oci://ghcr.io/fluent/helm-charts
   ref:
-    tag: 0.54.0
+    tag: fluent-bit-0.54.0
   layerSelector:
     mediaType: application/vnd.cncf.helm.chart.content.v1.tar+gzip
     operation: copy
