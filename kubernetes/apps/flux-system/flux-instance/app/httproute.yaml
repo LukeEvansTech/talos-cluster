@@ -4,8 +4,19 @@ apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
   name: flux-webhook
+  labels:
+    gatus.io/enabled: "true"
   annotations:
     external-dns.alpha.kubernetes.io/target: "external.${SECRET_DOMAIN}"
+    gatus.io/endpoint: |-
+      name: flux-webhook
+      group: external
+      url: https://flux-webhook.${SECRET_DOMAIN}/hook/
+      interval: 1m
+      client:
+        dns-resolver: tcp://1.1.1.1:53
+      conditions:
+        - "[STATUS] == 401"
 spec:
   hostnames:
     - flux-webhook.${SECRET_DOMAIN}

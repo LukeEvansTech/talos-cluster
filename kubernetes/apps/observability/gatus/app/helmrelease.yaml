@@ -29,10 +29,30 @@ spec:
             env:
               FOLDER: /config
               LABEL: gatus.io/enabled
+              LABEL_VALUE: "true"
               NAMESPACE: ALL
               RESOURCE: both
               UNIQUE_FILENAMES: true
               METHOD: WATCH
+            restartPolicy: Always
+            resources:
+              requests:
+                cpu: 10m
+              limits:
+                memory: 128Mi
+          init-config-routes:
+            image:
+              repository: ghcr.io/home-operations/k8s-sidecar
+              tag: 1.30.10@sha256:dd3b1f0c4e6b4512b2deb50c58acf65fd0f0927120a59a95eec854d32a6c9ce3
+            env:
+              FOLDER: /config
+              LABEL: gatus.io/enabled
+              LABEL_VALUE: "true"
+              NAMESPACE: ALL
+              RESOURCE: httproutes.gateway.networking.k8s.io
+              UNIQUE_FILENAMES: true
+              METHOD: WATCH
+              ENABLE_5XX: "true"
             restartPolicy: Always
             resources:
               requests:
@@ -66,7 +86,11 @@ spec:
             securityContext:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: true
-              capabilities: {drop: ["ALL"]}
+              capabilities:
+                drop:
+                  - "ALL"
+                add:
+                  - "NET_RAW"
             resources:
               requests:
                 cpu: 100m
@@ -94,6 +118,18 @@ spec:
           - port: http
     route:
       app:
+        annotations:
+          gatus.io/endpoint: |-
+            name: gatus
+            group: external
+            url: https://status.${SECRET_DOMAIN}
+            interval: 1m
+            client:
+              dns-resolver: tcp://1.1.1.1:53
+            conditions:
+              - "[STATUS] == 200"
+        labels:
+          gatus.io/enabled: "true"
         hostnames:
           - status.${SECRET_DOMAIN}
         parentRefs:
