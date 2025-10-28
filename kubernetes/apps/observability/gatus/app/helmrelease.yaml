@@ -40,30 +40,14 @@ spec:
                 cpu: 10m
               limits:
                 memory: 128Mi
-          init-config-routes:
+          gatus-sidecar:
             image:
-              repository: registry.k8s.io/kubectl
-              tag: v1.32.0
-            command:
-              - "/bin/sh"
-              - "-c"
-              - |
-                #!/bin/sh
-                set -e
-                echo "Starting HTTPRoute discovery for Gatus..."
-                while true; do
-                  kubectl get httproutes -A -l gatus.io/enabled=true -o json | \
-                  jq -r '.items[] | select(.metadata.annotations["gatus.io/endpoint"] != null) |
-                    "endpoints:\n  - " + .metadata.annotations["gatus.io/endpoint"]' | \
-                  awk 'BEGIN{RS="endpoints:\n"} NR>1{print "endpoints:\n" $0 > "/config/" FILENAME "_httproute_" NR-1 ".yaml"}'
-
-                  # List discovered endpoints
-                  echo "Discovered HTTPRoute endpoints:"
-                  kubectl get httproutes -A -l gatus.io/enabled=true -o custom-columns=NAMESPACE:.metadata.namespace,NAME:.metadata.name --no-headers
-
-                  # Watch for changes (sleep and re-check every 60s)
-                  sleep 60
-                done
+              repository: ghcr.io/home-operations/gatus-sidecar
+              tag: 0.0.9@sha256:31a52dd0e579c1f865b2580a4bb715d2a893deb1351fedeaba73598e9a578cbe
+            args:
+              - --auto-httproute
+              - --enable-httproute
+              - --enable-service
             restartPolicy: Always
             resources:
               requests:
