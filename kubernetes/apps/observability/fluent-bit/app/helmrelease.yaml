@@ -30,7 +30,7 @@ spec:
             Alias kubernetes
             Path /var/log/containers/*.log
             Parser containerd
-            Tag kubernetes.*
+            Tag kube.*
             Skip_Empty_Lines on
             Skip_Long_Lines on
       filters: |
