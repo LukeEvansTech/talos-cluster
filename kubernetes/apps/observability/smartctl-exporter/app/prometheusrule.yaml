@@ -42,9 +42,11 @@ spec:
             severity: critical
         - alert: SmartDeviceAvailableSpareUnderThreshold
           annotations:
-            summary: "Device {{ $labels.device }} on instance {{ $labels.instance }} has available spare under threshold."
+            summary: "Device {{ $labels.device }} on instance {{ $labels.instance }} has available spare under threshold ({{ $value }}% remaining)."
           expr: |-
-            smartctl_device_available_spare_threshold != 0
+            smartctl_device_available_spare_threshold > 0
+            and
+            smartctl_device_available_spare < smartctl_device_available_spare_threshold
           for: 5m
           labels:
             severity: critical
