@@ -73,6 +73,7 @@ spec:
             }
             target.smtp remote_smtp {
                 # Connect to upstream SMTP server with STARTTLS
+                debug yes
                 targets tcp://{env:SMTP_RELAY_SERVER}:587
                 starttls yes
                 auth off
