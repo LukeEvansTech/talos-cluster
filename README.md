@@ -43,11 +43,12 @@ My clusters run [talos linux](https://www.talos.dev) immutable kubernetes OS. Th
 - [actions-runner-controller](https://github.com/actions/actions-runner-controller): self-hosted Github runners
 - [cilium](https://github.com/cilium/cilium): internal Kubernetes networking plugin
 - [cert-manager](https://cert-manager.io/docs/): creates SSL certificates for services in my cluster
+- [cloudflared](https://github.com/cloudflare/cloudflared): enables Cloudflare secure access to my cluster services
+- [envoy-gateway](https://github.com/envoyproxy/gateway): Kubernetes-native ingress controller using Envoy Proxy and Gateway API
 - [external-dns](https://github.com/kubernetes-sigs/external-dns): automatically syncs DNS records from my cluster ingresses to a DNS provider
-- [external-secrets](https://github.com/external-secrets/external-secrets/): managed Kubernetes secrets using [Bitwarden](https://bitwarden.com/).
-- [ingress-nginx](https://github.com/kubernetes/ingress-nginx/): ingress controller for Kubernetes using NGINX as a reverse proxy and load balancer
-- [rook-ceph](https://rook.io/): Cloud native distributed block storage for Kubernetes
-- [sops](https://toolkit.fluxcd.io/guides/mozilla-sops/): managed secrets for Kubernetes, Ansible, and Terraform which are committed to Git
+- [external-secrets](https://github.com/external-secrets/external-secrets/): managed Kubernetes secrets using [1Password](https://1password.com/)
+- [rook-ceph](https://rook.io/): cloud native distributed block storage for Kubernetes
+- [sops](https://toolkit.fluxcd.io/guides/mozilla-sops/): managed secrets for Kubernetes and Terraform which are committed to Git
 - [spegel](https://github.com/XenitAB/spegel): stateless cluster local OCI registry mirror
 - [volsync](https://github.com/backube/volsync): backup and recovery of persistent volume claims
 
