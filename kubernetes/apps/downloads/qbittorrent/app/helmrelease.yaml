@@ -163,6 +163,10 @@ spec:
         parentRefs:
           - name: envoy-internal
             namespace: network
+        rules:
+          - backendRefs:
+              - name: app
+                port: 80
     persistence:
       config:
         existingClaim: qbittorrent
