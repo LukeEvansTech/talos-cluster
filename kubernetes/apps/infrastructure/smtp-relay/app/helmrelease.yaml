@@ -72,9 +72,9 @@ spec:
                 target &remote_smtp
             }
             target.smtp remote_smtp {
-                # Connect to upstream SMTP server with STARTTLS
+                # Connect to upstream SMTP server on port 25
                 debug yes
-                targets tcp://{env:SMTP_RELAY_SERVER}:587
+                targets tcp://{env:SMTP_RELAY_SERVER}:25
                 starttls yes
                 auth off
             }
