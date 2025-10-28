@@ -72,11 +72,43 @@ When ready to decommission nginx, update Envoy Gateway IPs to:
 
 ## Migrating Applications to Envoy Gateway
 
-### Step 1: Create HTTPRoute
+### Step 1: Add Route Configuration to HelmRelease
 
-Create an HTTPRoute resource in your application directory:
+For apps using the **bjw-s app-template** chart, embed the route configuration directly in the HelmRelease values:
 
-**Example:** `kubernetes/apps/media/pinchflat/app/httproute.yaml`
+**Example:** `kubernetes/apps/media/pinchflat/app/helmrelease.yaml`
+
+```yaml
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: pinchflat
+spec:
+  values:
+    service:
+      app:
+        controller: pinchflat
+        ports:
+          http:
+            port: 80
+    route:  # Add this section
+      app:
+        hostnames:
+          - "{{ .Release.Name }}.${SECRET_DOMAIN}"
+          - "{{ .Release.Name }}.${SECRET_INTERNAL_DOMAIN}"
+        parentRefs:
+          - name: envoy-internal  # or envoy-external for public apps
+            namespace: network
+    # Comment out or remove ingress section
+    # ingress:
+    #   app:
+    #     className: internal
+    #     hosts: [...]
+```
+
+**For apps NOT using app-template**, create a separate HTTPRoute file:
+
+**Example:** `kubernetes/apps/<namespace>/<app>/app/httproute.yaml`
 
 ```yaml
 ---
@@ -84,38 +116,30 @@ Create an HTTPRoute resource in your application directory:
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
-  name: pinchflat
+  name: myapp
 spec:
   parentRefs:
-    - name: envoy-internal  # or envoy-external for public apps
+    - name: envoy-internal
       namespace: network
       sectionName: https
   hostnames:
-    - "pinchflat.${SECRET_DOMAIN}"
-    - "pinchflat.${SECRET_INTERNAL_DOMAIN}"
+    - "myapp.${SECRET_DOMAIN}"
   rules:
     - matches:
         - path:
             type: PathPrefix
             value: /
       backendRefs:
-        - name: pinchflat  # Service name
-          port: 80         # Service port
+        - name: myapp
+          port: 80
 ```
 
-### Step 2: Update Kustomization
-
-Add the HTTPRoute to your app's kustomization:
-
-**Example:** `kubernetes/apps/media/pinchflat/app/kustomization.yaml`
+Then add it to kustomization.yaml:
 
 ```yaml
----
-apiVersion: kustomize.config.k8s.io/v1beta1
-kind: Kustomization
 resources:
   - ./helmrelease.yaml
-  - ./httproute.yaml  # Add this line
+  - ./httproute.yaml
 ```
 
 ### Step 3: Choose Gateway Type
@@ -246,50 +270,57 @@ sources:
 
 ## Example Migration
 
-### Before (Nginx Ingress)
+### Before (Nginx Ingress in HelmRelease)
 
 ```yaml
-apiVersion: networking.k8s.io/v1
-kind: Ingress
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
 metadata:
   name: pinchflat
 spec:
-  ingressClassName: internal
-  rules:
-    - host: "pinchflat.${SECRET_DOMAIN}"
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: pinchflat
-                port:
-                  number: 80
+  values:
+    service:
+      app:
+        controller: pinchflat
+        ports:
+          http:
+            port: 80
+    ingress:
+      app:
+        className: internal
+        hosts:
+          - host: "{{ .Release.Name }}.${SECRET_DOMAIN}"
+            paths:
+              - path: /
+                pathType: Prefix
+                service:
+                  identifier: app
+                  port: http
 ```
 
-### After (HTTPRoute)
+### After (Gateway API Route in HelmRelease)
 
 ```yaml
-apiVersion: gateway.networking.k8s.io/v1
-kind: HTTPRoute
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
 metadata:
   name: pinchflat
 spec:
-  parentRefs:
-    - name: envoy-internal
-      namespace: network
-      sectionName: https
-  hostnames:
-    - "pinchflat.${SECRET_DOMAIN}"
-  rules:
-    - matches:
-        - path:
-            type: PathPrefix
-            value: /
-      backendRefs:
-        - name: pinchflat
-          port: 80
+  values:
+    service:
+      app:
+        controller: pinchflat
+        ports:
+          http:
+            port: 80
+    route:
+      app:
+        hostnames:
+          - "{{ .Release.Name }}.${SECRET_DOMAIN}"
+          - "{{ .Release.Name }}.${SECRET_INTERNAL_DOMAIN}"
+        parentRefs:
+          - name: envoy-internal
+            namespace: network
 ```
 
 ## Troubleshooting
