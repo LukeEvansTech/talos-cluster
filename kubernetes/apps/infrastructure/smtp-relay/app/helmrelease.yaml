@@ -72,10 +72,12 @@ spec:
                 target &remote_smtp
             }
             target.smtp remote_smtp {
-                # Use TLS client certificate authentication
+                # Use TLS for connections to Microsoft 365
+                # Certificate authentication configured via TLS block
                 targets tls://{env:SMTP_RELAY_SERVER}:25
-                tls_client_cert /certs/tls.crt
-                tls_client_key /certs/tls.key
+                tls {
+                    client_cert /certs/tls.crt /certs/tls.key
+                }
             }
     persistence:
       cache:
