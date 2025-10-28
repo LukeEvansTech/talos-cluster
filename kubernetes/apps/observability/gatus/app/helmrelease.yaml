@@ -42,8 +42,8 @@ spec:
                 memory: 128Mi
           init-config-routes:
             image:
-              repository: docker.io/bitnami/kubectl
-              tag: 1.32.1
+              repository: registry.k8s.io/kubectl
+              tag: v1.32.0
             command:
               - "/bin/sh"
               - "-c"
