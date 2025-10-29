@@ -12,5 +12,5 @@ spec:
       namespace: network
   rules:
     - backendRefs:
-        - name: kopia-nfs-app
+        - name: kopia-nfs
           port: 80
