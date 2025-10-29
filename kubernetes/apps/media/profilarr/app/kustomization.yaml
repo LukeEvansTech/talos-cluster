@@ -5,3 +5,4 @@ resources:
   - ./dnsendpoint.yaml
   - ./helmrelease.yaml
   - ./ocirepository.yaml
+  - ./pvc.yaml
