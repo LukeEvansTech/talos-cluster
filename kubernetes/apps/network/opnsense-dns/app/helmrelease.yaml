@@ -1,0 +1,66 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/helm.toolkit.fluxcd.io/helmrelease_v2.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: opnsense-dns
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: opnsense-dns
+  values:
+    fullnameOverride: opnsense-dns
+    provider:
+      name: webhook
+      webhook:
+        image:
+          repository: ghcr.io/crutonjohn/external-dns-opnsense-webhook
+          tag: v0.3.1
+        env:
+          - name: OPNSENSE_HOST
+            valueFrom:
+              secretKeyRef:
+                name: opnsense-dns-secret
+                key: host
+          - name: OPNSENSE_API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: opnsense-dns-secret
+                key: api-key
+          - name: OPNSENSE_API_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: opnsense-dns-secret
+                key: api-secret
+          - name: OPNSENSE_SKIP_TLS_VERIFY
+            value: "false"
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: http-wh-metrics
+          initialDelaySeconds: 10
+          timeoutSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: http-wh-metrics
+          initialDelaySeconds: 10
+          timeoutSeconds: 5
+    extraArgs:
+      - --crd-source-apiversion=externaldns.k8s.io/v1alpha1
+      - --crd-source-kind=DNSEndpoint
+      - --events
+      - --ignore-ingress-tls-spec
+    policy: sync
+    registry: noop
+    sources:
+      - "crd"
+      - "ingress"
+      - "gateway-httproute"
+    domainFilters:
+      - "${SECRET_DOMAIN}"
+    serviceMonitor:
+      enabled: true
+    podAnnotations:
+      secret.reloader.stakater.com/reload: opnsense-dns-secret

@@ -1,0 +1,15 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/externaldns.k8s.io/dnsendpoint_v1alpha1.json
+apiVersion: externaldns.k8s.io/v1alpha1
+kind: DNSEndpoint
+metadata:
+  name: nzbget
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: nzbget.${SECRET_DOMAIN}
+spec:
+  endpoints:
+    - dnsName: nzbget.${SECRET_DOMAIN}
+      recordTTL: 300
+      recordType: A
+      targets:
+        - 10.32.8.87
