@@ -6,7 +6,7 @@ metadata:
   name: changedetection
 spec:
   endpoints:
-    - dnsName: changedetection.codelooks.com
+    - dnsName: changedetection.${SECRET_DOMAIN}
       recordTTL: 300
       recordType: A
       targets:

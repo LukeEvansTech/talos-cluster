@@ -6,7 +6,7 @@ metadata:
   name: qbittorrent
 spec:
   endpoints:
-    - dnsName: qbittorrent.codelooks.com
+    - dnsName: qbittorrent.${SECRET_DOMAIN}
       recordTTL: 300
       recordType: A
       targets:

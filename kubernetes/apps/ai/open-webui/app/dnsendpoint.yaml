@@ -6,7 +6,7 @@ metadata:
   name: open-webui
 spec:
   endpoints:
-    - dnsName: open-webui.codelooks.com
+    - dnsName: open-webui.${SECRET_DOMAIN}
       recordTTL: 300
       recordType: A
       targets:

@@ -6,7 +6,7 @@ metadata:
   name: homeassistant
 spec:
   endpoints:
-    - dnsName: homeassistant.codelooks.com
+    - dnsName: homeassistant.${SECRET_DOMAIN}
       recordTTL: 300
       recordType: A
       targets:

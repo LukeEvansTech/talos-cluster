@@ -6,7 +6,7 @@ metadata:
   name: maintainerr
 spec:
   endpoints:
-    - dnsName: maintainerr.codelooks.com
+    - dnsName: maintainerr.${SECRET_DOMAIN}
       recordTTL: 300
       recordType: A
       targets:

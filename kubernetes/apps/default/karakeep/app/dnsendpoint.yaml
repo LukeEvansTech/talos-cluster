@@ -6,7 +6,7 @@ metadata:
   name: karakeep
 spec:
   endpoints:
-    - dnsName: karakeep.codelooks.com
+    - dnsName: karakeep.${SECRET_DOMAIN}
       recordTTL: 300
       recordType: A
       targets:

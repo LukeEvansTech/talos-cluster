@@ -6,7 +6,7 @@ metadata:
   name: cyberchef
 spec:
   endpoints:
-    - dnsName: cyberchef.codelooks.com
+    - dnsName: cyberchef.${SECRET_DOMAIN}
       recordTTL: 300
       recordType: A
       targets:

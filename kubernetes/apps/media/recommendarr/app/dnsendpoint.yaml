@@ -6,7 +6,7 @@ metadata:
   name: recommendarr
 spec:
   endpoints:
-    - dnsName: recommendarr.codelooks.com
+    - dnsName: recommendarr.${SECRET_DOMAIN}
       recordTTL: 300
       recordType: A
       targets:
