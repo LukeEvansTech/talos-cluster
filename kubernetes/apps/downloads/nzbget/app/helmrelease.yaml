@@ -21,7 +21,7 @@ spec:
               tag: 25.4.0@sha256:7afaa93e1992f86a033a310eb0f012f1e4c6bd406caa608146df951e85298ff1
             env:
               TZ: ${TIMEZONE}
-              NZBGET__SERVER__CONTROLPORT: &port 80
+              NZBGET__SERVER__CONTROLPORT: &port 6789
             envFrom:
               - secretRef:
                   name: nzbget-secret
@@ -69,7 +69,7 @@ spec:
               DNS_KEEP_NAMESERVER: on
               FIREWALL: true
               FIREWALL_DEBUG: on
-              FIREWALL_INPUT_PORTS: 80,9999
+              FIREWALL_INPUT_PORTS: 6789,9999
               FIREWALL_OUTBOUND_SUBNETS: "${CLUSTER_PODS_CIDR},${CLUSTER_SVCS_CIDR},${CR_LAN_CIDR},${GH_LAN_CIDR}"
               HEALTH_SERVER_ADDRESS: ":9999"
               HEALTH_SERVER_DISABLE_LOOP: on
