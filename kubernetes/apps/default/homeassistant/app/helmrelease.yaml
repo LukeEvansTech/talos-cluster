@@ -17,7 +17,7 @@ spec:
         containers:
           app:
             image:
-              repository: ghcr.io/home-assistant/home-assistant
+              repository: ghcr.io/home-operations/home-assistant
               tag: 2025.10.4
             env:
               TZ: ${TIMEZONE}
