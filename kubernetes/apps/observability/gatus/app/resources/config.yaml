@@ -26,15 +26,6 @@ endpoints:
     conditions:
       - "[CONNECTED] == true"
 
-  - name: flux-webhook
-    group: external
-    url: https://flux-webhook.${SECRET_DOMAIN}
-    interval: 1m
-    client:
-      dns-resolver: tcp://1.1.1.1:53
-    conditions:
-      - "[STATUS] == 404"
-
 metrics: true
 
 storage:
@@ -45,7 +36,6 @@ storage:
 ui:
   title: Status | Gatus
   header: Status
-  logo: https://avatars.githubusercontent.com/u/LukeEvansTech
   link: https://github.com/LukeEvansTech
   buttons:
     - name: Github
