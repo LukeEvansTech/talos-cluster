@@ -14,6 +14,20 @@ spec:
       profilarr:
         annotations:
           reloader.stakater.com/auto: "true"
+        initContainers:
+          init-permissions:
+            image:
+              repository: busybox
+              tag: latest
+            command:
+              - /bin/sh
+              - -c
+              - |
+                chown -R 1000:1000 /config || true
+                rm -rf /config/lost+found || true
+            securityContext:
+              runAsUser: 0
+              runAsNonRoot: false
         containers:
           app:
             image:
