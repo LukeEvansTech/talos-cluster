@@ -269,7 +269,7 @@ kubectl exec -n default $HA_POD -- ip route show
 ### Test 2: Home Assistant Web UI
 
 Access Home Assistant at:
-- Via Ingress: https://homeassistant.codelooks.com
+- Via Ingress: https://homeassistant.example.com
 - Direct IP (from device on IoT VLAN): http://192.168.70.20:8123
 
 ### Test 3: Device Discovery
