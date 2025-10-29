@@ -8,4 +8,6 @@ resources:
   - ./ocirepository.yaml
   - ./helmrelease.yaml
   - ./grafanadashboard.yaml
+  - ./dnsendpoint-alertmanager.yaml
+  - ./dnsendpoint-prometheus.yaml
   # - ./scrapeconfig.yaml
