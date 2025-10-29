@@ -58,6 +58,7 @@ spec:
       - "crd"
       - "ingress"
       - "gateway-httproute"
+      - "service"
     domainFilters:
       - "${SECRET_DOMAIN}"
     serviceMonitor:
