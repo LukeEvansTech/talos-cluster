@@ -13,6 +13,7 @@ resources:
   - ./maintainerr/ks.yaml
   - ./pinchflat/ks.yaml
   - ./plex/ks.yaml
+  - ./profilarr/ks.yaml
   - ./radarr/ks.yaml
   - ./radarr4k/ks.yaml
   - ./recommendarr/ks.yaml
