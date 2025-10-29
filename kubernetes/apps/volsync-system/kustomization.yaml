@@ -9,4 +9,3 @@ resources:
   - ./namespace.yaml
   - ./volsync/ks.yaml
   - ./kopia-nfs/ks.yaml
-  - ./kopia-r2/ks.yaml
