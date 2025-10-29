@@ -55,6 +55,7 @@ spec:
       app:
         annotations:
           gatus.home-operations.com/endpoint: |-
+            group: internal
             conditions: ["[STATUS] == 404"]
         hostnames:
           - "{{ .Release.Name }}.${SECRET_DOMAIN}"

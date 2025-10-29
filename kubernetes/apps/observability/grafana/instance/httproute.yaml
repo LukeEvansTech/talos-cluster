@@ -6,6 +6,7 @@ metadata:
   name: grafana
   annotations:
     gatus.home-operations.com/endpoint: |-
+      group: internal
       conditions: ["[STATUS] == 200"]
 spec:
   hostnames:
