@@ -3,10 +3,10 @@
 apiVersion: externaldns.k8s.io/v1alpha1
 kind: DNSEndpoint
 metadata:
-  name: kopia-nfs
+  name: kopianfs
 spec:
   endpoints:
-    - dnsName: kopia-nfs.${SECRET_DOMAIN}
+    - dnsName: kopianfs.${SECRET_DOMAIN}
       recordTTL: 300
       recordType: A
       targets:
