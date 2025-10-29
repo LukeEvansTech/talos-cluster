@@ -17,15 +17,11 @@ spec:
         containers:
           app:
             image:
-              repository: lscr.io/linuxserver/nzbget
-              tag: latest
+              repository: ghcr.io/home-operations/nzbget
+              tag: 25.4.0@sha256:7afaa93e1992f86a033a310eb0f012f1e4c6bd406caa608146df951e85298ff1
             env:
               TZ: ${TIMEZONE}
-              PUID: "568"
-              PGID: "568"
-            ports:
-              - name: http
-                containerPort: &port 6789
+              NZBGET__SERVER__CONTROLPORT: &port 80
             envFrom:
               - secretRef:
                   name: nzbget-secret
@@ -35,7 +31,7 @@ spec:
                 custom: true
                 spec:
                   httpGet:
-                    path: /
+                    path: /jsonrpc/status
                     port: *port
                   initialDelaySeconds: 0
                   periodSeconds: 10
@@ -44,8 +40,15 @@ spec:
               readiness: *probe
             securityContext:
               allowPrivilegeEscalation: false
-              readOnlyRootFilesystem: false
+              readOnlyRootFilesystem: true
               capabilities: {drop: ["ALL"]}
+              runAsNonRoot: true
+              runAsUser: 568
+              runAsGroup: 568
+              fsGroup: 568
+              fsGroupChangePolicy: OnRootMismatch
+              supplementalGroups:
+                - 10000
               seccompProfile: {type: RuntimeDefault}
             resources:
               requests:
