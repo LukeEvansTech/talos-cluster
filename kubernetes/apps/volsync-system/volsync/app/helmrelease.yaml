@@ -10,6 +10,16 @@ spec:
     kind: OCIRepository
     name: volsync
   values:
+    fullnameOverride: volsync
+    image: &image
+      repository: ghcr.io/perfectra1n/volsync
+      tag: v0.16.13
+    kopia: *image
+    rclone: *image
+    restic: *image
+    rsync: *image
+    rsync-tls: *image
+    syncthing: *image
     manageCRDs: true
     replicaCount: 2
     metrics:
