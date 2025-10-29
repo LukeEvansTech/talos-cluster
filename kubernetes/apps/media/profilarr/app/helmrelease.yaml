@@ -17,7 +17,7 @@ spec:
         containers:
           app:
             image:
-              repository: ghcr.io/dictionarry-hub/profilarr
+              repository: docker.io/santiagosayshey/profilarr
               tag: latest
             env:
               TZ: ${TIMEZONE}
