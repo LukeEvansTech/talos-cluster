@@ -6,7 +6,7 @@ metadata:
   name: sabnzbd
 spec:
   endpoints:
-    - dnsName: sabnzbd.codelooks.com
+    - dnsName: sabnzbd.${SECRET_DOMAIN}
       recordTTL: 300
       recordType: A
       targets:

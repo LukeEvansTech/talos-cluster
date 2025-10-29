@@ -6,7 +6,7 @@ metadata:
   name: bazarr
 spec:
   endpoints:
-    - dnsName: bazarr.codelooks.com
+    - dnsName: bazarr.${SECRET_DOMAIN}
       recordTTL: 300
       recordType: A
       targets:
