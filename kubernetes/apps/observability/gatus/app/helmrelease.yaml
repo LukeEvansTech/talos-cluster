@@ -91,17 +91,7 @@ spec:
     route:
       app:
         annotations:
-          gatus.io/endpoint: |-
-            name: gatus
-            group: external
-            url: https://status.${SECRET_DOMAIN}
-            interval: 1m
-            client:
-              dns-resolver: tcp://1.1.1.1:53
-            conditions:
-              - "[STATUS] == 200"
-        labels:
-          gatus.io/enabled: "true"
+          gatus.home-operations.com/enabled: "false"
         hostnames:
           - status.${SECRET_DOMAIN}
         parentRefs:
