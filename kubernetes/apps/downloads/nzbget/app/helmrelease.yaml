@@ -1,0 +1,170 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: nzbget
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: nzbget
+  values:
+    controllers:
+      nzbget:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        containers:
+          app:
+            image:
+              repository: ghcr.io/home-operations/nzbget
+              tag: 25.4.0@sha256:2f6af00e26d39c73d23c9ff4ac9ce87e6ca86fee5b5e09fd651a5b5c2b7e9a91
+            env:
+              TZ: ${TIMEZONE}
+              NZBGET__SERVER__CONTROLPORT: &port 80
+            envFrom:
+              - secretRef:
+                  name: nzbget-secret
+            probes:
+              liveness: &probe
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /jsonrpc/status
+                    port: *port
+                  initialDelaySeconds: 0
+                  periodSeconds: 10
+                  timeoutSeconds: 1
+                  failureThreshold: 3
+              readiness: *probe
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities: {drop: ["ALL"]}
+              runAsNonRoot: true
+              runAsUser: 568
+              runAsGroup: 568
+              fsGroup: 568
+              fsGroupChangePolicy: OnRootMismatch
+              supplementalGroups:
+                - 10000
+              seccompProfile: {type: RuntimeDefault}
+            resources:
+              requests:
+                cpu: 100m
+              limits:
+                memory: 8Gi
+        initContainers:
+          gluetun:
+            image:
+              repository: ghcr.io/qdm12/gluetun
+              tag: v3.40.0
+            env:
+              # BLOCK_MALICIOUS: off # save 300MB of RAM; https://github.com/qdm12/gluetun/issues/2054
+              DOT: off
+              DOT_CACHING: off
+              DOT_IPV6: off
+              # is absolutely needed if the container is expected to be able to resolve or communicate to any cluster services, without it cluster services cannot be resolved consistently or at all in many setups.
+              DNS_KEEP_NAMESERVER: on
+              FIREWALL: true
+              FIREWALL_DEBUG: on
+              FIREWALL_INPUT_PORTS: 80,9999
+              FIREWALL_OUTBOUND_SUBNETS: "${CLUSTER_PODS_CIDR},${CLUSTER_SVCS_CIDR},${CR_LAN_CIDR},${GH_LAN_CIDR}"
+              HEALTH_SERVER_ADDRESS: ":9999"
+              HEALTH_SERVER_DISABLE_LOOP: on
+              HEALTH_VPN_DURATION_INITIAL: 60s
+              LOG_LEVEL: debug
+              #TODO - Enable when ready - https://github.com/qdm12/gluetun-wiki/blob/main/setup/options/others.md. Getting ""ERROR public ip check settings: API name: API name is not valid: "cloudflare" can only be "ipinfo" or "ip2location""
+              # PUBLICIP_API: cloudflare
+              # STORAGE_FILEPATH: "" # prevent memory spike and avoid I/O
+              TZ: ${TIMEZONE}
+              UPDATER_PERIOD: 12h
+              VERSION_INFORMATION: off
+              VPN_INTERFACE: wg0
+              VPN_IPV6_SERVER: off
+              VPN_TYPE: wireguard
+            envFrom:
+              - secret: nzbget-secret
+            probes:
+              liveness:
+                enabled: false
+                custom: true
+                spec:
+                  httpGet:
+                    path: /
+                    port: 9999
+                  timeoutSeconds: 10
+                  periodSeconds: 30
+                  failureThreshold: 5
+              startup:
+                enabled: false
+                custom: true
+                spec:
+                  httpGet:
+                    path: /
+                    port: 9999
+                  initialDelaySeconds: 10
+                  periodSeconds: 10
+                  failureThreshold: 5
+            restartPolicy: Always
+            securityContext:
+              capabilities:
+                add:
+                  - NET_ADMIN
+              allowPrivilegeEscalation: false
+            resources:
+              limits:
+                kernel.org/tun: 1
+        pod:
+          labels:
+            gluetun: "true"
+
+    defaultPodOptions:
+      terminationGracePeriodSeconds: 300
+      securityContext:
+        fsGroup: 568
+        fsGroupChangePolicy: "OnRootMismatch"
+
+    service:
+      app:
+        controller: nzbget
+        ports:
+          http:
+            port: *port
+    route:
+      app:
+        hostnames:
+          - "{{ .Release.Name }}.${SECRET_DOMAIN}"
+          - "{{ .Release.Name }}.${SECRET_INTERNAL_DOMAIN}"
+        parentRefs:
+          - name: envoy-internal
+            namespace: network
+    persistence:
+      config:
+        existingClaim: nzbget
+      empty:
+        type: emptyDir
+        sizeLimit: 20Mi
+        globalMounts:
+          - path: /gluetun
+            subPath: gluetun
+          - path: /tmp
+            subPath: tmp
+      logs:
+        type: emptyDir
+        globalMounts:
+          - path: /config/log
+      run:
+        type: emptyDir
+        medium: Memory
+        sizeLimit: 10Mi
+        globalMounts:
+          - path: /run
+          - path: /var/run
+      downloads:
+        type: nfs
+        server: ${SECRET_STORAGE_SERVER}
+        path: ${SECRET_STORAGE_SERVER_DOWNLOADS_NFS}
+        globalMounts:
+          - path: /downloads
