@@ -26,10 +26,29 @@ spec:
                 enabled: true
               readiness:
                 enabled: true
+            # NOTE: No container-level securityContext
+            # The profilarr container handles its own user switching internally (root -> UID 1000).
+            # The following settings MUST NOT be added at container level:
+            # - allowPrivilegeEscalation: false (blocks necessary privilege operations)
+            # - capabilities: drop ALL (removes capabilities needed for user switching)
+            # - readOnlyRootFilesystem: true (prevents chown operations during startup)
     defaultPodOptions:
+      # Security context optimized for profilarr's startup behavior
+      # The container's entrypoint internally switches from root to UID 1000:1000
+      # References:
+      # - https://github.com/shamubernetes/home-k8s/tree/main/kubernetes/apps/arrs/profilarr
+      # - https://github.com/geekifier/k8s-home-gitops/blob/master/kubernetes/apps/default/profilarr/app/helmrelease.yaml
       securityContext:
+        # CRITICAL: fsGroup and fsGroupChangePolicy allow Kubernetes to automatically
+        # adjust volume ownership so the app can write to /config
+        # Without these, you'll see: "chown: changing ownership of '/config': Operation not permitted"
         fsGroup: 1000
         fsGroupChangePolicy: OnRootMismatch
+        # DO NOT ADD these settings - they prevent the container's internal user switching:
+        # - runAsUser: 1000
+        # - runAsGroup: 1000
+        # - runAsNonRoot: true
+        # These cause error: "failed switching to '1000:1000': operation not permitted"
         supplementalGroups:
           - 10000
         seccompProfile:
