@@ -11,6 +11,7 @@ spec:
     name: cloudflare-dns
   values:
     fullnameOverride: cloudflare-dns
+    namespace: network
     provider: cloudflare
     env:
       - name: CF_API_TOKEN
