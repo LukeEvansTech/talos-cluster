@@ -18,7 +18,7 @@ spec:
           app:
             image:
               repository: ghcr.io/home-operations/nzbget
-              tag: 25.4.0@sha256:2f6af00e26d39c73d23c9ff4ac9ce87e6ca86fee5b5e09fd651a5b5c2b7e9a91
+              tag: 25.4.0@sha256:7afaa93e1992f86a033a310eb0f012f1e4c6bd406caa608146df951e85298ff1
             env:
               TZ: ${TIMEZONE}
               NZBGET__SERVER__CONTROLPORT: &port 80
