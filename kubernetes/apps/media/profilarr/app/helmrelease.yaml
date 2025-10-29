@@ -14,20 +14,6 @@ spec:
       profilarr:
         annotations:
           reloader.stakater.com/auto: "true"
-        initContainers:
-          init-permissions:
-            image:
-              repository: busybox
-              tag: latest
-            command:
-              - /bin/sh
-              - -c
-              - |
-                chown -R 1000:1000 /config || true
-                rm -rf /config/lost+found || true
-            securityContext:
-              runAsUser: 0
-              runAsNonRoot: false
         containers:
           app:
             image:
@@ -40,22 +26,10 @@ spec:
                 enabled: true
               readiness:
                 enabled: true
-            securityContext:
-              allowPrivilegeEscalation: false
-              capabilities:
-                drop:
-                  - ALL
     defaultPodOptions:
       securityContext:
-        runAsNonRoot: true
-        runAsUser: 1000
-        runAsGroup: 1000
         fsGroup: 1000
         fsGroupChangePolicy: OnRootMismatch
-        supplementalGroups:
-          - 10000
-        seccompProfile:
-          type: RuntimeDefault
     persistence:
       config:
         existingClaim: profilarr
