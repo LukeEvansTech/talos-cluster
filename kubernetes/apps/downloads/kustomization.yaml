@@ -7,6 +7,7 @@ components:
   - ../../components/common
 resources:
   - ./namespace.yaml
+  - ./nzbget/ks.yaml
   - ./qbittorrent/ks.yaml
   - ./qui/ks.yaml
   - ./prowlarr/ks.yaml
