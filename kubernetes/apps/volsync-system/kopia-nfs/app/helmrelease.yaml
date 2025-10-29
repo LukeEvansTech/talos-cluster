@@ -23,6 +23,7 @@ spec:
               KOPIA_WEB_ENABLED: true
               KOPIA_WEB_PORT: &port 80
               TZ: ${TIMEZONE}
+              USER: volsync
             envFrom:
               - secretRef:
                   name: kopia-nfs-secret
@@ -30,12 +31,14 @@ spec:
               - /bin/sh
               - -c
               - |
+                # Create kopia subdirectory
+                mkdir -p /repository/kopia
                 # Initialize filesystem repository if it doesn't exist
-                kopia repository create filesystem --path=/repository --no-check-for-updates || true
+                kopia repository create filesystem --path=/repository/kopia --no-check-for-updates || true
                 # Connect to repository
-                kopia repository connect filesystem --path=/repository --no-check-for-updates
-                # Start server
-                kopia server start --address=0.0.0.0:80 --without-password
+                kopia repository connect filesystem --path=/repository/kopia --no-check-for-updates
+                # Start server with insecure flag for passwordless mode
+                kopia server start --address=0.0.0.0:80 --insecure --without-password
             probes:
               liveness: &probes
                 enabled: true
@@ -102,6 +105,10 @@ spec:
         path: ${SECRET_STORAGE_SERVER_VOLSYNC_NFS}
         globalMounts:
           - path: /repository
+      config:
+        type: emptyDir
+        globalMounts:
+          - path: /config
       tmpfs:
         type: emptyDir
         advancedMounts:
