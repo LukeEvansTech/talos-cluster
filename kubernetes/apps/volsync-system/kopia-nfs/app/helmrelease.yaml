@@ -35,8 +35,12 @@ spec:
                 kopia repository create filesystem --path=/repository --no-check-for-updates || true
                 # Connect to repository
                 kopia repository connect filesystem --path=/repository --no-check-for-updates
-                # Start server with insecure flag for passwordless mode
-                kopia server start --address=0.0.0.0:80 --insecure --without-password
+                # Add server user for web UI access
+                kopia server user add admin@kopia-nfs --user-password="${KOPIA_PASSWORD}" || true
+                # Add ACL to allow viewing all snapshots
+                kopia server acl add --user "*@*" --access READ --target type=snapshot || true
+                # Start server with insecure flag (HTTP not HTTPS)
+                kopia server start --address=0.0.0.0:80 --insecure --server-username=admin@kopia-nfs --server-password="${KOPIA_PASSWORD}"
             probes:
               liveness: &probes
                 enabled: true
