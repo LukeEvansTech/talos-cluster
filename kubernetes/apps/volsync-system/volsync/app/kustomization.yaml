@@ -7,5 +7,6 @@ resources:
   - ./helmrelease.yaml
   - ./mutatingadmissionpolicy.yaml
   - ./grafanadashboard.yaml
-  - ../maintenance
+  # Maintenance disabled until KopiaMaintenance CRD is stable
+  # - ../maintenance
   # - ./prometheusrule.yaml
