@@ -6,6 +6,7 @@ resources:
   - ./externalsecret.yaml
   - ./ocirepository.yaml
   - ./helmrelease.yaml
+  - ./dnsendpoint.yaml
 configMapGenerator:
   - name: bazarr-scripts
     files:
