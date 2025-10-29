@@ -23,24 +23,11 @@ spec:
               KOPIA_WEB_ENABLED: true
               KOPIA_WEB_PORT: &port 80
               TZ: ${TIMEZONE}
-              USER: volsync
             envFrom:
               - secretRef:
                   name: kopia-nfs-secret
-            command:
-              - /bin/sh
-              - -c
-              - |
-                # Initialize filesystem repository if it doesn't exist
-                kopia repository create filesystem --path=/repository --no-check-for-updates || true
-                # Connect to repository
-                kopia repository connect filesystem --path=/repository --no-check-for-updates
-                # Add server user for web UI access
-                kopia server user add admin@kopia-nfs --user-password="${KOPIA_PASSWORD}" || true
-                # Add ACL to allow viewing all snapshots
-                kopia server acl add --user "*@*" --access READ --target type=snapshot || true
-                # Start server with insecure flag (HTTP not HTTPS)
-                kopia server start --address=0.0.0.0:80 --insecure --server-username=admin@kopia-nfs --server-password="${KOPIA_PASSWORD}"
+            args:
+              - --without-password
             probes:
               liveness: &probes
                 enabled: true
@@ -78,17 +65,35 @@ spec:
         ports:
           http:
             port: *port
+    configMaps:
+      config:
+        data:
+          repository.config: |-
+            {
+              "storage": {
+                "type": "filesystem",
+                "config": {
+                  "path": "/repository"
+                }
+              },
+              "hostname": "volsync.{{ .Release.Namespace }}.svc.cluster.local",
+              "username": "volsync",
+              "description": "volsync",
+              "enableActions": false
+            }
     persistence:
+      config-file:
+        type: configMap
+        identifier: config
+        globalMounts:
+          - path: /config/repository.config
+            subPath: repository.config
       repository:
         type: nfs
         server: ${SECRET_STORAGE_SERVER}
         path: ${SECRET_STORAGE_SERVER_VOLSYNC_NFS}
         globalMounts:
           - path: /repository
-      config:
-        type: emptyDir
-        globalMounts:
-          - path: /config
       tmpfs:
         type: emptyDir
         advancedMounts:
