@@ -6,7 +6,7 @@ metadata:
   name: prowlarr
 spec:
   endpoints:
-    - dnsName: prowlarr.codelooks.com
+    - dnsName: prowlarr.${SECRET_DOMAIN}
       recordTTL: 300
       recordType: A
       targets:

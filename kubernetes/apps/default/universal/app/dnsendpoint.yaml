@@ -6,7 +6,7 @@ metadata:
   name: universal
 spec:
   endpoints:
-    - dnsName: universal.codelooks.com
+    - dnsName: universal.${SECRET_DOMAIN}
       recordTTL: 300
       recordType: A
       targets:

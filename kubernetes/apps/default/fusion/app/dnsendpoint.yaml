@@ -6,7 +6,7 @@ metadata:
   name: fusion
 spec:
   endpoints:
-    - dnsName: fusion.codelooks.com
+    - dnsName: fusion.${SECRET_DOMAIN}
       recordTTL: 300
       recordType: A
       targets:

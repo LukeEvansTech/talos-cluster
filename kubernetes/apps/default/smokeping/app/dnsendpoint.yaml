@@ -6,7 +6,7 @@ metadata:
   name: smokeping
 spec:
   endpoints:
-    - dnsName: smokeping.codelooks.com
+    - dnsName: smokeping.${SECRET_DOMAIN}
       recordTTL: 300
       recordType: A
       targets:

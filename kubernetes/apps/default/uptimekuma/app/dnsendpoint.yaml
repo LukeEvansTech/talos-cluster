@@ -6,7 +6,7 @@ metadata:
   name: uptimekuma
 spec:
   endpoints:
-    - dnsName: uptimekuma.codelooks.com
+    - dnsName: uptimekuma.${SECRET_DOMAIN}
       recordTTL: 300
       recordType: A
       targets:

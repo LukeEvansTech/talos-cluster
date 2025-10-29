@@ -6,7 +6,7 @@ metadata:
   name: convertx
 spec:
   endpoints:
-    - dnsName: convertx.codelooks.com
+    - dnsName: convertx.${SECRET_DOMAIN}
       recordTTL: 300
       recordType: A
       targets:
