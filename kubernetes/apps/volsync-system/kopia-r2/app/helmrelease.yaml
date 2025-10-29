@@ -26,8 +26,16 @@ spec:
             envFrom:
               - secretRef:
                   name: kopia-r2-secret
-            args:
-              - --without-password
+            command:
+              - /bin/sh
+              - -c
+              - |
+                # Initialize R2 repository if it doesn't exist
+                kopia repository create s3 --bucket=${REPOSITORY_BUCKET} --endpoint=${REPOSITORY_ENDPOINT} --no-check-for-updates || true
+                # Connect to repository
+                kopia repository connect s3 --bucket=${REPOSITORY_BUCKET} --endpoint=${REPOSITORY_ENDPOINT} --no-check-for-updates
+                # Start server
+                kopia server start --address=0.0.0.0:80 --without-password
             probes:
               liveness: &probes
                 enabled: true
@@ -65,32 +73,7 @@ spec:
         ports:
           http:
             port: *port
-    configMaps:
-      config:
-        data:
-          repository.config: |-
-            {
-              "storage": {
-                "type": "s3",
-                "config": {
-                  "bucket": "{{ .Values.env.REPOSITORY_BUCKET }}",
-                  "endpoint": "{{ .Values.env.REPOSITORY_ENDPOINT }}",
-                  "accessKeyID": "{{ .Values.env.AWS_ACCESS_KEY_ID }}",
-                  "secretAccessKey": "{{ .Values.env.AWS_SECRET_ACCESS_KEY }}"
-                }
-              },
-              "hostname": "volsync.{{ .Release.Namespace }}.svc.cluster.local",
-              "username": "volsync",
-              "description": "volsync-r2",
-              "enableActions": false
-            }
     persistence:
-      config-file:
-        type: configMap
-        identifier: config
-        globalMounts:
-          - path: /config/repository.config
-            subPath: repository.config
       tmpfs:
         type: emptyDir
         advancedMounts:

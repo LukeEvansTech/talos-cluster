@@ -26,8 +26,16 @@ spec:
             envFrom:
               - secretRef:
                   name: kopia-nfs-secret
-            args:
-              - --without-password
+            command:
+              - /bin/sh
+              - -c
+              - |
+                # Initialize filesystem repository if it doesn't exist
+                kopia repository create filesystem --path=/repository --no-check-for-updates || true
+                # Connect to repository
+                kopia repository connect filesystem --path=/repository --no-check-for-updates
+                # Start server
+                kopia server start --address=0.0.0.0:80 --without-password
             probes:
               liveness: &probes
                 enabled: true
