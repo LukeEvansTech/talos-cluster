@@ -3,10 +3,10 @@
 apiVersion: source.toolkit.fluxcd.io/v1beta2
 kind: OCIRepository
 metadata:
-  name: kopia
+  name: app-template
 spec:
   interval: 1h
-  url: oci://ghcr.io/home-operations/helm-charts
+  url: oci://ghcr.io/bjw-s-labs/helm/app-template
   ref:
     semver: "*"
   provider: generic
