@@ -200,12 +200,12 @@ registry: noop       # No ownership tracking
 - UniFi webhook supports all record types
 
 **Our setup (OPNsense DNS)**:
-- **DNSEndpoint CRDs required** for every internal app (~35 files in `kubernetes/apps/*/app/dnsendpoint.yaml`)
+- **DNSEndpoint CRDs required** for EVERY app (~40 files in `kubernetes/apps/*/app/dnsendpoint.yaml`)
 - OPNsense webhook **only supports A records**
 - HTTPRoutes alone would create CNAMEs, which OPNsense webhook rejects
-- Solution: DNSEndpoint CRDs create A records pointing to internal gateway IPs
+- Solution: DNSEndpoint CRDs create A records pointing to appropriate gateway IPs
 
-Example DNSEndpoint:
+Example DNSEndpoint for **internal app** (envoy-internal gateway):
 ```yaml
 # kubernetes/apps/default/actual/app/dnsendpoint.yaml
 apiVersion: externaldns.k8s.io/v1alpha1
@@ -219,6 +219,22 @@ spec:
       recordType: A
       targets:
         - ${ENVOY_INTERNAL_IP}  # e.g., 10.0.0.20
+```
+
+Example DNSEndpoint for **external app** (envoy-external gateway):
+```yaml
+# kubernetes/apps/media/plex/app/dnsendpoint.yaml
+apiVersion: externaldns.k8s.io/v1alpha1
+kind: DNSEndpoint
+metadata:
+  name: plex
+spec:
+  endpoints:
+    - dnsName: plex.${SECRET_DOMAIN}
+      recordTTL: 300
+      recordType: A
+      targets:
+        - ${ENVOY_EXTERNAL_IP}  # e.g., 10.0.0.10
 ```
 
 ### Why --cloudflare-proxied is Removed
@@ -438,9 +454,32 @@ Check opnsense-dns:
 
 ### Adding a New External App
 
-1. Create HTTPRoute with `parentRefs` pointing to `envoy-external` gateway
-2. cloudflare-dns will automatically create the CNAME in Cloudflare
-3. No DNSEndpoint needed (HTTPRoute is sufficient)
+1. Create DNSEndpoint in `kubernetes/apps/<namespace>/<app>/app/dnsendpoint.yaml`:
+   ```yaml
+   apiVersion: externaldns.k8s.io/v1alpha1
+   kind: DNSEndpoint
+   metadata:
+     name: <app>
+   spec:
+     endpoints:
+       - dnsName: <app>.${SECRET_DOMAIN}
+         recordTTL: 300
+         recordType: A
+         targets:
+           - ${ENVOY_EXTERNAL_IP}
+   ```
+
+2. Create HTTPRoute with `parentRefs` pointing to `envoy-external` gateway
+
+3. Add DNSEndpoint to kustomization.yaml:
+   ```yaml
+   resources:
+     - ./dnsendpoint.yaml
+   ```
+
+4. Both controllers will process the resources:
+   - cloudflare-dns: Creates CNAME in Cloudflare (for external access via tunnel)
+   - opnsense-dns: Creates A record in OPNsense Unbound (for internal access)
 
 ### Updating Cloudflare Tunnel ID
 
