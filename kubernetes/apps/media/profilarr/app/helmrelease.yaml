@@ -26,11 +26,6 @@ spec:
                 enabled: true
               readiness:
                 enabled: true
-            securityContext:
-              allowPrivilegeEscalation: false
-              capabilities:
-                drop:
-                  - ALL
     defaultPodOptions:
       securityContext:
         fsGroup: 1000
