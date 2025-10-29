@@ -94,6 +94,7 @@ spec:
       app:
         annotations:
           gatus.home-operations.com/endpoint: |-
+            group: external
             url: https://plex.${SECRET_DOMAIN}/identity
             conditions: ["[STATUS] == 200"]
         hostnames:
