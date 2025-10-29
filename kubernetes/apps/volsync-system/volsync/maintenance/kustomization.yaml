@@ -1,0 +1,9 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ./externalsecret-nfs.yaml
+  - ./externalsecret-r2.yaml
+  - ./kopiamaintenance-nfs.yaml
+  - ./kopiamaintenance-r2.yaml
