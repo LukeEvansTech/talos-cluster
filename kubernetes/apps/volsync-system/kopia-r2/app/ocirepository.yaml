@@ -6,7 +6,7 @@ metadata:
   name: kopia
 spec:
   interval: 1h
-  url: oci://ghcr.io/onedr0p/helm-charts
+  url: oci://ghcr.io/home-operations/helm-charts
   ref:
     semver: "*"
   provider: generic
