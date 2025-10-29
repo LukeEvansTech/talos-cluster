@@ -52,7 +52,6 @@ spec:
       - --crd-source-kind=DNSEndpoint
       - --events
       - --ignore-ingress-tls-spec
-    logLevel: debug
     policy: upsert-only
     registry: noop
     sources:
