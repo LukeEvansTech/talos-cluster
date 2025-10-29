@@ -6,7 +6,7 @@ metadata:
   name: actual
 spec:
   endpoints:
-    - dnsName: actual.codelooks.com
+    - dnsName: actual.${SECRET_DOMAIN}
       recordTTL: 300
       recordType: A
       targets:

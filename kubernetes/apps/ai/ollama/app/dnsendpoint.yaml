@@ -6,7 +6,7 @@ metadata:
   name: ollama
 spec:
   endpoints:
-    - dnsName: ollama.codelooks.com
+    - dnsName: ollama.${SECRET_DOMAIN}
       recordTTL: 300
       recordType: A
       targets:

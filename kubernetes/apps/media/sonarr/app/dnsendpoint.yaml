@@ -6,7 +6,7 @@ metadata:
   name: sonarr
 spec:
   endpoints:
-    - dnsName: sonarr.codelooks.com
+    - dnsName: sonarr.${SECRET_DOMAIN}
       recordTTL: 300
       recordType: A
       targets:

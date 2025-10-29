@@ -6,7 +6,7 @@ metadata:
   name: pinchflat
 spec:
   endpoints:
-    - dnsName: pinchflat.codelooks.com
+    - dnsName: pinchflat.${SECRET_DOMAIN}
       recordTTL: 300
       recordType: A
       targets:

@@ -6,7 +6,7 @@ metadata:
   name: certwarden
 spec:
   endpoints:
-    - dnsName: certwarden.codelooks.com
+    - dnsName: certwarden.${SECRET_DOMAIN}
       recordTTL: 300
       recordType: A
       targets:

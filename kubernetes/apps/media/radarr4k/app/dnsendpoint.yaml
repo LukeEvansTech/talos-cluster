@@ -6,7 +6,7 @@ metadata:
   name: radarr4k
 spec:
   endpoints:
-    - dnsName: radarr4k.codelooks.com
+    - dnsName: radarr4k.${SECRET_DOMAIN}
       recordTTL: 300
       recordType: A
       targets:

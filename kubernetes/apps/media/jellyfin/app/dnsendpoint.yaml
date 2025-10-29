@@ -6,7 +6,7 @@ metadata:
   name: jellyfin
 spec:
   endpoints:
-    - dnsName: jellyfin.codelooks.com
+    - dnsName: jellyfin.${SECRET_DOMAIN}
       recordTTL: 300
       recordType: A
       targets:

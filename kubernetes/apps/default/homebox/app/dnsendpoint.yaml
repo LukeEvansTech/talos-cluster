@@ -6,7 +6,7 @@ metadata:
   name: homebox
 spec:
   endpoints:
-    - dnsName: homebox.codelooks.com
+    - dnsName: homebox.${SECRET_DOMAIN}
       recordTTL: 300
       recordType: A
       targets:
