@@ -52,7 +52,7 @@ spec:
       - --crd-source-kind=DNSEndpoint
       - --events
       - --ignore-ingress-tls-spec
-    policy: sync
+    policy: upsert-only
     registry: noop
     sources:
       - "crd"
