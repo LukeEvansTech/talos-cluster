@@ -10,7 +10,6 @@ spec:
     kind: OCIRepository
     name: nvidia-device-plugin
   values:
-    runtimeClassName: nvidia
     affinity:
       nodeAffinity:
         requiredDuringSchedulingIgnoredDuringExecution:
@@ -24,6 +23,9 @@ spec:
       map:
         default: |-
           version: v1
+          flags:
+            plugin:
+              deviceListStrategy: ["cdi"]
           sharing:
             timeSlicing:
               renameByDefault: false
