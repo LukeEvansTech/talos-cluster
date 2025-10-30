@@ -7,7 +7,6 @@ resources:
   - ./ocirepository.yaml
   - ./pvc.yaml
   - ./helmrelease.yaml
-  - ./dnsendpoint.yaml
 configMapGenerator:
   - name: sonarr-configmap
     files:

@@ -7,4 +7,3 @@ resources:
   - ./ocirepository.yaml
   - ./pvc.yaml
   - ./helmrelease.yaml
-  - ./dnsendpoint.yaml
