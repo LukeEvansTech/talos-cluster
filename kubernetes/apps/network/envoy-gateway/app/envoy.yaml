@@ -84,12 +84,14 @@ metadata:
   labels:
     type: internal
   annotations:
-    external-dns.alpha.kubernetes.io/target: &hostname internal.${SECRET_DOMAIN}
+    external-dns.alpha.kubernetes.io/record-type: A
+    external-dns.alpha.kubernetes.io/target: ${ENVOY_INTERNAL_IP}
+    external-dns.alpha.kubernetes.io/hostname: &internalHost internal.${SECRET_DOMAIN}
 spec:
   gatewayClassName: envoy
   infrastructure:
     annotations:
-      external-dns.alpha.kubernetes.io/hostname: *hostname
+      external-dns.alpha.kubernetes.io/hostname: *internalHost
       lbipam.cilium.io/ips: 10.32.8.87
   listeners:
     - name: http
