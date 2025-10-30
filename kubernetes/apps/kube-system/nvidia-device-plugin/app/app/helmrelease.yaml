@@ -24,6 +24,9 @@ spec:
       map:
         default: |-
           version: v1
+          flags:
+            plugin:
+              deviceListStrategy: ["cdi-annotations"]
           sharing:
             timeSlicing:
               renameByDefault: false
