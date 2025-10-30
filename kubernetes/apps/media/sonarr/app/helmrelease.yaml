@@ -85,11 +85,11 @@ spec:
         name: sonarr-configmap
         defaultMode: 0775
         globalMounts:
-          - path: /scripts/codec-tagger.sh
-            subPath: codec-tagger.sh
+          - path: /scripts/refresh-series.sh
+            subPath: refresh-series.sh
             readOnly: true
-          - path: /scripts/tba-refresher.sh
-            subPath: tba-refresher.sh
+          - path: /scripts/tag-codecs.sh
+            subPath: tag-codecs.sh
             readOnly: true
       tmp:
         type: emptyDir
