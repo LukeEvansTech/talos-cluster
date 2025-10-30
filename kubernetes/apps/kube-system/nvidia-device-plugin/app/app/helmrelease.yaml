@@ -10,6 +10,7 @@ spec:
     kind: OCIRepository
     name: nvidia-device-plugin
   values:
+    runtimeClassName: null
     affinity:
       nodeAffinity:
         requiredDuringSchedulingIgnoredDuringExecution:
