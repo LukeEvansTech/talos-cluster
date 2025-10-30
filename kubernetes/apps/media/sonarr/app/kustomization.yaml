@@ -10,8 +10,8 @@ resources:
 configMapGenerator:
   - name: sonarr-configmap
     files:
-      - codec-tagger.sh=./resources/codec-tagger.sh
-      - tba-refresher.sh=./resources/tba-refresher.sh
+      - refresh-series.sh=./resources/refresh-series.sh
+      - tag-codecs.sh=./resources/tag-codecs.sh
 generatorOptions:
   disableNameSuffixHash: true
   annotations:
