@@ -5,7 +5,6 @@ kind: Kustomization
 resources:
   - ./ocirepository.yaml
   - ./helmrelease.yaml
-  - ./dnsendpoint.yaml
 configMapGenerator:
   - name: smokeping-configmap
     files:
