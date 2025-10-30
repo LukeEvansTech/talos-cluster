@@ -47,20 +47,14 @@ spec:
             port: 8080
           initialDelaySeconds: 10
           timeoutSeconds: 5
-    extraArgs:
-      - --crd-source-apiversion=externaldns.k8s.io/v1alpha1
-      - --crd-source-kind=DNSEndpoint
-      - --events
-      - --ignore-ingress-tls-spec
     policy: upsert-only
     registry: noop
     sources:
-      - "crd"
-      - "ingress"
-      - "gateway-httproute"
-      - "service"
-    domainFilters:
-      - "${SECRET_DOMAIN}"
+      - gateway-httproute
+      - service
+    extraArgs:
+      - --events
+      - --gateway-label-filter=type=internal
     serviceMonitor:
       enabled: true
     podAnnotations:
