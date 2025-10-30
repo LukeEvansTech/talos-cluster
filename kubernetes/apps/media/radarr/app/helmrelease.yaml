@@ -80,14 +80,6 @@ spec:
         existingClaim: radarr-cache
         globalMounts:
           - path: /config/MediaCover
-      scripts:
-        type: configMap
-        name: radarr-configmap
-        defaultMode: 0775
-        globalMounts:
-          - path: /scripts/pushover-notifier.sh
-            subPath: pushover-notifier.sh
-            readOnly: true
       downloads:
         type: nfs
         server: ${SECRET_STORAGE_SERVER}
