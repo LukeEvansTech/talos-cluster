@@ -10,4 +10,4 @@ spec:
       recordTTL: 300
       recordType: A
       targets:
-        - ${ENVOY_EXTERNAL_IP}
+        - 10.32.8.88
