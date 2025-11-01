@@ -34,7 +34,7 @@ spec:
                 name: opnsense-dns-secret
                 key: api-secret
           - name: OPNSENSE_SKIP_TLS_VERIFY
-            value: "false"
+            value: "true"
         livenessProbe:
           httpGet:
             path: /healthz
