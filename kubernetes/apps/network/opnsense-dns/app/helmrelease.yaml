@@ -54,6 +54,7 @@ spec:
       - service
     extraArgs:
       - --events
+      - --gateway-label-filter=type=internal
     domainFilters:
       - ${SECRET_DOMAIN}
       - ${SECRET_INTERNAL_DOMAIN}
