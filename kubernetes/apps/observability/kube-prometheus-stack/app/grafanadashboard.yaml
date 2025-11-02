@@ -132,4 +132,4 @@ spec:
   grafanaCom:
     # renovate: depName="Prometheus"
     id: 19105
-    revision: 7
+    revision: 8
