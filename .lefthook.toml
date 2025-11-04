@@ -15,7 +15,7 @@ glob = ["*.sh"]
 
 # Lint GitHub Actions workflows when they change.
 [pre-commit.commands.lint-actions]
-run = "mise x -- actionlint -color never"
+run = "mise x -- actionlint -no-color"
 glob = [".github/workflows/*.yml", ".github/workflows/*.yaml"]
 
 [pre-commit.commands.format-json]

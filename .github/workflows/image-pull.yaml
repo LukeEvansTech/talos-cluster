@@ -1,0 +1,170 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: "Image Pull"
+
+on:
+  pull_request:
+    branches:
+      - "main"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  filter:
+    name: Filter
+    runs-on: ubuntu-latest
+    outputs:
+      any_changed: ${{ steps.changed-files.outputs.any_changed }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+
+      - name: Get Changed Files
+        id: changed-files
+        uses: bjw-s-labs/action-changed-files@1a5aeab1bfa64d0c4e786f501d5a3f1fad4a24da # v0.4.1
+        with:
+          files: kubernetes/**
+
+  extract:
+    name: Extract Images
+    runs-on: ubuntu-latest
+    needs: filter
+    if: ${{ needs.filter.outputs.any_changed == 'true' }}
+    outputs:
+      default_images: ${{ steps.set-outputs.outputs.default_images }}
+      pull_images: ${{ steps.set-outputs.outputs.pull_images }}
+    steps:
+      - name: Checkout Default Branch
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          path: default
+
+      - name: Checkout Pull Request Branch
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+        with:
+          path: pull
+
+      - name: Extract Images from Default Branch
+        id: extract-default
+        uses: docker://ghcr.io/allenporter/flux-local:v7.11.0
+        with:
+          args: >-
+            get cluster
+            --path /github/workspace/default/kubernetes/flux/cluster
+            --enable-images
+            --output json
+            --output-file /tmp/default-images.json
+
+      - name: Extract Images from Pull Request Branch
+        id: extract-pull
+        uses: docker://ghcr.io/allenporter/flux-local:v7.11.0
+        with:
+          args: >-
+            get cluster
+            --path /github/workspace/pull/kubernetes/flux/cluster
+            --enable-images
+            --output json
+            --output-file /tmp/pull-images.json
+
+      - name: Parse Image Lists
+        id: parse-images
+        run: |
+          # Extract unique images from default branch
+          DEFAULT_IMAGES=$(jq -r '.[] | select(.images != null) | .images[]' /tmp/default-images.json 2>/dev/null | sort -u | jq -R -s -c 'split("\n")[:-1]' || echo '[]')
+          echo "images=${DEFAULT_IMAGES}" >> "$GITHUB_OUTPUT"
+          echo "default_images=${DEFAULT_IMAGES}" > /tmp/default_images_output.txt
+
+          # Extract unique images from pull request branch
+          PULL_IMAGES=$(jq -r '.[] | select(.images != null) | .images[]' /tmp/pull-images.json 2>/dev/null | sort -u | jq -R -s -c 'split("\n")[:-1]' || echo '[]')
+          echo "pull_images=${PULL_IMAGES}" > /tmp/pull_images_output.txt
+
+      - name: Set Outputs
+        id: set-outputs
+        run: |
+          {
+            echo "default_images=$(cat /tmp/default_images_output.txt)"
+            echo "pull_images=$(cat /tmp/pull_images_output.txt)"
+          } >> "$GITHUB_OUTPUT"
+
+  diff:
+    name: Diff Images
+    runs-on: ubuntu-latest
+    needs: extract
+    outputs:
+      new_images: ${{ steps.diff.outputs.new_images }}
+      has_new_images: ${{ steps.diff.outputs.has_new_images }}
+    steps:
+      - name: Compare Image Lists
+        id: diff
+        run: |
+          # Get images from previous job
+          DEFAULT_IMAGES='${{ needs.extract.outputs.default_images }}'
+          PULL_IMAGES='${{ needs.extract.outputs.pull_images }}'
+
+          # Find new images (in pull but not in default)
+          NEW_IMAGES=$(jq -n \
+            --argjson default "${DEFAULT_IMAGES}" \
+            --argjson pull "${PULL_IMAGES}" \
+            '$pull - $default')
+
+          echo "new_images=${NEW_IMAGES}" >> "$GITHUB_OUTPUT"
+
+          # Check if there are any new images
+          IMAGE_COUNT=$(echo "${NEW_IMAGES}" | jq 'length')
+          if [ "${IMAGE_COUNT}" -gt 0 ]; then
+            echo "has_new_images=true" >> "$GITHUB_OUTPUT"
+            {
+              echo "### New Images to Pull"
+              echo '```json'
+              echo "${NEW_IMAGES}" | jq .
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "has_new_images=false" >> "$GITHUB_OUTPUT"
+            echo "No new images to pull" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  pull:
+    name: Pull Images
+    runs-on: talos-cluster-runner
+    needs: diff
+    if: ${{ needs.diff.outputs.has_new_images == 'true' }}
+    strategy:
+      matrix:
+        image: ${{ fromJson(needs.diff.outputs.new_images) }}
+      max-parallel: 4
+      fail-fast: false
+    steps:
+      - name: Install Talosctl
+        run: |
+          curl -sL https://talos.dev/install | sh
+
+      - name: Pull Image
+        env:
+          IMAGE: ${{ matrix.image }}
+        run: |
+          echo "Pulling image: $IMAGE"
+          talosctl image pull "$IMAGE" \
+            --nodes 10.32.8.80,10.32.8.81,10.32.8.82 \
+            --talosconfig ~/.talos/config
+
+  success:
+    name: Image Pull Success
+    runs-on: ubuntu-latest
+    needs:
+      - "filter"
+      - "extract"
+      - "diff"
+      - "pull"
+    if: ${{ always() }}
+    steps:
+      - name: Any jobs failed?
+        if: ${{ contains(needs.*.result, 'failure') }}
+        run: exit 1
+
+      - name: All jobs passed or skipped?
+        if: ${{ !(contains(needs.*.result, 'failure')) }}
+        run: echo "All jobs passed or skipped" && echo "${{ toJSON(needs.*.result) }}"
