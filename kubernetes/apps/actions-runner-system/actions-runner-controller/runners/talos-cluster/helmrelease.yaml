@@ -11,7 +11,7 @@ spec:
   interval: 1h
   values:
     fullnameOverride: *name
-    githubConfigUrl: https://github.com/LukeEvansTech/talos-cluster
+    githubConfigUrl: https://github.com/LukeEvansTech
     githubConfigSecret: talos-cluster-runner-secret
     maxRunners: 3
     minRunners: 1
