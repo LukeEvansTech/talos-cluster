@@ -98,5 +98,31 @@
       },
       minimumGroupSize: 2,
     },
+    {
+      description: "Kubernetes Group",
+      groupName: "Kubernetes",
+      matchDatasources: ["docker"],
+      matchPackageNames: [
+        "/kube-apiserver/",
+        "/kube-controller-manager/",
+        "/kube-proxy/",
+        "/kube-scheduler/",
+        "/kubelet/",
+      ],
+      group: {
+        commitMessageTopic: "{{{groupName}}} group",
+      },
+      minimumGroupSize: 2,
+    },
+    {
+      description: "Talos Group",
+      groupName: "Talos",
+      matchDatasources: ["docker"],
+      matchPackageNames: ["/siderolabs\\/installer/"],
+      group: {
+        commitMessageTopic: "{{{groupName}}} group",
+      },
+      minimumGroupSize: 2,
+    },
   ],
 }
