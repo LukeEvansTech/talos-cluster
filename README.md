@@ -38,6 +38,41 @@ There is a template over at [onedr0p/cluster-template](https://github.com/onedr0
 
 My clusters run [talos linux](https://www.talos.dev) immutable kubernetes OS. This is a semi-hyper-converged cluster, workloads and block storage are sharing the same available resources on my nodes while I have a separate NAS server running TrueNAS with NFS/SMB shares, bulk file storage and backups.
 
+#### Bootstrap Process
+
+The cluster uses `just` as a task runner for bootstrapping and management. The bootstrap process is modular and consists of the following stages:
+
+1. **Install Talos OS** - Apply Talos configuration to all nodes
+2. **Bootstrap Kubernetes** - Initialize the Kubernetes control plane
+3. **Fetch Kubeconfig** - Download cluster credentials
+4. **Wait for Nodes** - Wait for nodes to be ready
+5. **Apply Namespaces** - Create required Kubernetes namespaces
+6. **Apply Resources** - Deploy bootstrap secrets and resources
+7. **Apply CRDs** - Install Custom Resource Definitions
+8. **Deploy Apps** - Install core applications via Helmfile
+
+To bootstrap the cluster, run:
+
+```bash
+# Full bootstrap (all stages)
+just bootstrap
+
+# Or run individual stages
+just bootstrap talos
+just bootstrap k8s
+just bootstrap kubeconfig
+just bootstrap wait
+just bootstrap namespaces
+just bootstrap resources
+just bootstrap crds
+just bootstrap apps
+```
+
+**Prerequisites:**
+- [mise](https://mise.jdx.dev/) - Tool version manager
+- [1Password CLI](https://developer.1password.com/docs/cli/) - Secret injection
+- Tools are automatically installed via mise: `mise install`
+
 ### Core Components
 
 - [actions-runner-controller](https://github.com/actions/actions-runner-controller): self-hosted Github runners
