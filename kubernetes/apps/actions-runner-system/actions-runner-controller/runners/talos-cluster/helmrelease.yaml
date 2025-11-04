@@ -21,16 +21,9 @@ spec:
       spec:
         containers:
           - name: runner
-            image: ghcr.io/home-operations/actions-runner:2.329.0@sha256:35b52f53e0e36d47e4e7f8f60dff7e48a7e04e4b8f7b44f6a23a5c6c0d0f4a4e
             env:
               - name: ACTIONS_RUNNER_REQUIRE_JOB_CONTAINER
                 value: "false"
-              - name: ACTIONS_RUNNER_POD_NAME
-                valueFrom:
-                  fieldRef:
-                    fieldPath: metadata.name
-              - name: ACTIONS_RUNNER_CONTAINER_HOOKS
-                value: /home/runner/k8s/index.js
             volumeMounts:
               - name: work
                 mountPath: /home/runner/_work
