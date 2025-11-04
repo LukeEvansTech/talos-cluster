@@ -11,7 +11,7 @@ This guide documents the implementation of Envoy Gateway v1.5.4 in the Talos clu
 **Location:** `kubernetes/apps/network/envoy-gateway/`
 
 - **Chart:** `oci://mirror.gcr.io/envoyproxy/gateway-helm v1.5.4`
-- **CRDs:** Installed via `scripts/bootstrap-apps.sh` for GitOps compatibility
+- **CRDs:** Installed via `just bootstrap crds` for GitOps compatibility
 - **Components:**
   - 1 Envoy Gateway controller pod
   - 2 external proxy replicas
