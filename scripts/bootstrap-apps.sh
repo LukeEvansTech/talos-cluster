@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+# ============================================================================
+# DEPRECATED: This script is deprecated in favor of the new just-based bootstrap
+# Please use: just bootstrap
+# See README.md for more information
+# ============================================================================
+
 source "$(dirname "${0}")/lib/common.sh"
 
 export LOG_LEVEL="debug"

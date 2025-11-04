@@ -1,0 +1,23 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/helmfile
+
+# This helmfile is for extracting and installing Custom Resource Definitions (CRDs) from Helm charts.
+# It is not intended to be used with helmfile apply or helmfile sync.
+
+helmDefaults:
+  args:
+    - --include-crds
+    - --no-hooks
+  postRenderer: bash
+  postRendererArgs:
+    - -c
+    - yq ea -e 'select(.kind == "CustomResourceDefinition")'
+
+releases:
+# CRDs are extracted from charts but not all bootstrap apps need this
+# Add releases here that ship CRDs in their Helm charts
+# Example format:
+# - name: external-dns
+#   namespace: network
+#   chart: oci://ghcr.io/home-operations/charts-mirror/external-dns
+#   version: 1.19.0
