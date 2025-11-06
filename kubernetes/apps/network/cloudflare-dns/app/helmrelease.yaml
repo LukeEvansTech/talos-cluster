@@ -11,6 +11,7 @@ spec:
     name: cloudflare-dns
   values:
     fullnameOverride: cloudflare-dns
+    namespace: network
     provider: cloudflare
     env:
       - name: CF_API_TOKEN
@@ -24,6 +25,7 @@ spec:
       - --crd-source-kind=DNSEndpoint
       - --events
       - --gateway-label-filter=type=external
+      - --exclude-target-net=10.0.0.0/8
     policy: sync
     sources:
       - "crd"
