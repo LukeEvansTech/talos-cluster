@@ -113,7 +113,7 @@ function apply_crds() {
         # renovate: datasource=helm depName=envoyproxy/gateway-helm
         https://github.com/envoyproxy/gateway/releases/download/v1.5.4/install.yaml
         # renovate: datasource=github-releases depName=prometheus-operator/prometheus-operator
-        https://github.com/prometheus-operator/prometheus-operator/releases/download/v0.86.1/stripped-down-crds.yaml
+        https://github.com/prometheus-operator/prometheus-operator/releases/download/v0.86.2/stripped-down-crds.yaml
     )
 
     for crd in "${crds[@]}"; do
