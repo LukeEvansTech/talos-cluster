@@ -2,15 +2,15 @@ set positional-arguments := true
 set quiet := true
 set shell := ['bash', '-euo', 'pipefail', '-c']
 
-bootstrap_dir := justfile_dir()
-kubernetes_dir := justfile_dir() + '/../kubernetes'
+bootstrap_dir := justfile_dir() + '/bootstrap'
+kubernetes_dir := justfile_dir() + '/kubernetes'
 controller := `talosctl config info -o yaml | yq -e '.endpoints[0]'`
-nodes := `talosctl config info -o yaml | yq -e '.nodes | join(" ")'`
+nodes := `talosctl config info -o yaml | yq -e '.nodes | join (" ")'`
 
 [private]
 default: talos k8s (kubeconfig "node") wait namespaces resources crds apps kubeconfig
 
-[doc('Install Talos OS on all nodes')]
+[doc('Install Talos')]
 talos:
     just log info "Running stage..." "stage" "$0"
     for n in {{ nodes }}; do \
@@ -23,16 +23,7 @@ talos:
         fi; \
     done
 
-[private]
-talos-apply-node node *args:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    talosctl apply-config \
-        --nodes "{{ node }}" \
-        --file "{{ justfile_dir() }}/../talos/clusterconfig/talos-cluster-{{ node }}.yaml" \
-        "$@"
-
-[doc('Bootstrap Kubernetes control plane')]
+[doc('Install Kubernetes')]
 k8s:
     just log info "Running stage..." "stage" "$0"
     until op=$(talosctl -n "{{ controller }}" bootstrap 2>&1 || true) && [[ "$op" == *"AlreadyExists"* ]]; do \
@@ -40,19 +31,19 @@ k8s:
         sleep 5; \
     done
 
-[doc('Fetch kubeconfig from cluster')]
+[doc('Fetch kubeconfig')]
 kubeconfig lb="cilium":
     just log info "Running stage..." "stage" "$0"
-    if ! talosctl kubeconfig -n "{{ controller }}" -f --force-context-name talos-cluster {{ justfile_dir() }}/..; then \
+    if ! talosctl kubeconfig -n "{{ controller }}" -f --force-context-name main {{ justfile_dir() }}; then \
         just log fatal "Failed to fetch kubeconfig" "stage" "$0"; \
     fi
     if [[ "{{ lb }}" != "cilium" ]]; then \
-        if ! kubectl config set-cluster talos-cluster --server "https://{{ controller }}:6443"; then \
+        if ! kubectl config set-cluster main --server "https://{{ controller }}:6443"; then \
             just log fatal "Failed to set kubectl cluster server address" "stage" "$0"; \
         fi; \
     fi
 
-[doc('Wait for nodes to be ready')]
+[doc('Wait for nodes to be not-ready')]
 wait:
     just log info "Running stage..." "stage" "$0"
     if ! kubectl wait nodes --for=condition=Ready=True --all --timeout=10s &>/dev/null; then \
@@ -71,21 +62,21 @@ namespaces:
         fi; \
     done
 
-[doc('Apply Kubernetes resources (secrets, etc.)')]
+[doc('Apply Kubernetes resources')]
 resources:
     just log info "Running stage..." "stage" "$0"
     if ! just template "{{ bootstrap_dir }}/resources.yaml.j2" | kubectl apply --server-side --field-manager bootstrap --force-conflicts -f -; then \
         just log fatal "Failed to apply resources" "stage" "$0"; \
     fi;
 
-[doc('Apply CRDs from Helmfile')]
+[doc('Apply Helmfile CRDs')]
 crds:
     just log info "Running stage..." "stage" "$0"
     if ! helmfile -f "{{ bootstrap_dir }}/helmfile.d/00-crds.yaml" template -q | kubectl apply --server-side --field-manager bootstrap --force-conflicts -f -; then \
         just log fatal "Failed to apply crds" "stage" "$0"; \
     fi;
 
-[doc('Deploy bootstrap applications via Helmfile')]
+[doc('Apply Helmfile Apps')]
 apps:
     just log info "Running stage..." "stage" "$0"
     if ! helmfile -f "{{ bootstrap_dir }}/helmfile.d/01-apps.yaml" sync --hide-notes; then \
