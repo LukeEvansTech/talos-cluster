@@ -51,6 +51,12 @@ spec:
               capabilities:
                 drop:
                   - ALL
+            resources:
+              requests:
+                cpu: 10m
+                memory: 64Mi
+              limits:
+                memory: 256Mi
           vuetorrent:
             dependsOn: app
             image:
@@ -65,6 +71,8 @@ spec:
               requests:
                 cpu: 10m
                 memory: 25Mi
+              limits:
+                memory: 128Mi
         initContainers:
           gluetun:
             image:
