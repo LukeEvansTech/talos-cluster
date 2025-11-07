@@ -510,18 +510,6 @@ just bootstrap
 | **Values** | Duplicated | DRY via templates |
 | **Maintenance** | ~300 lines of bash | Clean task definitions |
 
-### Task Integration
-
-The `task` command (go-task) still works and now calls `just`:
-
-```bash
-# Old style (still works)
-task bootstrap:apps
-
-# New style (recommended)
-just bootstrap apps
-```
-
 ## References
 
 - [just documentation](https://github.com/casey/just)
