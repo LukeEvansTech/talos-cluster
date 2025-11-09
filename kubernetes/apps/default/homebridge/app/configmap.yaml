@@ -1,0 +1,9 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: homebridge-startup
+data:
+  startup.sh: |-
+    #!/bin/sh
+    npm install --save homebridge-dummy@latest
