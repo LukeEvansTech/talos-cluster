@@ -65,8 +65,12 @@ spec:
 
     # Pod-level security context
     # IMPORTANT: Homebridge container requires root (UID 0) to manage system services
-    # This differs from most other apps which run as non-root users (UID 1000 or 568)
+    # This differs from most other apps in this cluster which run as non-root users (UID 1000 or 568)
     # The s6-overlay init system needs root to manage /run directory ownership
+    #
+    # Note: Many homebridge deployments omit securityContext entirely, relying on image defaults
+    # We explicitly set it here to be clear about security posture and maintain consistency
+    # with cluster security policies
     defaultPodOptions:
       securityContext:
         runAsNonRoot: false  # Must be false - homebridge container expects root
