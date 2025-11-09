@@ -47,8 +47,11 @@ spec:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: false
               capabilities:
+                add:
+                  - SETGID
+                  - SETUID
                 drop:
-                  - "ALL"
+                  - ALL
             resources:
               requests:
                 cpu: 10m
