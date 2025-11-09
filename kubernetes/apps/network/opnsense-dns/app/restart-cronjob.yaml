@@ -54,20 +54,28 @@ spec:
           serviceAccountName: opnsense-dns-restarter
           restartPolicy: OnFailure
           containers:
-            - name: kubectl
-              image: bitnami/kubectl:1.31.3
+            - name: restarter
+              image: cgr.dev/chainguard/curl:latest
               command:
                 - /bin/sh
                 - -c
                 - |
                   echo "Restarting opnsense-dns deployment at $(date)"
-                  kubectl rollout restart deployment/opnsense-dns -n network
+
+                  # Use Kubernetes API to trigger rollout restart
+                  curl -sSk \
+                    -H "Authorization: Bearer $(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" \
+                    -H "Content-Type: application/strategic-merge-patch+json" \
+                    -X PATCH \
+                    --data '{"spec":{"template":{"metadata":{"annotations":{"kubectl.kubernetes.io/restartedAt":"'$(date -Iseconds)'"}}}}' \
+                    https://kubernetes.default.svc/apis/apps/v1/namespaces/network/deployments/opnsense-dns
+
                   echo "Restart command completed at $(date)"
               securityContext:
                 allowPrivilegeEscalation: false
                 readOnlyRootFilesystem: true
                 runAsNonRoot: true
-                runAsUser: 1001
+                runAsUser: 65532
                 capabilities:
                   drop:
                     - ALL
