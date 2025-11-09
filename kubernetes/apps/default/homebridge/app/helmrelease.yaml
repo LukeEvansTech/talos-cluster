@@ -43,11 +43,15 @@ spec:
                   periodSeconds: 10
               startup:
                 enabled: false
+            # Container-level security context
+            # Note: Less restrictive than other apps due to homebridge requirements
             securityContext:
               allowPrivilegeEscalation: false
-              readOnlyRootFilesystem: false
+              readOnlyRootFilesystem: false  # Homebridge needs to write to /run and /tmp
               capabilities:
                 add:
+                  # SETUID/SETGID required for dbus-daemon to drop privileges
+                  # Without these, dbus fails with "Failed to drop capabilities"
                   - SETGID
                   - SETUID
                 drop:
@@ -59,15 +63,19 @@ spec:
               limits:
                 memory: 750Mi
 
+    # Pod-level security context
+    # IMPORTANT: Homebridge container requires root (UID 0) to manage system services
+    # This differs from most other apps which run as non-root users (UID 1000 or 568)
+    # The s6-overlay init system needs root to manage /run directory ownership
     defaultPodOptions:
       securityContext:
-        runAsNonRoot: false
-        runAsUser: 0
-        runAsGroup: 0
-        fsGroup: 0
+        runAsNonRoot: false  # Must be false - homebridge container expects root
+        runAsUser: 0         # Run as root (required by homebridge/homebridge image)
+        runAsGroup: 0        # Root group
+        fsGroup: 0           # File system group set to root
         fsGroupChangePolicy: OnRootMismatch
         seccompProfile:
-          type: RuntimeDefault
+          type: RuntimeDefault  # Still use default seccomp profile for syscall filtering
 
     service:
       app:
