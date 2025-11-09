@@ -5,5 +5,4 @@ kind: Kustomization
 resources:
   - ./configmap.yaml
   - ./ocirepository.yaml
-  - ./pvc.yaml
   - ./helmrelease.yaml
