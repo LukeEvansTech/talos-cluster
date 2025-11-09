@@ -15,6 +15,7 @@ resources:
   - ./echo-server/ks.yaml
   - ./fusion/ks.yaml
   - ./homeassistant/ks.yaml
+  - ./homebridge/ks.yaml
   - ./homebox/ks.yaml
   - ./it-tools/ks.yaml
   - ./karakeep/ks.yaml
