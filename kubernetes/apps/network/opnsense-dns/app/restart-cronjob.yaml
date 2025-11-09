@@ -1,0 +1,76 @@
+---
+# ServiceAccount for the restart CronJob
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: opnsense-dns-restarter
+  namespace: network
+---
+# Role with permission to patch deployments (for rollout restart)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: opnsense-dns-restarter
+  namespace: network
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    resourceNames: ["opnsense-dns"]
+    verbs: ["get", "patch"]
+---
+# RoleBinding to attach the role to the service account
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: opnsense-dns-restarter
+  namespace: network
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: opnsense-dns-restarter
+subjects:
+  - kind: ServiceAccount
+    name: opnsense-dns-restarter
+    namespace: network
+---
+# CronJob to restart opnsense-dns deployment daily at 3 AM
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: opnsense-dns-restarter
+  namespace: network
+spec:
+  # Run daily at 3:00 AM
+  schedule: "0 3 * * *"
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: opnsense-dns-restarter
+        spec:
+          serviceAccountName: opnsense-dns-restarter
+          restartPolicy: OnFailure
+          containers:
+            - name: kubectl
+              image: bitnami/kubectl:latest
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  echo "Restarting opnsense-dns deployment at $(date)"
+                  kubectl rollout restart deployment/opnsense-dns -n network
+                  echo "Restart command completed at $(date)"
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                runAsUser: 1001
+                capabilities:
+                  drop:
+                    - ALL
+          securityContext:
+            seccompProfile:
+              type: RuntimeDefault
