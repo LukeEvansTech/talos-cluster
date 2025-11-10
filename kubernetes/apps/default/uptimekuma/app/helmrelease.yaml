@@ -51,6 +51,6 @@ spec:
             namespace: network
     persistence:
       config:
-        existingClaim: uptimekuma
+        existingClaim: "{{ .Release.Name }}"
         globalMounts:
           - path: /app/data
