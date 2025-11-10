@@ -25,13 +25,6 @@ spec:
         externalTrafficPolicy: Cluster
   shutdown:
     drainTimeout: 180s
-    shutdownManager:
-      resources:
-        requests:
-          cpu: 10m
-          memory: 32Mi
-        limits:
-          memory: 128Mi
   telemetry:
     metrics:
       prometheus:
