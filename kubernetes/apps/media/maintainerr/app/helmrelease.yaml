@@ -65,7 +65,7 @@ spec:
             namespace: network
     persistence:
       config:
-        existingClaim: maintainerr
+        existingClaim: "{{ .Release.Name }}"
         globalMounts:
           - path: /opt/data
       tmpfs:

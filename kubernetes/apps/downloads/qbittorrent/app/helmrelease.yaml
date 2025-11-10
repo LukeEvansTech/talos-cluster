@@ -177,7 +177,7 @@ spec:
                 port: 80
     persistence:
       config:
-        existingClaim: qbittorrent
+        existingClaim: "{{ .Release.Name }}"
         advancedMounts:
           qbittorrent:
             app:

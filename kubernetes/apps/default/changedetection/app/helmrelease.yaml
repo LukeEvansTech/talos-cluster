@@ -58,6 +58,6 @@ spec:
             namespace: network
     persistence:
       config:
-        existingClaim: changedetection
+        existingClaim: "{{ .Release.Name }}"
         globalMounts:
           - path: /datastore

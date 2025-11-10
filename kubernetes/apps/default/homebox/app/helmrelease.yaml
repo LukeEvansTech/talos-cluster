@@ -54,6 +54,6 @@ spec:
             namespace: network
     persistence:
       config:
-        existingClaim: homebox
+        existingClaim: "{{ .Release.Name }}"
         globalMounts:
           - path: /data

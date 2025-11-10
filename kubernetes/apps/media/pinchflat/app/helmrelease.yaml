@@ -71,7 +71,7 @@ spec:
             namespace: network
     persistence:
       config:
-        existingClaim: pinchflat
+        existingClaim: "{{ .Release.Name }}"
       yt-dlp:
         type: emptyDir
         globalMounts:

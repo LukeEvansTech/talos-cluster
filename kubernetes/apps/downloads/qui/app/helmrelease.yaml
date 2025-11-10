@@ -78,7 +78,7 @@ spec:
                 port: 80
     persistence:
       config:
-        existingClaim: qui
+        existingClaim: "{{ .Release.Name }}"
         advancedMounts:
           qui:
             app:

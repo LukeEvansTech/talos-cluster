@@ -141,7 +141,7 @@ spec:
             namespace: network
     persistence:
       config:
-        existingClaim: nzbget
+        existingClaim: "{{ .Release.Name }}"
       empty:
         type: emptyDir
         sizeLimit: 20Mi

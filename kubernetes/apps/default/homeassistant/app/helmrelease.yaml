@@ -75,11 +75,11 @@ spec:
 
     persistence:
       config:
-        existingClaim: homeassistant
+        existingClaim: "{{ .Release.Name }}"
         globalMounts:
           - path: /config
       config-cache:
-        existingClaim: homeassistant-cache
+        existingClaim: "{{ .Release.Name }}-cache"
         globalMounts:
           - path: /config/.venv
       tmp:

@@ -67,4 +67,4 @@ spec:
             namespace: network
     persistence:
       config:
-        existingClaim: atuin
+        existingClaim: "{{ .Release.Name }}"

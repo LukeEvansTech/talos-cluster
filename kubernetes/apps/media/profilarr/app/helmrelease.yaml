@@ -26,12 +26,12 @@ spec:
                 enabled: true
               readiness:
                 enabled: true
-            # NOTE: No container-level securityContext
-            # The profilarr container handles its own user switching internally (root -> UID 1000).
-            # The following settings MUST NOT be added at container level:
-            # - allowPrivilegeEscalation: false (blocks necessary privilege operations)
-            # - capabilities: drop ALL (removes capabilities needed for user switching)
-            # - readOnlyRootFilesystem: true (prevents chown operations during startup)
+                # NOTE: No container-level securityContext
+                # The profilarr container handles its own user switching internally (root -> UID 1000).
+                # The following settings MUST NOT be added at container level:
+                # - allowPrivilegeEscalation: false (blocks necessary privilege operations)
+                # - capabilities: drop ALL (removes capabilities needed for user switching)
+                # - readOnlyRootFilesystem: true (prevents chown operations during startup)
     defaultPodOptions:
       # Security context optimized for profilarr's startup behavior
       # The container's entrypoint internally switches from root to UID 1000:1000
@@ -55,7 +55,7 @@ spec:
           type: RuntimeDefault
     persistence:
       config:
-        existingClaim: profilarr
+        existingClaim: "{{ .Release.Name }}"
       home:
         type: emptyDir
         globalMounts:

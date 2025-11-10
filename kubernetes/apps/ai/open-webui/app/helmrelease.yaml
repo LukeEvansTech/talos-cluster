@@ -51,6 +51,6 @@ spec:
     persistence:
       config:
         enabled: true
-        existingClaim: open-webui
+        existingClaim: "{{ .Release.Name }}"
         globalMounts:
           - path: /app/backend/data

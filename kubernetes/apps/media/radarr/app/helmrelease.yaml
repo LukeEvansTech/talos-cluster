@@ -76,9 +76,9 @@ spec:
             namespace: network
     persistence:
       config:
-        existingClaim: radarr
+        existingClaim: "{{ .Release.Name }}"
       config-cache:
-        existingClaim: radarr-cache
+        existingClaim: "{{ .Release.Name }}-cache"
         globalMounts:
           - path: /config/MediaCover
       downloads:
