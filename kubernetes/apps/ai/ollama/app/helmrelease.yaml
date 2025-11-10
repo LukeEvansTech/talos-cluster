@@ -64,13 +64,13 @@ spec:
     persistence:
       models:
         enabled: true
-        existingClaim: ollama-models
+        existingClaim: "{{ .Release.Name }}-models"
         advancedMounts:
           ollama:
             app:
               - path: *modelPath
       config:
         enabled: true
-        existingClaim: ollama
+        existingClaim: "{{ .Release.Name }}"
         globalMounts:
           - path: /root/.ollama

@@ -68,7 +68,7 @@ spec:
             namespace: network
     persistence:
       config:
-        existingClaim: convertx
+        existingClaim: "{{ .Release.Name }}"
         globalMounts:
           - path: /app/data
       tmp:

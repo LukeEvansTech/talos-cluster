@@ -145,7 +145,7 @@ spec:
             namespace: network
     persistence:
       config:
-        existingClaim: sabnzbd
+        existingClaim: "{{ .Release.Name }}"
       empty:
         type: emptyDir
         sizeLimit: 20Mi
