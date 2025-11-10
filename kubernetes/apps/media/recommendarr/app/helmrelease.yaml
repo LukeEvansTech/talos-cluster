@@ -70,6 +70,6 @@ spec:
             namespace: network
     persistence:
       data:
-        existingClaim: recommendarr
+        existingClaim: "{{ .Release.Name }}"
         globalMounts:
           - path: /app/server/data
