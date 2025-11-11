@@ -4,7 +4,7 @@ This directory contains Prometheus ScrapeConfigs for monitoring external systems
 
 ## Overview
 
-The monitoring setup uses Docker Compose to run Prometheus exporters directly on TrueNAS, exposing metrics that Prometheus in the Kubernetes cluster can scrape.
+The monitoring setup uses TrueNAS SCALE's Docker integration to run Prometheus exporters, exposing metrics that Prometheus in the Kubernetes cluster can scrape.
 
 ## Exporters
 
@@ -15,9 +15,14 @@ Two exporters are configured:
 
 ## TrueNAS Setup
 
-### 1. Create Docker Compose File
+### 1. Install Node Exporter
 
-SSH into your TrueNAS system and create `/mnt/tank/docker/monitoring/docker-compose.yml`:
+1. Navigate to **Apps** in TrueNAS SCALE
+2. Click **Discover Apps**
+3. Search for "Custom App"
+4. Click **Install**
+5. In the installation form, select **Install via YAML**
+6. Paste the following configuration:
 
 ```yaml
 version: "3"
@@ -37,7 +42,20 @@ services:
       - /:/host/root:ro
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
+```
 
+7. Click **Install**
+
+### 2. Install SMARTCTL Exporter
+
+1. Repeat the process for a new Custom App
+2. Select **Install via YAML**
+3. Paste the following configuration:
+
+```yaml
+version: "3"
+
+services:
   smartctl-exporter:
     image: quay.io/prometheuscommunity/smartctl-exporter:latest
     container_name: smartctl-exporter
@@ -49,19 +67,13 @@ services:
       - "9633:9633"
 ```
 
-### 2. Start the Exporters
-
-```bash
-cd /mnt/tank/docker/monitoring
-docker compose up -d
-```
+4. Click **Install**
 
 ### 3. Verify Exporters are Running
 
-```bash
-# Check containers
-docker compose ps
+From the TrueNAS shell or via SSH:
 
+```bash
 # Test node-exporter
 curl http://localhost:9100/metrics
 
@@ -145,14 +157,9 @@ smartctl_device_attribute_value{attribute_name="Reallocated_Sector_Ct"}
 
 ### Exporters Not Starting
 
-```bash
-# Check logs
-docker compose logs node-exporter
-docker compose logs smartctl-exporter
-
-# Restart containers
-docker compose restart
-```
+1. Check the app status in TrueNAS **Apps** page
+2. View logs by clicking on the app and selecting **Logs**
+3. Restart the app if needed using the **Stop/Start** buttons
 
 ### Prometheus Not Scraping
 
@@ -175,18 +182,15 @@ kubectl get scrapeconfig -n observability
 
 ### Updating Exporters
 
-```bash
-cd /mnt/tank/docker/monitoring
-docker compose pull
-docker compose up -d
-```
+1. Navigate to the **Apps** page in TrueNAS
+2. Click on the app you want to update
+3. Click **Update** if a new version is available
 
 ### Removing Exporters
 
-```bash
-cd /mnt/tank/docker/monitoring
-docker compose down
-```
+1. Navigate to the **Apps** page in TrueNAS
+2. Click on the app you want to remove
+3. Click **Delete**
 
 ## References
 
