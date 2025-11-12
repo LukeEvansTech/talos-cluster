@@ -19,6 +19,7 @@ resources:
   - ./homebox/ks.yaml
   - ./it-tools/ks.yaml
   - ./karakeep/ks.yaml
+  - ./n8n/ks.yaml
   - ./notifier/ks.yaml
   - ./universal/ks.yaml
   - ./smokeping/ks.yaml
