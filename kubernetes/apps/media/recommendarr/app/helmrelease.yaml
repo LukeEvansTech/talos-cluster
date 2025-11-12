@@ -24,6 +24,9 @@ spec:
               DOCKER_ENV: true
               PORT: &port 80
               FORCE_SECURE_COOKIES: true
+            envFrom:
+              - secretRef:
+                  name: recommendarr-secret
             # probes:
             #   liveness: &probes
             #     enabled: true
