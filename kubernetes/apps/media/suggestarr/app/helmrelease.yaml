@@ -71,10 +71,5 @@ spec:
         existingClaim: "{{ .Release.Name }}"
         globalMounts:
           - path: /app/config
-      config-files:
-        existingClaim: "{{ .Release.Name }}"
-        globalMounts:
-          - path: /app/config/config_files
-            subPath: config_files
       tmp:
         type: emptyDir
