@@ -10,4 +10,4 @@ resources:
   - ./grafanadashboard.yaml
   - ./dnsendpoint-alertmanager.yaml
   - ./dnsendpoint-prometheus.yaml
-  # - ./scrapeconfig.yaml
+  - ./scrapeconfig.yaml
