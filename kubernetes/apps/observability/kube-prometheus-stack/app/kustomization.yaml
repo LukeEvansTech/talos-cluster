@@ -9,7 +9,6 @@ resources:
   - ./helmrelease.yaml
   - ./grafanadashboard.yaml
   - ./grafanadashboard-node-exporter.yaml
-  - ./grafanadashboard-smartctl.yaml
   - ./dnsendpoint-alertmanager.yaml
   - ./dnsendpoint-prometheus.yaml
   - ./scrapeconfig.yaml
