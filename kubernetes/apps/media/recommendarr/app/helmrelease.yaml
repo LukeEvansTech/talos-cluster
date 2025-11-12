@@ -24,6 +24,12 @@ spec:
               DOCKER_ENV: true
               PORT: &port 80
               FORCE_SECURE_COOKIES: true
+              # Service URLs for internal cluster communication
+              SONARR_URL: http://sonarr.media.svc.cluster.local
+              RADARR_URL: http://radarr.media.svc.cluster.local
+              RADARR4K_URL: http://radarr4k.media.svc.cluster.local
+              PLEX_URL: http://plex.media.svc.cluster.local:32400
+              TAUTULLI_URL: http://tautulli.media.svc.cluster.local
             envFrom:
               - secretRef:
                   name: recommendarr-secret
