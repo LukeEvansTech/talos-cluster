@@ -1,0 +1,72 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: &app n8n
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: n8n
+  values:
+    controllers:
+      n8n:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        containers:
+          app:
+            image:
+              repository: ghcr.io/n8n-io/n8n
+              tag: 1.119.1
+            env:
+              GENERIC_TIMEZONE: ${TIMEZONE}
+              N8N_HOST: "{{ .Release.Name }}.${SECRET_DOMAIN}"
+              N8N_PORT: &port 5678
+              N8N_PROTOCOL: https
+              WEBHOOK_URL: "https://{{ .Release.Name }}.${SECRET_DOMAIN}"
+              # Database - SQLite (default)
+              DB_TYPE: sqlite
+              DB_SQLITE_VACUUM_ON_STARTUP: "true"
+              # Execution pruning
+              EXECUTIONS_DATA_PRUNE: "true"
+              EXECUTIONS_DATA_MAX_AGE: "168"
+              EXECUTIONS_DATA_SAVE_ON_ERROR: all
+              EXECUTIONS_DATA_SAVE_ON_SUCCESS: all
+              EXECUTIONS_DATA_SAVE_MANUAL_EXECUTIONS: "true"
+            envFrom:
+              - secretRef:
+                  name: n8n-secret
+            resources:
+              requests:
+                cpu: 5m
+                memory: 128Mi
+              limits:
+                memory: 2Gi
+    defaultPodOptions:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile: {type: RuntimeDefault}
+    service:
+      app:
+        controller: n8n
+        ports:
+          http:
+            port: *port
+    route:
+      app:
+        hostnames:
+          - "{{ .Release.Name }}.${SECRET_DOMAIN}"
+          - "{{ .Release.Name }}.${SECRET_INTERNAL_DOMAIN}"
+        parentRefs:
+          - name: envoy-internal
+            namespace: network
+    persistence:
+      data:
+        existingClaim: "{{ .Release.Name }}"
+        globalMounts:
+          - path: /home/node/.n8n
