@@ -1,0 +1,29 @@
+---
+# This is an example TCP probe configuration.
+# To use:
+# 1. Rename this file to probe-tcp.yaml
+# 2. Add your TCP endpoints to the static list below
+# 3. Add ./probe-tcp.yaml to the resources list in kustomization.yaml
+#
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/monitoring.coreos.com/probe_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: Probe
+metadata:
+  name: lan-tcp
+spec:
+  interval: 1m
+  module: tcp_connect
+  prober:
+    url: blackbox-exporter-lan.observability.svc.cluster.local:9115
+  targets:
+    staticConfig:
+      static:
+        # Add TCP endpoints to probe here - format: hostname:port
+        # Examples:
+        # - nfs-server.${SECRET_INTERNAL_DOMAIN}:2049
+        # - router.${SECRET_INTERNAL_DOMAIN}:443
+        # - nas.${SECRET_INTERNAL_DOMAIN}:22
+  metricRelabelings:
+    - action: replace
+      replacement: blackbox-exporter-lan
+      targetLabel: service
