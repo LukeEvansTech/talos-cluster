@@ -1,0 +1,108 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/helm.toolkit.fluxcd.io/helmrelease_v2.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: postgres18-backup
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: postgres18-backup
+    namespace: database
+  values:
+    controllers:
+      postgres-backup:
+        type: cronjob
+        cronjob:
+          schedule: "0 2 * * *" # 2 AM daily
+          concurrencyPolicy: Forbid
+          successfulJobsHistory: 1
+          failedJobsHistory: 1
+
+        initContainers:
+          generate-db-list:
+            image:
+              repository: ghcr.io/cloudnative-pg/postgresql
+              tag: 18.0
+            command:
+              - /bin/bash
+              - -c
+              - |
+                psql -h postgres18-rw.database.svc.cluster.local -U $POSTGRES_USER -d postgres -tAc \
+                "SELECT datname FROM pg_database WHERE datistemplate = false AND datname NOT IN ('postgres', 'template0', 'template1', 'app');" \
+                > /config/db_list || echo "app" > /config/db_list
+            env:
+              - name: POSTGRES_USER
+                valueFrom:
+                  secretKeyRef:
+                    name: cloudnative-pg-secret
+                    key: username
+              - name: PGPASSWORD
+                valueFrom:
+                  secretKeyRef:
+                    name: cloudnative-pg-secret
+                    key: password
+
+        containers:
+          app:
+            image:
+              repository: ghcr.io/tiredofit/docker-db-backup
+              tag: 4.1.9
+            env:
+              - name: DB_TYPE
+                value: pgsql
+              - name: DB_HOST
+                value: postgres18-rw.database.svc.cluster.local
+              - name: DB_PORT
+                value: "5432"
+              - name: DB_USER
+                valueFrom:
+                  secretKeyRef:
+                    name: cloudnative-pg-secret
+                    key: username
+              - name: DB_PASS
+                valueFrom:
+                  secretKeyRef:
+                    name: cloudnative-pg-secret
+                    key: password
+              - name: DB_NAME
+                value: ALL
+              - name: DB_BACKUP_LOCATION
+                value: FILESYSTEM
+              - name: DB_DUMP_TARGET
+                value: /backups/database/postgresql
+              - name: DB_CLEANUP_TIME
+                value: "10080" # 7 days in minutes
+              - name: DB_COMPRESSION
+                value: GZ
+              - name: DB_COMPRESSION_LEVEL
+                value: "9"
+              - name: CHECKSUM
+                value: SHA1
+              - name: TIMEZONE
+                value: America/New_York
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop:
+                  - ALL
+
+    defaultPodOptions:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+
+    persistence:
+      config:
+        type: emptyDir
+      backups:
+        type: nfs
+        server: nas01.${SECRET_DOMAIN_INT} # TODO: Update with your NAS server
+        path: /mnt/data/backup # TODO: Update with your NFS path
+        globalMounts:
+          - path: /backups
