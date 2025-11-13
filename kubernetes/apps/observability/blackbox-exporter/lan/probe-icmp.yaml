@@ -18,23 +18,3 @@ spec:
     - action: replace
       replacement: blackbox-exporter-lan
       targetLabel: service
----
-# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/monitoring.coreos.com/probe_v1.json
-apiVersion: monitoring.coreos.com/v1
-kind: Probe
-metadata:
-  name: lan-tcp
-spec:
-  interval: 1m
-  module: tcp_connect
-  prober:
-    url: blackbox-exporter-lan.observability.svc.cluster.local:9115
-  targets:
-    staticConfig:
-      static:
-      # Add TCP endpoints to probe here - format: hostname:port
-      # Example: nfs-server.${SECRET_INTERNAL_DOMAIN}:2049
-  metricRelabelings:
-    - action: replace
-      replacement: blackbox-exporter-lan
-      targetLabel: service
