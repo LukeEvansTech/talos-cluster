@@ -1,0 +1,66 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/postgresql.cnpg.io/cluster_v1.json
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: postgres18
+spec:
+  instances: 3
+  imageName: ghcr.io/cloudnative-pg/postgresql:18.0
+
+  primaryUpdateStrategy: unsupervised
+
+  storage:
+    size: 20Gi
+    storageClass: openebs-hostpath
+
+  superuserSecret:
+    name: cloudnative-pg-secret
+
+  enableSuperuserAccess: true
+
+  postgresql:
+    parameters:
+      max_connections: "300"
+      shared_buffers: 512MB
+      effective_cache_size: 1536MB
+      maintenance_work_mem: 128MB
+      checkpoint_completion_target: "0.9"
+      wal_buffers: 16MB
+      default_statistics_target: "100"
+      random_page_cost: "1.1"
+      effective_io_concurrency: "200"
+      work_mem: 2621kB
+      huge_pages: "off"
+      min_wal_size: 1GB
+      max_wal_size: 4GB
+
+  resources:
+    requests:
+      cpu: 500m
+      memory: 2Gi
+    limits:
+      memory: 4Gi
+
+  monitoring:
+    enablePodMonitor: true
+
+  backup:
+    retentionPolicy: 30d
+    barmanObjectStore:
+      destinationPath: s3://cloudnative-pg/
+      endpointURL: https://minio.${SECRET_DOMAIN_INT}
+      serverName: postgres18
+      s3Credentials:
+        accessKeyId:
+          name: cloudnative-pg-secret
+          key: AWS_ACCESS_KEY_ID
+        secretAccessKey:
+          name: cloudnative-pg-secret
+          key: AWS_SECRET_ACCESS_KEY
+      wal:
+        compression: bzip2
+        maxParallel: 8
+      data:
+        compression: bzip2
+        jobs: 2
