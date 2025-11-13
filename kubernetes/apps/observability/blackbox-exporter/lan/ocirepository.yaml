@@ -6,9 +6,9 @@ metadata:
   name: blackbox-exporter-lan
 spec:
   interval: 15m
-  url: oci://ghcr.io/prometheus-community/charts
+  url: oci://ghcr.io/prometheus-community/charts/prometheus-blackbox-exporter
   ref:
-    tag: prometheus-blackbox-exporter-11.4.1
+    tag: 11.4.2
   layerSelector:
     mediaType: application/vnd.cncf.helm.chart.content.v1.tar+gzip
     operation: copy
