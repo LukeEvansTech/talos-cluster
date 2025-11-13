@@ -60,6 +60,12 @@ nodes:
               keys:
                 - slot: 0
                   tpm: {}
+      # Watchdog timer configuration
+      - |-
+        apiVersion: v1alpha1
+        kind: WatchdogTimerConfig
+        device: /dev/watchdog0
+        timeout: 5m
   - hostname: "cr-talos-02"
     ipAddress: "10.32.8.81"
     installDiskSelector:
@@ -95,6 +101,12 @@ nodes:
               keys:
                 - slot: 0
                   tpm: {}
+      # Watchdog timer configuration
+      - |-
+        apiVersion: v1alpha1
+        kind: WatchdogTimerConfig
+        device: /dev/watchdog0
+        timeout: 5m
   - hostname: "cr-talos-03"
     ipAddress: "10.32.8.82"
     installDiskSelector:
@@ -130,6 +142,12 @@ nodes:
               keys:
                 - slot: 0
                   tpm: {}
+      # Watchdog timer configuration
+      - |-
+        apiVersion: v1alpha1
+        kind: WatchdogTimerConfig
+        device: /dev/watchdog0
+        timeout: 5m
 
 # Global patches
 patches:
