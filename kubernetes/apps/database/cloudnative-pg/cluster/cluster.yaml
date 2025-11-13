@@ -49,7 +49,7 @@ spec:
     retentionPolicy: 30d
     barmanObjectStore:
       destinationPath: s3://cloudnative-pg/
-      endpointURL: https://minio.${SECRET_DOMAIN_INT}
+      endpointURL: https://${SECRET_STORAGE_SERVER}:9000
       serverName: postgres18
       s3Credentials:
         accessKeyId:
