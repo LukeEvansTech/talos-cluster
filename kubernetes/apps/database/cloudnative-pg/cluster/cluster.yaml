@@ -48,7 +48,7 @@ spec:
   backup:
     retentionPolicy: 30d
     barmanObjectStore:
-      destinationPath: s3://cloudnative-pg/
+      destinationPath: s3://cnpg/
       endpointURL: https://${SECRET_STORAGE_SERVER}:9000
       serverName: postgres18
       s3Credentials:
