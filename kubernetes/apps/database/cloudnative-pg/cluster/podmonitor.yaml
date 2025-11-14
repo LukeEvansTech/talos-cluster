@@ -1,0 +1,22 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/monitoring.coreos.com/podmonitor_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: postgres18
+  labels:
+    cnpg.io/cluster: postgres18
+spec:
+  podMetricsEndpoints:
+    - metricRelabelings:
+        - action: replace
+          sourceLabels:
+            - cluster
+          targetLabel: cnpg_cluster
+        - action: labeldrop
+          regex: cluster
+      port: metrics
+  selector:
+    matchLabels:
+      cnpg.io/cluster: postgres18
+      cnpg.io/podRole: instance
