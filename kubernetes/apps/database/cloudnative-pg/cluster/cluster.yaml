@@ -46,7 +46,7 @@ spec:
     enablePodMonitor: true
 
   backup:
-    retentionPolicy: 30d
+    retentionPolicy: 90d
     barmanObjectStore:
       destinationPath: s3://cnpg/
       endpointURL: https://${SECRET_STORAGE_SERVER}:9000
