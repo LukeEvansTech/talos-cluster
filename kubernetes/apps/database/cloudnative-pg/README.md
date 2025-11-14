@@ -110,7 +110,7 @@ Seven critical alerts configured:
 ### External Access
 
 - **Service Type**: LoadBalancer
-- **IP**: `192.168.222.18` (Cilium IPAM)
+- **IP**: `${SVC_POSTGRES_ADDR}` (resolves to `10.32.8.91` via cluster-secrets)
 - **DNS**: `postgres18.${SECRET_DOMAIN_INT}` (External DNS)
 - **Target**: Primary instance only (read-write)
 
@@ -258,7 +258,7 @@ kubectl run -it --rm psql --image=postgres:18 --restart=Never -- \
 #### External (via LoadBalancer)
 
 ```bash
-psql -h 192.168.222.18 -U postgres -d postgres
+psql -h 10.32.8.91 -U postgres -d postgres
 # Or via DNS
 psql -h postgres18.${SECRET_DOMAIN_INT} -U postgres -d postgres
 ```
