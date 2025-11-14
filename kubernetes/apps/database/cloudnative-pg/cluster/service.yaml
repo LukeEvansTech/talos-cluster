@@ -1,0 +1,18 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres18-lb
+  annotations:
+    io.cilium/lb-ipam-ips: 192.168.222.18
+    external-dns.alpha.kubernetes.io/hostname: postgres18.${SECRET_DOMAIN_INT}
+spec:
+  type: LoadBalancer
+  ports:
+    - name: postgres
+      port: 5432
+      protocol: TCP
+      targetPort: 5432
+  selector:
+    cnpg.io/cluster: postgres18
+    cnpg.io/instanceRole: primary
