@@ -41,6 +41,11 @@ spec:
       namespace: openebs-system
   interval: 1h
   path: ./kubernetes/apps/database/cloudnative-pg/cluster
+  postBuild:
+    substituteFrom:
+      - kind: Secret
+        name: cluster-secrets
+        optional: false
   prune: true
   retryInterval: 2m
   sourceRef:
