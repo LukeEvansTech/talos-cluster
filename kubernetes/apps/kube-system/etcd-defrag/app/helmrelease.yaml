@@ -31,7 +31,7 @@ spec:
                 curl -sL https://github.com/siderolabs/talos/releases/download/v1.11.5/talosctl-linux-amd64 -o /usr/local/bin/talosctl
                 chmod +x /usr/local/bin/talosctl
                 # Run the defrag script
-                /scripts/defrag.sh
+                sh /scripts/defrag.sh
             env:
               TZ: UTC
             resources:
