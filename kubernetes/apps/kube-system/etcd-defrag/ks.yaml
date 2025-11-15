@@ -14,7 +14,8 @@ spec:
   prune: true
   sourceRef:
     kind: GitRepository
-    name: talos-cluster
+    name: flux-system
+    namespace: flux-system
   wait: true
   interval: 1h
   retryInterval: 1m
