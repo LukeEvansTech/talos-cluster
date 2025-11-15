@@ -17,15 +17,6 @@ spec:
           schedule: "0 2 * * 0" # Weekly on Sunday at 2 AM
           successfulJobsHistory: 3
           failedJobsHistory: 3
-        initContainers:
-          copy-talosctl:
-            image:
-              repository: ghcr.io/siderolabs/talosctl
-              tag: v1.11.5
-            command:
-              - cp
-              - /talosctl
-              - /shared/talosctl
         containers:
           app:
             image:
@@ -35,7 +26,11 @@ spec:
               - /bin/sh
               - -c
               - |
-                export PATH="/shared:$PATH"
+                # Install talosctl
+                apk add --no-cache curl
+                curl -sL https://github.com/siderolabs/talos/releases/download/v1.11.5/talosctl-linux-amd64 -o /usr/local/bin/talosctl
+                chmod +x /usr/local/bin/talosctl
+                # Run the defrag script
                 /scripts/defrag.sh
             env:
               TZ: UTC
@@ -51,10 +46,6 @@ spec:
         runAsUser: 0
         fsGroup: 0
     persistence:
-      shared:
-        type: emptyDir
-        globalMounts:
-          - path: /shared
       script:
         type: configMap
         name: etcd-defrag-script
