@@ -15,24 +15,37 @@ This CronJob runs weekly to defragment the etcd database on all control plane no
 
 ## Prerequisites
 
-### 1Password Secret
+### 1Password Secrets (Certificate Components)
 
-The CronJob requires a `talosconfig` file to authenticate with Talos nodes. This must be stored in 1Password.
+The CronJob requires Talos client certificates to authenticate with Talos nodes. For security, we store only the individual certificate components (not the full talosconfig).
 
 **Setup Steps:**
 
-1. Read your talosconfig file:
+1. Extract certificate components from your talosconfig:
    ```bash
+   # Read your talosconfig
    cat talos/clusterconfig/talosconfig
    ```
 
-2. Add to 1Password:
-   - Navigate to your "Talos" vault in 1Password
-   - Find or create an item named "talos"
-   - Add a new field named `TALOSCONFIG`
-   - Paste the entire talosconfig file content
+2. Add to 1Password in the "Talos" vault, item "talos":
+   - Add field `TALOS_CA`: The base64-encoded CA certificate (value of `contexts.kubernetes.ca`)
+   - Add field `TALOS_CRT`: The base64-encoded client certificate (value of `contexts.kubernetes.crt`)
+   - Add field `TALOS_KEY`: The base64-encoded client key (value of `contexts.kubernetes.key`)
 
-The ExternalSecret will automatically sync this to Kubernetes as `etcd-defrag-talosconfig` in the `kube-system` namespace.
+**Example talosconfig structure:**
+```yaml
+context: kubernetes
+contexts:
+  kubernetes:
+    endpoints: [...]
+    ca: <copy this value to TALOS_CA>
+    crt: <copy this value to TALOS_CRT>
+    key: <copy this value to TALOS_KEY>
+```
+
+The ExternalSecret will automatically sync these components to Kubernetes as `etcd-defrag-talosconfig` in the `kube-system` namespace. The defragmentation script builds a minimal talosconfig at runtime from these components.
+
+**Security Note:** This approach follows the principle of least privilege by storing only the necessary certificate components instead of the full talosconfig file.
 
 ## Manual Defragmentation
 
@@ -98,7 +111,10 @@ kubectl get externalsecret -n kube-system etcd-defrag
 kubectl describe externalsecret -n kube-system etcd-defrag
 ```
 
-Ensure the `TALOSCONFIG` field exists in 1Password under `talos` vault.
+Ensure these fields exist in 1Password under the "talos" vault, item "talos":
+- `TALOS_CA`
+- `TALOS_CRT`
+- `TALOS_KEY`
 
 ### Defragmentation fails
 
