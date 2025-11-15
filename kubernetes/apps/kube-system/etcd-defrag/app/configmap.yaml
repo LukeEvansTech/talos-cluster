@@ -96,7 +96,7 @@ data:
 
         # Perform defragmentation
         echo "Running defragmentation (this may take 30-60 seconds)..."
-        if talosctl -n "$NODE" service etcd defragment; then
+        if talosctl -n "$NODE" etcd defrag; then
             echo "✓ Defragmentation completed successfully"
         else
             echo "✗ Defragmentation failed on $NODE_NAME"
