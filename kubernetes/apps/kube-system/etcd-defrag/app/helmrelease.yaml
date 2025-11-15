@@ -15,33 +15,36 @@ spec:
         type: cronjob
         cronjob:
           schedule: "0 2 * * 0" # Weekly on Sunday at 2 AM
-          successfulJobsHistory: 3
-          failedJobsHistory: 3
+          concurrencyPolicy: Forbid
+          successfulJobsHistory: 1
+          failedJobsHistory: 1
         containers:
           app:
             image:
-              repository: alpine
-              tag: "3.21"
+              repository: ghcr.io/onedr0p/kubanetics
+              tag: 2025.3.2@sha256:309a7587c2aa7ce6a99812a61c5024240a21b708f94802a09105c61513572164
             command:
-              - /bin/sh
+              - /bin/bash
               - -c
-              - |
-                # Install talosctl
-                apk add --no-cache curl
-                curl -sL https://github.com/siderolabs/talos/releases/download/v1.11.5/talosctl-linux-amd64 -o /usr/local/bin/talosctl
-                chmod +x /usr/local/bin/talosctl
-                # Run the defrag script
-                sh /scripts/defrag.sh
+              - sh /scripts/defrag.sh
             env:
-              TZ: UTC
+              - name: TZ
+                value: UTC
             resources:
               requests:
                 cpu: 25m
                 memory: 64Mi
               limits:
                 memory: 128Mi
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+              capabilities:
+                drop:
+                  - ALL
     defaultPodOptions:
       securityContext:
+        # talosctl requires root access to connect to Talos API
         runAsNonRoot: false
         runAsUser: 0
         fsGroup: 0
