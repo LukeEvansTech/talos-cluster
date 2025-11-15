@@ -50,21 +50,21 @@ data:
       "contexts:" \
       "  kubernetes:" \
       "    endpoints:" \
-      "      - ${NODES[0]}" \
-      "      - ${NODES[1]}" \
-      "      - ${NODES[2]}" \
-      "    ca: ${CA_DATA}" \
-      "    crt: ${CRT_DATA}" \
-      "    key: ${KEY_DATA}" \
+      "      - $${NODES[0]}" \
+      "      - $${NODES[1]}" \
+      "      - $${NODES[2]}" \
+      "    ca: $${CA_DATA}" \
+      "    crt: $${CRT_DATA}" \
+      "    key: $${KEY_DATA}" \
       > "$TALOSCONFIG"
 
     echo "✓ Talosconfig created"
     echo ""
 
     echo "Checking etcd cluster health before defragmentation..."
-    for i in "${!NODES[@]}"; do
-        NODE="${NODES[$i]}"
-        NODE_NAME="${NODE_NAMES[$i]}"
+    for i in "$${!NODES[@]}"; do
+        NODE="$${NODES[$i]}"
+        NODE_NAME="$${NODE_NAMES[$i]}"
         echo "Checking $NODE_NAME ($NODE)..."
         if ! talosctl -n "$NODE" service etcd status &> /dev/null; then
             echo "WARNING: Cannot reach etcd on $NODE_NAME ($NODE)"
@@ -73,9 +73,9 @@ data:
     echo ""
 
     # Defragment each node sequentially
-    for i in "${!NODES[@]}"; do
-        NODE="${NODES[$i]}"
-        NODE_NAME="${NODE_NAMES[$i]}"
+    for i in "$${!NODES[@]}"; do
+        NODE="$${NODES[$i]}"
+        NODE_NAME="$${NODE_NAMES[$i]}"
 
         echo "=========================================="
         echo "Defragmenting $NODE_NAME ($NODE)..."
@@ -102,7 +102,7 @@ data:
         echo ""
 
         # Wait a bit before moving to next node
-        if [[ $i -lt $((${#NODES[@]} - 1)) ]]; then
+        if [[ $i -lt $(($${#NODES[@]} - 1)) ]]; then
             echo "Waiting 10 seconds before next node..."
             sleep 10
             echo ""
@@ -115,4 +115,4 @@ data:
     echo "End time: $(date)"
     echo ""
     echo "Final cluster status:"
-    talosctl -n "${NODES[0]},${NODES[1]},${NODES[2]}" service etcd status || true
+    talosctl -n "$${NODES[0]},$${NODES[1]},$${NODES[2]}" service etcd status || true
