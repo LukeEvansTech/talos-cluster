@@ -19,11 +19,25 @@ This CronJob runs weekly to defragment the etcd database on all control plane no
 
 The CronJob requires Talos client certificates to authenticate with Talos nodes. For security, we store only the individual certificate components (not the full talosconfig).
 
-**Setup Steps:**
+**Automated Setup (Recommended):**
+
+Use the provided script to automatically extract and store the certificates:
+
+```bash
+./scripts/setup-etcd-defrag-secrets.sh
+```
+
+This will:
+- Extract CA, CRT, and KEY from your talosconfig
+- Create or update the "talos" item in your "Talos" vault in 1Password
+- Validate all prerequisites
+
+**Manual Setup:**
+
+If you prefer manual setup:
 
 1. Extract certificate components from your talosconfig:
    ```bash
-   # Read your talosconfig
    cat talos/clusterconfig/talosconfig
    ```
 
