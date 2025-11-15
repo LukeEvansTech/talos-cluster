@@ -1,0 +1,92 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: etcd-defrag-script
+data:
+  defrag.sh: |
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    # etcd Defragmentation Script for Talos Linux
+    # This script defrags all etcd members sequentially to avoid quorum loss
+
+    echo "=========================================="
+    echo "etcd Defragmentation Script"
+    echo "=========================================="
+    echo "Start time: $(date)"
+    echo ""
+
+    # Control plane nodes
+    NODES=("10.32.8.80" "10.32.8.81" "10.32.8.82")
+    NODE_NAMES=("cr-talos-01" "cr-talos-02" "cr-talos-03")
+
+    # Check if talosctl is available
+    if ! command -v talosctl &> /dev/null; then
+        echo "ERROR: talosctl not found in PATH"
+        exit 1
+    fi
+
+    # Verify talosconfig exists
+    if [[ ! -f /var/run/secrets/talos/talosconfig ]]; then
+        echo "ERROR: talosconfig not found at /var/run/secrets/talos/talosconfig"
+        exit 1
+    fi
+
+    export TALOSCONFIG=/var/run/secrets/talos/talosconfig
+
+    echo "Checking etcd cluster health before defragmentation..."
+    for i in "${!NODES[@]}"; do
+        NODE="${NODES[$i]}"
+        NODE_NAME="${NODE_NAMES[$i]}"
+        echo "Checking $NODE_NAME ($NODE)..."
+        if ! talosctl -n "$NODE" service etcd status &> /dev/null; then
+            echo "WARNING: Cannot reach etcd on $NODE_NAME ($NODE)"
+        fi
+    done
+    echo ""
+
+    # Defragment each node sequentially
+    for i in "${!NODES[@]}"; do
+        NODE="${NODES[$i]}"
+        NODE_NAME="${NODE_NAMES[$i]}"
+
+        echo "=========================================="
+        echo "Defragmenting $NODE_NAME ($NODE)..."
+        echo "=========================================="
+
+        # Get pre-defrag status
+        echo "Before defragmentation:"
+        talosctl -n "$NODE" service etcd status || true
+        echo ""
+
+        # Perform defragmentation
+        echo "Running defragmentation (this may take 30-60 seconds)..."
+        if talosctl -n "$NODE" service etcd defragment; then
+            echo "✓ Defragmentation completed successfully"
+        else
+            echo "✗ Defragmentation failed on $NODE_NAME"
+            exit 1
+        fi
+        echo ""
+
+        # Get post-defrag status
+        echo "After defragmentation:"
+        talosctl -n "$NODE" service etcd status || true
+        echo ""
+
+        # Wait a bit before moving to next node
+        if [[ $i -lt $((${#NODES[@]} - 1)) ]]; then
+            echo "Waiting 10 seconds before next node..."
+            sleep 10
+            echo ""
+        fi
+    done
+
+    echo "=========================================="
+    echo "Defragmentation Complete!"
+    echo "=========================================="
+    echo "End time: $(date)"
+    echo ""
+    echo "Final cluster status:"
+    talosctl -n "${NODES[0]},${NODES[1]},${NODES[2]}" service etcd status || true
