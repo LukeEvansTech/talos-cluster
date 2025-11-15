@@ -21,12 +21,17 @@ spec:
         containers:
           app:
             image:
-              repository: ghcr.io/onedr0p/kubanetics
-              tag: 2025.3.2@sha256:309a7587c2aa7ce6a99812a61c5024240a21b708f94802a09105c61513572164
+              repository: alpine
+              tag: 3.21@sha256:56fa17d2a7e7f168a043a2712e63aed1f8543aeafdcee47c58dcffe38ed51099
             command:
-              - /bin/bash
+              - /bin/sh
               - -c
-              - sh /scripts/defrag.sh
+              - |
+                # Install talosctl using wget (Alpine built-in)
+                wget -qO /usr/local/bin/talosctl https://github.com/siderolabs/talos/releases/download/v1.11.5/talosctl-linux-amd64
+                chmod +x /usr/local/bin/talosctl
+                # Run defrag script
+                sh /scripts/defrag.sh
             env:
               - name: TZ
                 value: UTC
