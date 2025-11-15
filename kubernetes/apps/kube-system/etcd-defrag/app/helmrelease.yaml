@@ -17,15 +17,26 @@ spec:
           schedule: "0 2 * * 0" # Weekly on Sunday at 2 AM
           successfulJobsHistory: 3
           failedJobsHistory: 3
-        containers:
-          app:
+        initContainers:
+          copy-talosctl:
             image:
               repository: ghcr.io/siderolabs/talosctl
               tag: v1.11.5
             command:
+              - cp
+              - /talosctl
+              - /shared/talosctl
+        containers:
+          app:
+            image:
+              repository: alpine
+              tag: "3.21"
+            command:
               - /bin/sh
               - -c
-              - /scripts/defrag.sh
+              - |
+                export PATH="/shared:$PATH"
+                /scripts/defrag.sh
             env:
               TZ: UTC
             resources:
@@ -40,6 +51,10 @@ spec:
         runAsUser: 0
         fsGroup: 0
     persistence:
+      shared:
+        type: emptyDir
+        globalMounts:
+          - path: /shared
       script:
         type: configMap
         name: etcd-defrag-script
