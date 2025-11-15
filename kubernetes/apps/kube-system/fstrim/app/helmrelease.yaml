@@ -21,10 +21,17 @@ spec:
         containers:
           app:
             image:
-              repository: ghcr.io/onedr0p/kubanetics
-              tag: 2025.3.2@sha256:309a7587c2aa7ce6a99812a61c5024240a21b708f94802a09105c61513572164
-            env:
-              SCRIPT_NAME: fstrim.sh
+              repository: docker.io/library/alpine
+              tag: 3.22.2
+            command:
+              - /bin/sh
+              - -c
+            args:
+              - |
+                nsenter --mount=/host/proc/$(pidof kubelet)/ns/mnt --net=/host/proc/$(pidof kubelet)/ns/net \
+                  -- sh -c 'mount | grep -v kubelet | grep -v tmpfs | grep -v overlay | cut -d " " -f 3 > /tmp/fs.txt'
+                nsenter --mount=/host/proc/$(pidof kubelet)/ns/mnt --net=/host/proc/$(pidof kubelet)/ns/net \
+                  -- fstrim --verbose --quiet-unsupported --listed-in /tmp/fs.txt
             resources:
               requests:
                 cpu: 25m
