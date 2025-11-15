@@ -23,7 +23,7 @@ spec:
               repository: ghcr.io/siderolabs/talosctl
               tag: v1.11.5
             command:
-              - /bin/bash
+              - /bin/sh
               - -c
               - /scripts/defrag.sh
             env:
