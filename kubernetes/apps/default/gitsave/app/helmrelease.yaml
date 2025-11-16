@@ -64,7 +64,7 @@ spec:
       backup:
         type: nfs
         server: ${SECRET_STORAGE_SERVER}
-        path: /mnt/data/backup
+        path: /mnt/pool/backups
         advancedMounts:
           gitsave:
             app:
