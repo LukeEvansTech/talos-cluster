@@ -42,22 +42,17 @@ spec:
           timeout: 5s
     serviceMonitor:
       enabled: true
-      defaults:
-        labels:
-          release: kube-prometheus-stack
-        interval: 1m
-        scrapeTimeout: 30s
-      targets:
-        - module: http_2xx
-          name: http-2xx
-          url: http://blackbox-exporter-lan.observability.svc.cluster.local:9115/metrics
+      selfMonitor:
+        enabled: true
     prometheusRule:
       enabled: true
       rules:
         - alert: LanProbeFailed
-          expr: probe_success{service="blackbox-exporter-lan"} == 0
+          expr: |-
+            probe_success{service="blackbox-exporter-lan"} == 0
           for: 15m
           labels:
             severity: critical
           annotations:
-            summary: "LAN probe failed: {{ $labels.instance }}"
+            summary: |-
+              The probe targeting {{ $labels.instance }} is currently having connectivity issues
