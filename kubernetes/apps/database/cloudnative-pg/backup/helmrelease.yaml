@@ -59,7 +59,7 @@ spec:
               - name: CHECKSUM
                 value: SHA1
               - name: TIMEZONE
-                value: America/New_York
+                value: ${TIMEZONE}
             securityContext:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: true
