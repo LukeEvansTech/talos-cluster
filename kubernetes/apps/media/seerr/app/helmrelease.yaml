@@ -17,8 +17,8 @@ spec:
         containers:
           app:
             image:
-              repository: docker.io/seerr/seerr
-              tag: develop
+              repository: ghcr.io/fallenbagel/jellyseerr
+              tag: latest
             env:
               TZ: ${TIMEZONE}
               LOG_LEVEL: "info"
