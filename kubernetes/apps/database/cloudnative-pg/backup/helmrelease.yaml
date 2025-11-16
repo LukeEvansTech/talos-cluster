@@ -23,46 +23,44 @@ spec:
         containers:
           app:
             image:
-              repository: ghcr.io/tiredofit/docker-db-backup
-              tag: 4.1.21
+              repository: docker.io/prodrigestivill/postgres-backup-local
+              tag: 17@sha256:e803bd9eb4bfb42e9b3e74ba411227f3d55da292905800395659cc579b6641e8
             env:
-              - name: DB_TYPE
-                value: pgsql
-              - name: DB_HOST
+              - name: POSTGRES_HOST
                 value: postgres18-rw.database.svc.cluster.local
-              - name: DB_PORT
+              - name: POSTGRES_PORT
                 value: "5432"
-              - name: DB_USER
+              - name: POSTGRES_USER
                 valueFrom:
                   secretKeyRef:
                     name: cloudnative-pg-secret
                     key: username
-              - name: DB_PASS
+              - name: POSTGRES_PASSWORD
                 valueFrom:
                   secretKeyRef:
                     name: cloudnative-pg-secret
                     key: password
-              - name: DB_NAME
-                value: ALL
-              - name: DB_EXCLUDE
-                value: template0,template1
-              - name: DB_BACKUP_LOCATION
-                value: FILESYSTEM
-              - name: DB_DUMP_TARGET
-                value: /backups/database/postgresql
-              - name: DB_CLEANUP_TIME
-                value: "259200" # 180 days in minutes (180 × 24 × 60)
-              - name: DB_COMPRESSION
-                value: GZ
-              - name: DB_COMPRESSION_LEVEL
-                value: "9"
-              - name: CHECKSUM
-                value: SHA1
+              - name: POSTGRES_DB
+                value: postgres
+              - name: POSTGRES_EXTRA_OPTS
+                value: "-Z9 --schema=public --blobs"
+              - name: SCHEDULE
+                value: "@hourly"
+              - name: BACKUP_KEEP_MINS
+                value: "4320" # 180 days in minutes for hourly backups
+              - name: BACKUP_KEEP_DAYS
+                value: "180"
+              - name: BACKUP_KEEP_WEEKS
+                value: "7"
+              - name: BACKUP_KEEP_MONTHS
+                value: "12"
+              - name: HEALTHCHECK_PORT
+                value: "8080"
               - name: TZ
                 value: ${TIMEZONE}
             securityContext:
               allowPrivilegeEscalation: false
-              readOnlyRootFilesystem: false
+              readOnlyRootFilesystem: true
               capabilities:
                 drop:
                   - ALL
@@ -82,11 +80,3 @@ spec:
         path: /mnt/pool/backups/postgres
         globalMounts:
           - path: /backups
-      tmp:
-        type: emptyDir
-        globalMounts:
-          - path: /tmp
-      run:
-        type: emptyDir
-        globalMounts:
-          - path: /run
