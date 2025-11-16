@@ -49,7 +49,7 @@ spec:
         scrapeTimeout: 30s
       targets:
         - module: http_2xx
-          name: http_2xx
+          name: http-2xx
           url: http://blackbox-exporter-lan.observability.svc.cluster.local:9115/metrics
     prometheusRule:
       enabled: true

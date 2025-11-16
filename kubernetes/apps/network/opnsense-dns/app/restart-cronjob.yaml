@@ -52,10 +52,12 @@ spec:
             app: opnsense-dns-restarter
         spec:
           serviceAccountName: opnsense-dns-restarter
+          automountServiceAccountToken: true
           restartPolicy: OnFailure
           containers:
             - name: kubectl
-              image: registry.k8s.io/kubectl:v1.34.2
+              image: registry.k8s.io/kubectl:v1.34.2@sha256:27da80cf67ec967be69d84ba5df4f37a76e7f31e50cd92e6d5d8b0d3ee5f03e0
+              imagePullPolicy: Always
               command:
                 - kubectl
                 - rollout
@@ -63,6 +65,13 @@ spec:
                 - deployment/opnsense-dns
                 - -n
                 - network
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 32Mi
+                limits:
+                  cpu: 100m
+                  memory: 64Mi
               securityContext:
                 allowPrivilegeEscalation: false
                 readOnlyRootFilesystem: true
