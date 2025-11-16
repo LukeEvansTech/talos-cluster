@@ -26,7 +26,7 @@ spec:
                   name: gitsave-secret
             securityContext:
               allowPrivilegeEscalation: false
-              readOnlyRootFilesystem: true
+              readOnlyRootFilesystem: false
               capabilities: { drop: ["ALL"] }
             resources:
               requests:
@@ -75,9 +75,3 @@ spec:
             app:
               - path: /tmp
                 subPath: tmp
-      node-modules:
-        type: emptyDir
-        advancedMounts:
-          gitsave:
-            app:
-              - path: /app/node_modules/.prisma
