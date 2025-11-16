@@ -79,6 +79,7 @@ spec:
       backups:
         type: nfs
         server: ${SECRET_STORAGE_SERVER}
-        path: /mnt/pool/backups/postgres
+        path: /mnt/pool/backups
         globalMounts:
           - path: /backups
+            subPath: postgres
