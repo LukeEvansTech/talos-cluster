@@ -4,6 +4,9 @@ kind: ConfigMap
 metadata:
   name: homebridge-startup
   namespace: default
+  annotations:
+    # Homebridge app is intentionally deployed in default namespace
+    checkov.io/skip1: CKV_K8S_21=Application intentionally deployed in default namespace
 data:
   startup.sh: |-
     #!/bin/sh
