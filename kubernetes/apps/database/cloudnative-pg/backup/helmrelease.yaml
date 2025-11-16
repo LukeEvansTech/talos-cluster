@@ -46,8 +46,6 @@ spec:
                 value: "-Z9 --schema=public --blobs"
               - name: SCHEDULE
                 value: "@hourly"
-              - name: BACKUP_DIR
-                value: /backups/postgres
               - name: BACKUP_KEEP_MINS
                 value: "4320" # 180 days in minutes for hourly backups
               - name: BACKUP_KEEP_DAYS
@@ -62,7 +60,7 @@ spec:
                 value: ${TIMEZONE}
             securityContext:
               allowPrivilegeEscalation: false
-              readOnlyRootFilesystem: true
+              readOnlyRootFilesystem: false
               capabilities:
                 drop:
                   - ALL
@@ -79,6 +77,6 @@ spec:
       backups:
         type: nfs
         server: ${SECRET_STORAGE_SERVER}
-        path: /mnt/pool/backups
+        path: /mnt/pool/backups/postgres
         globalMounts:
           - path: /backups
