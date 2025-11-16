@@ -15,34 +15,10 @@ spec:
       postgres-backup:
         type: cronjob
         cronjob:
-          schedule: "0 2 * * *" # 2 AM daily
+          schedule: "0 * * * *" # Every hour
           concurrencyPolicy: Forbid
           successfulJobsHistory: 1
           failedJobsHistory: 1
-
-        initContainers:
-          generate-db-list:
-            image:
-              repository: ghcr.io/cloudnative-pg/postgresql
-              tag: 18.0
-            command:
-              - /bin/bash
-              - -c
-              - |
-                psql -h postgres18-rw.database.svc.cluster.local -U $POSTGRES_USER -d postgres -tAc \
-                "SELECT datname FROM pg_database WHERE datistemplate = false AND datname NOT IN ('postgres', 'template0', 'template1', 'app');" \
-                > /config/db_list || echo "app" > /config/db_list
-            env:
-              - name: POSTGRES_USER
-                valueFrom:
-                  secretKeyRef:
-                    name: cloudnative-pg-secret
-                    key: username
-              - name: PGPASSWORD
-                valueFrom:
-                  secretKeyRef:
-                    name: cloudnative-pg-secret
-                    key: password
 
         containers:
           app:
@@ -68,12 +44,14 @@ spec:
                     key: password
               - name: DB_NAME
                 value: ALL
+              - name: DB_EXCLUDE
+                value: template0,template1
               - name: DB_BACKUP_LOCATION
                 value: FILESYSTEM
               - name: DB_DUMP_TARGET
                 value: /backups/database/postgresql
               - name: DB_CLEANUP_TIME
-                value: "10080" # 7 days in minutes
+                value: "259200" # 180 days in minutes (180 × 24 × 60)
               - name: DB_COMPRESSION
                 value: GZ
               - name: DB_COMPRESSION_LEVEL
@@ -98,11 +76,9 @@ spec:
         fsGroupChangePolicy: OnRootMismatch
 
     persistence:
-      config:
-        type: emptyDir
       backups:
         type: nfs
-        server: nas01.${SECRET_DOMAIN_INT} # TODO: Update with your NAS server
-        path: /mnt/data/backup # TODO: Update with your NFS path
+        server: ${SECRET_STORAGE_SERVER}
+        path: /mnt/pool/backups/postgres
         globalMounts:
           - path: /backups
