@@ -3,6 +3,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: etcd-defrag-script
+  namespace: kube-system
 data:
   defrag.sh: |-
     #!/bin/sh
