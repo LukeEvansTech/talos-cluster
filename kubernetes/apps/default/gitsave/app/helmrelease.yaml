@@ -75,3 +75,9 @@ spec:
             app:
               - path: /tmp
                 subPath: tmp
+      node-modules:
+        type: emptyDir
+        advancedMounts:
+          gitsave:
+            app:
+              - path: /app/node_modules/.prisma
