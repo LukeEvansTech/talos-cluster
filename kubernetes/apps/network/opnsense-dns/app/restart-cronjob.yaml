@@ -39,6 +39,9 @@ kind: CronJob
 metadata:
   name: opnsense-dns-restarter
   namespace: network
+  annotations:
+    # Service account token is required for kubectl to authenticate with the API
+    checkov.io/skip1: CKV_K8S_38=Service account token required for kubectl rollout restart
 spec:
   # Run daily at 3:00 AM
   schedule: "0 3 * * *"

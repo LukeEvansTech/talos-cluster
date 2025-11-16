@@ -4,6 +4,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: postgres18-gatus-ep
+  namespace: database
   labels:
     gatus.io/enabled: "true"
 data:
