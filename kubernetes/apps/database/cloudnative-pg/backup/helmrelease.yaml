@@ -83,3 +83,11 @@ spec:
         globalMounts:
           - path: /backups
             subPath: postgres
+      run:
+        type: emptyDir
+        globalMounts:
+          - path: /run
+      tmp:
+        type: emptyDir
+        globalMounts:
+          - path: /tmp
