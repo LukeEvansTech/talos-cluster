@@ -69,7 +69,7 @@ spec:
           gitsave:
             app:
               - path: /app/backups
-                subPath: github
+                subPath: gitsave
       tmpfs:
         type: emptyDir
         advancedMounts:
