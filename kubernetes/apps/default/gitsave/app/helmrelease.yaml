@@ -63,7 +63,7 @@ spec:
           - path: /app/data
       backup:
         type: nfs
-        server: nas01.${SECRET_DOMAIN_INT}
+        server: ${SECRET_STORAGE_SERVER}
         path: /mnt/data/backup
         advancedMounts:
           gitsave:
