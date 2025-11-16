@@ -82,3 +82,11 @@ spec:
         path: /mnt/pool/backups/postgres
         globalMounts:
           - path: /backups
+      tmp:
+        type: emptyDir
+        globalMounts:
+          - path: /tmp
+      run:
+        type: emptyDir
+        globalMounts:
+          - path: /run
