@@ -73,8 +73,8 @@ spec:
               "storage": {
                 "type": "s3",
                 "config": {
-                  "bucket": "${VOLSYNC_R2_BUCKET}",
-                  "endpoint": "${VOLSYNC_R2_ENDPOINT}",
+                  "bucket": "talos",
+                  "endpoint": "f488c4741bff1719d48a70f7641b2cbe.r2.cloudflarestorage.com",
                   "prefix": "volsync/"
                 }
               },
