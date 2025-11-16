@@ -13,6 +13,7 @@ resources:
   - ./etcd-defrag/ks.yaml
   - ./fstrim/ks.yaml
   - ./generic-device-plugin/ks.yaml
+  - ./keda/ks.yaml
   - ./metrics-server/ks.yaml
   - ./multus/ks.yaml
   - ./nvidia-device-plugin/ks.yaml
