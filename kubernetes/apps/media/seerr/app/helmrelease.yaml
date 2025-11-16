@@ -3,29 +3,29 @@
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
-  name: jellyseerr
+  name: seerr
 spec:
   interval: 1h
   chartRef:
     kind: OCIRepository
-    name: jellyseerr
+    name: seerr
   values:
     controllers:
-      jellyseerr:
+      seerr:
         annotations:
           reloader.stakater.com/auto: "true"
         containers:
           app:
             image:
-              repository: ghcr.io/fallenbagel/jellyseerr
-              tag: 2.7.3@sha256:9cc9e9ee6cd5cf5a23feb45c37742ba34cfd6314d81d259cddb373a97ac92cdd
+              repository: docker.io/seerr/seerr
+              tag: develop@sha256:2e3eaca47cf9f85ab1afc6cc8b8c9fc19090d867c0ddfa3c4c59bc17c63fe8fa
             env:
               TZ: ${TIMEZONE}
               LOG_LEVEL: "info"
               PORT: &port 80
             envFrom:
               - secretRef:
-                  name: jellyseerr-secret
+                  name: seerr-secret
             probes:
               liveness: &probes
                 enabled: true
@@ -57,7 +57,7 @@ spec:
         fsGroupChangePolicy: OnRootMismatch
     service:
       app:
-        controller: jellyseerr
+        controller: seerr
         ports:
           http:
             port: *port
