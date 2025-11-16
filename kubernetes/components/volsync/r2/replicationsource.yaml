@@ -3,11 +3,11 @@
 apiVersion: volsync.backube/v1alpha1
 kind: ReplicationSource
 metadata:
-  name: "${APP}-nfs"
+  name: "${APP}-r2"
 spec:
   sourcePVC: ${APP}
   trigger:
-    schedule: 0 * * * *
+    schedule: 30 0 * * *
   kopia:
     accessModes:
       - ${VOLSYNC_SNAP_ACCESSMODES:=ReadWriteOnce}
@@ -22,7 +22,7 @@ spec:
       runAsGroup: ${VOLSYNC_PGID:=1000}
       fsGroup: ${VOLSYNC_PGID:=1000}
     parallelism: 2
-    repository: ${APP}-volsync-nfs-secret
+    repository: ${APP}-volsync-r2-secret
     retain:
       hourly: 720
       daily: 180
