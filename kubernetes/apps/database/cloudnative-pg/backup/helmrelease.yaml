@@ -24,7 +24,7 @@ spec:
           app:
             image:
               repository: docker.io/prodrigestivill/postgres-backup-local
-              tag: 17@sha256:e803bd9eb4bfb42e9b3e74ba411227f3d55da292905800395659cc579b6641e8
+              tag: "18"
             env:
               - name: POSTGRES_HOST
                 value: postgres18-rw.database.svc.cluster.local
