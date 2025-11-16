@@ -14,6 +14,7 @@ resources:
   - ./cyberchef/ks.yaml
   - ./echo-server/ks.yaml
   - ./fusion/ks.yaml
+  - ./gitsave/ks.yaml
   - ./homeassistant/ks.yaml
   - ./homebridge/ks.yaml
   - ./homebox/ks.yaml
