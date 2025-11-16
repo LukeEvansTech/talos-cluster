@@ -2,6 +2,19 @@
 # yaml-language-server: $schema=https://json.schemastore.org/kustomization
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
+components:
+  - ../../../../components/nfs-scaler
 resources:
   - ./ocirepository.yaml
   - ./helmrelease.yaml
+replacements:
+  - source:
+      kind: HelmRelease
+      name: pinchflat
+      fieldPath: metadata.name
+    targets:
+      - select:
+          kind: ScaledObject
+        fieldPaths:
+          - metadata.name
+          - spec.scaleTargetRef.name
