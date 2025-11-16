@@ -63,11 +63,13 @@ spec:
           - path: /app/data
       backup:
         type: nfs
-        server: ${SECRET_STORAGE_SERVER}
-        path: /mnt/pool/backups
-        globalMounts:
-          - path: /app/backups
-            subPath: gitsave
+        server: nas01.${SECRET_DOMAIN_INT}
+        path: /mnt/data/backup
+        advancedMounts:
+          gitsave:
+            app:
+              - path: /app/backups
+                subPath: github
       tmpfs:
         type: emptyDir
         advancedMounts:
