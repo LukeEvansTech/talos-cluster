@@ -3,6 +3,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: homebridge-startup
+  namespace: default
 data:
   startup.sh: |-
     #!/bin/sh
