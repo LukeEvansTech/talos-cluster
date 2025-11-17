@@ -37,7 +37,7 @@ spec:
               POLLING_FREQUENCY: "5"
               RUN_MIGRATIONS: "1"
               METRICS_COLLECTOR: "1"
-              METRICS_ALLOWED_NETWORKS: 10.42.0.0/16
+              METRICS_ALLOWED_NETWORKS: ${CLUSTER_POD_CIDR}
             envFrom:
               - secretRef:
                   name: miniflux-secret
@@ -57,7 +57,7 @@ spec:
             securityContext:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: true
-              capabilities: {drop: ["ALL"]}
+              capabilities: { drop: ["ALL"] }
             resources:
               requests:
                 cpu: 10m
@@ -72,7 +72,7 @@ spec:
         runAsGroup: 65534
         fsGroup: 65534
         fsGroupChangePolicy: OnRootMismatch
-        seccompProfile: {type: RuntimeDefault}
+        seccompProfile: { type: RuntimeDefault }
 
     service:
       app:
