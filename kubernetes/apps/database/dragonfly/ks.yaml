@@ -12,6 +12,7 @@ spec:
       app.kubernetes.io/name: *app
   dependsOn:
     - name: onepassword
+      namespace: external-secrets
   path: ./kubernetes/apps/database/dragonfly/app
   prune: true
   sourceRef:
