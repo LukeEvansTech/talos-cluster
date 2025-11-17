@@ -1,5 +1,6 @@
+---
 machine:
   network:
     disableSearchDomain: true
     nameservers:
-      - 10.32.8.70
+      - 10.32.8.10
