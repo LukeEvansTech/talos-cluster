@@ -3,11 +3,13 @@
 apiVersion: postgresql.cnpg.io/v1
 kind: ScheduledBackup
 metadata:
-  name: postgres18
+  name: postgres18-s3
 spec:
   backupOwnerReference: self
   cluster:
     name: postgres18
   immediate: true
   schedule: "@daily"
-  method: barmanObjectStore
+  method: plugin
+  pluginConfiguration:
+    name: barman-cloud.cloudnative-pg.io

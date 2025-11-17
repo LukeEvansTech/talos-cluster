@@ -31,7 +31,7 @@ spec:
                 - --stats=5m
                 - --fast-list
                 - minio:cnpg/
-                - cloudflare:postgres18-backups/
+                - cloudflare:cnpg/
               env:
                 # Logging
                 - name: RCLONE_VERBOSE
@@ -47,13 +47,13 @@ spec:
                 - name: RCLONE_CONFIG_MINIO_ACCESS_KEY_ID
                   valueFrom:
                     secretKeyRef:
-                      name: cnpg-r2-backup-secret
-                      key: MINIO_ACCESS_KEY_ID
+                      name: cloudnative-pg-secret
+                      key: AWS_ACCESS_KEY_ID
                 - name: RCLONE_CONFIG_MINIO_SECRET_ACCESS_KEY
                   valueFrom:
                     secretKeyRef:
-                      name: cnpg-r2-backup-secret
-                      key: MINIO_SECRET_ACCESS_KEY
+                      name: cloudnative-pg-secret
+                      key: AWS_SECRET_ACCESS_KEY
                 - name: RCLONE_CONFIG_MINIO_ACL
                   value: private
 
@@ -67,17 +67,17 @@ spec:
                 - name: RCLONE_CONFIG_CLOUDFLARE_ACCESS_KEY_ID
                   valueFrom:
                     secretKeyRef:
-                      name: cnpg-r2-backup-secret
+                      name: cloudnative-pg-secret
                       key: R2_ACCESS_KEY_ID
                 - name: RCLONE_CONFIG_CLOUDFLARE_SECRET_ACCESS_KEY
                   valueFrom:
                     secretKeyRef:
-                      name: cnpg-r2-backup-secret
+                      name: cloudnative-pg-secret
                       key: R2_SECRET_ACCESS_KEY
                 - name: RCLONE_CONFIG_CLOUDFLARE_ENDPOINT
                   valueFrom:
                     secretKeyRef:
-                      name: cnpg-r2-backup-secret
+                      name: cloudnative-pg-secret
                       key: R2_ENDPOINT
                 - name: RCLONE_CONFIG_CLOUDFLARE_ACL
                   value: private
