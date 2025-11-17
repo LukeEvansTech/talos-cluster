@@ -9,8 +9,8 @@ spec:
   duration: 2160h # 90 days
   renewBefore: 720h # 30 days
   issuerRef:
-    name: cnpg-ca-issuer
-    kind: ClusterIssuer
+    name: barman-cloud-selfsigned-issuer
+    kind: Issuer
   dnsNames:
     - barman-cloud.database.svc.cluster.local
 ---
@@ -24,7 +24,7 @@ spec:
   duration: 2160h # 90 days
   renewBefore: 720h # 30 days
   issuerRef:
-    name: cnpg-ca-issuer
-    kind: ClusterIssuer
+    name: barman-cloud-selfsigned-issuer
+    kind: Issuer
   dnsNames:
     - barman-cloud.database.svc.cluster.local
