@@ -14,6 +14,13 @@ spec:
       static:
         # Add your internal hosts here - customize as needed for your infrastructure
         - cr-node-01-ipmi.${SECRET_INTERNAL_DOMAIN}
+        - cr-node-02-ipmi.${SECRET_INTERNAL_DOMAIN}
+        - cr-node-03-ipmi.${SECRET_INTERNAL_DOMAIN}
+        - cr-node-04-ipmi.${SECRET_INTERNAL_DOMAIN}
+        - cr-node-05-ipmi.${SECRET_INTERNAL_DOMAIN}
+        - cr-node-06-ipmi.${SECRET_INTERNAL_DOMAIN}
+        - cr-node-07-ipmi.${SECRET_INTERNAL_DOMAIN}
+        - cr-node-08-ipmi.${SECRET_INTERNAL_DOMAIN}
   metricRelabelings:
     - action: replace
       replacement: blackbox-exporter-lan
