@@ -9,8 +9,8 @@ spec:
   duration: 2160h # 90 days
   renewBefore: 720h # 30 days
   issuerRef:
-    name: cnpg-ca-issuer
-    kind: ClusterIssuer
+    name: postgres18-selfsigned-issuer
+    kind: Issuer
   dnsNames:
     - postgres18-r.database.svc.cluster.local
     - postgres18-ro.database.svc.cluster.local
