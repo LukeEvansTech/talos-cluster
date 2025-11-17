@@ -86,15 +86,14 @@ spec:
         drop:
           - ALL
 
-    # Service account configuration
+    # Service account configuration - use existing admin SA
     serviceAccount:
-      create: true
-      name: *app
+      create: false
+      name: headlamp-admin
 
-    # RBAC configuration for cluster-wide read access
+    # RBAC configuration - use existing ClusterRoleBinding
     rbac:
-      create: true
-      clusterReadRole: true
+      create: false
 
     # Config for Headlamp
     config:
