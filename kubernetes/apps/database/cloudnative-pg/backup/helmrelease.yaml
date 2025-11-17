@@ -24,7 +24,7 @@ spec:
           init-db:
             image:
               repository: ghcr.io/home-operations/postgres-init
-              tag: "18"
+              tag: 18@sha256:570649f543cd5382fbed4a1b149c3fe996eb4505d9ea5c80db814ca37e786833
             command:
               - "/scripts/list_dbs.sh"
             env:
