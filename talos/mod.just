@@ -26,7 +26,7 @@ gen-secret:
 [doc('Apply Talos config to a specific node')]
 apply-node node *args:
     just log info "Applying Talos config to node..." "stage" "$0" "node" "{{ node }}"
-    talhelper gencommand apply --config-file "{{ talos_dir }}/talconfig.yaml" --secret-file "{{ talos_dir }}/talsecret.sops.yaml" --out-dir "{{ talos_dir }}/clusterconfig" --node {{ node }} --extra-flags "{{ args }}" | bash
+    talhelper gencommand apply --config-file "{{ talos_dir }}/talconfig.yaml" --out-dir "{{ talos_dir }}/clusterconfig" --node {{ node }} --extra-flags "{{ args }}" | bash
 
 [doc('Upgrade Talos on a specific node')]
 upgrade-node node:
@@ -35,7 +35,7 @@ upgrade-node node:
     just log info "Upgrading Talos on node..." "stage" "$0" "node" "{{ node }}"
     TALOS_IMAGE=$(yq '.nodes[] | select(.ipAddress == "{{ node }}") | .talosImageURL' "{{ talos_dir }}/talconfig.yaml")
     TALOS_VERSION=$(yq '.talosVersion' "{{ talos_dir }}/talenv.yaml")
-    talhelper gencommand upgrade --config-file "{{ talos_dir }}/talconfig.yaml" --secret-file "{{ talos_dir }}/talsecret.sops.yaml" --out-dir "{{ talos_dir }}/clusterconfig" --node {{ node }} --extra-flags "--image=${TALOS_IMAGE}:${TALOS_VERSION} --timeout=10m" | bash
+    talhelper gencommand upgrade --config-file "{{ talos_dir }}/talconfig.yaml" --out-dir "{{ talos_dir }}/clusterconfig" --node {{ node }} --extra-flags "--image=${TALOS_IMAGE}:${TALOS_VERSION} --timeout=10m" | bash
 
 [doc('Upgrade Kubernetes version')]
 upgrade-k8s:
@@ -43,7 +43,7 @@ upgrade-k8s:
     set -euo pipefail
     just log info "Upgrading Kubernetes..." "stage" "$0"
     K8S_VERSION=$(yq '.kubernetesVersion' "{{ talos_dir }}/talenv.yaml")
-    talhelper gencommand upgrade-k8s --config-file "{{ talos_dir }}/talconfig.yaml" --secret-file "{{ talos_dir }}/talsecret.sops.yaml" --out-dir "{{ talos_dir }}/clusterconfig" --extra-flags "--to ${K8S_VERSION}" | bash
+    talhelper gencommand upgrade-k8s --config-file "{{ talos_dir }}/talconfig.yaml" --out-dir "{{ talos_dir }}/clusterconfig" --extra-flags "--to ${K8S_VERSION}" | bash
 
 [doc('Reset cluster nodes to maintenance mode')]
 reset:
@@ -51,4 +51,4 @@ reset:
     set -euo pipefail
     gum confirm "This will destroy your cluster and reset the nodes back to maintenance mode. Continue?" --default=false || exit 0
     just log warn "Resetting cluster..." "stage" "$0"
-    talhelper gencommand reset --config-file "{{ talos_dir }}/talconfig.yaml" --secret-file "{{ talos_dir }}/talsecret.sops.yaml" --out-dir "{{ talos_dir }}/clusterconfig" --extra-flags "--reboot --system-labels-to-wipe STATE --system-labels-to-wipe EPHEMERAL --graceful=false --wait=false" | bash
+    talhelper gencommand reset --config-file "{{ talos_dir }}/talconfig.yaml" --out-dir "{{ talos_dir }}/clusterconfig" --extra-flags "--reboot --system-labels-to-wipe STATE --system-labels-to-wipe EPHEMERAL --graceful=false --wait=false" | bash
