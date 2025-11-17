@@ -35,7 +35,7 @@ spec:
           - sh
           - -c
           - |
-            cp -r /build/plugins/* /headlamp-plugins/
+            cp -r /plugins/* /headlamp-plugins/
         volumeMounts:
           - name: plugins
             mountPath: /headlamp-plugins
