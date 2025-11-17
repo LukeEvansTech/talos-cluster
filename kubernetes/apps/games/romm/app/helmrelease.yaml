@@ -1,0 +1,110 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: &app romm
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: romm
+  values:
+    controllers:
+      romm:
+        annotations:
+          reloader.stakater.com/auto: "true"
+
+        initContainers:
+          init-db:
+            image:
+              repository: ghcr.io/home-operations/postgres-init
+              tag: "18"
+            envFrom:
+              - secretRef:
+                  name: romm-secret
+
+        containers:
+          app:
+            image:
+              repository: ghcr.io/rommapp/romm
+              tag: 4.4.0@sha256:056114e8fdab8d6b592d1330390e6203f08642d6ba17d1b3ad1681ce8fc8fee3
+            env:
+              TZ: ${TIMEZONE}
+              # Disable download endpoint authentication
+              DISABLE_DOWNLOAD_ENDPOINT_AUTH: "true"
+              # Enable scheduled rescan daily at 3 AM
+              ENABLE_SCHEDULED_RESCAN: "true"
+              RESCAN_ON_FILESYSTEM_CHANGE: "false"
+              SCHEDULED_RESCAN_CRON: "0 3 * * *"
+            envFrom:
+              - secretRef:
+                  name: romm-secret
+            probes:
+              liveness: &probes
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /
+                    port: &port 8080
+                  initialDelaySeconds: 0
+                  periodSeconds: 10
+                  timeoutSeconds: 1
+                  failureThreshold: 3
+              readiness: *probes
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+              capabilities: {drop: ["ALL"]}
+            resources:
+              requests:
+                cpu: 10m
+                memory: 128Mi
+              limits:
+                memory: 3500Mi
+
+    defaultPodOptions:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+
+    service:
+      app:
+        controller: romm
+        ports:
+          http:
+            port: *port
+
+    route:
+      app:
+        hostnames:
+          - "{{ .Release.Name }}.${SECRET_DOMAIN}"
+          - "{{ .Release.Name }}.${SECRET_INTERNAL_DOMAIN}"
+        parentRefs:
+          - name: envoy-internal
+            namespace: network
+
+    persistence:
+      config:
+        existingClaim: "{{ .Release.Name }}"
+        globalMounts:
+          - path: /romm/resources
+            subPath: resources
+          - path: /romm/assets
+            subPath: assets
+      library:
+        type: nfs
+        server: ${SECRET_NFS_SERVER}
+        path: ${SECRET_NFS_GAMES_PATH}
+        globalMounts:
+          - path: /romm/library
+      redis-data:
+        type: emptyDir
+        globalMounts:
+          - path: /redis-data
+      tmp:
+        type: emptyDir
