@@ -8,5 +8,7 @@ resources:
   - ./podmonitor.yaml
   - ./pooler.yaml
   - ./prometheusrule.yaml
+  - ./r2-backup-cronjob.yaml
+  - ./r2-backup-externalsecret.yaml
   - ./scheduledbackup.yaml
   - ./service.yaml
