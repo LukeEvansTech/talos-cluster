@@ -44,8 +44,6 @@ spec:
                 value: postgres
               - name: POSTGRES_EXTRA_OPTS
                 value: "-Z9 --schema=public --blobs"
-              - name: SCHEDULE
-                value: "@hourly"
               - name: BACKUP_KEEP_MINS
                 value: "4320" # 180 days in minutes for hourly backups
               - name: BACKUP_KEEP_DAYS
