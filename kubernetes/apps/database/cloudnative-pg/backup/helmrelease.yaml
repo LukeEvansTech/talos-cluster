@@ -114,7 +114,7 @@ spec:
             readOnly: true
       backups:
         type: nfs
-        server: 10.32.8.33 # cr-storage-data.core.codelooks.com
+        server: ${SECRET_STORAGE_SERVER}
         path: /mnt/pool/backups/postgres
         globalMounts:
           - path: /backups
