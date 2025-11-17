@@ -13,7 +13,7 @@ spec:
     staticConfig:
       static:
         # Add your internal hosts here - customize as needed for your infrastructure
-        - cr-node-00-ipmi.${SECRET_INTERNAL_DOMAIN}
+        - cr-node-01-ipmi.${SECRET_INTERNAL_DOMAIN}
   metricRelabelings:
     - action: replace
       replacement: blackbox-exporter-lan
