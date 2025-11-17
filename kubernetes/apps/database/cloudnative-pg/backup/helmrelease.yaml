@@ -72,8 +72,6 @@ spec:
                 value: /config/db_list
               - name: POSTGRES_EXTRA_OPTS
                 value: "--blobs --clean --create --compress=9"
-              - name: BACKUP_DIR
-                value: /backups/database/postgresql
               - name: BACKUP_KEEP_DAYS
                 value: "180"
               - name: BACKUP_KEEP_WEEKS
@@ -115,6 +113,7 @@ spec:
       backups:
         type: nfs
         server: ${SECRET_STORAGE_SERVER}
-        path: /mnt/pool/backups/postgres
+        path: /mnt/pool/backups
         globalMounts:
           - path: /backups
+            subPath: postgres
