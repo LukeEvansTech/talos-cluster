@@ -1,0 +1,33 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/cert-manager.io/clusterissuer_v1.json
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: cnpg-selfsigned-issuer
+spec:
+  selfSigned: {}
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/cert-manager.io/certificate_v1.json
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: cnpg-ca
+  namespace: database
+spec:
+  isCA: true
+  commonName: cnpg-ca
+  secretName: cnpg-ca-secret
+  duration: 87600h # 10 years
+  renewBefore: 8760h # 1 year
+  issuerRef:
+    name: cnpg-selfsigned-issuer
+    kind: ClusterIssuer
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/cert-manager.io/clusterissuer_v1.json
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: cnpg-ca-issuer
+spec:
+  ca:
+    secretName: cnpg-ca-secret
