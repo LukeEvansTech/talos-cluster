@@ -20,11 +20,13 @@ spec:
           successfulJobsHistory: 1
           failedJobsHistory: 1
 
-        containers:
-          app:
+        initContainers:
+          init-db:
             image:
-              repository: docker.io/prodrigestivill/postgres-backup-local
-              tag: 18@sha256:f70742ebe42b2277689b028d1fd15aa80f77cffa01da163cc9f85a6ff1866e7f
+              repository: ghcr.io/home-operations/postgres-init
+              tag: 17@sha256:86a1992d46273c58fd4ad95b626081dfaabfe16bd56944675169e406d1a660dd
+            command:
+              - "/scripts/list_dbs.sh"
             env:
               - name: POSTGRES_HOST
                 value: postgres18-rw.database.svc.cluster.local
@@ -40,20 +42,46 @@ spec:
                   secretKeyRef:
                     name: cloudnative-pg-secret
                     key: password
-              - name: POSTGRES_DB
-                value: postgres
+              - name: EXCLUDE_DBS
+                value: "postgres template0 template1"
+
+        containers:
+          app:
+            image:
+              repository: docker.io/prodrigestivill/postgres-backup-local
+              tag: 18@sha256:f70742ebe42b2277689b028d1fd15aa80f77cffa01da163cc9f85a6ff1866e7f
+            command:
+              - "/bin/bash"
+              - "/backup.sh"
+            env:
+              - name: POSTGRES_HOST
+                value: postgres18-rw.database.svc.cluster.local
+              - name: POSTGRES_PORT
+                value: "5432"
+              - name: POSTGRES_USER
+                valueFrom:
+                  secretKeyRef:
+                    name: cloudnative-pg-secret
+                    key: username
+              - name: POSTGRES_PASSWORD
+                valueFrom:
+                  secretKeyRef:
+                    name: cloudnative-pg-secret
+                    key: password
+              - name: POSTGRES_DB_FILE
+                value: /config/db_list
               - name: POSTGRES_EXTRA_OPTS
-                value: "-Z9 --schema=public --blobs"
-              - name: BACKUP_KEEP_MINS
-                value: "4320" # 180 days in minutes for hourly backups
+                value: "--blobs --clean --create --compress=9"
+              - name: BACKUP_DIR
+                value: /backups/database/postgresql
               - name: BACKUP_KEEP_DAYS
-                value: "180"
-              - name: BACKUP_KEEP_WEEKS
                 value: "7"
+              - name: BACKUP_KEEP_WEEKS
+                value: "4"
               - name: BACKUP_KEEP_MONTHS
-                value: "12"
-              - name: HEALTHCHECK_PORT
-                value: "8080"
+                value: "6"
+              - name: BACKUP_LATEST_TYPE
+                value: "none"
               - name: TZ
                 value: ${TIMEZONE}
             securityContext:
@@ -72,6 +100,18 @@ spec:
         fsGroupChangePolicy: OnRootMismatch
 
     persistence:
+      config:
+        type: emptyDir
+        globalMounts:
+          - path: /config
+      script:
+        type: configMap
+        name: postgres18-backup-scripts
+        defaultMode: 0775
+        globalMounts:
+          - path: /scripts/list_dbs.sh
+            subPath: list_dbs.sh
+            readOnly: true
       backups:
         type: nfs
         server: ${SECRET_STORAGE_SERVER}
