@@ -16,6 +16,10 @@ spec:
         enabled: true
         forceConflicts: true
     cleanPrometheusOperatorObjectNames: true
+    defaultRules:
+      disabled:
+        # Disable KubeHpaMaxedOut as we use KEDA with maxReplicas=1 for NFS scaling
+        KubeHpaMaxedOut: true
     alertmanager:
       ingress:
         enabled: false
