@@ -23,7 +23,6 @@ resources:
   - ./miniflux/ks.yaml
   - ./n8n/ks.yaml
   - ./notifier/ks.yaml
-  - ./pulsarr/ks.yaml
   - ./universal/ks.yaml
   - ./smokeping/ks.yaml
   - ./stirling-pdf/ks.yaml
