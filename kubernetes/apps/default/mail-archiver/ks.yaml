@@ -4,9 +4,9 @@ apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
   name: &app mail-archiver
-  namespace: flux-system
+  namespace: &namespace default
 spec:
-  targetNamespace: default
+  targetNamespace: *namespace
   commonMetadata:
     labels:
       app.kubernetes.io/name: *app
@@ -17,13 +17,13 @@ spec:
   wait: false
   dependsOn:
     - name: cloudnative-pg-cluster
-      namespace: flux-system
-    - name: external-secrets-stores
-      namespace: flux-system
+      namespace: database
+    - name: envoy-gateway
+      namespace: network
     - name: rook-ceph-cluster
-      namespace: flux-system
+      namespace: rook-ceph
     - name: volsync
-      namespace: flux-system
+      namespace: storage
   path: ./kubernetes/apps/default/mail-archiver/app
   postBuild:
     substitute:
@@ -33,4 +33,5 @@ spec:
       GATUS_SUBDOMAIN: mailarchiver
   sourceRef:
     kind: GitRepository
-    name: home-kubernetes
+    name: flux-system
+    namespace: flux-system
