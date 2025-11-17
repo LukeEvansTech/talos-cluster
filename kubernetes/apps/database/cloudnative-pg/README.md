@@ -110,7 +110,7 @@ Seven critical alerts configured:
 ### External Access
 
 - **Service Type**: LoadBalancer
-- **IP**: `${SVC_POSTGRES_ADDR}` (resolves to `10.32.8.91` via cluster-secrets)
+- **IP**: `${SVC_POSTGRES_ADDR}` (configured via cluster-secrets)
 - **DNS**: `postgres18.${SECRET_DOMAIN_INT}` (External DNS)
 - **Target**: Primary instance only (read-write)
 
@@ -134,23 +134,7 @@ Each Flux Kustomization has:
 - 5m timeout
 - Health checks on the Cluster CR
 
-## Current Status
-
-### ✅ Completed
-
-- [x] Operator deployment configuration
-- [x] PostgreSQL 18 cluster manifests (3 instances)
-- [x] Barman Cloud S3 backup configuration
-- [x] NFS backup cronjob setup
-- [x] PodMonitor for metrics
-- [x] PrometheusRule with 7 alerts
-- [x] Gatus health checks
-- [x] pgBouncer connection pooling
-- [x] LoadBalancer service configuration
-- [x] Flux Kustomizations with dependency chain
-- [x] All manifests validated with `kubectl kustomize`
-
-### ⚠️ Pre-Deployment Requirements
+## Pre-Deployment Requirements
 
 Before merging/deploying, you **must** complete:
 

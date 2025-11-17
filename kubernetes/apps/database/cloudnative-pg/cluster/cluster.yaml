@@ -45,22 +45,20 @@ spec:
   monitoring:
     enablePodMonitor: true
 
+  # TLS configuration for encrypted client connections
+  certificates:
+    serverTLSSecret: postgres18-tls
+    serverCASecret: postgres18-tls
+
+  # Barman Cloud plugin configuration
+  plugins:
+    - name: barman-cloud.cloudnative-pg.io
+      isWALArchiver: true
+      parameters:
+        barmanObjectName: postgres18-minio
+        serverName: postgres18
+
   backup:
     retentionPolicy: 90d
-    barmanObjectStore:
-      destinationPath: s3://cnpg/
-      endpointURL: https://minio.${SECRET_INTERNAL_DOMAIN}:9000
-      serverName: postgres18
-      s3Credentials:
-        accessKeyId:
-          name: cloudnative-pg-secret
-          key: AWS_ACCESS_KEY_ID
-        secretAccessKey:
-          name: cloudnative-pg-secret
-          key: AWS_SECRET_ACCESS_KEY
-      wal:
-        compression: bzip2
-        maxParallel: 8
-      data:
-        compression: bzip2
-        jobs: 2
+    # Legacy barmanObjectStore removed - using plugin instead
+    # barmanObjectStore config moved to ObjectStore CR

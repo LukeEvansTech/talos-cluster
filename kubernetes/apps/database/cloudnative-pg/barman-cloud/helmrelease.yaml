@@ -1,0 +1,118 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/helm.toolkit.fluxcd.io/helmrelease_v2.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: barman-cloud
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: app-template
+      version: 3.7.0
+      sourceRef:
+        kind: HelmRepository
+        name: bjw-s
+        namespace: flux-system
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      strategy: rollback
+      retries: 3
+  values:
+    controllers:
+      barman-cloud:
+        type: deployment
+        replicas: 1
+        strategy: Recreate
+
+        containers:
+          app:
+            image:
+              repository: ghcr.io/cloudnative-pg/plugin-barman-cloud
+              tag: v0.9.0
+
+            args:
+              - --leader-elect
+              - --health-probe-bind-address=:8081
+              - --metrics-bind-address=:8080
+
+            env:
+              - name: SIDECAR_IMAGE_VERSION
+                value: v0.9.0
+
+            probes:
+              liveness:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /healthz
+                    port: 8081
+                  initialDelaySeconds: 15
+                  periodSeconds: 20
+              readiness:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /readyz
+                    port: 8081
+                  initialDelaySeconds: 5
+                  periodSeconds: 10
+
+            resources:
+              requests:
+                cpu: 10m
+                memory: 128Mi
+              limits:
+                memory: 128Mi
+
+            securityContext:
+              allowPrivilegeEscalation: false
+              runAsNonRoot: true
+              runAsUser: 1000
+              runAsGroup: 1000
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop:
+                  - ALL
+
+    serviceAccount:
+      name: barman-cloud
+
+    service:
+      app:
+        controller: barman-cloud
+        type: ClusterIP
+        ports:
+          https:
+            port: 9090
+            protocol: TCP
+            targetPort: 9090
+          metrics:
+            port: 8080
+            protocol: TCP
+            targetPort: 8080
+        annotations:
+          cnpg.io/barman-cloud-client-tls-secret: barman-cloud-client-tls
+          cnpg.io/barman-cloud-server-tls-secret: barman-cloud-server-tls
+
+    persistence:
+      client-tls:
+        enabled: true
+        type: secret
+        name: barman-cloud-client-tls
+        globalMounts:
+          - path: /client
+            readOnly: true
+      server-tls:
+        enabled: true
+        type: secret
+        name: barman-cloud-server-tls
+        globalMounts:
+          - path: /server
+            readOnly: true
