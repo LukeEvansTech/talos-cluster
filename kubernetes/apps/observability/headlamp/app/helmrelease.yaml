@@ -32,13 +32,13 @@ spec:
         image: ghcr.io/headlamp-k8s/headlamp-plugin-flux:latest
         imagePullPolicy: Always
         command:
-          - sh
+          - /bin/sh
           - -c
           - |
-            cp -r /plugins/* /headlamp-plugins/
+            mkdir -p /build/plugins && cp -r /plugins/* /build/plugins/
         volumeMounts:
-          - name: plugins
-            mountPath: /headlamp-plugins
+          - name: headlamp-plugins
+            mountPath: /build/plugins
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: false
@@ -48,12 +48,12 @@ spec:
 
     # Volume for plugins (shared between init container and main container)
     volumes:
-      - name: plugins
+      - name: headlamp-plugins
         emptyDir: {}
 
     volumeMounts:
-      - name: plugins
-        mountPath: /headlamp/plugins
+      - name: headlamp-plugins
+        mountPath: /build/plugins
 
     service:
       type: ClusterIP
@@ -98,4 +98,4 @@ spec:
     # Config for Headlamp
     config:
       baseURL: ""
-      pluginsDir: "/headlamp/plugins"
+      pluginsDir: "/build/plugins"
