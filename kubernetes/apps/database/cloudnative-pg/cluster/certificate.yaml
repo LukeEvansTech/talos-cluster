@@ -9,7 +9,7 @@ spec:
   duration: 2160h # 90 days
   renewBefore: 720h # 30 days
   issuerRef:
-    name: cluster-ca
+    name: letsencrypt-production
     kind: ClusterIssuer
   dnsNames:
     - postgres18-r.database.svc.cluster.local
