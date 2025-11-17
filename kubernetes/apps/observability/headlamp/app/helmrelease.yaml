@@ -6,14 +6,9 @@ metadata:
   name: &app headlamp
 spec:
   interval: 1h
-  chart:
-    spec:
-      chart: headlamp
-      version: 0.34.0
-      sourceRef:
-        kind: OCIRepository
-        name: headlamp
-      interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: headlamp
   values:
     replicaCount: 1
 
