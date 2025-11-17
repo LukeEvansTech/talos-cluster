@@ -20,10 +20,8 @@ spec:
       namespace: database
     - name: envoy-gateway
       namespace: network
-    - name: rook-ceph-cluster
-      namespace: rook-ceph
     - name: volsync
-      namespace: storage
+      namespace: volsync-system
   path: ./kubernetes/apps/default/mail-archiver/app
   postBuild:
     substitute:
