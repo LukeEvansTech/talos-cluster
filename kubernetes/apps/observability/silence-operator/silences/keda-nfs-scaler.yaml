@@ -1,0 +1,20 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/monitoring.giantswarm.io/silence_v1alpha1.json
+apiVersion: monitoring.giantswarm.io/v1alpha1
+kind: Silence
+metadata:
+  name: keda-nfs-scaler-hpa-maxed
+spec:
+  matchers:
+    - name: alertname
+      value: KubeHpaMaxedOut
+      isRegex: false
+      isEqual: true
+    - name: horizontalpodautoscaler
+      value: keda-hpa-.*
+      isRegex: true
+      isEqual: true
+  owner: cluster-admin
+  comment: |-
+    KEDA NFS scalers use maxReplicas=1 to scale workloads 0->1 based on NFS availability.
+    This is expected behavior - the HPA is supposed to be at max when NFS is available.
