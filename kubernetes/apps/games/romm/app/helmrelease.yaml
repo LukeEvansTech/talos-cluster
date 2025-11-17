@@ -97,9 +97,11 @@ spec:
           - path: /romm/assets
             subPath: assets
       library:
-        type: nfs
-        server: ${SECRET_NFS_SERVER}
-        path: ${SECRET_NFS_GAMES_PATH}
+        type: custom
+        volumeSpec:
+          nfs:
+            server: ${SECRET_NFS_SERVER}
+            path: ${SECRET_NFS_GAMES_PATH}
         globalMounts:
           - path: /romm/library
       redis-data:
