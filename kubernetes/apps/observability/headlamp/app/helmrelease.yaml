@@ -9,9 +9,9 @@ spec:
   chart:
     spec:
       chart: headlamp
-      version: 0.38.0
+      version: 0.34.0
       sourceRef:
-        kind: HelmRepository
+        kind: OCIRepository
         name: headlamp
       interval: 1h
   values:
