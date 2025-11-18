@@ -13,10 +13,15 @@ metadata:
   name: opnsense-dns-restarter
   namespace: network
 rules:
-  - apiGroups: ["apps"]
-    resources: ["deployments"]
-    resourceNames: ["opnsense-dns"]
-    verbs: ["get", "patch"]
+  - apiGroups:
+      - "apps"
+    resources:
+      - "deployments"
+    resourceNames:
+      - "opnsense-dns"
+    verbs:
+      - "get"
+      - "patch"
 ---
 # RoleBinding to attach the role to the service account
 apiVersion: rbac.authorization.k8s.io/v1
@@ -49,6 +54,7 @@ spec:
   failedJobsHistoryLimit: 3
   jobTemplate:
     spec:
+      ttlSecondsAfterFinished: 129600
       template:
         metadata:
           labels:
