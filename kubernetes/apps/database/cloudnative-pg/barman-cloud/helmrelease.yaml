@@ -69,16 +69,13 @@ spec:
                 cpu: 10m
               limits:
                 memory: 128Mi
-
-    defaultPodOptions:
-      securityContext:
-        runAsNonRoot: true
-        runAsUser: 1000
-        runAsGroup: 1000
-      serviceAccountName: *app
-
-    serviceAccount:
-      create: true
+        serviceAccount:
+          name: *app
+        defaultPodOptions:
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
 
     service:
       app:
