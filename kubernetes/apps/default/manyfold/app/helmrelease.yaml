@@ -18,7 +18,7 @@ spec:
           app:
             image:
               repository: ghcr.io/bjw-s-labs/manyfold
-              tag: 0.129.1@sha256:ca95b44b1906dabc69e5aa3bd79c1f1c6bb55ed2c6fb8fcd83ec63b9ea58e98b
+              tag: 0.129.1@sha256:f0f57a9890e66ff313659490b68fe7fb9055234a155acd5e5f16f21e38fda226
             env:
               DATABASE_URL: sqlite3:/data/database/manyfold.sqlite3
               REDIS_URL: redis://localhost:6379/1
