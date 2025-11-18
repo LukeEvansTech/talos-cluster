@@ -5,6 +5,7 @@ kind: Kustomization
 components:
   - ../../../../components/nfs-scaler
 resources:
+  - ./dnsendpoint.yaml
   - ./ocirepository.yaml
   - ./pvc.yaml
   - ./helmrelease.yaml
