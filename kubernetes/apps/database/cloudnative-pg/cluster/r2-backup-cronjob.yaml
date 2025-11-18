@@ -1,11 +1,12 @@
 ---
 # yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/batch/cronjob_v1.json
-# checkov:skip=CKV_K8S_35: rclone requires environment variables for remote configuration
 apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: postgres18-r2-backup
   namespace: database
+  annotations:
+    checkov.io/skip1: CKV_K8S_35=rclone requires environment variables for remote configuration
 spec:
   schedule: "0 3 * * *" # Daily at 3:00 AM (after barman backup completes)
   concurrencyPolicy: Forbid
