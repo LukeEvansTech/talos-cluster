@@ -71,11 +71,12 @@ spec:
                 memory: 128Mi
         serviceAccount:
           name: *app
-        defaultPodOptions:
-          securityContext:
-            runAsNonRoot: true
-            runAsUser: 1000
-            runAsGroup: 1000
+
+    defaultPodOptions:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
 
     service:
       app:
