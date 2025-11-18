@@ -1,0 +1,132 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: &app pocket-id
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: app-template
+    namespace: flux-system
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+      strategy: rollback
+  values:
+    controllers:
+      pocket-id:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        initContainers:
+          init-db:
+            image:
+              repository: ghcr.io/home-operations/postgres-init
+              tag: "18"
+            envFrom: &envFrom
+              - secretRef:
+                  name: pocket-id-secret
+        containers:
+          app:
+            image:
+              repository: ghcr.io/stonith404/pocket-id
+              tag: v0.8.0
+            env:
+              TZ: ${TIMEZONE}
+              ANALYTICS_DISABLED: "true"
+              APP_URL: "https://id.${SECRET_INTERNAL_DOMAIN}"
+              DB_PROVIDER: postgres
+              EMAILS_VERIFIED: "true"
+              KEYS_STORAGE: database
+              UI_CONFIG_DISABLED: "true"
+              # TODO: Enable LDAP when Active Directory is configured
+              # LDAP_ENABLED: "true"
+              # LDAP_URL: "ldaps://your-ldap-server"
+              # LDAP_SKIP_CERT_VERIFY: "true"
+              # LDAP_USER_GROUP_SEARCH_FILTER: "(&(objectClass=group)(cn=ID*))"
+              # LDAP_ATTRIBUTE_USER_UNIQUE_IDENTIFIER: objectGUID
+              # LDAP_ATTRIBUTE_GROUP_UNIQUE_IDENTIFIER: objectGUID
+              # LDAP_ATTRIBUTE_USER_FIRST_NAME: givenName
+              # LDAP_ATTRIBUTE_USER_LAST_NAME: sn
+              # LDAP_ATTRIBUTE_USER_USERNAME: sAMAccountName
+              # LDAP_ATTRIBUTE_USER_EMAIL: mail
+              # LDAP_ATTRIBUTE_GROUP_MEMBER: member
+              # LDAP_ATTRIBUTE_GROUP_NAME: cn
+              # LDAP_ATTRIBUTE_ADMIN_GROUP: ID-Admin
+              SMTP_FROM: "pocket-id@${SECRET_DOMAIN}"
+              SMTP_HOST: "smtp-relay.infrastructure.svc.cluster.local"
+              SMTP_PORT: "2525"
+              SESSION_DURATION: "43800"
+              TRUST_PROXY: "true"
+              UPLOAD_PATH: /app/data/uploads
+              # TODO: Enable when MaxMind is configured
+              # GEOLITE_DB_PATH: /app/data/GeoLite2-City.mmdb
+            envFrom: *envFrom
+            probes:
+              liveness: &probes
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /healthz
+                    port: &port 1411
+                  initialDelaySeconds: 0
+                  periodSeconds: 10
+                  timeoutSeconds: 1
+                  failureThreshold: 3
+              readiness: *probes
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop:
+                  - ALL
+            resources:
+              requests:
+                cpu: 10m
+                memory: 32Mi
+              limits:
+                memory: 256Mi
+
+    defaultPodOptions:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: Always
+        seccompProfile: {type: RuntimeDefault}
+
+    service:
+      app:
+        controller: pocket-id
+        ports:
+          http:
+            port: *port
+
+    route:
+      app:
+        hostnames:
+          - "id.${SECRET_DOMAIN}"
+          - "id.${SECRET_INTERNAL_DOMAIN}"
+        parentRefs:
+          - name: envoy-internal
+            namespace: network
+
+    persistence:
+      data:
+        existingClaim: "{{ .Release.Name }}"
+        globalMounts:
+          - path: /app/data
+      tmp:
+        type: emptyDir
+        advancedMounts:
+          pocket-id:
+            app:
+              - path: /tmp
+                subPath: tmp

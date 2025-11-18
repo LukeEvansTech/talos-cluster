@@ -1,0 +1,99 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: &app paperless-gpt
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: app-template
+    namespace: flux-system
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+      strategy: rollback
+  values:
+    controllers:
+      paperless-gpt:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        containers:
+          app:
+            image:
+              repository: ghcr.io/icereed/paperless-gpt
+              tag: v0.23.0@sha256:4d7aae18ac34cf4e06d89c0a7bf27ca36b5d4a5c21b50e59c46a01d7d0ad7ea5
+            env:
+              TZ: ${TIMEZONE}
+              PAPERLESS_BASE_URL: "http://paperless.default.svc.cluster.local:8000"
+              LLM_PROVIDER: "openai"
+              LLM_MODEL: "gpt-4o"
+              LLM_LANGUAGE: "eng"
+              LLM_VISION_MODEL: "gpt-4o"
+              PDF_OCR: "true"
+              PDF_OCR_LANGUAGE: "eng"
+              PDF_OCR_PAGES: "5"
+              PDF_KEEP_METADATA: "true"
+              TAG_SUGGESTIONS: "true"
+            envFrom:
+              - secretRef:
+                  name: paperless-gpt-secret
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop:
+                  - ALL
+            resources:
+              requests:
+                cpu: 10m
+                memory: 256Mi
+              limits:
+                memory: 1Gi
+
+    defaultPodOptions:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile: {type: RuntimeDefault}
+
+    service:
+      app:
+        controller: paperless-gpt
+        ports:
+          http:
+            port: 8080
+
+    route:
+      app:
+        hostnames:
+          - "{{ .Release.Name }}.${SECRET_INTERNAL_DOMAIN}"
+        parentRefs:
+          - name: envoy-internal
+            namespace: network
+
+    persistence:
+      config:
+        type: emptyDir
+        globalMounts:
+          - path: /config
+      db:
+        existingClaim: "{{ .Release.Name }}"
+        globalMounts:
+          - path: /app/db
+      prompts:
+        existingClaim: "{{ .Release.Name }}"
+        globalMounts:
+          - path: /app/prompts
+      tmp:
+        type: emptyDir
+        globalMounts:
+          - path: /tmp
