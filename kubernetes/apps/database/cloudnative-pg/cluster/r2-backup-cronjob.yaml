@@ -4,6 +4,7 @@ apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: postgres18-r2-backup
+  namespace: database
 spec:
   schedule: "0 3 * * *" # Daily at 3:00 AM (after barman backup completes)
   concurrencyPolicy: Forbid
@@ -20,6 +21,13 @@ spec:
         spec:
           automountServiceAccountToken: false
           restartPolicy: OnFailure
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            runAsGroup: 65534
+            fsGroup: 65534
+            seccompProfile:
+              type: RuntimeDefault
           containers:
             - name: rclone
               image: docker.io/rclone/rclone:1.71.2@sha256:e5ed44fd6896e31b0c2d1fc87ad4e45d0cf0d8b54e07abc1f9f5e2fa662e50cc
@@ -89,14 +97,17 @@ spec:
                   cpu: 100m
                   memory: 128Mi
                 limits:
+                  cpu: 500m
                   memory: 512Mi
 
               securityContext:
                 runAsNonRoot: true
-                runAsUser: 1000
-                runAsGroup: 1000
+                runAsUser: 65534
+                runAsGroup: 65534
                 allowPrivilegeEscalation: false
                 readOnlyRootFilesystem: true
                 capabilities:
                   drop:
                     - ALL
+                seccompProfile:
+                  type: RuntimeDefault
