@@ -63,8 +63,6 @@ spec:
             port: 11434
     route:
       app:
-        targetSelector:
-          app: app
         hostnames:
           - "{{ .Release.Name }}.${SECRET_DOMAIN}"
           - "{{ .Release.Name }}.${SECRET_INTERNAL_DOMAIN}"
