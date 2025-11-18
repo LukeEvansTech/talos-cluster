@@ -18,6 +18,7 @@ spec:
           parallelism: 3 # Set to my total number of nodes
           successfulJobsHistory: 1
           failedJobsHistory: 1
+          ttlSecondsAfterFinished: 604800
         containers:
           app:
             image:
