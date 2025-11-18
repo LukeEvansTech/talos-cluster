@@ -75,9 +75,10 @@ spec:
         runAsNonRoot: true
         runAsUser: 1000
         runAsGroup: 1000
+      serviceAccountName: *app
 
     serviceAccount:
-      name: *app
+      create: true
 
     service:
       app:
