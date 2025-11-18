@@ -34,8 +34,7 @@ spec:
               - --client-cert=/client/tls.crt
               - --server-address=:9090
             env:
-              SIDECAR_IMAGE: ghcr.io/cloudnative-pg/plugin-barman-cloud-sidecar:${SIDECAR_IMAGE_VERSION}
-              SIDECAR_IMAGE_VERSION: v0.9.0
+              SIDECAR_IMAGE: ghcr.io/cloudnative-pg/plugin-barman-cloud-sidecar:v0.9.0
             probes:
               liveness:
                 enabled: true
