@@ -5,7 +5,7 @@ kind: OCIRepository
 metadata:
   name: dragonfly-operator
 spec:
-  interval: 1h
+  interval: 5m
   url: oci://ghcr.io/dragonflydb/dragonfly-operator/helm/dragonfly-operator
   ref:
     tag: v1.3.0

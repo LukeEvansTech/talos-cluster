@@ -5,7 +5,7 @@ kind: OCIRepository
 metadata:
   name: blackbox-exporter-lan
 spec:
-  interval: 15m
+  interval: 5m
   url: oci://ghcr.io/prometheus-community/charts/prometheus-blackbox-exporter
   ref:
     tag: 11.4.2

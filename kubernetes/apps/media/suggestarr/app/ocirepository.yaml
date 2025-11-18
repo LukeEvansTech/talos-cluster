@@ -5,7 +5,7 @@ metadata:
   name: suggestarr
   namespace: media
 spec:
-  interval: 1h
+  interval: 5m
   ref:
     tag: 4.4.0
   url: oci://ghcr.io/bjw-s-labs/helm/app-template

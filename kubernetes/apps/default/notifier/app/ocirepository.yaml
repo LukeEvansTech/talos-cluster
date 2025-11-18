@@ -5,7 +5,7 @@ kind: OCIRepository
 metadata:
   name: notifier
 spec:
-  interval: 15m
+  interval: 5m
   url: oci://ghcr.io/bjw-s-labs/helm/app-template
   ref:
     tag: 4.4.0
