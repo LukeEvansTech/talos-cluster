@@ -31,6 +31,8 @@ spec:
               tag: 4.4.0@sha256:056114e8fdab8d6b592d1330390e6203f08642d6ba17d1b3ad1681ce8fc8fee3
             env:
               TZ: ${TIMEZONE}
+              # Database driver
+              ROMM_DB_DRIVER: postgresql
               # Disable download endpoint authentication
               DISABLE_DOWNLOAD_ENDPOINT_AUTH: "true"
               # Enable scheduled rescan daily at 3 AM
