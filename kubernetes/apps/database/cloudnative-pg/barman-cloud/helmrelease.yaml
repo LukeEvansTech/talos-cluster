@@ -3,7 +3,7 @@
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
-  name: barman-cloud
+  name: &app barman-cloud
 spec:
   interval: 30m
   chartRef:
@@ -21,25 +21,21 @@ spec:
   values:
     controllers:
       barman-cloud:
-        type: deployment
-        replicas: 1
-        strategy: Recreate
-
         containers:
           app:
             image:
               repository: ghcr.io/cloudnative-pg/plugin-barman-cloud
               tag: v0.9.0
-
             args:
+              - operator
               - --leader-elect
-              - --health-probe-bind-address=:8081
-              - --metrics-bind-address=:8080
-
+              - --server-cert=/server/tls.crt
+              - --server-key=/server/tls.key
+              - --client-cert=/client/tls.crt
+              - --server-address=:9090
             env:
-              - name: SIDECAR_IMAGE_VERSION
-                value: v0.9.0
-
+              SIDECAR_IMAGE: ghcr.io/cloudnative-pg/plugin-barman-cloud-sidecar:${SIDECAR_IMAGE_VERSION}
+              SIDECAR_IMAGE_VERSION: v0.9.0
             probes:
               liveness:
                 enabled: true
@@ -47,68 +43,61 @@ spec:
                 spec:
                   httpGet:
                     path: /healthz
-                    port: 8081
-                  initialDelaySeconds: 15
-                  periodSeconds: 20
+                    port: &port 8081
+                  initialDelaySeconds: 0
+                  periodSeconds: 10
+                  timeoutSeconds: 1
+                  failureThreshold: 3
               readiness:
                 enabled: true
                 custom: true
                 spec:
                   httpGet:
                     path: /readyz
-                    port: 8081
-                  initialDelaySeconds: 5
+                    port: *port
+                  initialDelaySeconds: 0
                   periodSeconds: 10
-
-            resources:
-              requests:
-                cpu: 10m
-                memory: 128Mi
-              limits:
-                memory: 128Mi
-
+                  timeoutSeconds: 1
+                  failureThreshold: 3
             securityContext:
               allowPrivilegeEscalation: false
-              runAsNonRoot: true
-              runAsUser: 1000
-              runAsGroup: 1000
               readOnlyRootFilesystem: true
               capabilities:
                 drop:
                   - ALL
-
-    serviceAccount:
-      create: false
+            resources:
+              requests:
+                cpu: 10m
+              limits:
+                memory: 128Mi
+        serviceAccount:
+          name: *app
+        defaultPodOptions:
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
 
     service:
       app:
-        controller: barman-cloud
-        type: ClusterIP
-        ports:
-          https:
-            port: 9090
-            protocol: TCP
-            targetPort: 9090
-          metrics:
-            port: 8080
-            protocol: TCP
-            targetPort: 8080
         annotations:
-          cnpg.io/barman-cloud-client-tls-secret: barman-cloud-client-tls
-          cnpg.io/barman-cloud-server-tls-secret: barman-cloud-server-tls
+          cnpg.io/pluginClientSecret: &clientCert barman-cloud-client-tls
+          cnpg.io/pluginPort: "9090"
+          cnpg.io/pluginServerSecret: &serverCert barman-cloud-server-tls
+        labels:
+          cnpg.io/pluginName: barman-cloud.cloudnative-pg.io
+        ports:
+          http:
+            port: 9090
 
     persistence:
-      client-tls:
-        enabled: true
+      client:
         type: secret
-        name: barman-cloud-client-tls
+        name: *clientCert
         globalMounts:
           - path: /client
-            readOnly: true
-      server-tls:
-        enabled: true
+      server:
         type: secret
-        name: barman-cloud-server-tls
+        name: *serverCert
         globalMounts:
           - path: /server
-            readOnly: true
