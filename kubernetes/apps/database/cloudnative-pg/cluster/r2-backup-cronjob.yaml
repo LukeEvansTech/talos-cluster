@@ -1,5 +1,6 @@
 ---
 # yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/batch/cronjob_v1.json
+# checkov:skip=CKV_K8S_35: rclone requires environment variables for remote configuration
 apiVersion: batch/v1
 kind: CronJob
 metadata:
