@@ -1,0 +1,111 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: &app speakr
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: speakr
+  values:
+    controllers:
+      speakr:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        containers:
+          app:
+            image:
+              repository: learnedmachine/speakr
+              tag: latest
+              pullPolicy: Always
+            env:
+              # Timezone
+              TZ: ${TIMEZONE}
+              TIMEZONE: ${TIMEZONE}
+
+              # Text Model Settings (OpenRouter)
+              TEXT_MODEL_BASE_URL: https://openrouter.ai/api/v1
+              TEXT_MODEL_NAME: openai/gpt-4o-mini
+
+              # Transcription Service (OpenAI Whisper)
+              TRANSCRIPTION_BASE_URL: https://api.openai.com/v1
+              WHISPER_MODEL: whisper-1
+
+              # Application Settings
+              ALLOW_REGISTRATION: "false"
+              SUMMARY_MAX_TOKENS: "8000"
+              CHAT_MAX_TOKENS: "5000"
+
+              # Logging
+              LOG_LEVEL: INFO
+
+              # Large File Chunking
+              ENABLE_CHUNKING: "true"
+              CHUNK_LIMIT: 20MB
+              CHUNK_OVERLAP_SECONDS: "3"
+
+              # Admin User
+              ADMIN_USERNAME: admin
+              ADMIN_EMAIL: admin@example.com
+
+              # Inquire Mode (AI search across recordings)
+              ENABLE_INQUIRE_MODE: "false"
+
+              # Automated File Processing
+              ENABLE_AUTO_PROCESSING: "false"
+              AUTO_PROCESS_MODE: admin_only
+              AUTO_PROCESS_WATCH_DIR: /data/auto-process
+              AUTO_PROCESS_CHECK_INTERVAL: "30"
+
+              # Database and Storage
+              SQLALCHEMY_DATABASE_URI: sqlite:////data/instance/transcriptions.db
+              UPLOAD_FOLDER: /data/uploads
+
+            envFrom:
+              - secretRef:
+                  name: speakr-secret
+
+            resources:
+              requests:
+                cpu: 50m
+                memory: 256Mi
+              limits:
+                memory: 2Gi
+
+    defaultPodOptions:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 568
+        runAsGroup: 568
+        fsGroup: 568
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile: {type: RuntimeDefault}
+
+    service:
+      app:
+        controller: speakr
+        ports:
+          http:
+            port: 8899
+
+    route:
+      app:
+        hostnames:
+          - "{{ .Release.Name }}.${SECRET_DOMAIN}"
+          - "{{ .Release.Name }}.${SECRET_INTERNAL_DOMAIN}"
+        parentRefs:
+          - name: envoy-internal
+            namespace: network
+
+    persistence:
+      data:
+        existingClaim: "{{ .Release.Name }}"
+        advancedMounts:
+          speakr:
+            app:
+              - path: /data/uploads
+                subPath: uploads
+              - path: /data/instance
+                subPath: instance
