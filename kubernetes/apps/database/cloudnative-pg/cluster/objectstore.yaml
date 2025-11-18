@@ -5,31 +5,31 @@ kind: ObjectStore
 metadata:
   name: postgres18-minio
 spec:
+  # Retention policy
+  retentionPolicy: 90d
+
   # Barman configuration
   configuration:
-    compression: bzip2
-    retentionPolicy: 90d
+    # S3 destination (MinIO)
+    destinationPath: s3://cnpg/
+    endpointURL: https://minio.${SECRET_INTERNAL_DOMAIN}:9000
+    serverName: postgres18
 
-  # S3 destination (MinIO)
-  destinationPath: s3://cnpg/
-  endpointURL: https://minio.${SECRET_INTERNAL_DOMAIN}:9000
-  serverName: postgres18
+    # Credentials from existing secret
+    s3Credentials:
+      accessKeyId:
+        name: cloudnative-pg-secret
+        key: AWS_ACCESS_KEY_ID
+      secretAccessKey:
+        name: cloudnative-pg-secret
+        key: AWS_SECRET_ACCESS_KEY
 
-  # Credentials from existing secret
-  s3Credentials:
-    accessKeyId:
-      name: cloudnative-pg-secret
-      key: AWS_ACCESS_KEY_ID
-    secretAccessKey:
-      name: cloudnative-pg-secret
-      key: AWS_SECRET_ACCESS_KEY
+    # WAL configuration
+    wal:
+      compression: zstd
+      maxParallel: 4
 
-  # WAL configuration
-  wal:
-    compression: zstd
-    maxParallel: 4
-
-  # Data backup configuration
-  data:
-    compression: bzip2
-    jobs: 2
+    # Data backup configuration
+    data:
+      compression: bzip2
+      jobs: 2
