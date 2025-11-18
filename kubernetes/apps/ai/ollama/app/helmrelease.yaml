@@ -57,7 +57,7 @@ spec:
         controller: ollama
         type: LoadBalancer
         annotations:
-          lbipam.cilium.io/ips: 10.32.8.89
+          lbipam.cilium.io/ips: 10.32.8.90
         ports:
           http:
             port: 11434
