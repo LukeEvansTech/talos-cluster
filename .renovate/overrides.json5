@@ -13,6 +13,19 @@
       matchPackageNames: ["/factory\\.talos\\.dev/"],
       overridePackageName: "ghcr.io/siderolabs/installer",
     },
+    {
+      description: "Disable digest-only updates for rclone",
+      matchDatasources: ["docker"],
+      matchPackageNames: ["docker.io/rclone/rclone"],
+      matchUpdateTypes: ["digest"],
+      enabled: false,
+    },
+    {
+      description: "Disable digest-only updates for checkov-action",
+      matchManagers: ["github-actions"],
+      matchPackageNames: ["bridgecrewio/checkov-action"],
+      matchUpdateTypes: ["digest"],
+      enabled: false,
+    },
   ],
 }
-
