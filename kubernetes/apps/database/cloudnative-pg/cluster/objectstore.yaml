@@ -13,7 +13,6 @@ spec:
     # S3 destination (MinIO)
     destinationPath: s3://cnpg/
     endpointURL: https://minio.${SECRET_INTERNAL_DOMAIN}:9000
-    serverName: postgres18
 
     # Credentials from existing secret
     s3Credentials:
