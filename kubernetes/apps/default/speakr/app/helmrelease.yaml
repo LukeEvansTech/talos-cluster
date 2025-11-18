@@ -46,10 +46,6 @@ spec:
               CHUNK_LIMIT: 20MB
               CHUNK_OVERLAP_SECONDS: "3"
 
-              # Admin User
-              ADMIN_USERNAME: admin
-              ADMIN_EMAIL: admin@example.com
-
               # Inquire Mode (AI search across recordings)
               ENABLE_INQUIRE_MODE: "false"
 
