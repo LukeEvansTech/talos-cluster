@@ -24,6 +24,7 @@ resources:
   - ./miniflux/ks.yaml
   - ./n8n/ks.yaml
   - ./notifier/ks.yaml
+  - ./paperless/ks.yaml
   - ./smokeping/ks.yaml
   - ./speakr/ks.yaml
   - ./stirling-pdf/ks.yaml
