@@ -1,0 +1,102 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: manyfold
+spec:
+  interval: 15m
+  chartRef:
+    kind: OCIRepository
+    name: manyfold
+  values:
+    controllers:
+      manyfold:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        containers:
+          app:
+            image:
+              repository: ghcr.io/bjw-s-labs/manyfold
+              tag: 0.129.1@sha256:ca95b44b1906dabc69e5aa3bd79c1f1c6bb55ed2c6fb8fcd83ec63b9ea58e98b
+            env:
+              DATABASE_URL: sqlite3:/data/database/manyfold.sqlite3
+              REDIS_URL: redis://localhost:6379/1
+              PORT: &port 3214
+              PUID: "1000"
+              PGID: "1000"
+              REGISTRATION_ENABLED: "false"
+              MULTIUSER_ENABLED: "false"
+            envFrom:
+              - secretRef:
+                  name: manyfold-secret
+            probes:
+              liveness: &probes
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /health
+                    port: *port
+                  initialDelaySeconds: 0
+                  periodSeconds: 10
+                  timeoutSeconds: 1
+                  failureThreshold: 3
+              readiness: *probes
+              startup:
+                enabled: false
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities: {drop: [ALL]}
+            resources:
+              requests:
+                cpu: 20m
+                memory: 128Mi
+              limits:
+                memory: 1536Mi
+          redis:
+            image:
+              repository: ghcr.io/dragonflydb/dragonfly
+              tag: v1.25.1
+            resources:
+              requests:
+                cpu: 10m
+                memory: 32Mi
+              limits:
+                memory: 128Mi
+    defaultPodOptions:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile: {type: RuntimeDefault}
+    service:
+      app:
+        controller: manyfold
+        ports:
+          http:
+            port: *port
+    route:
+      app:
+        hostnames:
+          - "{{ .Release.Name }}.${SECRET_DOMAIN}"
+          - "{{ .Release.Name }}.${SECRET_INTERNAL_DOMAIN}"
+        parentRefs:
+          - name: envoy-internal
+            namespace: network
+    persistence:
+      data:
+        existingClaim: "{{ .Release.Name }}"
+        globalMounts:
+          - path: /data
+      tmp:
+        type: emptyDir
+        globalMounts:
+          - path: /tmp
+      logs:
+        type: emptyDir
+        globalMounts:
+          - path: /app/log

@@ -21,6 +21,7 @@ resources:
   - ./it-tools/ks.yaml
   - ./karakeep/ks.yaml
   - ./mail-archiver/ks.yaml
+  - ./manyfold/ks.yaml
   - ./miniflux/ks.yaml
   - ./n8n/ks.yaml
   - ./notifier/ks.yaml
