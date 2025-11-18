@@ -83,6 +83,10 @@ spec:
         existingClaim: "{{ .Release.Name }}-cache"
         globalMounts:
           - path: /.cache
+      etc-wizarr:
+        type: emptyDir
+        globalMounts:
+          - path: /etc/wizarr
       tmp:
         type: emptyDir
         globalMounts:
