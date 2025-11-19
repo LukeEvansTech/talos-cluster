@@ -80,8 +80,11 @@ spec:
     persistence:
       config:
         existingClaim: "{{ .Release.Name }}"
-        globalMounts:
-          - path: /app/config
+        advancedMounts:
+          paperless-ai:
+            app:
+              - path: /app/config
+                subPath: config
       cache:
         type: emptyDir
         globalMounts:
