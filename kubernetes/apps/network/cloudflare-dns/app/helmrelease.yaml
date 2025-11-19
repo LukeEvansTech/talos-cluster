@@ -26,7 +26,6 @@ spec:
       - --crd-source-kind=DNSEndpoint
       - --events
       - --gateway-label-filter=type=external
-      - --exclude-target-net=10.0.0.0/8
     policy: sync
     sources:
       - "crd"

@@ -4,6 +4,7 @@ apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: postgres18-r2-backup
+  namespace: database
 spec:
   schedule: "0 3 * * *" # Daily at 3:00 AM (after barman backup completes)
   concurrencyPolicy: Forbid
@@ -20,18 +21,27 @@ spec:
         spec:
           automountServiceAccountToken: false
           restartPolicy: OnFailure
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            runAsGroup: 65534
+            fsGroup: 65534
+            seccompProfile:
+              type: RuntimeDefault
           containers:
             - name: rclone
               image: docker.io/rclone/rclone:1.71.2@sha256:3103526c506266a9ecdf064efe99bf3677d92ef6407af124d8c56b4f49cbaa51
               imagePullPolicy: IfNotPresent
-              args:
-                - copy
-                - --verbose
-                - --stats-one-line
-                - --stats=5m
-                - --fast-list
-                - minio:cnpg/
-                - cloudflare:cnpg/
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  export RCLONE_CONFIG_MINIO_ACCESS_KEY_ID=$(cat /secrets/AWS_ACCESS_KEY_ID)
+                  export RCLONE_CONFIG_MINIO_SECRET_ACCESS_KEY=$(cat /secrets/AWS_SECRET_ACCESS_KEY)
+                  export RCLONE_CONFIG_CLOUDFLARE_ACCESS_KEY_ID=$(cat /secrets/R2_ACCESS_KEY_ID)
+                  export RCLONE_CONFIG_CLOUDFLARE_SECRET_ACCESS_KEY=$(cat /secrets/R2_SECRET_ACCESS_KEY)
+                  export RCLONE_CONFIG_CLOUDFLARE_ENDPOINT=$(cat /secrets/R2_ENDPOINT)
+                  exec rclone copy --verbose --stats-one-line --stats=5m --fast-list minio:cnpg/ cloudflare:cnpg/
               env:
                 # Logging
                 - name: RCLONE_VERBOSE
@@ -44,16 +54,6 @@ spec:
                   value: Minio
                 - name: RCLONE_CONFIG_MINIO_ENDPOINT
                   value: https://minio.${SECRET_INTERNAL_DOMAIN}:9000
-                - name: RCLONE_CONFIG_MINIO_ACCESS_KEY_ID
-                  valueFrom:
-                    secretKeyRef:
-                      name: cloudnative-pg-secret
-                      key: AWS_ACCESS_KEY_ID
-                - name: RCLONE_CONFIG_MINIO_SECRET_ACCESS_KEY
-                  valueFrom:
-                    secretKeyRef:
-                      name: cloudnative-pg-secret
-                      key: AWS_SECRET_ACCESS_KEY
                 - name: RCLONE_CONFIG_MINIO_ACL
                   value: private
 
@@ -64,21 +64,6 @@ spec:
                   value: Cloudflare
                 - name: RCLONE_CONFIG_CLOUDFLARE_REGION
                   value: auto
-                - name: RCLONE_CONFIG_CLOUDFLARE_ACCESS_KEY_ID
-                  valueFrom:
-                    secretKeyRef:
-                      name: cloudnative-pg-secret
-                      key: R2_ACCESS_KEY_ID
-                - name: RCLONE_CONFIG_CLOUDFLARE_SECRET_ACCESS_KEY
-                  valueFrom:
-                    secretKeyRef:
-                      name: cloudnative-pg-secret
-                      key: R2_SECRET_ACCESS_KEY
-                - name: RCLONE_CONFIG_CLOUDFLARE_ENDPOINT
-                  valueFrom:
-                    secretKeyRef:
-                      name: cloudnative-pg-secret
-                      key: R2_ENDPOINT
                 - name: RCLONE_CONFIG_CLOUDFLARE_ACL
                   value: private
                 - name: RCLONE_CONFIG_CLOUDFLARE_NO_CHECK_BUCKET
@@ -89,14 +74,25 @@ spec:
                   cpu: 100m
                   memory: 128Mi
                 limits:
+                  cpu: 500m
                   memory: 512Mi
+
+              volumeMounts:
+                - name: secrets
+                  mountPath: /secrets
+                  readOnly: true
 
               securityContext:
                 runAsNonRoot: true
-                runAsUser: 1000
-                runAsGroup: 1000
+                runAsUser: 65534
+                runAsGroup: 65534
                 allowPrivilegeEscalation: false
                 readOnlyRootFilesystem: true
                 capabilities:
                   drop:
                     - ALL
+          volumes:
+            - name: secrets
+              secret:
+                secretName: cloudnative-pg-secret
+                defaultMode: 0400
