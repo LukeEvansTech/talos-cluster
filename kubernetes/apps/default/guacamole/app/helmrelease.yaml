@@ -16,15 +16,15 @@ spec:
           reloader.stakater.com/auto: "true"
 
         initContainers:
-          init-db:
+          01-init-db:
             image:
               repository: ghcr.io/home-operations/postgres-init
               tag: "18"
-            envFrom:
+            envFrom: &envFrom
               - secretRef:
                   name: guacamole-secret
 
-          init-schema:
+          02-init-schema:
             image:
               repository: guacamole/guacamole
               tag: 1.6.0
@@ -33,12 +33,9 @@ spec:
               - -c
               - |
                 /opt/guacamole/bin/initdb.sh --postgresql > /migrations/initdb.sql
-            securityContext:
-              allowPrivilegeEscalation: false
-              readOnlyRootFilesystem: false
-              capabilities: {drop: ["ALL"]}
+            envFrom: *envFrom
 
-          init-migrate:
+          03-init-migrations:
             image:
               repository: ghcr.io/home-operations/postgres-init
               tag: "18"
@@ -48,13 +45,7 @@ spec:
               - |
                 export PGPASSWORD=$(POSTGRESQL_PASSWORD)
                 psql -h $(POSTGRESQL_HOSTNAME) -d $(POSTGRESQL_DATABASE) -U $(POSTGRESQL_USER) -a -w -f /migrations/initdb.sql || true
-            envFrom:
-              - secretRef:
-                  name: guacamole-secret
-            securityContext:
-              allowPrivilegeEscalation: false
-              readOnlyRootFilesystem: true
-              capabilities: {drop: ["ALL"]}
+            envFrom: *envFrom
 
         containers:
           app:
@@ -68,19 +59,16 @@ spec:
               GUACAMOLE_HOME: /guacamole
               TOTP_ENABLED: "true"
               WEBAPP_CONTEXT: ROOT
-            envFrom:
-              - secretRef:
-                  name: guacamole-secret
+            envFrom: *envFrom
             securityContext:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: false
-              capabilities: {drop: ["ALL"]}
             resources:
               requests:
-                cpu: 100m
-                memory: 512Mi
+                cpu: 250m
+                memory: 128Mi
               limits:
-                memory: 2Gi
+                memory: 2000Mi
 
     defaultPodOptions:
       securityContext:
@@ -89,7 +77,6 @@ spec:
         runAsGroup: 0
         fsGroup: 0
         fsGroupChangePolicy: OnRootMismatch
-        seccompProfile: {type: RuntimeDefault}
 
     service:
       app:
@@ -110,5 +97,9 @@ spec:
     persistence:
       migrations:
         type: emptyDir
-        globalMounts:
-          - path: /migrations
+        advancedMounts:
+          guacamole:
+            02-init-schema:
+              - path: /migrations
+            03-init-migrations:
+              - path: /migrations
