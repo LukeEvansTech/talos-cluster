@@ -15,6 +15,7 @@ resources:
   - ./echo-server/ks.yaml
   - ./fusion/ks.yaml
   - ./gitsave/ks.yaml
+  - ./guacamole/ks.yaml
   - ./homeassistant/ks.yaml
   - ./homebridge/ks.yaml
   - ./homebox/ks.yaml
