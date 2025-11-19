@@ -68,19 +68,6 @@ spec:
             envFrom:
               - secretRef:
                   name: guacamole-secret
-            probes:
-              liveness: &probes
-                enabled: true
-                custom: true
-                spec:
-                  httpGet:
-                    path: /
-                    port: &port 8080
-                  initialDelaySeconds: 30
-                  periodSeconds: 10
-                  timeoutSeconds: 1
-                  failureThreshold: 3
-              readiness: *probes
             securityContext:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: false
@@ -106,7 +93,7 @@ spec:
         controller: guacamole
         ports:
           http:
-            port: *port
+            port: 8080
 
     route:
       app:
