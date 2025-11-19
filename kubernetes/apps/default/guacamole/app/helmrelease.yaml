@@ -40,13 +40,14 @@ spec:
 
           init-migrate:
             image:
-              repository: ghcr.io/cloudnative-pg/postgresql
-              tag: 18
+              repository: ghcr.io/home-operations/postgres-init
+              tag: "18"
             command:
               - /bin/sh
               - -c
               - |
-                psql "${DATABASE_URL}" -f /migrations/initdb.sql || true
+                export PGPASSWORD=$(POSTGRESQL_PASSWORD)
+                psql -h $(POSTGRESQL_HOSTNAME) -d $(POSTGRESQL_DATABASE) -U $(POSTGRESQL_USER) -a -w -f /migrations/initdb.sql || true
             envFrom:
               - secretRef:
                   name: guacamole-secret
@@ -64,6 +65,7 @@ spec:
               TZ: ${TIMEZONE}
               GUACD_HOSTNAME: guacd.default.svc.cluster.local
               GUACD_PORT: "4822"
+              GUACAMOLE_HOME: /guacamole
               TOTP_ENABLED: "true"
               WEBAPP_CONTEXT: ROOT
             envFrom:
