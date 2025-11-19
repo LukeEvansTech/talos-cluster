@@ -42,7 +42,7 @@ spec:
                   name: paperless-ai-secret
             securityContext:
               allowPrivilegeEscalation: false
-              readOnlyRootFilesystem: true
+              readOnlyRootFilesystem: false
               capabilities:
                 drop:
                   - ALL
@@ -93,7 +93,7 @@ spec:
       home:
         type: emptyDir
         globalMounts:
-          - path: /home/appuser
+          - path: /home/node
       tmp:
         type: emptyDir
         globalMounts:
