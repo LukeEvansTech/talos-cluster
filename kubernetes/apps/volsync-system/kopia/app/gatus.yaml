@@ -1,0 +1,23 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/TwiN/gatus/master/.schema/config.schema.json
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kopia-gatus-ep
+  namespace: volsync-system
+  labels:
+    gatus.io/enabled: "true"
+data:
+  config.yaml: |-
+    endpoints:
+      - name: kopia
+        group: infrastructure
+        url: "http://kopia.volsync-system.svc.cluster.local"
+        interval: 1m
+        ui:
+          hide-hostname: true
+          hide-url: true
+        conditions:
+          - "[STATUS] == 200"
+        alerts:
+          - type: gotify
