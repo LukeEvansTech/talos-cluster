@@ -5,6 +5,7 @@ kind: Kustomization
 namespace: games
 components:
   - ../../components/cluster-secrets-externalsecret
+  - ../../components/global-vars
   - ../../components/alerts
 resources:
   - ./namespace.yaml

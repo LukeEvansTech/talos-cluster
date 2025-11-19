@@ -5,6 +5,7 @@ kind: Kustomization
 namespace: external-secrets
 components:
   - ../../components/cluster-secrets-externalsecret
+  - ../../components/global-vars
   - ../../components/alerts
 resources:
   - ./namespace.yaml
