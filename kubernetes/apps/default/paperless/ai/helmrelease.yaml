@@ -26,23 +26,38 @@ spec:
         containers:
           app:
             image:
-              repository: ghcr.io/clusterzx/paperless-ai
-              tag: 3.0.9
+              repository: docker.io/clusterzx/paperless-ai
+              tag: 3.0.9@sha256:2b65888163fd59716f1c8285b31c5bd0b30c9c3c192c42b516688e3887d4ba60
             env:
               TZ: ${TIMEZONE}
-              PAPERLESS_URL: "http://paperless.default.svc.cluster.local:8000"
-              CRON_SCHEDULE: "*/30 * * * *"
-              RESPECT_EXISTING_TAGS: "true"
-              RESPECT_EXISTING_DOCTYPE: "true"
-              ADD_TAG: "AI"
-              AI_PROVIDER: "openai"
-              OPENAI_MODEL: "gpt-4o"
+              AI_PROVIDER: openai
+              OPENAI_MODEL: gpt-4o
+              PAPERLESS_AI_PORT: &port 3000
+              PAPERLESS_API_URL: "http://paperless.default.svc.cluster.local:8000/api"
+              PGID: "1000"
+              PUID: "1000"
+              RAG_SERVICE_ENABLED: "true"
+              RAG_SERVICE_URL: "http://localhost:8000"
+              SCAN_INTERVAL: "*/30 * * * *"
             envFrom:
               - secretRef:
                   name: paperless-ai-secret
+            probes:
+              liveness: &probes
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /health
+                    port: *port
+                  initialDelaySeconds: 0
+                  periodSeconds: 10
+                  timeoutSeconds: 1
+                  failureThreshold: 3
+              readiness: *probes
             securityContext:
               allowPrivilegeEscalation: false
-              readOnlyRootFilesystem: false
+              readOnlyRootFilesystem: true
               capabilities:
                 drop:
                   - ALL
@@ -67,7 +82,7 @@ spec:
         controller: paperless-ai
         ports:
           http:
-            port: 3000
+            port: *port
 
     route:
       app:
@@ -80,24 +95,36 @@ spec:
     persistence:
       config:
         existingClaim: "{{ .Release.Name }}"
-        advancedMounts:
-          paperless-ai:
-            app:
-              - path: /app/config
-                subPath: config
+        globalMounts:
+          - path: /app/data
       cache:
         type: emptyDir
+        sizeLimit: 100Mi
         globalMounts:
-          - path: /.cache
-      logs:
-        type: emptyDir
-        globalMounts:
-          - path: /app/logs
+          - path: /app/public/images
       home:
         type: emptyDir
+        sizeLimit: 100Mi
         globalMounts:
-          - path: /home/node
+          - path: /home/node/.pm2
+      logs:
+        type: emptyDir
+        sizeLimit: 10Mi
+        globalMounts:
+          - path: /app/logs
+      nltk:
+        type: emptyDir
+        sizeLimit: 100Mi
+        globalMounts:
+          - path: /home/node/nltk_data
+      openapi:
+        type: emptyDir
+        sizeLimit: 1Mi
+        globalMounts:
+          - path: /app/OPENAPI
       tmp:
         type: emptyDir
+        medium: Memory
+        sizeLimit: 100Mi
         globalMounts:
           - path: /tmp
