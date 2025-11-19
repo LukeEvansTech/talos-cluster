@@ -8,4 +8,5 @@ resources:
   - issuer.yaml
   - certificate.yaml
   - rbac.yaml
+  - ocirepository.yaml
   - helmrelease.yaml
