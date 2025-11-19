@@ -22,7 +22,7 @@ spec:
           restartPolicy: OnFailure
           containers:
             - name: rclone
-              image: docker.io/rclone/rclone:1.71.2@sha256:e5ed44fd6896e31b0c2d1fc87ad4e45d0cf0d8b54e07abc1f9f5e2fa662e50cc
+              image: docker.io/rclone/rclone:1.71.2@sha256:3103526c506266a9ecdf064efe99bf3677d92ef6407af124d8c56b4f49cbaa51
               imagePullPolicy: IfNotPresent
               args:
                 - copy
