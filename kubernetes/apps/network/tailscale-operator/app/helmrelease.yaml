@@ -1,0 +1,34 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/fluxcd-community/flux2-schemas/main/helmrelease-helm-v2.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: tailscale-operator
+  namespace: network
+spec:
+  chart:
+    spec:
+      chart: tailscale-operator
+      version: 1.78.3
+      sourceRef:
+        kind: HelmRepository
+        name: tailscale
+        namespace: flux-system
+  interval: 1h
+  values:
+    oauth:
+      clientId:
+        valueFrom:
+          secretKeyRef:
+            name: tailscale-operator-secret
+            key: client_id
+      clientSecret:
+        valueFrom:
+          secretKeyRef:
+            name: tailscale-operator-secret
+            key: client_secret
+    operatorConfig:
+      defaultTags:
+        - k8s
+    podAnnotations:
+      reloader.stakater.com/auto: "true"
