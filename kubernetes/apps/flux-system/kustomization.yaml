@@ -5,7 +5,6 @@ kind: Kustomization
 namespace: flux-system
 components:
   - ../../components/alerts
-  - ../../components/global-vars
 resources:
   - ./namespace.yaml
   - ./cluster-secrets-externalsecret.yaml # Keep for migration testing
