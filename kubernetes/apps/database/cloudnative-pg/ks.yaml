@@ -81,6 +81,11 @@ spec:
   targetNamespace: *namespace
   timeout: 5m
   wait: true
+  postBuild:
+    substituteFrom:
+      - kind: Secret
+        name: cluster-secrets
+        optional: false
   healthChecks:
     - apiVersion: postgresql.cnpg.io/v1
       kind: Cluster
