@@ -1,0 +1,101 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/batch/cronjob_v1.json
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: rgw-s3-backup
+  namespace: rook-ceph
+spec:
+  schedule: "0 2 * * *" # Daily at 2:00 AM
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 2
+  jobTemplate:
+    spec:
+      ttlSecondsAfterFinished: 86400 # Clean up jobs after 24 hours
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: rgw-s3-backup
+            app.kubernetes.io/component: backup
+        spec:
+          automountServiceAccountToken: false
+          restartPolicy: OnFailure
+          containers:
+            - name: s3-sync
+              image: docker.io/rich0/s3-sync:latest
+              imagePullPolicy: IfNotPresent
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  # Configure s3cmd
+                  cat > /tmp/.s3cfg <<EOF
+                  [default]
+                  access_key = ${ACCESS_KEY}
+                  secret_key = ${SECRET_KEY}
+                  host_base = ${S3_HOST}
+                  host_bucket = ${S3_HOST}/%(bucket)
+                  use_https = False
+                  EOF
+
+                  # Backup each bucket
+                  for BUCKET in ${BUCKETS}; do
+                    echo "=== Backing up bucket: ${BUCKET} ==="
+                    s3cmd -c /tmp/.s3cfg sync --verbose s3://${BUCKET}/ ${LOCAL_PATH}${BUCKET}/
+                    echo "=== Completed backup of: ${BUCKET} ==="
+                  done
+
+                  echo "=== All backups completed ==="
+              env:
+                # S3 credentials from CephObjectStoreUser secret
+                - name: ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: rook-ceph-object-user-ceph-objectstore-backup-user
+                      key: AccessKey
+                - name: SECRET_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: rook-ceph-object-user-ceph-objectstore-backup-user
+                      key: SecretKey
+
+                # S3 endpoint configuration for Rook-Ceph RGW
+                - name: S3_HOST
+                  value: "rook-ceph-rgw-ceph-objectstore.rook-ceph.svc.cluster.local"
+                - name: S3_REGION
+                  value: "us-east-1"
+
+                # Backup configuration - space-separated list of buckets
+                - name: BUCKETS
+                  value: "netdata"
+                - name: LOCAL_PATH
+                  value: "/backup/rgw-backups/"
+
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 256Mi
+                limits:
+                  cpu: 500m
+                  memory: 1Gi
+
+              volumeMounts:
+                - name: backup-storage
+                  mountPath: /backup
+
+          volumes:
+            - name: backup-storage
+              # TODO: Configure your backup storage volume based on your setup
+              emptyDir: {}  # Placeholder - replace with actual volume configuration
+              # Option 1: NFS
+              # nfs:
+              #   server: ${SECRET_NFS_SERVER}
+              #   path: /your/backup/path
+              # Option 2: HostPath (if using local storage)
+              # hostPath:
+              #   path: /mnt/backup
+              #   type: Directory
+              # Option 3: PVC
+              # persistentVolumeClaim:
+              #   claimName: backup-pvc

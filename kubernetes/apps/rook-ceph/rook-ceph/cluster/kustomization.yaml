@@ -6,3 +6,6 @@ resources:
   - ./ocirepository.yaml
   - ./helmrelease.yaml
   - ./grafanadashboard.yaml
+  - ./objectstoreuser.yaml
+  - ./netdata-objectstoreuser.yaml
+  - ./netdata-objectbucketclaim.yaml
