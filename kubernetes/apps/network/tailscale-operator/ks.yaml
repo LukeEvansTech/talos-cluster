@@ -35,15 +35,7 @@ spec:
       app.kubernetes.io/name: tailscale-operator
   interval: 1h
   path: ./kubernetes/apps/network/tailscale-operator/config
-  postBuild:
-    substitute: {}
-    substituteFrom:
-      - kind: ConfigMap
-        name: cluster-settings
-        optional: false
-      - kind: Secret
-        name: cluster-secrets
-        optional: false
+  postBuild: {}
   prune: true
   retryInterval: 2m
   sourceRef:
