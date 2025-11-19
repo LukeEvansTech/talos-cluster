@@ -4,6 +4,7 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: ai
 components:
+  - ../../components/cluster-secrets-externalsecret
   - ../../components/global-vars
   - ../../components/alerts
 resources:
