@@ -8,6 +8,6 @@ spec:
   endpoints:
     - dnsName: requests.${SECRET_DOMAIN}
       recordTTL: 300
-      recordType: A
+      recordType: CNAME
       targets:
-        - ${ENVOY_EXTERNAL_IP}
+        - external.${SECRET_DOMAIN}
