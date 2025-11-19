@@ -81,19 +81,21 @@ spec:
             namespace: network
 
     persistence:
-      config:
-        type: emptyDir
-        globalMounts:
-          - path: /config
-      db:
+      data:
         existingClaim: "{{ .Release.Name }}"
-        globalMounts:
-          - path: /app/db
-      prompts:
-        existingClaim: "{{ .Release.Name }}"
-        globalMounts:
-          - path: /app/prompts
-      tmp:
+        advancedMounts:
+          paperless-gpt:
+            app:
+              - path: /app/db
+                subPath: db
+              - path: /app/prompts
+                subPath: prompts
+      tmpfs:
         type: emptyDir
-        globalMounts:
-          - path: /tmp
+        advancedMounts:
+          paperless-gpt:
+            app:
+              - path: /app/config
+                subPath: config
+              - path: /tmp
+                subPath: tmp
