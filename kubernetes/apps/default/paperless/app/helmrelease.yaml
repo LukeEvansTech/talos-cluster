@@ -52,6 +52,10 @@ spec:
               PAPERLESS_TASK_WORKERS: "2"
               PAPERLESS_WEBSERVER_WORKERS: "2"
               PAPERLESS_URL: "https://paperless.${SECRET_INTERNAL_DOMAIN}"
+              PAPERLESS_DBENGINE: postgresql
+              PAPERLESS_APPS: allauth.socialaccount.providers.openid_connect
+              PAPERLESS_ACCOUNT_ALLOW_SIGNUPS: "false"
+              PAPERLESS_SOCIALACCOUNT_ALLOW_SIGNUPS: "false"
             envFrom:
               - secretRef:
                   name: paperless-secret
