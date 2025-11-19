@@ -7,5 +7,5 @@ metadata:
 spec:
   appConnector:
     routes:
-      - ${CR_CIDR_LAN}
+      - ${CR_LAN_CIDR}
   replicas: 2
