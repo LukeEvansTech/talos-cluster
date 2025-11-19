@@ -7,6 +7,7 @@ components:
   - ../../components/alerts
 resources:
   - ./namespace.yaml
-  - ./cluster-secrets-externalsecret.yaml
+  - ./cluster-secrets.sops.yaml
+  - ./cluster-secrets-externalsecret.yaml # Keep for migration testing
   - ./flux-instance/ks.yaml
   - ./flux-operator/ks.yaml
