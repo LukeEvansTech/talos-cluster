@@ -4,7 +4,6 @@ apiVersion: tailscale.com/v1alpha1
 kind: Connector
 metadata:
   name: egress
-  namespace: network
 spec:
   exitNode: true
   replicas: 2

@@ -4,9 +4,8 @@ apiVersion: tailscale.com/v1alpha1
 kind: Connector
 metadata:
   name: ingress
-  namespace: network
 spec:
-  subnetRouter:
+  appConnector:
     routes:
       - ${CR_CIDR_LAN}
   replicas: 2
