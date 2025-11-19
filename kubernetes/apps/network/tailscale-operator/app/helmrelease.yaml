@@ -16,19 +16,11 @@ spec:
         namespace: flux-system
   interval: 1h
   values:
-    oauth:
-      clientId:
-        valueFrom:
-          secretKeyRef:
-            name: tailscale-operator-secret
-            key: client_id
-      clientSecret:
-        valueFrom:
-          secretKeyRef:
-            name: tailscale-operator-secret
-            key: client_secret
+    oauthSecretVolume:
+      secret:
+        secretName: tailscale-operator-secret
     operatorConfig:
       defaultTags:
         - k8s
-    podAnnotations:
-      reloader.stakater.com/auto: "true"
+      podAnnotations:
+        secret.reloader.stakater.com/reload: tailscale-operator-secret

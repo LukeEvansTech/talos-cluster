@@ -6,10 +6,7 @@ metadata:
   name: ingress
   namespace: network
 spec:
-  # Configure subnet routes for your network
-  # Update these to match your local network subnets
   subnetRouter:
     routes:
-      - 192.168.10.0/24
-      - 192.168.20.0/24
+      - ${CR_CIDR_LAN}
   replicas: 2
