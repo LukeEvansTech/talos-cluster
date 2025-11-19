@@ -8,6 +8,6 @@ spec:
   endpoints:
     - dnsName: flux-webhook.${SECRET_DOMAIN}
       recordTTL: 300
-      recordType: A
+      recordType: CNAME
       targets:
-        - 10.32.8.88
+        - external.${SECRET_DOMAIN}
