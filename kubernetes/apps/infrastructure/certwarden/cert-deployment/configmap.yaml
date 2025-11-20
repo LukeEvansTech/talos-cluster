@@ -1,0 +1,16 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ipmi-hosts-config
+data:
+  # IPMI host configurations
+  # Each host is defined as: <hostname>=<url>,<model>,<username>,<password_env_var>
+
+  # Example test host configuration
+  # Format: hostname=https://ipmi-url,MODEL,USERNAME,PASSWORD_ENV_VAR_NAME
+  testhost: "https://ipmi-test.example.com,X12,ADMIN,IPMI_TESTHOST_PASSWORD"
+
+  # Add more hosts here:
+  # host1: "https://ipmi-host1.example.com,X12,ADMIN,IPMI_HOST1_PASSWORD"
+  # host2: "https://ipmi-host2.example.com,X11,ADMIN,IPMI_HOST2_PASSWORD"
