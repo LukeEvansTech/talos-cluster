@@ -47,6 +47,8 @@ spec:
         username: invoiceninja
         database: invoiceninja
         existingSecret: invoiceninja-secret
+      image:
+        tag: latest
       primary:
         persistence:
           enabled: true
@@ -63,6 +65,11 @@ spec:
       enabled: true
       auth:
         enabled: false
+      image:
+        tag: latest
+      sentinel:
+        image:
+          tag: latest
       master:
         persistence:
           enabled: false
