@@ -7,7 +7,6 @@ metadata:
 spec:
   hostnames:
     - forgejo.${SECRET_DOMAIN}
-    - forgejo.${SECRET_INTERNAL_DOMAIN}
   parentRefs:
     - name: envoy-internal
       namespace: network
