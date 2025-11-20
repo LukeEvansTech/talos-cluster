@@ -12,6 +12,9 @@ spec:
     name: barman-cloud-selfsigned-issuer
     kind: Issuer
   dnsNames:
+    - barman-cloud
+    - barman-cloud.database
+    - barman-cloud.database.svc
     - barman-cloud.database.svc.cluster.local
 ---
 # yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/cert-manager.io/certificate_v1.json
@@ -27,4 +30,7 @@ spec:
     name: barman-cloud-selfsigned-issuer
     kind: Issuer
   dnsNames:
+    - barman-cloud
+    - barman-cloud.database
+    - barman-cloud.database.svc
     - barman-cloud.database.svc.cluster.local
