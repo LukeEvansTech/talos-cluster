@@ -16,6 +16,7 @@ resources:
   - ./echo-server/ks.yaml
   - ./forgejo/ks.yaml
   - ./fusion/ks.yaml
+  - ./gitea/ks.yaml
   - ./giteamirror/ks.yaml
   - ./gitsave/ks.yaml
   - ./guacamole/ks.yaml
