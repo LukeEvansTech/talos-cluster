@@ -21,9 +21,9 @@ spec:
 
       config:
         server:
-          DOMAIN: "{{ .Release.Name }}.${SECRET_INTERNAL_DOMAIN}"
-          ROOT_URL: "https://{{ .Release.Name }}.${SECRET_INTERNAL_DOMAIN}"
-          SSH_DOMAIN: "{{ .Release.Name }}.${SECRET_INTERNAL_DOMAIN}"
+          DOMAIN: "forgejo.${SECRET_INTERNAL_DOMAIN}"
+          ROOT_URL: "https://forgejo.${SECRET_INTERNAL_DOMAIN}"
+          SSH_DOMAIN: "forgejo.${SECRET_INTERNAL_DOMAIN}"
           SSH_PORT: 22
 
         database:
