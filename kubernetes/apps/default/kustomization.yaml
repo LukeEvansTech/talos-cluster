@@ -20,7 +20,6 @@ resources:
   - ./homeassistant/ks.yaml
   - ./homebridge/ks.yaml
   - ./homebox/ks.yaml
-  - ./invoiceninja/ks.yaml
   - ./it-tools/ks.yaml
   - ./karakeep/ks.yaml
   - ./mail-archiver/ks.yaml
