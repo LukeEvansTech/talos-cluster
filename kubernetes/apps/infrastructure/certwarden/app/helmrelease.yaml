@@ -18,7 +18,7 @@ spec:
           app:
             image:
               repository: ghcr.io/gregtwallace/certwarden
-              tag: v0.28.0
+              tag: latest
             resources:
               requests:
                 cpu: 500m
