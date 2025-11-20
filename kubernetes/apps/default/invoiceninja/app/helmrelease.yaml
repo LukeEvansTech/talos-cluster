@@ -25,7 +25,7 @@ spec:
   values:
     image:
       repository: invoiceninja/invoiceninja
-      tag: 5.10.43
+      tag: 5.12.31
       pullPolicy: IfNotPresent
 
     # Application configuration
