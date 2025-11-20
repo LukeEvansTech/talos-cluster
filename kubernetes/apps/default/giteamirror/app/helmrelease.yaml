@@ -24,6 +24,9 @@ spec:
               PORT: "4321"
               PUID: "1000"
               PGID: "1000"
+              # Authentication & CORS
+              BETTER_AUTH_URL: https://giteamirror.${SECRET_DOMAIN}
+              BETTER_AUTH_TRUSTED_ORIGINS: https://giteamirror.${SECRET_DOMAIN}
               # Scheduling
               SCHEDULE_ENABLED: "true"
               GITEA_MIRROR_INTERVAL: "6h"
