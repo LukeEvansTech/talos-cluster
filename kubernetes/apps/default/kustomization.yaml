@@ -16,7 +16,7 @@ resources:
   - ./echo-server/ks.yaml
   - ./forgejo/ks.yaml
   - ./fusion/ks.yaml
-  # - ./giteamirror/ks.yaml  # TODO: Enable after Forgejo API token is created
+  - ./giteamirror/ks.yaml
   - ./gitsave/ks.yaml
   - ./guacamole/ks.yaml
   - ./homeassistant/ks.yaml
