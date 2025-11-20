@@ -50,6 +50,15 @@ rules:
       - update
       - watch
   - apiGroups:
+      - rbac.authorization.k8s.io
+    resources:
+      - roles
+      - rolebindings
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
       - postgresql.cnpg.io
     resources:
       - backups
