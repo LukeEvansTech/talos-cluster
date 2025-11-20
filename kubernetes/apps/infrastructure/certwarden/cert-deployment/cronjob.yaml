@@ -35,7 +35,7 @@ spec:
               type: RuntimeDefault
           containers:
             - name: deploy-cert
-              image: ghcr.io/lukeevanstech/supermicro-ipmi-cert@sha256:33125c3c9d074c850a20feb5ef50b03e5f5154a5e0e3c31cced1bceff6427901
+              image: ghcr.io/lukeevanstech/supermicro-ipmi-cert@sha256:6c14ab36e2ce05ad25ca1c0cf6557c9b1e3629af040b6011ff21d61092fe09a0
               imagePullPolicy: IfNotPresent
               securityContext:
                 allowPrivilegeEscalation: false
