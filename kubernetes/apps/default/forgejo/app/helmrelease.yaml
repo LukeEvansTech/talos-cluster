@@ -18,6 +18,7 @@ spec:
     gitea:
       admin:
         existingSecret: forgejo-secret
+        passwordMode: initialOnlyNoReset
 
       config:
         server:
