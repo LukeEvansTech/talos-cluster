@@ -1,0 +1,85 @@
+---
+# CronJob to periodically check and deploy certificates to IPMI hosts
+# This is useful for ensuring certificates are kept in sync
+# Disabled by default - uncomment the schedule to enable
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: deploy-cert-ipmi-testhost
+  namespace: infrastructure
+spec:
+  schedule: "@daily" # Run daily, adjust as needed
+  suspend: true # Set to false to enable
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      ttlSecondsAfterFinished: 300
+      backoffLimit: 2
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: cert-deployment
+            app.kubernetes.io/component: ipmi
+            ipmi-host: testhost
+        spec:
+          restartPolicy: Never
+          automountServiceAccountToken: false
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            runAsGroup: 65534
+            fsGroup: 65534
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: deploy-cert
+              image: ghcr.io/lukeevanstech/supermicro-ipmi-cert@sha256:6c14ab36e2ce05ad25ca1c0cf6557c9b1e3629af040b6011ff21d61092fe09a0
+              imagePullPolicy: IfNotPresent
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop:
+                    - ALL
+              env:
+                # Read IPMI config from ConfigMap
+                - name: IPMI_HOST_CONFIG
+                  valueFrom:
+                    configMapKeyRef:
+                      name: ipmi-hosts-config
+                      key: testhost
+
+                # Parse config and set individual vars (handled by init script)
+                - name: IPMI_URL
+                  value: "https://ipmi-test.example.com"
+                - name: IPMI_MODEL
+                  value: "X12"
+                - name: IPMI_USERNAME
+                  value: "ADMIN"
+                - name: IPMI_PASSWORD_ENV
+                  value: "IPMI_TESTHOST_PASSWORD"
+                - name: IPMI_NO_REBOOT
+                  value: "false"
+
+                # Certificate from Certwarden API (would need to fetch)
+                # For CronJob, you'd typically integrate with Certwarden's client API
+                # This is a placeholder - see documentation for API integration
+                - name: CERTIFICATE_PEM
+                  value: "" # Fetch from Certwarden API
+                - name: PRIVATE_KEY_PEM
+                  value: "" # Fetch from Certwarden API
+
+              # Load IPMI passwords from secret
+              envFrom:
+                - secretRef:
+                    name: ipmi-credentials
+
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 64Mi
+                limits:
+                  cpu: 200m
+                  memory: 128Mi
