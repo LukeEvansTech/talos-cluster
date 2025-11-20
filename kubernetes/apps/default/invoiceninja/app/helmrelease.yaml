@@ -1,0 +1,135 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/helm.toolkit.fluxcd.io/helmrelease_v2.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: &app invoiceninja
+spec:
+  interval: 1h
+  chart:
+    spec:
+      chart: invoiceninja
+      version: 0.12.1
+      sourceRef:
+        kind: HelmRepository
+        name: invoiceninja
+      interval: 1h
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+      strategy: rollback
+  values:
+    image:
+      repository: invoiceninja/invoiceninja
+      tag: 5.10.43
+      pullPolicy: IfNotPresent
+
+    # Application configuration
+    appURL: "https://invoiceninja.${SECRET_DOMAIN}"
+    debug: false
+    pdfGenerator: snappdf
+
+    # Use secrets from ExternalSecret
+    existingSecret: invoiceninja-secret
+    appKey:
+      existingSecret:
+        name: invoiceninja-secret
+        key: APP_KEY
+
+    # MariaDB configuration (embedded)
+    mariadb:
+      enabled: true
+      auth:
+        username: invoiceninja
+        database: invoiceninja
+        existingSecret: invoiceninja-secret
+      primary:
+        persistence:
+          enabled: true
+          existingClaim: *app
+          subPath: database
+          storageClass: ""
+
+    # Disable external database (using embedded MariaDB)
+    externalDatabase:
+      host: ""
+
+    # Redis configuration (embedded)
+    redis:
+      enabled: true
+      auth:
+        enabled: false
+      master:
+        persistence:
+          enabled: false
+
+    # Persistence - public volume (uploads/assets)
+    persistence:
+      public:
+        enabled: true
+        existingClaim: *app
+        subPath: public
+        storageClass: ""
+      storage:
+        enabled: true
+        existingClaim: *app
+        subPath: storage
+        storageClass: ""
+
+    # Service configuration
+    service:
+      type: ClusterIP
+      port: 9000
+      http:
+        enabled: true
+        type: ClusterIP
+        ports:
+          http: 8080
+
+    # Ingress - disabled (using Gateway API HTTPRoute)
+    ingress:
+      enabled: false
+
+    # Resources
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        memory: 1Gi
+
+    # Pod security context
+    podSecurityContext:
+      runAsUser: 1500
+      runAsGroup: 1500
+      fsGroup: 1500
+      fsGroupChangePolicy: OnRootMismatch
+
+    # Additional configuration
+    extraEnvVars:
+      - name: REQUIRE_HTTPS
+        value: "false"
+      - name: LOG_CHANNEL
+        value: "stderr"
+
+---
+# HTTPRoute for Gateway API
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: invoiceninja
+spec:
+  hostnames:
+    - "invoiceninja.${SECRET_DOMAIN}"
+    - "invoiceninja.${SECRET_INTERNAL_DOMAIN}"
+  parentRefs:
+    - name: envoy-internal
+      namespace: network
+  rules:
+    - backendRefs:
+        - name: invoiceninja-http
+          port: 8080
