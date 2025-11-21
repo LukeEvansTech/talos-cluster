@@ -1,0 +1,59 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/admissionregistration.k8s.io/mutatingadmissionpolicybinding_v1beta1.json
+apiVersion: admissionregistration.k8s.io/v1beta1
+kind: MutatingAdmissionPolicyBinding
+metadata:
+  name: kopia-maintenance
+spec:
+  policyName: kopia-maintenance
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/admissionregistration.k8s.io/mutatingadmissionpolicy_v1beta1.json
+apiVersion: admissionregistration.k8s.io/v1beta1
+kind: MutatingAdmissionPolicy
+metadata:
+  name: kopia-maintenance
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups:
+          - batch
+        apiVersions:
+          - v1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - jobs
+  matchConditions:
+    - name: nameMatch
+      expression: object.metadata.name.startsWith("kopia-maint-")
+    - name: noRepository
+      expression: |
+        !has(object.spec.template.spec.volumes) || !object.spec.template.spec.volumes.exists(v, v.name == "repository")
+  mutations:
+    - patchType: JSONPatch
+      jsonPatch:
+        expression: |
+          [
+            JSONPatch{
+              op: "add",
+              path: "/spec/template/spec/volumes/-",
+              value: {
+                name: "repository",
+                nfs: Object.spec.template.spec.volumes.nfs{
+                  server: "${SECRET_STORAGE_SERVER}",
+                  path: "${SECRET_STORAGE_SERVER_VOLSYNC_NFS}",
+                }
+              }
+            },
+            JSONPatch{
+              op: "add",
+              path: "/spec/template/spec/containers/0/volumeMounts/-",
+              value: {
+                name: "repository",
+                mountPath: "/repository",
+              }
+            }
+          ]
+  reinvocationPolicy: IfNeeded
