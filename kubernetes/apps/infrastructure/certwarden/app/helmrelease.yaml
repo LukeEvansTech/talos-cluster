@@ -96,3 +96,10 @@ spec:
         defaultMode: 0755
         globalMounts:
           - path: /app/scripts/apc
+      # Post-processing scripts for Brother printer deployment
+      brother-scripts:
+        type: configMap
+        name: certwarden-brother-scripts
+        defaultMode: 0755
+        globalMounts:
+          - path: /app/scripts/brother
