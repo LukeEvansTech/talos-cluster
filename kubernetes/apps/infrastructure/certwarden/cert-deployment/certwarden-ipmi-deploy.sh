@@ -61,13 +61,8 @@ kubectl create secret generic "$${CERT_SECRET_NAME}" \
     --from-literal=cert.pem="$${CERTIFICATE_PEM}" \
     --from-literal=key.pem="$${PRIVATE_KEY_PEM}"
 
-# Cleanup function to delete the temporary secret
-# shellcheck disable=SC2329  # Function is invoked via trap
-cleanup() {
-    echo "Cleaning up temporary secret..."
-    kubectl delete secret "$${CERT_SECRET_NAME}" -n "$${NAMESPACE}" --ignore-not-found=true
-}
-trap cleanup EXIT
+# Note: Secret cleanup is handled by the Job's ownerReferences
+# The secret will be garbage collected when the Job is deleted via ttlSecondsAfterFinished
 
 # Create the deployment Job
 echo "Creating deployment Job: $${JOB_NAME}"
@@ -77,8 +72,12 @@ kind: Job
 metadata:
   name: $${JOB_NAME}
   namespace: $${NAMESPACE}
+  labels:
+    app.kubernetes.io/name: certwarden-ipmi-deploy
+    app.kubernetes.io/instance: $${IPMI_HOST}
 spec:
   ttlSecondsAfterFinished: 300
+  backoffLimit: 2
   template:
     spec:
       serviceAccountName: certwarden
