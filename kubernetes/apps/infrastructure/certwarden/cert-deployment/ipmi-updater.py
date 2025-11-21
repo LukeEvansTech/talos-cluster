@@ -164,8 +164,8 @@ class IPMIUpdater:
 
             data = r.json()
 
-            valid_from = datetime.strptime(data['VaildFrom'].rstrip(re.split('\d{4}', data['VaildFrom'])[1]), r"%b %d %H:%M:%S %Y")
-            valid_until = datetime.strptime(data['GoodTHRU'].rstrip(re.split('\d{4}', data['GoodTHRU'])[1]), r"%b %d %H:%M:%S %Y")
+            valid_from = datetime.strptime(data['VaildFrom'].rstrip(re.split(r'\d{4}', data['VaildFrom'])[1]), r"%b %d %H:%M:%S %Y")
+            valid_until = datetime.strptime(data['GoodTHRU'].rstrip(re.split(r'\d{4}', data['GoodTHRU'])[1]), r"%b %d %H:%M:%S %Y")
 
             return  {
                 'has_cert': True,
