@@ -15,11 +15,11 @@ spec:
         annotations:
           reloader.stakater.com/auto: "true"
         initContainers:
-          # Install kubectl and Python for post-processing
+          # Install kubectl for post-processing scripts
           install-tools:
             image:
-              repository: docker.io/python
-              tag: 3.12-alpine
+              repository: docker.io/alpine
+              tag: 3.22
             command:
               - sh
               - -c
@@ -36,26 +36,8 @@ spec:
                 chmod +x kubectl
                 mv kubectl /shared-bin/
 
-                # Copy Python binary, shared libraries, and standard library
-                echo "Copying Python..."
-                cp -a /usr/local/bin/python3* /shared-bin/
-                ln -sf python3 /shared-bin/python
-
-                # Copy Python standard library
-                cp -a /usr/local/lib/python3.12 /shared-python/
-
-                # Copy Python shared libraries (needed for dynamic linking)
-                mkdir -p /shared-python/lib
-                cp -a /usr/local/lib/libpython*.so* /shared-python/lib/ 2>/dev/null || true
-                cp -a /usr/lib/libpython*.so* /shared-python/lib/ 2>/dev/null || true
-
-                # Install Python packages
-                echo "Installing Python packages..."
-                /shared-bin/python3 -m pip install --no-cache-dir --target=/shared-python/site-packages requests pyOpenSSL
-
                 echo "Installation complete!"
                 ls -la /shared-bin/
-                ls -la /shared-python/
         serviceAccount:
           identifier: certwarden
         containers:
@@ -64,15 +46,9 @@ spec:
               repository: ghcr.io/gregtwallace/certwarden
               tag: v0.28.0
             env:
-              # Add kubectl and Python to PATH for post-processing scripts
+              # Add kubectl to PATH for post-processing scripts
               - name: PATH
                 value: "/shared-bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-              # Python path for standard library and installed packages
-              - name: PYTHONPATH
-                value: "/shared-python/python3.12:/shared-python/site-packages"
-              # Library path for Python shared libraries
-              - name: LD_LIBRARY_PATH
-                value: "/shared-python/lib"
             resources:
               requests:
                 cpu: 500m
@@ -101,15 +77,11 @@ spec:
         existingClaim: "{{ .Release.Name }}"
         globalMounts:
           - path: /app/data
-      # Shared binaries (kubectl) and Python packages
+      # Shared binaries (kubectl)
       shared-bin:
         type: emptyDir
         globalMounts:
           - path: /shared-bin
-      shared-python:
-        type: emptyDir
-        globalMounts:
-          - path: /shared-python
       # Post-processing scripts for IPMI deployment
       ipmi-scripts:
         type: configMap
