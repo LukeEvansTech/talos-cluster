@@ -40,10 +40,10 @@ spec:
               op: "add",
               path: "/spec/template/spec/volumes/-",
               value: {
-                name: "repository",
-                nfs: Object.spec.template.spec.volumes.nfs{
-                  server: "${SECRET_STORAGE_SERVER}",
-                  path: "${SECRET_STORAGE_SERVER_VOLSYNC_NFS}",
+                "name": "repository",
+                "nfs": {
+                  "server": "${SECRET_STORAGE_SERVER}",
+                  "path": "${SECRET_STORAGE_SERVER_VOLSYNC_NFS}"
                 }
               }
             },
@@ -51,8 +51,8 @@ spec:
               op: "add",
               path: "/spec/template/spec/containers/0/volumeMounts/-",
               value: {
-                name: "repository",
-                mountPath: "/repository",
+                "name": "repository",
+                "mountPath": "/repository"
               }
             }
           ]
