@@ -45,9 +45,8 @@ spec:
                 echo "Installation complete!"
                 ls -la /shared-bin/
                 ls -la /shared-python/
-        pod:
-          serviceAccount:
-            identifier: certwarden
+        serviceAccount:
+          identifier: certwarden
         containers:
           app:
             image:
