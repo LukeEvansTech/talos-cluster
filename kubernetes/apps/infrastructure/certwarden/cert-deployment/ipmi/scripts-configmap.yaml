@@ -88,7 +88,7 @@ data:
           restartPolicy: Never
           containers:
             - name: ipmi-deploy
-              image: docker.io/python:3.12-alpine
+              image: docker.io/python:3.14-alpine
               command:
                 - sh
                 - -c
