@@ -5,15 +5,10 @@ kind: HelmRelease
 metadata:
   name: volsync
 spec:
+  chartRef:
+    kind: OCIRepository
+    name: volsync
   interval: 1h
-  chart:
-    spec:
-      chart: volsync
-      version: ">=0.16.0"
-      sourceRef:
-        kind: OCIRepository
-        name: volsync
-      interval: 1h
   values:
     fullnameOverride: volsync
     image: &image
