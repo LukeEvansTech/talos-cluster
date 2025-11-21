@@ -45,6 +45,9 @@ spec:
                 echo "Installation complete!"
                 ls -la /shared-bin/
                 ls -la /shared-python/
+        pod:
+          serviceAccount:
+            identifier: certwarden
         containers:
           app:
             image:
@@ -77,10 +80,8 @@ spec:
         parentRefs:
           - name: envoy-internal
             namespace: network
-    defaultPodOptions: {}
     serviceAccount:
-      name: certwarden
-      create: false
+      certwarden: {}
     persistence:
       data:
         enabled: true
