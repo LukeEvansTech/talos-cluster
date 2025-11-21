@@ -30,11 +30,13 @@ graph TB
 
 ## Supported Devices
 
-### ✅ IPMI Servers (Supermicro)
+### ✅ IPMI Servers (Supermicro Redfish)
 - **Status**: Production Ready
-- **Models**: X9, X10, X11, X12, X13, H13 (H13 uses X12 Redfish API)
+- **Models**: X12, X13, H13 (Redfish API only)
+- **API**: Redfish v1
 - **Documentation**: [ipmi/README.md](./ipmi/README.md)
 - **Quick Start**: [ipmi/QUICKSTART.md](./ipmi/QUICKSTART.md)
+- **Note**: Legacy X9/X10/X11 boards not supported (CGI interface removed for simplicity)
 
 ### 🚧 APC UPS
 - **Status**: Coming Soon
