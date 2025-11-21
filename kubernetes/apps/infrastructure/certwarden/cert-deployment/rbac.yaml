@@ -13,7 +13,7 @@ metadata:
   name: certwarden-ipmi-deployer
   namespace: infrastructure
 rules:
-  # Allow creating Jobs for certificate deployment
+  # Allow managing Jobs for certificate deployment
   - apiGroups:
       - "batch"
     resources:
@@ -22,14 +22,27 @@ rules:
       - "create"
       - "get"
       - "list"
-  # Allow reading secrets (for IPMI credentials)
+      - "watch"
+      - "delete"
+  # Allow reading pods (for job logs)
+  - apiGroups:
+      - ""
+    resources:
+      - "pods"
+      - "pods/log"
+    verbs:
+      - "get"
+      - "list"
+  # Allow managing secrets (for IPMI credentials and temporary cert secrets)
   - apiGroups:
       - ""
     resources:
       - "secrets"
     verbs:
+      - "create"
       - "get"
       - "list"
+      - "delete"
 ---
 # RoleBinding to grant Certwarden the ability to create Jobs
 apiVersion: rbac.authorization.k8s.io/v1
