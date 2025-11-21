@@ -5,9 +5,8 @@ kind: Kustomization
 namespace: infrastructure
 resources:
   - ./externalsecret.yaml
-  - ./configmap.yaml
-  # Uncomment to enable the CronJob
-  # - ./cronjob.yaml
+  - ./scripts-configmap.yaml
+  - ./rbac.yaml
 labels:
   - pairs:
       app.kubernetes.io/name: cert-deployment
