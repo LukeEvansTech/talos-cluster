@@ -25,35 +25,37 @@ echo "DEBUG: Script path: $0" >&2
 
 # Validate required environment variables FIRST (before using them with set -u)
 if [[ -z "${APC_HOST:-}" ]]; then
-    echo "ERROR: APC_HOST environment variable is required"
+    echo "ERROR: APC_HOST environment variable is required" >&2
     exit 1
 fi
 
 if [[ -z "${CERTIFICATE_PEM:-}" ]]; then
-    echo "ERROR: CERTIFICATE_PEM not provided by Certwarden"
+    echo "ERROR: CERTIFICATE_PEM not provided by Certwarden" >&2
     exit 1
 fi
 
 if [[ -z "${PRIVATE_KEY_PEM:-}" ]]; then
-    echo "ERROR: PRIVATE_KEY_PEM not provided by Certwarden"
+    echo "ERROR: PRIVATE_KEY_PEM not provided by Certwarden" >&2
     exit 1
 fi
 
 # Now safe to use variables with set -u
+echo "DEBUG: Setting NAMESPACE and SECRET_NAME..." >&2
 NAMESPACE="${NAMESPACE:-infrastructure}"
 SECRET_NAME="apc-${APC_HOST}"
+echo "DEBUG: NAMESPACE=${NAMESPACE}, SECRET_NAME=${SECRET_NAME}" >&2
 
-echo "=== Certwarden APC NMC Certificate Deployment ==="
-echo "Certificate: ${CERTIFICATE_NAME:-unknown}"
-echo "Target APC: ${APC_HOST}"
-echo "Namespace: ${NAMESPACE}"
+echo "=== Certwarden APC NMC Certificate Deployment ===" >&2
+echo "Certificate: ${CERTIFICATE_NAME:-unknown}" >&2
+echo "Target APC: ${APC_HOST}" >&2
+echo "Namespace: ${NAMESPACE}" >&2
 
 # Create a unique job name with timestamp
 JOB_NAME="apc-cert-deploy-${APC_HOST}-$(date +%s)"
 
 # Create a temporary secret for the certificate
 CERT_SECRET_NAME="${JOB_NAME}-cert"
-echo "Creating temporary secret: ${CERT_SECRET_NAME}"
+echo "Creating temporary secret: ${CERT_SECRET_NAME}" >&2
 
 kubectl create secret generic "${CERT_SECRET_NAME}" \
     -n "${NAMESPACE}" \
@@ -64,7 +66,7 @@ kubectl create secret generic "${CERT_SECRET_NAME}" \
 # The secret will be garbage collected when the Job is deleted via ttlSecondsAfterFinished
 
 # Create the deployment Job
-echo "Creating deployment Job: ${JOB_NAME}"
+echo "Creating deployment Job: ${JOB_NAME}" >&2
 cat <<EOF | kubectl apply -f -
 apiVersion: batch/v1
 kind: Job
@@ -150,20 +152,20 @@ spec:
 EOF
 
 # Wait for the job to complete
-echo "Waiting for Job to complete..."
+echo "Waiting for Job to complete..." >&2
 kubectl wait --for=condition=complete --timeout=5m "job/${JOB_NAME}" -n "${NAMESPACE}"
 
 # Get the job logs
-echo "=== Job Logs ==="
+echo "=== Job Logs ===" >&2
 kubectl logs "job/${JOB_NAME}" -n "${NAMESPACE}"
 
 # Check if the job succeeded
 JOB_STATUS=$(kubectl get job "${JOB_NAME}" -n "${NAMESPACE}" -o jsonpath='{.status.conditions[?(@.type=="Complete")].status}')
 if [[ "${JOB_STATUS}" == "True" ]]; then
-    echo "✅ Certificate deployed successfully to ${APC_HOST}"
+    echo "✅ Certificate deployed successfully to ${APC_HOST}" >&2
     exit 0
 else
-    echo "❌ Failed to deploy certificate to ${APC_HOST}"
-    kubectl logs "job/${JOB_NAME}" -n "${NAMESPACE}"
+    echo "❌ Failed to deploy certificate to ${APC_HOST}" >&2
+    kubectl logs "job/${JOB_NAME}" -n "${NAMESPACE}" >&2
     exit 1
 fi
