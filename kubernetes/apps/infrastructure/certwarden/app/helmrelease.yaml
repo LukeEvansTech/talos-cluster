@@ -36,11 +36,18 @@ spec:
                 chmod +x kubectl
                 mv kubectl /shared-bin/
 
-                # Copy Python binary and libraries
+                # Copy Python binary, shared libraries, and standard library
                 echo "Copying Python..."
                 cp -a /usr/local/bin/python3* /shared-bin/
                 ln -sf python3 /shared-bin/python
+
+                # Copy Python standard library
                 cp -a /usr/local/lib/python3.12 /shared-python/
+
+                # Copy Python shared libraries (needed for dynamic linking)
+                mkdir -p /shared-python/lib
+                cp -a /usr/local/lib/libpython*.so* /shared-python/lib/ 2>/dev/null || true
+                cp -a /usr/lib/libpython*.so* /shared-python/lib/ 2>/dev/null || true
 
                 # Install Python packages
                 echo "Installing Python packages..."
@@ -63,6 +70,9 @@ spec:
               # Python path for standard library and installed packages
               - name: PYTHONPATH
                 value: "/shared-python/python3.12:/shared-python/site-packages"
+              # Library path for Python shared libraries
+              - name: LD_LIBRARY_PATH
+                value: "/shared-python/lib"
             resources:
               requests:
                 cpu: 500m
