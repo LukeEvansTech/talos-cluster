@@ -100,8 +100,10 @@ spec:
 
               # Download and install apc-p15-tool
               echo "=== Downloading apc-p15-tool ==="
-              APC_TOOL_VERSION="v1.0.1"
-              curl -L "https://github.com/gregtwallace/apc-p15-tool/releases/download/\${APC_TOOL_VERSION}/apc-p15-tool_linux_amd64" -o /usr/local/bin/apc-p15-tool
+              APC_TOOL_VERSION="v1.3.3"
+              curl -L "https://github.com/gregtwallace/apc-p15-tool/releases/download/\${APC_TOOL_VERSION}/apc-p15-tool-\${APC_TOOL_VERSION}_linux_amd64.tar.gz" -o /tmp/apc-p15-tool.tar.gz
+              tar -xzf /tmp/apc-p15-tool.tar.gz -C /tmp
+              mv /tmp/apc-p15-tool /usr/local/bin/apc-p15-tool
               chmod +x /usr/local/bin/apc-p15-tool
               apc-p15-tool version
 
