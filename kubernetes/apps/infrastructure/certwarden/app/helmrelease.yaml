@@ -26,6 +26,10 @@ spec:
               - |
                 set -e
 
+                # Install curl for kubectl download
+                echo "Installing curl..."
+                apt-get update -qq && apt-get install -y -qq curl > /dev/null 2>&1
+
                 # Install kubectl
                 echo "Installing kubectl..."
                 curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
