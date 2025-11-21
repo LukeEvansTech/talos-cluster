@@ -535,7 +535,7 @@ def main():
     parser.add_argument('--ipmi-url', required=True,
                         help='Supermicro IPMI 2.0 URL')
     parser.add_argument('--model', required=True,
-                        help='Board model: X9, X10, X11, X12, X13')
+                        help='Board model: X9, X10, X11, X12, X13, H13')
     parser.add_argument('--key-file', required=True,
                         help='X.509 Private key filename')
     parser.add_argument('--cert-file', required=True,
@@ -575,7 +575,8 @@ def main():
         requests_log.setLevel(logging.DEBUG)
         requests_log.propagate = True
 
-    if args.model == "X13":
+    # Normalize X13 and H13 to X12 (they use the same Redfish API)
+    if args.model in ["X13", "H13"]:
         args.model = "X12"
 
     # Start the operation

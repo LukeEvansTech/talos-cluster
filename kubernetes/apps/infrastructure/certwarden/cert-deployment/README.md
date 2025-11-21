@@ -32,7 +32,7 @@ graph TB
 
 ### ✅ IPMI Servers (Supermicro)
 - **Status**: Production Ready
-- **Models**: X9, X10, X11, X12, X13, H13
+- **Models**: X9, X10, X11, X12, X13, H13 (H13 uses X12 Redfish API)
 - **Documentation**: [ipmi/README.md](./ipmi/README.md)
 - **Quick Start**: [ipmi/QUICKSTART.md](./ipmi/QUICKSTART.md)
 
