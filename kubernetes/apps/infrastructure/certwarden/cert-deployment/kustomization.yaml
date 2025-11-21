@@ -7,7 +7,7 @@ kind: Kustomization
 namespace: infrastructure
 resources:
   - ./ipmi
-  # - ./apc  # Coming soon
+  - ./apc
 labels:
   - pairs:
       app.kubernetes.io/name: cert-deployment
