@@ -14,11 +14,49 @@ spec:
       certwarden:
         annotations:
           reloader.stakater.com/auto: "true"
+        initContainers:
+          # Install kubectl and Python for post-processing
+          install-tools:
+            image:
+              repository: docker.io/python
+              tag: 3.12-slim
+            command:
+              - bash
+              - -c
+              - |
+                set -e
+
+                # Install kubectl
+                echo "Installing kubectl..."
+                curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+                chmod +x kubectl
+                mv kubectl /shared-bin/
+
+                # Copy Python binary and libraries
+                echo "Copying Python..."
+                cp -a /usr/local/bin/python3* /shared-bin/
+                ln -sf /shared-bin/python3 /shared-bin/python
+                cp -a /usr/local/lib/python3.12 /shared-python/
+
+                # Install Python packages
+                echo "Installing Python packages..."
+                /shared-bin/python3 -m pip install --no-cache-dir --target=/shared-python/site-packages requests pyOpenSSL
+
+                echo "Installation complete!"
+                ls -la /shared-bin/
+                ls -la /shared-python/
         containers:
           app:
             image:
               repository: ghcr.io/gregtwallace/certwarden
               tag: v0.28.0
+            env:
+              # Add kubectl and Python to PATH for post-processing scripts
+              - name: PATH
+                value: "/shared-bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+              # Python path for standard library and installed packages
+              - name: PYTHONPATH
+                value: "/shared-python/python3.12:/shared-python/site-packages"
             resources:
               requests:
                 cpu: 500m
@@ -39,9 +77,27 @@ spec:
         parentRefs:
           - name: envoy-internal
             namespace: network
+    defaultPodOptions:
+      serviceAccountName: certwarden
     persistence:
       data:
         enabled: true
         existingClaim: "{{ .Release.Name }}"
         globalMounts:
           - path: /app/data
+      # Shared binaries (kubectl) and Python packages
+      shared-bin:
+        type: emptyDir
+        globalMounts:
+          - path: /shared-bin
+      shared-python:
+        type: emptyDir
+        globalMounts:
+          - path: /shared-python
+      # Post-processing scripts for IPMI deployment
+      ipmi-scripts:
+        type: configMap
+        name: certwarden-ipmi-scripts
+        defaultMode: 0755
+        globalMounts:
+          - path: /app/scripts

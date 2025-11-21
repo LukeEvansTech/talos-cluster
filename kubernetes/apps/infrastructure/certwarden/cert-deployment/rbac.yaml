@@ -1,0 +1,47 @@
+---
+# ServiceAccount for Certwarden to create IPMI deployment Jobs
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: certwarden
+  namespace: infrastructure
+---
+# Role allowing Certwarden to create Jobs for IPMI certificate deployment
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: certwarden-ipmi-deployer
+  namespace: infrastructure
+rules:
+  # Allow creating Jobs for certificate deployment
+  - apiGroups:
+      - "batch"
+    resources:
+      - "jobs"
+    verbs:
+      - "create"
+      - "get"
+      - "list"
+  # Allow reading secrets (for IPMI credentials)
+  - apiGroups:
+      - ""
+    resources:
+      - "secrets"
+    verbs:
+      - "get"
+      - "list"
+---
+# RoleBinding to grant Certwarden the ability to create Jobs
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: certwarden-ipmi-deployer
+  namespace: infrastructure
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: certwarden-ipmi-deployer
+subjects:
+  - kind: ServiceAccount
+    name: certwarden
+    namespace: infrastructure

@@ -9,5 +9,6 @@ components:
 resources:
   - ./namespace.yaml
   - ./certwarden/ks.yaml
+  - ./certwarden/cert-deployment-ks.yaml
   - ./smtp-relay/ks.yaml
   - ./vlmcsd/ks.yaml
