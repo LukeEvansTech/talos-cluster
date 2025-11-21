@@ -20,6 +20,14 @@ data:
 
     set -euo pipefail
 
+    # Debug output to stderr (Certwarden captures this)
+    echo "DEBUG: Script started at $(date)" >&2
+    echo "DEBUG: Environment variables:" >&2
+    env | grep -E "(IPMI|CERTIFICATE|PRIVATE|NAMESPACE)" | sort >&2 || echo "DEBUG: No matching env vars" >&2
+    echo "DEBUG: Working directory: $(pwd)" >&2
+    echo "DEBUG: User: $(whoami)" >&2
+    echo "DEBUG: Script path: $0" >&2
+
     # Validate required environment variables FIRST (before using them with set -u)
     if [[ -z "$${IPMI_HOST:-}" ]]; then
         echo "ERROR: IPMI_HOST environment variable is required"
