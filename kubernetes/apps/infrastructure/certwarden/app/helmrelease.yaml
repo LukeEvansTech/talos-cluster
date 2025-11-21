@@ -19,16 +19,16 @@ spec:
           install-tools:
             image:
               repository: docker.io/python
-              tag: 3.12-slim
+              tag: 3.12-alpine
             command:
-              - bash
+              - sh
               - -c
               - |
                 set -e
 
                 # Install curl for kubectl download
                 echo "Installing curl..."
-                apt-get update -qq && apt-get install -y -qq curl > /dev/null 2>&1
+                apk add --no-cache curl
 
                 # Install kubectl
                 echo "Installing kubectl..."
@@ -39,7 +39,7 @@ spec:
                 # Copy Python binary and libraries
                 echo "Copying Python..."
                 cp -a /usr/local/bin/python3* /shared-bin/
-                ln -sf /shared-bin/python3 /shared-bin/python
+                ln -sf python3 /shared-bin/python
                 cp -a /usr/local/lib/python3.12 /shared-python/
 
                 # Install Python packages
