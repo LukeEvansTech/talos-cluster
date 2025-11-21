@@ -475,10 +475,10 @@ class IPMIX12Updater(IPMIUpdater):
         self.use_b64encoded_login = False
 
     def _get_upload_data(self, cert_data, key_data):
-        return {
-            'cert_file' : cert_data,
-            'key_file' : key_data
-        }
+        return [
+            ('cert_file', ('cert.pem', cert_data, 'application/octet-stream')),
+            ('key_file', ('key.pem', key_data, 'application/octet-stream'))
+        ]
 
 def parse_valid_until(pem):
     from datetime import datetime
