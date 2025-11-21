@@ -118,7 +118,8 @@ spec:
                 --username "\$${IPMI_USERNAME}" \\
                 --password "\$${IPMI_PASSWORD}" \\
                 --cert-file /certs/cert.pem \\
-                --key-file /certs/key.pem
+                --key-file /certs/key.pem \\
+                --debug
           volumeMounts:
             - name: scripts
               mountPath: /scripts
