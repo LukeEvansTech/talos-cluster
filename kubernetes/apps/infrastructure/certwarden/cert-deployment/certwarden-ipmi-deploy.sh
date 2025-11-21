@@ -11,61 +11,63 @@
 #   PRIVATE_KEY_PEM - Private key data (PEM format)
 #   IPMI_HOST - Custom env var: IPMI host identifier (e.g., cr-storage-ipmi)
 #
+# shellcheck disable=SC2157,SC2193,SC2034
+# Note: Variables use $$ syntax for Kustomize escaping, shellcheck can't parse this
 
 set -euo pipefail
 
-NAMESPACE="${NAMESPACE:-infrastructure}"
-SECRET_NAME="ipmi-${IPMI_HOST}"
+NAMESPACE="$${NAMESPACE:-infrastructure}"
+SECRET_NAME="ipmi-$${IPMI_HOST}"
 
 # Validate required environment variables
-if [[ -z "${IPMI_HOST:-}" ]]; then
+if [[ -z "$${IPMI_HOST:-}" ]]; then
     echo "ERROR: IPMI_HOST environment variable is required"
     exit 1
 fi
 
-if [[ -z "${CERTIFICATE_PEM:-}" ]]; then
+if [[ -z "$${CERTIFICATE_PEM:-}" ]]; then
     echo "ERROR: CERTIFICATE_PEM not provided by Certwarden"
     exit 1
 fi
 
-if [[ -z "${PRIVATE_KEY_PEM:-}" ]]; then
+if [[ -z "$${PRIVATE_KEY_PEM:-}" ]]; then
     echo "ERROR: PRIVATE_KEY_PEM not provided by Certwarden"
     exit 1
 fi
 
 echo "=== Certwarden IPMI Certificate Deployment ==="
-echo "Certificate: ${CERTIFICATE_NAME:-unknown}"
-echo "Target IPMI: ${IPMI_HOST}"
-echo "Namespace: ${NAMESPACE}"
+echo "Certificate: $${CERTIFICATE_NAME:-unknown}"
+echo "Target IPMI: $${IPMI_HOST}"
+echo "Namespace: $${NAMESPACE}"
 
 # Create a unique job name with timestamp
-JOB_NAME="ipmi-cert-deploy-${IPMI_HOST}-$(date +%s)"
+JOB_NAME="ipmi-cert-deploy-$${IPMI_HOST}-$(date +%s)"
 
 # Create a temporary secret for the certificate
-CERT_SECRET_NAME="${JOB_NAME}-cert"
-echo "Creating temporary secret: ${CERT_SECRET_NAME}"
+CERT_SECRET_NAME="$${JOB_NAME}-cert"
+echo "Creating temporary secret: $${CERT_SECRET_NAME}"
 
-kubectl create secret generic "${CERT_SECRET_NAME}" \
-    -n "${NAMESPACE}" \
-    --from-literal=cert.pem="${CERTIFICATE_PEM}" \
-    --from-literal=key.pem="${PRIVATE_KEY_PEM}"
+kubectl create secret generic "$${CERT_SECRET_NAME}" \
+    -n "$${NAMESPACE}" \
+    --from-literal=cert.pem="$${CERTIFICATE_PEM}" \
+    --from-literal=key.pem="$${PRIVATE_KEY_PEM}"
 
 # Cleanup function to delete the temporary secret
 # shellcheck disable=SC2329  # Function is invoked via trap
 cleanup() {
     echo "Cleaning up temporary secret..."
-    kubectl delete secret "${CERT_SECRET_NAME}" -n "${NAMESPACE}" --ignore-not-found=true
+    kubectl delete secret "$${CERT_SECRET_NAME}" -n "$${NAMESPACE}" --ignore-not-found=true
 }
 trap cleanup EXIT
 
 # Create the deployment Job
-echo "Creating deployment Job: ${JOB_NAME}"
+echo "Creating deployment Job: $${JOB_NAME}"
 cat <<EOF | kubectl apply -f -
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: ${JOB_NAME}
-  namespace: ${NAMESPACE}
+  name: $${JOB_NAME}
+  namespace: $${NAMESPACE}
 spec:
   ttlSecondsAfterFinished: 300
   template:
@@ -91,22 +93,22 @@ spec:
               pip3 install --no-cache-dir requests pyOpenSSL
 
               # Read IPMI configuration from secret
-              export IPMI_URL=\$(kubectl get secret ${SECRET_NAME} -n ${NAMESPACE} -o jsonpath='{.data.IPMI_URL}' | base64 -d)
-              export IPMI_MODEL=\$(kubectl get secret ${SECRET_NAME} -n ${NAMESPACE} -o jsonpath='{.data.IPMI_MODEL}' | base64 -d)
-              export IPMI_USERNAME=\$(kubectl get secret ${SECRET_NAME} -n ${NAMESPACE} -o jsonpath='{.data.IPMI_USERNAME}' | base64 -d)
-              export IPMI_PASSWORD=\$(kubectl get secret ${SECRET_NAME} -n ${NAMESPACE} -o jsonpath='{.data.IPMI_PASSWORD}' | base64 -d)
+              export IPMI_URL=\$(kubectl get secret $${SECRET_NAME} -n $${NAMESPACE} -o jsonpath='{.data.IPMI_URL}' | base64 -d)
+              export IPMI_MODEL=\$(kubectl get secret $${SECRET_NAME} -n $${NAMESPACE} -o jsonpath='{.data.IPMI_MODEL}' | base64 -d)
+              export IPMI_USERNAME=\$(kubectl get secret $${SECRET_NAME} -n $${NAMESPACE} -o jsonpath='{.data.IPMI_USERNAME}' | base64 -d)
+              export IPMI_PASSWORD=\$(kubectl get secret $${SECRET_NAME} -n $${NAMESPACE} -o jsonpath='{.data.IPMI_PASSWORD}' | base64 -d)
 
               echo "=== IPMI Configuration ==="
-              echo "IPMI URL: \${IPMI_URL}"
-              echo "IPMI Model: \${IPMI_MODEL}"
-              echo "IPMI Username: \${IPMI_USERNAME}"
+              echo "IPMI URL: \$${IPMI_URL}"
+              echo "IPMI Model: \$${IPMI_MODEL}"
+              echo "IPMI Username: \$${IPMI_USERNAME}"
 
               echo "=== Deploying certificate ==="
               python3 /scripts/ipmi-updater.py \\
-                --ipmi-url "\${IPMI_URL}" \\
-                --model "\${IPMI_MODEL}" \\
-                --username "\${IPMI_USERNAME}" \\
-                --password "\${IPMI_PASSWORD}" \\
+                --ipmi-url "\$${IPMI_URL}" \\
+                --model "\$${IPMI_MODEL}" \\
+                --username "\$${IPMI_USERNAME}" \\
+                --password "\$${IPMI_PASSWORD}" \\
                 --cert-file /certs/cert.pem \\
                 --key-file /certs/key.pem
           volumeMounts:
@@ -121,24 +123,24 @@ spec:
             defaultMode: 0755
         - name: certs
           secret:
-            secretName: ${CERT_SECRET_NAME}
+            secretName: $${CERT_SECRET_NAME}
 EOF
 
 # Wait for the job to complete
 echo "Waiting for Job to complete..."
-kubectl wait --for=condition=complete --timeout=5m "job/${JOB_NAME}" -n "${NAMESPACE}"
+kubectl wait --for=condition=complete --timeout=5m "job/$${JOB_NAME}" -n "$${NAMESPACE}"
 
 # Get the job logs
 echo "=== Job Logs ==="
-kubectl logs "job/${JOB_NAME}" -n "${NAMESPACE}"
+kubectl logs "job/$${JOB_NAME}" -n "$${NAMESPACE}"
 
 # Check if the job succeeded
-JOB_STATUS=$(kubectl get job "${JOB_NAME}" -n "${NAMESPACE}" -o jsonpath='{.status.conditions[?(@.type=="Complete")].status}')
-if [[ "${JOB_STATUS}" == "True" ]]; then
-    echo "✅ Certificate deployed successfully to ${IPMI_HOST}"
+JOB_STATUS=$(kubectl get job "$${JOB_NAME}" -n "$${NAMESPACE}" -o jsonpath='{.status.conditions[?(@.type=="Complete")].status}')
+if [[ "$${JOB_STATUS}" == "True" ]]; then
+    echo "✅ Certificate deployed successfully to $${IPMI_HOST}"
     exit 0
 else
-    echo "❌ Failed to deploy certificate to ${IPMI_HOST}"
-    kubectl logs "job/${JOB_NAME}" -n "${NAMESPACE}"
+    echo "❌ Failed to deploy certificate to $${IPMI_HOST}"
+    kubectl logs "job/$${JOB_NAME}" -n "$${NAMESPACE}"
     exit 1
 fi
