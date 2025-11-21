@@ -16,10 +16,7 @@
 
 set -euo pipefail
 
-NAMESPACE="$${NAMESPACE:-infrastructure}"
-SECRET_NAME="ipmi-$${IPMI_HOST}"
-
-# Validate required environment variables
+# Validate required environment variables FIRST (before using them with set -u)
 if [[ -z "$${IPMI_HOST:-}" ]]; then
     echo "ERROR: IPMI_HOST environment variable is required"
     exit 1
@@ -34,6 +31,10 @@ if [[ -z "$${PRIVATE_KEY_PEM:-}" ]]; then
     echo "ERROR: PRIVATE_KEY_PEM not provided by Certwarden"
     exit 1
 fi
+
+# Now safe to use variables with set -u
+NAMESPACE="$${NAMESPACE:-infrastructure}"
+SECRET_NAME="ipmi-$${IPMI_HOST}"
 
 echo "=== Certwarden IPMI Certificate Deployment ==="
 echo "Certificate: $${CERTIFICATE_NAME:-unknown}"
