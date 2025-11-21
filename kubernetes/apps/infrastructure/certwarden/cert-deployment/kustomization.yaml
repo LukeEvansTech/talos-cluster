@@ -1,0 +1,13 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: infrastructure
+resources:
+  - ./externalsecret.yaml
+  - ./scripts-configmap.yaml
+  - ./rbac.yaml
+labels:
+  - pairs:
+      app.kubernetes.io/name: cert-deployment
+      app.kubernetes.io/part-of: certwarden
