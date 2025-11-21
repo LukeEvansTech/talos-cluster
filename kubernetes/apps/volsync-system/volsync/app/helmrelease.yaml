@@ -11,8 +11,8 @@ spec:
       chart: volsync
       version: ">=0.16.0"
       sourceRef:
-        kind: HelmRepository
-        name: volsync-perfectra1n
+        kind: OCIRepository
+        name: volsync
       interval: 1h
   values:
     fullnameOverride: volsync
