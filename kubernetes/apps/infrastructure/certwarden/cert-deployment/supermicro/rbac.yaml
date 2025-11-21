@@ -10,7 +10,7 @@ metadata:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: certwarden-ipmi-deployer
+  name: certwarden-supermicro-deployer
   namespace: infrastructure
 rules:
   # Allow managing Jobs for certificate deployment
@@ -48,12 +48,12 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: certwarden-ipmi-deployer
+  name: certwarden-supermicro-deployer
   namespace: infrastructure
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: certwarden-ipmi-deployer
+  name: certwarden-supermicro-deployer
 subjects:
   - kind: ServiceAccount
     name: certwarden

@@ -6,9 +6,9 @@ resources:
   - externalsecret.yaml
   - rbac.yaml
 configMapGenerator:
-  - name: certwarden-ipmi-scripts
+  - name: certwarden-supermicro-scripts
     files:
-      - ipmi-updater.py
-      - certwarden-ipmi-deploy.sh
+      - supermicro-updater.py
+      - certwarden-supermicro-deploy.sh
 generatorOptions:
   disableNameSuffixHash: true
