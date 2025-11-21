@@ -1,0 +1,13 @@
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: infrastructure
+resources:
+  - externalsecret.yaml
+  - externalsecret-cr-label-large.yaml
+configMapGenerator:
+  - name: certwarden-brother-scripts
+    files:
+      - certwarden-brother-deploy.sh
+generatorOptions:
+  disableNameSuffixHash: true
