@@ -260,7 +260,12 @@ class IPMIUpdater:
             except ConnectionError:
                 return False
 
+            self.logger.debug("X12 upload response status: %s" % result.status_code)
+            self.logger.debug("X12 upload response text: %s" % result.text)
+
             if not 'SSL certificate and private key were successfully uploaded' in result.text:
+                print(f"ERROR: X12 upload failed. Status: {result.status_code}")
+                print(f"Response: {result.text}")
                 return False
 
             return True
