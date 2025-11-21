@@ -1,0 +1,14 @@
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: infrastructure
+resources:
+  - externalsecret.yaml
+  - rbac.yaml
+configMapGenerator:
+  - name: certwarden-ipmi-scripts
+    files:
+      - ipmi-updater.py
+      - certwarden-ipmi-deploy.sh
+generatorOptions:
+  disableNameSuffixHash: true
