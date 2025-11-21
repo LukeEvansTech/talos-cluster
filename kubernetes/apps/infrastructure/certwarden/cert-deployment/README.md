@@ -4,7 +4,7 @@ Automated certificate deployment to network devices via Certwarden post-processi
 
 ## Supported Devices
 
-### ✅ IPMI (Supermicro X12/X13/H13)
+### ✅ Supermicro IPMI (X12/X13/H13)
 - **Status**: Production Ready
 - **API**: Redfish v1
 - **Models**: X12, X13, H13 only
@@ -32,31 +32,31 @@ sequenceDiagram
 
 ```
 cert-deployment/
-├── README.md              # This file
-├── kustomization.yaml     # Includes device types
-├── ipmi/                  # IPMI deployment
+├── README.md                        # This file
+├── kustomization.yaml               # Includes device types
+├── supermicro/                      # Supermicro IPMI deployment
 │   ├── kustomization.yaml
 │   ├── externalsecret.yaml
 │   ├── rbac.yaml
-│   ├── ipmi-updater.py
-│   └── certwarden-ipmi-deploy.sh
-└── apc/                   # APC deployment (future)
+│   ├── supermicro-updater.py
+│   └── certwarden-supermicro-deploy.sh
+└── apc/                             # APC deployment (future)
     └── README.md
 ```
 
 ## Quick Start
 
-### IPMI Setup
+### Supermicro IPMI Setup
 
 1. **Add IPMI credentials to 1Password**:
-   - Item name: `ipmi-{hostname}`
+   - Item name: `{hostname}` (e.g., `cr-storage-ipmi`)
    - Fields: `IPMI_URL`, `IPMI_MODEL`, `IPMI_USERNAME`, `IPMI_PASSWORD`
 
-2. **Update ExternalSecret** in `ipmi/externalsecret.yaml`:
+2. **Update ExternalSecret** in `supermicro/externalsecret.yaml`:
    ```yaml
    dataFrom:
      - extract:
-         key: ipmi-{hostname}  # Your 1Password item name
+         key: {hostname}  # Your 1Password item name
    ```
 
 3. **Deploy**:
@@ -66,8 +66,8 @@ cert-deployment/
 
 4. **Configure Certwarden** (via UI):
    - Certificate → Post-Processing
-   - Script: `/app/scripts/certwarden-ipmi-deploy.sh`
-   - Environment: `IPMI_HOST={hostname}` (matches secret name)
+   - Script: `/app/scripts/supermicro/certwarden-supermicro-deploy.sh`
+   - Environment: `SUPERMICRO_HOST={hostname}` (e.g., `cr-storage-ipmi`)
 
 5. **Test**: Force certificate renewal in Certwarden UI
 
@@ -78,7 +78,7 @@ cert-deployment/
 kubectl get jobs -n infrastructure -w
 
 # View logs
-kubectl logs -n infrastructure -l app.kubernetes.io/name=certwarden-ipmi-deploy -f
+kubectl logs -n infrastructure -l app.kubernetes.io/name=certwarden-supermicro-deploy -f
 ```
 
 ## Security
@@ -98,16 +98,16 @@ kubectl logs -n infrastructure job/<job-name>
 
 **ExternalSecret not syncing?**
 ```bash
-kubectl describe externalsecret -n infrastructure ipmi-{hostname}
+kubectl describe externalsecret -n infrastructure supermicro-{hostname}
 ```
 
 **Force ExternalSecret sync:**
 ```bash
-kubectl annotate externalsecret -n infrastructure ipmi-{hostname} \
+kubectl annotate externalsecret -n infrastructure supermicro-{hostname} \
   force-sync=$(date +%s) --overwrite
 ```
 
 ---
 
 **Last Updated**: 2025-11-21
-**Status**: IPMI Production Ready
+**Status**: Supermicro IPMI Production Ready

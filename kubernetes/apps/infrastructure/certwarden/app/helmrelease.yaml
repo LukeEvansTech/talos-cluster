@@ -82,13 +82,13 @@ spec:
         type: emptyDir
         globalMounts:
           - path: /shared-bin
-      # Post-processing scripts for IPMI deployment
-      ipmi-scripts:
+      # Post-processing scripts for Supermicro IPMI deployment
+      supermicro-scripts:
         type: configMap
-        name: certwarden-ipmi-scripts
+        name: certwarden-supermicro-scripts
         defaultMode: 0755
         globalMounts:
-          - path: /app/scripts/ipmi
+          - path: /app/scripts/supermicro
       # Post-processing scripts for APC deployment
       apc-scripts:
         type: configMap
@@ -96,3 +96,10 @@ spec:
         defaultMode: 0755
         globalMounts:
           - path: /app/scripts/apc
+      # Post-processing scripts for Brother printer deployment
+      brother-scripts:
+        type: configMap
+        name: certwarden-brother-scripts
+        defaultMode: 0755
+        globalMounts:
+          - path: /app/scripts/brother
