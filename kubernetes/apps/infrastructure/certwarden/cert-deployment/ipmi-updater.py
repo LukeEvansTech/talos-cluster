@@ -30,7 +30,7 @@ from datetime import datetime
 import xml.etree.ElementTree as etree
 from urllib.parse import urlparse
 
-REQUEST_TIMEOUT = 5.0
+REQUEST_TIMEOUT = 30.0
 
 class IPMIUpdater:
     def __init__(self, session, ipmi_url):
