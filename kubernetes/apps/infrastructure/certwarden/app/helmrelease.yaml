@@ -88,4 +88,11 @@ spec:
         name: certwarden-ipmi-scripts
         defaultMode: 0755
         globalMounts:
-          - path: /app/scripts
+          - path: /app/scripts/ipmi
+      # Post-processing scripts for APC deployment
+      apc-scripts:
+        type: configMap
+        name: certwarden-apc-scripts
+        defaultMode: 0755
+        globalMounts:
+          - path: /app/scripts/apc
