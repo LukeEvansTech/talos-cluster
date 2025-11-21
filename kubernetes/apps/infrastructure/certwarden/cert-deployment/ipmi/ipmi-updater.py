@@ -126,19 +126,24 @@ class IPMIUpdater:
             return True
         
         else:
+            print(f"DEBUG: X12 model - using Redfish login to {self.login_url}")
             login_data = {
                 'UserName': username,
                 'Password': password
             }
-            
+
             request_headers = {'Content-Type': 'application/json'}
             try:
                 result = self.session.post(self.login_url, data=json.dumps(login_data), headers=request_headers, timeout=REQUEST_TIMEOUT, verify=False)
-            except ConnectionError:
+            except ConnectionError as e:
+                print(f"ERROR: Connection error during login: {e}")
                 return False
             if not result.ok:
+                print(f"ERROR: Login failed with status code: {result.status_code}")
+                print(f"ERROR: Response: {result.text}")
                 return result.status_code
 
+            print(f"DEBUG: Login successful, got auth token")
             return result
 
 
@@ -240,6 +245,9 @@ class IPMIUpdater:
         :param cert_file: filename to X.509 certificate PEM
         :return:
         """
+        print(f"DEBUG: Reading certificate from {cert_file}")
+        print(f"DEBUG: Reading key from {key_file}")
+
         with open(key_file, 'rb') as filehandle:
             key_data = filehandle.read()
         with open(cert_file, 'rb') as filehandle:
@@ -247,27 +255,45 @@ class IPMIUpdater:
             # extract certificates only (IMPI doesn't like DH PARAMS)
             cert_data = b'\n'.join(re.findall(b'-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----', cert_data, re.DOTALL)) + b'\n'
 
+        print(f"DEBUG: Certificate data length: {len(cert_data)} bytes")
+        print(f"DEBUG: Key data length: {len(key_data)} bytes")
+
         if model == 'X12':
             substr = b'-----END CERTIFICATE-----\n'
-            cert_data = cert_data.split(substr)[0] + substr
+            cert_only = cert_data.split(substr)[0] + substr
 
-            files_to_upload = self._get_upload_data(cert_data, key_data)
+            print(f"DEBUG: X12 model detected, using only server certificate ({len(cert_only)} bytes)")
+
+            # For X12/X13, use dict format (NOT list of tuples)
+            files_to_upload = {
+                'cert_file': ('cert.pem', cert_only, 'application/octet-stream'),
+                'key_file': ('key.pem', key_data, 'application/octet-stream')
+            }
 
             request_headers = {'X-Auth-Token': token}
 
+            print(f"DEBUG: Uploading to {self.upload_cert_url}")
             try:
                 result = self.session.post(self.upload_cert_url, files=files_to_upload, headers=request_headers, timeout=REQUEST_TIMEOUT, verify=False)
-            except ConnectionError:
+            except ConnectionError as e:
+                print(f"ERROR: Connection error during upload: {e}")
+                return False
+            except Exception as e:
+                print(f"ERROR: Unexpected error during upload: {e}")
                 return False
 
+            print(f"DEBUG: X12 upload response status: {result.status_code}")
+            print(f"DEBUG: X12 upload response text: {result.text}")
             self.logger.debug("X12 upload response status: %s" % result.status_code)
             self.logger.debug("X12 upload response text: %s" % result.text)
 
-            if not 'SSL certificate and private key were successfully uploaded' in result.text:
+            if 'SSL certificate and private key were successfully uploaded' not in result.text:
                 print(f"ERROR: X12 upload failed. Status: {result.status_code}")
-                print(f"Response: {result.text}")
+                print(f"ERROR: Response: {result.text}")
+                print(f"ERROR: Response headers: {result.headers}")
                 return False
 
+            print("SUCCESS: Certificate uploaded successfully!")
             return True
 
 
