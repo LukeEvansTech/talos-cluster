@@ -41,7 +41,7 @@ spec:
               MIRROR_ISSUES: "true"
               MIRROR_WIKI: "true"
               # Gitea/Forgejo Configuration
-              GITEA_URL: http://forgejo-http.default.svc.cluster.local:3000
+              GITEA_URL: https://forgejo.${SECRET_DOMAIN}
               GITEA_USERNAME: forgejoadmin
               GITEA_ORGANIZATION: github-mirrors
               GITEA_ORG_VISIBILITY: private
