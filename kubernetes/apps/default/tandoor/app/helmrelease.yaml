@@ -1,0 +1,133 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: &app tandoor
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: app-template
+    namespace: flux-system
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+      strategy: rollback
+  values:
+    controllers:
+      tandoor:
+        annotations:
+          reloader.stakater.com/auto: "true"
+
+        initContainers:
+          init-db:
+            image:
+              repository: ghcr.io/home-operations/postgres-init
+              tag: "18"
+            envFrom:
+              - secretRef:
+                  name: tandoor-secret
+
+        containers:
+          app:
+            image:
+              repository: ghcr.io/tandoorrecipes/recipes
+              tag: 2.3.5
+            env:
+              TZ: ${TIMEZONE}
+              ALLOWED_HOSTS: tandoor.${SECRET_DOMAIN}
+              COMMENT_PREF_DEFAULT: "1"
+              DB_ENGINE: django.db.backends.postgresql
+              DEBUG: "0"
+              DEFAULT_FROM_EMAIL: tandoor@${SECRET_DOMAIN}
+              EMAIL_HOST: smtp-relay.network.svc.cluster.local
+              EMAIL_PORT: "2525"
+              ENABLE_PDF_EXPORT: "1"
+              ENABLE_SIGNUP: "0"
+              FRACTION_PREF_DEFAULT: "0"
+              GUNICORN_MEDIA: "0"
+              SHOPPING_MIN_AUTOSYNC_INTERVAL: "5"
+              SOCIAL_PROVIDERS: allauth.socialaccount.providers.openid_connect
+            envFrom:
+              - secretRef:
+                  name: tandoor-secret
+            probes:
+              liveness: &probes
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /
+                    port: &port 8080
+                  initialDelaySeconds: 30
+                  periodSeconds: 10
+                  timeoutSeconds: 1
+                  failureThreshold: 3
+              readiness: *probes
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+              capabilities:
+                drop:
+                  - ALL
+                add:
+                  - CHOWN
+                  - DAC_OVERRIDE
+                  - FOWNER
+                  - SETGID
+                  - SETUID
+            resources:
+              requests:
+                cpu: 10m
+                memory: 256Mi
+              limits:
+                memory: 1Gi
+
+    defaultPodOptions:
+      securityContext:
+        runAsUser: 0
+        runAsGroup: 0
+        fsGroup: 0
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile: {type: RuntimeDefault}
+
+    service:
+      app:
+        controller: tandoor
+        ports:
+          http:
+            port: *port
+
+    route:
+      app:
+        hostnames:
+          - "{{ .Release.Name }}.${SECRET_DOMAIN}"
+          - "{{ .Release.Name }}.${SECRET_INTERNAL_DOMAIN}"
+        parentRefs:
+          - name: envoy-internal
+            namespace: network
+
+    persistence:
+      data:
+        existingClaim: "{{ .Release.Name }}"
+        advancedMounts:
+          tandoor:
+            app:
+              - path: /opt/recipes/mediafiles
+                subPath: mediafiles
+              - path: /opt/recipes/staticfiles
+                subPath: staticfiles
+      tmpfs:
+        type: emptyDir
+        advancedMounts:
+          tandoor:
+            app:
+              - path: /opt/recipes/cookbook/static/django_js_reverse
+                subPath: django_js_reverse
+              - path: /tmp
+                subPath: tmp
