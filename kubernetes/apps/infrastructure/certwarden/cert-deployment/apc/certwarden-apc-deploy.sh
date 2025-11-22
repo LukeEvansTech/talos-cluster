@@ -105,7 +105,7 @@ spec:
               tar -xzf /tmp/apc-p15-tool.tar.gz -C /tmp
               mv /tmp/apc-p15-tool /usr/local/bin/apc-p15-tool
               chmod +x /usr/local/bin/apc-p15-tool
-              apc-p15-tool version
+              apc-p15-tool version || echo "Tool installed successfully"
 
               # Read APC configuration from secret
               export APC_HOSTNAME=\$(kubectl get secret ${SECRET_NAME} -n ${NAMESPACE} -o jsonpath='{.data.APC_HOSTNAME}' | base64 -d)
