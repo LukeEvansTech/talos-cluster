@@ -33,5 +33,6 @@ resources:
   - ./smokeping/ks.yaml
   - ./speakr/ks.yaml
   - ./stirling-pdf/ks.yaml
+  - ./tandoor/ks.yaml
   - ./universal/ks.yaml
   - ./uptimekuma/ks.yaml
