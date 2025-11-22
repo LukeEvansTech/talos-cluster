@@ -100,7 +100,15 @@ class APCUpdater:
             if result.stderr:
                 self.logger.warning(f"apc-p15-tool stderr:\n{result.stderr}")
 
-            # Check return code
+            # Check if certificate was installed successfully
+            # The tool may return non-zero if verification fails, but install can still succeed
+            if "apc p15 file installed" in result.stdout:
+                self.logger.info("✅ Certificate installed successfully!")
+                if "failed to dial webui for verification" in result.stderr:
+                    self.logger.warning("⚠️  Web UI verification failed (this is OK - cert is installed)")
+                return True
+
+            # If we didn't find the success message, check the return code
             if result.returncode != 0:
                 self.logger.error(f"apc-p15-tool failed with return code {result.returncode}")
                 return False
