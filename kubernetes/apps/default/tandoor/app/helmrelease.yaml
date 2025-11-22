@@ -52,6 +52,7 @@ spec:
               GUNICORN_MEDIA: "0"
               SHOPPING_MIN_AUTOSYNC_INTERVAL: "5"
               SOCIAL_PROVIDERS: allauth.socialaccount.providers.openid_connect
+              TANDOOR_PORT: "8080"
             envFrom:
               - secretRef:
                   name: tandoor-secret
@@ -63,11 +64,22 @@ spec:
                   httpGet:
                     path: /
                     port: &port 8080
-                  initialDelaySeconds: 30
+                  initialDelaySeconds: 60
                   periodSeconds: 10
-                  timeoutSeconds: 1
+                  timeoutSeconds: 5
                   failureThreshold: 3
               readiness: *probes
+              startup:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /
+                    port: *port
+                  initialDelaySeconds: 0
+                  periodSeconds: 5
+                  timeoutSeconds: 5
+                  failureThreshold: 30
             securityContext:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: false
