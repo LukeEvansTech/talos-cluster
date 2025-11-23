@@ -1,0 +1,110 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: &app cupdate
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: cupdate
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+      strategy: rollback
+  values:
+    controllers:
+      cupdate:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        serviceAccount:
+          identifier: cupdate
+        containers:
+          app:
+            image:
+              repository: ghcr.io/alexgustafsson/cupdate
+              tag: 0.22.2
+              pullPolicy: IfNotPresent
+            env:
+              TZ: ${TIMEZONE}
+              # Include old replica sets in discovery
+              CUPDATE_KUBERNETES_INCLUDE_OLD_REPLICAS: "false"
+              # Debounce interval for resource changes
+              CUPDATE_KUBERNETES_DEBOUNCE_INTERVAL: "5s"
+            probes:
+              liveness:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /
+                    port: 8080
+                  initialDelaySeconds: 10
+                  periodSeconds: 10
+              readiness:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /
+                    port: 8080
+                  initialDelaySeconds: 5
+                  periodSeconds: 10
+            resources:
+              requests:
+                cpu: 10m
+                memory: 32Mi
+              limits:
+                memory: 128Mi
+            securityContext:
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop:
+                  - ALL
+              readOnlyRootFilesystem: true
+
+    defaultPodOptions:
+      automountServiceAccountToken: true
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+        fsGroup: 65534
+        seccompProfile:
+          type: RuntimeDefault
+
+    serviceAccount:
+      cupdate: {}
+
+    service:
+      app:
+        controller: cupdate
+        ports:
+          http:
+            port: 8080
+
+    route:
+      app:
+        hostnames:
+          - "{{ .Release.Name }}.${SECRET_DOMAIN}"
+          - "{{ .Release.Name }}.${SECRET_INTERNAL_DOMAIN}"
+        parentRefs:
+          - name: envoy-internal
+            namespace: network
+
+    persistence:
+      tmp:
+        enabled: true
+        type: emptyDir
+        globalMounts:
+          - path: /tmp
+      data:
+        enabled: true
+        type: emptyDir
+        globalMounts:
+          - path: /var/run/data
