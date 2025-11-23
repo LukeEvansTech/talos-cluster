@@ -92,25 +92,24 @@ spec:
           type: RuntimeDefault
 
     service:
+      app:
+        controller: frontend
+        ports:
+          http:
+            port: 8000
       backend:
         controller: backend
         ports:
           http:
             port: 3000
-      frontend:
-        controller: frontend
-        ports:
-          http:
-            port: 8000
 
     route:
-      frontend:
+      app:
         hostnames:
           - "{{ .Release.Name }}.${SECRET_INTERNAL_DOMAIN}"
         parentRefs:
           - name: envoy-internal
             namespace: network
-        service: frontend
 
     persistence:
       data:
