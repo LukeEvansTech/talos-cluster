@@ -1,10 +1,9 @@
 #!/bin/bash
 #
-# Certwarden Post-Process Script for Supermicro IPMI Certificate Deployment (CONTAINERIZED)
+# Certwarden Post-Process Script for Supermicro IPMI Certificate Deployment
 #
 # This script is called by Certwarden after certificate renewal.
 # It creates a Kubernetes Job to deploy the certificate to the Supermicro IPMI host.
-# Uses the pre-built ghcr.io/lukeevanstech/supermicro-ipmi-cert container.
 #
 # Environment variables from Certwarden:
 #   CERTIFICATE_NAME - Name of the certificate
@@ -17,7 +16,7 @@
 set -euo pipefail
 
 # Debug output to stderr (Certwarden captures this)
-echo "DEBUG: Containerized script started at $(date)" >&2
+echo "DEBUG: Script started at $(date)" >&2
 echo "DEBUG: Environment variables:" >&2
 env | grep -E "(SUPERMICRO|CERTIFICATE|PRIVATE|NAMESPACE)" | sort >&2 || echo "DEBUG: No matching env vars" >&2
 echo "DEBUG: Working directory: $(pwd)" >&2
@@ -44,11 +43,10 @@ fi
 NAMESPACE="${NAMESPACE:-infrastructure}"
 SECRET_NAME="supermicro-${SUPERMICRO_HOST}"
 
-echo "=== Certwarden Supermicro Certificate Deployment (CONTAINERIZED) ==="
+echo "=== Certwarden Supermicro Certificate Deployment ==="
 echo "Certificate: ${CERTIFICATE_NAME:-unknown}"
 echo "Target Supermicro: ${SUPERMICRO_HOST}"
 echo "Namespace: ${NAMESPACE}"
-echo "Container: ghcr.io/lukeevanstech/supermicro-ipmi-cert:latest"
 
 # Create a unique job name with timestamp
 JOB_NAME="supermicro-cert-deploy-${SUPERMICRO_HOST}-$(date +%s)"
@@ -76,7 +74,6 @@ metadata:
   labels:
     app.kubernetes.io/name: certwarden-supermicro-deploy
     app.kubernetes.io/instance: ${SUPERMICRO_HOST}
-    deployment-method: container
 spec:
   ttlSecondsAfterFinished: 300
   backoffLimit: 2
@@ -86,13 +83,21 @@ spec:
       restartPolicy: Never
       containers:
         - name: supermicro-deploy
-          image: ghcr.io/lukeevanstech/supermicro-ipmi-cert:latest
-          imagePullPolicy: Always
+          image: docker.io/python:3.12-alpine
           command:
             - sh
             - -c
             - |
               set -e
+
+              # Install dependencies
+              apk add --no-cache curl
+              curl -LO "https://dl.k8s.io/release/\$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+              chmod +x kubectl
+              mv kubectl /usr/local/bin/
+
+              # Install Python packages
+              pip3 install --no-cache-dir requests pyOpenSSL
 
               # Read IPMI configuration from secret
               export IPMI_URL=\$(kubectl get secret ${SECRET_NAME} -n ${NAMESPACE} -o jsonpath='{.data.IPMI_URL}' | base64 -d)
@@ -105,8 +110,8 @@ spec:
               echo "IPMI Model: \${IPMI_MODEL}"
               echo "IPMI Username: \${IPMI_USERNAME}"
 
-              echo "=== Deploying certificate using containerized approach ==="
-              python3 /app/supermicro_ipmi_cert.py \\
+              echo "=== Deploying certificate ==="
+              python3 /scripts/supermicro-updater.py \\
                 --ipmi-url "\${IPMI_URL}" \\
                 --model "\${IPMI_MODEL}" \\
                 --username "\${IPMI_USERNAME}" \\
@@ -115,9 +120,15 @@ spec:
                 --key-file /certs/key.pem \\
                 --debug
           volumeMounts:
+            - name: scripts
+              mountPath: /scripts
             - name: certs
               mountPath: /certs
       volumes:
+        - name: scripts
+          configMap:
+            name: certwarden-supermicro-scripts
+            defaultMode: 0755
         - name: certs
           secret:
             secretName: ${CERT_SECRET_NAME}
@@ -134,10 +145,10 @@ kubectl logs "job/${JOB_NAME}" -n "${NAMESPACE}"
 # Check if the job succeeded
 JOB_STATUS=$(kubectl get job "${JOB_NAME}" -n "${NAMESPACE}" -o jsonpath='{.status.conditions[?(@.type=="Complete")].status}')
 if [[ "${JOB_STATUS}" == "True" ]]; then
-    echo "✅ Certificate deployed successfully to ${SUPERMICRO_HOST} (containerized)"
+    echo "✅ Certificate deployed successfully to ${SUPERMICRO_HOST}"
     exit 0
 else
-    echo "❌ Failed to deploy certificate to ${SUPERMICRO_HOST} (containerized)"
+    echo "❌ Failed to deploy certificate to ${SUPERMICRO_HOST}"
     kubectl logs "job/${JOB_NAME}" -n "${NAMESPACE}"
     exit 1
 fi
