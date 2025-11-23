@@ -60,7 +60,8 @@ spec:
 
     persistence:
       data:
-        type: emptyDir
+        enabled: true
+        existingClaim: "{{ .Release.Name }}"
         globalMounts:
           - path: /app/data
 
