@@ -4,10 +4,7 @@ kind: Kustomization
 namespace: infrastructure
 resources:
   - externalsecret.yaml
-configMapGenerator:
-  - name: certwarden-apc-scripts
-    files:
-      - apc-updater.py
-      - certwarden-apc-deploy.sh
-generatorOptions:
-  disableNameSuffixHash: true
+  - scripts-configmap.yaml
+
+# NOTE: ConfigMap is created as a direct resource (scripts-configmap.yaml) instead of using
+# configMapGenerator to avoid Kustomize's variable expansion which replaces ${VAR} with empty strings

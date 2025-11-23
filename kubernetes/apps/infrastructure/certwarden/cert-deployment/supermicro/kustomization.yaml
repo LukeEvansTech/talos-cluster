@@ -5,17 +5,7 @@ namespace: infrastructure
 resources:
   - externalsecret.yaml
   - rbac.yaml
-configMapGenerator:
-  # CONTAINERIZED APPROACH - Uses pre-built container with all dependencies
-  - name: certwarden-supermicro-scripts
-    files:
-      - certwarden-supermicro-deploy.sh
+  - scripts-configmap.yaml
 
-  # OLD APPROACH (COMMENTED OUT) - Runtime installation of dependencies
-  # To rollback to old method, comment out above and uncomment below
-  # - name: certwarden-supermicro-scripts
-  #   files:
-  #     - supermicro-updater.py
-  #     - certwarden-supermicro-deploy.sh.OLD
-generatorOptions:
-  disableNameSuffixHash: true
+# NOTE: ConfigMap is created as a direct resource (scripts-configmap.yaml) instead of using
+# configMapGenerator to avoid Kustomize's variable expansion which replaces ${VAR} with empty strings
