@@ -122,3 +122,9 @@ spec:
           backend:
             app:
               - path: /app/data
+      cache:
+        type: emptyDir
+        advancedMounts:
+          backend:
+            app:
+              - path: /.cache
