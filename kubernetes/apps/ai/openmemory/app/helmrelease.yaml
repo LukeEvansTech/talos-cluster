@@ -15,15 +15,6 @@ spec:
         annotations:
           reloader.stakater.com/auto: "true"
 
-        initContainers:
-          init-db:
-            image:
-              repository: ghcr.io/home-operations/postgres-init
-              tag: "18"
-            envFrom:
-              - secretRef:
-                  name: openmemory-secret
-
         containers:
           app:
             image:
