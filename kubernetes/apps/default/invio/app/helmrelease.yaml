@@ -110,6 +110,7 @@ spec:
         parentRefs:
           - name: envoy-internal
             namespace: network
+        service: frontend
 
     persistence:
       data:
