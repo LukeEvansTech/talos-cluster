@@ -32,6 +32,8 @@ spec:
               pullPolicy: IfNotPresent
             env:
               TZ: ${TIMEZONE}
+              # Database file location (writable directory)
+              CUPDATE_DB_PATH: /var/run/data/dbv1.sqlite
               # Cache file location (writable directory)
               CUPDATE_CACHE_PATH: /var/run/data/cachev1.boltdb
               # Include old replica sets in discovery
