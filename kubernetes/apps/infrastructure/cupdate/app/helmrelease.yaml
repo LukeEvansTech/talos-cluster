@@ -32,6 +32,8 @@ spec:
               pullPolicy: IfNotPresent
             env:
               TZ: ${TIMEZONE}
+              # Cache file location (writable directory)
+              CUPDATE_CACHE_PATH: /var/run/data/cachev1.boltdb
               # Include old replica sets in discovery
               CUPDATE_KUBERNETES_INCLUDE_OLD_REPLICAS: "false"
               # Debounce interval for resource changes
