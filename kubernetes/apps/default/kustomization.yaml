@@ -38,3 +38,4 @@ resources:
   - ./tandoor/ks.yaml
   - ./universal/ks.yaml
   - ./uptimekuma/ks.yaml
+  - ./wapy/ks.yaml
