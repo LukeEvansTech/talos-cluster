@@ -110,6 +110,10 @@ spec:
         parentRefs:
           - name: envoy-internal
             namespace: network
+        rules:
+          - backendRefs:
+              - name: invio-app
+                port: 8000
 
     persistence:
       data:
