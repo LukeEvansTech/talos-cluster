@@ -67,6 +67,12 @@ spec:
         fsGroupChangePolicy: OnRootMismatch
         seccompProfile: {type: RuntimeDefault}
 
+    persistence:
+      cache:
+        type: emptyDir
+        globalMounts:
+          - path: /app/.next/cache
+
     service:
       app:
         controller: wapy
