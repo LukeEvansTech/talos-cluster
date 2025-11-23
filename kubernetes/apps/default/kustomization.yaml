@@ -23,6 +23,7 @@ resources:
   - ./homeassistant/ks.yaml
   - ./homebridge/ks.yaml
   - ./homebox/ks.yaml
+  - ./invio/ks.yaml
   - ./it-tools/ks.yaml
   - ./karakeep/ks.yaml
   - ./mail-archiver/ks.yaml
@@ -30,6 +31,7 @@ resources:
   - ./n8n/ks.yaml
   - ./notifier/ks.yaml
   - ./paperless/ks.yaml
+  - ./privatebin/ks.yaml
   - ./smokeping/ks.yaml
   - ./speakr/ks.yaml
   - ./stirling-pdf/ks.yaml
