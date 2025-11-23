@@ -29,9 +29,7 @@ spec:
             args:
               - |
                 nsenter --mount=/host/proc/$(pidof kubelet)/ns/mnt --net=/host/proc/$(pidof kubelet)/ns/net \
-                  -- sh -c 'mount | grep -v kubelet | grep -v tmpfs | grep -v overlay | cut -d " " -f 3 > /tmp/fs.txt'
-                nsenter --mount=/host/proc/$(pidof kubelet)/ns/mnt --net=/host/proc/$(pidof kubelet)/ns/net \
-                  -- fstrim --verbose --quiet-unsupported --listed-in /tmp/fs.txt
+                  -- fstrim --all --verbose
             resources:
               requests:
                 cpu: 25m
