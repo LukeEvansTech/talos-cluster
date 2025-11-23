@@ -6,9 +6,16 @@ resources:
   - externalsecret.yaml
   - rbac.yaml
 configMapGenerator:
+  # CONTAINERIZED APPROACH - Uses pre-built container with all dependencies
   - name: certwarden-supermicro-scripts
     files:
-      - supermicro-updater.py
       - certwarden-supermicro-deploy.sh
+
+  # OLD APPROACH (COMMENTED OUT) - Runtime installation of dependencies
+  # To rollback to old method, comment out above and uncomment below
+  # - name: certwarden-supermicro-scripts
+  #   files:
+  #     - supermicro-updater.py
+  #     - certwarden-supermicro-deploy.sh.OLD
 generatorOptions:
   disableNameSuffixHash: true
