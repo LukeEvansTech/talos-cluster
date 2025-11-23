@@ -81,3 +81,18 @@ spec:
         existingClaim: "{{ .Release.Name }}"
         globalMounts:
           - path: /srv/data
+      run:
+        enabled: true
+        type: emptyDir
+        globalMounts:
+          - path: /run
+      tmp:
+        enabled: true
+        type: emptyDir
+        globalMounts:
+          - path: /tmp
+      nginx-cache:
+        enabled: true
+        type: emptyDir
+        globalMounts:
+          - path: /var/lib/nginx/tmp
