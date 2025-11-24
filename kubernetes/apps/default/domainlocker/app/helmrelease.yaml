@@ -27,7 +27,7 @@ spec:
         containers:
           app:
             image:
-              repository: lissy93/domainlocker
+              repository: lissy93/domain-locker
               tag: latest
             env:
               TZ: ${TIMEZONE}
