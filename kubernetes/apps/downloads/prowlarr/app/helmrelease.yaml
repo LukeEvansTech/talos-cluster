@@ -124,6 +124,8 @@ spec:
       securityContext:
         fsGroup: 568
         fsGroupChangePolicy: OnRootMismatch
+        supplementalGroups:
+          - 10000
     service:
       app:
         controller: prowlarr
