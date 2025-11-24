@@ -22,9 +22,17 @@ spec:
               tag: 1.2.1
             env:
               TZ: ${TIMEZONE}
-            envFrom:
-              - secretRef:
-                  name: openmemory-secret
+              # Database configuration
+              OM_METADATA_BACKEND: sqlite
+              OM_VECTOR_BACKEND: sqlite
+              OM_DB_PATH: /app/data/openmemory.sqlite
+              # Server configuration
+              OM_PORT: "8080"
+              OM_MODE: standard
+              OM_TIER: hybrid
+              # Embeddings configuration
+              OM_EMBEDDINGS: ollama
+              OLLAMA_URL: http://ollama.ai.svc.cluster.local:11434
             probes:
               liveness: &probes
                 enabled: true
