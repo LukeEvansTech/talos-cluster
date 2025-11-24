@@ -11,7 +11,12 @@ spec:
     labels:
       app.kubernetes.io/name: *app
   dependsOn:
-    - name: external-secrets-stores
+    - name: onepassword
+      namespace: external-secrets
+    - name: openmemory
+      namespace: ai
+    - name: envoy-gateway
+      namespace: network
   path: ./kubernetes/apps/ai/openmemory-dashboard/app
   prune: true
   sourceRef:
