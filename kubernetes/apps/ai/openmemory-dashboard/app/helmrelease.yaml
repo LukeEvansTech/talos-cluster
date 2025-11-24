@@ -19,7 +19,7 @@ spec:
           app:
             image:
               repository: ghcr.io/lukeevanstech/openmemory-dashboard
-              tag: 1.2.1
+              tag: latest
             env:
               TZ: ${TIMEZONE}
               NODE_ENV: production
