@@ -9,6 +9,7 @@ resources:
   - ./supermicro
   - ./apc
   - ./brother
+  - ./onyx
 labels:
   - pairs:
       app.kubernetes.io/name: cert-deployment
