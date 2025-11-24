@@ -2,7 +2,7 @@
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository
 metadata:
-  name: openmemory-dashboard
+  name: openmemorydashboard
 spec:
   interval: 1h
   layerSelector:
