@@ -11,3 +11,4 @@ resources:
   - ./ollama/ks.yaml
   - ./open-webui/ks.yaml
   - ./openmemory/ks.yaml
+  - ./openmemory-dashboard/ks.yaml
