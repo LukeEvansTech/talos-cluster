@@ -20,6 +20,7 @@ spec:
             image:
               repository: ghcr.io/lukeevanstech/openmemory-dashboard
               tag: latest
+              pullPolicy: Always
             env:
               TZ: ${TIMEZONE}
               NODE_ENV: production
