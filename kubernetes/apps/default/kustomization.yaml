@@ -12,6 +12,7 @@ resources:
   - ./atuin/ks.yaml
   - ./changedetection/ks.yaml
   - ./convertx/ks.yaml
+  - ./cronmaster/ks.yaml
   - ./cyberchef/ks.yaml
   - ./echo-server/ks.yaml
   - ./forgejo/ks.yaml
