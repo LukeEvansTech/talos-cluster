@@ -19,7 +19,7 @@ spec:
           app:
             image:
               repository: ghcr.io/lukeevanstech/openmemory-dashboard
-              tag: latest
+              tag: main-090f0bf
               pullPolicy: Always
             env:
               TZ: ${TIMEZONE}
