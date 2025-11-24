@@ -14,7 +14,7 @@ resources:
   - ./convertx/ks.yaml
   - ./cronmaster/ks.yaml
   - ./cyberchef/ks.yaml
-  - ./domain-locker/ks.yaml
+  - ./domainlocker/ks.yaml
   - ./echo-server/ks.yaml
   - ./forgejo/ks.yaml
   - ./fusion/ks.yaml
