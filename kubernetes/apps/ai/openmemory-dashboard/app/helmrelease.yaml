@@ -25,8 +25,8 @@ spec:
               NODE_ENV: production
               PORT: "3000"
               HOSTNAME: "0.0.0.0"
-              # API connection - use internal cluster DNS
-              NEXT_PUBLIC_API_URL: http://openmemory.ai.svc.cluster.local:8080
+              # API URL is baked into image at build time using internal cluster DNS
+              # This keeps the backend domain private and not exposed to browsers
             envFrom:
               - secretRef:
                   name: openmemory-dashboard-secret
