@@ -106,12 +106,8 @@ spec:
               readiness: *probes
             securityContext:
               runAsNonRoot: true
-              runAsUser: 1000
-              runAsGroup: 1000
-              fsGroup: 1000
-              fsGroupChangePolicy: OnRootMismatch
-              supplementalGroups:
-                - 10000
+              runAsUser: 568
+              runAsGroup: 568
               seccompProfile: {type: RuntimeDefault}
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: true
@@ -124,6 +120,13 @@ spec:
         pod:
           labels:
             gluetun: "true"
+    defaultPodOptions:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 568
+        runAsGroup: 568
+        fsGroup: 568
+        fsGroupChangePolicy: OnRootMismatch
     service:
       app:
         controller: prowlarr
