@@ -18,7 +18,7 @@ spec:
           app:
             image:
               repository: homebridge/homebridge
-              tag: 2025-11-24
+              tag: 2025-11-25
             env:
               TZ: ${TIMEZONE}
               ENABLE_AVAHI: "1"
