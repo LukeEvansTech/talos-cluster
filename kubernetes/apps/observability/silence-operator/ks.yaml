@@ -36,6 +36,10 @@ spec:
     - name: silence-operator
   interval: 1h
   path: ./kubernetes/apps/observability/silence-operator/silences
+  postBuild:
+    substituteFrom:
+      - kind: Secret
+        name: cluster-secrets
   prune: true
   retryInterval: 2m
   sourceRef:
