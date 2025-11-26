@@ -1,0 +1,17 @@
+---
+# ZFS servers use ARC (Adaptive Replacement Cache) which consumes all available RAM by design.
+# This is expected behavior - the ARC will release memory when applications need it.
+apiVersion: monitoring.giantswarm.io/v1alpha1
+kind: Silence
+metadata:
+  name: zfs-storage-memory
+spec:
+  matchers:
+    - name: alertname
+      value: NodeMemoryHighUtilization
+      isRegex: false
+      isEqual: true
+    - name: instance
+      value: ${SECRET_STORAGE_SERVER}:9100
+      isRegex: false
+      isEqual: true
