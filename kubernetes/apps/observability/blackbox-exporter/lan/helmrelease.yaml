@@ -11,16 +11,12 @@ spec:
     name: blackbox-exporter-lan
   values:
     fullnameOverride: blackbox-exporter-lan
-    podSecurityContext:
-      sysctls:
-        - name: net.ipv4.ping_group_range
-          value: "0 2147483647"
     securityContext:
       readOnlyRootFilesystem: true
       allowPrivilegeEscalation: false
       capabilities:
-        add:
-          - NET_RAW
+        drop:
+          - ALL
     config:
       modules:
         http_2xx:
