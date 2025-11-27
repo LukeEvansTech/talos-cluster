@@ -14,10 +14,11 @@
       overridePackageName: "ghcr.io/siderolabs/installer",
     },
     {
-      description: "Use regex versioning for homebridge date-based tags",
+      description: "Disable helm-values manager for homebridge (handled by custom regex manager with quotes)",
       matchDatasources: ["docker"],
+      matchManagers: ["helm-values"],
       matchPackageNames: ["homebridge/homebridge"],
-      versioning: "regex:^(?<major>\\d{4})-(?<minor>\\d{2})-(?<patch>\\d{2})$",
+      enabled: false,
     },
   ],
 }
