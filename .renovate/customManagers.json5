@@ -3,6 +3,18 @@
   customManagers: [
     {
       customType: "regex",
+      description: "Process homebridge image tag with quotes to prevent YAML date parsing",
+      managerFilePatterns: ["/(^|/)kubernetes/.+\\.ya?ml$/"],
+      matchStrings: [
+        "repository:\\s*homebridge/homebridge\\n\\s+tag:\\s*[\"']?(?<currentValue>\\d{4}-\\d{2}-\\d{2})[\"']?",
+      ],
+      depNameTemplate: "homebridge/homebridge",
+      datasourceTemplate: "docker",
+      autoReplaceStringTemplate: 'repository: homebridge/homebridge\n              tag: "{{{newValue}}}"',
+      versioningTemplate: "regex:^(?<major>\\d{4})-(?<minor>\\d{2})-(?<patch>\\d{2})$",
+    },
+    {
+      customType: "regex",
       description: "Process annotated dependencies",
       managerFilePatterns: [
         "/(^|/).+\\.env$/",
@@ -27,9 +39,7 @@
       customType: "regex",
       description: "Process OCI dependencies",
       managerFilePatterns: ["/\\.ya?ml(?:\\.j2)?$/"],
-      matchStrings: [
-        "oci://(?<depName>[^:]+):(?<currentValue>\\S+)",
-      ],
+      matchStrings: ["oci://(?<depName>[^:]+):(?<currentValue>\\S+)"],
       datasourceTemplate: "docker",
     },
   ],
