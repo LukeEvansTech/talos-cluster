@@ -1,0 +1,53 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/batch/cronjob_v1.json
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: nextdns-linkip
+spec:
+  # Run every hour at minute 0
+  schedule: "0 * * * *"
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: nextdns-linkip
+        spec:
+          restartPolicy: OnFailure
+          automountServiceAccountToken: false
+          containers:
+            - name: curl
+              image: ghcr.io/curl/curl:8.11.1@sha256:d437dc3a0c4b77ea1ad5c5dc7cf920dde36c8e02b12e750f70b38a02c5172cf8
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  curl -fsS "${NEXTDNS_URL}"
+              env:
+                - name: NEXTDNS_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: nextdns-linkip-secret
+                      key: NEXTDNS_URL
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 16Mi
+                limits:
+                  cpu: 100m
+                  memory: 32Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                runAsUser: 65532
+                capabilities:
+                  drop:
+                    - ALL
+          securityContext:
+            seccompProfile:
+              type: RuntimeDefault
