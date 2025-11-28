@@ -47,6 +47,9 @@ loadBalancer:
   algorithm: maglev
   mode: dsr
 localRedirectPolicy: true
+socketLB:
+  enabled: true
+  hostNamespaceOnly: true
 operator:
   dashboards:
     enabled: true
