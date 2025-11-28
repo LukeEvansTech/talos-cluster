@@ -20,13 +20,13 @@ spec:
           restartPolicy: OnFailure
           automountServiceAccountToken: false
           containers:
-            - name: curl
-              image: ghcr.io/curl/curl:8.11.1@sha256:d437dc3a0c4b77ea1ad5c5dc7cf920dde36c8e02b12e750f70b38a02c5172cf8
+            - name: wget
+              image: docker.io/busybox:1.37.0@sha256:37f7b378a29ceb4c551b1b5582e27747b855bbfaa73fa11914fe0df028dc581f
               command:
                 - /bin/sh
                 - -c
                 - |
-                  curl -fsS "${NEXTDNS_URL}"
+                  wget -q -O - "${NEXTDNS_URL}"
               env:
                 - name: NEXTDNS_URL
                   valueFrom:
