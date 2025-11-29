@@ -17,6 +17,11 @@ spec:
           - name: alertname
             value: InfoInhibitor
             matchType: =
+      - receiver: "null"
+        matchers:
+          - name: alertname
+            value: DockerhubRateLimitRisk
+            matchType: =
       - receiver: heartbeat
         groupWait: 0s
         repeatInterval: 5m
