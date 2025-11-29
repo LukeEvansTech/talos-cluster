@@ -29,9 +29,6 @@ spec:
               # Use Workstation GC for lower memory usage in containers
               - name: DOTNET_gcServer
                 value: "0"
-              # Help .NET respect container memory limits
-              - name: DOTNET_GCHeapHardLimit
-                value: "0x70000000"  # ~1.75GB
             envFrom:
               - secretRef:
                   name: recyclarr-secret
