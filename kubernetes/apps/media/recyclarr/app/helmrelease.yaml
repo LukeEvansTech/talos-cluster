@@ -31,7 +31,7 @@ spec:
                 value: "0"
               # Help .NET respect container memory limits
               - name: DOTNET_GCHeapHardLimit
-                value: "0x1E000000"  # ~500MB
+                value: "0x38000000"  # ~900MB
             envFrom:
               - secretRef:
                   name: recyclarr-secret
@@ -45,7 +45,7 @@ spec:
               requests:
                 cpu: 10m
               limits:
-                memory: 512Mi
+                memory: 1Gi
         pod:
           restartPolicy: Never
     defaultPodOptions:
