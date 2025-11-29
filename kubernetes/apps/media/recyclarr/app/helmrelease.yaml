@@ -25,6 +25,13 @@ spec:
             image:
               repository: ghcr.io/recyclarr/recyclarr
               tag: 7.4.1@sha256:759540877f95453eca8a26c1a93593e783a7a824c324fbd57523deffb67f48e1
+            env:
+              # Use Workstation GC for lower memory usage in containers
+              - name: DOTNET_gcServer
+                value: "0"
+              # Help .NET respect container memory limits
+              - name: DOTNET_GCHeapHardLimit
+                value: "0x1E000000"  # ~500MB
             envFrom:
               - secretRef:
                   name: recyclarr-secret
@@ -38,7 +45,7 @@ spec:
               requests:
                 cpu: 10m
               limits:
-                memory: 4Gi
+                memory: 512Mi
         pod:
           restartPolicy: Never
     defaultPodOptions:
