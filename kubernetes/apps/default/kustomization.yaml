@@ -16,6 +16,7 @@ resources:
   - ./cyberchef/ks.yaml
   - ./domainlocker/ks.yaml
   - ./echo-server/ks.yaml
+  - ./filebrowser/ks.yaml
   - ./forgejo/ks.yaml
   - ./fusion/ks.yaml
   - ./gitea/ks.yaml

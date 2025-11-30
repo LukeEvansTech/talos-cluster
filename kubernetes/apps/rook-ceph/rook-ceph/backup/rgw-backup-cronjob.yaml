@@ -5,6 +5,9 @@ kind: CronJob
 metadata:
   name: rgw-s3-backup
   namespace: rook-ceph
+  annotations:
+    # UID 1000 required for NFS write permissions on TrueNAS
+    checkov.io/skip1: CKV_K8S_40=NFS share requires UID 1000 for write access
 spec:
   schedule: "0 2 * * *" # Daily at 2:00 AM
   concurrencyPolicy: Forbid

@@ -1,0 +1,80 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: filebrowser
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: filebrowser
+  values:
+    controllers:
+      filebrowser:
+        containers:
+          app:
+            image:
+              repository: filebrowser/filebrowser
+              tag: v2.32.0@sha256:66b9cde27042b594c50944a26d3e512e9f75fe10c467aad897acf1d768cc98a8
+            env:
+              TZ: ${TIMEZONE}
+              FB_DATABASE: /config/filebrowser.db
+              FB_ROOT: /media
+              FB_LOG: stdout
+              FB_NOAUTH: "false"
+            probes:
+              liveness: &probes
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /health
+                    port: &port 80
+                  initialDelaySeconds: 0
+                  periodSeconds: 10
+                  timeoutSeconds: 1
+                  failureThreshold: 3
+              readiness: *probes
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities: {drop: ["ALL"]}
+            resources:
+              requests:
+                cpu: 10m
+              limits:
+                memory: 256Mi
+    defaultPodOptions:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        supplementalGroups: [10000]
+    service:
+      app:
+        controller: filebrowser
+        ports:
+          http:
+            primary: true
+            port: *port
+    route:
+      app:
+        hostnames:
+          - "{{ .Release.Name }}.${SECRET_DOMAIN}"
+          - "{{ .Release.Name }}.${SECRET_INTERNAL_DOMAIN}"
+        parentRefs:
+          - name: envoy-internal
+            namespace: network
+    persistence:
+      config:
+        existingClaim: "{{ .Release.Name }}"
+      # TODO: Uncomment when NAS media path is consolidated
+      # media:
+      #   type: nfs
+      #   server: ${SECRET_STORAGE_SERVER}
+      #   path: ${SECRET_STORAGE_SERVER_MEDIA_NFS}
+      #   globalMounts:
+      #     - path: /media
