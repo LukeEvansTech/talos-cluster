@@ -12,24 +12,19 @@ spec:
   values:
     controllers:
       recyclarr:
-        type: cronjob
-        cronjob:
-          schedule: 0 0 * * *
-          backoffLimit: 0
-          concurrencyPolicy: Forbid
-          successfulJobsHistory: 1
-          failedJobsHistory: 1
-          ttlSecondsAfterFinished: 86400
+        annotations:
+          reloader.stakater.com/auto: "true"
         containers:
           app:
             image:
               repository: ghcr.io/recyclarr/recyclarr
               tag: 7.4.1@sha256:759540877f95453eca8a26c1a93593e783a7a824c324fbd57523deffb67f48e1
+            env:
+              TZ: ${TIMEZONE}
+              RECYCLARR_CRON: "@daily"
             envFrom:
               - secretRef:
                   name: recyclarr-secret
-            args:
-              - "sync"
             securityContext:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: true
@@ -38,9 +33,7 @@ spec:
               requests:
                 cpu: 10m
               limits:
-                memory: 2Gi
-        pod:
-          restartPolicy: Never
+                memory: 128Mi
     defaultPodOptions:
       securityContext:
         runAsNonRoot: true
@@ -58,13 +51,14 @@ spec:
           - path: /config/recyclarr.yml
             subPath: recyclarr.yml
             readOnly: true
-      config-logs:
+      tmpfs:
         type: emptyDir
-        globalMounts:
-          - path: /config/logs
-      config-repositories:
-        type: emptyDir
-        globalMounts:
-          - path: /config/repositories
-      tmp:
-        type: emptyDir
+        advancedMounts:
+          recyclarr:
+            app:
+              - path: /config/logs
+                subPath: logs
+              - path: /config/repositories
+                subPath: repositories
+              - path: /tmp
+                subPath: tmp
