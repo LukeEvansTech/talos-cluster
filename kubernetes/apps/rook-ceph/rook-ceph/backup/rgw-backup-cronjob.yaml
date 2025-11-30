@@ -94,16 +94,6 @@ spec:
                 secretName: rook-ceph-object-user-ceph-objectstore-backup-user
                 defaultMode: 0400
             - name: backup-storage
-              # TODO: Configure your backup storage volume based on your setup
-              emptyDir: {} # Placeholder - replace with actual volume configuration
-              # Option 1: NFS
-              # nfs:
-              #   server: ${SECRET_NFS_SERVER}
-              #   path: /your/backup/path
-              # Option 2: HostPath (if using local storage)
-              # hostPath:
-              #   path: /mnt/backup
-              #   type: Directory
-              # Option 3: PVC
-              # persistentVolumeClaim:
-              #   claimName: backup-pvc
+              nfs:
+                server: ${SECRET_STORAGE_SERVER}
+                path: /mnt/pool/backups

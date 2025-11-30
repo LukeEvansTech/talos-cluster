@@ -4,62 +4,31 @@ This directory contains the backup configuration for Rook-Ceph Object Storage (R
 
 ## Overview
 
-- **CronJob**: `rgw-s3-backup` - Backs up S3 buckets from Rook-Ceph RGW to local storage
+- **CronJob**: `rgw-s3-backup` - Backs up S3 buckets from Rook-Ceph RGW to NFS storage
 - **Schedule**: Daily at 2:00 AM
-- **Tool**: Uses `rich0/s3-sync` Docker image with s3cmd
+- **Tool**: Uses `rclone` for S3-compatible transfers
+- **Destination**: TrueNAS NFS at `/mnt/pool/backups/rgw-backups/`
 
-## Setup Steps
+## Configuration
 
-### 1. Configure the Backup Volume
+### Backup Destination
 
-Edit `rgw-backup-cronjob.yaml` and configure the backup storage volume (line 67+):
+Backups are stored on TrueNAS via NFS:
+- **Server**: `${SECRET_STORAGE_SERVER}` (from cluster-secrets)
+- **Path**: `/mnt/pool/backups/rgw-backups/<bucket-name>/`
 
-**Option A: NFS** (recommended if you have NFS)
-```yaml
-volumes:
-  - name: backup-storage
-    nfs:
-      server: your-nfs-server-ip
-      path: /path/to/backup/directory
-```
+### Buckets to Backup
 
-**Option B: HostPath** (local node storage)
-```yaml
-volumes:
-  - name: backup-storage
-    hostPath:
-      path: /mnt/backup
-      type: Directory
-```
-
-**Option C: PVC** (if using a PVC for backups)
-```yaml
-volumes:
-  - name: backup-storage
-    persistentVolumeClaim:
-      claimName: backup-pvc
-```
-
-### 2. Set the S3 Bucket Names
-
-Edit line 71 in `rgw-backup-cronjob.yaml` to specify which buckets to back up (space-separated):
+Edit the `BUCKETS` environment variable in `rgw-backup-cronjob.yaml`:
 ```yaml
 - name: BUCKETS
-  value: "bucket1 bucket2 bucket3"  # Add all your bucket names
+  value: "netdata"  # Space-separated list of bucket names
 ```
 
-**Examples:**
-- Single bucket: `value: "my-app-data"`
-- Multiple buckets: `value: "app-data media-files user-uploads"`
-- All buckets: Leave the script as-is (it will loop through all specified)
+## Adding New Buckets
 
-### 3. Create Buckets Declaratively
+### 1. Create a CephObjectStoreUser
 
-Buckets are created using **ObjectBucketClaim** resources (GitOps-friendly!):
-
-**Example: Create a new bucket**
-
-1. Create a `CephObjectStoreUser`:
 ```yaml
 apiVersion: ceph.rook.io/v1
 kind: CephObjectStoreUser
@@ -74,7 +43,8 @@ spec:
     bucket: "*"
 ```
 
-2. Create an `ObjectBucketClaim`:
+### 2. Create an ObjectBucketClaim
+
 ```yaml
 apiVersion: objectbucket.io/v1alpha1
 kind: ObjectBucketClaim
@@ -89,11 +59,9 @@ spec:
     maxSize: "10G"
 ```
 
-3. Add the bucket name to the backup CronJob's `BUCKETS` env var
+### 3. Add to Backup CronJob
 
-**Already configured:** The `netdata` bucket is already set up declaratively! See:
-- `netdata-objectstoreuser.yaml`
-- `netdata-objectbucketclaim.yaml`
+Add the bucket name to the `BUCKETS` env var in `rgw-backup-cronjob.yaml`.
 
 ## Access RGW
 
@@ -101,39 +69,30 @@ spec:
 - **Endpoint**: `http://rook-ceph-rgw-ceph-objectstore.rook-ceph.svc.cluster.local`
 - **Port**: 80
 
-### External Access (via Ingress)
-- **URL**: `http://rgw.${SECRET_DOMAIN}` (configured as internal ingress)
-
 ### Get S3 Credentials
 
 **For CephObjectStoreUser:**
 ```bash
 # Backup user
-kubectl -n rook-ceph get secret rook-ceph-object-user-ceph-objectstore-backup-user -o jsonpath='{.data.AccessKey}' | base64 -d
-kubectl -n rook-ceph get secret rook-ceph-object-user-ceph-objectstore-backup-user -o jsonpath='{.data.SecretKey}' | base64 -d
+kubectl -n rook-ceph get secret rook-ceph-object-user-ceph-objectstore-backup-user \
+  -o jsonpath='{.data.AccessKey}' | base64 -d
 
-# Netdata user
-kubectl -n rook-ceph get secret rook-ceph-object-user-ceph-objectstore-netdata-user -o jsonpath='{.data.AccessKey}' | base64 -d
-kubectl -n rook-ceph get secret rook-ceph-object-user-ceph-objectstore-netdata-user -o jsonpath='{.data.SecretKey}' | base64 -d
+kubectl -n rook-ceph get secret rook-ceph-object-user-ceph-objectstore-backup-user \
+  -o jsonpath='{.data.SecretKey}' | base64 -d
 ```
 
-**For ObjectBucketClaim (includes bucket name and endpoint):**
+**For ObjectBucketClaim:**
 ```bash
-# Get all bucket info
-kubectl -n rook-ceph get cm netdata-bucket -o yaml
-kubectl -n rook-ceph get secret netdata-bucket -o yaml
-
-# Get specific values
 kubectl -n rook-ceph get cm netdata-bucket -o jsonpath='{.data.BUCKET_NAME}'
 kubectl -n rook-ceph get secret netdata-bucket -o jsonpath='{.data.AWS_ACCESS_KEY_ID}' | base64 -d
 kubectl -n rook-ceph get secret netdata-bucket -o jsonpath='{.data.AWS_SECRET_ACCESS_KEY}' | base64 -d
 ```
 
-## Testing the Backup
+## Testing
 
 Run the backup job manually:
 ```bash
-kubectl -n rook-ceph create job --from=cronjob/rgw-s3-backup rgw-s3-backup-manual-test
+kubectl -n rook-ceph create job --from=cronjob/rgw-s3-backup rgw-s3-backup-manual-$(date +%s)
 ```
 
 Check the logs:
@@ -143,36 +102,28 @@ kubectl -n rook-ceph logs -l app.kubernetes.io/name=rgw-s3-backup -f
 
 ## Monitoring
 
-Check CronJob status:
 ```bash
+# CronJob status
 kubectl -n rook-ceph get cronjob rgw-s3-backup
+
+# Recent jobs
 kubectl -n rook-ceph get jobs -l app.kubernetes.io/name=rgw-s3-backup
 ```
 
-## Multiple Bucket Backup
+## Backup Structure
 
-The CronJob is configured to back up **multiple buckets** in a single run:
-
-- Each bucket is synced to a separate subdirectory: `/backup/rgw-backups/<bucket-name>/`
-- Buckets are processed sequentially in the order specified
-- If one bucket fails, the job continues with the next bucket
-- Simply add or remove bucket names from the `BUCKETS` environment variable
-
-**Backup Structure:**
 ```
-/backup/rgw-backups/
-├── bucket1/
+/mnt/pool/backups/rgw-backups/
+├── netdata/
 │   └── (synced files)
 ├── bucket2/
 │   └── (synced files)
-└── bucket3/
-    └── (synced files)
+└── ...
 ```
 
 ## Notes
 
-- The backup uses `s3cmd sync` which performs incremental backups (only changed files)
-- Backup retention is managed by the CronJob history limits (1 successful, 2 failed)
+- Uses `rclone copy` for incremental backups (only changed files)
 - Jobs are automatically cleaned up after 24 hours (TTL)
-- The backup runs after the RGW is fully deployed (dependsOn in ks.yaml)
-- Each bucket gets its own subdirectory in the backup destination
+- Runs as non-root user (65534/nobody) with read-only root filesystem
+- Secrets mounted as files for security compliance
