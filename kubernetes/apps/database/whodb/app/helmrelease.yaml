@@ -1,0 +1,44 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: &app whodb
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: app-template
+  values:
+    controllers:
+      whodb:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        containers:
+          app:
+            image:
+              repository: docker.io/clidey/whodb
+              tag: 0.80.0@sha256:c4894298a334668cf6012a206b0b7c7566fb1296e039af8d1b1e4297ff9a1099
+            envFrom:
+              - secretRef:
+                  name: whodb
+            resources:
+              requests:
+                cpu: 30m
+                memory: 256Mi
+              limits:
+                memory: 512Mi
+    service:
+      app:
+        controller: whodb
+        ports:
+          http:
+            port: 8080
+    route:
+      app:
+        hostnames:
+          - "{{ .Release.Name }}.${SECRET_DOMAIN}"
+          - "{{ .Release.Name }}.${SECRET_INTERNAL_DOMAIN}"
+        parentRefs:
+          - name: envoy-internal
+            namespace: network
