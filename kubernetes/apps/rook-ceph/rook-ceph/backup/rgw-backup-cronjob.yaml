@@ -22,7 +22,8 @@ spec:
             app.kubernetes.io/name: rgw-s3-backup
             app.kubernetes.io/component: backup
         spec:
-          automountServiceAccountToken: false
+          serviceAccountName: rgw-s3-backup
+          automountServiceAccountToken: true
           restartPolicy: OnFailure
           securityContext:
             runAsNonRoot: true
@@ -31,6 +32,39 @@ spec:
             fsGroup: 1000
             seccompProfile:
               type: RuntimeDefault
+
+          initContainers:
+            - name: discover-buckets
+              image: registry.k8s.io/kubectl:v1.32.0@sha256:b26cafd470ed3d95e2c68f5ad7aa8555a6380cf9e0f70e92c79fa1dd10701a14
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  # Discover all ObjectBucketClaims and extract bucket names
+                  echo "Discovering ObjectBucketClaims..."
+                  kubectl get objectbucketclaims -n rook-ceph -o jsonpath='{range .items[*]}{.spec.bucketName}{"\n"}{end}' | grep -v '^$' > /shared/buckets.txt
+                  echo "Found buckets:"
+                  cat /shared/buckets.txt
+              volumeMounts:
+                - name: shared
+                  mountPath: /shared
+              securityContext:
+                runAsNonRoot: true
+                runAsUser: 1000
+                runAsGroup: 1000
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop:
+                    - ALL
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 32Mi
+                limits:
+                  cpu: 100m
+                  memory: 64Mi
+
           containers:
             - name: rclone
               image: docker.io/rclone/rclone:1.72.0@sha256:0eb18825ac9732c21c11d654007170572bbd495352bb6dbb624f18e4f462c496
@@ -43,12 +77,19 @@ spec:
                   export RCLONE_CONFIG_RGW_ACCESS_KEY_ID=$(cat /secrets/AccessKey)
                   export RCLONE_CONFIG_RGW_SECRET_ACCESS_KEY=$(cat /secrets/SecretKey)
 
+                  # Read discovered buckets
+                  if [ ! -s /shared/buckets.txt ]; then
+                    echo "No buckets found to backup"
+                    exit 0
+                  fi
+
                   # Backup each bucket
-                  for BUCKET in ${BUCKETS}; do
+                  while IFS= read -r BUCKET; do
+                    [ -z "$BUCKET" ] && continue
                     echo "=== Backing up bucket: ${BUCKET} ==="
-                    rclone copy --verbose --stats-one-line --stats=1m rgw:${BUCKET}/ /backup/rgw-backups/${BUCKET}/
+                    rclone copy --verbose --stats-one-line --stats=1m "rgw:${BUCKET}/" "/backup/rgw-backups/${BUCKET}/"
                     echo "=== Completed backup of: ${BUCKET} ==="
-                  done
+                  done < /shared/buckets.txt
 
                   echo "=== All backups completed ==="
               env:
@@ -61,10 +102,6 @@ spec:
                   value: http://rook-ceph-rgw-ceph-objectstore.rook-ceph.svc.cluster.local
                 - name: RCLONE_CONFIG_RGW_ACL
                   value: private
-
-                # Backup configuration - space-separated list of buckets
-                - name: BUCKETS
-                  value: "netdata"
 
               resources:
                 requests:
@@ -80,6 +117,9 @@ spec:
                   readOnly: true
                 - name: backup-storage
                   mountPath: /backup
+                - name: shared
+                  mountPath: /shared
+                  readOnly: true
 
               securityContext:
                 runAsNonRoot: true
@@ -100,3 +140,5 @@ spec:
               nfs:
                 server: ${SECRET_STORAGE_SERVER}
                 path: /mnt/pool/backups/rook
+            - name: shared
+              emptyDir: {}

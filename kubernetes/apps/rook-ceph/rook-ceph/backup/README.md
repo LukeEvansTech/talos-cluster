@@ -8,6 +8,15 @@ This directory contains the backup configuration for Rook-Ceph Object Storage (R
 - **Schedule**: Daily at 2:00 AM
 - **Tool**: Uses `rclone` for S3-compatible transfers
 - **Destination**: TrueNAS NFS at `/mnt/pool/backups/rook/rgw-backups/`
+- **Auto-discovery**: Automatically discovers all ObjectBucketClaims
+
+## How It Works
+
+1. **Init Container** queries Kubernetes API for all `ObjectBucketClaim` resources
+2. Extracts bucket names and writes them to a shared volume
+3. **Main Container** reads the bucket list and backs up each bucket with rclone
+
+No manual bucket list maintenance required - new buckets are automatically included.
 
 ## Configuration
 
@@ -17,17 +26,11 @@ Backups are stored on TrueNAS via NFS:
 - **Server**: `${SECRET_STORAGE_SERVER}` (from cluster-secrets)
 - **Path**: `/mnt/pool/backups/rook/rgw-backups/<bucket-name>/`
 
-### Buckets to Backup
-
-Edit the `BUCKETS` environment variable in `rgw-backup-cronjob.yaml`:
-```yaml
-- name: BUCKETS
-  value: "netdata"  # Space-separated list of bucket names
-```
-
 ## Adding New Buckets
 
-### 1. Create a CephObjectStoreUser
+Simply create an `ObjectBucketClaim` - it will be automatically discovered and backed up.
+
+### 1. Create a CephObjectStoreUser (if needed)
 
 ```yaml
 apiVersion: ceph.rook.io/v1
@@ -59,9 +62,7 @@ spec:
     maxSize: "10G"
 ```
 
-### 3. Add to Backup CronJob
-
-Add the bucket name to the `BUCKETS` env var in `rgw-backup-cronjob.yaml`.
+That's it! The backup CronJob will automatically discover and back up this bucket.
 
 ## Access RGW
 
@@ -114,16 +115,23 @@ kubectl -n rook-ceph get jobs -l app.kubernetes.io/name=rgw-s3-backup
 
 ```
 /mnt/pool/backups/rook/rgw-backups/
-├── netdata/
+├── netdata-abc123/
 │   └── (synced files)
-├── bucket2/
+├── myapp-def456/
 │   └── (synced files)
 └── ...
 ```
+
+## RBAC
+
+The backup job uses a dedicated ServiceAccount with minimal permissions:
+- **ServiceAccount**: `rgw-s3-backup`
+- **Role**: Can only `list` ObjectBucketClaims in `rook-ceph` namespace
 
 ## Notes
 
 - Uses `rclone copy` for incremental backups (only changed files)
 - Jobs are automatically cleaned up after 24 hours (TTL)
-- Runs as non-root user (65534/nobody) with read-only root filesystem
+- Runs as user 1000 for NFS write permissions
 - Secrets mounted as files for security compliance
+- Init container uses `kubectl` to discover buckets dynamically
