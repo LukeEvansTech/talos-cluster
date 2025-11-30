@@ -21,56 +21,47 @@ spec:
         spec:
           automountServiceAccountToken: false
           restartPolicy: OnFailure
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            runAsGroup: 65534
+            fsGroup: 65534
+            seccompProfile:
+              type: RuntimeDefault
           containers:
-            - name: s3-sync
-              image: docker.io/rich0/s3-sync:latest
+            - name: rclone
+              image: docker.io/rclone/rclone:1.72.0@sha256:0eb18825ac9732c21c11d654007170572bbd495352bb6dbb624f18e4f462c496
               imagePullPolicy: IfNotPresent
               command:
                 - /bin/sh
                 - -c
                 - |
-                  # Configure s3cmd
-                  cat > /tmp/.s3cfg <<EOF
-                  [default]
-                  access_key = ${ACCESS_KEY}
-                  secret_key = ${SECRET_KEY}
-                  host_base = ${S3_HOST}
-                  host_bucket = ${S3_HOST}/%(bucket)
-                  use_https = False
-                  EOF
+                  # Read credentials from mounted secrets
+                  export RCLONE_CONFIG_RGW_ACCESS_KEY_ID=$(cat /secrets/AccessKey)
+                  export RCLONE_CONFIG_RGW_SECRET_ACCESS_KEY=$(cat /secrets/SecretKey)
 
                   # Backup each bucket
                   for BUCKET in ${BUCKETS}; do
                     echo "=== Backing up bucket: ${BUCKET} ==="
-                    s3cmd -c /tmp/.s3cfg sync --verbose s3://${BUCKET}/ ${LOCAL_PATH}${BUCKET}/
+                    rclone copy --verbose --stats-one-line --stats=1m rgw:${BUCKET}/ /backup/rgw-backups/${BUCKET}/
                     echo "=== Completed backup of: ${BUCKET} ==="
                   done
 
                   echo "=== All backups completed ==="
               env:
-                # S3 credentials from CephObjectStoreUser secret
-                - name: ACCESS_KEY
-                  valueFrom:
-                    secretKeyRef:
-                      name: rook-ceph-object-user-ceph-objectstore-backup-user
-                      key: AccessKey
-                - name: SECRET_KEY
-                  valueFrom:
-                    secretKeyRef:
-                      name: rook-ceph-object-user-ceph-objectstore-backup-user
-                      key: SecretKey
-
-                # S3 endpoint configuration for Rook-Ceph RGW
-                - name: S3_HOST
-                  value: "rook-ceph-rgw-ceph-objectstore.rook-ceph.svc.cluster.local"
-                - name: S3_REGION
-                  value: "us-east-1"
+                # Rclone S3 configuration for Rook-Ceph RGW
+                - name: RCLONE_CONFIG_RGW_TYPE
+                  value: s3
+                - name: RCLONE_CONFIG_RGW_PROVIDER
+                  value: Ceph
+                - name: RCLONE_CONFIG_RGW_ENDPOINT
+                  value: http://rook-ceph-rgw-ceph-objectstore.rook-ceph.svc.cluster.local
+                - name: RCLONE_CONFIG_RGW_ACL
+                  value: private
 
                 # Backup configuration - space-separated list of buckets
                 - name: BUCKETS
                   value: "netdata"
-                - name: LOCAL_PATH
-                  value: "/backup/rgw-backups/"
 
               resources:
                 requests:
@@ -81,13 +72,30 @@ spec:
                   memory: 1Gi
 
               volumeMounts:
+                - name: secrets
+                  mountPath: /secrets
+                  readOnly: true
                 - name: backup-storage
                   mountPath: /backup
 
+              securityContext:
+                runAsNonRoot: true
+                runAsUser: 65534
+                runAsGroup: 65534
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop:
+                    - ALL
+
           volumes:
+            - name: secrets
+              secret:
+                secretName: rook-ceph-object-user-ceph-objectstore-backup-user
+                defaultMode: 0400
             - name: backup-storage
               # TODO: Configure your backup storage volume based on your setup
-              emptyDir: {}  # Placeholder - replace with actual volume configuration
+              emptyDir: {} # Placeholder - replace with actual volume configuration
               # Option 1: NFS
               # nfs:
               #   server: ${SECRET_NFS_SERVER}
