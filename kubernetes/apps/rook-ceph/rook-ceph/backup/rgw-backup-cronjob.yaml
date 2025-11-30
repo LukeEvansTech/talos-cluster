@@ -8,6 +8,8 @@ metadata:
   annotations:
     # UID 1000 required for NFS write permissions on TrueNAS
     checkov.io/skip1: CKV_K8S_40=NFS share requires UID 1000 for write access
+    # ServiceAccount token required for kubectl to discover ObjectBucketClaims
+    checkov.io/skip2: CKV_K8S_38=ServiceAccount token needed for kubectl API access
 spec:
   schedule: "0 2 * * *" # Daily at 2:00 AM
   concurrencyPolicy: Forbid
@@ -33,38 +35,6 @@ spec:
             seccompProfile:
               type: RuntimeDefault
 
-          initContainers:
-            - name: discover-buckets
-              image: registry.k8s.io/kubectl:v1.34.2@sha256:86316dd78d4887f9dce1e35ce22f3fce12dc6927e45d896656d9b93a1bb2638b
-              command:
-                - /bin/sh
-                - -c
-                - |
-                  # Discover all ObjectBucketClaims and extract bucket names
-                  echo "Discovering ObjectBucketClaims..."
-                  kubectl get objectbucketclaims -n rook-ceph -o jsonpath='{range .items[*]}{.spec.bucketName}{"\n"}{end}' | grep -v '^$' > /shared/buckets.txt
-                  echo "Found buckets:"
-                  cat /shared/buckets.txt
-              volumeMounts:
-                - name: shared
-                  mountPath: /shared
-              securityContext:
-                runAsNonRoot: true
-                runAsUser: 1000
-                runAsGroup: 1000
-                allowPrivilegeEscalation: false
-                readOnlyRootFilesystem: true
-                capabilities:
-                  drop:
-                    - ALL
-              resources:
-                requests:
-                  cpu: 10m
-                  memory: 32Mi
-                limits:
-                  cpu: 100m
-                  memory: 64Mi
-
           containers:
             - name: rclone
               image: docker.io/rclone/rclone:1.72.0@sha256:0eb18825ac9732c21c11d654007170572bbd495352bb6dbb624f18e4f462c496
@@ -73,23 +43,38 @@ spec:
                 - /bin/sh
                 - -c
                 - |
-                  # Read credentials from mounted secrets
+                  set -e
+
+                  # Read S3 credentials from mounted secrets
                   export RCLONE_CONFIG_RGW_ACCESS_KEY_ID=$(cat /secrets/AccessKey)
                   export RCLONE_CONFIG_RGW_SECRET_ACCESS_KEY=$(cat /secrets/SecretKey)
 
-                  # Read discovered buckets
-                  if [ ! -s /shared/buckets.txt ]; then
+                  # Discover ObjectBucketClaims via Kubernetes API
+                  echo "Discovering ObjectBucketClaims..."
+                  TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+                  CA=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+                  API="https://kubernetes.default.svc/apis/objectbucket.io/v1alpha1/namespaces/rook-ceph/objectbucketclaims"
+
+                  BUCKETS=$(wget -q --ca-certificate="$CA" \
+                    --header="Authorization: Bearer $TOKEN" \
+                    -O - "$API" | \
+                    sed -n 's/.*"bucketName"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | \
+                    sort -u)
+
+                  if [ -z "$BUCKETS" ]; then
                     echo "No buckets found to backup"
                     exit 0
                   fi
 
+                  echo "Found buckets:"
+                  echo "$BUCKETS"
+
                   # Backup each bucket
-                  while IFS= read -r BUCKET; do
-                    [ -z "$BUCKET" ] && continue
+                  for BUCKET in $BUCKETS; do
                     echo "=== Backing up bucket: ${BUCKET} ==="
                     rclone copy --verbose --stats-one-line --stats=1m "rgw:${BUCKET}/" "/backup/rgw-backups/${BUCKET}/"
                     echo "=== Completed backup of: ${BUCKET} ==="
-                  done < /shared/buckets.txt
+                  done
 
                   echo "=== All backups completed ==="
               env:
@@ -117,9 +102,6 @@ spec:
                   readOnly: true
                 - name: backup-storage
                   mountPath: /backup
-                - name: shared
-                  mountPath: /shared
-                  readOnly: true
 
               securityContext:
                 runAsNonRoot: true
@@ -140,5 +122,3 @@ spec:
               nfs:
                 server: ${SECRET_STORAGE_SERVER}
                 path: /mnt/pool/backups/rook
-            - name: shared
-              emptyDir: {}
