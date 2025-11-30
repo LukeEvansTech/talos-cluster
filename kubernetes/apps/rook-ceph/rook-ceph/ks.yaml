@@ -74,3 +74,28 @@ spec:
     namespace: flux-system
   targetNamespace: *namespace
   timeout: 15m
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/kustomize.toolkit.fluxcd.io/kustomization_v1.json
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: &app rook-ceph-backup
+  namespace: &namespace rook-ceph
+spec:
+  commonMetadata:
+    labels:
+      app.kubernetes.io/name: *app
+  dependsOn:
+    - name: rook-ceph-cluster
+      namespace: *namespace
+  interval: 1h
+  path: ./kubernetes/apps/rook-ceph/rook-ceph/backup
+  postBuild: {}
+  prune: true
+  retryInterval: 2m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+    namespace: flux-system
+  targetNamespace: *namespace
+  timeout: 5m

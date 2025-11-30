@@ -1,0 +1,102 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/batch/cronjob_v1.json
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: rgw-s3-backup
+  namespace: rook-ceph
+  annotations:
+    # UID 1000 required for NFS write permissions on TrueNAS
+    checkov.io/skip1: CKV_K8S_40=NFS share requires UID 1000 for write access
+spec:
+  schedule: "0 2 * * *" # Daily at 2:00 AM
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 2
+  jobTemplate:
+    spec:
+      ttlSecondsAfterFinished: 86400 # Clean up jobs after 24 hours
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: rgw-s3-backup
+            app.kubernetes.io/component: backup
+        spec:
+          automountServiceAccountToken: false
+          restartPolicy: OnFailure
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            fsGroup: 1000
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: rclone
+              image: docker.io/rclone/rclone:1.72.0@sha256:0eb18825ac9732c21c11d654007170572bbd495352bb6dbb624f18e4f462c496
+              imagePullPolicy: IfNotPresent
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  # Read credentials from mounted secrets
+                  export RCLONE_CONFIG_RGW_ACCESS_KEY_ID=$(cat /secrets/AccessKey)
+                  export RCLONE_CONFIG_RGW_SECRET_ACCESS_KEY=$(cat /secrets/SecretKey)
+
+                  # Backup each bucket
+                  for BUCKET in ${BUCKETS}; do
+                    echo "=== Backing up bucket: ${BUCKET} ==="
+                    rclone copy --verbose --stats-one-line --stats=1m rgw:${BUCKET}/ /backup/rgw-backups/${BUCKET}/
+                    echo "=== Completed backup of: ${BUCKET} ==="
+                  done
+
+                  echo "=== All backups completed ==="
+              env:
+                # Rclone S3 configuration for Rook-Ceph RGW
+                - name: RCLONE_CONFIG_RGW_TYPE
+                  value: s3
+                - name: RCLONE_CONFIG_RGW_PROVIDER
+                  value: Ceph
+                - name: RCLONE_CONFIG_RGW_ENDPOINT
+                  value: http://rook-ceph-rgw-ceph-objectstore.rook-ceph.svc.cluster.local
+                - name: RCLONE_CONFIG_RGW_ACL
+                  value: private
+
+                # Backup configuration - space-separated list of buckets
+                - name: BUCKETS
+                  value: "netdata"
+
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 256Mi
+                limits:
+                  cpu: 500m
+                  memory: 1Gi
+
+              volumeMounts:
+                - name: secrets
+                  mountPath: /secrets
+                  readOnly: true
+                - name: backup-storage
+                  mountPath: /backup
+
+              securityContext:
+                runAsNonRoot: true
+                runAsUser: 1000
+                runAsGroup: 1000
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop:
+                    - ALL
+
+          volumes:
+            - name: secrets
+              secret:
+                secretName: rook-ceph-object-user-ceph-objectstore-backup-user
+                defaultMode: 0400
+            - name: backup-storage
+              nfs:
+                server: ${SECRET_STORAGE_SERVER}
+                path: /mnt/pool/backups/rook
