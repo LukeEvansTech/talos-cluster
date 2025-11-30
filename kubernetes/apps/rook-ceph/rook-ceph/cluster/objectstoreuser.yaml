@@ -1,0 +1,13 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/ceph.rook.io/cephobjectstoreuser_v1.json
+apiVersion: ceph.rook.io/v1
+kind: CephObjectStoreUser
+metadata:
+  name: backup-user
+  namespace: rook-ceph
+spec:
+  store: ceph-objectstore
+  displayName: "S3 Backup User"
+  capabilities:
+    user: "*"
+    bucket: "*"
