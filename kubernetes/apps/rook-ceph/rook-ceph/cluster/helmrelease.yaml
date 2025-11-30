@@ -20,6 +20,13 @@ spec:
     toolbox:
       enabled: true
     cephClusterSpec:
+      resources:
+        mon:
+          requests:
+            cpu: 100m
+            memory: 1Gi
+          limits:
+            memory: 4Gi
       cephConfig:
         global:
           bdev_enable_discard: "true" # quote
