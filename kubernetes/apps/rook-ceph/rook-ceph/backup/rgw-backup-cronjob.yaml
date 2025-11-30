@@ -35,7 +35,7 @@ spec:
 
           initContainers:
             - name: discover-buckets
-              image: registry.k8s.io/kubectl:v1.32.0@sha256:b26cafd470ed3d95e2c68f5ad7aa8555a6380cf9e0f70e92c79fa1dd10701a14
+              image: registry.k8s.io/kubectl:v1.34.2@sha256:86316dd78d4887f9dce1e35ce22f3fce12dc6927e45d896656d9b93a1bb2638b
               command:
                 - /bin/sh
                 - -c
