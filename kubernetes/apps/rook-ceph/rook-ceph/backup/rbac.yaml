@@ -1,0 +1,30 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rgw-s3-backup
+  namespace: rook-ceph
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: rgw-s3-backup
+  namespace: rook-ceph
+rules:
+  - apiGroups: ["objectbucket.io"]
+    resources: ["objectbucketclaims"]
+    verbs: ["list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: rgw-s3-backup
+  namespace: rook-ceph
+subjects:
+  - kind: ServiceAccount
+    name: rgw-s3-backup
+    namespace: rook-ceph
+roleRef:
+  kind: Role
+  name: rgw-s3-backup
+  apiGroup: rbac.authorization.k8s.io
