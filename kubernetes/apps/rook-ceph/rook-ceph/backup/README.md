@@ -12,8 +12,9 @@ This directory contains the backup configuration for Rook-Ceph Object Storage (R
 
 ## How It Works
 
-1. Container queries Kubernetes API for all `ObjectBucketClaim` resources
-2. Extracts bucket names and backs up each bucket with rclone to NFS
+1. **Init Container** (curl) queries Kubernetes API for all `ObjectBucketClaim` resources
+2. Extracts bucket names and writes them to a shared volume
+3. **Main Container** (rclone) reads the bucket list and backs up each to NFS
 
 No manual bucket list maintenance required - new buckets are automatically included.
 
@@ -133,4 +134,4 @@ The backup job uses a dedicated ServiceAccount with minimal permissions:
 - Jobs are automatically cleaned up after 24 hours (TTL)
 - Runs as user 1000 for NFS write permissions
 - Secrets mounted as files for security compliance
-- Discovers buckets via Kubernetes API using ServiceAccount token
+- Init container uses `curl` to discover buckets via Kubernetes API
