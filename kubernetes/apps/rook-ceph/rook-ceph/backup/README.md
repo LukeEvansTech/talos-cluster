@@ -7,7 +7,7 @@ This directory contains the backup configuration for Rook-Ceph Object Storage (R
 - **CronJob**: `rgw-s3-backup` - Backs up S3 buckets from Rook-Ceph RGW to NFS storage
 - **Schedule**: Daily at 2:00 AM
 - **Tool**: Uses `rclone` for S3-compatible transfers
-- **Destination**: TrueNAS NFS at `/mnt/pool/backups/rgw-backups/`
+- **Destination**: TrueNAS NFS at `/mnt/pool/backups/rook/rgw-backups/`
 
 ## Configuration
 
@@ -15,7 +15,7 @@ This directory contains the backup configuration for Rook-Ceph Object Storage (R
 
 Backups are stored on TrueNAS via NFS:
 - **Server**: `${SECRET_STORAGE_SERVER}` (from cluster-secrets)
-- **Path**: `/mnt/pool/backups/rgw-backups/<bucket-name>/`
+- **Path**: `/mnt/pool/backups/rook/rgw-backups/<bucket-name>/`
 
 ### Buckets to Backup
 
@@ -113,7 +113,7 @@ kubectl -n rook-ceph get jobs -l app.kubernetes.io/name=rgw-s3-backup
 ## Backup Structure
 
 ```
-/mnt/pool/backups/rgw-backups/
+/mnt/pool/backups/rook/rgw-backups/
 ├── netdata/
 │   └── (synced files)
 ├── bucket2/

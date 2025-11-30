@@ -90,10 +90,7 @@ spec:
       namespace: *namespace
   interval: 1h
   path: ./kubernetes/apps/rook-ceph/rook-ceph/backup
-  postBuild:
-    substituteFrom:
-      - kind: Secret
-        name: cluster-secrets
+  postBuild: {}
   prune: true
   retryInterval: 2m
   sourceRef:
