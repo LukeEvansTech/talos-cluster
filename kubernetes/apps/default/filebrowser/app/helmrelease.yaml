@@ -16,7 +16,7 @@ spec:
           app:
             image:
               repository: filebrowser/filebrowser
-              tag: v2.50.0@sha256:3b0466235c4c3b70e7e4fe82f1345eca1df05ba5fa72037036d1c8fe3dff8dd1
+              tag: v2.50.0@sha256:4f5eaee70fdd6c5efb1d888b8f22f061b965c9414b12f0208b4446d984e56ce3
             env:
               TZ: ${TIMEZONE}
               FB_DATABASE: /config/filebrowser.db
