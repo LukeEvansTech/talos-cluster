@@ -109,7 +109,7 @@ spec:
           - path: /home/node/.pm2
       logs:
         type: emptyDir
-        sizeLimit: 10Mi
+        sizeLimit: 100Mi
         globalMounts:
           - path: /app/logs
       nltk:
