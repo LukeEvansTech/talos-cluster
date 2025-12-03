@@ -18,7 +18,7 @@ spec:
           app:
             image:
               repository: ghcr.io/corentinth/it-tools
-              tag: 2023.12.21-5ed3693
+              tag: v2024.10.22-7ca5933
             env:
               TZ: ${TIMEZONE}
             probes:
