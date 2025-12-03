@@ -19,7 +19,7 @@ spec:
           install-tools:
             image:
               repository: docker.io/alpine
-              tag: 3.22
+              tag: 3.23
             command:
               - sh
               - -c
