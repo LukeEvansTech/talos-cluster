@@ -1,6 +1,19 @@
 {
   $schema: "https://docs.renovatebot.com/renovate-schema.json",
+  hostRules: [
+    {
+      // Allow Renovate to access Forgejo's OCI registry
+      matchHost: "code.forgejo.org",
+      hostType: "docker",
+    },
+  ],
   packageRules: [
+    {
+      description: "Custom versioning for it-tools date-based tags",
+      matchDatasources: ["docker"],
+      matchPackageNames: ["ghcr.io/corentinth/it-tools"],
+      versioning: "regex:^v?(?<major>\\d{4})\\.(?<minor>\\d{2})\\.(?<patch>\\d{2})-(?<build>[a-f0-9]+)$",
+    },
     {
       description: "Override Helmfile Dependency Name",
       matchDatasources: ["docker"],
