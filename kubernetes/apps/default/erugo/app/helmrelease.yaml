@@ -1,0 +1,111 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: &app erugo
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: erugo
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+      strategy: rollback
+  values:
+    controllers:
+      erugo:
+        annotations:
+          reloader.stakater.com/auto: "true"
+
+        containers:
+          app:
+            image:
+              repository: wardy784/erugo
+              tag: v0.1.1
+            env:
+              TZ: ${TIMEZONE}
+              APP_NAME: Erugo
+              APP_ENV: production
+              APP_DEBUG: "false"
+              APP_TIMEZONE: ${TIMEZONE}
+              APP_URL: "https://erugo.${SECRET_DOMAIN}"
+              APP_LOCALE: en
+              APP_FALLBACK_LOCALE: en
+              APP_MAINTENANCE_DRIVER: file
+              BCRYPT_ROUNDS: "12"
+              LOG_CHANNEL: stack
+              LOG_STACK: single
+              LOG_LEVEL: warning
+              DB_CONNECTION: sqlite
+              JWT_ALGO: HS256
+              VITE_API_URL: "https://erugo.${SECRET_DOMAIN}"
+            envFrom:
+              - secretRef:
+                  name: erugo-secret
+            probes:
+              liveness: &probes
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /
+                    port: &port 80
+                  initialDelaySeconds: 30
+                  periodSeconds: 10
+                  timeoutSeconds: 5
+                  failureThreshold: 3
+              readiness: *probes
+              startup:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /
+                    port: *port
+                  initialDelaySeconds: 10
+                  periodSeconds: 5
+                  timeoutSeconds: 5
+                  failureThreshold: 30
+            resources:
+              requests:
+                cpu: 10m
+                memory: 128Mi
+              limits:
+                memory: 512Mi
+
+    defaultPodOptions:
+      securityContext:
+        fsGroup: 82
+        fsGroupChangePolicy: OnRootMismatch
+
+    service:
+      app:
+        controller: erugo
+        ports:
+          http:
+            port: 80
+
+    route:
+      app:
+        annotations:
+          gatus.home-operations.com/endpoint: |-
+            group: external
+            url: https://erugo.${SECRET_DOMAIN}
+            conditions: ["[STATUS] == 200"]
+        hostnames:
+          - "{{ .Release.Name }}.${SECRET_DOMAIN}"
+        parentRefs:
+          - name: envoy-external
+            namespace: network
+
+    persistence:
+      storage:
+        existingClaim: "{{ .Release.Name }}"
+        globalMounts:
+          - path: /var/www/html/storage
