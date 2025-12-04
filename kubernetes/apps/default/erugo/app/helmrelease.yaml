@@ -27,7 +27,7 @@ spec:
           app:
             image:
               repository: wardy784/erugo
-              tag: v0.1.1
+              tag: "0.1.1"
             env:
               TZ: ${TIMEZONE}
               APP_NAME: Erugo
