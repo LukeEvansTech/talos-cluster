@@ -33,6 +33,10 @@ spec:
                 chown nut:nut /run/nut
                 chmod 770 /run/nut
 
+                # Copy our configs over the default ones
+                cp /config/*.conf /etc/nut/
+                cp /config/upsd.users /etc/nut/
+
                 # Fix config permissions
                 chown -R root:nut /etc/nut
                 chmod 640 /etc/nut/*
@@ -97,7 +101,8 @@ spec:
         name: network-ups-tools
         defaultMode: 0644
         globalMounts:
-          - path: /etc/nut
+          - path: /config
+            readOnly: true
     configMaps:
       config:
         data:
