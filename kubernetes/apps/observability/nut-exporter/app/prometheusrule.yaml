@@ -1,0 +1,66 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: nut-exporter
+spec:
+  groups:
+    - name: nut-exporter
+      rules:
+        - alert: NutExporterAbsent
+          annotations:
+            description: NUT Exporter has disappeared from Prometheus target discovery.
+            summary: NUT Exporter is down.
+          expr: absent(up{job=~".*nut-exporter.*"} == 1)
+          for: 5m
+          labels:
+            severity: critical
+        - alert: UpsOnBattery
+          annotations:
+            description: UPS {{ $labels.instance }} has lost power and is running on battery.
+            summary: UPS is running on battery.
+          expr: network_ups_tools_ups_status{flag="OB"} == 1
+          for: 10s
+          labels:
+            severity: critical
+        - alert: UpsLowRuntime
+          annotations:
+            description: UPS {{ $labels.instance }} battery runtime is {{ $value | humanizeDuration }} which is below 10 minutes.
+            summary: UPS battery runtime is critically low.
+          expr: network_ups_tools_ups_status{flag="OB"} == 1 and network_ups_tools_battery_runtime < 600
+          for: 1m
+          labels:
+            severity: critical
+        - alert: UpsLowBattery
+          annotations:
+            description: UPS {{ $labels.instance }} battery charge is {{ $value | printf "%.0f" }}% which is below 50%.
+            summary: UPS battery is low.
+          expr: network_ups_tools_battery_charge < 50
+          for: 5m
+          labels:
+            severity: warning
+        - alert: UpsBatteryReplace
+          annotations:
+            description: UPS {{ $labels.instance }} battery needs replacement.
+            summary: Replace UPS battery.
+          expr: network_ups_tools_ups_status{flag="RB"} == 1
+          for: 10s
+          labels:
+            severity: critical
+        - alert: UpsHighLoad
+          annotations:
+            description: UPS {{ $labels.instance }} load is {{ $value | printf "%.0f" }}% which is above 80%.
+            summary: UPS load is high.
+          expr: network_ups_tools_ups_load > 80
+          for: 5m
+          labels:
+            severity: warning
+        - alert: UpsOverload
+          annotations:
+            description: UPS {{ $labels.instance }} is overloaded at {{ $value | printf "%.0f" }}%.
+            summary: UPS is overloaded.
+          expr: network_ups_tools_ups_load > 95
+          for: 1m
+          labels:
+            severity: critical
