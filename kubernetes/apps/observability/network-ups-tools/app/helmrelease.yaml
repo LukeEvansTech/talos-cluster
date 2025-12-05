@@ -24,21 +24,27 @@ spec:
               - /bin/sh
               - -c
               - |
+                set -e
                 # Install NUT with SNMP support
-                apk add --no-cache nut nut-snmp net-snmp-tools
+                apk add --no-cache nut net-snmp
 
-                # Create config directory structure
+                # Create runtime directory
                 mkdir -p /run/nut
                 chown nut:nut /run/nut
+                chmod 770 /run/nut
+
+                # Fix config permissions
+                chown -R root:nut /etc/nut
+                chmod 640 /etc/nut/*
 
                 # Start the UPS driver
                 echo "Starting snmp-ups driver..."
-                /usr/lib/nut/snmp-ups -a apc &
-                sleep 5
+                /usr/lib/nut/snmp-ups -a apc -u root &
+                sleep 10
 
                 # Start upsd
                 echo "Starting upsd..."
-                upsd -F
+                /usr/sbin/upsd -u root -F
             env:
               TZ: ${TIMEZONE:=UTC}
             probes:
