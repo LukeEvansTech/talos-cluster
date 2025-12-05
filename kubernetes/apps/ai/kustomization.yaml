@@ -10,5 +10,3 @@ resources:
   - ./namespace.yaml
   - ./ollama/ks.yaml
   - ./open-webui/ks.yaml
-  - ./openmemory/ks.yaml
-  - ./openmemorydashboard/ks.yaml
