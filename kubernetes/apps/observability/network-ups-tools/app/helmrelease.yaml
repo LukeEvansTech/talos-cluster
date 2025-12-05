@@ -47,8 +47,8 @@ spec:
         containers:
           app:
             image:
-              repository: ghcr.io/jr0dd/network-ups-tools
-              tag: v2.8.3@sha256:0a7dce0c4c69f6feefa25e3bc3db3c7a11ef67a33a9d1e850bf011f0ef5e30e8
+              repository: docker.io/upshift/nut-upsd
+              tag: 2.8.0@sha256:d2acd9d5e66bd644676eaf8686ebaafcef34cd40c0abf2182f26e50cd8eb3491
             probes:
               liveness:
                 enabled: true
