@@ -89,7 +89,7 @@ spec:
           - path: /etc/nut
       config-templates:
         type: configMap
-        name: network-ups-tools-config
+        name: network-ups-tools
         globalMounts:
           - path: /config-templates
             readOnly: true
