@@ -9,9 +9,7 @@ spec:
   commonMetadata:
     labels:
       app.kubernetes.io/name: *app
-  dependsOn:
-    - name: onepassword
-      namespace: external-secrets
+  dependsOn: []
   interval: 1h
   path: ./kubernetes/apps/observability/network-ups-tools/app
   postBuild:
