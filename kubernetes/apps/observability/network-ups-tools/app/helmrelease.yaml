@@ -12,41 +12,21 @@ spec:
   values:
     controllers:
       network-ups-tools:
+        strategy: RollingUpdate
         annotations:
           reloader.stakater.com/auto: "true"
         containers:
           app:
             image:
-              repository: docker.io/instantlinux/nut-upsd
-              tag: 2.8.3-r2@sha256:555bbb58bfc537f1ece883a26a4099a27d1089bdcd8e4b28af118006a836f036
+              repository: ghcr.io/jr0dd/network-ups-tools
+              tag: v2.8.3@sha256:9f8e14d155c6ef05940cee6f8861e259e951eb11750aeddd02539d986dac1ca0
             env:
               TZ: ${TIMEZONE:=UTC}
-              NAME: apc
-              DRIVER: snmp-ups
-              DESCRIPTION: "APC UPS Main"
-              API_USER: upsmon
-              MAXAGE: "25"
-              POLLINTERVAL: "15"
-            envFrom:
-              - secretRef:
-                  name: network-ups-tools-secret
             probes:
               liveness:
                 enabled: true
-                custom: true
-                spec:
-                  tcpSocket:
-                    port: 3493
-                  initialDelaySeconds: 30
-                  periodSeconds: 10
               readiness:
                 enabled: true
-                custom: true
-                spec:
-                  tcpSocket:
-                    port: 3493
-                  initialDelaySeconds: 10
-                  periodSeconds: 10
             resources:
               requests:
                 cpu: 10m
@@ -55,16 +35,17 @@ spec:
                 memory: 128Mi
             securityContext:
               allowPrivilegeEscalation: false
-              readOnlyRootFilesystem: false
+              readOnlyRootFilesystem: true
               capabilities:
                 drop:
                   - ALL
     defaultPodOptions:
       securityContext:
-        runAsNonRoot: false
-        runAsUser: 0
-        runAsGroup: 0
-        fsGroup: 0
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
     service:
       app:
         controller: *app
@@ -75,3 +56,43 @@ spec:
           nut:
             port: 3493
             protocol: TCP
+    persistence:
+      config:
+        type: configMap
+        name: network-ups-tools
+        defaultMode: 0400
+        globalMounts:
+          - path: /etc/nut
+    configMaps:
+      config:
+        data:
+          nut.conf: |
+            MODE=netserver
+          upsd.conf: |
+            MAXAGE 25
+            LISTEN 0.0.0.0
+          upsd.users: |
+            [upsmon]
+              password = secret
+              actions = SET
+              instcmds = ALL
+              upsmon primary
+            [monuser]
+              password = secret
+              upsmon secondary
+          ups.conf: |
+            [apc]
+              driver = snmp-ups
+              port = cr-ups-main.codelooks.com
+              desc = "APC UPS Main"
+              community = public
+              snmp_version = v2c
+              pollfreq = 15
+              mibs = auto
+          upsmon.conf: |
+            MONITOR apc@localhost:3493 1 upsmon secret primary
+            SHUTDOWNCMD "/sbin/shutdown -h +0"
+            POWERDOWNFLAG /etc/killpower
+            POLLFREQ 15
+            POLLFREQALERT 5
+            HOSTSYNC 15
