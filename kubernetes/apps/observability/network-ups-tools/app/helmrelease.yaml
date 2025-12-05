@@ -18,15 +18,46 @@ spec:
         containers:
           app:
             image:
-              repository: ghcr.io/jr0dd/network-ups-tools
-              tag: v2.8.3@sha256:9f8e14d155c6ef05940cee6f8861e259e951eb11750aeddd02539d986dac1ca0
+              repository: docker.io/library/alpine
+              tag: 3.21
+            command:
+              - /bin/sh
+              - -c
+              - |
+                # Install NUT with SNMP support
+                apk add --no-cache nut nut-snmp net-snmp-tools
+
+                # Create config directory structure
+                mkdir -p /run/nut
+                chown nut:nut /run/nut
+
+                # Start the UPS driver
+                echo "Starting snmp-ups driver..."
+                /usr/lib/nut/snmp-ups -a apc &
+                sleep 5
+
+                # Start upsd
+                echo "Starting upsd..."
+                upsd -F
             env:
               TZ: ${TIMEZONE:=UTC}
             probes:
               liveness:
                 enabled: true
+                custom: true
+                spec:
+                  tcpSocket:
+                    port: 3493
+                  initialDelaySeconds: 60
+                  periodSeconds: 30
               readiness:
                 enabled: true
+                custom: true
+                spec:
+                  tcpSocket:
+                    port: 3493
+                  initialDelaySeconds: 30
+                  periodSeconds: 10
             resources:
               requests:
                 cpu: 10m
@@ -35,17 +66,15 @@ spec:
                 memory: 128Mi
             securityContext:
               allowPrivilegeEscalation: false
-              readOnlyRootFilesystem: true
+              readOnlyRootFilesystem: false
               capabilities:
                 drop:
                   - ALL
     defaultPodOptions:
       securityContext:
-        runAsNonRoot: true
-        runAsUser: 1000
-        runAsGroup: 1000
-        fsGroup: 1000
-        fsGroupChangePolicy: OnRootMismatch
+        runAsNonRoot: false
+        runAsUser: 0
+        runAsGroup: 0
     service:
       app:
         controller: *app
@@ -60,7 +89,7 @@ spec:
       config:
         type: configMap
         name: network-ups-tools
-        defaultMode: 0400
+        defaultMode: 0644
         globalMounts:
           - path: /etc/nut
     configMaps:
@@ -70,7 +99,7 @@ spec:
             MODE=netserver
           upsd.conf: |
             MAXAGE 25
-            LISTEN 0.0.0.0
+            LISTEN 0.0.0.0 3493
           upsd.users: |
             [upsmon]
               password = secret
@@ -88,7 +117,6 @@ spec:
               community = public
               snmp_version = v2c
               pollfreq = 15
-              mibs = auto
           upsmon.conf: |
             MONITOR apc@localhost:3493 1 upsmon secret primary
             SHUTDOWNCMD "/sbin/shutdown -h +0"
