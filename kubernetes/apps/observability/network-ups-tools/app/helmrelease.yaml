@@ -14,52 +14,45 @@ spec:
       network-ups-tools:
         annotations:
           reloader.stakater.com/auto: "true"
-        initContainers:
-          init-config:
-            image:
-              repository: docker.io/library/busybox
-              tag: latest
-            command:
-              - sh
-              - -c
-              - |
-                # Generate ups.conf with UPS hostname from secret
-                cat > /etc/nut/ups.conf << EOF
-                # APC UPS via Network Card 2 (SNMP)
-                [apc]
-                  driver = snmp-ups
-                  port = ${UPS_HOSTNAME}
-                  desc = "APC UPS Main"
-                  community = ${UPS_COMMUNITY:-public}
-                  snmp_version = v2c
-                  pollfreq = 15
-                  mibs = auto
-                EOF
-                # Copy static configs
-                cp /config-templates/* /etc/nut/
-                chmod 640 /etc/nut/*
-            envFrom:
-              - secretRef:
-                  name: network-ups-tools-secret
-            securityContext:
-              runAsUser: 0
-              runAsGroup: 0
         containers:
           app:
             image:
-              repository: docker.io/upshift/nut-upsd
-              tag: 2.8.0@sha256:d2acd9d5e66bd644676eaf8686ebaafcef34cd40c0abf2182f26e50cd8eb3491
+              repository: docker.io/instantlinux/nut-upsd
+              tag: 2.8.3-r2@sha256:555bbb58bfc537f1ece883a26a4099a27d1089bdcd8e4b28af118006a836f036
+            env:
+              TZ: ${TIMEZONE:=UTC}
+              NAME: apc
+              DRIVER: snmp-ups
+              DESCRIPTION: "APC UPS Main"
+              API_USER: upsmon
+              MAXAGE: "25"
+              POLLINTERVAL: "15"
+            envFrom:
+              - secretRef:
+                  name: network-ups-tools-secret
             probes:
               liveness:
                 enabled: true
+                custom: true
+                spec:
+                  tcpSocket:
+                    port: 3493
+                  initialDelaySeconds: 30
+                  periodSeconds: 10
               readiness:
                 enabled: true
+                custom: true
+                spec:
+                  tcpSocket:
+                    port: 3493
+                  initialDelaySeconds: 10
+                  periodSeconds: 10
             resources:
               requests:
                 cpu: 10m
                 memory: 32Mi
               limits:
-                memory: 64Mi
+                memory: 128Mi
             securityContext:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: false
@@ -82,45 +75,3 @@ spec:
           nut:
             port: 3493
             protocol: TCP
-    persistence:
-      config:
-        type: emptyDir
-        globalMounts:
-          - path: /etc/nut
-      config-templates:
-        type: configMap
-        name: network-ups-tools
-        globalMounts:
-          - path: /config-templates
-            readOnly: true
-      tmp:
-        type: emptyDir
-        globalMounts:
-          - path: /tmp
-    configMaps:
-      config:
-        data:
-          nut.conf: |
-            MODE=netserver
-          upsd.conf: |
-            LISTEN 0.0.0.0 3493
-            MAXAGE 20
-          upsd.users: |
-            [upsmon]
-              password = secret
-              upsmon primary
-            [monuser]
-              password = secret
-              upsmon secondary
-          upsmon.conf: |
-            MONITOR apc@localhost 1 upsmon secret primary
-            MINSUPPLIES 1
-            SHUTDOWNCMD "/sbin/shutdown -h +0"
-            POLLFREQ 5
-            POLLFREQALERT 5
-            HOSTSYNC 15
-            DEADTIME 25
-            POWERDOWNFLAG /etc/killpower
-            RBWARNTIME 43200
-            NOCOMMWARNTIME 300
-            FINALDELAY 5
