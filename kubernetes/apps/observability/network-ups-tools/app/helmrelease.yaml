@@ -78,6 +78,10 @@ spec:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: false
               capabilities:
+                add:
+                  - CHOWN
+                  - SETUID
+                  - SETGID
                 drop:
                   - ALL
     defaultPodOptions:
