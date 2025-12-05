@@ -13,7 +13,7 @@ spec:
       - ${VOLSYNC_SNAP_ACCESSMODES:=ReadWriteOnce}
     cacheAccessModes:
       - ${VOLSYNC_CACHE_ACCESSMODES:=ReadWriteOnce}
-    cacheCapacity: ${VOLSYNC_CACHE_CAPACITY:=2Gi}
+    cacheCapacity: ${VOLSYNC_CACHE_CAPACITY:=4Gi}
     cacheStorageClassName: ${VOLSYNC_CACHE_SNAPSHOTCLASS:=ceph-block}
     compression: zstd-fastest
     copyMethod: ${VOLSYNC_COPYMETHOD:=Snapshot}
@@ -24,8 +24,8 @@ spec:
     parallelism: 2
     repository: ${APP}-volsync-nfs-secret
     retain:
-      hourly: 720
-      daily: 180
+      hourly: 168
+      daily: 90
       weekly: 52
       monthly: 24
       yearly: 10
