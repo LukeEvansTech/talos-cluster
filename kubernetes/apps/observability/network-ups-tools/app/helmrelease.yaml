@@ -18,7 +18,7 @@ spec:
         containers:
           app:
             image:
-              repository: ghcr.io/lukeevantech/nut-snmp
+              repository: ghcr.io/lukeevanstech/nut-snmp
               tag: latest
             env:
               TZ: ${TIMEZONE:=UTC}
