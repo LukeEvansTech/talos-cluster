@@ -64,6 +64,8 @@ spec:
                 add:
                   - CHOWN
                   - DAC_OVERRIDE
+                  - SETGID
+                  - SETUID
     defaultPodOptions:
       securityContext:
         runAsNonRoot: false
