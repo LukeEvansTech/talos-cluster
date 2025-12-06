@@ -61,6 +61,9 @@ spec:
               capabilities:
                 drop:
                   - ALL
+                add:
+                  - CHOWN
+                  - DAC_OVERRIDE
     defaultPodOptions:
       securityContext:
         runAsNonRoot: false
