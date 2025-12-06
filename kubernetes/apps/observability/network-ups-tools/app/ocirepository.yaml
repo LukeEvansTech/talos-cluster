@@ -8,4 +8,4 @@ spec:
   interval: 15m
   url: oci://ghcr.io/bjw-s-labs/helm/app-template
   ref:
-    tag: 4.0.1
+    tag: 4.5.0
