@@ -18,6 +18,7 @@ resources:
   - ./netdata/ks.yaml
   - ./network-ups-tools/ks.yaml
   - ./nut-exporter/ks.yaml
+  - ./peanut/ks.yaml
   - ./silence-operator/ks.yaml
   - ./smartctl-exporter/ks.yaml
   - ./snmp-exporter/ks.yaml
