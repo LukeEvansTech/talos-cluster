@@ -18,49 +18,49 @@ spec:
             severity: critical
         - alert: UpsOnBattery
           annotations:
-            description: UPS {{ $labels.instance }} has lost power and is running on battery.
+            description: UPS {{ $labels.ups }} has lost power and is running on battery.
             summary: UPS is running on battery.
-          expr: nut_status{status="OB"} == 1
+          expr: nut_ups_status{status="OB"} == 1
           for: 10s
           labels:
             severity: critical
         - alert: UpsLowRuntime
           annotations:
-            description: UPS {{ $labels.instance }} battery runtime is {{ $value | humanizeDuration }} which is below 10 minutes.
+            description: UPS {{ $labels.ups }} battery runtime is {{ $value | humanizeDuration }} which is below 10 minutes.
             summary: UPS battery runtime is critically low.
-          expr: nut_status{status="OB"} == 1 and nut_battery_runtime_seconds < 600
+          expr: nut_ups_status{status="OB"} == 1 and nut_battery_runtime_seconds < 600
           for: 1m
           labels:
             severity: critical
         - alert: UpsLowBattery
           annotations:
-            description: UPS {{ $labels.instance }} battery charge is {{ $value | printf "%.0f" }}% which is below 50%.
+            description: UPS {{ $labels.ups }} battery charge is {{ $value | humanizePercentage }} which is below 50%.
             summary: UPS battery is low.
-          expr: nut_battery_charge < 50
+          expr: nut_battery_charge < 0.5
           for: 5m
           labels:
             severity: warning
         - alert: UpsBatteryReplace
           annotations:
-            description: UPS {{ $labels.instance }} battery needs replacement.
+            description: UPS {{ $labels.ups }} battery needs replacement.
             summary: Replace UPS battery.
-          expr: nut_status{status="RB"} == 1
+          expr: nut_ups_status{status="RB"} == 1
           for: 10s
           labels:
             severity: critical
         - alert: UpsHighLoad
           annotations:
-            description: UPS {{ $labels.instance }} load is {{ $value | printf "%.0f" }}% which is above 80%.
+            description: UPS {{ $labels.ups }} load is {{ $value | humanizePercentage }} which is above 80%.
             summary: UPS load is high.
-          expr: nut_load > 80
+          expr: nut_load > 0.8
           for: 5m
           labels:
             severity: warning
         - alert: UpsOverload
           annotations:
-            description: UPS {{ $labels.instance }} is overloaded at {{ $value | printf "%.0f" }}%.
+            description: UPS {{ $labels.ups }} is overloaded at {{ $value | humanizePercentage }}.
             summary: UPS is overloaded.
-          expr: nut_load > 95
+          expr: nut_load > 0.95
           for: 1m
           labels:
             severity: critical
