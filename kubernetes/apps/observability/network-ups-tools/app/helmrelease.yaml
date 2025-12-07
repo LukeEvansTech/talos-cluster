@@ -81,17 +81,3 @@ spec:
           nut:
             port: 3493
             protocol: TCP
-          web:
-            port: 6543
-            protocol: TCP
-    route:
-      app:
-        hostnames:
-          - nut.${SECRET_DOMAIN}
-        parentRefs:
-          - name: envoy-internal
-            namespace: network
-        rules:
-          - backendRefs:
-              - identifier: app
-                port: 6543
