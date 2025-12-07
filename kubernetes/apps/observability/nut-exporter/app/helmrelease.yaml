@@ -23,6 +23,8 @@ spec:
               - --nut.vars_enable=battery.charge,battery.runtime,battery.voltage,input.voltage,output.voltage,ups.load,ups.status
             env:
               TZ: ${TIMEZONE:=UTC}
+              NUT_EXPORTER_USERNAME: upsmon
+              NUT_EXPORTER_PASSWORD: secret
             probes:
               liveness:
                 enabled: true
