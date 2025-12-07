@@ -3,8 +3,9 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: peanut-config
+  namespace: observability
 data:
-  settings.yml: |
+  settings.yml: |-
     NUT_SERVERS:
       - HOST: network-ups-tools.observability.svc.cluster.local
         PORT: 3493
