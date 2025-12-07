@@ -28,5 +28,8 @@ spec:
         - action: replace
           replacement: cr-ups-main
           targetLabel: server
+        - action: replace
+          replacement: apc
+          targetLabel: ups
         - action: labeldrop
           regex: pod
