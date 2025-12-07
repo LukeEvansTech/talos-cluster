@@ -20,7 +20,7 @@ spec:
           annotations:
             description: UPS {{ $labels.instance }} has lost power and is running on battery.
             summary: UPS is running on battery.
-          expr: network_ups_tools_ups_status{flag="OB"} == 1
+          expr: nut_status{status="OB"} == 1
           for: 10s
           labels:
             severity: critical
@@ -28,7 +28,7 @@ spec:
           annotations:
             description: UPS {{ $labels.instance }} battery runtime is {{ $value | humanizeDuration }} which is below 10 minutes.
             summary: UPS battery runtime is critically low.
-          expr: network_ups_tools_ups_status{flag="OB"} == 1 and network_ups_tools_battery_runtime < 600
+          expr: nut_status{status="OB"} == 1 and nut_battery_runtime_seconds < 600
           for: 1m
           labels:
             severity: critical
@@ -36,7 +36,7 @@ spec:
           annotations:
             description: UPS {{ $labels.instance }} battery charge is {{ $value | printf "%.0f" }}% which is below 50%.
             summary: UPS battery is low.
-          expr: network_ups_tools_battery_charge < 50
+          expr: nut_battery_charge < 50
           for: 5m
           labels:
             severity: warning
@@ -44,7 +44,7 @@ spec:
           annotations:
             description: UPS {{ $labels.instance }} battery needs replacement.
             summary: Replace UPS battery.
-          expr: network_ups_tools_ups_status{flag="RB"} == 1
+          expr: nut_status{status="RB"} == 1
           for: 10s
           labels:
             severity: critical
@@ -52,7 +52,7 @@ spec:
           annotations:
             description: UPS {{ $labels.instance }} load is {{ $value | printf "%.0f" }}% which is above 80%.
             summary: UPS load is high.
-          expr: network_ups_tools_ups_load > 80
+          expr: nut_load > 80
           for: 5m
           labels:
             severity: warning
@@ -60,7 +60,7 @@ spec:
           annotations:
             description: UPS {{ $labels.instance }} is overloaded at {{ $value | printf "%.0f" }}%.
             summary: UPS is overloaded.
-          expr: network_ups_tools_ups_load > 95
+          expr: nut_load > 95
           for: 1m
           labels:
             severity: critical
