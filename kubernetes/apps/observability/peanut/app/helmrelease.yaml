@@ -67,7 +67,7 @@ spec:
     route:
       app:
         hostnames:
-          - nut.${SECRET_DOMAIN}
+          - peanut.${SECRET_DOMAIN}
         parentRefs:
           - name: envoy-internal
             namespace: network
