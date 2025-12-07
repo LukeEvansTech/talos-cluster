@@ -10,7 +10,7 @@ spec:
     matchLabels:
       grafana.internal/instance: grafana
   datasources:
-    - datasourceName: Prometheus
+    - datasourceName: prometheus
       inputName: DS_PRIVATE_PROMETHEUS
   grafanaCom:
     # renovate: depName="Prometheus NUT Exporter"
