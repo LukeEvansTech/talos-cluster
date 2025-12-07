@@ -11,7 +11,7 @@ spec:
       grafana.internal/instance: grafana
   datasources:
     - datasourceName: Prometheus
-      inputName: DS_PROMETHEUS
+      inputName: DS_PRIVATE_PROMETHEUS
   grafanaCom:
     # renovate: depName="Prometheus NUT Exporter"
     id: 14371
