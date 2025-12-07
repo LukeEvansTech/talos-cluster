@@ -13,23 +13,15 @@ spec:
   endpoints:
     - port: metrics
       interval: 30s
-      path: /ups_metrics
+      path: /metrics
       params:
-        server:
-          - network-ups-tools.observability.svc.cluster.local
-        ups:
-          - apc
+        target:
+          - network-ups-tools.observability.svc.cluster.local:3493
       metricRelabelings:
         - action: replace
           sourceLabels:
             - __address__
           targetLabel: instance
           replacement: apc-main
-        - action: replace
-          replacement: cr-ups-main
-          targetLabel: server
-        - action: replace
-          replacement: apc
-          targetLabel: ups
         - action: labeldrop
           regex: pod
