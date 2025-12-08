@@ -70,34 +70,21 @@ data:
     # Function to get fragmentation percentage for a node
     get_fragmentation() {
         NODE="$1"
-        # Get etcd status and parse db size and in-use size
+        # Get etcd status and parse the in-use percentage
         STATUS=$(talosctl -n "$NODE" etcd status 2>/dev/null || echo "")
         if [ -z "$STATUS" ]; then
             echo "0"
             return
         fi
 
-        # Parse DB SIZE and IN USE columns (sizes in MB or GB)
-        # Format: MEMBER  ID  VERSION  DB SIZE  IN USE  LEADER  RAFT INDEX  RAFT TERM  RAFT APPLIED INDEX  LEARNER  ERRORS
-        DB_SIZE=$(echo "$STATUS" | tail -1 | awk '{print $4}' | sed 's/[^0-9.]//g')
-        IN_USE=$(echo "$STATUS" | tail -1 | awk '{print $6}' | sed 's/[^0-9.]//g')
+        # Format: NODE  MEMBER  DB SIZE  IN USE (with percentage)  LEADER  ...
+        # Example: 10.32.8.80   1d675283eb33137b   316 MB    164 MB (51.84%)   ...
+        # Extract the percentage directly from the IN USE column (e.g., "51.84" from "(51.84%)")
+        IN_USE_PCT=$(echo "$STATUS" | tail -1 | grep -oE '\([0-9.]+%\)' | tr -d '()%')
 
-        # Handle unit conversion (MB vs GB)
-        DB_UNIT=$(echo "$STATUS" | tail -1 | awk '{print $4}' | sed 's/[0-9.]//g')
-        IN_UNIT=$(echo "$STATUS" | tail -1 | awk '{print $6}' | sed 's/[0-9.]//g')
-
-        # Convert to same unit (MB)
-        if echo "$DB_UNIT" | grep -qi "gb"; then
-            DB_SIZE=$(echo "$DB_SIZE * 1024" | bc 2>/dev/null || echo "$DB_SIZE")
-        fi
-        if echo "$IN_UNIT" | grep -qi "gb"; then
-            IN_USE=$(echo "$IN_USE * 1024" | bc 2>/dev/null || echo "$IN_USE")
-        fi
-
-        # Calculate fragmentation percentage
-        if [ -n "$DB_SIZE" ] && [ -n "$IN_USE" ] && [ "$DB_SIZE" != "0" ]; then
-            # Fragmentation = (DB_SIZE - IN_USE) / DB_SIZE * 100
-            FRAG=$(awk "BEGIN {printf \"%.0f\", (($DB_SIZE - $IN_USE) / $DB_SIZE) * 100}")
+        if [ -n "$IN_USE_PCT" ]; then
+            # Fragmentation = 100 - in_use_percentage
+            FRAG=$(awk "BEGIN {printf \"%.0f\", 100 - $IN_USE_PCT}")
             echo "$FRAG"
         else
             echo "0"
