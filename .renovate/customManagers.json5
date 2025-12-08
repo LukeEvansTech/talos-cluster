@@ -42,5 +42,16 @@
       matchStrings: ["oci://(?<depName>[^:]+):(?<currentValue>\\S+)"],
       datasourceTemplate: "docker",
     },
+    {
+      customType: "regex",
+      description: "Process Forgejo Helm chart from code.forgejo.org",
+      managerFilePatterns: ["/(^|/)kubernetes/.+\\.ya?ml$/"],
+      matchStrings: [
+        "tag:\\s*(?<currentValue>\\d+\\.\\d+\\.\\d+)\\n\\s+url:\\s*oci://code\\.forgejo\\.org/forgejo-helm/forgejo",
+      ],
+      depNameTemplate: "forgejo-helm/forgejo-helm",
+      datasourceTemplate: "forgejo-tags",
+      extractVersionTemplate: "^v(?<version>.*)$",
+    },
   ],
 }
