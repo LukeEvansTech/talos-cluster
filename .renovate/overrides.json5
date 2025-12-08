@@ -9,6 +9,12 @@
   ],
   packageRules: [
     {
+      description: "Disable Renovate for Forgejo Helm chart - registry doesn't support version lookups",
+      matchDatasources: ["docker"],
+      matchPackageNames: ["code.forgejo.org/forgejo-helm/forgejo"],
+      enabled: false,
+    },
+    {
       description: "Custom versioning for it-tools date-based tags (no v prefix)",
       matchDatasources: ["docker"],
       matchPackageNames: ["ghcr.io/corentinth/it-tools"],
