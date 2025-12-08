@@ -14,7 +14,7 @@ spec:
       etcd-defrag:
         type: cronjob
         cronjob:
-          schedule: "*/15 * * * *" # Every 15 minutes - checks fragmentation and defrags if needed
+          schedule: "0 4 * * *" # Daily at 4 AM - checks fragmentation and defrags if needed
           concurrencyPolicy: Forbid
           successfulJobsHistory: 1
           failedJobsHistory: 1
