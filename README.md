@@ -144,6 +144,14 @@ Be sure to check out [kubesearch.dev](https://kubesearch.dev/) for ideas on how 
 
 ---
 
+<div align="center">
+
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/LukeEvansTech/talos-cluster)
+
+</div>
+
+---
+
 ## 📜 Changelog
 
 See my commit history [commit history](https://github.com/lukeevanstech/talos-cluster/commits/)
