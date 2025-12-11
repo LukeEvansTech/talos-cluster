@@ -11,7 +11,8 @@ spec:
     name: mc-router
   values:
     inKubeCluster: true
-    minecraft:
-      type: LoadBalancer
-      annotations:
-        lbipam.cilium.io/ips: "${SVC_MC_ROUTER_ADDR}"
+    services:
+      minecraft:
+        type: LoadBalancer
+        annotations:
+          lbipam.cilium.io/ips: "${SVC_MC_ROUTER_ADDR}"
