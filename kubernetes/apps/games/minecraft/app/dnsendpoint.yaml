@@ -9,4 +9,4 @@ spec:
       recordTTL: 3600
       recordType: A
       targets:
-        - "${SVC_MINECRAFT_ADDR}"
+        - "${SVC_MC_ROUTER_ADDR}"

@@ -91,10 +91,9 @@ spec:
       app:
         enabled: true
         controller: minecraft
-        type: LoadBalancer
-        allocateLoadBalancerNodePorts: true
+        type: ClusterIP
         annotations:
-          lbipam.cilium.io/ips: "${SVC_MINECRAFT_ADDR}"
+          mc-router.itzg.me/externalServerName: "minecraft.${SECRET_DOMAIN}"
         ports:
           minecraft:
             enabled: true
