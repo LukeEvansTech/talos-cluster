@@ -113,9 +113,3 @@ spec:
         existingClaim: palworld
         globalMounts:
           - path: /palworld
-      tmpfs:
-        type: emptyDir
-        advancedMounts:
-          palworld:
-            app:
-              - path: /tmp
