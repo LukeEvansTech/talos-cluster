@@ -1,0 +1,45 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: &app free-game-notifier
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: free-game-notifier
+  values:
+    controllers:
+      free-game-notifier:
+        type: cronjob
+        cronjob:
+          schedule: "0 16 * * THU"
+          successfulJobsHistory: 1
+          failedJobsHistory: 1
+        containers:
+          app:
+            image:
+              repository: ghcr.io/joryirving/free-game-notifier
+              tag: 1.6.0@sha256:9a60bfa46e3eaf674dda422d91259ebe6e9ec10c9c642ecc62ea05ff85ff0d1f
+            env:
+              TZ: Europe/London
+              SEND_UPCOMING: "true"
+            envFrom:
+              - secretRef:
+                  name: free-game-notifier
+            resources:
+              requests:
+                cpu: 5m
+              limits:
+                memory: 128Mi
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities: {drop: ["ALL"]}
+
+    defaultPodOptions:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
