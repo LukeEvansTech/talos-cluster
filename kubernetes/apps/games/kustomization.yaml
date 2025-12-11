@@ -10,5 +10,6 @@ resources:
   - ./namespace.yaml
   - ./mc-router/ks.yaml
   - ./minecraft/ks.yaml
+  - ./palworld/ks.yaml
   - ./romm/ks.yaml
   - ./satisfactory/ks.yaml
