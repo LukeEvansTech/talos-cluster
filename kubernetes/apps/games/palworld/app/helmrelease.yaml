@@ -56,9 +56,6 @@ spec:
                 cpu: 1000m
               limits:
                 memory: 16Gi
-            securityContext:
-              runAsUser: 0
-              runAsGroup: 0
           exporter:
             image:
               repository: docker.io/bostrt/palworld-exporter
@@ -97,10 +94,10 @@ spec:
             port: *rcon-port
     defaultPodOptions:
       securityContext:
-        runAsNonRoot: false
         runAsUser: 0
         runAsGroup: 0
-        fsGroup: 0
+        runAsNonRoot: false
+        fsGroup: 1000
         fsGroupChangePolicy: OnRootMismatch
     serviceMonitor:
       app:
