@@ -44,11 +44,11 @@ spec:
               - secretRef:
                   name: palworld-secret
             securityContext:
-              allowPrivilegeEscalation: false
+              allowPrivilegeEscalation: true
               readOnlyRootFilesystem: false
-              capabilities:
-                drop:
-                  - ALL
+              runAsUser: 0
+              runAsGroup: 0
+              runAsNonRoot: false
             probes:
               startup:
                 enabled: false
@@ -110,10 +110,7 @@ spec:
             scrapeTimeout: 10s
     defaultPodOptions:
       securityContext:
-        runAsNonRoot: true
-        runAsUser: 1000
-        runAsGroup: 1000
-        fsGroup: 1000
+        fsGroup: 0
         fsGroupChangePolicy: OnRootMismatch
     persistence:
       config:
