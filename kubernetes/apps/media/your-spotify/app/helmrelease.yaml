@@ -125,6 +125,7 @@ spec:
     route:
       api:
         hostnames:
+          - "{{ .Release.Name }}-api.${SECRET_DOMAIN}"
           - "{{ .Release.Name }}-api.${SECRET_INTERNAL_DOMAIN}"
         parentRefs:
           - name: envoy-internal
@@ -135,6 +136,7 @@ spec:
                 port: *serverPort
       web:
         hostnames:
+          - "{{ .Release.Name }}.${SECRET_DOMAIN}"
           - "{{ .Release.Name }}.${SECRET_INTERNAL_DOMAIN}"
         parentRefs:
           - name: envoy-internal
