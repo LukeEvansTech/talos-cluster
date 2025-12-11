@@ -118,13 +118,26 @@ spec:
         existingClaim: palworld
         globalMounts:
           - path: /palworld
-      cache:
+      cache-binaries:
         enabled: true
         existingClaim: palworld-cache
-        globalMounts:
-          - path: /palworld/Pal/Binaries
+        advancedMounts:
+          palworld:
+            app:
+              - path: /palworld/Pal/Binaries
+                subPath: binaries
+      cache-content:
+        enabled: true
+        existingClaim: palworld-cache
+        advancedMounts:
+          palworld:
+            app:
+              - path: /palworld/Pal/Content
+                subPath: content
       tmp:
         enabled: true
         type: emptyDir
-        globalMounts:
-          - path: /tmp
+        advancedMounts:
+          palworld:
+            app:
+              - path: /tmp
