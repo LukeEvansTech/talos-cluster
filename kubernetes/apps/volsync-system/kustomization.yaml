@@ -10,3 +10,4 @@ resources:
   - ./namespace.yaml
   - ./volsync/ks.yaml
   - ./kopia/ks.yaml
+  - ./backrest/ks.yaml
