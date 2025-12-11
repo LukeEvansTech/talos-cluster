@@ -17,30 +17,27 @@ spec:
         containers:
           app:
             image:
-              repository: ghcr.io/jammsen/docker-palworld-dedicated-server
-              tag: master@sha256:0a28d725730754268edba9b7290309af30ee336b88ab81aeaafae93dca116abb
+              repository: thijsvanloef/palworld-server-docker
+              tag: v2.1.0
             env:
-              # Container settings
               TZ: "${TIMEZONE}"
-              ALWAYS_UPDATE_ON_START: true
-              BACKUP_ENABLED: false # volsync handles backups
-              RESTART_ENABLED: false
-              MULTITHREAD_ENABLED: true
-              COMMUNITY_SERVER: false
-              SERVER_SETTINGS_MODE: auto
+              # User configuration
+              PUID: "1000"
+              PGID: "1000"
               # Server settings
+              PORT: &port 8211
+              PLAYERS: "16"
+              MULTITHREADING: "true"
+              COMMUNITY: "false"
               SERVER_NAME: "Palworld Server"
               SERVER_DESCRIPTION: "Private Palworld Server"
-              PUBLIC_PORT: &port 8211
-              RCON_ENABLED: true
+              # RCON configuration
+              RCON_ENABLED: "true"
               RCON_PORT: &rcon-port 25575
+              # Update settings
+              UPDATE_ON_BOOT: "true"
               # Gameplay settings
-              DEATH_PENALTY: None
-              BASE_CAMP_WORKER_MAXNUM: 20
-              PAL_EGG_DEFAULT_HATCHING_TIME: "2.000000"
-              ENABLE_NON_LOGIN_PENALTY: false
-              # Webhook notifications
-              WEBHOOK_ENABLED: true
+              DEATH_PENALTY: "None"
             envFrom:
               - secretRef:
                   name: palworld-secret
