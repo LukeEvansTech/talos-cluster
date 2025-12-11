@@ -21,7 +21,7 @@ spec:
               tag: latest@sha256:47e298bafc8719607174a4039acb14a58ec354217d02441f3a63087d852928d7
             env:
               TZ: Europe/London
-              BASE_URL: https://epicgames.${SECRET_INTERNAL_DOMAIN}
+              BASE_URL: https://epicgames.${SECRET_DOMAIN}
               COUNTRY_CODE: GB
               CRON_SCHEDULE: "0 0,6,12,18 * * *"
               EMAIL_SENDER_ADDRESS: epicgames@${SECRET_DOMAIN}
