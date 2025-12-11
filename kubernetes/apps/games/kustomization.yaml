@@ -8,5 +8,6 @@ components:
   - ../../components/alerts
 resources:
   - ./namespace.yaml
+  - ./minecraft/ks.yaml
   - ./romm/ks.yaml
   - ./satisfactory/ks.yaml
