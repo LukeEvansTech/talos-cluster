@@ -1,0 +1,117 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: minecraft
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: minecraft
+  values:
+    controllers:
+      minecraft:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        containers:
+          app:
+            image:
+              repository: itzg/minecraft-server
+              tag: 2024.11.2-java21
+            env:
+              TZ: "${TIMEZONE}"
+              # Server type and version
+              TYPE: "PAPER"
+              VERSION: "1.21.4"
+              # Server settings
+              EULA: "TRUE"
+              SERVER_NAME: "Minecraft Server"
+              MODE: "survival"
+              DIFFICULTY: "normal"
+              MAX_PLAYERS: "10"
+              MOTD: "Welcome to the server!"
+              # Performance settings
+              MEMORY: "4G"
+              JVM_XX_OPTS: "-XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=200"
+              VIEW_DISTANCE: "10"
+              SIMULATION_DISTANCE: "8"
+              # Whitelist and ops
+              ENABLE_WHITELIST: "false"
+              # RCON
+              ENABLE_RCON: "true"
+              RCON_PORT: "25575"
+            envFrom:
+              - secretRef:
+                  name: minecraft-secret
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+              capabilities:
+                add:
+                  - NET_RAW
+                drop:
+                  - ALL
+            probes:
+              startup:
+                enabled: true
+                custom: true
+                spec:
+                  exec:
+                    command:
+                      - mc-health
+                  initialDelaySeconds: 60
+                  periodSeconds: 10
+                  failureThreshold: 30
+              liveness:
+                enabled: true
+                custom: true
+                spec:
+                  exec:
+                    command:
+                      - mc-health
+                  periodSeconds: 60
+                  failureThreshold: 3
+              readiness:
+                enabled: true
+                custom: true
+                spec:
+                  exec:
+                    command:
+                      - mc-health
+                  periodSeconds: 10
+                  failureThreshold: 3
+            resources:
+              requests:
+                cpu: 500m
+                memory: 4Gi
+              limits:
+                memory: 6Gi
+    service:
+      app:
+        enabled: true
+        controller: minecraft
+        type: LoadBalancer
+        allocateLoadBalancerNodePorts: true
+        annotations:
+          external-dns.alpha.kubernetes.io/hostname: "minecraft.${SECRET_DOMAIN}"
+          lbipam.cilium.io/ips: "${SVC_MINECRAFT_ADDR}"
+        ports:
+          minecraft:
+            enabled: true
+            primary: true
+            port: 25565
+            protocol: TCP
+    defaultPodOptions:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+    persistence:
+      data:
+        enabled: true
+        existingClaim: minecraft
+        globalMounts:
+          - path: /data
