@@ -116,17 +116,9 @@ spec:
         existingClaim: palworld
         globalMounts:
           - path: /palworld
-      cache:
-        existingClaim: palworld-cache
-        globalMounts:
-          - path: /palworld/Pal/Binaries
-            subPath: binaries
-          - path: /palworld/Pal/Content
-            subPath: content
       tmpfs:
         type: emptyDir
         advancedMounts:
           palworld:
             app:
               - path: /tmp
-                subPath: tmp
