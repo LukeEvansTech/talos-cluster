@@ -12,43 +12,38 @@ spec:
   values:
     controllers:
       palworld:
-        type: statefulset
-        replicas: 1
+        annotations:
+          reloader.stakater.com/auto: "true"
         containers:
           app:
             image:
               repository: ghcr.io/jammsen/docker-palworld-dedicated-server
               tag: master@sha256:0a28d725730754268edba9b7290309af30ee336b88ab81aeaafae93dca116abb
             env:
-              TZ: "${TIMEZONE}"
               # Container settings
-              ALWAYS_UPDATE_ON_START: "true"
-              BACKUP_ENABLED: "false" # volsync handles backups
-              RESTART_ENABLED: "false"
-              MULTITHREAD_ENABLED: "true"
-              COMMUNITY_SERVER: "true"
+              TZ: "${TIMEZONE}"
+              ALWAYS_UPDATE_ON_START: true
+              BACKUP_ENABLED: false # volsync handles backups
+              RESTART_ENABLED: false
+              MULTITHREAD_ENABLED: true
+              COMMUNITY_SERVER: false
+              SERVER_SETTINGS_MODE: auto
               # Server settings
               SERVER_NAME: "Palworld Server"
               SERVER_DESCRIPTION: "Private Palworld Server"
-              PUBLIC_PORT: "8211"
-              RCON_ENABLED: "true"
-              RCON_PORT: "25575"
+              PUBLIC_PORT: &port 8211
+              RCON_ENABLED: true
+              RCON_PORT: &rcon-port 25575
               # Gameplay settings
-              DEATH_PENALTY: "None"
-              BASE_CAMP_WORKER_MAX_NUM: "20"
+              DEATH_PENALTY: None
+              BASE_CAMP_WORKER_MAXNUM: 20
               PAL_EGG_DEFAULT_HATCHING_TIME: "2.000000"
-              ENABLE_NON_LOGIN_PENALTY: "false"
+              ENABLE_NON_LOGIN_PENALTY: false
               # Webhook notifications
-              WEBHOOK_ENABLED: "true"
+              WEBHOOK_ENABLED: true
             envFrom:
               - secretRef:
                   name: palworld-secret
-            securityContext:
-              allowPrivilegeEscalation: true
-              readOnlyRootFilesystem: false
-              runAsUser: 0
-              runAsGroup: 0
-              runAsNonRoot: false
             probes:
               startup:
                 enabled: false
@@ -59,16 +54,17 @@ spec:
             resources:
               requests:
                 cpu: 1000m
-                memory: 8Gi
               limits:
                 memory: 16Gi
           exporter:
             image:
-              repository: bostrt/palworld-exporter
+              repository: docker.io/bostrt/palworld-exporter
               tag: v1.3.1
             env:
+              TZ: "${TIMEZONE}"
               RCON_HOST: localhost
-              RCON_PORT: "25575"
+              RCON_PORT: *rcon-port
+              SAVE_DIRECTORY: /palworld
             envFrom:
               - secretRef:
                   name: palworld-secret
@@ -77,28 +73,25 @@ spec:
                 cpu: 5m
               limits:
                 memory: 256Mi
+            securityContext:
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop:
+                  - ALL
     service:
       app:
-        enabled: true
         controller: palworld
         type: LoadBalancer
-        allocateLoadBalancerNodePorts: true
         annotations:
           lbipam.cilium.io/ips: "${SVC_PALWORLD_ADDR}"
         ports:
-          game:
-            enabled: true
-            primary: true
-            port: 8211
-            protocol: UDP
           http:
-            enabled: true
             port: 9877
-            protocol: HTTP
+          game:
+            protocol: UDP
+            port: *port
           rcon:
-            enabled: true
-            port: 25575
-            protocol: TCP
+            port: *rcon-port
     serviceMonitor:
       app:
         serviceName: palworld
@@ -108,36 +101,22 @@ spec:
             path: /metrics
             interval: 1m
             scrapeTimeout: 10s
-    defaultPodOptions:
-      securityContext:
-        fsGroup: 0
-        fsGroupChangePolicy: OnRootMismatch
     persistence:
       config:
-        enabled: true
         existingClaim: palworld
         globalMounts:
           - path: /palworld
-      cache-binaries:
-        enabled: true
+      cache:
         existingClaim: palworld-cache
-        advancedMounts:
-          palworld:
-            app:
-              - path: /palworld/Pal/Binaries
-                subPath: binaries
-      cache-content:
-        enabled: true
-        existingClaim: palworld-cache
-        advancedMounts:
-          palworld:
-            app:
-              - path: /palworld/Pal/Content
-                subPath: content
-      tmp:
-        enabled: true
+        globalMounts:
+          - path: /palworld/Pal/Binaries
+            subPath: binaries
+          - path: /palworld/Pal/Content
+            subPath: content
+      tmpfs:
         type: emptyDir
         advancedMounts:
           palworld:
             app:
               - path: /tmp
+                subPath: tmp
