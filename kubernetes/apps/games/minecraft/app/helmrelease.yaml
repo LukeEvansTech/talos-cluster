@@ -94,7 +94,6 @@ spec:
         type: LoadBalancer
         allocateLoadBalancerNodePorts: true
         annotations:
-          external-dns.alpha.kubernetes.io/hostname: "minecraft.${SECRET_DOMAIN}"
           lbipam.cilium.io/ips: "${SVC_MINECRAFT_ADDR}"
         ports:
           minecraft:
