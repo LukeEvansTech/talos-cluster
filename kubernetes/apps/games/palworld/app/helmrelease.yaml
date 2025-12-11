@@ -95,6 +95,13 @@ spec:
             port: *port
           rcon:
             port: *rcon-port
+    defaultPodOptions:
+      securityContext:
+        runAsNonRoot: false
+        runAsUser: 0
+        runAsGroup: 0
+        fsGroup: 0
+        fsGroupChangePolicy: OnRootMismatch
     serviceMonitor:
       app:
         serviceName: palworld
