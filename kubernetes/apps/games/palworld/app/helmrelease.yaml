@@ -53,28 +53,6 @@ spec:
                 cpu: 1000m
               limits:
                 memory: 16Gi
-          exporter:
-            image:
-              repository: docker.io/bostrt/palworld-exporter
-              tag: v1.3.1
-            env:
-              TZ: "${TIMEZONE}"
-              RCON_HOST: localhost
-              RCON_PORT: *rcon-port
-              SAVE_DIRECTORY: /palworld
-            envFrom:
-              - secretRef:
-                  name: palworld-secret
-            resources:
-              requests:
-                cpu: 5m
-              limits:
-                memory: 256Mi
-            securityContext:
-              allowPrivilegeEscalation: false
-              capabilities:
-                drop:
-                  - ALL
     service:
       app:
         controller: palworld
@@ -82,8 +60,6 @@ spec:
         annotations:
           lbipam.cilium.io/ips: "${SVC_PALWORLD_ADDR}"
         ports:
-          http:
-            port: 9877
           game:
             protocol: UDP
             port: *port
@@ -96,15 +72,6 @@ spec:
         runAsNonRoot: false
         fsGroup: 1000
         fsGroupChangePolicy: OnRootMismatch
-    serviceMonitor:
-      app:
-        serviceName: palworld
-        endpoints:
-          - port: http
-            scheme: http
-            path: /metrics
-            interval: 1m
-            scrapeTimeout: 10s
     persistence:
       config:
         existingClaim: palworld
