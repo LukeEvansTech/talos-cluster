@@ -1,0 +1,133 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: palworld
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: palworld
+  values:
+    controllers:
+      palworld:
+        type: statefulset
+        replicas: 1
+        containers:
+          app:
+            image:
+              repository: ghcr.io/jammsen/docker-palworld-dedicated-server
+              tag: master@sha256:0a28d725730754268edba9b7290309af30ee336b88ab81aeaafae93dca116abb
+            env:
+              TZ: "${TIMEZONE}"
+              # Container settings
+              ALWAYS_UPDATE_ON_START: "true"
+              BACKUP_ENABLED: "false" # volsync handles backups
+              RESTART_ENABLED: "false"
+              MULTITHREAD_ENABLED: "true"
+              COMMUNITY_SERVER: "true"
+              # Server settings
+              SERVER_NAME: "Palworld Server"
+              SERVER_DESCRIPTION: "Private Palworld Server"
+              PUBLIC_PORT: "8211"
+              RCON_ENABLED: "true"
+              RCON_PORT: "25575"
+              # Gameplay settings
+              DEATH_PENALTY: "None"
+              BASE_CAMP_WORKER_MAX_NUM: "20"
+              PAL_EGG_DEFAULT_HATCHING_TIME: "2.000000"
+              ENABLE_NON_LOGIN_PENALTY: "false"
+              # Webhook notifications
+              WEBHOOK_ENABLED: "true"
+            envFrom:
+              - secretRef:
+                  name: palworld-secret
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+              capabilities:
+                drop:
+                  - ALL
+            probes:
+              startup:
+                enabled: false
+              liveness:
+                enabled: false
+              readiness:
+                enabled: false
+            resources:
+              requests:
+                cpu: 1000m
+                memory: 8Gi
+              limits:
+                memory: 16Gi
+          exporter:
+            image:
+              repository: bostrt/palworld-exporter
+              tag: v1.3.1
+            env:
+              RCON_HOST: localhost
+              RCON_PORT: "25575"
+            envFrom:
+              - secretRef:
+                  name: palworld-secret
+            resources:
+              requests:
+                cpu: 5m
+              limits:
+                memory: 256Mi
+    service:
+      app:
+        enabled: true
+        controller: palworld
+        type: LoadBalancer
+        allocateLoadBalancerNodePorts: true
+        annotations:
+          lbipam.cilium.io/ips: "${SVC_PALWORLD_ADDR}"
+        ports:
+          game:
+            enabled: true
+            primary: true
+            port: 8211
+            protocol: UDP
+          http:
+            enabled: true
+            port: 9877
+            protocol: HTTP
+          rcon:
+            enabled: true
+            port: 25575
+            protocol: TCP
+    serviceMonitor:
+      app:
+        serviceName: palworld
+        endpoints:
+          - port: http
+            scheme: http
+            path: /metrics
+            interval: 1m
+            scrapeTimeout: 10s
+    defaultPodOptions:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+    persistence:
+      config:
+        enabled: true
+        existingClaim: palworld
+        globalMounts:
+          - path: /palworld
+      cache:
+        enabled: true
+        existingClaim: palworld-cache
+        globalMounts:
+          - path: /palworld/Pal/Binaries
+      tmp:
+        enabled: true
+        type: emptyDir
+        globalMounts:
+          - path: /tmp
