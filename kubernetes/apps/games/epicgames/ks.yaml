@@ -9,8 +9,6 @@ spec:
   commonMetadata:
     labels:
       app.kubernetes.io/name: *app
-  components:
-    - ../../../../components/gatus/guarded
   dependsOn:
     - name: onepassword
       namespace: external-secrets
@@ -18,9 +16,6 @@ spec:
       namespace: network
   interval: 1h
   path: ./kubernetes/apps/games/epicgames/app
-  postBuild:
-    substitute:
-      APP: *app
   prune: true
   retryInterval: 2m
   sourceRef:

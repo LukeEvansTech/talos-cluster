@@ -53,6 +53,7 @@ spec:
 
     persistence:
       enabled: true
+      create: false
       existingClaim: forgejo
       mount: /data
 
