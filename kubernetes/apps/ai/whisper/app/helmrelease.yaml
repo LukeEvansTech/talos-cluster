@@ -1,0 +1,57 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: whisper
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: whisper
+  values:
+    controllers:
+      whisper:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        containers:
+          app:
+            image:
+              repository: onerahmet/openai-whisper-asr-webservice
+              tag: latest-gpu
+            env:
+              - name: ASR_MODEL
+                value: large-v3
+              - name: ASR_ENGINE
+                value: faster_whisper
+            resources:
+              requests:
+                nvidia.com/gpu: 1
+                cpu: 500m
+                memory: 4Gi
+              limits:
+                memory: 16Gi
+                nvidia.com/gpu: 1
+    defaultPodOptions:
+      runtimeClassName: nvidia
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: extensions.talos.dev/nvidia-open-gpu-kernel-modules-production
+                    operator: Exists
+                  - key: extensions.talos.dev/nvidia-container-toolkit-production
+                    operator: Exists
+    service:
+      app:
+        controller: whisper
+        ports:
+          http:
+            port: 9000
+    persistence:
+      cache:
+        enabled: true
+        existingClaim: whisper-cache
+        globalMounts:
+          - path: /root/.cache
