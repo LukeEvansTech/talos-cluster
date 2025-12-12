@@ -43,10 +43,21 @@ spec:
             resources:
               requests:
                 cpu: 10m
+                nvidia.com/gpu: 1
               limits:
                 nvidia.com/gpu: 1
-                memory: 8Gi
+                memory: 2Gi
     defaultPodOptions:
+      runtimeClassName: nvidia
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: extensions.talos.dev/nvidia-open-gpu-kernel-modules-production
+                    operator: Exists
+                  - key: extensions.talos.dev/nvidia-container-toolkit-production
+                    operator: Exists
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
