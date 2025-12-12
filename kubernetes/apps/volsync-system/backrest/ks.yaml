@@ -6,6 +6,8 @@ metadata:
   name: &app backrest
   namespace: volsync-system
 spec:
+  components:
+    - ../../../../components/gatus/guarded
   dependsOn:
     - name: volsync
   targetNamespace: volsync-system
