@@ -40,7 +40,7 @@ resources:
   - ./privatebin/ks.yaml
   - ./smokeping/ks.yaml
   - ./speakr/ks.yaml
-  - ./stirling-pdf/ks.yaml
+  - ./bentopdf/ks.yaml
   - ./tandoor/ks.yaml
   - ./universal/ks.yaml
   - ./uptimekuma/ks.yaml
