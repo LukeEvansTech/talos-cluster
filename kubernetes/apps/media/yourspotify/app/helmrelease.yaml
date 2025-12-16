@@ -88,9 +88,9 @@ spec:
         pod:
           securityContext:
             runAsNonRoot: false
-            runAsUser: 999
-            runAsGroup: 999
-            fsGroup: 999
+            runAsUser: 1000
+            runAsGroup: 1000
+            fsGroup: 1000
         containers:
           app:
             image:
