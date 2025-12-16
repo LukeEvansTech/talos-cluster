@@ -49,6 +49,7 @@ spec:
                   timeoutSeconds: 1
                   failureThreshold: 3
               readiness: *probes
+            # FrankenPHP requires root and SYS_ADMIN capability to function
             securityContext:
               allowPrivilegeEscalation: true
               readOnlyRootFilesystem: false
