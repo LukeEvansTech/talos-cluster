@@ -24,6 +24,8 @@ spec:
       homepage:
         annotations:
           reloader.stakater.com/auto: "true"
+        serviceAccount:
+          identifier: homepage
         containers:
           app:
             image:
@@ -52,8 +54,7 @@ spec:
               readOnlyRootFilesystem: true
               capabilities: {drop: ["ALL"]}
     serviceAccount:
-      create: true
-      name: homepage
+      homepage: {}
     service:
       app:
         controller: homepage
