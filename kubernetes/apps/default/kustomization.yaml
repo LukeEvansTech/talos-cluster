@@ -29,6 +29,7 @@ resources:
   - ./homeassistant/ks.yaml
   - ./homebridge/ks.yaml
   - ./homebox/ks.yaml
+  - ./homepage/ks.yaml
   - ./invio/ks.yaml
   - ./it-tools/ks.yaml
   - ./karakeep/ks.yaml
