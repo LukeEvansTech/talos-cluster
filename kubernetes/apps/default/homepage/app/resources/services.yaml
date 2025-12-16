@@ -1,0 +1,25 @@
+---
+- Cluster:
+    - Grafana:
+        icon: grafana.svg
+        href: "{{HOMEPAGE_VAR_GRAFANA_URL}}"
+        siteMonitor: "{{HOMEPAGE_VAR_GRAFANA_URL}}"
+        description: Monitoring dashboards
+
+- Media:
+    - Plex:
+        icon: plex.svg
+        href: "{{HOMEPAGE_VAR_PLEX_URL}}"
+        description: Media server
+
+- Downloads:
+    - Prowlarr:
+        icon: prowlarr.svg
+        href: "{{HOMEPAGE_VAR_PROWLARR_URL}}"
+        description: Indexer manager
+
+- Home:
+    - Home Assistant:
+        icon: home-assistant.svg
+        href: "{{HOMEPAGE_VAR_HOMEASSISTANT_URL}}"
+        description: Home automation
