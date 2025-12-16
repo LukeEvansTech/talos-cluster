@@ -52,7 +52,7 @@ spec:
                 memory: 500M
             securityContext:
               allowPrivilegeEscalation: false
-              readOnlyRootFilesystem: true
+              readOnlyRootFilesystem: false
               capabilities: {drop: ["ALL"]}
     serviceAccount:
       homepage: {}
@@ -88,7 +88,3 @@ spec:
             path: /app/config/settings.yaml
           - subPath: widgets.yaml
             path: /app/config/widgets.yaml
-      logs:
-        type: emptyDir
-        globalMounts:
-          - path: /app/config/logs
