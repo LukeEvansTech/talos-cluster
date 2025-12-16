@@ -99,6 +99,13 @@ spec:
               limits:
                 memory: 256Mi
 
+    persistence:
+      content:
+        type: configMap
+        name: domainwatchdog-content
+        globalMounts:
+          - path: /app/public/content
+
     defaultPodOptions:
       securityContext:
         runAsNonRoot: false
