@@ -15,6 +15,7 @@ resources:
   - ./cronmaster/ks.yaml
   - ./cyberchef/ks.yaml
   - ./domainlocker/ks.yaml
+  - ./domain-watchdog/ks.yaml
   - ./echo-server/ks.yaml
   - ./erugo/ks.yaml
   - ./filebrowser/ks.yaml
