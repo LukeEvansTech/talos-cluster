@@ -24,7 +24,7 @@ spec:
           app:
             image:
               repository: ghcr.io/flaresolverr/flaresolverr
-              tag: v3.3.21@sha256:f104ee51e5124d832f9706d4b9c7b0c00982ba6d7716dfa0afdbe2a89eb48993
+              tag: v3.3.21@sha256:f104ee51e5124d83cf3be9b37480649355d223f7d8f9e453d0d5ef06c6e3b31b
             env:
               TZ: ${TIMEZONE}
               LOG_LEVEL: info
