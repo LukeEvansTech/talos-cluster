@@ -1,0 +1,78 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: byparr
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: byparr
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      strategy: rollback
+      retries: 3
+  values:
+    controllers:
+      byparr:
+        containers:
+          app:
+            image:
+              repository: ghcr.io/thephaseless/byparr
+              tag: 2.0.1
+            env:
+              TZ: ${TIMEZONE}
+            probes:
+              startup:
+                enabled: true
+                spec:
+                  httpGet:
+                    path: /health
+                    port: 8191
+                  initialDelaySeconds: 20
+                  periodSeconds: 10
+                  timeoutSeconds: 180
+                  failureThreshold: 5
+              readiness:
+                enabled: true
+                spec:
+                  httpGet:
+                    path: /health
+                    port: 8191
+                  periodSeconds: 60
+                  timeoutSeconds: 15
+              liveness:
+                enabled: true
+                spec:
+                  httpGet:
+                    path: /health
+                    port: 8191
+                  periodSeconds: 60
+                  timeoutSeconds: 15
+            resources:
+              requests:
+                cpu: 100m
+                memory: 1Gi
+              limits:
+                memory: 2Gi
+            securityContext:
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop:
+                  - ALL
+        pod:
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+    service:
+      app:
+        controller: byparr
+        ports:
+          http:
+            port: 8191
