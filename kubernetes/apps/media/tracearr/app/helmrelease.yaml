@@ -160,6 +160,10 @@ spec:
         parentRefs:
           - name: envoy-internal
             namespace: network
+        rules:
+          - backendRefs:
+              - name: tracearr-app
+                port: 3000
 
     persistence:
       data:
