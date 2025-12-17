@@ -28,6 +28,33 @@ spec:
             env:
               TZ: ${TIMEZONE}
               LOG_LEVEL: info
+            probes:
+              startup:
+                enabled: true
+                spec:
+                  httpGet:
+                    path: /
+                    port: 8191
+                  initialDelaySeconds: 20
+                  periodSeconds: 10
+                  timeoutSeconds: 30
+                  failureThreshold: 10
+              readiness:
+                enabled: true
+                spec:
+                  httpGet:
+                    path: /
+                    port: 8191
+                  periodSeconds: 30
+                  timeoutSeconds: 10
+              liveness:
+                enabled: true
+                spec:
+                  httpGet:
+                    path: /
+                    port: 8191
+                  periodSeconds: 60
+                  timeoutSeconds: 10
             resources:
               requests:
                 cpu: 10m
