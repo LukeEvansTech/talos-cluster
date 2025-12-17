@@ -38,12 +38,6 @@ spec:
               tag: latest
             env:
               TZ: ${TIMEZONE}
-              NODE_ENV: production
-              DATABASE_HOST: tracearr-timescaledb.media.svc.cluster.local
-              DATABASE_PORT: "5432"
-              DATABASE_NAME: tracearr
-              REDIS_HOST: dragonfly.database.svc.cluster.local
-              REDIS_PORT: "6379"
             envFrom:
               - secretRef:
                   name: tracearr-secret
@@ -90,94 +84,12 @@ spec:
               limits:
                 memory: 4Gi
 
-      timescaledb:
-        annotations:
-          reloader.stakater.com/auto: "true"
-        pod:
-          securityContext:
-            runAsUser: 70
-            runAsGroup: 70
-            runAsNonRoot: true
-            fsGroup: 70
-            fsGroupChangePolicy: OnRootMismatch
-          affinity:
-            podAffinity:
-              requiredDuringSchedulingIgnoredDuringExecution:
-                - labelSelector:
-                    matchExpressions:
-                      - key: app.kubernetes.io/instance
-                        operator: In
-                        values:
-                          - tracearr
-                      - key: app.kubernetes.io/controller
-                        operator: In
-                        values:
-                          - tracearr
-                  topologyKey: kubernetes.io/hostname
-        containers:
-          app:
-            image:
-              repository: timescale/timescaledb
-              tag: latest-pg16
-            env:
-              POSTGRES_DB: tracearr
-              PGDATA: /var/lib/postgresql/data/pgdata
-            envFrom:
-              - secretRef:
-                  name: tracearr-secret
-            probes:
-              liveness:
-                enabled: true
-                custom: true
-                spec:
-                  exec:
-                    command:
-                      - pg_isready
-                      - -U
-                      - tracearr
-                      - -d
-                      - tracearr
-                  initialDelaySeconds: 30
-                  periodSeconds: 10
-                  timeoutSeconds: 5
-                  failureThreshold: 3
-              readiness:
-                enabled: true
-                custom: true
-                spec:
-                  exec:
-                    command:
-                      - pg_isready
-                      - -U
-                      - tracearr
-                      - -d
-                      - tracearr
-                  initialDelaySeconds: 5
-                  periodSeconds: 5
-                  timeoutSeconds: 3
-                  failureThreshold: 3
-            securityContext:
-              allowPrivilegeEscalation: false
-              readOnlyRootFilesystem: false
-              capabilities: {drop: ["ALL"]}
-            resources:
-              requests:
-                cpu: 100m
-              limits:
-                memory: 1Gi
-
     service:
       app:
-        primary: true
         controller: *app
         ports:
           http:
             port: *port
-      timescaledb:
-        controller: timescaledb
-        ports:
-          postgres:
-            port: 5432
 
     route:
       app:
@@ -187,20 +99,9 @@ spec:
         parentRefs:
           - name: envoy-internal
             namespace: network
-        rules:
-          - backendRefs:
-              - name: tracearr-app
-                port: 3000
 
     persistence:
       data:
         existingClaim: "{{ .Release.Name }}"
-        advancedMounts:
-          tracearr:
-            app:
-              - path: /data
-                subPath: tracearr
-          timescaledb:
-            app:
-              - path: /var/lib/postgresql/data
-                subPath: timescaledb
+        globalMounts:
+          - path: /data
