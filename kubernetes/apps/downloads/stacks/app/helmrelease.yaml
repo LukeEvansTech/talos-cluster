@@ -83,7 +83,7 @@ spec:
             namespace: network
         rules:
           - backendRefs:
-              - name: stacks-app
+              - name: stacks
                 port: *port
     persistence:
       config:
