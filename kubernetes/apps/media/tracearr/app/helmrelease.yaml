@@ -178,7 +178,7 @@ spec:
         advancedMounts:
           tracearr:
             app:
-              - path: /app/data
+              - path: /data
                 subPath: tracearr
           timescaledb:
             app:
