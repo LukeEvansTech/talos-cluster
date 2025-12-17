@@ -21,6 +21,7 @@ spec:
               tag: v1.1.2
             env:
               TZ: ${TIMEZONE}
+              SOLVERR_URL: http://flaresolverr.downloads.svc.cluster.local:8191
             envFrom:
               - secretRef:
                   name: stacks-secret
