@@ -13,3 +13,4 @@ resources:
   - ./qui/ks.yaml
   - ./prowlarr/ks.yaml
   - ./sabnzbd/ks.yaml
+  - ./stacks/ks.yaml
