@@ -3,3 +3,5 @@ serviceMonitor:
   create: true
 web:
   enabled: true
+  networkPolicy:
+    create: false
