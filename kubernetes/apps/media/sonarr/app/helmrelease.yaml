@@ -105,9 +105,9 @@ spec:
         path: ${SECRET_STORAGE_SERVER_TV_NFS}
         globalMounts:
           - path: /tv
-      movies4k:
-        type: nfs
-        server: ${SECRET_STORAGE_SERVER}
-        path: ${SECRET_STORAGE_SERVER_TV4K_NFS}
-        globalMounts:
-          - path: /tv4k
+            # tv4k:
+            #   type: nfs
+            #   server: ${SECRET_STORAGE_SERVER}
+            #   path: ${SECRET_STORAGE_SERVER_TV4K_NFS}
+            #   globalMounts:
+            #     - path: /tv4k

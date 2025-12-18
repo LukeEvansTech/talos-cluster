@@ -120,13 +120,13 @@ spec:
         globalMounts:
           - path: /movies
             readOnly: true
-      tv4k:
-        type: nfs
-        server: ${SECRET_STORAGE_SERVER}
-        path: ${SECRET_STORAGE_SERVER_TV4K_NFS}
-        globalMounts:
-          - path: /tv4k
-            readOnly: true
+      # tv4k:
+      #   type: nfs
+      #   server: ${SECRET_STORAGE_SERVER}
+      #   path: ${SECRET_STORAGE_SERVER_TV4K_NFS}
+      #   globalMounts:
+      #     - path: /tv4k
+      #       readOnly: true
       movies4k:
         type: nfs
         server: ${SECRET_STORAGE_SERVER}
