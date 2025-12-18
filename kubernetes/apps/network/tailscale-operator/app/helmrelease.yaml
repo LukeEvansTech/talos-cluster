@@ -10,16 +10,10 @@ spec:
   chartRef:
     kind: OCIRepository
     name: tailscale-operator
-  valuesFrom:
-    - kind: Secret
-      name: operator-oauth
-      valuesKey: client_id
-      targetPath: oauth.clientId
-    - kind: Secret
-      name: operator-oauth
-      valuesKey: client_secret
-      targetPath: oauth.clientSecret
   values:
+    oauthSecretVolume:
+      secret:
+        secretName: tailscale-operator-secret
     operatorConfig:
       podAnnotations:
-        secret.reloader.stakater.com/reload: operator-oauth
+        secret.reloader.stakater.com/reload: tailscale-operator-secret
