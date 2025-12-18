@@ -1,25 +1,279 @@
 ---
-- Cluster:
-    - Grafana:
-        icon: grafana.svg
-        href: "{{HOMEPAGE_VAR_GRAFANA_URL}}"
-        siteMonitor: "{{HOMEPAGE_VAR_GRAFANA_URL}}"
-        description: Monitoring dashboards
-
 - Media:
     - Plex:
         icon: plex.svg
-        href: "{{HOMEPAGE_VAR_PLEX_URL}}"
+        href: https://plex.codelooks.com
+        siteMonitor: https://plex.codelooks.com
         description: Media server
+    - Jellyfin:
+        icon: jellyfin.svg
+        href: https://jellyfin.codelooks.com
+        siteMonitor: https://jellyfin.codelooks.com
+        description: Media server
+    - Tautulli:
+        icon: tautulli.svg
+        href: https://tautulli.codelooks.com
+        siteMonitor: https://tautulli.codelooks.com
+        description: Plex monitoring
+    - Audiobookshelf:
+        icon: audiobookshelf.svg
+        href: https://audiobookshelf.codelooks.com
+        siteMonitor: https://audiobookshelf.codelooks.com
+        description: Audiobooks & podcasts
+    - YourSpotify:
+        icon: spotify.svg
+        href: https://yourspotify.codelooks.com
+        siteMonitor: https://yourspotify.codelooks.com
+        description: Spotify stats
+    - Pinchflat:
+        icon: pinchflat.png
+        href: https://pinchflat.codelooks.com
+        siteMonitor: https://pinchflat.codelooks.com
+        description: YouTube archiver
 
-- Downloads:
+- Requests:
+    - Seerr:
+        icon: overseerr.svg
+        href: https://requests.codelooks.com
+        siteMonitor: https://requests.codelooks.com
+        description: Media requests
+    - Wizarr:
+        icon: wizarr.svg
+        href: https://wizarr.codelooks.com
+        siteMonitor: https://wizarr.codelooks.com
+        description: User invites
+    - Recommendarr:
+        icon: recommendarr.png
+        href: https://recommendarr.codelooks.com
+        siteMonitor: https://recommendarr.codelooks.com
+        description: Recommendations
+    - Suggestarr:
+        icon: mdi-lightbulb-on-outline
+        href: https://suggestarr.codelooks.com
+        siteMonitor: https://suggestarr.codelooks.com
+        description: Suggestions
+
+- Arrs:
+    - Sonarr:
+        icon: sonarr.svg
+        href: https://sonarr.codelooks.com
+        siteMonitor: https://sonarr.codelooks.com
+        description: TV shows
+    - Radarr:
+        icon: radarr.svg
+        href: https://radarr.codelooks.com
+        siteMonitor: https://radarr.codelooks.com
+        description: Movies
+    - Radarr 4K:
+        icon: radarr.svg
+        href: https://radarr4k.codelooks.com
+        siteMonitor: https://radarr4k.codelooks.com
+        description: 4K movies
+    - Bazarr:
+        icon: bazarr.svg
+        href: https://bazarr.codelooks.com
+        siteMonitor: https://bazarr.codelooks.com
+        description: Subtitles
     - Prowlarr:
         icon: prowlarr.svg
-        href: "{{HOMEPAGE_VAR_PROWLARR_URL}}"
+        href: https://prowlarr.codelooks.com
+        siteMonitor: https://prowlarr.codelooks.com
         description: Indexer manager
+    - Profilarr:
+        icon: mdi-tune
+        href: https://profilarr.codelooks.com
+        siteMonitor: https://profilarr.codelooks.com
+        description: Profile sync
+
+- Downloads:
+    - SABnzbd:
+        icon: sabnzbd.svg
+        href: https://sabnzbd.codelooks.com
+        siteMonitor: https://sabnzbd.codelooks.com
+        description: Usenet downloader
+    - NZBGet:
+        icon: nzbget.svg
+        href: https://nzbget.codelooks.com
+        siteMonitor: https://nzbget.codelooks.com
+        description: Usenet downloader
+    - qBittorrent:
+        icon: qbittorrent.svg
+        href: https://qbittorrent.codelooks.com
+        siteMonitor: https://qbittorrent.codelooks.com
+        description: Torrent client
+    - Stacks:
+        icon: mdi-layers-triple
+        href: https://stacks.codelooks.com
+        siteMonitor: https://stacks.codelooks.com
+        description: Download stacks
 
 - Home:
     - Home Assistant:
         icon: home-assistant.svg
-        href: "{{HOMEPAGE_VAR_HOMEASSISTANT_URL}}"
+        href: https://homeassistant.codelooks.com
+        siteMonitor: https://homeassistant.codelooks.com
         description: Home automation
+    - Homebridge:
+        icon: homebridge.svg
+        href: https://homebridge.codelooks.com
+        siteMonitor: https://homebridge.codelooks.com
+        description: HomeKit bridge
+    - Z-Wave:
+        icon: z-wave.svg
+        href: https://zwave.codelooks.com
+        siteMonitor: https://zwave.codelooks.com
+        description: Z-Wave controller
+    - Go2RTC:
+        icon: mdi-cctv
+        href: https://go2rtc.codelooks.com
+        siteMonitor: https://go2rtc.codelooks.com
+        description: Camera streaming
+
+- Productivity:
+    - Paperless:
+        icon: paperless-ngx.svg
+        href: https://paperless.codelooks.com
+        siteMonitor: https://paperless.codelooks.com
+        description: Document management
+    - Tandoor:
+        icon: tandoor.svg
+        href: https://tandoor.codelooks.com
+        siteMonitor: https://tandoor.codelooks.com
+        description: Recipe manager
+    - Miniflux:
+        icon: miniflux.svg
+        href: https://miniflux.codelooks.com
+        siteMonitor: https://miniflux.codelooks.com
+        description: RSS reader
+    - N8N:
+        icon: n8n.svg
+        href: https://n8n.codelooks.com
+        siteMonitor: https://n8n.codelooks.com
+        description: Workflow automation
+    - Actual:
+        icon: actual-budget.svg
+        href: https://actual.codelooks.com
+        siteMonitor: https://actual.codelooks.com
+        description: Budget tracker
+    - Homebox:
+        icon: homebox.svg
+        href: https://homebox.codelooks.com
+        siteMonitor: https://homebox.codelooks.com
+        description: Home inventory
+
+- Tools:
+    - IT-Tools:
+        icon: it-tools.svg
+        href: https://it-tools.codelooks.com
+        siteMonitor: https://it-tools.codelooks.com
+        description: Developer utilities
+    - CyberChef:
+        icon: cyberchef.svg
+        href: https://cyberchef.codelooks.com
+        siteMonitor: https://cyberchef.codelooks.com
+        description: Data transformation
+    - PrivateBin:
+        icon: privatebin.svg
+        href: https://privatebin.codelooks.com
+        siteMonitor: https://privatebin.codelooks.com
+        description: Encrypted paste
+    - FileBrowser:
+        icon: filebrowser.svg
+        href: https://filebrowser.codelooks.com
+        siteMonitor: https://filebrowser.codelooks.com
+        description: File manager
+    - Guacamole:
+        icon: guacamole.svg
+        href: https://guacamole.codelooks.com
+        siteMonitor: https://guacamole.codelooks.com
+        description: Remote desktop
+
+- Monitoring:
+    - Grafana:
+        icon: grafana.svg
+        href: https://grafana.codelooks.com
+        siteMonitor: https://grafana.codelooks.com
+        description: Dashboards
+    - Prometheus:
+        icon: prometheus.svg
+        href: https://prometheus.codelooks.com
+        siteMonitor: https://prometheus.codelooks.com
+        description: Metrics
+    - Gatus:
+        icon: gatus.svg
+        href: https://status.codelooks.com
+        siteMonitor: https://status.codelooks.com
+        description: Status page
+    - Uptime Kuma:
+        icon: uptime-kuma.svg
+        href: https://uptimekuma.codelooks.com
+        siteMonitor: https://uptimekuma.codelooks.com
+        description: Uptime monitoring
+    - Headlamp:
+        icon: kubernetes.svg
+        href: https://headlamp.codelooks.com
+        siteMonitor: https://headlamp.codelooks.com
+        description: Kubernetes UI
+
+- Infrastructure:
+    - Flux:
+        icon: flux-cd.svg
+        href: https://flux.codelooks.com
+        siteMonitor: https://flux.codelooks.com
+        description: GitOps
+    - Cupdate:
+        icon: mdi-update
+        href: https://cupdate.codelooks.com
+        siteMonitor: https://cupdate.codelooks.com
+        description: Container updates
+    - CertWarden:
+        icon: mdi-certificate
+        href: https://certwarden.codelooks.com
+        siteMonitor: https://certwarden.codelooks.com
+        description: Certificate management
+    - Kopia:
+        icon: kopia.svg
+        href: https://kopia.codelooks.com
+        siteMonitor: https://kopia.codelooks.com
+        description: Backups
+    - Backrest:
+        icon: mdi-backup-restore
+        href: https://backrest.codelooks.com
+        siteMonitor: https://backrest.codelooks.com
+        description: Restic UI
+
+- AI:
+    - Open WebUI:
+        icon: open-webui.svg
+        href: https://open-webui.codelooks.com
+        siteMonitor: https://open-webui.codelooks.com
+        description: AI chat interface
+    - Ollama:
+        icon: ollama.svg
+        href: https://ollama.codelooks.com
+        siteMonitor: https://ollama.codelooks.com
+        description: Local LLMs
+
+- Git:
+    - Forgejo:
+        icon: forgejo.svg
+        href: https://forgejo.codelooks.com
+        siteMonitor: https://forgejo.codelooks.com
+        description: Git forge
+    - GitSave:
+        icon: mdi-source-repository
+        href: https://gitsave.codelooks.com
+        siteMonitor: https://gitsave.codelooks.com
+        description: Git backup
+
+- Games:
+    - ROMM:
+        icon: romm.svg
+        href: https://romm.codelooks.com
+        siteMonitor: https://romm.codelooks.com
+        description: ROM manager
+    - Epic Games:
+        icon: epic-games.svg
+        href: https://epicgames.codelooks.com
+        siteMonitor: https://epicgames.codelooks.com
+        description: Free games claimer
