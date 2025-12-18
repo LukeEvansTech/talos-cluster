@@ -22,7 +22,7 @@ resources:
   - ./forgejo/ks.yaml
   - ./fusion/ks.yaml
   # - ./gitea/ks.yaml
-  # - ./giteamirror/ks.yaml
+  - ./giteamirror/ks.yaml
   - ./gitsave/ks.yaml
   - ./go2rtc/ks.yaml
   - ./guacamole/ks.yaml
