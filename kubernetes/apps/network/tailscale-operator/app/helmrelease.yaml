@@ -10,6 +10,15 @@ spec:
   chartRef:
     kind: OCIRepository
     name: tailscale-operator
+  valuesFrom:
+    - kind: Secret
+      name: operator-oauth
+      valuesKey: client_id
+      targetPath: oauth.clientId
+    - kind: Secret
+      name: operator-oauth
+      valuesKey: client_secret
+      targetPath: oauth.clientSecret
   values:
     operatorConfig:
       podAnnotations:
