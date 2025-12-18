@@ -4,15 +4,39 @@ theme: dark
 color: slate
 headerStyle: clean
 layout:
-  Cluster:
-    style: row
-    columns: 4
   Media:
     style: row
+    columns: 3
+  Requests:
+    style: row
     columns: 4
+  Arrs:
+    style: row
+    columns: 3
   Downloads:
     style: row
     columns: 4
   Home:
     style: row
     columns: 4
+  Productivity:
+    style: row
+    columns: 3
+  Tools:
+    style: row
+    columns: 5
+  Monitoring:
+    style: row
+    columns: 5
+  Infrastructure:
+    style: row
+    columns: 5
+  AI:
+    style: row
+    columns: 2
+  Git:
+    style: row
+    columns: 2
+  Games:
+    style: row
+    columns: 2
