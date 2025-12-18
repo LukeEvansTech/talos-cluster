@@ -15,5 +15,10 @@ spec:
       secret:
         secretName: tailscale-operator-secret
     operatorConfig:
+      image:
+        repository: ghcr.io/tailscale/k8s-operator
       podAnnotations:
         secret.reloader.stakater.com/reload: tailscale-operator-secret
+    proxyConfig:
+      image:
+        repository: ghcr.io/tailscale/tailscale
