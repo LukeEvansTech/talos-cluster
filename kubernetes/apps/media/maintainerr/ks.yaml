@@ -11,6 +11,7 @@ spec:
       app.kubernetes.io/name: *app
   components:
     - ../../../../components/gatus/guarded
+    - ../../../../components/homepage
     - ../../../../components/volsync
   dependsOn:
     - name: rook-ceph-cluster
@@ -20,6 +21,10 @@ spec:
   postBuild:
     substitute:
       APP: *app
+      HOMEPAGE_NAME: Maintainerr
+      HOMEPAGE_GROUP: Media
+      HOMEPAGE_ICON: maintainerr.svg
+      HOMEPAGE_DESCRIPTION: Media maintenance
   prune: true
   retryInterval: 2m
   sourceRef:
