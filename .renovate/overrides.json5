@@ -17,9 +17,8 @@
     {
       description: "Custom versioning for it-tools date-based tags (no v prefix)",
       matchDatasources: ["docker"],
-      matchPackageNames: ["ghcr.io/corentinth/it-tools"],
+      matchPackageNames: ["corentinth/it-tools"],
       versioning: "regex:^(?<major>\\d{4})\\.(?<minor>\\d{2})\\.(?<patch>\\d{2})-(?<build>[a-f0-9]+)$",
-      extractVersion: "^v?(?<version>.*)$",
     },
     {
       description: "Override Helmfile Dependency Name",
