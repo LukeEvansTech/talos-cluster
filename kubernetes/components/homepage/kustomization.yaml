@@ -1,0 +1,17 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+patches:
+  - target:
+      kind: HelmRelease
+      name: ${APP}
+    patch: |-
+      - op: add
+        path: /spec/values/service/app/annotations
+        value:
+          gethomepage.dev/enabled: "true"
+          gethomepage.dev/name: "${HOMEPAGE_NAME:=${APP}}"
+          gethomepage.dev/group: "${HOMEPAGE_GROUP:=Services}"
+          gethomepage.dev/icon: "${HOMEPAGE_ICON:=mdi-application}"
+          gethomepage.dev/description: "${HOMEPAGE_DESCRIPTION:=}"
