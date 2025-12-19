@@ -1,19 +1,6 @@
 {
   $schema: "https://docs.renovatebot.com/renovate-schema.json",
-  hostRules: [
-    {
-      // Allow Renovate to access Forgejo's OCI registry
-      matchHost: "code.forgejo.org",
-      hostType: "docker",
-    },
-  ],
   packageRules: [
-    {
-      description: "Disable Renovate for Forgejo Helm chart - registry doesn't support version lookups",
-      matchDatasources: ["docker"],
-      matchPackageNames: ["code.forgejo.org/forgejo-helm/forgejo"],
-      enabled: false,
-    },
     {
       description: "Custom versioning for it-tools date-based tags (no v prefix)",
       matchDatasources: ["docker"],
