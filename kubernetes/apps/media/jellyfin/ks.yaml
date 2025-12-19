@@ -11,6 +11,7 @@ spec:
       app.kubernetes.io/name: *app
   components:
     - ../../../../components/gatus/guarded
+    - ../../../../components/homepage
     - ../../../../components/volsync
   dependsOn:
     - name: nvidia-device-plugin
@@ -24,6 +25,10 @@ spec:
       APP: *app
       VOLSYNC_CAPACITY: 50Gi
       VOLSYNC_CACHE_CAPACITY: 50Gi
+      HOMEPAGE_NAME: Jellyfin
+      HOMEPAGE_GROUP: Media
+      HOMEPAGE_ICON: jellyfin.svg
+      HOMEPAGE_DESCRIPTION: Media server
   prune: true
   retryInterval: 2m
   sourceRef:

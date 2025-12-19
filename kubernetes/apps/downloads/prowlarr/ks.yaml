@@ -11,6 +11,7 @@ spec:
       app.kubernetes.io/name: *app
   components:
     - ../../../../components/gatus/guarded
+    - ../../../../components/homepage
     - ../../../../components/volsync
   interval: 1h
   path: ./kubernetes/apps/downloads/prowlarr/app
@@ -19,6 +20,10 @@ spec:
       APP: *app
       VOLSYNC_CACHE_CAPACITY: 8Gi
       VOLSYNC_CAPACITY: 5Gi
+      HOMEPAGE_NAME: Prowlarr
+      HOMEPAGE_GROUP: Arrs
+      HOMEPAGE_ICON: prowlarr.svg
+      HOMEPAGE_DESCRIPTION: Indexer manager
   prune: true
   retryInterval: 2m
   sourceRef:

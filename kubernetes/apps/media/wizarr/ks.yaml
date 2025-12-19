@@ -11,6 +11,7 @@ spec:
       app.kubernetes.io/name: *app
   components:
     - ../../../../components/gatus/external
+    - ../../../../components/homepage
     - ../../../../components/volsync
   interval: 1h
   path: ./kubernetes/apps/media/wizarr/app
@@ -20,6 +21,10 @@ spec:
       GATUS_PATH: /
       VOLSYNC_CAPACITY: 5Gi
       VOLSYNC_CACHE_CAPACITY: 4Gi
+      HOMEPAGE_NAME: Wizarr
+      HOMEPAGE_GROUP: Requests
+      HOMEPAGE_ICON: wizarr.svg
+      HOMEPAGE_DESCRIPTION: User invites
   prune: true
   retryInterval: 2m
   sourceRef:

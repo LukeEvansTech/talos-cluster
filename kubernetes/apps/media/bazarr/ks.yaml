@@ -11,6 +11,7 @@ spec:
       app.kubernetes.io/name: *app
   components:
     - ../../../../components/gatus/guarded
+    - ../../../../components/homepage
     - ../../../../components/volsync
   dependsOn:
     - name: rook-ceph-cluster
@@ -22,6 +23,10 @@ spec:
       APP: *app
       VOLSYNC_CAPACITY: 5Gi
       VOLSYNC_CACHE_CAPACITY: 8Gi
+      HOMEPAGE_NAME: Bazarr
+      HOMEPAGE_GROUP: Arrs
+      HOMEPAGE_ICON: bazarr.svg
+      HOMEPAGE_DESCRIPTION: Subtitles
   prune: true
   retryInterval: 2m
   sourceRef:
