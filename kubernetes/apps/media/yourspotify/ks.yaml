@@ -11,7 +11,6 @@ spec:
       app.kubernetes.io/name: *app
   components:
     - ../../../../components/gatus/guarded
-    - ../../../../components/homepage
   dependsOn:
     - name: rook-ceph-cluster
       namespace: rook-ceph
@@ -20,10 +19,6 @@ spec:
   postBuild:
     substitute:
       APP: *app
-      HOMEPAGE_NAME: YourSpotify
-      HOMEPAGE_GROUP: Media
-      HOMEPAGE_ICON: spotify.svg
-      HOMEPAGE_DESCRIPTION: Spotify stats
   prune: true
   retryInterval: 2m
   sourceRef:
