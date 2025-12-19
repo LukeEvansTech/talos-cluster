@@ -5,7 +5,6 @@ kind: Component
 patches:
   - target:
       kind: HelmRelease
-      name: ${APP}
     patch: |-
       - op: add
         path: /spec/values/service/app/annotations
