@@ -125,6 +125,12 @@ spec:
             port: *serverPort
       web:
         controller: web
+        annotations:
+          gethomepage.dev/enabled: "true"
+          gethomepage.dev/name: YourSpotify
+          gethomepage.dev/group: Media
+          gethomepage.dev/icon: spotify.svg
+          gethomepage.dev/description: Spotify stats
         ports:
           http:
             port: *webPort
