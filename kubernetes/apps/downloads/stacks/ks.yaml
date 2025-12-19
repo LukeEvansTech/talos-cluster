@@ -11,6 +11,7 @@ spec:
       app.kubernetes.io/name: *app
   components:
     - ../../../../components/gatus/guarded
+    - ../../../../components/homepage
     - ../../../../components/volsync
   interval: 1h
   path: ./kubernetes/apps/downloads/stacks/app
@@ -19,6 +20,10 @@ spec:
       APP: *app
       VOLSYNC_CACHE_CAPACITY: 2Gi
       VOLSYNC_CAPACITY: 1Gi
+      HOMEPAGE_NAME: Stacks
+      HOMEPAGE_GROUP: Downloads
+      HOMEPAGE_ICON: mdi-layers-triple
+      HOMEPAGE_DESCRIPTION: Download stacks
   prune: true
   retryInterval: 2m
   sourceRef:

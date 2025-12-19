@@ -11,6 +11,7 @@ spec:
       app.kubernetes.io/name: *app
   components:
     - ../../../../components/gatus/guarded
+    - ../../../../components/homepage
     # - ../../../../components/volsync  # TODO: Enable once app is running and ready for backups
   dependsOn:
     - name: rook-ceph-cluster
@@ -21,6 +22,10 @@ spec:
     substitute:
       APP: *app
       VOLSYNC_CAPACITY: 5Gi
+      HOMEPAGE_NAME: Profilarr
+      HOMEPAGE_GROUP: Arrs
+      HOMEPAGE_ICON: mdi-tune
+      HOMEPAGE_DESCRIPTION: Profile sync
   prune: true
   retryInterval: 2m
   sourceRef:

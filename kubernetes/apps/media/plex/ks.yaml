@@ -11,6 +11,7 @@ spec:
       app.kubernetes.io/name: *app
   components:
     - ../../../../components/gatus/external
+    - ../../../../components/homepage
     - ../../../../components/volsync
   dependsOn:
     - name: nvidia-device-plugin
@@ -25,6 +26,10 @@ spec:
       GATUS_PATH: /web/index.html
       VOLSYNC_CAPACITY: 200Gi
       VOLSYNC_CACHE_CAPACITY: 100Gi
+      HOMEPAGE_NAME: Plex
+      HOMEPAGE_GROUP: Media
+      HOMEPAGE_ICON: plex.svg
+      HOMEPAGE_DESCRIPTION: Media server
   prune: true
   retryInterval: 2m
   sourceRef:
