@@ -18,7 +18,7 @@ spec:
           app:
             image:
               repository: ghcr.io/yooooomi/your_spotify_server
-              tag: 1.15.0@sha256:3679ea122e2083703a3f8c1199acf4b1bb81c81da33334bdcaf478bfbbf36e9b
+              tag: 1.16.0@sha256:c1bca9845663e2459a447dae611db8358eeaad006e53b2f03bc3916052b14b97
             env:
               TZ: ${TIMEZONE}
               API_ENDPOINT: https://yourspotify-api.${SECRET_DOMAIN}
