@@ -28,7 +28,7 @@ spec:
           app:
             image:
               repository: ghcr.io/linuxserver/smokeping
-              tag: 2.9.0
+              tag: 2.9.0@sha256:90167b7eaa504ff75ac43381f6ce8ec487bdf6aad59451b55ea9be6907fc640c
             env:
               TZ: ${TIMEZONE}
               PUID: "1000"
