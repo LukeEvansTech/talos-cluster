@@ -140,7 +140,8 @@ metadata:
 spec:
   clientIPDetection:
     xForwardedFor:
-      numTrustedHops: 1
+      trustedCIDRs:
+        - 10.42.0.0/16
   connection:
     bufferLimit: 64Mi
     maxAcceptPerSocketEvent: 0
@@ -161,90 +162,6 @@ spec:
     alpnProtocols:
       - h2
       - http/1.1
----
-# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/gateway.envoyproxy.io/envoypatchpolicy_v1alpha1.json
-apiVersion: gateway.envoyproxy.io/v1alpha1
-kind: EnvoyPatchPolicy
-metadata:
-  name: envoy-external
-spec:
-  priority: 10
-  targetRef:
-    group: gateway.networking.k8s.io
-    kind: Gateway
-    name: envoy-external
-  type: JSONPatch
-  jsonPatches:
-    - type: type.googleapis.com/envoy.config.listener.v3.Listener
-      name: network/envoy-external/https
-      operation:
-        op: add
-        path: /filter_chains/0/filters/0/typed_config/http_filters/0
-        value:
-          name: envoy.filters.http.compressor
-          typed_config:
-            "@type": type.googleapis.com/envoy.extensions.filters.http.compressor.v3.Compressor
-            remove_accept_encoding_header: true
-            compressor_library:
-              name: default
-              typed_config:
-                "@type": type.googleapis.com/envoy.extensions.compression.zstd.compressor.v3.Zstd
-    - type: type.googleapis.com/envoy.config.listener.v3.Listener
-      name: network/envoy-external/https-quic
-      operation:
-        op: add
-        path: /filter_chains/0/filters/0/typed_config/http_filters/0
-        value:
-          name: envoy.filters.http.compressor
-          typed_config:
-            "@type": type.googleapis.com/envoy.extensions.filters.http.compressor.v3.Compressor
-            remove_accept_encoding_header: true
-            compressor_library:
-              name: default
-              typed_config:
-                "@type": type.googleapis.com/envoy.extensions.compression.zstd.compressor.v3.Zstd
----
-# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/gateway.envoyproxy.io/envoypatchpolicy_v1alpha1.json
-apiVersion: gateway.envoyproxy.io/v1alpha1
-kind: EnvoyPatchPolicy
-metadata:
-  name: envoy-internal
-spec:
-  priority: 10
-  targetRef:
-    group: gateway.networking.k8s.io
-    kind: Gateway
-    name: envoy-internal
-  type: JSONPatch
-  jsonPatches:
-    - type: type.googleapis.com/envoy.config.listener.v3.Listener
-      name: network/envoy-internal/https
-      operation:
-        op: add
-        path: /filter_chains/0/filters/0/typed_config/http_filters/0
-        value:
-          name: envoy.filters.http.compressor
-          typed_config:
-            "@type": type.googleapis.com/envoy.extensions.filters.http.compressor.v3.Compressor
-            remove_accept_encoding_header: true
-            compressor_library:
-              name: default
-              typed_config:
-                "@type": type.googleapis.com/envoy.extensions.compression.zstd.compressor.v3.Zstd
-    - type: type.googleapis.com/envoy.config.listener.v3.Listener
-      name: network/envoy-internal/https-quic
-      operation:
-        op: add
-        path: /filter_chains/0/filters/0/typed_config/http_filters/0
-        value:
-          name: envoy.filters.http.compressor
-          typed_config:
-            "@type": type.googleapis.com/envoy.extensions.filters.http.compressor.v3.Compressor
-            remove_accept_encoding_header: true
-            compressor_library:
-              name: default
-              typed_config:
-                "@type": type.googleapis.com/envoy.extensions.compression.zstd.compressor.v3.Zstd
 ---
 # yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/gateway.networking.k8s.io/httproute_v1.json
 apiVersion: gateway.networking.k8s.io/v1
