@@ -22,6 +22,7 @@ spec:
     substitute:
       APP: *app
       VOLSYNC_CAPACITY: 5Gi
+      VOLSYNC_CACHE_CAPACITY: 8Gi
       HOMEPAGE_NAME: Radarr
       HOMEPAGE_GROUP: Arrs
       HOMEPAGE_ICON: radarr.svg
