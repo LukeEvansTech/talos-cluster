@@ -12,7 +12,7 @@ on:
 jobs:
   checkov:
     name: Checkov (IaC Security)
-    runs-on: talos-cluster-runner
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       security-events: write
@@ -37,7 +37,7 @@ jobs:
 
   trivy:
     name: Trivy (Filesystem & Secret Scan)
-    runs-on: talos-cluster-runner
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       security-events: write
