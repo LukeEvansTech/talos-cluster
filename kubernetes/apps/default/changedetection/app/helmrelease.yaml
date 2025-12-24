@@ -23,6 +23,7 @@ spec:
               tag: 0.51.4@sha256:99cf11f04b5d1f1300b5b68f17dc22e76bdb5d6695d7e6590d2df92eca8fb339
             env:
               TZ: ${TIMEZONE}
+              BASE_URL: https://{{ .Release.Name }}.${SECRET_DOMAIN}
               PORT: &port 5000
               USE_X_SETTINGS: 1
               PLAYWRIGHT_DRIVER_URL: ws://localhost:3000/?stealth=1&--disable-web-security=true&--user-data-dir=~/browserless-cache-123
