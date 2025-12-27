@@ -77,7 +77,7 @@ spec:
           gluetun:
             image:
               repository: ghcr.io/qdm12/gluetun
-              tag: v3.40.4
+              tag: v3.41.0
             env:
               # BLOCK_MALICIOUS: off # save 300MB of RAM; https://github.com/qdm12/gluetun/issues/2054
               DOT: off
