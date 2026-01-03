@@ -4,6 +4,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: databasus-health-gatus-ep
+  namespace: database
   labels:
     gatus.io/enabled: "true"
 data:
