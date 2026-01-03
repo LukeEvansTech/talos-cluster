@@ -3,7 +3,7 @@
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
-  name: &app postgresus
+  name: &app databasus
 spec:
   interval: 1h
   chartRef:
@@ -11,7 +11,7 @@ spec:
     name: app-template
   values:
     controllers:
-      postgresus:
+      databasus:
         annotations:
           reloader.stakater.com/auto: "true"
         initContainers:
@@ -19,12 +19,12 @@ spec:
             image:
               repository: busybox
               tag: 1.37
-            command: ["sh", "-c", "chmod -R 700 /postgresus-data"]
+            command: ["sh", "-c", "chmod -R 700 /databasus-data"]
         containers:
           app:
             image:
-              repository: rostislavdugin/postgresus
-              tag: v2.15.3@sha256:cabf722849a193be5351fe0d189f5baef40fa3b01ddd73d6083600a68a392672
+              repository: databasus/databasus
+              tag: v2.19.2@sha256:a929b0b4027a9c4ef4d236800b314401cb040c499a481cb6f6dd295641ef4ae9
             probes:
               liveness: &probes
                 enabled: true
@@ -62,7 +62,7 @@ spec:
           type: RuntimeDefault
     service:
       app:
-        controller: postgresus
+        controller: databasus
         ports:
           http:
             port: *port
@@ -78,5 +78,5 @@ spec:
       data:
         existingClaim: "{{ .Release.Name }}"
         globalMounts:
-          - path: /postgresus-data
+          - path: /databasus-data
             readOnly: false
