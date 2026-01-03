@@ -7,3 +7,4 @@ resources:
   - ./helmrelease.yaml
   - ./envoy.yaml
   - ./observability.yaml
+  - ./grafanadashboard.yaml
