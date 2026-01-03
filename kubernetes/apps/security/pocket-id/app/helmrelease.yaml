@@ -34,7 +34,7 @@ spec:
           app:
             image:
               repository: ghcr.io/pocket-id/pocket-id
-              tag: v1.16.0@sha256:f8cde808e8e840acda25683fc2168e0206e3f3fb1a48cca89d211aafd87eaeef
+              tag: v2.0.1@sha256:83654984afb7eb7bd3d877a578966ed8e58a2b4cd83459af808edf4b76305336
             env:
               TZ: ${TIMEZONE}
               ALLOW_USER_SIGNUPS: "withToken" # Can be: disabled, withToken, open
