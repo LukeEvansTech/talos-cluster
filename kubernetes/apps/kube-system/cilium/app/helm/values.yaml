@@ -46,6 +46,7 @@ l2announcements:
 loadBalancer:
   algorithm: maglev
   mode: dsr
+  serviceTopology: true
 localRedirectPolicy: true
 socketLB:
   enabled: true
