@@ -1,0 +1,22 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/TwiN/gatus/master/.schema/config.schema.json
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: databasus-health-gatus-ep
+  labels:
+    gatus.io/enabled: "true"
+data:
+  config.yaml: |-
+    endpoints:
+      - name: databasus-health
+        group: infrastructure
+        url: "http://databasus.database.svc.cluster.local:4005/api/v1/system/health"
+        interval: 1m
+        ui:
+          hide-hostname: true
+          hide-url: true
+        conditions:
+          - "[STATUS] == 200"
+        alerts:
+          - type: gotify
