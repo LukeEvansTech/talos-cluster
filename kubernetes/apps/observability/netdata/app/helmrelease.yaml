@@ -26,8 +26,20 @@ spec:
       enabled: true
       alarms:
         storageclass: ceph-block
+        volumesize: 2Gi
       database:
         storageclass: ceph-block
+        volumesize: 20Gi
+      configs:
+        netdata:
+          enabled: true
+          path: /etc/netdata/netdata.conf
+          data: |
+            [db]
+              mode = dbengine
+              dbengine tier 0 retention size = 10GiB
+              dbengine tier 1 retention size = 5GiB
+              dbengine tier 2 retention size = 2GiB
 
     child:
       enabled: true
