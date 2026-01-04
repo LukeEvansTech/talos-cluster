@@ -20,7 +20,7 @@ spec:
           app:
             image:
               repository: ghcr.io/yoryan/mailrise
-              tag: 1.4.0@sha256:68e36cb35455564179f1a95f541339d4a01c4e662e0d498da6b14a2b911ae279
+              tag: latest@sha256:7d153e58db4038527e5c61e0e4afca9a70e398622f1b54debf57161268d78476
             envFrom:
               - secretRef:
                   name: mailrise-secret
