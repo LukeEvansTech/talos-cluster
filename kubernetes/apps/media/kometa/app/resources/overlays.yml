@@ -1,0 +1,43 @@
+# Kometa Overlay Configuration
+# This file defines overlay templates for Plex collections
+# Customize as needed for your library
+
+templates:
+  Resolution:
+    optional:
+      - overlay_level
+    default:
+      overlay_level: episode
+    collection_level: <<overlay_level>>
+    overlay:
+      name: <<overlay_name>>
+      repo: resolution/<<overlay_name>>
+      group: res
+      weight: <<weight>>
+      horizontal_offset: 0
+      horizontal_align: left
+      vertical_offset: 0
+      vertical_align: bottom
+
+overlays:
+  4K:
+    template:
+      - name: Resolution
+        weight: 50
+    plex_search:
+      all:
+        resolution: 4K
+  1080p:
+    template:
+      - name: Resolution
+        weight: 40
+    plex_search:
+      all:
+        resolution: 1080p
+  720p:
+    template:
+      - name: Resolution
+        weight: 30
+    plex_search:
+      all:
+        resolution: 720p

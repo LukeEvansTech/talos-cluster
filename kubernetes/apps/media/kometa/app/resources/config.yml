@@ -1,0 +1,101 @@
+# Kometa Configuration Template
+# This file will be processed by External Secrets to inject values from 1Password
+# Variables available from 1Password (kometa + plex items):
+#   {{ .PLEX_TOKEN }}
+#   {{ .TMDB_API_KEY }}
+#   {{ .TRAKT_CLIENT_ID }}
+#   {{ .TRAKT_CLIENT_SECRET }}
+#   etc.
+
+libraries:
+  Movies:
+    collection_files:
+      - default: basic
+      - default: imdb
+    overlay_files:
+      - file: config/overlays.yml
+    operations:
+      mass_critic_rating_update: tmdb
+      mass_audience_rating_update: tmdb
+  TV Shows:
+    collection_files:
+      - default: basic
+      - default: imdb
+    overlay_files:
+      - file: config/overlays.yml
+    operations:
+      mass_critic_rating_update: tmdb
+      mass_audience_rating_update: tmdb
+
+settings:
+  cache: true
+  cache_expiration: 60
+  asset_directory: config/assets
+  asset_folders: true
+  asset_depth: 0
+  create_asset_folders: false
+  prioritize_assets: false
+  dimensional_asset_rename: false
+  download_url_assets: false
+  show_missing_season_assets: false
+  show_missing_episode_assets: false
+  show_asset_not_needed: true
+  sync_mode: append
+  minimum_items: 1
+  default_collection_order:
+  delete_below_minimum: true
+  delete_not_scheduled: false
+  run_again_delay: 2
+  missing_only_released: false
+  only_filter_missing: false
+  show_unmanaged: true
+  show_unconfigured: true
+  show_filtered: false
+  show_options: false
+  show_missing: true
+  show_missing_assets: true
+  save_report: false
+  tvdb_language: eng
+  ignore_ids:
+  ignore_imdb_ids:
+  item_refresh_delay: 0
+  playlist_sync_to_user: all
+  playlist_exclude_users:
+  playlist_report: false
+  verify_ssl: true
+  custom_repo:
+  check_nightly: false
+
+plex:
+  url: http://plex.media.svc.cluster.local:32400
+  token: "{{ .PLEX_TOKEN }}"
+  timeout: 60
+  clean_bundles: false
+  empty_trash: false
+  optimize: false
+
+tmdb:
+  apikey: "{{ .TMDB_API_KEY }}"
+  language: en
+  cache_expiration: 60
+  region:
+
+# Uncomment and configure as needed:
+# trakt:
+#   client_id: "{{ .TRAKT_CLIENT_ID }}"
+#   client_secret: "{{ .TRAKT_CLIENT_SECRET }}"
+#   authorization:
+#     access_token: "{{ .TRAKT_ACCESS_TOKEN }}"
+#     token_type: Bearer
+#     expires_in: "{{ .TRAKT_EXPIRES_IN }}"
+#     refresh_token: "{{ .TRAKT_REFRESH_TOKEN }}"
+#     scope: public
+#     created_at: "{{ .TRAKT_CREATED_AT }}"
+
+# omdb:
+#   apikey: "{{ .OMDB_API_KEY }}"
+#   cache_expiration: 60
+
+# mdblist:
+#   apikey: "{{ .MDBLIST_API_KEY }}"
+#   cache_expiration: 60

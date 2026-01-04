@@ -1,0 +1,78 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: kometa
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: kometa
+  values:
+    controllers:
+      kometa:
+        type: cronjob
+        cronjob:
+          schedule: "0 */6 * * *"
+          successfulJobsHistory: 1
+          failedJobsHistory: 1
+        annotations:
+          reloader.stakater.com/auto: "true"
+        containers:
+          app:
+            image:
+              repository: docker.io/kometateam/kometa
+              tag: v2.2.2
+            args: ["--run"]
+            env:
+              TZ: ${TIMEZONE}
+              KOMETA_CONFIG: /config/config.yml
+              KOMETA_READ_ONLY_CONFIG: "true"
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop:
+                  - ALL
+            resources:
+              requests:
+                cpu: 10m
+                memory: 512Mi
+              limits:
+                memory: 4Gi
+    defaultPodOptions:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+    persistence:
+      config:
+        type: secret
+        name: kometa-secret
+        globalMounts:
+          - path: /config/config.yml
+            subPath: config.yml
+            readOnly: true
+      overlays:
+        type: configMap
+        name: kometa-overlays
+        globalMounts:
+          - path: /config/overlays.yml
+            subPath: overlays.yml
+            readOnly: true
+      data:
+        existingClaim: "{{ .Release.Name }}"
+        globalMounts:
+          - path: /config/assets
+            subPath: assets
+          - path: /config/logs
+            subPath: logs
+      tmp:
+        type: emptyDir
+        globalMounts:
+          - path: /tmp
