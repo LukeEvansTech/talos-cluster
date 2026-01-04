@@ -21,6 +21,7 @@ resources:
   - ./erugo/ks.yaml
   - ./filebrowser/ks.yaml
   - ./forgejo/ks.yaml
+  - ./gotify/ks.yaml
   - ./fusion/ks.yaml
   # - ./gitea/ks.yaml
   - ./giteamirror/ks.yaml
@@ -39,14 +40,21 @@ resources:
   - ./miniflux/ks.yaml
   - ./mosquitto/ks.yaml
   - ./n8n/ks.yaml
+  - ./netronome/ks.yaml
   - ./notifier/ks.yaml
+  - ./pairdrop/ks.yaml
   - ./paperless/ks.yaml
   - ./privatebin/ks.yaml
+  - ./rackula/ks.yaml
+  - ./searxng/ks.yaml
+  - ./shlink/ks.yaml
   - ./smokeping/ks.yaml
   - ./speakr/ks.yaml
   - ./bentopdf/ks.yaml
   - ./tandoor/ks.yaml
+  - ./termix/ks.yaml
   - ./universal/ks.yaml
   - ./uptimekuma/ks.yaml
+  - ./wallos/ks.yaml
   - ./wapy/ks.yaml
   - ./zwave/ks.yaml
