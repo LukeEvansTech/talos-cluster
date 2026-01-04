@@ -30,6 +30,8 @@ spec:
                 add:
                   - CHOWN
                   - FOWNER
+                  - SETGID
+                  - SETUID
             resources:
               requests:
                 cpu: 10m
