@@ -1,0 +1,91 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: podly
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: podly
+  values:
+    controllers:
+      podly:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        containers:
+          app:
+            image:
+              repository: ghcr.io/jdrbc/podly-pure-podcasts
+              tag: main-latest
+            env:
+              TZ: ${TIMEZONE}
+              PUID: "1000"
+              PGID: "1000"
+              SERVER_THREADS: "2"
+              # Whisper Configuration - use remote cluster service
+              WHISPER_TYPE: remote
+              WHISPER_REMOTE_BASE_URL: http://whisper.ai.svc.cluster.local:9000
+              WHISPER_REMOTE_MODEL: whisper-1
+              WHISPER_REMOTE_TIMEOUT_SEC: "600"
+              WHISPER_REMOTE_CHUNKSIZE_MB: "24"
+              # LLM Configuration - use local Ollama
+              OPENAI_BASE_URL: http://ollama.ai.svc.cluster.local:11434/v1
+              LLM_MODEL: llama3.1:8b
+              # Authentication
+              REQUIRE_AUTH: "true"
+            envFrom:
+              - secretRef:
+                  name: podly-secret
+            probes:
+              liveness: &probes
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /
+                    port: &port 5001
+                  initialDelaySeconds: 10
+                  periodSeconds: 30
+                  timeoutSeconds: 10
+                  failureThreshold: 3
+              readiness: *probes
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+              capabilities: {drop: ["ALL"]}
+            resources:
+              requests:
+                cpu: 50m
+                memory: 256Mi
+              limits:
+                memory: 2Gi
+    defaultPodOptions:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+    service:
+      app:
+        controller: podly
+        ports:
+          http:
+            port: *port
+    route:
+      app:
+        hostnames:
+          - "{{ .Release.Name }}.${SECRET_DOMAIN}"
+          - "{{ .Release.Name }}.${SECRET_INTERNAL_DOMAIN}"
+        parentRefs:
+          - name: envoy-internal
+            namespace: network
+    persistence:
+      data:
+        existingClaim: "{{ .Release.Name }}"
+        globalMounts:
+          - path: /app/src/instance
+      tmp:
+        type: emptyDir
