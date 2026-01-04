@@ -59,3 +59,7 @@ spec:
         existingClaim: "{{ .Release.Name }}"
         globalMounts:
           - path: /app/data
+      nginx:
+        type: emptyDir
+        globalMounts:
+          - path: /app/nginx
