@@ -54,3 +54,4 @@ resources:
   - ./uptimekuma/ks.yaml
   - ./wallos/ks.yaml
   - ./wapy/ks.yaml
+  - ./warracker/ks.yaml
