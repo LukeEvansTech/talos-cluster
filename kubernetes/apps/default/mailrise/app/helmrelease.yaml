@@ -19,8 +19,8 @@ spec:
         containers:
           app:
             image:
-              repository: docker.io/yoryan/mailrise
-              tag: 1.4.0
+              repository: ghcr.io/yoryan/mailrise
+              tag: 1.4.0@sha256:68e36cb35455564179f1a95f541339d4a01c4e662e0d498da6b14a2b911ae279
             envFrom:
               - secretRef:
                   name: mailrise-secret
