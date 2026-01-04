@@ -1,0 +1,65 @@
+---
+overlays:
+  Netflix:
+    overlay:
+      name: text(N)
+      group: streaming
+      weight: 100
+      font_size: 50
+      font_color: "#FFFFFF"
+      back_color: "#E50914"
+      back_width: 50
+      back_height: 50
+      horizontal_align: left
+      vertical_align: bottom
+      horizontal_offset: 15
+      vertical_offset: 15
+    mdblist_list: https://mdblist.com/lists/garycrawfordgc/netflix-movies
+
+  Disney+:
+    overlay:
+      name: text(D+)
+      group: streaming
+      weight: 90
+      font_size: 40
+      font_color: "#FFFFFF"
+      back_color: "#113CCF"
+      back_width: 50
+      back_height: 50
+      horizontal_align: left
+      vertical_align: bottom
+      horizontal_offset: 15
+      vertical_offset: 15
+    mdblist_list: https://mdblist.com/lists/garycrawfordgc/disney-movies-shows
+
+  Prime Video:
+    overlay:
+      name: text(P)
+      group: streaming
+      weight: 80
+      font_size: 50
+      font_color: "#FFFFFF"
+      back_color: "#00A8E1"
+      back_width: 50
+      back_height: 50
+      horizontal_align: left
+      vertical_align: bottom
+      horizontal_offset: 15
+      vertical_offset: 15
+    mdblist_list: https://mdblist.com/lists/garycrawfordgc/amazon-prime-video-movies
+
+  Apple TV+:
+    overlay:
+      name: text(A+)
+      group: streaming
+      weight: 70
+      font_size: 40
+      font_color: "#FFFFFF"
+      back_color: "#555555"
+      back_width: 50
+      back_height: 50
+      horizontal_align: left
+      vertical_align: bottom
+      horizontal_offset: 15
+      vertical_offset: 15
+    mdblist_list: https://mdblist.com/lists/garycrawfordgc/appletv-movies

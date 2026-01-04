@@ -16,8 +16,7 @@ resources:
   - ./dispatcharr/ks.yaml
   - ./imagemaid/ks.yaml
   - ./jellyfin/ks.yaml
-  # TODO: Create kometa-config ConfigMap with config.yml template before enabling
-  # - ./kometa/ks.yaml
+  - ./kometa/ks.yaml
   - ./seerr/ks.yaml
   - ./maintainerr/ks.yaml
   - ./pinchflat/ks.yaml

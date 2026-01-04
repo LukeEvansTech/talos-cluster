@@ -1,0 +1,33 @@
+---
+overlays:
+  IMDb Top 250:
+    overlay:
+      name: text(IMDb Top 250)
+      group: charts
+      weight: 50
+      font_size: 45
+      font_color: "#FFFFFF"
+      back_color: "#F5C518"
+      back_width: 200
+      back_height: 60
+      horizontal_align: left
+      vertical_align: top
+      horizontal_offset: 0
+      vertical_offset: 0
+    imdb_chart: top_shows
+
+  Trakt Trending:
+    overlay:
+      name: text(Trending)
+      group: charts
+      weight: 40
+      font_size: 45
+      font_color: "#FFFFFF"
+      back_color: "#ED1C24"
+      back_width: 200
+      back_height: 60
+      horizontal_align: left
+      vertical_align: top
+      horizontal_offset: 0
+      vertical_offset: 0
+    trakt_trending: 50

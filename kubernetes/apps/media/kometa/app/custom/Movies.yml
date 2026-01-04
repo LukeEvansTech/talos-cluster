@@ -1,0 +1,110 @@
+---
+templates:
+  Charts:
+    sort_title: "+1_<<num>>_<<collection_name>>"
+    sync_mode: sync
+    collection_order: custom
+    schedule: daily
+
+  Best Of:
+    sort_title: "+2_<<num>>_<<collection_name>>"
+    sync_mode: sync
+    collection_order: custom
+
+  Streaming:
+    sort_title: "+5_<<num>>_<<collection_name>>"
+    sync_mode: sync
+    visible_home: false
+    visible_shared: false
+    visible_library: true
+    collection_order: release.desc
+
+  Studios:
+    sort_title: "+6_<<num>>_<<collection_name>>"
+    sync_mode: sync
+    visible_home: false
+    visible_shared: false
+    visible_library: true
+    collection_order: release.desc
+
+collections:
+  # Charts
+  IMDb Most Popular:
+    template: {name: Charts, num: 0}
+    imdb_chart: popular_movies
+    summary: The most popular movies on IMDb.
+
+  IMDb Top 250:
+    template: {name: Charts, num: 1}
+    imdb_chart: top_movies
+    summary: Top 250 movies as rated by IMDb users.
+
+  TMDb Most Popular:
+    template: {name: Charts, num: 2}
+    tmdb_popular: 100
+    summary: The most popular movies on TMDb.
+
+  Trakt Trending:
+    template: {name: Charts, num: 3}
+    trakt_trending: 100
+    summary: Movies currently trending on Trakt.
+
+  Trakt Most Watched (Weekly):
+    template: {name: Charts, num: 4}
+    trakt_watched_weekly: 100
+    summary: The most watched movies on Trakt this week.
+
+  # Best Of
+  Oscars Best Picture Winners:
+    template: {name: Best Of, num: 0}
+    trakt_list: https://trakt.tv/users/pjcob/lists/academy-award-best-picture-winners
+    summary: Academy Award winners for Best Picture.
+
+  Rotten Tomatoes Top 100:
+    template: {name: Best Of, num: 1}
+    mdblist_list: https://mdblist.com/lists/hdlists/top-100-movies-of-all-time-rotten-tomatoes
+    summary: Top 100 movies according to Rotten Tomatoes.
+
+  # Streaming Services
+  Netflix Movies:
+    template: {name: Streaming, num: 0}
+    mdblist_list: https://mdblist.com/lists/garycrawfordgc/netflix-movies
+    summary: Movies currently available on Netflix.
+
+  Disney+ Movies:
+    template: {name: Streaming, num: 1}
+    mdblist_list: https://mdblist.com/lists/garycrawfordgc/disney-movies-shows
+    filters:
+      type: movie
+    summary: Movies currently available on Disney+.
+
+  Prime Video Movies:
+    template: {name: Streaming, num: 2}
+    mdblist_list: https://mdblist.com/lists/garycrawfordgc/amazon-prime-video-movies
+    summary: Movies currently available on Prime Video.
+
+  Apple TV+ Movies:
+    template: {name: Streaming, num: 3}
+    mdblist_list: https://mdblist.com/lists/garycrawfordgc/appletv-movies
+    summary: Movies currently available on Apple TV+.
+
+  # Studios
+  Marvel Cinematic Universe:
+    template: {name: Studios, num: 0}
+    trakt_list: https://trakt.tv/users/jawann2002/lists/marvel-cinematic-universe-movies
+    summary: Movies in the Marvel Cinematic Universe.
+
+  DC Extended Universe:
+    template: {name: Studios, num: 1}
+    trakt_list: https://trakt.tv/users/donxy/lists/dc-extended-universe
+    summary: Movies in the DC Extended Universe.
+
+  Pixar:
+    template: {name: Studios, num: 2}
+    studio: Pixar
+    summary: Movies from Pixar Animation Studios.
+
+  Studio Ghibli:
+    template: {name: Studios, num: 3}
+    studio: Studio Ghibli
+    summary: Movies from Studio Ghibli.

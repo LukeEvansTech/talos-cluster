@@ -1,0 +1,49 @@
+---
+overlays:
+  Returning:
+    overlay:
+      name: text(Returning)
+      group: status
+      weight: 50
+      font_size: 35
+      font_color: "#FFFFFF"
+      back_color: "#008000"
+      back_width: 130
+      back_height: 45
+      horizontal_align: left
+      vertical_align: bottom
+      horizontal_offset: 15
+      vertical_offset: 65
+    tmdb_status: returning
+
+  Ended:
+    overlay:
+      name: text(Ended)
+      group: status
+      weight: 40
+      font_size: 35
+      font_color: "#FFFFFF"
+      back_color: "#FF0000"
+      back_width: 100
+      back_height: 45
+      horizontal_align: left
+      vertical_align: bottom
+      horizontal_offset: 15
+      vertical_offset: 65
+    tmdb_status: ended
+
+  Canceled:
+    overlay:
+      name: text(Canceled)
+      group: status
+      weight: 30
+      font_size: 35
+      font_color: "#FFFFFF"
+      back_color: "#8B0000"
+      back_width: 130
+      back_height: 45
+      horizontal_align: left
+      vertical_align: bottom
+      horizontal_offset: 15
+      vertical_offset: 65
+    tmdb_status: canceled

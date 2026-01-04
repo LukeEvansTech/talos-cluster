@@ -1,0 +1,19 @@
+---
+overlays:
+  IMDb Rating:
+    overlay:
+      name: text(<<imdb_rating>>)
+      group: ratings
+      weight: 30
+      font_size: 40
+      font_color: "#000000"
+      back_color: "#F5C518"
+      back_width: 80
+      back_height: 50
+      horizontal_align: right
+      vertical_align: bottom
+      horizontal_offset: 15
+      vertical_offset: 15
+    plex_search:
+      all:
+        audience_rating.gte: 0.1
