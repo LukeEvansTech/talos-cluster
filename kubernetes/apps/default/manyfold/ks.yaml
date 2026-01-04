@@ -11,23 +11,16 @@ spec:
       app.kubernetes.io/name: *app
   components:
     - ../../../../components/gatus/guarded
-    - ../../../../components/homepage
     - ../../../../components/volsync
   dependsOn:
-    - name: rook-ceph-cluster
-      namespace: rook-ceph
-    - name: external-secrets-stores
-      namespace: external-secrets
+    - name: dragonfly-cluster
+      namespace: database
   interval: 1h
   path: ./kubernetes/apps/default/manyfold/app
   postBuild:
     substitute:
       APP: *app
       VOLSYNC_CAPACITY: 10Gi
-      HOMEPAGE_NAME: Manyfold
-      HOMEPAGE_GROUP: Media
-      HOMEPAGE_ICON: manyfold.svg
-      HOMEPAGE_DESCRIPTION: 3D model library manager
   prune: true
   retryInterval: 2m
   sourceRef:
