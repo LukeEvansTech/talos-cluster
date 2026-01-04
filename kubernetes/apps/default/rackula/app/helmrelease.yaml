@@ -54,7 +54,14 @@ spec:
             namespace: network
     persistence:
       tmp:
-        enabled: true
         type: emptyDir
         globalMounts:
           - path: /tmp
+      cache:
+        type: emptyDir
+        globalMounts:
+          - path: /var/cache/nginx
+      run:
+        type: emptyDir
+        globalMounts:
+          - path: /var/run
