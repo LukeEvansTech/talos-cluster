@@ -1,0 +1,19 @@
+---
+overlays:
+  Stand-up Comedy:
+    overlay:
+      name: text(Stand-up)
+      group: genre
+      weight: 20
+      font_size: 35
+      font_color: "#FFFFFF"
+      back_color: "#FFD700"
+      back_width: 120
+      back_height: 45
+      horizontal_align: left
+      vertical_align: bottom
+      horizontal_offset: 130
+      vertical_offset: 15
+    plex_search:
+      all:
+        collection: Stand-up Comedy
