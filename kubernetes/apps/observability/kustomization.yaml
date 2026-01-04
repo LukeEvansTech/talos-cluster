@@ -17,7 +17,6 @@ resources:
   - ./kube-prometheus-stack/ks.yaml
   - ./netdata/ks.yaml
   - ./network-ups-tools/ks.yaml
-  - ./patchmon/ks.yaml
   - ./nut-exporter/ks.yaml
   - ./peanut/ks.yaml
   - ./silence-operator/ks.yaml
