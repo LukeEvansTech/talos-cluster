@@ -3,7 +3,7 @@
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
-  name: kometa
+  name: &app kometa
 spec:
   interval: 1h
   chartRef:
@@ -13,34 +13,43 @@ spec:
     controllers:
       kometa:
         type: cronjob
-        cronjob:
-          schedule: "0 */6 * * *"
-          successfulJobsHistory: 1
-          failedJobsHistory: 1
         annotations:
           reloader.stakater.com/auto: "true"
+        cronjob:
+          schedule: "@daily"
+          timeZone: &timeZone ${TIMEZONE}
+          concurrencyPolicy: Forbid
+          successfulJobsHistory: 1
+          failedJobsHistory: 1
         containers:
           app:
             image:
-              repository: docker.io/kometateam/kometa
-              tag: v2.2.2
-            args: ["--run"]
+              repository: kometateam/kometa
+              tag: v2.2.2@sha256:32992226d1a505da3ed5d4e9c97bed8a6deb7aef36cd5ef8b1f519762607df45
+            command:
+              - /bin/sh
+              - -c
+            args:
+              - |
+                python3 kometa.py --run --read-only-config --run-libraries "Movies";
+                python3 kometa.py --run --read-only-config --run-libraries "TV Shows";
             env:
-              TZ: ${TIMEZONE}
-              KOMETA_CONFIG: /config/config.yml
-              KOMETA_READ_ONLY_CONFIG: "true"
+              TZ: *timeZone
+            envFrom:
+              - secretRef:
+                  name: kometa-secret
+            resources:
+              requests:
+                cpu: 10m
+                memory: 4Gi
+              limits:
+                memory: 8Gi
             securityContext:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: true
               capabilities:
                 drop:
                   - ALL
-            resources:
-              requests:
-                cpu: 10m
-                memory: 512Mi
-              limits:
-                memory: 4Gi
     defaultPodOptions:
       securityContext:
         runAsNonRoot: true
@@ -52,26 +61,26 @@ spec:
           type: RuntimeDefault
     persistence:
       config:
-        type: secret
-        name: kometa-secret
+        existingClaim: *app
+        advancedMounts:
+          kometa:
+            app:
+              - path: /config/assets
+                subPath: assets
+      config-file:
+        type: configMap
+        name: kometa-configmap
         globalMounts:
           - path: /config/config.yml
             subPath: config.yml
             readOnly: true
-      overlays:
-        type: configMap
-        name: kometa-overlays
-        globalMounts:
-          - path: /config/overlays.yml
-            subPath: overlays.yml
-            readOnly: true
-      data:
-        existingClaim: "{{ .Release.Name }}"
-        globalMounts:
-          - path: /config/assets
-            subPath: assets
-          - path: /config/logs
-            subPath: logs
+      logs:
+        type: emptyDir
+        advancedMounts:
+          kometa:
+            app:
+              - path: /config/logs
+                subPath: logs
       tmp:
         type: emptyDir
         globalMounts:

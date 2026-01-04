@@ -1,0 +1,65 @@
+---
+overlays:
+  HBO:
+    overlay:
+      name: text(HBO)
+      group: networks
+      weight: 100
+      font_size: 40
+      font_color: "#FFFFFF"
+      back_color: "#000000"
+      back_width: 80
+      back_height: 45
+      horizontal_align: right
+      vertical_align: top
+      horizontal_offset: 15
+      vertical_offset: 15
+    network: HBO
+
+  Netflix:
+    overlay:
+      name: text(Netflix)
+      group: networks
+      weight: 90
+      font_size: 35
+      font_color: "#FFFFFF"
+      back_color: "#E50914"
+      back_width: 100
+      back_height: 45
+      horizontal_align: right
+      vertical_align: top
+      horizontal_offset: 15
+      vertical_offset: 15
+    network: Netflix
+
+  Apple TV+:
+    overlay:
+      name: text(Apple TV+)
+      group: networks
+      weight: 80
+      font_size: 30
+      font_color: "#FFFFFF"
+      back_color: "#555555"
+      back_width: 120
+      back_height: 45
+      horizontal_align: right
+      vertical_align: top
+      horizontal_offset: 15
+      vertical_offset: 15
+    network: Apple TV+
+
+  Amazon:
+    overlay:
+      name: text(Prime)
+      group: networks
+      weight: 70
+      font_size: 35
+      font_color: "#FFFFFF"
+      back_color: "#00A8E1"
+      back_width: 90
+      back_height: 45
+      horizontal_align: right
+      vertical_align: top
+      horizontal_offset: 15
+      vertical_offset: 15
+    network: Amazon
