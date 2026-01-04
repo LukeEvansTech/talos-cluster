@@ -12,8 +12,6 @@ spec:
   dependsOn:
     - name: plex
       namespace: media
-    - name: external-secrets-stores
-      namespace: external-secrets
   interval: 1h
   path: ./kubernetes/apps/media/plex-auto-languages/app
   postBuild:
