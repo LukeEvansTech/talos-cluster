@@ -8,6 +8,12 @@
       versioning: "regex:^(?<major>\\d{4})\\.(?<minor>\\d{2})\\.(?<patch>\\d{2})-(?<build>[a-f0-9]+)$",
     },
     {
+      description: "Custom versioning for metube date-based tags (YYYY.MM.DD)",
+      matchDatasources: ["docker"],
+      matchPackageNames: ["ghcr.io/alexta69/metube"],
+      versioning: "regex:^(?<major>\\d{4})\\.(?<minor>\\d{2})\\.(?<patch>\\d{2})$",
+    },
+    {
       description: "Override Helmfile Dependency Name",
       matchDatasources: ["docker"],
       matchManagers: ["helmfile"],
