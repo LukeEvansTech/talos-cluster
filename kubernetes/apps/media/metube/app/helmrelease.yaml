@@ -1,0 +1,85 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: metube
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: metube
+  values:
+    controllers:
+      metube:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        containers:
+          app:
+            image:
+              repository: ghcr.io/alexta69/metube
+              tag: "2025-01-04"
+            env:
+              TZ: ${TIMEZONE}
+              DOWNLOAD_DIR: /downloads
+              STATE_DIR: /config
+              DOWNLOAD_MODE: limited
+              MAX_CONCURRENT_DOWNLOADS: "5"
+            probes:
+              liveness: &probes
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /
+                    port: &port 8081
+                  initialDelaySeconds: 0
+                  periodSeconds: 10
+                  timeoutSeconds: 1
+                  failureThreshold: 3
+              readiness: *probes
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities: {drop: ["ALL"]}
+            resources:
+              requests:
+                cpu: 10m
+                memory: 128Mi
+              limits:
+                memory: 1Gi
+    defaultPodOptions:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 100
+        fsGroup: 100
+        fsGroupChangePolicy: OnRootMismatch
+    service:
+      app:
+        controller: metube
+        ports:
+          http:
+            port: *port
+    route:
+      app:
+        hostnames:
+          - "{{ .Release.Name }}.${SECRET_DOMAIN}"
+          - "{{ .Release.Name }}.${SECRET_INTERNAL_DOMAIN}"
+        parentRefs:
+          - name: envoy-internal
+            namespace: network
+    persistence:
+      config:
+        existingClaim: "{{ .Release.Name }}"
+        globalMounts:
+          - path: /config
+      downloads:
+        type: nfs
+        server: ${SECRET_STORAGE_SERVER}
+        path: ${SECRET_STORAGE_SERVER_DOWNLOADS_NFS}
+        globalMounts:
+          - path: /downloads
+            subPath: metube
+      tmp:
+        type: emptyDir

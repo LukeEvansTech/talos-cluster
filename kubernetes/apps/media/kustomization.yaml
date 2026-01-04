@@ -19,6 +19,7 @@ resources:
   - ./kometa/ks.yaml
   - ./seerr/ks.yaml
   - ./maintainerr/ks.yaml
+  - ./metube/ks.yaml
   - ./pinchflat/ks.yaml
   - ./plex/ks.yaml
   - ./podly/ks.yaml
