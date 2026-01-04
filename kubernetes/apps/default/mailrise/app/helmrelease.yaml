@@ -21,6 +21,8 @@ spec:
             image:
               repository: ghcr.io/yoryan/mailrise
               tag: 1.4.0@sha256:68e36cb35455564179f1a95f541339d4a01c4e662e0d498da6b14a2b911ae279
+            env:
+              TZ: ${TIMEZONE}
             envFrom:
               - secretRef:
                   name: mailrise-secret
@@ -54,13 +56,6 @@ spec:
               labelSelector:
                 matchLabels:
                   app.kubernetes.io/name: *app
-    defaultPodOptions:
-      securityContext:
-        runAsNonRoot: true
-        runAsUser: 1000
-        runAsGroup: 1000
-        seccompProfile:
-          type: RuntimeDefault
     service:
       app:
         controller: mailrise
