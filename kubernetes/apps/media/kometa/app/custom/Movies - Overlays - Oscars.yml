@@ -1,0 +1,24 @@
+---
+overlays:
+  Oscar Winner:
+    overlay:
+      name: text(Oscar Winner)
+      group: awards
+      weight: 60
+      font_size: 35
+      font_color: "#000000"
+      back_color: "#D4AF37"
+      back_width: 170
+      back_height: 45
+      horizontal_align: right
+      vertical_align: top
+      horizontal_offset: 15
+      vertical_offset: 70
+    plex_search:
+      any:
+        collection:
+          - Best Picture
+          - Best Animated Feature Film
+          - Best Cinematography
+          - Best Director
+          - Best Visual Effects

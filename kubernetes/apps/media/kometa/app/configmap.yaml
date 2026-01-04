@@ -3,10 +3,35 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: kometa-configmap
+  namespace: media
 data:
   config.yml: |
     ---
     libraries:
+      Anime:
+        run_order:
+          - collections
+          - metadata
+          - operations
+          - overlays
+        collection_files:
+          - repo: Anime.yml
+          - default: basic
+          - default: anilist
+        overlay_files:
+          - remove_overlays: false
+          - repo: Anime - Overlays - Charts.yml
+          - repo: TV Shows - Overlays - Networks.yml
+          - repo: TV Shows - Overlays - Ratings.yml
+          - repo: TV Shows - Overlays - Statuses.yml
+          - repo: TV Shows - Overlays - Streaming Services.yml
+        operations:
+          mass_genre_update: tmdb
+          mass_content_rating_update: omdb
+          mass_audience_rating_update: mdb_tomatoesaudience
+          mass_critic_rating_update: mdb_metacritic
+          mass_user_rating_update: imdb
+
       Movies:
         run_order:
           - collections
@@ -15,11 +40,14 @@ data:
           - overlays
         collection_files:
           - repo: Movies.yml
+          - repo: Movies - Holidays.yml
+          - repo: Movies - Trakt Unplayed.yml
           - default: basic
           - default: imdb
         overlay_files:
           - remove_overlays: false
           - repo: Movies - Overlays - Charts.yml
+          - repo: Movies - Overlays - Oscars.yml
           - repo: Movies - Overlays - Ratings.yml
           - repo: Movies - Overlays - Streaming Services.yml
           - repo: Movies - Overlays - Studios.yml
@@ -38,6 +66,7 @@ data:
           - overlays
         collection_files:
           - repo: TV Shows.yml
+          - repo: TV Shows - Trakt Unplayed.yml
           - default: basic
           - default: imdb
         overlay_files:
@@ -88,6 +117,16 @@ data:
       custom_repo: https://github.com/LukeEvansTech/talos-cluster/tree/main/kubernetes/apps/media/kometa/app/custom/
       check_nightly: false
       show_unconfigured: true
+
+    mal:
+      client_id: <<KOMETA_MYANIMELIST_CLIENT_ID>>
+      client_secret: <<KOMETA_MYANIMELIST_CLIENT_SECRET>>
+      localhost_url: <<KOMETA_MYANIMELIST_LOCALHOST_URL>>
+      authorization:
+        access_token: <<KOMETA_MYANIMELIST_ACCESS_TOKEN>>
+        token_type: Bearer
+        expires_in: <<KOMETA_MYANIMELIST_EXPIRES_IN>>
+        refresh_token: <<KOMETA_MYANIMELIST_REFRESH_TOKEN>>
 
     mdblist:
       apikey: <<KOMETA_MDBLIST_API_KEY>>

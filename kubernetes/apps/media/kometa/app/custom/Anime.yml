@@ -1,0 +1,189 @@
+---
+# Anime Collections based on joryirving/home-ops reference
+templates:
+  Anime:
+    sort_title: "+3_<<num>>_<<collection_name>>"
+    sync_mode: sync
+    collection_order: custom
+
+  Charts:
+    sort_title: "+1_<<num>>_<<collection_name>>"
+    sync_mode: sync
+    collection_order: custom
+    schedule: daily
+
+collections:
+  # Charts
+  Top Airing Anime:
+    template: {name: Charts, num: 0}
+    anilist_popular: 50
+    summary: Currently airing anime sorted by popularity.
+
+  Most Popular Anime:
+    template: {name: Charts, num: 1}
+    anilist_popular: 100
+    summary: Most popular anime of all time on AniList.
+
+  Top Rated Anime:
+    template: {name: Charts, num: 2}
+    anilist_top_rated: 100
+    summary: Top rated anime on AniList.
+
+  Trending Anime:
+    template: {name: Charts, num: 3}
+    anilist_trending: 50
+    summary: Currently trending anime on AniList.
+
+  # Seasonal
+  Winter Anime:
+    template: {name: Anime, num: 0}
+    anilist_season:
+      year: 2025
+      season: winter
+    summary: Anime from Winter 2025 season.
+
+  Spring Anime:
+    template: {name: Anime, num: 1}
+    anilist_season:
+      year: 2025
+      season: spring
+    summary: Anime from Spring 2025 season.
+
+  Summer Anime:
+    template: {name: Anime, num: 2}
+    anilist_season:
+      year: 2025
+      season: summer
+    summary: Anime from Summer 2025 season.
+
+  Fall Anime:
+    template: {name: Anime, num: 3}
+    anilist_season:
+      year: 2025
+      season: fall
+    summary: Anime from Fall 2025 season.
+
+  # Genres
+  Action Anime:
+    template: {name: Anime, num: 10}
+    mal_genre:
+      genre_id: 1
+      limit: 500
+    summary: Action anime from MyAnimeList.
+
+  Adventure Anime:
+    template: {name: Anime, num: 11}
+    mal_genre:
+      genre_id: 2
+      limit: 500
+    summary: Adventure anime from MyAnimeList.
+
+  Comedy Anime:
+    template: {name: Anime, num: 12}
+    mal_genre:
+      genre_id: 4
+      limit: 500
+    summary: Comedy anime from MyAnimeList.
+
+  Drama Anime:
+    template: {name: Anime, num: 13}
+    mal_genre:
+      genre_id: 8
+      limit: 500
+    summary: Drama anime from MyAnimeList.
+
+  Fantasy Anime:
+    template: {name: Anime, num: 14}
+    mal_genre:
+      genre_id: 10
+      limit: 500
+    summary: Fantasy anime from MyAnimeList.
+
+  Horror Anime:
+    template: {name: Anime, num: 15}
+    mal_genre:
+      genre_id: 14
+      limit: 500
+    summary: Horror anime from MyAnimeList.
+
+  Isekai Anime:
+    template: {name: Anime, num: 16}
+    mal_genre:
+      genre_id: 62
+      limit: 500
+    summary: Isekai anime from MyAnimeList.
+
+  Mecha Anime:
+    template: {name: Anime, num: 17}
+    mal_genre:
+      genre_id: 18
+      limit: 500
+    summary: Mecha anime from MyAnimeList.
+
+  Romance Anime:
+    template: {name: Anime, num: 18}
+    mal_genre:
+      genre_id: 22
+      limit: 500
+    summary: Romance anime from MyAnimeList.
+
+  Sci-Fi Anime:
+    template: {name: Anime, num: 19}
+    mal_genre:
+      genre_id: 24
+      limit: 500
+    summary: Sci-Fi anime from MyAnimeList.
+
+  Slice of Life Anime:
+    template: {name: Anime, num: 20}
+    mal_genre:
+      genre_id: 36
+      limit: 500
+    summary: Slice of Life anime from MyAnimeList.
+
+  Sports Anime:
+    template: {name: Anime, num: 21}
+    mal_genre:
+      genre_id: 30
+      limit: 500
+    summary: Sports anime from MyAnimeList.
+
+  Supernatural Anime:
+    template: {name: Anime, num: 22}
+    mal_genre:
+      genre_id: 37
+      limit: 500
+    summary: Supernatural anime from MyAnimeList.
+
+  Thriller Anime:
+    template: {name: Anime, num: 23}
+    mal_genre:
+      genre_id: 41
+      limit: 500
+    summary: Thriller anime from MyAnimeList.
+
+  # Studios
+  Studio Ghibli:
+    template: {name: Anime, num: 30}
+    studio: Studio Ghibli
+    summary: Anime from Studio Ghibli.
+
+  Kyoto Animation:
+    template: {name: Anime, num: 31}
+    studio: Kyoto Animation
+    summary: Anime from Kyoto Animation.
+
+  MAPPA:
+    template: {name: Anime, num: 32}
+    studio: MAPPA
+    summary: Anime from MAPPA.
+
+  ufotable:
+    template: {name: Anime, num: 33}
+    studio: ufotable
+    summary: Anime from ufotable.
+
+  Wit Studio:
+    template: {name: Anime, num: 34}
+    studio: Wit Studio
+    summary: Anime from Wit Studio.
