@@ -3,7 +3,7 @@
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
-  name: dispatcharr
+  name: &app dispatcharr
 spec:
   interval: 1h
   chartRef:
@@ -15,7 +15,7 @@ spec:
         annotations:
           reloader.stakater.com/auto: "true"
         initContainers:
-          init-db:
+          chown-dbdir:
             image:
               repository: docker.io/library/alpine
               tag: "3.23"
@@ -23,25 +23,43 @@ spec:
               - /bin/sh
               - -c
             args:
-              - mkdir -p /data/db && chmod 0750 /data/db
+              - |
+                mkdir -p /data/db && chmod 0750 /data/db
             securityContext:
               runAsUser: 0
         containers:
           app:
             image:
               repository: ghcr.io/dispatcharr/dispatcharr
-              tag: 0.16.0
+              tag: 0.16.0@sha256:05b98d983d40c4f59a6418450b7770b71baa53917404c7723c07b936e64121e9
             env:
               TZ: ${TIMEZONE}
+              NVIDIA_VISIBLE_DEVICES: "all"
+              NVIDIA_DRIVER_CAPABILITIES: "all"
+              CELERY_BROKER_URL: redis://dragonfly.database.svc.cluster.local:6379/0
               DISPATCHARR_ENV: aio
-              DISPATCHARR_PORT: &port 9191
               DISPATCHARR_LOG_LEVEL: info
+              DISPATCHARR_PORT: &port 9191
+              REDIS_HOST: dragonfly.database.svc.cluster.local
             resources:
               requests:
                 cpu: 50m
                 memory: 256Mi
+                nvidia.com/gpu: 1
               limits:
-                memory: 2Gi
+                memory: 3Gi
+                nvidia.com/gpu: 1
+    defaultPodOptions:
+      runtimeClassName: nvidia
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: extensions.talos.dev/nvidia-open-gpu-kernel-modules-production
+                    operator: Exists
+                  - key: extensions.talos.dev/nvidia-container-toolkit-production
+                    operator: Exists
     service:
       app:
         controller: dispatcharr
@@ -58,16 +76,19 @@ spec:
             namespace: network
     persistence:
       config:
-        existingClaim: "{{ .Release.Name }}"
+        existingClaim: *app
         advancedMounts:
           dispatcharr:
             app:
               - path: /data
-            init-db:
+                subPath: data
+            chown-dbdir:
               - path: /data
+                subPath: data
       tmp:
         type: emptyDir
         advancedMounts:
           dispatcharr:
             app:
               - path: /tmp
+                subPath: tmp
