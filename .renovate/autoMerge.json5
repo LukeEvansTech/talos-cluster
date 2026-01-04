@@ -68,15 +68,5 @@
       matchPackageNames: ["/changedetection\\.io/"],
       ignoreTests: false,
     },
-    {
-      description: "Auto-merge Renovate container after stabilization",
-      matchDatasources: ["docker"],
-      automerge: true,
-      automergeType: "pr",
-      matchUpdateTypes: ["minor", "patch"],
-      matchPackageNames: ["ghcr.io/renovatebot/renovate"],
-      minimumReleaseAge: "1 day",
-      ignoreTests: false,
-    },
   ],
 }
