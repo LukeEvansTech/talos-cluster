@@ -1,0 +1,49 @@
+---
+overlays:
+  AniList Top Rated:
+    overlay:
+      name: text(Top Rated)
+      group: charts
+      weight: 50
+      font_size: 40
+      font_color: "#FFFFFF"
+      back_color: "#02A9FF"
+      back_width: 150
+      back_height: 50
+      horizontal_align: left
+      vertical_align: top
+      horizontal_offset: 0
+      vertical_offset: 0
+    anilist_top_rated: 100
+
+  AniList Trending:
+    overlay:
+      name: text(Trending)
+      group: charts
+      weight: 40
+      font_size: 40
+      font_color: "#FFFFFF"
+      back_color: "#E50050"
+      back_width: 150
+      back_height: 50
+      horizontal_align: left
+      vertical_align: top
+      horizontal_offset: 0
+      vertical_offset: 0
+    anilist_trending: 50
+
+  AniList Popular:
+    overlay:
+      name: text(Popular)
+      group: charts
+      weight: 30
+      font_size: 40
+      font_color: "#FFFFFF"
+      back_color: "#FFC000"
+      back_width: 130
+      back_height: 50
+      horizontal_align: left
+      vertical_align: top
+      horizontal_offset: 0
+      vertical_offset: 0
+    anilist_popular: 100
