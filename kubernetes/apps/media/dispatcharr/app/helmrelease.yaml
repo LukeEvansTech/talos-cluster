@@ -17,12 +17,15 @@ spec:
         initContainers:
           init-db:
             image:
-              repository: ghcr.io/home-operations/alpine
-              tag: 3.21.2
+              repository: docker.io/library/alpine
+              tag: "3.23"
             command:
               - /bin/sh
               - -c
-              - mkdir -p /data/db && chmod 0750 /data/db
+            args:
+              - chmod 0750 /data/db
+            securityContext:
+              runAsUser: 0
         containers:
           app:
             image:
