@@ -1,0 +1,80 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: garage
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: garage
+  values:
+    controllers:
+      garage:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        containers:
+          app:
+            image:
+              repository: docker.io/dxflrs/garage
+              tag: v2.1.0
+            env:
+              TZ: ${TIMEZONE}
+              GARAGE_CONFIG_FILE: /config/garage.toml
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop:
+                  - ALL
+            resources:
+              requests:
+                cpu: 10m
+                memory: 128Mi
+              limits:
+                memory: 512Mi
+    defaultPodOptions:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+    service:
+      app:
+        controller: garage
+        ports:
+          s3:
+            port: 3900
+          admin:
+            port: 3903
+    route:
+      app:
+        hostnames:
+          - "s3.${SECRET_DOMAIN}"
+          - "s3.${SECRET_INTERNAL_DOMAIN}"
+        parentRefs:
+          - name: envoy-internal
+            namespace: network
+        rules:
+          - backendRefs:
+              - name: garage
+                port: 3900
+    persistence:
+      config:
+        type: secret
+        name: garage-secret
+        globalMounts:
+          - path: /config/garage.toml
+            subPath: garage.toml
+            readOnly: true
+      data:
+        existingClaim: "{{ .Release.Name }}"
+        globalMounts:
+          - path: /data
+            subPath: data
+          - path: /meta
+            subPath: meta
