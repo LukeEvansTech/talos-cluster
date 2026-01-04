@@ -1,0 +1,57 @@
+---
+overlays:
+  DC:
+    overlay:
+      name: text(DC)
+      group: studios
+      weight: 50
+      font_size: 45
+      font_color: "#FFFFFF"
+      back_color: "#0476F2"
+      back_width: 70
+      back_height: 50
+      horizontal_align: left
+      vertical_align: bottom
+      horizontal_offset: 70
+      vertical_offset: 15
+    plex_search:
+      any:
+        studio:
+          - DC Comics
+          - DC Entertainment
+
+  Marvel Television:
+    overlay:
+      name: text(Marvel)
+      group: studios
+      weight: 40
+      font_size: 40
+      font_color: "#FFFFFF"
+      back_color: "#ED1D24"
+      back_width: 100
+      back_height: 50
+      horizontal_align: left
+      vertical_align: bottom
+      horizontal_offset: 70
+      vertical_offset: 15
+    plex_search:
+      all:
+        studio: Marvel Television
+
+  Marvel Studios:
+    overlay:
+      name: text(MCU)
+      group: studios
+      weight: 45
+      font_size: 45
+      font_color: "#FFFFFF"
+      back_color: "#ED1D24"
+      back_width: 80
+      back_height: 50
+      horizontal_align: left
+      vertical_align: bottom
+      horizontal_offset: 70
+      vertical_offset: 15
+    plex_search:
+      all:
+        studio: Marvel Studios

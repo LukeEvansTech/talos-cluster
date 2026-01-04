@@ -49,6 +49,7 @@ data:
           - repo: Movies - Overlays - Charts.yml
           - repo: Movies - Overlays - Oscars.yml
           - repo: Movies - Overlays - Ratings.yml
+          - repo: Movies - Overlays - Stand-up.yml
           - repo: Movies - Overlays - Streaming Services.yml
           - repo: Movies - Overlays - Studios.yml
         operations:
@@ -71,11 +72,13 @@ data:
           - default: imdb
         overlay_files:
           - remove_overlays: false
+          - repo: TV Shows - Overlays.yml
           - repo: TV Shows - Overlays - Charts.yml
           - repo: TV Shows - Overlays - Networks.yml
           - repo: TV Shows - Overlays - Ratings.yml
           - repo: TV Shows - Overlays - Statuses.yml
           - repo: TV Shows - Overlays - Streaming Services.yml
+          - repo: TV Shows - Overlays - Studios.yml
         operations:
           mass_genre_update: tmdb
           mass_content_rating_update: omdb
