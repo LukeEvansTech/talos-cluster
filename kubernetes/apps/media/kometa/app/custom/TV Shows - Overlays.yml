@@ -1,0 +1,200 @@
+---
+# Combined TV Shows Overlays
+# This file contains additional overlays that supplement the individual overlay files
+
+overlays:
+  # Charts - suppress overlays to prevent overlap
+  IMDb Top 250 Shows:
+    overlay:
+      name: text(IMDb Top 250)
+      group: charts
+      weight: 50
+      font_size: 40
+      font_color: "#FFFFFF"
+      back_color: "#F5C518"
+      back_width: 180
+      back_height: 50
+      horizontal_align: left
+      vertical_align: top
+      horizontal_offset: 0
+      vertical_offset: 0
+    suppress_overlays:
+      - TMDb Trending
+      - Trakt Trending
+    imdb_chart: top_shows
+
+  TMDb Trending Shows:
+    overlay:
+      name: text(Trending)
+      group: charts
+      weight: 40
+      font_size: 45
+      font_color: "#FFFFFF"
+      back_color: "#01B4E4"
+      back_width: 150
+      back_height: 50
+      horizontal_align: left
+      vertical_align: top
+      horizontal_offset: 0
+      vertical_offset: 0
+    suppress_overlays:
+      - Trakt Trending
+    tmdb_trending_weekly: 50
+
+  # Additional Streaming with suppress logic
+  Hulu:
+    overlay:
+      name: text(H)
+      group: streaming
+      weight: 60
+      font_size: 50
+      font_color: "#FFFFFF"
+      back_color: "#1CE783"
+      back_width: 50
+      back_height: 50
+      horizontal_align: left
+      vertical_align: bottom
+      horizontal_offset: 15
+      vertical_offset: 15
+    suppress_overlays:
+      - Netflix
+      - Disney+
+      - Prime Video
+    mdblist_list: https://mdblist.com/lists/garycrawfordgc/hulu-shows
+
+  HBO Max:
+    overlay:
+      name: text(HBO)
+      group: streaming
+      weight: 85
+      font_size: 40
+      font_color: "#FFFFFF"
+      back_color: "#B31EF5"
+      back_width: 70
+      back_height: 50
+      horizontal_align: left
+      vertical_align: bottom
+      horizontal_offset: 15
+      vertical_offset: 15
+    suppress_overlays:
+      - Netflix
+      - Disney+
+    mdblist_list: https://mdblist.com/lists/garycrawfordgc/hbo-max-shows
+
+  Paramount+:
+    overlay:
+      name: text(P+)
+      group: streaming
+      weight: 55
+      font_size: 45
+      font_color: "#FFFFFF"
+      back_color: "#0064FF"
+      back_width: 55
+      back_height: 50
+      horizontal_align: left
+      vertical_align: bottom
+      horizontal_offset: 15
+      vertical_offset: 15
+    suppress_overlays:
+      - Netflix
+      - Disney+
+      - HBO Max
+    mdblist_list: https://mdblist.com/lists/garycrawfordgc/paramount-shows
+
+  Peacock:
+    overlay:
+      name: text(Peacock)
+      group: streaming
+      weight: 50
+      font_size: 30
+      font_color: "#000000"
+      back_color: "#FFF200"
+      back_width: 100
+      back_height: 50
+      horizontal_align: left
+      vertical_align: bottom
+      horizontal_offset: 15
+      vertical_offset: 15
+    suppress_overlays:
+      - Netflix
+      - Disney+
+      - HBO Max
+      - Paramount+
+    mdblist_list: https://mdblist.com/lists/garycrawfordgc/peacock-shows
+
+  AMC+:
+    overlay:
+      name: text(AMC+)
+      group: streaming
+      weight: 45
+      font_size: 40
+      font_color: "#FFFFFF"
+      back_color: "#000000"
+      back_width: 80
+      back_height: 50
+      horizontal_align: left
+      vertical_align: bottom
+      horizontal_offset: 15
+      vertical_offset: 15
+    suppress_overlays:
+      - Netflix
+      - Disney+
+      - HBO Max
+    mdblist_list: https://mdblist.com/lists/garycrawfordgc/amc-shows
+
+  # Rotten Tomatoes Audience Rating
+  RT Audience Good:
+    overlay:
+      name: text(<<audience_rating>>%)
+      group: rt_audience
+      weight: 15
+      font_size: 35
+      font_color: "#FFFFFF"
+      back_color: "#FA320A"
+      back_width: 70
+      back_height: 45
+      horizontal_align: right
+      vertical_align: bottom
+      horizontal_offset: 100
+      vertical_offset: 15
+    plex_search:
+      all:
+        audience_rating.gte: 6.0
+
+  RT Audience Bad:
+    overlay:
+      name: text(<<audience_rating>>%)
+      group: rt_audience
+      weight: 10
+      font_size: 35
+      font_color: "#FFFFFF"
+      back_color: "#4CAF50"
+      back_width: 70
+      back_height: 45
+      horizontal_align: right
+      vertical_align: bottom
+      horizontal_offset: 100
+      vertical_offset: 15
+    plex_search:
+      all:
+        audience_rating.lt: 6.0
+        audience_rating.gte: 0.1
+
+  # Metacritic Score
+  Metacritic:
+    overlay:
+      name: text(MC:<<critic_rating>>)
+      group: metacritic
+      weight: 12
+      font_size: 30
+      font_color: "#FFFFFF"
+      back_color: "#FFCC34"
+      back_width: 90
+      back_height: 40
+      horizontal_align: right
+      vertical_align: bottom
+      horizontal_offset: 180
+      vertical_offset: 15
+    plex_search:
+      all:
+        critic_rating.gte: 0.1
