@@ -40,8 +40,8 @@ data:
           - overlays
         collection_files:
           - repo: Movies.yml
-          - repo: Movies - Holidays.yml
-          - repo: Movies - Trakt Unplayed.yml
+          - repo: Movies - Holidays by Drazzizzi.yml
+          - repo: Movies - Trakt (Unplayed) by Magic815.yml
           - default: basic
           - default: imdb
         overlay_files:
@@ -67,7 +67,6 @@ data:
           - overlays
         collection_files:
           - repo: TV Shows.yml
-          - repo: TV Shows - Trakt Unplayed.yml
           - default: basic
           - default: imdb
         overlay_files:
