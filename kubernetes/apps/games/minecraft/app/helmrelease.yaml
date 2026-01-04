@@ -24,7 +24,7 @@ spec:
               # Server type and version
               TYPE: "PAPER"
               # renovate: datasource=custom.minecraft-release
-              VERSION: "1.21.4"
+              VERSION: "1.21.11"
               # Server settings
               EULA: "TRUE"
               SERVER_NAME: "Minecraft Server"
