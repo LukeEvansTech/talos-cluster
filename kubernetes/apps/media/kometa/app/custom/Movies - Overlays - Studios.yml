@@ -1,0 +1,49 @@
+---
+overlays:
+  Marvel:
+    overlay:
+      name: text(MCU)
+      group: studios
+      weight: 50
+      font_size: 40
+      font_color: "#FFFFFF"
+      back_color: "#ED1D24"
+      back_width: 80
+      back_height: 45
+      horizontal_align: left
+      vertical_align: bottom
+      horizontal_offset: 70
+      vertical_offset: 15
+    trakt_list: https://trakt.tv/users/jawann2002/lists/marvel-cinematic-universe-movies
+
+  DC:
+    overlay:
+      name: text(DC)
+      group: studios
+      weight: 40
+      font_size: 40
+      font_color: "#FFFFFF"
+      back_color: "#0476F2"
+      back_width: 60
+      back_height: 45
+      horizontal_align: left
+      vertical_align: bottom
+      horizontal_offset: 70
+      vertical_offset: 15
+    trakt_list: https://trakt.tv/users/donxy/lists/dc-extended-universe
+
+  Pixar:
+    overlay:
+      name: text(PIXAR)
+      group: studios
+      weight: 30
+      font_size: 35
+      font_color: "#FFFFFF"
+      back_color: "#1A1A1A"
+      back_width: 90
+      back_height: 45
+      horizontal_align: left
+      vertical_align: bottom
+      horizontal_offset: 70
+      vertical_offset: 15
+    studio: Pixar

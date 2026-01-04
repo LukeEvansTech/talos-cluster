@@ -1,0 +1,101 @@
+---
+templates:
+  Charts:
+    sort_title: "+1_<<num>>_<<collection_name>>"
+    sync_mode: sync
+    collection_order: custom
+    schedule: daily
+
+  Streaming:
+    sort_title: "+5_<<num>>_<<collection_name>>"
+    sync_mode: sync
+    visible_home: false
+    visible_shared: false
+    visible_library: true
+    collection_order: release.desc
+
+  Studios:
+    sort_title: "+6_<<num>>_<<collection_name>>"
+    sync_mode: sync
+    visible_home: false
+    visible_shared: false
+    visible_library: true
+    collection_order: release.desc
+
+collections:
+  # Charts
+  IMDb Most Popular:
+    template: {name: Charts, num: 0}
+    imdb_chart: popular_shows
+    summary: The most popular TV shows on IMDb.
+
+  IMDb Top 250:
+    template: {name: Charts, num: 1}
+    imdb_chart: top_shows
+    summary: Top 250 TV shows as rated by IMDb users.
+
+  TMDb Most Popular:
+    template: {name: Charts, num: 2}
+    tmdb_popular: 100
+    summary: The most popular TV shows on TMDb.
+
+  Trakt Trending:
+    template: {name: Charts, num: 3}
+    trakt_trending: 100
+    summary: TV shows currently trending on Trakt.
+
+  Trakt Most Watched (Weekly):
+    template: {name: Charts, num: 4}
+    trakt_watched_weekly: 100
+    summary: The most watched TV shows on Trakt this week.
+
+  # Streaming Services
+  Netflix Shows:
+    template: {name: Streaming, num: 0}
+    mdblist_list: https://mdblist.com/lists/garycrawfordgc/netflix-shows
+    summary: TV shows currently available on Netflix.
+
+  Disney+ Shows:
+    template: {name: Streaming, num: 1}
+    mdblist_list: https://mdblist.com/lists/garycrawfordgc/disney-movies-shows
+    filters:
+      type: show
+    summary: TV shows currently available on Disney+.
+
+  Prime Video Shows:
+    template: {name: Streaming, num: 2}
+    mdblist_list: https://mdblist.com/lists/garycrawfordgc/amazon-prime-video-shows
+    summary: TV shows currently available on Prime Video.
+
+  Apple TV+ Shows:
+    template: {name: Streaming, num: 3}
+    mdblist_list: https://mdblist.com/lists/garycrawfordgc/appletv-shows
+    summary: TV shows currently available on Apple TV+.
+
+  HBO Max Shows:
+    template: {name: Streaming, num: 4}
+    mdblist_list: https://mdblist.com/lists/garycrawfordgc/hbo-max-shows
+    summary: TV shows currently available on HBO Max.
+
+  # Studios
+  Marvel Studios:
+    template: {name: Studios, num: 0}
+    studio: Marvel Studios
+    summary: TV shows from Marvel Studios.
+
+  DC:
+    template: {name: Studios, num: 1}
+    network: DC Universe
+    summary: TV shows from DC.
+
+  Star Trek:
+    template: {name: Studios, num: 2}
+    trakt_list: https://trakt.tv/users/dgw/lists/star-trek-canon
+    summary: Star Trek TV series.
+
+  Star Wars:
+    template: {name: Studios, num: 3}
+    trakt_list: https://trakt.tv/users/jawann2002/lists/star-wars-the-complete-chronological-timeline
+    filters:
+      type: show
+    summary: Star Wars TV series.
