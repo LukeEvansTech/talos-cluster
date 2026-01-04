@@ -17,8 +17,8 @@ spec:
         containers:
           app:
             image:
-              repository: docker.io/agregarr/agregarr
-              tag: latest
+              repository: ghcr.io/agregarr/agregarr
+              tag: 2.1.0@sha256:c692e8266562a252d87a1310557505ca971ace5aa846de39b297706c103b155b
             env:
               TZ: ${TIMEZONE}
             probes:
@@ -72,3 +72,5 @@ spec:
           - path: /app/config
       tmp:
         type: emptyDir
+        globalMounts:
+          - path: /tmp
