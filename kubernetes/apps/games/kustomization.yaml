@@ -10,6 +10,7 @@ resources:
   - ./namespace.yaml
   - ./epicgames/ks.yaml
   - ./free-game-notifier/ks.yaml
+  - ./gameyfin/ks.yaml
   - ./mc-router/ks.yaml
   - ./minecraft/ks.yaml
   - ./palworld/ks.yaml
