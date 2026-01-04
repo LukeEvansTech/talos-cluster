@@ -9,6 +9,7 @@ components:
 resources:
   - ./namespace.yaml
   - ./actual/ks.yaml
+  - ./apprise/ks.yaml
   - ./atuin/ks.yaml
   - ./changedetection/ks.yaml
   - ./convertx/ks.yaml
@@ -34,6 +35,7 @@ resources:
   - ./it-tools/ks.yaml
   - ./karakeep/ks.yaml
   - ./mail-archiver/ks.yaml
+  - ./mailrise/ks.yaml
   - ./miniflux/ks.yaml
   - ./mosquitto/ks.yaml
   - ./n8n/ks.yaml
