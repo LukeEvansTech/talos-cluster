@@ -59,8 +59,8 @@ nodes:
         apiVersion: v1alpha1
         kind: LinkAliasConfig
         name: wan
-        match:
-          selector: link.hardware_addr == "0c:c4:7a:ea:bf:0e"
+        selector:
+          match: mac(link.permanent_addr) == "0c:c4:7a:ea:bf:0e"
       # Network: Static IP configuration
       - |-
         apiVersion: v1alpha1
@@ -106,8 +106,8 @@ nodes:
         apiVersion: v1alpha1
         kind: LinkAliasConfig
         name: wan
-        match:
-          selector: link.hardware_addr == "0c:c4:7a:ea:be:7a"
+        selector:
+          match: mac(link.permanent_addr) == "0c:c4:7a:ea:be:7a"
       # Network: Static IP configuration
       - |-
         apiVersion: v1alpha1
@@ -153,8 +153,8 @@ nodes:
         apiVersion: v1alpha1
         kind: LinkAliasConfig
         name: wan
-        match:
-          selector: link.hardware_addr == "0c:c4:7a:ea:bf:0f"
+        selector:
+          match: mac(link.permanent_addr) == "0c:c4:7a:ea:bf:0f"
       # Network: Static IP configuration
       - |-
         apiVersion: v1alpha1
