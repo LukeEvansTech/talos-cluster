@@ -20,7 +20,7 @@ spec:
               repository: ghcr.io/jdrbc/podly-pure-podcasts
               tag: main-gpu-nvidia
             env:
-              TZ: ${TIMEZONE}
+              TZ: UTC
               PUID: "1000"
               PGID: "1000"
               SERVER_THREADS: "2"
