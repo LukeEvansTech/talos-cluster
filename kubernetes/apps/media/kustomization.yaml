@@ -14,6 +14,7 @@ resources:
   # - ./autopulse/ks.yaml
   - ./bazarr/ks.yaml
   - ./dispatcharr/ks.yaml
+  - ./imagemaid/ks.yaml
   - ./jellyfin/ks.yaml
   # TODO: Create kometa-config ConfigMap with config.yml template before enabling
   # - ./kometa/ks.yaml
@@ -21,6 +22,7 @@ resources:
   - ./maintainerr/ks.yaml
   - ./pinchflat/ks.yaml
   - ./plex/ks.yaml
+  - ./plex-auto-languages/ks.yaml
   - ./profilarr/ks.yaml
   - ./pulsarr/ks.yaml
   - ./radarr/ks.yaml
