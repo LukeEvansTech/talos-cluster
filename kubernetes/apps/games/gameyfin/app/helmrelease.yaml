@@ -1,0 +1,91 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: &app gameyfin
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: gameyfin
+  values:
+    controllers:
+      gameyfin:
+        annotations:
+          reloader.stakater.com/auto: "true"
+
+        containers:
+          app:
+            image:
+              repository: ghcr.io/gameyfin/gameyfin
+              tag: 2.3.3@sha256:14841180cd91cd1acc12bd6801108f90ff63c75dd56a7d2c36daee04e0f4e39f
+            env:
+              TZ: ${TIMEZONE}
+              PUID: 1000
+              PGID: 1000
+              APP_URL: https://gameyfin.${SECRET_DOMAIN}
+            envFrom:
+              - secretRef:
+                  name: gameyfin-secret
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+            resources:
+              requests:
+                cpu: 10m
+                memory: 128Mi
+              limits:
+                memory: 3500Mi
+
+    defaultPodOptions:
+      securityContext:
+        runAsNonRoot: false
+        runAsUser: 0
+        runAsGroup: 0
+        fsGroup: 0
+        fsGroupChangePolicy: OnRootMismatch
+
+    service:
+      app:
+        controller: gameyfin
+        ports:
+          http:
+            port: 8080
+
+    route:
+      app:
+        hostnames:
+          - "{{ .Release.Name }}.${SECRET_DOMAIN}"
+          - "{{ .Release.Name }}.${SECRET_INTERNAL_DOMAIN}"
+        parentRefs:
+          - name: envoy-internal
+            namespace: network
+
+    persistence:
+      data:
+        existingClaim: *app
+        advancedMounts:
+          gameyfin:
+            app:
+              - path: /opt/gameyfin/data
+                subPath: data
+              - path: /opt/gameyfin/db
+                subPath: db
+              - path: /opt/gameyfin/plugindata
+                subPath: plugin
+      # games:
+      #   type: nfs
+      #   server: ${SECRET_STORAGE_SERVER}
+      #   path: /path/to/games  # TODO: Configure your games library path
+      #   globalMounts:
+      #     - path: /games
+      tmp:
+        type: emptyDir
+        advancedMounts:
+          gameyfin:
+            app:
+              - path: /opt/gameyfin/logs
+                subPath: logs
+              - path: /tmp
+                subPath: tmp
