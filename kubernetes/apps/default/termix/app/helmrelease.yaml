@@ -14,15 +14,6 @@ spec:
       termix:
         annotations:
           reloader.stakater.com/auto: "true"
-        initContainers:
-          copy-nginx-template:
-            image:
-              repository: ghcr.io/lukegus/termix
-              tag: release-1.10.0
-            command:
-              - /bin/sh
-              - -c
-              - cp /app/nginx/nginx.conf.template /nginx-tmp/nginx.conf.template
         containers:
           app:
             image:
@@ -31,17 +22,9 @@ spec:
             env:
               TZ: ${TIMEZONE}
               PORT: &port 8080
-            securityContext:
-              allowPrivilegeEscalation: false
-              readOnlyRootFilesystem: false
-              capabilities:
-                drop:
-                  - ALL
-                add:
-                  - CHOWN
             resources:
               requests:
-                cpu: 10m
+                cpu: 5m
                 memory: 128Mi
               limits:
                 memory: 512Mi
@@ -49,8 +32,6 @@ spec:
       securityContext:
         runAsNonRoot: false
         runAsUser: 0
-        seccompProfile:
-          type: RuntimeDefault
     service:
       app:
         controller: termix
@@ -68,15 +49,5 @@ spec:
     persistence:
       data:
         existingClaim: "{{ .Release.Name }}"
-        advancedMounts:
-          termix:
-            app:
-              - path: /app/data
-      nginx:
-        type: emptyDir
-        advancedMounts:
-          termix:
-            copy-nginx-template:
-              - path: /nginx-tmp
-            app:
-              - path: /app/nginx
+        globalMounts:
+          - path: /app/data
