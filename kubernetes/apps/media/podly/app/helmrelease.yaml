@@ -27,12 +27,13 @@ spec:
               # Whisper Configuration - use remote cluster service
               WHISPER_TYPE: remote
               WHISPER_REMOTE_BASE_URL: http://whisper.ai.svc.cluster.local:9000
+              WHISPER_REMOTE_API_KEY: "not-needed"
               WHISPER_REMOTE_MODEL: whisper-1
               WHISPER_REMOTE_TIMEOUT_SEC: "600"
               WHISPER_REMOTE_CHUNKSIZE_MB: "24"
               # LLM Configuration - use local Ollama
               OPENAI_BASE_URL: http://ollama.ai.svc.cluster.local:11434
-              LLM_MODEL: ollama/llama3.1:8b
+              LLM_MODEL: ollama/gpt-oss:latest
               # Authentication
               REQUIRE_AUTH: "true"
             envFrom:
