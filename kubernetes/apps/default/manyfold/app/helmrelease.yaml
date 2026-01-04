@@ -39,7 +39,7 @@ spec:
           app:
             image:
               repository: ghcr.io/manyfold3d/manyfold
-              tag: 0.91.1
+              tag: 0.130.2
             env:
               TZ: ${TIMEZONE}
               DATABASE_URL: sqlite3:/data/database/manyfold.sqlite3
