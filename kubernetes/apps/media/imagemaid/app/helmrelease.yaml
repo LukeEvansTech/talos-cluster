@@ -32,6 +32,7 @@ spec:
               MODE: remove
               PHOTO_TRANSCODER: "true"
               LOCAL_DB: "true"
+              IGNORE_RUNNING: "true"
               TZ: "${TIMEZONE}"
             envFrom:
               - secretRef:
