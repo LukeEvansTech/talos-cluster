@@ -72,5 +72,3 @@ spec:
           - path: /app/config
       tmp:
         type: emptyDir
-        globalMounts:
-          - path: /tmp
