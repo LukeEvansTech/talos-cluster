@@ -59,9 +59,15 @@ spec:
     persistence:
       config:
         existingClaim: "{{ .Release.Name }}"
-        globalMounts:
-          - path: /data
+        advancedMounts:
+          dispatcharr:
+            app:
+              - path: /data
+            init-db:
+              - path: /data
       tmp:
         type: emptyDir
-        globalMounts:
-          - path: /tmp
+        advancedMounts:
+          dispatcharr:
+            app:
+              - path: /tmp
