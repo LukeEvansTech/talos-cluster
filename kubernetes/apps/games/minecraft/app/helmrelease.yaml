@@ -23,6 +23,7 @@ spec:
               TZ: "${TIMEZONE}"
               # Server type and version
               TYPE: "PAPER"
+              # renovate: datasource=custom.minecraft-release
               VERSION: "1.21.4"
               # Server settings
               EULA: "TRUE"

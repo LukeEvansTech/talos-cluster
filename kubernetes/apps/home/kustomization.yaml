@@ -8,7 +8,12 @@ components:
   - ../../components/alerts
 resources:
   - ./namespace.yaml
+  - ./esphome/ks.yaml
+  - ./go2rtc/ks.yaml
+  - ./homeassistant/ks.yaml
+  - ./homebridge/ks.yaml
+  - ./mosquitto/ks.yaml
   - ./node-red/ks.yaml
   # TODO: Update externalsecret with ZIGBEE_ADAPTER_HOST before enabling
   # - ./zigbee2mqtt/ks.yaml
-  - ./esphome/ks.yaml
+  - ./zwave/ks.yaml

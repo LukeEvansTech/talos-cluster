@@ -14,6 +14,15 @@ spec:
       termix:
         annotations:
           reloader.stakater.com/auto: "true"
+        initContainers:
+          copy-nginx-template:
+            image:
+              repository: ghcr.io/lukegus/termix
+              tag: release-1.10.0
+            command:
+              - /bin/sh
+              - -c
+              - cp /app/nginx/nginx.conf.template /nginx-tmp/nginx.conf.template
         containers:
           app:
             image:
@@ -57,9 +66,15 @@ spec:
     persistence:
       data:
         existingClaim: "{{ .Release.Name }}"
-        globalMounts:
-          - path: /app/data
+        advancedMounts:
+          termix:
+            app:
+              - path: /app/data
       nginx:
         type: emptyDir
-        globalMounts:
-          - path: /app/nginx
+        advancedMounts:
+          termix:
+            copy-nginx-template:
+              - path: /nginx-tmp
+            app:
+              - path: /app/nginx
