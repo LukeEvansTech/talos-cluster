@@ -37,6 +37,7 @@ resources:
   - ./karakeep/ks.yaml
   - ./mail-archiver/ks.yaml
   - ./mailrise/ks.yaml
+  - ./manyfold/ks.yaml
   - ./miniflux/ks.yaml
   - ./mosquitto/ks.yaml
   - ./n8n/ks.yaml
