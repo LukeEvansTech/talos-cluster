@@ -26,10 +26,7 @@ resources:
   # - ./gitea/ks.yaml
   - ./giteamirror/ks.yaml
   - ./gitsave/ks.yaml
-  - ./go2rtc/ks.yaml
   - ./guacamole/ks.yaml
-  - ./homeassistant/ks.yaml
-  - ./homebridge/ks.yaml
   - ./homebox/ks.yaml
   - ./homepage/ks.yaml
   - ./invio/ks.yaml
@@ -39,7 +36,6 @@ resources:
   - ./mailrise/ks.yaml
   - ./manyfold/ks.yaml
   - ./miniflux/ks.yaml
-  - ./mosquitto/ks.yaml
   - ./n8n/ks.yaml
   - ./netronome/ks.yaml
   - ./notifier/ks.yaml
@@ -58,4 +54,3 @@ resources:
   - ./uptimekuma/ks.yaml
   - ./wallos/ks.yaml
   - ./wapy/ks.yaml
-  - ./zwave/ks.yaml
