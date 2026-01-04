@@ -14,10 +14,10 @@ spec:
     - ../../../../components/homepage
     - ../../../../components/volsync
   dependsOn:
+    - name: nvidia-device-plugin
+      namespace: kube-system
     - name: rook-ceph-cluster
       namespace: rook-ceph
-    - name: whisper
-      namespace: ai
     - name: ollama
       namespace: ai
   interval: 1h

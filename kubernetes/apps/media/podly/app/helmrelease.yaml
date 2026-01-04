@@ -18,16 +18,15 @@ spec:
           app:
             image:
               repository: ghcr.io/jdrbc/podly-pure-podcasts
-              tag: main-latest
+              tag: main-gpu-nvidia
             env:
               TZ: ${TIMEZONE}
               PUID: "1000"
               PGID: "1000"
               SERVER_THREADS: "2"
-              # Whisper Configuration - use Groq (local whisper uses /asr not OpenAI API)
-              WHISPER_TYPE: groq
-              GROQ_WHISPER_MODEL: whisper-large-v3-turbo
-              GROQ_MAX_RETRIES: "3"
+              # Whisper Configuration - local GPU
+              WHISPER_TYPE: local
+              WHISPER_LOCAL_MODEL: base.en
               # LLM Configuration - use local Ollama
               OPENAI_BASE_URL: http://ollama.ai.svc.cluster.local:11434
               LLM_MODEL: ollama/llama3.1:8b
@@ -55,11 +54,23 @@ spec:
               capabilities: {drop: ["ALL"]}
             resources:
               requests:
-                cpu: 50m
-                memory: 256Mi
+                cpu: 100m
+                memory: 512Mi
+                nvidia.com/gpu: 1
               limits:
-                memory: 2Gi
+                memory: 4Gi
+                nvidia.com/gpu: 1
     defaultPodOptions:
+      runtimeClassName: nvidia
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: extensions.talos.dev/nvidia-open-gpu-kernel-modules-production
+                    operator: Exists
+                  - key: extensions.talos.dev/nvidia-container-toolkit-production
+                    operator: Exists
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
