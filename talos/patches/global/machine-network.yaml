@@ -2,5 +2,8 @@
 machine:
   network:
     disableSearchDomain: true
-    nameservers:
-      - 10.32.8.10
+---
+apiVersion: v1alpha1
+kind: ResolverConfig
+dnsServers:
+  - 10.32.8.10
