@@ -24,16 +24,13 @@ spec:
               PUID: "1000"
               PGID: "1000"
               SERVER_THREADS: "2"
-              # Whisper Configuration - use remote cluster service
-              WHISPER_TYPE: remote
-              WHISPER_REMOTE_BASE_URL: http://whisper.ai.svc.cluster.local:9000
-              WHISPER_REMOTE_API_KEY: "not-needed"
-              WHISPER_REMOTE_MODEL: whisper-1
-              WHISPER_REMOTE_TIMEOUT_SEC: "600"
-              WHISPER_REMOTE_CHUNKSIZE_MB: "24"
+              # Whisper Configuration - use Groq (local whisper uses /asr not OpenAI API)
+              WHISPER_TYPE: groq
+              GROQ_WHISPER_MODEL: whisper-large-v3-turbo
+              GROQ_MAX_RETRIES: "3"
               # LLM Configuration - use local Ollama
               OPENAI_BASE_URL: http://ollama.ai.svc.cluster.local:11434
-              LLM_MODEL: ollama/gpt-oss:latest
+              LLM_MODEL: ollama/llama3.1:8b
               # Authentication
               REQUIRE_AUTH: "true"
             envFrom:
