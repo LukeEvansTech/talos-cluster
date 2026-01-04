@@ -31,8 +31,8 @@ spec:
               WHISPER_REMOTE_TIMEOUT_SEC: "600"
               WHISPER_REMOTE_CHUNKSIZE_MB: "24"
               # LLM Configuration - use local Ollama
-              OPENAI_BASE_URL: http://ollama.ai.svc.cluster.local:11434/v1
-              LLM_MODEL: llama3.1:8b
+              OPENAI_BASE_URL: http://ollama.ai.svc.cluster.local:11434
+              LLM_MODEL: ollama/llama3.1:8b
               # Authentication
               REQUIRE_AUTH: "true"
             envFrom:
