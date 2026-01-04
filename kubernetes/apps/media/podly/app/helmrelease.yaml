@@ -98,3 +98,9 @@ spec:
           - path: /app/src/instance
       tmp:
         type: emptyDir
+      zoneinfo:
+        type: hostPath
+        hostPath: /usr/share/zoneinfo
+        globalMounts:
+          - path: /usr/share/zoneinfo
+            readOnly: true
