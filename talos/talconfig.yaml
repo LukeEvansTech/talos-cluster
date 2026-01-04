@@ -67,10 +67,9 @@ nodes:
         kind: LinkConfig
         name: wan
         addresses:
-          - 10.32.8.80/24
+          - address: 10.32.8.80/24
         routes:
-          - network: 0.0.0.0/0
-            gateway: 10.32.8.10
+          - gateway: 10.32.8.10
         mtu: 1500
   - hostname: "cr-talos-02"
     ipAddress: "10.32.8.81"
@@ -114,10 +113,9 @@ nodes:
         kind: LinkConfig
         name: wan
         addresses:
-          - 10.32.8.81/24
+          - address: 10.32.8.81/24
         routes:
-          - network: 0.0.0.0/0
-            gateway: 10.32.8.10
+          - gateway: 10.32.8.10
         mtu: 1500
   - hostname: "cr-talos-03"
     ipAddress: "10.32.8.82"
@@ -161,10 +159,9 @@ nodes:
         kind: LinkConfig
         name: wan
         addresses:
-          - 10.32.8.82/24
+          - address: 10.32.8.82/24
         routes:
-          - network: 0.0.0.0/0
-            gateway: 10.32.8.10
+          - gateway: 10.32.8.10
         mtu: 1500
 
 # Global patches
