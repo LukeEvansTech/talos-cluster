@@ -10,8 +10,13 @@ resources:
   - ./namespace.yaml
   - ./agregarr/ks.yaml
   - ./audiobookshelf/ks.yaml
+  # TODO: Update externalsecret with autopulse config before enabling
+  # - ./autopulse/ks.yaml
   - ./bazarr/ks.yaml
+  - ./dispatcharr/ks.yaml
   - ./jellyfin/ks.yaml
+  # TODO: Create kometa-config ConfigMap with config.yml template before enabling
+  # - ./kometa/ks.yaml
   - ./seerr/ks.yaml
   - ./maintainerr/ks.yaml
   - ./pinchflat/ks.yaml
