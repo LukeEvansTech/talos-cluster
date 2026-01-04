@@ -1,0 +1,14 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: network-ups-tools-config
+data:
+  ups.conf: |
+    [apc]
+    driver = snmp-ups
+    port = cr-ups-main.codelooks.com
+    desc = "APC UPS Main"
+    community = public
+    snmp_version = v2c
+    pollfreq = 15
