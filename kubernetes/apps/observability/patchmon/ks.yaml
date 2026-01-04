@@ -11,7 +11,7 @@ spec:
       app.kubernetes.io/name: *app
   components:
     - ../../../../components/gatus/guarded
-    - ../../../../components/homepage
+    # homepage component incompatible with multi-service setup
     - ../../../../components/volsync
   dependsOn:
     - name: rook-ceph-cluster
@@ -22,10 +22,6 @@ spec:
     substitute:
       APP: *app
       VOLSYNC_CAPACITY: 1Gi
-      HOMEPAGE_NAME: Patchmon
-      HOMEPAGE_GROUP: Observability
-      HOMEPAGE_ICON: patchmon.svg
-      HOMEPAGE_DESCRIPTION: Patch monitoring
   prune: true
   retryInterval: 2m
   sourceRef:
