@@ -18,20 +18,13 @@ spec:
         containers:
           app:
             image:
-              repository: ghcr.io/lukeevanstech/nut-snmp
+              repository: instantlinux/nut-upsd
               tag: latest
             env:
               TZ: ${TIMEZONE:=UTC}
-              NAME: apc
-              DESCRIPTION: "APC UPS Main"
-              SERVER: cr-ups-main.codelooks.com
-              DRIVER: snmp-ups
-              SNMP_COMMUNITY: public
-              SNMP_VERSION: v2c
-              POLLFREQ: "15"
               MAXAGE: "25"
               API_USER: upsmon
-              SECRET: secret
+              API_PASSWORD: secret
             probes:
               liveness:
                 enabled: true
@@ -71,6 +64,14 @@ spec:
         runAsNonRoot: false
         runAsUser: 0
         runAsGroup: 0
+    persistence:
+      config:
+        type: configMap
+        name: network-ups-tools-config
+        globalMounts:
+          - path: /etc/nut/local/ups.conf
+            subPath: ups.conf
+            readOnly: true
     service:
       app:
         controller: *app
