@@ -6,7 +6,7 @@ metadata:
   namespace: observability
 data:
   ups.conf: |-
-    [apc]
+    [cr-ups-main]
     driver = snmp-ups
     port = ${UPS_MAIN_HOSTNAME}
     desc = "APC UPS Main"
