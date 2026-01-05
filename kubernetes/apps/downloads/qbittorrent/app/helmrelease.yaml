@@ -147,8 +147,11 @@ spec:
     defaultPodOptions:
       terminationGracePeriodSeconds: 300
       securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
         fsGroup: 1000
-        fsGroupChangePolicy: "OnRootMismatch"
+        fsGroupChangePolicy: OnRootMismatch
     service:
       app:
         controller: qbittorrent
@@ -182,12 +185,12 @@ spec:
           qbittorrent:
             app:
               - path: /config
-      downloads:
+      media:
         type: nfs
         server: ${SECRET_STORAGE_SERVER}
-        path: ${SECRET_STORAGE_SERVER_DOWNLOADS_NFS}
+        path: /mnt/pool/media
         globalMounts:
-          - path: /downloads
+          - path: /media
       addons:
         type: emptyDir
         globalMounts:

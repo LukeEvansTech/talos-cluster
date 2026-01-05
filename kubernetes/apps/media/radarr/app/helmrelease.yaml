@@ -81,15 +81,9 @@ spec:
         existingClaim: "{{ .Release.Name }}-cache"
         globalMounts:
           - path: /config/MediaCover
-      downloads:
+      media:
         type: nfs
         server: ${SECRET_STORAGE_SERVER}
-        path: ${SECRET_STORAGE_SERVER_DOWNLOADS_NFS}
+        path: /mnt/pool/media
         globalMounts:
-          - path: /downloads
-      movies:
-        type: nfs
-        server: ${SECRET_STORAGE_SERVER}
-        path: ${SECRET_STORAGE_SERVER_MOVIES_NFS}
-        globalMounts:
-          - path: /movies
+          - path: /media

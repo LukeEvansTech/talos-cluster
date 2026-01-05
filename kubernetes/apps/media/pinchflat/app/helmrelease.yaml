@@ -90,11 +90,8 @@ spec:
       media:
         type: nfs
         server: ${SECRET_STORAGE_SERVER}
-        path: ${SECRET_STORAGE_SERVER_DOWNLOADS_NFS}
-        advancedMounts:
-          pinchflat:
-            app:
-              - path: /downloads
-                subPath: Library/YouTube
+        path: /mnt/pool/media
+        globalMounts:
+          - path: /media
       tmp:
         type: emptyDir
