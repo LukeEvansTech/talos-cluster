@@ -27,6 +27,12 @@ spec:
               # Whisper Configuration - local GPU
               WHISPER_TYPE: local
               WHISPER_LOCAL_MODEL: base.en
+              # TODO: Alternative - use remote OpenAI-compatible whisper (openaiwhisper service)
+              # Swap the above local config for these remote settings:
+              # WHISPER_TYPE: remote
+              # WHISPER_REMOTE_BASE_URL: http://openaiwhisper.ai.svc.cluster.local:8000
+              # WHISPER_REMOTE_API_KEY: "not-needed"
+              # WHISPER_REMOTE_MODEL: Systran/faster-whisper-large-v3
               # LLM Configuration - use local Ollama
               OPENAI_BASE_URL: http://ollama.ai.svc.cluster.local:11434
               LLM_MODEL: ollama/llama3.1:8b
