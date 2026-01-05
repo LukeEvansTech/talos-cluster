@@ -3,8 +3,9 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: network-ups-tools-config
+  namespace: observability
 data:
-  ups.conf: |
+  ups.conf: |-
     [apc]
     driver = snmp-ups
     port = cr-ups-main.codelooks.com
