@@ -8,8 +8,16 @@ data:
   ups.conf: |-
     [apc]
     driver = snmp-ups
-    port = cr-ups-main.codelooks.com
+    port = ${UPS_MAIN_HOSTNAME}
     desc = "APC UPS Main"
-    community = public
+    community = ${UPS_MAIN_COMMUNITY}
+    snmp_version = v2c
+    pollfreq = 15
+
+    [cr-ups-comms]
+    driver = snmp-ups
+    port = ${UPS_COMMS_HOSTNAME}
+    desc = "APC UPS Comms"
+    community = ${UPS_COMMS_COMMUNITY}
     snmp_version = v2c
     pollfreq = 15
