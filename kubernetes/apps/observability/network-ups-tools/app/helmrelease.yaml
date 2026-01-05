@@ -22,7 +22,7 @@ spec:
               tag: latest
             env:
               TZ: ${TIMEZONE:=UTC}
-              NAME: apc
+              NAME: cr-ups-main
               MAXAGE: "25"
               API_USER: upsmon
               API_PASSWORD: secret
