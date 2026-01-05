@@ -71,10 +71,9 @@ spec:
     persistence:
       config:
         existingClaim: "{{ .Release.Name }}"
-      # TODO: Uncomment when NAS media path is consolidated
-      # media:
-      #   type: nfs
-      #   server: ${SECRET_STORAGE_SERVER}
-      #   path: ${SECRET_STORAGE_SERVER_MEDIA_NFS}
-      #   globalMounts:
-      #     - path: /media
+      media:
+        type: nfs
+        server: ${SECRET_STORAGE_SERVER}
+        path: /mnt/pool/media
+        globalMounts:
+          - path: /media
