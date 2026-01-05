@@ -1,9 +1,7 @@
 ---
-machine:
-  network:
-    disableSearchDomain: true
----
 apiVersion: v1alpha1
 kind: ResolverConfig
 nameservers:
   - address: 10.32.8.10
+searchDomains:
+  domains: []
