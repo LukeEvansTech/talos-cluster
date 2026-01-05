@@ -92,6 +92,14 @@ spec:
           - name: envoy-internal
             namespace: network
     persistence:
+      # TODO: Enable NFS mount for podcast data storage (input/output audio files)
+      # This moves processed podcasts to NFS, keeping DB on fast PVC
+      # podcasts:
+      #   type: nfs
+      #   server: ${SECRET_STORAGE_SERVER}
+      #   path: ${SECRET_STORAGE_SERVER_PODCASTS_NFS}  # e.g. /mnt/pool/podcasts
+      #   globalMounts:
+      #     - path: /app/src/instance/data
       data:
         existingClaim: "{{ .Release.Name }}"
         globalMounts:
