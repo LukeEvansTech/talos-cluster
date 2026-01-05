@@ -8,6 +8,5 @@ components:
   - ../../components/global-vars
 resources:
   - ./namespace.yaml
-  - ./cluster-secrets-externalsecret.yaml # Keep for migration testing
   - ./flux-instance/ks.yaml
   - ./flux-operator/ks.yaml
