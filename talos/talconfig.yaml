@@ -33,6 +33,18 @@ nodes:
       secureboot: true
     talosImageURL: factory.talos.dev/installer-secureboot/44186a005dfca322f81df634a457384455475fbfa518777f3ee58d35f173d73b
     controlPlane: true
+    networkInterfaces:
+      - deviceSelector:
+          hardwareAddr: "0c:c4:7a:ea:bf:0e"
+        dhcp: false
+        addresses:
+          - "10.32.8.80/24"
+        routes:
+          - network: "0.0.0.0/0"
+            gateway: "10.32.8.10"
+        mtu: 1500
+        vip:
+          ip: "10.32.8.85"
     patches:
       # Encrypt system disk with TPM
       - |-
@@ -54,23 +66,6 @@ nodes:
         kind: WatchdogTimerConfig
         device: /dev/watchdog0
         timeout: 5m
-      # Network: Link alias for WAN interface
-      - |-
-        apiVersion: v1alpha1
-        kind: LinkAliasConfig
-        name: wan
-        selector:
-          match: mac(link.permanent_addr) == "0c:c4:7a:ea:bf:0e"
-      # Network: Static IP configuration
-      - |-
-        apiVersion: v1alpha1
-        kind: LinkConfig
-        name: wan
-        addresses:
-          - address: 10.32.8.80/24
-        routes:
-          - gateway: 10.32.8.10
-        mtu: 1500
   - hostname: "cr-talos-02"
     ipAddress: "10.32.8.81"
     installDiskSelector:
@@ -79,6 +74,18 @@ nodes:
       secureboot: true
     talosImageURL: factory.talos.dev/installer-secureboot/44186a005dfca322f81df634a457384455475fbfa518777f3ee58d35f173d73b
     controlPlane: true
+    networkInterfaces:
+      - deviceSelector:
+          hardwareAddr: "0c:c4:7a:ea:be:7a"
+        dhcp: false
+        addresses:
+          - "10.32.8.81/24"
+        routes:
+          - network: "0.0.0.0/0"
+            gateway: "10.32.8.10"
+        mtu: 1500
+        vip:
+          ip: "10.32.8.85"
     patches:
       # Encrypt system disk with TPM
       - |-
@@ -100,23 +107,6 @@ nodes:
         kind: WatchdogTimerConfig
         device: /dev/watchdog0
         timeout: 5m
-      # Network: Link alias for WAN interface
-      - |-
-        apiVersion: v1alpha1
-        kind: LinkAliasConfig
-        name: wan
-        selector:
-          match: mac(link.permanent_addr) == "0c:c4:7a:ea:be:7a"
-      # Network: Static IP configuration
-      - |-
-        apiVersion: v1alpha1
-        kind: LinkConfig
-        name: wan
-        addresses:
-          - address: 10.32.8.81/24
-        routes:
-          - gateway: 10.32.8.10
-        mtu: 1500
   - hostname: "cr-talos-03"
     ipAddress: "10.32.8.82"
     installDiskSelector:
@@ -163,6 +153,12 @@ nodes:
         routes:
           - gateway: 10.32.8.10
         mtu: 1500
+      # Network: VIP configuration (testing new v1.12 modular config)
+      - |-
+        apiVersion: v1alpha1
+        kind: Layer2VIPConfig
+        name: 10.32.8.85
+        link: wan
 
 # Global patches
 patches:
@@ -178,4 +174,3 @@ controlPlane:
   patches:
     - "@./patches/controller/cluster.yaml"
     - "@./patches/controller/machine-features.yaml"
-    - "@./patches/controller/machine-vip.yaml"
