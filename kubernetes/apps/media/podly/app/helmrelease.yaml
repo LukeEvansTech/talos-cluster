@@ -98,6 +98,10 @@ spec:
           - path: /app/src/instance
       tmp:
         type: emptyDir
+      cache:
+        type: emptyDir
+        globalMounts:
+          - path: /.cache
       zoneinfo:
         type: hostPath
         hostPath: /usr/share/zoneinfo
