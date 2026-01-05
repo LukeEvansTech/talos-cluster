@@ -93,21 +93,9 @@ spec:
             readOnly: true
       tmp:
         type: emptyDir
-      downloads:
+      media:
         type: nfs
         server: ${SECRET_STORAGE_SERVER}
-        path: ${SECRET_STORAGE_SERVER_DOWNLOADS_NFS}
+        path: /mnt/pool/media
         globalMounts:
-          - path: /downloads
-      movies:
-        type: nfs
-        server: ${SECRET_STORAGE_SERVER}
-        path: ${SECRET_STORAGE_SERVER_TV_NFS}
-        globalMounts:
-          - path: /tv
-            # tv4k:
-            #   type: nfs
-            #   server: ${SECRET_STORAGE_SERVER}
-            #   path: ${SECRET_STORAGE_SERVER_TV4K_NFS}
-            #   globalMounts:
-            #     - path: /tv4k
+          - path: /media
