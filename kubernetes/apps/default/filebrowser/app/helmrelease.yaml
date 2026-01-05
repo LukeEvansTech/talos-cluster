@@ -15,14 +15,11 @@ spec:
         containers:
           app:
             image:
-              repository: filebrowser/filebrowser
-              tag: v2.53.1@sha256:a22a0e9cddfd9a83e10a0d53453fb412e152693257065299a78481a75a8c90ce
+              repository: ghcr.io/gtsteffaniak/filebrowser
+              tag: 1.1-stable
             env:
               TZ: ${TIMEZONE}
-              FB_DATABASE: /config/filebrowser.db
-              FB_ROOT: /media
-              FB_LOG: stdout
-              FB_NOAUTH: "false"
+              FILEBROWSER_CONFIG: /config/config.yaml
             probes:
               liveness: &probes
                 enabled: true
@@ -71,6 +68,13 @@ spec:
     persistence:
       config:
         existingClaim: "{{ .Release.Name }}"
+      config-file:
+        type: configMap
+        name: filebrowser-config
+        globalMounts:
+          - path: /config/config.yaml
+            subPath: config.yaml
+            readOnly: true
       media:
         type: nfs
         server: ${SECRET_STORAGE_SERVER}
