@@ -17,11 +17,29 @@ spec:
       params:
         target:
           - network-ups-tools.observability.svc.cluster.local:3493
+        ups:
+          - apc
       metricRelabelings:
         - action: replace
           sourceLabels:
             - __address__
           targetLabel: instance
           replacement: apc-main
+        - action: labeldrop
+          regex: pod
+    - port: metrics
+      interval: 30s
+      path: /metrics
+      params:
+        target:
+          - network-ups-tools.observability.svc.cluster.local:3493
+        ups:
+          - cr-ups-comms
+      metricRelabelings:
+        - action: replace
+          sourceLabels:
+            - __address__
+          targetLabel: instance
+          replacement: cr-ups-comms
         - action: labeldrop
           regex: pod
