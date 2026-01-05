@@ -8,12 +8,12 @@ data:
     server:
       port: 80
       baseURL: ""
+      database: "/config/database.db"
+      sources:
+        - path: "/media"
+          name: media
     logging:
       - levels: "info|warning|error"
-    sources:
-      - path: "/media"
-        name: media
-    database: "/config/database.db"
     userDefaults:
       darkMode: true
       singleClick: false
