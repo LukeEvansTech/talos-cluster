@@ -26,11 +26,11 @@ spec:
               SERVER_THREADS: "2"
               # Whisper Configuration - remote openaiwhisper service
               WHISPER_TYPE: remote
-              WHISPER_REMOTE_BASE_URL: http://openaiwhisper.ai.svc.cluster.local:8000/v1
+              WHISPER_REMOTE_BASE_URL: http://openaiwhisper.ai.svc.cluster.local:8000
               WHISPER_REMOTE_API_KEY: "not-needed"
               WHISPER_REMOTE_MODEL: Systran/faster-whisper-large-v3
-              # LLM Configuration - use local Ollama
-              OPENAI_BASE_URL: http://ollama.ai.svc.cluster.local:11434/v1
+              # LLM Configuration - use local Ollama (litellm format)
+              OPENAI_BASE_URL: http://ollama.ai.svc.cluster.local:11434
               LLM_MODEL: ollama/llama3.1:8b
               # Authentication
               REQUIRE_AUTH: "true"
