@@ -20,6 +20,16 @@ spec:
             env:
               TZ: ${TIMEZONE}
               FILEBROWSER_CONFIG: /config/config.yaml
+              FILEBROWSER_ADMIN_USERNAME:
+                valueFrom:
+                  secretKeyRef:
+                    name: filebrowser-secret
+                    key: username
+              FILEBROWSER_ADMIN_PASSWORD:
+                valueFrom:
+                  secretKeyRef:
+                    name: filebrowser-secret
+                    key: password
             probes:
               liveness: &probes
                 enabled: true
