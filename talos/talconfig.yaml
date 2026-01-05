@@ -59,18 +59,17 @@ nodes:
         apiVersion: v1alpha1
         kind: LinkAliasConfig
         name: wan
-        match:
-          selector: link.hardware_addr == "0c:c4:7a:ea:bf:0e"
+        selector:
+          match: mac(link.permanent_addr) == "0c:c4:7a:ea:bf:0e"
       # Network: Static IP configuration
       - |-
         apiVersion: v1alpha1
         kind: LinkConfig
         name: wan
         addresses:
-          - 10.32.8.80/24
+          - address: 10.32.8.80/24
         routes:
-          - network: 0.0.0.0/0
-            gateway: 10.32.8.10
+          - gateway: 10.32.8.10
         mtu: 1500
   - hostname: "cr-talos-02"
     ipAddress: "10.32.8.81"
@@ -106,18 +105,17 @@ nodes:
         apiVersion: v1alpha1
         kind: LinkAliasConfig
         name: wan
-        match:
-          selector: link.hardware_addr == "0c:c4:7a:ea:be:7a"
+        selector:
+          match: mac(link.permanent_addr) == "0c:c4:7a:ea:be:7a"
       # Network: Static IP configuration
       - |-
         apiVersion: v1alpha1
         kind: LinkConfig
         name: wan
         addresses:
-          - 10.32.8.81/24
+          - address: 10.32.8.81/24
         routes:
-          - network: 0.0.0.0/0
-            gateway: 10.32.8.10
+          - gateway: 10.32.8.10
         mtu: 1500
   - hostname: "cr-talos-03"
     ipAddress: "10.32.8.82"
@@ -153,18 +151,17 @@ nodes:
         apiVersion: v1alpha1
         kind: LinkAliasConfig
         name: wan
-        match:
-          selector: link.hardware_addr == "0c:c4:7a:ea:bf:0f"
+        selector:
+          match: mac(link.permanent_addr) == "0c:c4:7a:ea:bf:0f"
       # Network: Static IP configuration
       - |-
         apiVersion: v1alpha1
         kind: LinkConfig
         name: wan
         addresses:
-          - 10.32.8.82/24
+          - address: 10.32.8.82/24
         routes:
-          - network: 0.0.0.0/0
-            gateway: 10.32.8.10
+          - gateway: 10.32.8.10
         mtu: 1500
 
 # Global patches
