@@ -128,6 +128,8 @@ spec:
                   failureThreshold: 5
             restartPolicy: Always
             securityContext:
+              runAsUser: 0
+              runAsNonRoot: false
               capabilities:
                 add:
                   - NET_ADMIN
