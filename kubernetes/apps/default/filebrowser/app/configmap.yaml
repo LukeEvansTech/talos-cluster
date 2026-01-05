@@ -9,6 +9,7 @@ data:
       port: 80
       baseURL: ""
       database: "/config/database.db"
+      cacheDir: "/tmp"
       sources:
         - path: "/media"
           name: media
