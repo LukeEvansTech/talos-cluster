@@ -92,6 +92,7 @@ spec:
         server: ${SECRET_STORAGE_SERVER}
         path: /mnt/pool/media
         globalMounts:
-          - path: /media
+          - path: /downloads
+            subPath: downloads/youtube
       tmp:
         type: emptyDir
