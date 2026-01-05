@@ -13,10 +13,6 @@ spec:
     pruneIntervalDays: 14
     repository: "${APP}-volsync-r2-secret"
     volumeSnapshotClassName: "${VOLSYNC_SNAPSHOTCLASS:=csi-ceph-blockpool}"
-    cacheAccessModes:
-      - ReadWriteOnce
-    cacheCapacity: "${VOLSYNC_CACHE_CAPACITY:=8Gi}"
-    cacheStorageClassName: openebs-hostpath
     storageClassName: "${VOLSYNC_STORAGECLASS:=ceph-block}"
     accessModes:
       - "${VOLSYNC_SNAP_ACCESSMODES:=ReadWriteOnce}"
