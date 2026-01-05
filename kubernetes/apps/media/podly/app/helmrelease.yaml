@@ -18,21 +18,17 @@ spec:
           app:
             image:
               repository: ghcr.io/jdrbc/podly-pure-podcasts
-              tag: main-gpu-nvidia
+              tag: main
             env:
               TZ: Etc/UTC
               PUID: "1000"
               PGID: "1000"
               SERVER_THREADS: "2"
-              # Whisper Configuration - local GPU
-              WHISPER_TYPE: local
-              WHISPER_LOCAL_MODEL: base.en
-              # TODO: Alternative - use remote OpenAI-compatible whisper (openaiwhisper service)
-              # Swap the above local config for these remote settings:
-              # WHISPER_TYPE: remote
-              # WHISPER_REMOTE_BASE_URL: http://openaiwhisper.ai.svc.cluster.local:8000
-              # WHISPER_REMOTE_API_KEY: "not-needed"
-              # WHISPER_REMOTE_MODEL: Systran/faster-whisper-large-v3
+              # Whisper Configuration - remote openaiwhisper service
+              WHISPER_TYPE: remote
+              WHISPER_REMOTE_BASE_URL: http://openaiwhisper.ai.svc.cluster.local:8000
+              WHISPER_REMOTE_API_KEY: "not-needed"
+              WHISPER_REMOTE_MODEL: Systran/faster-whisper-large-v3
               # LLM Configuration - use local Ollama
               OPENAI_BASE_URL: http://ollama.ai.svc.cluster.local:11434
               LLM_MODEL: ollama/llama3.1:8b
@@ -62,21 +58,9 @@ spec:
               requests:
                 cpu: 100m
                 memory: 512Mi
-                nvidia.com/gpu: 1
               limits:
                 memory: 4Gi
-                nvidia.com/gpu: 1
     defaultPodOptions:
-      runtimeClassName: nvidia
-      affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-              - matchExpressions:
-                  - key: extensions.talos.dev/nvidia-open-gpu-kernel-modules-production
-                    operator: Exists
-                  - key: extensions.talos.dev/nvidia-container-toolkit-production
-                    operator: Exists
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
