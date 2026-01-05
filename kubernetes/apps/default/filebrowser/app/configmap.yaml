@@ -1,0 +1,29 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: filebrowser-config
+data:
+  config.yaml: |
+    server:
+      port: 80
+      baseURL: ""
+    logging:
+      - levels: "info|warning|error"
+    sources:
+      - path: "/media"
+        name: media
+    database: "/config/database.db"
+    userDefaults:
+      darkMode: true
+      singleClick: false
+      permissions:
+        admin: false
+        modify: true
+        share: true
+        api: false
+    auth:
+      methods:
+        noauth: false
+        password:
+          enabled: true
