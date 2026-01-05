@@ -11,10 +11,6 @@ spec:
   kopia:
     accessModes:
       - ${VOLSYNC_SNAP_ACCESSMODES:=ReadWriteOnce}
-    cacheAccessModes:
-      - ReadWriteOnce
-    cacheCapacity: ${VOLSYNC_CACHE_CAPACITY:=8Gi}
-    cacheStorageClassName: openebs-hostpath
     compression: zstd-fastest
     copyMethod: ${VOLSYNC_COPYMETHOD:=Snapshot}
     moverSecurityContext:
