@@ -22,6 +22,9 @@ data:
         admin: false
         modify: true
         share: true
+        download: true
+        create: true
+        delete: false
         api: false
     auth:
       methods:
