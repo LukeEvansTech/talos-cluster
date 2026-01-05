@@ -15,6 +15,9 @@ spec:
   postBuild:
     substitute:
       APP: *app
+    substituteFrom:
+      - kind: Secret
+        name: network-ups-tools-secret
   prune: true
   retryInterval: 2m
   sourceRef:
