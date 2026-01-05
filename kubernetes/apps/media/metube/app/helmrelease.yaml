@@ -52,8 +52,8 @@ spec:
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
-        runAsGroup: 100
-        fsGroup: 100
+        runAsGroup: 1000
+        fsGroup: 1000
         fsGroupChangePolicy: OnRootMismatch
     service:
       app:
@@ -74,12 +74,11 @@ spec:
         existingClaim: "{{ .Release.Name }}"
         globalMounts:
           - path: /config
-      downloads:
+      media:
         type: nfs
         server: ${SECRET_STORAGE_SERVER}
-        path: ${SECRET_STORAGE_SERVER_DOWNLOADS_NFS}
+        path: /mnt/pool/media
         globalMounts:
-          - path: /downloads
-            subPath: metube
+          - path: /media
       tmp:
         type: emptyDir
