@@ -84,7 +84,8 @@ spec:
               VPN_IPV6_SERVER: off
               VPN_TYPE: wireguard
             envFrom:
-              - secret: nzbget-secret
+              - secretRef:
+                  name: nzbget-secret
             probes:
               liveness:
                 enabled: false
