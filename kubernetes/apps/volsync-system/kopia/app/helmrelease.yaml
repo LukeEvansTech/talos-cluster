@@ -101,8 +101,8 @@ spec:
             subPath: repository.config
       repository:
         type: nfs
-        server: ${SECRET_STORAGE_SERVER}
-        path: ${SECRET_STORAGE_SERVER_VOLSYNC_NFS}
+        server: ${SECRET_STORAGE_SERVER:-localhost}
+        path: ${SECRET_STORAGE_SERVER_VOLSYNC_NFS:-/tmp}
         globalMounts:
           - path: /repository
       tmpfs:
