@@ -104,7 +104,7 @@ spec:
           - path: /add-ons
       media:
         type: nfs
-        server: ${SECRET_STORAGE_SERVER}
+        server: ${SECRET_STORAGE_SERVER:-localhost}
         path: /mnt/pool/media
         globalMounts:
           - path: /media
