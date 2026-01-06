@@ -88,7 +88,8 @@ spec:
               VPN_IPV6_SERVER: off
               VPN_TYPE: wireguard
             envFrom:
-              - secret: sabnzbd-secret
+              - secretRef:
+                  name: sabnzbd-secret
             probes:
               liveness:
                 enabled: false
