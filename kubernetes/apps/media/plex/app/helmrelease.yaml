@@ -21,12 +21,12 @@ spec:
               tag: 1.42.2.10156@sha256:9ad8a3506e1d8ebda873a668603c1a2c10e6887969564561be669efd65ae8871
             env:
               TZ: "${TIMEZONE}"
-              ALLOWED_NETWORKS: "${CR_LAN_CIDR},${GH_LAN_CIDR}"
-              PLEX_ADVERTISE_URL: "http://${SVC_PLEX_ADDR}:32400,https://plex.${SECRET_DOMAIN}"
+              ALLOWED_NETWORKS: '"${CR_LAN_CIDR},${GH_LAN_CIDR}"'
+              PLEX_ADVERTISE_URL: '"http://${SVC_PLEX_ADDR}:32400,https://plex.${SECRET_DOMAIN}"'
               PLEX_PREFERENCE_1: "AllowMediaDeletion=0"
               PLEX_PREFERENCE_2: "EnableIPv6=0"
               PLEX_PREFERENCE_3: "FriendlyName=Talos Plex"
-              PLEX_PREFERENCE_4: "LanNetworksBandwidth=${CR_LAN_CIDR},${GH_LAN_CIDR}"
+              PLEX_PREFERENCE_4: '"LanNetworksBandwidth=${CR_LAN_CIDR},${GH_LAN_CIDR}"'
               NVIDIA_VISIBLE_DEVICES: "all"
               NVIDIA_DRIVER_CAPABILITIES: "all"
               HARDWARE_DEVICE_PATH: "/dev/nvidia0"
