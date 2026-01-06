@@ -38,6 +38,7 @@ spec:
               limits:
                 memory: 3500Mi
 
+    # TODO: Test running as 1000:1000 instead of root for NFS compatibility
     defaultPodOptions:
       securityContext:
         runAsNonRoot: false
