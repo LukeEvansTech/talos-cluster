@@ -54,6 +54,7 @@ spec:
       automountServiceAccountToken: false
       securityContext:
         fsGroup: 82
+        fsGroupChangePolicy: OnRootMismatch
         runAsGroup: 82
         runAsNonRoot: true
         runAsUser: 82
