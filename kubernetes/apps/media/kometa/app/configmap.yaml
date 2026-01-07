@@ -5,7 +5,7 @@ metadata:
   name: kometa-configmap
   namespace: media
 data:
-  config.yml: |
+  config.yml: |-
     ---
     libraries:
       Anime:
@@ -121,26 +121,26 @@ data:
       show_unconfigured: true
 
     mal:
-      client_id: <<KOMETA_MYANIMELIST_CLIENT_ID>>
-      client_secret: <<KOMETA_MYANIMELIST_CLIENT_SECRET>>
-      localhost_url: <<KOMETA_MYANIMELIST_LOCALHOST_URL>>
+      client_id: <<MYANIMELIST_CLIENT_ID>>
+      client_secret: <<MYANIMELIST_CLIENT_SECRET>>
+      localhost_url: <<MYANIMELIST_LOCALHOST_URL>>
       authorization:
-        access_token: <<KOMETA_MYANIMELIST_ACCESS_TOKEN>>
+        access_token: <<MYANIMELIST_ACCESS_TOKEN>>
         token_type: Bearer
-        expires_in: <<KOMETA_MYANIMELIST_EXPIRES_IN>>
-        refresh_token: <<KOMETA_MYANIMELIST_REFRESH_TOKEN>>
+        expires_in: <<MYANIMELIST_EXPIRES_IN>>
+        refresh_token: <<MYANIMELIST_REFRESH_TOKEN>>
 
     mdblist:
-      apikey: <<KOMETA_MDBLIST_API_KEY>>
+      apikey: <<MDBLIST_API_KEY>>
       cache_expiration: 60
 
     omdb:
-      apikey: <<KOMETA_OMDB_API_KEY>>
+      apikey: <<OMDB_API_KEY>>
       cache_expiration: 60
 
     plex:
       url: http://plex.media.svc.cluster.local:32400
-      token: <<KOMETA_PLEX_TOKEN>>
+      token: <<PLEX_TOKEN>>
       timeout: 60
       clean_bundles: false
       empty_trash: false
@@ -148,7 +148,7 @@ data:
 
     radarr:
       url: http://radarr.media.svc.cluster.local
-      token: <<KOMETA_RADARR_API_KEY>>
+      token: <<RADARR_API_KEY>>
       add_missing: false
       add_existing: false
       root_folder_path: /movies
@@ -160,7 +160,7 @@ data:
 
     sonarr:
       url: http://sonarr.media.svc.cluster.local
-      token: <<KOMETA_SONARR_API_KEY>>
+      token: <<SONARR_API_KEY>>
       add_missing: false
       add_existing: false
       root_folder_path: /tv
@@ -175,20 +175,20 @@ data:
 
     tautulli:
       url: http://tautulli.media.svc.cluster.local
-      apikey: <<KOMETA_TAUTULLI_API_KEY>>
+      apikey: <<TAUTULLI_API_KEY>>
 
     tmdb:
-      apikey: <<KOMETA_TMDB_API_KEY>>
+      apikey: <<TMDB_API_KEY>>
       language: en
       cache_expiration: 60
 
     trakt:
-      client_id: <<KOMETA_TRAKT_CLIENT_ID>>
-      client_secret: <<KOMETA_TRAKT_CLIENT_SECRET>>
+      client_id: <<TRAKT_CLIENT_ID>>
+      client_secret: <<TRAKT_CLIENT_SECRET>>
       authorization:
-        access_token: <<KOMETA_TRAKT_ACCESS_TOKEN>>
+        access_token: <<TRAKT_ACCESS_TOKEN>>
         token_type: Bearer
-        expires_in: <<KOMETA_TRAKT_EXPIRES_IN>>
-        refresh_token: <<KOMETA_TRAKT_REFRESH_TOKEN>>
+        expires_in: <<TRAKT_EXPIRES_IN>>
+        refresh_token: <<TRAKT_REFRESH_TOKEN>>
         scope: public
-        created_at: <<KOMETA_TRAKT_CREATED_AT>>
+        created_at: <<TRAKT_CREATED_AT>>
