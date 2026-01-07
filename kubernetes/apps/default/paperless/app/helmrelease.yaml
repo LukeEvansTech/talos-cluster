@@ -33,8 +33,7 @@ spec:
         containers:
           app:
             image:
-              registry: ghcr.io
-              repository: paperless-ngx/paperless-ngx
+              repository: ghcr.io/paperless-ngx/paperless-ngx
               tag: 2.20.3
             env:
               TZ: ${TIMEZONE}
