@@ -11,5 +11,5 @@ spec:
       grafana.internal/instance: grafana
   grafanaCom:
     # renovate: depName="APC UPS (SNMP)"
-    id: 12340
+    id: 13524
     revision: 1
