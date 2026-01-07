@@ -19,41 +19,23 @@
     ":timezone(Europe/London)",
   ],
   dependencyDashboardTitle: "Renovate Dashboard 🤖",
-  suppressNotifications: [
-    "prEditedNotification",
-    "prIgnoreNotification",
-  ],
-  ignorePaths: [
-    "**/*.sops.*"
-  ],
+  suppressNotifications: ["prEditedNotification", "prIgnoreNotification"],
   flux: {
-    managerFilePatterns: [
-      "/(^|/)kubernetes/.+\\.ya?ml(?:\\.j2)?$/"
-    ],
+    managerFilePatterns: ["/(^|/)kubernetes/.+\\.ya?ml(?:\\.j2)?$/"],
   },
   "helm-values": {
-    managerFilePatterns: [
-      "/(^|/)kubernetes/.+\\.ya?ml(?:\\.j2)?$/"
-    ],
+    managerFilePatterns: ["/(^|/)kubernetes/.+\\.ya?ml(?:\\.j2)?$/"],
   },
   helmfile: {
-    managerFilePatterns: [
-      "/(^|/)helmfile\\.ya?ml(?:\\.j2)?$/"
-    ],
+    managerFilePatterns: ["/(^|/)helmfile\\.ya?ml(?:\\.j2)?$/"],
   },
   kubernetes: {
-    managerFilePatterns: [
-      "/(^|/)kubernetes/.+\\.ya?ml(?:\\.j2)?$/"
-    ],
+    managerFilePatterns: ["/(^|/)kubernetes/.+\\.ya?ml(?:\\.j2)?$/"],
   },
   kustomize: {
-    managerFilePatterns: [
-      "/^kustomization\\.ya?ml(?:\\.j2)?$/"
-    ],
+    managerFilePatterns: ["/^kustomization\\.ya?ml(?:\\.j2)?$/"],
   },
   // Automatically request reviews from GitHub Copilot on all PRs
-  reviewers: [
-    "github-copilot[bot]"
-  ],
-  reviewersSampleSize: 1
+  reviewers: ["github-copilot[bot]"],
+  reviewersSampleSize: 1,
 }

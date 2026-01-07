@@ -1,11 +1,9 @@
 [pre-commit]
 parallel = true
 
-# Format YAML on commit, but skip SOPS-encrypted files.
 [pre-commit.commands.format-yaml]
 run = "yamlfmt {staged_files}"
 glob = ["*.yaml", "*.yml"]
-exclude = ["*.sops.yaml", "*.sops.yml"]
 stage_fixed = true
 
 # Lint shell scripts with shellcheck if any are staged.
@@ -21,5 +19,4 @@ glob = [".github/workflows/*.yml", ".github/workflows/*.yaml"]
 [pre-commit.commands.format-json]
 run = "mise x --quiet -- prettier -w --log-level warn {staged_files}"
 glob = ["*.json", "*.json5"]
-exclude = ["*.sops.json", "*.sops.json5"]
 stage_fixed = true

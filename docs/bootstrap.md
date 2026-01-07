@@ -46,7 +46,6 @@ mise install
 - `talosctl` - Talos Linux CLI
 - `kustomize` - Kubernetes configuration management
 - `yq` - YAML processor
-- `sops` - Secrets encryption
 - `op` - 1Password CLI (for secret injection)
 
 **Additional Tools:**
@@ -55,7 +54,6 @@ mise install
 
 ### Required Files
 
-- `age.key` - SOPS encryption key
 - `talos/clusterconfig/talosconfig` - Talos configuration
 - `talos/clusterconfig/talos-cluster-*.yaml` - Per-node Talos configs
 - `bootstrap/resources.yaml.j2` - Bootstrap resources template
@@ -180,7 +178,7 @@ Deploys critical bootstrap secrets and resources.
 
 **Resources deployed:**
 - 1Password Connect credentials (external-secrets namespace)
-- SOPS encryption keys (flux-system namespace)
+- Cloudflare tunnel ID (network namespace)
 
 **Example output:**
 ```

@@ -83,7 +83,6 @@ just bootstrap apps
 - [external-dns](https://github.com/kubernetes-sigs/external-dns): automatically syncs DNS records from my cluster ingresses to a DNS provider
 - [external-secrets](https://github.com/external-secrets/external-secrets/): managed Kubernetes secrets using [1Password](https://1password.com/)
 - [rook-ceph](https://rook.io/): cloud native distributed block storage for Kubernetes
-- [sops](https://toolkit.fluxcd.io/guides/mozilla-sops/): managed secrets for Kubernetes and Terraform which are committed to Git
 - [spegel](https://github.com/XenitAB/spegel): stateless cluster local OCI registry mirror
 - [volsync](https://github.com/backube/volsync): backup and recovery of persistent volume claims
 
