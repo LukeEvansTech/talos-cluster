@@ -61,7 +61,7 @@ spec:
           type: RuntimeDefault
     persistence:
       config:
-        existingClaim: *app
+        type: emptyDir
         globalMounts:
           - path: /config
       config-file:
