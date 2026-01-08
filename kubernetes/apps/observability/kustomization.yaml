@@ -14,7 +14,7 @@ resources:
   - ./grafana/ks.yaml
   - ./headlamp/ks.yaml
   - ./kromgo/ks.yaml
-  - ./kube-prometheus-stack/ks.yaml
+  # - ./kube-prometheus-stack/ks.yaml
   - ./netdata/ks.yaml
   - ./network-ups-tools/ks.yaml
   - ./nut-exporter/ks.yaml
