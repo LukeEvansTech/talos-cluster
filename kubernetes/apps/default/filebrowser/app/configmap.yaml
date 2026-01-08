@@ -6,7 +6,7 @@ metadata:
   annotations:
     checkov.io/skip1: CKV_K8S_21=Namespace managed by Kustomize targetNamespace
 data:
-  config.yaml: |
+  config.yaml: |-
     server:
       port: 80
       baseURL: ""
@@ -15,6 +15,12 @@ data:
       sources:
         - path: "/media"
           name: media
+        - path: "/backups/rook"
+          name: backups-rook
+        - path: "/backups/postgres"
+          name: backups-postgres
+        - path: "/backups/volsync"
+          name: backups-volsync
     logging:
       - levels: "info|warning|error"
     userDefaults:
