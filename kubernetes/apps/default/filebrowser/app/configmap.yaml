@@ -15,12 +15,20 @@ data:
       sources:
         - path: "/media"
           name: media
+          config:
+            defaultEnabled: true
         - path: "/backups/rook"
           name: backups-rook
+          config:
+            defaultEnabled: true
         - path: "/backups/postgres"
           name: backups-postgres
+          config:
+            defaultEnabled: true
         - path: "/backups/volsync"
           name: backups-volsync
+          config:
+            defaultEnabled: true
     logging:
       - levels: "info|warning|error"
     userDefaults:
