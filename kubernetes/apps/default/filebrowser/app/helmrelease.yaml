@@ -96,3 +96,24 @@ spec:
         path: /mnt/pool/media
         globalMounts:
           - path: /media
+      backups-rook:
+        type: nfs
+        server: ${SECRET_STORAGE_SERVER:-localhost}
+        path: /mnt/pool/backups/rook
+        globalMounts:
+          - path: /backups/rook
+            readOnly: true
+      backups-postgres:
+        type: nfs
+        server: ${SECRET_STORAGE_SERVER:-localhost}
+        path: /mnt/pool/backups/postgres
+        globalMounts:
+          - path: /backups/postgres
+            readOnly: true
+      backups-volsync:
+        type: nfs
+        server: ${SECRET_STORAGE_SERVER:-localhost}
+        path: /mnt/pool/backups/volsync
+        globalMounts:
+          - path: /backups/volsync
+            readOnly: true
