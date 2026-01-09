@@ -21,17 +21,14 @@ data:
           name: backups-rook
           config:
             defaultEnabled: true
-            disableIndex: true
         - path: "/backups/postgres"
           name: backups-postgres
           config:
             defaultEnabled: true
-            disableIndex: true
         - path: "/backups/volsync"
           name: backups-volsync
           config:
             defaultEnabled: true
-            disableIndex: true
     logging:
       - levels: "info|warning|error"
     userDefaults:
