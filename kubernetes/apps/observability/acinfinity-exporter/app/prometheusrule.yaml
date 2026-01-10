@@ -58,9 +58,9 @@ spec:
             severity: critical
         - alert: ACInfinityNoTemperatureReading
           annotations:
-            description: No temperature reading received from controller {{ $labels.controller_name }} for 10 minutes.
+            description: Temperature readings have stopped being reported for 10 minutes.
             summary: AC Infinity temperature reading missing.
-          expr: changes(acinfinity_controller_temperature_celsius[10m]) == 0
-          for: 10m
+          expr: absent_over_time(acinfinity_controller_temperature_celsius[10m])
+          for: 0m
           labels:
             severity: warning
