@@ -184,89 +184,7 @@ spec:
           "type": "stat"
         },
         {
-          "datasource": {"type": "prometheus", "uid": "prometheus"},
-          "fieldConfig": {
-            "defaults": {
-              "color": {"mode": "thresholds"},
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {"color": "green", "value": null},
-                  {"color": "yellow", "value": 1.2},
-                  {"color": "orange", "value": 1.5},
-                  {"color": "red", "value": 2.0}
-                ]
-              },
-              "unit": "pressurekpa",
-              "decimals": 2
-            }
-          },
-          "gridPos": {"h": 6, "w": 6, "x": 0, "y": 7},
-          "id": 16,
-          "options": {
-            "colorMode": "value",
-            "graphMode": "area",
-            "justifyMode": "auto",
-            "orientation": "auto",
-            "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
-            "textMode": "auto"
-          },
-          "pluginVersion": "10.0.0",
-          "targets": [
-            {
-              "datasource": {"type": "prometheus", "uid": "prometheus"},
-              "expr": "acinfinity_controller_vpd_kpa{controller_name=\"Garage Main Rack\"}",
-              "legendFormat": "{{controller_name}}",
-              "refId": "A"
-            }
-          ],
-          "title": "Main Rack VPD",
-          "type": "stat"
-        },
-        {
-          "datasource": {"type": "prometheus", "uid": "prometheus"},
-          "fieldConfig": {
-            "defaults": {
-              "color": {"mode": "thresholds"},
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {"color": "green", "value": null},
-                  {"color": "yellow", "value": 1.2},
-                  {"color": "orange", "value": 1.5},
-                  {"color": "red", "value": 2.0}
-                ]
-              },
-              "unit": "pressurekpa",
-              "decimals": 2
-            }
-          },
-          "gridPos": {"h": 6, "w": 6, "x": 6, "y": 7},
-          "id": 17,
-          "options": {
-            "colorMode": "value",
-            "graphMode": "area",
-            "justifyMode": "auto",
-            "orientation": "auto",
-            "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
-            "textMode": "auto"
-          },
-          "pluginVersion": "10.0.0",
-          "targets": [
-            {
-              "datasource": {"type": "prometheus", "uid": "prometheus"},
-              "expr": "acinfinity_controller_vpd_kpa{controller_name=\"Garage Comms Rack\"}",
-              "legendFormat": "{{controller_name}}",
-              "refId": "A"
-            }
-          ],
-          "title": "Comms Rack VPD",
-          "type": "stat"
-        },
-        {
-          "gridPos": {"h": 1, "w": 24, "x": 0, "y": 13},
+          "gridPos": {"h": 1, "w": 24, "x": 0, "y": 7},
           "id": 6,
           "title": "Fan Status",
           "type": "row"
@@ -293,7 +211,7 @@ spec:
               "decimals": 0
             }
           },
-          "gridPos": {"h": 6, "w": 6, "x": 0, "y": 14},
+          "gridPos": {"h": 6, "w": 6, "x": 0, "y": 8},
           "id": 7,
           "options": {
             "colorMode": "value",
@@ -333,7 +251,7 @@ spec:
               }
             }
           },
-          "gridPos": {"h": 6, "w": 6, "x": 6, "y": 14},
+          "gridPos": {"h": 6, "w": 6, "x": 6, "y": 8},
           "id": 8,
           "options": {
             "colorMode": "value",
@@ -373,7 +291,7 @@ spec:
               }
             }
           },
-          "gridPos": {"h": 6, "w": 6, "x": 12, "y": 14},
+          "gridPos": {"h": 6, "w": 6, "x": 12, "y": 8},
           "id": 9,
           "options": {
             "colorMode": "value",
@@ -396,7 +314,7 @@ spec:
           "type": "stat"
         },
         {
-          "gridPos": {"h": 1, "w": 24, "x": 0, "y": 20},
+          "gridPos": {"h": 1, "w": 24, "x": 0, "y": 14},
           "id": 10,
           "title": "Temperature History",
           "type": "row"
@@ -436,7 +354,7 @@ spec:
               "unit": "celsius"
             }
           },
-          "gridPos": {"h": 8, "w": 24, "x": 0, "y": 21},
+          "gridPos": {"h": 8, "w": 24, "x": 0, "y": 15},
           "id": 11,
           "options": {
             "legend": {"calcs": ["mean", "max"], "displayMode": "table", "placement": "right", "showLegend": true},
@@ -455,7 +373,7 @@ spec:
           "type": "timeseries"
         },
         {
-          "gridPos": {"h": 1, "w": 24, "x": 0, "y": 29},
+          "gridPos": {"h": 1, "w": 24, "x": 0, "y": 23},
           "id": 12,
           "title": "Humidity History",
           "type": "row"
@@ -494,7 +412,7 @@ spec:
               "unit": "percent"
             }
           },
-          "gridPos": {"h": 8, "w": 24, "x": 0, "y": 30},
+          "gridPos": {"h": 8, "w": 24, "x": 0, "y": 24},
           "id": 13,
           "options": {
             "legend": {"calcs": ["mean", "max"], "displayMode": "table", "placement": "right", "showLegend": true},
@@ -513,66 +431,7 @@ spec:
           "type": "timeseries"
         },
         {
-          "gridPos": {"h": 1, "w": 24, "x": 0, "y": 38},
-          "id": 18,
-          "title": "VPD History",
-          "type": "row"
-        },
-        {
-          "datasource": {"type": "prometheus", "uid": "prometheus"},
-          "fieldConfig": {
-            "defaults": {
-              "color": {"mode": "palette-classic"},
-              "custom": {
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "drawStyle": "line",
-                "fillOpacity": 10,
-                "gradientMode": "none",
-                "hideFrom": {"legend": false, "tooltip": false, "viz": false},
-                "lineInterpolation": "smooth",
-                "lineWidth": 2,
-                "pointSize": 5,
-                "scaleDistribution": {"type": "linear"},
-                "showPoints": "never",
-                "spanNulls": false,
-                "stacking": {"group": "A", "mode": "none"},
-                "thresholdsStyle": {"mode": "off"}
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {"color": "green", "value": null}
-                ]
-              },
-              "unit": "pressurekpa",
-              "decimals": 2
-            }
-          },
-          "gridPos": {"h": 8, "w": 24, "x": 0, "y": 39},
-          "id": 19,
-          "options": {
-            "legend": {"calcs": ["mean", "max"], "displayMode": "table", "placement": "right", "showLegend": true},
-            "tooltip": {"mode": "multi", "sort": "desc"}
-          },
-          "pluginVersion": "10.0.0",
-          "targets": [
-            {
-              "datasource": {"type": "prometheus", "uid": "prometheus"},
-              "expr": "acinfinity_controller_vpd_kpa",
-              "legendFormat": "{{controller_name}}",
-              "refId": "A"
-            }
-          ],
-          "title": "VPD Over Time",
-          "type": "timeseries"
-        },
-        {
-          "gridPos": {"h": 1, "w": 24, "x": 0, "y": 47},
+          "gridPos": {"h": 1, "w": 24, "x": 0, "y": 32},
           "id": 14,
           "title": "Fan Speed History",
           "type": "row"
@@ -612,7 +471,7 @@ spec:
               }
             }
           },
-          "gridPos": {"h": 8, "w": 24, "x": 0, "y": 48},
+          "gridPos": {"h": 8, "w": 24, "x": 0, "y": 33},
           "id": 15,
           "options": {
             "legend": {"calcs": ["mean", "max"], "displayMode": "table", "placement": "right", "showLegend": true},
