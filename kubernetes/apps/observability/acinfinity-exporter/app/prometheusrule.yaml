@@ -1,0 +1,66 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: acinfinity-exporter
+spec:
+  groups:
+    - name: acinfinity-exporter
+      rules:
+        - alert: ACInfinityExporterAbsent
+          annotations:
+            description: AC Infinity Exporter has disappeared from Prometheus target discovery.
+            summary: AC Infinity Exporter is down.
+          expr: absent(up{job=~".*acinfinity-exporter.*"} == 1)
+          for: 5m
+          labels:
+            severity: critical
+        - alert: ACInfinityScrapeFailed
+          annotations:
+            description: AC Infinity Exporter failed to scrape data from the API.
+            summary: AC Infinity scrape failed.
+          expr: acinfinity_last_scrape_success == 0
+          for: 5m
+          labels:
+            severity: critical
+        - alert: ACInfinityTemperatureHigh
+          annotations:
+            description: Controller {{ $labels.controller_name }} temperature is {{ $value | printf "%.1f" }}°C which exceeds 32°C.
+            summary: AC Infinity controller temperature is high.
+          expr: acinfinity_controller_temperature_celsius > 32
+          for: 5m
+          labels:
+            severity: warning
+        - alert: ACInfinityTemperatureCritical
+          annotations:
+            description: Controller {{ $labels.controller_name }} temperature is {{ $value | printf "%.1f" }}°C which exceeds 40°C.
+            summary: AC Infinity controller temperature is critical.
+          expr: acinfinity_controller_temperature_celsius > 40
+          for: 2m
+          labels:
+            severity: critical
+        - alert: ACInfinityFanStopped
+          annotations:
+            description: Fan {{ $labels.device_name }} on controller {{ $labels.controller_id }} port {{ $labels.port }} has stopped (speed 0) while device is online.
+            summary: AC Infinity fan has stopped.
+          expr: acinfinity_device_speed == 0 and acinfinity_device_online == 1 and acinfinity_device_info{device_name=~".*Cloudline.*"} == 1
+          for: 5m
+          labels:
+            severity: warning
+        - alert: ACInfinityDeviceOffline
+          annotations:
+            description: Device {{ $labels.device_name }} on controller {{ $labels.controller_id }} port {{ $labels.port }} is offline.
+            summary: AC Infinity device is offline.
+          expr: acinfinity_device_online == 0 and acinfinity_device_info{device_name=~".*Cloudline.*"} == 1
+          for: 5m
+          labels:
+            severity: critical
+        - alert: ACInfinityNoTemperatureReading
+          annotations:
+            description: No temperature reading received from controller {{ $labels.controller_name }} for 10 minutes.
+            summary: AC Infinity temperature reading missing.
+          expr: changes(acinfinity_controller_temperature_celsius[10m]) == 0
+          for: 10m
+          labels:
+            severity: warning
