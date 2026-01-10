@@ -9,8 +9,7 @@ spec:
   commonMetadata:
     labels:
       app.kubernetes.io/name: *app
-  dependsOn:
-    - name: kube-prometheus-stack
+  dependsOn: []
   interval: 1h
   path: ./kubernetes/apps/observability/acinfinity-exporter/app
   postBuild:
