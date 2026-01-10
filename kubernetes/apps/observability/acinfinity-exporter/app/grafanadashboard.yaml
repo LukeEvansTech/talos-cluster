@@ -194,19 +194,20 @@ spec:
           "fieldConfig": {
             "defaults": {
               "color": {"mode": "thresholds"},
-              "mappings": [
-                {"options": {"0": {"color": "red", "index": 0, "text": "OFF"}}, "type": "value"},
-                {"options": {"from": 1, "result": {"color": "green", "index": 1, "text": "ON"}, "to": 10}, "type": "range"}
-              ],
+              "mappings": [],
               "max": 10,
               "min": 0,
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
                   {"color": "red", "value": null},
-                  {"color": "green", "value": 1}
+                  {"color": "orange", "value": 1},
+                  {"color": "yellow", "value": 3},
+                  {"color": "green", "value": 5}
                 ]
-              }
+              },
+              "unit": "none",
+              "decimals": 0
             }
           },
           "gridPos": {"h": 6, "w": 6, "x": 0, "y": 8},
@@ -228,7 +229,7 @@ spec:
               "refId": "A"
             }
           ],
-          "title": "Fan Speed",
+          "title": "Fan Speed (0-10)",
           "type": "stat"
         },
         {
