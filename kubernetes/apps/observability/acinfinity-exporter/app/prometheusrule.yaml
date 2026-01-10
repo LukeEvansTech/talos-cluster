@@ -1,0 +1,99 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: acinfinity-exporter
+spec:
+  groups:
+    - name: acinfinity-exporter
+      rules:
+        - alert: ACInfinityExporterAbsent
+          annotations:
+            description: AC Infinity Exporter has disappeared from Prometheus target discovery.
+            summary: AC Infinity Exporter is down.
+          expr: absent(up{job=~".*acinfinity-exporter.*"} == 1)
+          for: 5m
+          labels:
+            severity: critical
+
+        - alert: ACInfinityDeviceOffline
+          annotations:
+            description: AC Infinity device {{ $labels.device_name }} on port {{ $labels.port }} is offline.
+            summary: AC Infinity device is offline.
+          expr: acinfinity_device_online == 0
+          for: 5m
+          labels:
+            severity: warning
+
+        - alert: ACInfinityHighTemperature
+          annotations:
+            description: AC Infinity controller {{ $labels.controller_name }} temperature is {{ $value | printf "%.1f" }}°C which is above 35°C.
+            summary: AC Infinity temperature is high.
+          expr: acinfinity_controller_temperature_celsius > 35
+          for: 5m
+          labels:
+            severity: warning
+
+        - alert: ACInfinityCriticalTemperature
+          annotations:
+            description: AC Infinity controller {{ $labels.controller_name }} temperature is {{ $value | printf "%.1f" }}°C which is critically high (above 40°C).
+            summary: AC Infinity temperature is critically high.
+          expr: acinfinity_controller_temperature_celsius > 40
+          for: 2m
+          labels:
+            severity: critical
+
+        - alert: ACInfinityLowHumidity
+          annotations:
+            description: AC Infinity controller {{ $labels.controller_name }} humidity is {{ $value | printf "%.1f" }}% which is below 30%.
+            summary: AC Infinity humidity is low.
+          expr: acinfinity_controller_humidity_percent < 30
+          for: 10m
+          labels:
+            severity: warning
+
+        - alert: ACInfinityHighHumidity
+          annotations:
+            description: AC Infinity controller {{ $labels.controller_name }} humidity is {{ $value | printf "%.1f" }}% which is above 80%.
+            summary: AC Infinity humidity is high.
+          expr: acinfinity_controller_humidity_percent > 80
+          for: 10m
+          labels:
+            severity: warning
+
+        - alert: ACInfinityHighVPD
+          annotations:
+            description: AC Infinity controller {{ $labels.controller_name }} VPD is {{ $value | printf "%.2f" }} kPa which is above optimal range (>1.6 kPa).
+            summary: AC Infinity VPD is high.
+          expr: acinfinity_controller_vpd_kpa > 1.6
+          for: 15m
+          labels:
+            severity: warning
+
+        - alert: ACInfinityLowVPD
+          annotations:
+            description: AC Infinity controller {{ $labels.controller_name }} VPD is {{ $value | printf "%.2f" }} kPa which is below optimal range (<0.4 kPa).
+            summary: AC Infinity VPD is low.
+          expr: acinfinity_controller_vpd_kpa < 0.4
+          for: 15m
+          labels:
+            severity: warning
+
+        - alert: ACInfinityAPIErrors
+          annotations:
+            description: AC Infinity exporter is experiencing API errors. Last successful scrape was over 5 minutes ago.
+            summary: AC Infinity API errors detected.
+          expr: acinfinity_last_scrape_success == 0
+          for: 5m
+          labels:
+            severity: warning
+
+        - alert: ACInfinityHighCO2
+          annotations:
+            description: AC Infinity CO2 sensor reading is {{ $value | printf "%.0f" }} ppm which is above 1500 ppm.
+            summary: AC Infinity CO2 level is high.
+          expr: acinfinity_sensor_co2_ppm > 1500
+          for: 5m
+          labels:
+            severity: warning
