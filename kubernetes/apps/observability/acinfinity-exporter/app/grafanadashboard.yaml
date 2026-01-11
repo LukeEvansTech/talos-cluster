@@ -279,6 +279,51 @@ spec:
             "defaults": {
               "color": {"mode": "thresholds"},
               "mappings": [
+                {"options": {"1": {"color": "text", "index": 0, "text": "OFF"}}, "type": "value"},
+                {"options": {"2": {"color": "green", "index": 1, "text": "ON"}}, "type": "value"},
+                {"options": {"3": {"color": "blue", "index": 2, "text": "AUTO"}}, "type": "value"},
+                {"options": {"4": {"color": "purple", "index": 3, "text": "TIMER"}}, "type": "value"},
+                {"options": {"6": {"color": "orange", "index": 4, "text": "CYCLE"}}, "type": "value"},
+                {"options": {"7": {"color": "yellow", "index": 5, "text": "SCHED"}}, "type": "value"},
+                {"options": {"8": {"color": "super-light-blue", "index": 6, "text": "VPD-T"}}, "type": "value"},
+                {"options": {"9": {"color": "super-light-green", "index": 7, "text": "VPD-H"}}, "type": "value"}
+              ],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"color": "text", "value": null}
+                ]
+              }
+            }
+          },
+          "gridPos": {"h": 6, "w": 6, "x": 12, "y": 8},
+          "id": 20,
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+            "textMode": "value_and_name"
+          },
+          "pluginVersion": "10.0.0",
+          "targets": [
+            {
+              "datasource": {"type": "prometheus", "uid": "prometheus"},
+              "expr": "acinfinity_device_mode{device_name=~\".*Cloudline.*\"}",
+              "legendFormat": "{{device_name}}",
+              "refId": "A"
+            }
+          ],
+          "title": "Fan Mode",
+          "type": "stat"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "thresholds"},
+              "mappings": [
                 {"options": {"0": {"color": "red", "index": 0, "text": "FAILED"}}, "type": "value"},
                 {"options": {"1": {"color": "green", "index": 1, "text": "OK"}}, "type": "value"}
               ],
@@ -291,7 +336,7 @@ spec:
               }
             }
           },
-          "gridPos": {"h": 6, "w": 6, "x": 12, "y": 8},
+          "gridPos": {"h": 6, "w": 6, "x": 18, "y": 8},
           "id": 9,
           "options": {
             "colorMode": "value",
@@ -315,6 +360,147 @@ spec:
         },
         {
           "gridPos": {"h": 1, "w": 24, "x": 0, "y": 14},
+          "id": 21,
+          "title": "System Info",
+          "type": "row"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "thresholds"},
+              "custom": {
+                "align": "auto",
+                "displayMode": "auto",
+                "inspect": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [{"color": "green", "value": null}]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {"id": "byName", "options": "Controller"},
+                "properties": [{"id": "custom.width", "value": 180}]
+              },
+              {
+                "matcher": {"id": "byName", "options": "Firmware"},
+                "properties": [{"id": "custom.width", "value": 100}]
+              },
+              {
+                "matcher": {"id": "byName", "options": "Hardware"},
+                "properties": [{"id": "custom.width", "value": 100}]
+              }
+            ]
+          },
+          "gridPos": {"h": 5, "w": 12, "x": 0, "y": 15},
+          "id": 22,
+          "options": {
+            "footer": {"enablePagination": false, "fields": "", "reducer": ["sum"], "show": false},
+            "showHeader": true
+          },
+          "pluginVersion": "10.0.0",
+          "targets": [
+            {
+              "datasource": {"type": "prometheus", "uid": "prometheus"},
+              "expr": "acinfinity_controller_version_info",
+              "format": "table",
+              "instant": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Controller Versions",
+          "transformations": [
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {"Time": true, "Value": true, "__name__": true, "controller_id": true, "instance": true, "job": true},
+                "renameByName": {"controller_name": "Controller", "firmware_version": "Firmware", "hardware_version": "Hardware", "wifi_name": "WiFi"}
+              }
+            }
+          ],
+          "type": "table"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "thresholds"},
+              "mappings": [
+                {"options": {"0": {"color": "text", "index": 0, "text": "Stable"}}, "type": "value"},
+                {"options": {"1": {"color": "red", "index": 1, "text": "Rising"}}, "type": "value"},
+                {"options": {"2": {"color": "blue", "index": 2, "text": "Falling"}}, "type": "value"}
+              ],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [{"color": "text", "value": null}]
+              }
+            }
+          },
+          "gridPos": {"h": 5, "w": 6, "x": 12, "y": 15},
+          "id": 23,
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+            "textMode": "value_and_name"
+          },
+          "pluginVersion": "10.0.0",
+          "targets": [
+            {
+              "datasource": {"type": "prometheus", "uid": "prometheus"},
+              "expr": "acinfinity_controller_temperature_trend",
+              "legendFormat": "{{controller_name}}",
+              "refId": "A"
+            }
+          ],
+          "title": "Temp Trend",
+          "type": "stat"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "thresholds"},
+              "mappings": [
+                {"options": {"0": {"color": "text", "index": 0, "text": "Stable"}}, "type": "value"},
+                {"options": {"1": {"color": "red", "index": 1, "text": "Rising"}}, "type": "value"},
+                {"options": {"2": {"color": "blue", "index": 2, "text": "Falling"}}, "type": "value"}
+              ],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [{"color": "text", "value": null}]
+              }
+            }
+          },
+          "gridPos": {"h": 5, "w": 6, "x": 18, "y": 15},
+          "id": 24,
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+            "textMode": "value_and_name"
+          },
+          "pluginVersion": "10.0.0",
+          "targets": [
+            {
+              "datasource": {"type": "prometheus", "uid": "prometheus"},
+              "expr": "acinfinity_controller_humidity_trend",
+              "legendFormat": "{{controller_name}}",
+              "refId": "A"
+            }
+          ],
+          "title": "Humidity Trend",
+          "type": "stat"
+        },
+        {
+          "gridPos": {"h": 1, "w": 24, "x": 0, "y": 20},
           "id": 10,
           "title": "Temperature History",
           "type": "row"
@@ -354,7 +540,7 @@ spec:
               "unit": "celsius"
             }
           },
-          "gridPos": {"h": 8, "w": 24, "x": 0, "y": 15},
+          "gridPos": {"h": 8, "w": 24, "x": 0, "y": 21},
           "id": 11,
           "options": {
             "legend": {"calcs": ["mean", "max"], "displayMode": "table", "placement": "right", "showLegend": true},
@@ -373,7 +559,7 @@ spec:
           "type": "timeseries"
         },
         {
-          "gridPos": {"h": 1, "w": 24, "x": 0, "y": 23},
+          "gridPos": {"h": 1, "w": 24, "x": 0, "y": 29},
           "id": 12,
           "title": "Humidity History",
           "type": "row"
@@ -412,7 +598,7 @@ spec:
               "unit": "percent"
             }
           },
-          "gridPos": {"h": 8, "w": 24, "x": 0, "y": 24},
+          "gridPos": {"h": 8, "w": 24, "x": 0, "y": 30},
           "id": 13,
           "options": {
             "legend": {"calcs": ["mean", "max"], "displayMode": "table", "placement": "right", "showLegend": true},
@@ -431,7 +617,7 @@ spec:
           "type": "timeseries"
         },
         {
-          "gridPos": {"h": 1, "w": 24, "x": 0, "y": 32},
+          "gridPos": {"h": 1, "w": 24, "x": 0, "y": 38},
           "id": 14,
           "title": "Fan Speed History",
           "type": "row"
@@ -471,7 +657,7 @@ spec:
               }
             }
           },
-          "gridPos": {"h": 8, "w": 24, "x": 0, "y": 33},
+          "gridPos": {"h": 8, "w": 24, "x": 0, "y": 39},
           "id": 15,
           "options": {
             "legend": {"calcs": ["mean", "max"], "displayMode": "table", "placement": "right", "showLegend": true},
