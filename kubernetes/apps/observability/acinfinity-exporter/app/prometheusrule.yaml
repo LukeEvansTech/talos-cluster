@@ -88,3 +88,11 @@ spec:
           for: 0m
           labels:
             severity: warning
+        - alert: ACInfinityFirmwareMismatch
+          annotations:
+            description: AC Infinity controllers are running different firmware versions. Check Controller Versions table in dashboard.
+            summary: AC Infinity firmware version mismatch detected.
+          expr: count(count by (firmware_version) (acinfinity_controller_version_info)) > 1
+          for: 5m
+          labels:
+            severity: warning
