@@ -64,3 +64,27 @@ spec:
           for: 0m
           labels:
             severity: warning
+        - alert: ACInfinityOvercurrent
+          annotations:
+            description: Device {{ $labels.device_name }} on port {{ $labels.port }} has detected an overcurrent condition.
+            summary: AC Infinity device overcurrent detected.
+          expr: acinfinity_device_overcurrent == 1
+          for: 0m
+          labels:
+            severity: critical
+        - alert: ACInfinityDeviceAbnormal
+          annotations:
+            description: Device {{ $labels.device_name }} on port {{ $labels.port }} is in an abnormal state (code {{ $value }}).
+            summary: AC Infinity device abnormal state.
+          expr: acinfinity_device_abnormal != 0
+          for: 1m
+          labels:
+            severity: warning
+        - alert: ACInfinityControllerStale
+          annotations:
+            description: Controller {{ $labels.controller_name }} hasn't been seen for over 10 minutes.
+            summary: AC Infinity controller data is stale.
+          expr: time() - acinfinity_controller_last_seen_timestamp > 600
+          for: 0m
+          labels:
+            severity: warning
