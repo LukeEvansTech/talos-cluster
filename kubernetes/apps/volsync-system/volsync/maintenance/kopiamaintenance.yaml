@@ -8,6 +8,6 @@ metadata:
 spec:
   enabled: true
   trigger:
-    schedule: 0 */8 * * *
+    schedule: 0 2,8,14,20 * * *
   repository:
     repository: volsync-maintenance-secret
