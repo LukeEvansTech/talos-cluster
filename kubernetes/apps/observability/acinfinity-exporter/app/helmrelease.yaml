@@ -18,7 +18,7 @@ spec:
           app:
             image:
               repository: ghcr.io/lukeevanstech/acinfinity
-              tag: latest
+              tag: main-8bda0fc
             env:
               TZ: ${TIMEZONE:=UTC}
               METRICS_PORT: "8000"
