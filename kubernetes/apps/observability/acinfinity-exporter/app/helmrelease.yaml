@@ -17,8 +17,8 @@ spec:
         containers:
           app:
             image:
-              repository: ghcr.io/lukeevanstech/acinfinity
-              tag: main-8bda0fc
+              repository: ghcr.io/lukeevanstech/acinfinity-exporter
+              tag: main-152b155
             env:
               TZ: ${TIMEZONE:=UTC}
               METRICS_PORT: "8000"
