@@ -302,7 +302,7 @@ spec:
             "colorMode": "value",
             "graphMode": "none",
             "justifyMode": "auto",
-            "orientation": "auto",
+            "orientation": "horizontal",
             "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
             "textMode": "value_and_name"
           },
