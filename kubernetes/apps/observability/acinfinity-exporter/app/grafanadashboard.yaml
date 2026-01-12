@@ -57,7 +57,7 @@ spec:
           "targets": [
             {
               "datasource": {"type": "prometheus", "uid": "prometheus"},
-              "expr": "acinfinity_controller_temperature_celsius{controller_name=\"Garage Main Rack\"}",
+              "expr": "max(acinfinity_controller_temperature_celsius{controller_name=\"Garage Main Rack\"})",
               "legendFormat": "{{controller_name}}",
               "refId": "A"
             }
@@ -97,7 +97,7 @@ spec:
           "targets": [
             {
               "datasource": {"type": "prometheus", "uid": "prometheus"},
-              "expr": "acinfinity_controller_temperature_celsius{controller_name=\"Garage Comms Rack\"}",
+              "expr": "max(acinfinity_controller_temperature_celsius{controller_name=\"Garage Comms Rack\"})",
               "legendFormat": "{{controller_name}}",
               "refId": "A"
             }
@@ -136,7 +136,7 @@ spec:
           "targets": [
             {
               "datasource": {"type": "prometheus", "uid": "prometheus"},
-              "expr": "acinfinity_controller_humidity_percent{controller_name=\"Garage Main Rack\"}",
+              "expr": "max(acinfinity_controller_humidity_percent{controller_name=\"Garage Main Rack\"})",
               "legendFormat": "{{controller_name}}",
               "refId": "A"
             }
@@ -175,7 +175,7 @@ spec:
           "targets": [
             {
               "datasource": {"type": "prometheus", "uid": "prometheus"},
-              "expr": "acinfinity_controller_humidity_percent{controller_name=\"Garage Comms Rack\"}",
+              "expr": "max(acinfinity_controller_humidity_percent{controller_name=\"Garage Comms Rack\"})",
               "legendFormat": "{{controller_name}}",
               "refId": "A"
             }
@@ -225,7 +225,7 @@ spec:
           "targets": [
             {
               "datasource": {"type": "prometheus", "uid": "prometheus"},
-              "expr": "acinfinity_device_speed{device_name=~\".*Cloudline.*\"}",
+              "expr": "max by (device_name) (acinfinity_device_speed{device_name=~\".*Cloudline.*\"})",
               "legendFormat": "{{device_name}}",
               "refId": "A"
             }
@@ -265,7 +265,7 @@ spec:
           "targets": [
             {
               "datasource": {"type": "prometheus", "uid": "prometheus"},
-              "expr": "acinfinity_device_online{device_name=~\".*Cloudline.*\"}",
+              "expr": "max by (device_name) (acinfinity_device_online{device_name=~\".*Cloudline.*\"})",
               "legendFormat": "{{device_name}}",
               "refId": "A"
             }
@@ -310,7 +310,7 @@ spec:
           "targets": [
             {
               "datasource": {"type": "prometheus", "uid": "prometheus"},
-              "expr": "acinfinity_device_mode{device_name=~\".*Cloudline.*\"}",
+              "expr": "max by (device_name) (acinfinity_device_mode{device_name=~\".*Cloudline.*\"})",
               "legendFormat": "{{device_name}}",
               "refId": "A"
             }
@@ -350,7 +350,7 @@ spec:
           "targets": [
             {
               "datasource": {"type": "prometheus", "uid": "prometheus"},
-              "expr": "acinfinity_last_scrape_success",
+              "expr": "max(acinfinity_last_scrape_success)",
               "legendFormat": "Scrape Status",
               "refId": "A"
             }
@@ -405,7 +405,7 @@ spec:
           "targets": [
             {
               "datasource": {"type": "prometheus", "uid": "prometheus"},
-              "expr": "acinfinity_controller_version_info",
+              "expr": "max by (controller_name, firmware_version, hardware_version, wifi_name) (acinfinity_controller_version_info)",
               "format": "table",
               "instant": true,
               "refId": "A"
@@ -416,7 +416,7 @@ spec:
             {
               "id": "organize",
               "options": {
-                "excludeByName": {"Time": true, "Value": true, "__name__": true, "controller_id": true, "instance": true, "job": true},
+                "excludeByName": {"Time": true, "Value": true},
                 "renameByName": {"controller_name": "Controller", "firmware_version": "Firmware", "hardware_version": "Hardware", "wifi_name": "WiFi"}
               }
             }
@@ -453,7 +453,7 @@ spec:
           "targets": [
             {
               "datasource": {"type": "prometheus", "uid": "prometheus"},
-              "expr": "acinfinity_controller_temperature_trend",
+              "expr": "max by (controller_name) (acinfinity_controller_temperature_trend)",
               "legendFormat": "{{controller_name}}",
               "refId": "A"
             }
@@ -491,7 +491,7 @@ spec:
           "targets": [
             {
               "datasource": {"type": "prometheus", "uid": "prometheus"},
-              "expr": "acinfinity_controller_humidity_trend",
+              "expr": "max by (controller_name) (acinfinity_controller_humidity_trend)",
               "legendFormat": "{{controller_name}}",
               "refId": "A"
             }
@@ -550,7 +550,7 @@ spec:
           "targets": [
             {
               "datasource": {"type": "prometheus", "uid": "prometheus"},
-              "expr": "acinfinity_controller_temperature_celsius",
+              "expr": "max by (controller_name) (acinfinity_controller_temperature_celsius)",
               "legendFormat": "{{controller_name}}",
               "refId": "A"
             }
@@ -608,7 +608,7 @@ spec:
           "targets": [
             {
               "datasource": {"type": "prometheus", "uid": "prometheus"},
-              "expr": "acinfinity_controller_humidity_percent",
+              "expr": "max by (controller_name) (acinfinity_controller_humidity_percent)",
               "legendFormat": "{{controller_name}}",
               "refId": "A"
             }
@@ -667,7 +667,7 @@ spec:
           "targets": [
             {
               "datasource": {"type": "prometheus", "uid": "prometheus"},
-              "expr": "acinfinity_device_speed{device_name=~\".*Cloudline.*\"}",
+              "expr": "max by (device_name) (acinfinity_device_speed{device_name=~\".*Cloudline.*\"})",
               "legendFormat": "{{device_name}}",
               "refId": "A"
             }
