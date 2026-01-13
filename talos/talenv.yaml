@@ -1,7 +1,4 @@
 ---
-# renovate: datasource=github-releases depName=prometheus-operator/prometheus-operator
-prometheusOperatorVersion: v0.88.0
-
 # Versions used by Taskfile helpers
 # renovate: datasource=docker depName=ghcr.io/siderolabs/installer
 talosVersion: v1.12.0
