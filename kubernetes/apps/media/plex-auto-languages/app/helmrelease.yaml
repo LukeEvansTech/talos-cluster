@@ -21,7 +21,7 @@ spec:
               tag: 1.4.0@sha256:822f4f7b9fef95cca3a957316e66f6667df0fab0f52ae1591904802cfcbcdfa4
             env:
               TZ: "${TIMEZONE}"
-              PLEX_URL: "http://plex.media.svc.cluster.local:32500"
+              PLEX_URL: "http://plex.media.svc.cluster.local:32400"
             envFrom:
               - secretRef:
                   name: plex-auto-languages-secret
