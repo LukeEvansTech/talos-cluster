@@ -27,9 +27,11 @@ spec:
       alarms:
         persistence: true
         storageclass: ceph-block
+        volumesize: 1Gi
       database:
         persistence: true
         storageclass: ceph-block
+        volumesize: 20Gi
 
     child:
       enabled: true
@@ -39,3 +41,4 @@ spec:
       persistence:
         enabled: true
         storageclass: ceph-block
+        volumesize: 1Gi
