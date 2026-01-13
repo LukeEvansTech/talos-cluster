@@ -22,7 +22,7 @@ spec:
             env:
               TZ: "${TIMEZONE}"
               ALLOWED_NETWORKS: "${CR_LAN_CIDR:-0.0.0.0/0},${GH_LAN_CIDR:-0.0.0.0/0}"
-              PLEX_ADVERTISE_URL: "http://${SVC_PLEX_ADDR:-127.0.0.1}:32400,https://plex.${SECRET_DOMAIN:-local}"
+              PLEX_ADVERTISE_URL: "http://${SVC_PLEX_ADDR:-127.0.0.1}:32500,https://plex.${SECRET_DOMAIN:-local}"
               PLEX_PREFERENCE_1: "AllowMediaDeletion=0"
               PLEX_PREFERENCE_2: "EnableIPv6=0"
               PLEX_PREFERENCE_3: "FriendlyName=Talos Plex"
@@ -37,7 +37,7 @@ spec:
                 spec:
                   httpGet:
                     path: /identity
-                    port: &port 32400
+                    port: &port 32500
                   initialDelaySeconds: 0
                   periodSeconds: 10
                   timeoutSeconds: 1

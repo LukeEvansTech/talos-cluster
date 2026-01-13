@@ -115,7 +115,7 @@ data:
       cache_expiration: 60
 
     plex:
-      url: http://plex.media.svc.cluster.local:32400
+      url: http://plex.media.svc.cluster.local:32500
       token: <<PLEX_API_KEY>>
       timeout: 60
       clean_bundles: false
