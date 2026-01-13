@@ -6,11 +6,17 @@ patches:
   - target:
       kind: HelmRelease
     patch: |-
-      - op: add
-        path: /spec/values/service/app/annotations
-        value:
-          gethomepage.dev/enabled: "true"
-          gethomepage.dev/name: "${HOMEPAGE_NAME:=${APP}}"
-          gethomepage.dev/group: "${HOMEPAGE_GROUP:=Services}"
-          gethomepage.dev/icon: "${HOMEPAGE_ICON:=mdi-application}"
-          gethomepage.dev/description: "${HOMEPAGE_DESCRIPTION:=}"
+      apiVersion: helm.toolkit.fluxcd.io/v2
+      kind: HelmRelease
+      metadata:
+        name: placeholder
+      spec:
+        values:
+          service:
+            app:
+              annotations:
+                gethomepage.dev/enabled: "true"
+                gethomepage.dev/name: "${HOMEPAGE_NAME:=${APP}}"
+                gethomepage.dev/group: "${HOMEPAGE_GROUP:=Services}"
+                gethomepage.dev/icon: "${HOMEPAGE_ICON:=mdi-application}"
+                gethomepage.dev/description: "${HOMEPAGE_DESCRIPTION:=}"
