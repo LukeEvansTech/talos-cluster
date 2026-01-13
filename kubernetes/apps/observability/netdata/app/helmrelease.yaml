@@ -36,3 +36,6 @@ spec:
 
     k8sState:
       enabled: true
+      persistence:
+        enabled: true
+        storageclass: ceph-block
