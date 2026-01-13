@@ -21,6 +21,7 @@ spec:
               tag: 2.1.0@sha256:c692e8266562a252d87a1310557505ca971ace5aa846de39b297706c103b155b
             env:
               TZ: ${TIMEZONE}
+              PORT: &port 80
             probes:
               liveness: &probes
                 enabled: true
@@ -28,7 +29,7 @@ spec:
                 spec:
                   httpGet:
                     path: /
-                    port: &port 7171
+                    port: *port
                   initialDelaySeconds: 0
                   periodSeconds: 10
                   timeoutSeconds: 1
