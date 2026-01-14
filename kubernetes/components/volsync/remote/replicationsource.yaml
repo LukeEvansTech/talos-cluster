@@ -14,6 +14,10 @@ spec:
     repository: "${APP}-volsync-r2-secret"
     volumeSnapshotClassName: "${VOLSYNC_SNAPSHOTCLASS:=csi-ceph-blockpool}"
     storageClassName: "${VOLSYNC_STORAGECLASS:=ceph-block}"
+    cacheAccessModes:
+      - ReadWriteOnce
+    cacheCapacity: "${VOLSYNC_CACHE_CAPACITY:=10Gi}"
+    cacheStorageClassName: openebs-hostpath
     accessModes:
       - "${VOLSYNC_SNAP_ACCESSMODES:=ReadWriteOnce}"
     moverSecurityContext:
