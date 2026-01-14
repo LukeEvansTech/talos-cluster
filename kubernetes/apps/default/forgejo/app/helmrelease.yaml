@@ -6,13 +6,9 @@ metadata:
   name: &app forgejo
 spec:
   interval: 1h
-  chart:
-    spec:
-      chart: forgejo
-      version: 15.1.0
-      sourceRef:
-        kind: HelmRepository
-        name: forgejo
+  chartRef:
+    kind: OCIRepository
+    name: forgejo
   values:
     replicaCount: 1
 
