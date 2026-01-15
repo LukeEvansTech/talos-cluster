@@ -17,7 +17,7 @@ spec:
         containers:
           app:
             image:
-              repository: ghcr.io/gotify/server
+              repository: gotify/server
               tag: 2.8.0@sha256:4702c392ca723d5016fc938c8b22572c3509efca812bdc5221d25158ba0201e3
             env:
               TZ: ${TIMEZONE}
