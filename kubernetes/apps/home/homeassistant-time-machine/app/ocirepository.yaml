@@ -2,7 +2,7 @@
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository
 metadata:
-  name: ha-time-machine
+  name: homeassistant-time-machine
 spec:
   interval: 1h
   layerSelector:

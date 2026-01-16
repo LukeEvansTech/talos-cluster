@@ -3,7 +3,7 @@
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
-  name: &app ha-time-machine
+  name: &app homeassistant-time-machine
   namespace: &namespace home
 spec:
   commonMetadata:
@@ -17,10 +17,10 @@ spec:
       namespace: home
     - name: rook-ceph-cluster
       namespace: rook-ceph
-    - name: external-secrets-stores
+    - name: onepassword
       namespace: external-secrets
   interval: 1h
-  path: ./kubernetes/apps/home/ha-time-machine/app
+  path: ./kubernetes/apps/home/homeassistant-time-machine/app
   postBuild:
     substitute:
       APP: *app
