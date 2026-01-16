@@ -23,7 +23,7 @@ spec:
               TZ: ${TIMEZONE}
             envFrom:
               - secretRef:
-                  name: "{{ .Release.Name }}-secret"
+                  name: homeassistant-time-machine-secret
             probes:
               liveness:
                 enabled: true
