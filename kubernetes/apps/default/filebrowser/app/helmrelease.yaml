@@ -117,3 +117,10 @@ spec:
         globalMounts:
           - path: /backups/volsync
             readOnly: true
+      backups-timemachine:
+        type: nfs
+        server: ${SECRET_STORAGE_SERVER:-localhost}
+        path: /mnt/pool/backups/homeassistant
+        globalMounts:
+          - path: /backups/timemachine
+            readOnly: true
