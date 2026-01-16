@@ -3,15 +3,15 @@
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
-  name: homeassistant-time-machine
+  name: homeassistanttimemachine
 spec:
   interval: 1h
   chartRef:
     kind: OCIRepository
-    name: homeassistant-time-machine
+    name: homeassistanttimemachine
   values:
     controllers:
-      homeassistant-time-machine:
+      homeassistanttimemachine:
         annotations:
           reloader.stakater.com/auto: "true"
         containers:
@@ -24,7 +24,7 @@ spec:
               HOME_ASSISTANT_URL: http://homeassistant.home.svc.cluster.local:8123
             envFrom:
               - secretRef:
-                  name: homeassistant-time-machine-secret
+                  name: homeassistanttimemachine-secret
             probes:
               liveness:
                 enabled: true
@@ -69,7 +69,7 @@ spec:
 
     service:
       app:
-        controller: homeassistant-time-machine
+        controller: homeassistanttimemachine
         ports:
           http:
             port: 54000

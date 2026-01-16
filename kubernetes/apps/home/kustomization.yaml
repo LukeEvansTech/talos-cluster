@@ -10,7 +10,7 @@ resources:
   - ./namespace.yaml
   - ./esphome/ks.yaml
   - ./go2rtc/ks.yaml
-  - ./homeassistant-time-machine/ks.yaml
+  - ./homeassistanttimemachine/ks.yaml
   - ./homeassistant/ks.yaml
   - ./homebridge/ks.yaml
   - ./mosquitto/ks.yaml
