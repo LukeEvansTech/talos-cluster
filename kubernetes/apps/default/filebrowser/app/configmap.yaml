@@ -29,6 +29,10 @@ data:
           name: backups-volsync
           config:
             defaultEnabled: true
+        - path: "/backups/timemachine"
+          name: backups-timemachine
+          config:
+            defaultEnabled: true
     logging:
       - levels: "info|warning|error"
     userDefaults:
