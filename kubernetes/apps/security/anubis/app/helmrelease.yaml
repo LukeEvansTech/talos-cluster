@@ -25,6 +25,7 @@ spec:
               DIFFICULTY: "4"
               SERVE_ROBOTS_TXT: "true"
               COOKIE_DOMAIN: ".${SECRET_DOMAIN}"
+              REALIP_HEADER: "X-Forwarded-For"
             securityContext:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: true
