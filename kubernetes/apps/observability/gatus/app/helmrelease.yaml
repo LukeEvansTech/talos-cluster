@@ -31,6 +31,7 @@ spec:
               - --auto-httproute
               - --enable-httproute
               - --enable-service
+              - --gateway-name=envoy-external
             restartPolicy: Always
             resources:
               requests:
