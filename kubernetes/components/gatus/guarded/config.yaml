@@ -1,3 +1,4 @@
+---
 endpoints:
   - name: "${APP}"
     group: guarded
@@ -10,4 +11,4 @@ endpoints:
       query-name: "${GATUS_SUBDOMAIN:=${APP}}.${SECRET_DOMAIN}"
       query-type: A
     conditions:
-      - "[DNS_RCODE] == NXDOMAIN"
+      - "len([BODY]) == 0"
