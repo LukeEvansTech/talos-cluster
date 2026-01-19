@@ -50,6 +50,15 @@ spec:
     service:
       app:
         controller: anubis
+        annotations:
+          gatus.home-operations.com/enabled: "true"
+          gatus.home-operations.com/endpoint: |
+            name: anubis
+            group: security
+            url: tcp://anubis.security.svc.cluster.local:8923
+            interval: 1m
+            conditions:
+              - "[CONNECTED] == true"
         ports:
           http:
             port: 8923
