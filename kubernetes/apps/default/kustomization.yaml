@@ -47,6 +47,7 @@ resources:
   - ./searxng/ks.yaml
   - ./shlink/ks.yaml
   - ./smokeping/ks.yaml
+  - ./subspy/ks.yaml
   - ./speakr/ks.yaml
   - ./bentopdf/ks.yaml
   - ./tandoor/ks.yaml
