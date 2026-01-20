@@ -18,7 +18,9 @@ spec:
           app:
             image:
               repository: ghcr.io/lukeevantech/subspy
-              tag: 38a907a
+              tag: main
+            # Using digest for immutable reference
+            # digest: sha256:28302e2b73ecbd96c1d716808d9f11e30adb80c8c4a85399065142473d7463a7
             env:
               TZ: ${TIMEZONE}
               DATABASE_URL: sqlite:///./data/subspy.db
