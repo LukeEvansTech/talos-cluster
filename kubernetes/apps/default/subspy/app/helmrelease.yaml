@@ -19,7 +19,7 @@ spec:
             image:
               repository: ghcr.io/lukeevanstech/subspy
               tag: main
-              digest: sha256:79f5350d6ff5a5a072b0143926dc121f62fa557e2edd6e84fc7969ca068d676e
+              digest: sha256:52967b71fa6064c788099c7b5726a28110c8325867bc32c9e2d25d8885282912
             env:
               TZ: ${TIMEZONE}
               DATABASE_URL: sqlite:///./data/subspy.db
