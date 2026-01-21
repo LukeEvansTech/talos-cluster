@@ -17,10 +17,9 @@ spec:
         containers:
           app:
             image:
-              repository: ghcr.io/lukeevantech/subspy
-              tag: main
-              # Using digest for immutable reference (tag resolution failing on cluster)
-              digest: sha256:28302e2b73ecbd96c1d716808d9f11e30adb80c8c4a85399065142473d7463a7
+              repository: ghcr.io/lukeevanstech/subspy
+              tag: 1.0
+              digest: sha256:b4659c35d39486633758d8a9141b549a7e646efa28185dfb077cde68efc7ae98
             env:
               TZ: ${TIMEZONE}
               DATABASE_URL: sqlite:///./data/subspy.db
