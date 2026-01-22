@@ -13,10 +13,15 @@ metadata:
   name: opnsense-dns-restarter
   namespace: network
 rules:
-  - apiGroups: ["apps"]
-    resources: ["deployments"]
-    resourceNames: ["opnsense-dns"]
-    verbs: ["get", "patch"]
+  - apiGroups:
+      - "apps"
+    resources:
+      - "deployments"
+    resourceNames:
+      - "opnsense-dns"
+    verbs:
+      - "get"
+      - "patch"
 ---
 # RoleBinding to attach the role to the service account
 apiVersion: rbac.authorization.k8s.io/v1
@@ -59,7 +64,7 @@ spec:
           restartPolicy: OnFailure
           containers:
             - name: kubectl
-              image: registry.k8s.io/kubectl:v1.35.0@sha256:0bb95b2a450875fc8ceaea2f9987a99fe27c228846e2e00b93b65ebb0d59034e
+              image: ghcr.io/fluxcd/flux-cli:v2.7.5@sha256:3a4f9b0a26c26db8193c476e0abe33c32187eae8ce7a0a604d38a51783544946
               imagePullPolicy: Always
               command:
                 - kubectl
