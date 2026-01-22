@@ -5,6 +5,7 @@ metadata:
   name: smtp-relay
 spec:
   secretName: tls.smtp-relay
+  duration: 160h
   issuerRef:
     name: letsencrypt-production
     kind: ClusterIssuer
@@ -15,3 +16,5 @@ spec:
     algorithm: ECDSA
     size: 256
     rotationPolicy: Always
+  usages:
+    - digital signature
