@@ -23,6 +23,9 @@ spec:
             env:
               TZ: ${TIMEZONE}
               DATABASE_URL: sqlite:///./data/subspy.db
+              OLLAMA_ENABLED: "true"
+              OLLAMA_BASE_URL: http://ollama.ai.svc.cluster.local:11434
+              OLLAMA_MODEL: llama3.1:8b
             envFrom:
               - secretRef:
                   name: subspy-secret
