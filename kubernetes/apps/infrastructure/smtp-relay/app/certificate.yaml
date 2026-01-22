@@ -12,4 +12,6 @@ spec:
   dnsNames:
     - smtp.${SECRET_DOMAIN}
   privateKey:
+    algorithm: ECDSA
+    size: 256
     rotationPolicy: Always
