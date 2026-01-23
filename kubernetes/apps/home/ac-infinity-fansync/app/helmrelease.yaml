@@ -24,8 +24,8 @@ spec:
               LOG_LEVEL: INFO
               # Sync interval in seconds
               SYNC_INTERVAL: "60"
-              # Intake runs at 85% of exhaust speed (positive pressure bias)
-              INTAKE_RATIO: "0.85"
+              # Intake runs at 50% of exhaust speed
+              INTAKE_RATIO: "0.50"
               # Controller names as shown in AC Infinity app
               EXHAUST_CONTROLLER: "Garage Main Rack"
               EXHAUST_PORT: "1"
