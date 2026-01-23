@@ -23,7 +23,7 @@ spec:
               TZ: ${TIMEZONE:=UTC}
               LOG_LEVEL: INFO
               # Sync interval in seconds
-              SYNC_INTERVAL: "60"
+              SYNC_INTERVAL: "10"
               # Intake runs at 50% of exhaust speed
               INTAKE_RATIO: "0.50"
               # Controller names as shown in AC Infinity app
