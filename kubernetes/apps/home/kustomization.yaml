@@ -8,6 +8,7 @@ components:
   - ../../components/alerts
 resources:
   - ./namespace.yaml
+  - ./ac-infinity-fansync/ks.yaml
   - ./esphome/ks.yaml
   - ./go2rtc/ks.yaml
   - ./homeassistanttimemachine/ks.yaml
