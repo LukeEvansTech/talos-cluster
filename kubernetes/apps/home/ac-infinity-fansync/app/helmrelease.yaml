@@ -18,7 +18,7 @@ spec:
           app:
             image:
               repository: ghcr.io/lukeevanstech/ac-infinity-fansync
-              tag: main-dab8193
+              tag: main-fb521cf
               pullPolicy: Always
             env:
               TZ: ${TIMEZONE:=UTC}
