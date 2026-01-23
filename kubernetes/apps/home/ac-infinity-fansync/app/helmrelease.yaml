@@ -18,7 +18,7 @@ spec:
           app:
             image:
               repository: ghcr.io/lukeevanstech/ac-infinity-fansync
-              tag: rolling
+              tag: main-dab8193
               pullPolicy: Always
             env:
               TZ: ${TIMEZONE:=UTC}
