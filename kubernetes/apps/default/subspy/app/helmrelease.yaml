@@ -18,7 +18,7 @@ spec:
           app:
             image:
               repository: ghcr.io/lukeevanstech/subspy
-              tag: v1.3.1
+              tag: 1.4.0
               digest: sha256:03c7871a1731ec686bf2ecccdecff6a66b0a9af2e37ced97a9b17c9af727e5d7
             env:
               TZ: ${TIMEZONE}
