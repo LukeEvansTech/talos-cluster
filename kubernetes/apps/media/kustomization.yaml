@@ -14,6 +14,7 @@ resources:
   # - ./autopulse/ks.yaml
   - ./bazarr/ks.yaml
   - ./dispatcharr/ks.yaml
+  - ./huntarr/ks.yaml
   - ./imagemaid/ks.yaml
   - ./jellyfin/ks.yaml
   - ./kometa/ks.yaml
