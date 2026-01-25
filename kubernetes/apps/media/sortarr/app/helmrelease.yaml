@@ -1,0 +1,92 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: sortarr
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: sortarr
+  values:
+    controllers:
+      sortarr:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        containers:
+          app:
+            image:
+              repository: ghcr.io/jaredharper1/sortarr
+              tag: latest@sha256:8e030b39801e66fc40674489c3da23f108c7063ef14b8e7eb9cb40f020213eff
+            env:
+              TZ: ${TIMEZONE}
+              PORT: &port 8787
+              PUID: 1000
+              PGID: 1000
+              # Sonarr configuration
+              SONARR_URL: http://sonarr.media.svc.cluster.local
+              SONARR_NAME: Sonarr
+              # Radarr configuration
+              RADARR_URL: http://radarr.media.svc.cluster.local
+              RADARR_NAME: Radarr
+              # Radarr 4K configuration
+              RADARR_URL_2: http://radarr4k.media.svc.cluster.local
+              RADARR_NAME_2: Radarr 4K
+              # Tautulli configuration
+              TAUTULLI_URL: http://tautulli.media.svc.cluster.local
+            envFrom:
+              - secretRef:
+                  name: sortarr-secret
+            probes:
+              liveness: &probes
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /
+                    port: *port
+                  initialDelaySeconds: 0
+                  periodSeconds: 10
+                  timeoutSeconds: 1
+                  failureThreshold: 3
+              readiness: *probes
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities: {drop: ["ALL"]}
+            resources:
+              requests:
+                cpu: 10m
+              limits:
+                memory: 512Mi
+    defaultPodOptions:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+    service:
+      app:
+        controller: sortarr
+        ports:
+          http:
+            port: *port
+    route:
+      app:
+        hostnames:
+          - "{{ .Release.Name }}.${SECRET_DOMAIN}"
+          - "{{ .Release.Name }}.${SECRET_INTERNAL_DOMAIN}"
+        parentRefs:
+          - name: envoy-internal
+            namespace: network
+    persistence:
+      data:
+        type: emptyDir
+        globalMounts:
+          - path: /data
+      tmp:
+        type: emptyDir
+        globalMounts:
+          - path: /tmp
