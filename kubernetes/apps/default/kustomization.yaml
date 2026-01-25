@@ -43,6 +43,7 @@ resources:
   - ./paperless/ks.yaml
   - ./privatebin/ks.yaml
   - ./rackula/ks.yaml
+  - ./reconcilable/ks.yaml
   - ./redditvault/ks.yaml
   - ./searxng/ks.yaml
   - ./shlink/ks.yaml
