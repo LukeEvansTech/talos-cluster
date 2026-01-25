@@ -9,6 +9,10 @@ spec:
   chartRef:
     kind: OCIRepository
     name: mc-router
+  install:
+    disableSchemaValidation: true
+  upgrade:
+    disableSchemaValidation: true
   values:
     inKubeCluster: true
     services:
