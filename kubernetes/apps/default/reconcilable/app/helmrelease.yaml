@@ -17,7 +17,7 @@ spec:
         containers:
           app:
             image:
-              repository: ghcr.io/lukeevantech/reconcilable
+              repository: ghcr.io/lukeevanstech/reconcilable
               tag: 0.0.1
             env:
               TZ: ${TIMEZONE}
