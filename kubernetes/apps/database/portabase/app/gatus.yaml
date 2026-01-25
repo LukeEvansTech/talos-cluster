@@ -1,0 +1,23 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/TwiN/gatus/master/.schema/config.schema.json
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: portabase-health-gatus-ep
+  namespace: database
+  labels:
+    gatus.io/enabled: "true"
+data:
+  config.yaml: |-
+    endpoints:
+      - name: portabase-health
+        group: infrastructure
+        url: "http://portabase.database.svc.cluster.local:80"
+        interval: 1m
+        ui:
+          hide-hostname: true
+          hide-url: true
+        conditions:
+          - "[STATUS] == 200"
+        alerts:
+          - type: gotify
