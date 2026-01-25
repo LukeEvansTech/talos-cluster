@@ -13,4 +13,5 @@ resources:
   - ./pgadmin/ks.yaml
   - ./databasus/ks.yaml
   - ./portabase/ks.yaml
+  - ./portabase-agent/ks.yaml
   - ./whodb/ks.yaml
