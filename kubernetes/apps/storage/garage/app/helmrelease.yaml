@@ -18,7 +18,7 @@ spec:
           app:
             image:
               repository: docker.io/dxflrs/garage
-              tag: v2.1.0
+              tag: v2.2.0
             env:
               TZ: ${TIMEZONE}
               GARAGE_CONFIG_FILE: /config/garage.toml
