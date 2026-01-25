@@ -57,4 +57,4 @@ metadata:
   name: portabase-agent-config
 data:
   databases.json: |
-    []
+    {"databases": []}
