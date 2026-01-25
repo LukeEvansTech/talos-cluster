@@ -44,17 +44,9 @@ spec:
 
     persistence:
       config:
-        type: configMap
-        name: portabase-agent-config
+        type: secret
+        name: portabase-agent-secret
         globalMounts:
           - path: /config/config.json
             subPath: databases.json
             readOnly: true
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: portabase-agent-config
-data:
-  databases.json: |
-    {"databases": []}
