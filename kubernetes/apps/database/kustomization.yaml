@@ -12,4 +12,5 @@ resources:
   - ./dragonfly/ks.yaml
   - ./pgadmin/ks.yaml
   - ./databasus/ks.yaml
+  - ./portabase/ks.yaml
   - ./whodb/ks.yaml
