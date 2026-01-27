@@ -18,7 +18,7 @@ spec:
           app:
             image:
               repository: docker.io/garethgeorge/backrest
-              tag: v1.11.1
+              tag: v1.11.2
             env:
               BACKREST_PORT: &port 9898
               BACKREST_DATA: /data
