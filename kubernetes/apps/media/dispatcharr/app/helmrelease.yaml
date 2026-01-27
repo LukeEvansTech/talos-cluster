@@ -31,7 +31,7 @@ spec:
           app:
             image:
               repository: ghcr.io/dispatcharr/dispatcharr
-              tag: 0.17.0@sha256:f3248a29c3d2e7e062d09a8650f4e30182c6f62165283cf1511ec852bc412294
+              tag: 0.18.1@sha256:d686f2b45f52e31887862a7849ba1efd6b89a1805340951381a775398a09a4d6
             env:
               TZ: ${TIMEZONE}
               NVIDIA_VISIBLE_DEVICES: "all"
