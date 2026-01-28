@@ -17,7 +17,7 @@ spec:
         containers:
           app:
             image:
-              repository: ghcr.io/lukeevantech/domainpulse
+              repository: ghcr.io/lukeevanstech/domainpulse
               tag: 1.0.0
             env:
               TZ: ${TIMEZONE}
