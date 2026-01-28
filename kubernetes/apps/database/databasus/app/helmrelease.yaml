@@ -24,7 +24,7 @@ spec:
           app:
             image:
               repository: databasus/databasus
-              tag: v3.5.0@sha256:7f65a6ce0fe0b065a836bb48a7765cd1da10c7d640657d2a21c0ad88a4ee839a
+              tag: v3.7.0@sha256:b730259b6d0d52dd59553005f0b5ef311c4f34085698b0289efe092b15e517d9
             probes:
               liveness: &probes
                 enabled: true
