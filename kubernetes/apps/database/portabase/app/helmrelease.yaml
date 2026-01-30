@@ -28,7 +28,7 @@ spec:
           app:
             image:
               repository: solucetechnologies/portabase
-              tag: latest@sha256:077af31254162144d35f395e5eb306a36a15267f2870a66bdf2db299c98894b2
+              tag: latest@sha256:2236c78e8a2688218793bb28b125d14716e741d2eb1737ea8b14146c583c4e71
             env:
               TZ: ${TIMEZONE}
               PROJECT_NAME: "portabase"
