@@ -28,7 +28,6 @@ spec:
               APP_URL: "https://invoiceshelf.${SECRET_DOMAIN}"
               APP_TIMEZONE: ${TIMEZONE}
               DB_CONNECTION: sqlite
-              DB_DATABASE: /data/invoiceshelf.db
               TRUSTED_PROXIES: "*"
               SESSION_SECURE_COOKIE: "true"
               SANCTUM_STATEFUL_DOMAINS: "invoiceshelf.${SECRET_DOMAIN}"
@@ -104,3 +103,6 @@ spec:
         existingClaim: "{{ .Release.Name }}"
         globalMounts:
           - path: /data
+            subPath: data
+          - path: /conf
+            subPath: conf
