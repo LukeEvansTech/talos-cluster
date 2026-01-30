@@ -31,6 +31,7 @@ resources:
   - ./homebox/ks.yaml
   - ./homepage/ks.yaml
   - ./invio/ks.yaml
+  - ./invoiceshelf/ks.yaml
   - ./it-tools/ks.yaml
   - ./karakeep/ks.yaml
   - ./mail-archiver/ks.yaml
