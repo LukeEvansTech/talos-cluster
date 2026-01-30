@@ -21,6 +21,8 @@ spec:
               tag: 2.1.1-legacy
             env:
               TZ: ${TIMEZONE}
+              PUID: "1000"
+              PGID: "1000"
               APP_ENV: production
               APP_DEBUG: "false"
               APP_URL: "https://invoiceshelf.${SECRET_DOMAIN}"
@@ -63,10 +65,6 @@ spec:
                   periodSeconds: 5
                   timeoutSeconds: 5
                   failureThreshold: 30
-            securityContext:
-              allowPrivilegeEscalation: false
-              readOnlyRootFilesystem: false
-              capabilities: {drop: ["ALL"]}
             resources:
               requests:
                 cpu: 10m
@@ -76,9 +74,9 @@ spec:
 
     defaultPodOptions:
       securityContext:
-        runAsNonRoot: true
-        runAsUser: 1000
-        runAsGroup: 1000
+        runAsNonRoot: false
+        runAsUser: 0
+        runAsGroup: 0
         fsGroup: 1000
         fsGroupChangePolicy: OnRootMismatch
         seccompProfile: {type: RuntimeDefault}
