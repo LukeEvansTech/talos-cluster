@@ -30,6 +30,8 @@ spec:
               DB_CONNECTION: sqlite
               DB_DATABASE: /data/invoiceshelf.db
               TRUSTED_PROXIES: "*"
+              SESSION_SECURE_COOKIE: "true"
+              SANCTUM_STATEFUL_DOMAINS: "invoiceshelf.${SECRET_DOMAIN}"
             envFrom:
               - secretRef:
                   name: invoiceshelf-secret
