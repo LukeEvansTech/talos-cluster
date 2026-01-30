@@ -30,6 +30,7 @@ spec:
               DB_CONNECTION: sqlite
               TRUSTED_PROXIES: "*"
               SESSION_SECURE_COOKIE: "true"
+              SESSION_DOMAIN: "invoiceshelf.${SECRET_DOMAIN}"
               SANCTUM_STATEFUL_DOMAINS: "invoiceshelf.${SECRET_DOMAIN}"
             envFrom:
               - secretRef:
