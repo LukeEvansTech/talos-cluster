@@ -34,7 +34,7 @@ spec:
           app:
             image:
               repository: docker.io/paperlessngx/paperless-ngx
-              tag: 2.20.5
+              tag: 2.20.6
             env:
               TZ: ${TIMEZONE}
               PAPERLESS_TIME_ZONE: ${TIMEZONE}
