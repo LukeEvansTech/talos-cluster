@@ -18,7 +18,7 @@ spec:
           app:
             image:
               repository: ghcr.io/lukeevanstech/reconcilable
-              tag: 0.1.20
+              tag: 0.1.21
             env:
               TZ: ${TIMEZONE}
               DEBUG: "false"
