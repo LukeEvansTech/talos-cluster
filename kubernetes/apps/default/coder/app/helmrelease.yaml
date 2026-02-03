@@ -75,7 +75,11 @@ spec:
       volumes:
         - name: tmp
           emptyDir: {}
+        - name: cache
+          emptyDir: {}
 
       volumeMounts:
         - name: tmp
           mountPath: /tmp
+        - name: cache
+          mountPath: /home/coder/.cache
