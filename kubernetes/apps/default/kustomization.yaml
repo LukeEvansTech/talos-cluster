@@ -12,6 +12,7 @@ resources:
   - ./apprise/ks.yaml
   - ./atuin/ks.yaml
   - ./changedetection/ks.yaml
+  - ./coder/ks.yaml
   - ./convertx/ks.yaml
   - ./cronmaster/ks.yaml
   - ./cyberchef/ks.yaml
