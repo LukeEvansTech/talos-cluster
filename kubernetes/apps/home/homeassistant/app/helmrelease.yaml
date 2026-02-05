@@ -18,7 +18,7 @@ spec:
           app:
             image:
               repository: ghcr.io/home-operations/home-assistant
-              tag: 2026.1.3
+              tag: 2026.2.0
             env:
               TZ: ${TIMEZONE}
               # Trust proxy from pod network and management network
