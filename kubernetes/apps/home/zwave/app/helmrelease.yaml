@@ -18,7 +18,7 @@ spec:
           app:
             image:
               repository: ghcr.io/zwave-js/zwave-js-ui
-              tag: 11.11.0
+              tag: 11.11.0@sha256:d14b02b56c99445d1fb8af2fb2a6c413a915fd5b3d93f4f7ef456a74bfd05b8a
             env:
               TZ: ${TIMEZONE}
               PORT: &port 8091
