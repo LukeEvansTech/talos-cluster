@@ -14,6 +14,8 @@ spec:
     - ../../../../components/homepage
     - ../../../../components/volsync
   dependsOn:
+    - name: cloudnative-pg-cluster
+      namespace: database
     - name: rook-ceph-cluster
       namespace: rook-ceph
   interval: 1h
