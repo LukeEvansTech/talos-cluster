@@ -43,9 +43,11 @@ spec:
         controller: rackula
         ports:
           http:
-            port: 80
+            port: 8080
     route:
       app:
+        annotations:
+          gatus.home-operations.com/enabled: "false"
         hostnames:
           - "{{ .Release.Name }}.${SECRET_DOMAIN}"
           - "{{ .Release.Name }}.${SECRET_INTERNAL_DOMAIN}"
