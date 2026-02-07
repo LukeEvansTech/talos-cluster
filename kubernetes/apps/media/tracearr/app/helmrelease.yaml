@@ -31,6 +31,14 @@ spec:
             runAsNonRoot: false
             fsGroup: 0
             fsGroupChangePolicy: OnRootMismatch
+        initContainers:
+          init-db:
+            image:
+              repository: ghcr.io/home-operations/postgres-init
+              tag: "18"
+            envFrom:
+              - secretRef:
+                  name: tracearr-secret
         containers:
           app:
             image:
