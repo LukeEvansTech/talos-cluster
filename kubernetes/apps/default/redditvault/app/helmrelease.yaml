@@ -18,7 +18,7 @@ spec:
           app:
             image:
               repository: ghcr.io/lukeevanstech/redditvault
-              tag: main
+              tag: 0.2.0@sha256:d20e4d13c43cc3ef169ac562ffe7df659c37ff2408da61721b59e159bb460859
             env:
               TZ: ${TIMEZONE}
               DATABASE_URL: sqlite:////data/reddit_saved.db
