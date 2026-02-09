@@ -9,6 +9,7 @@ components:
 resources:
   - ./namespace.yaml
   - ./ollama/ks.yaml
+  - ./openclaw/ks.yaml
   - ./open-webui/ks.yaml
   - ./openaiwhisper/ks.yaml
   - ./whisper/ks.yaml
