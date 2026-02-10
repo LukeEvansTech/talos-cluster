@@ -28,6 +28,7 @@ spec:
               repository: ghcr.io/openclaw/openclaw
               tag: 2026.2.9
             env:
+              OPENCLAW_GATEWAY_BIND: lan
               TZ: ${TIMEZONE}
             envFrom:
               - secretRef:
