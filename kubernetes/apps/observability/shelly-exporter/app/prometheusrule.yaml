@@ -1,0 +1,50 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: shelly-exporter
+spec:
+  groups:
+    - name: shelly-exporter
+      rules:
+        - alert: ShellyExporterAbsent
+          annotations:
+            description: Shelly Exporter has disappeared from Prometheus target discovery.
+            summary: Shelly Exporter is down.
+          expr: absent(up{job=~".*shelly-exporter.*"} == 1)
+          for: 5m
+          labels:
+            severity: critical
+        - alert: ShellyHighPowerDraw
+          annotations:
+            description: Shelly device {{ $labels.instance }} is drawing {{ $value | printf "%.0f" }}W which exceeds 2500W.
+            summary: Shelly plug high power draw detected.
+          expr: shelly_switch_power > 2500
+          for: 5m
+          labels:
+            severity: warning
+        - alert: ShellyHighPowerDrawCritical
+          annotations:
+            description: Shelly device {{ $labels.instance }} is drawing {{ $value | printf "%.0f" }}W which exceeds 3000W.
+            summary: Shelly plug critical power draw detected.
+          expr: shelly_switch_power > 3000
+          for: 2m
+          labels:
+            severity: critical
+        - alert: ShellyHighTemperature
+          annotations:
+            description: Shelly device {{ $labels.instance }} temperature is {{ $value | printf "%.1f" }}°C which exceeds 70°C.
+            summary: Shelly plug temperature is high.
+          expr: shelly_switch_temperature{temperature_unit="dC"} > 70
+          for: 5m
+          labels:
+            severity: warning
+        - alert: ShellyHighTemperatureCritical
+          annotations:
+            description: Shelly device {{ $labels.instance }} temperature is {{ $value | printf "%.1f" }}°C which exceeds 85°C.
+            summary: Shelly plug temperature is critical.
+          expr: shelly_switch_temperature{temperature_unit="dC"} > 85
+          for: 2m
+          labels:
+            severity: critical
