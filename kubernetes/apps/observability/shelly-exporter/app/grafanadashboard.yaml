@@ -1,0 +1,759 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/grafana.integreatly.org/grafanadashboard_v1beta1.json
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  name: shelly-exporter
+spec:
+  allowCrossNamespaceImport: true
+  instanceSelector:
+    matchLabels:
+      grafana.internal/instance: grafana
+  json: |-
+    {
+      "annotations": {"list": []},
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 1,
+      "links": [],
+      "templating": {
+        "list": [
+          {
+            "allValue": ".*",
+            "current": {"selected": true, "text": "All", "value": "$__all"},
+            "datasource": {"type": "prometheus", "uid": "prometheus"},
+            "definition": "label_values(shelly_device_info, device_mac)",
+            "includeAll": true,
+            "multi": true,
+            "name": "device",
+            "label": "Device",
+            "query": "label_values(shelly_device_info, device_mac)",
+            "type": "query",
+            "refresh": 2,
+            "sort": 1
+          }
+        ]
+      },
+      "panels": [
+        {
+          "gridPos": {"h": 1, "w": 24, "x": 0, "y": 0},
+          "id": 1,
+          "title": "Overview",
+          "type": "row"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "thresholds"},
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [{"color": "green", "value": null}]
+              }
+            }
+          },
+          "gridPos": {"h": 4, "w": 6, "x": 0, "y": 1},
+          "id": 2,
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+            "textMode": "auto"
+          },
+          "targets": [
+            {
+              "datasource": {"type": "prometheus", "uid": "prometheus"},
+              "expr": "count(shelly_device_info{device_mac=~\"$device\"})",
+              "legendFormat": "",
+              "refId": "A"
+            }
+          ],
+          "title": "Total Devices",
+          "type": "stat"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "thresholds"},
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"color": "green", "value": null},
+                  {"color": "yellow", "value": 2500},
+                  {"color": "orange", "value": 3000},
+                  {"color": "red", "value": 3500}
+                ]
+              },
+              "unit": "watt"
+            }
+          },
+          "gridPos": {"h": 4, "w": 6, "x": 6, "y": 1},
+          "id": 3,
+          "options": {
+            "colorMode": "value",
+            "graphMode": "area",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+            "textMode": "auto"
+          },
+          "targets": [
+            {
+              "datasource": {"type": "prometheus", "uid": "prometheus"},
+              "expr": "sum(shelly_switch_power{device_mac=~\"$device\"})",
+              "legendFormat": "",
+              "refId": "A"
+            }
+          ],
+          "title": "Total Power",
+          "type": "stat"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "thresholds"},
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"color": "green", "value": null},
+                  {"color": "yellow", "value": 50},
+                  {"color": "orange", "value": 70},
+                  {"color": "red", "value": 85}
+                ]
+              },
+              "unit": "celsius"
+            }
+          },
+          "gridPos": {"h": 4, "w": 6, "x": 12, "y": 1},
+          "id": 4,
+          "options": {
+            "colorMode": "value",
+            "graphMode": "area",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+            "textMode": "auto"
+          },
+          "targets": [
+            {
+              "datasource": {"type": "prometheus", "uid": "prometheus"},
+              "expr": "avg(shelly_switch_temperature{device_mac=~\"$device\", temperature_unit=\"dC\"})",
+              "legendFormat": "",
+              "refId": "A"
+            }
+          ],
+          "title": "Avg Temperature",
+          "type": "stat"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "thresholds"},
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"color": "red", "value": null},
+                  {"color": "orange", "value": -80},
+                  {"color": "yellow", "value": -70},
+                  {"color": "green", "value": -50}
+                ]
+              },
+              "unit": "dBm"
+            }
+          },
+          "gridPos": {"h": 4, "w": 6, "x": 18, "y": 1},
+          "id": 5,
+          "options": {
+            "colorMode": "value",
+            "graphMode": "area",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+            "textMode": "auto"
+          },
+          "targets": [
+            {
+              "datasource": {"type": "prometheus", "uid": "prometheus"},
+              "expr": "avg(shelly_system_wifi_rssi{device_mac=~\"$device\"})",
+              "legendFormat": "",
+              "refId": "A"
+            }
+          ],
+          "title": "Avg WiFi RSSI",
+          "type": "stat"
+        },
+        {
+          "gridPos": {"h": 1, "w": 24, "x": 0, "y": 5},
+          "id": 6,
+          "title": "Power Monitoring",
+          "type": "row"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "palette-classic"},
+              "custom": {
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 30,
+                "gradientMode": "opacity",
+                "hideFrom": {"legend": false, "tooltip": false, "viz": false},
+                "lineInterpolation": "smooth",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": {"type": "linear"},
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {"group": "A", "mode": "none"},
+                "thresholdsStyle": {"mode": "line"}
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"color": "green", "value": null},
+                  {"color": "red", "value": 3000}
+                ]
+              },
+              "unit": "watt"
+            }
+          },
+          "gridPos": {"h": 8, "w": 24, "x": 0, "y": 6},
+          "id": 7,
+          "options": {
+            "legend": {"calcs": ["mean", "max", "lastNotNull"], "displayMode": "table", "placement": "right", "showLegend": true},
+            "tooltip": {"mode": "multi", "sort": "desc"}
+          },
+          "targets": [
+            {
+              "datasource": {"type": "prometheus", "uid": "prometheus"},
+              "expr": "sum(shelly_switch_power{device_mac=~\"$device\"})",
+              "legendFormat": "Total Power",
+              "refId": "A"
+            }
+          ],
+          "title": "Total Power Over Time",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "palette-classic"},
+              "custom": {
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": {"legend": false, "tooltip": false, "viz": false},
+                "lineInterpolation": "smooth",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {"type": "linear"},
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {"group": "A", "mode": "none"},
+                "thresholdsStyle": {"mode": "off"}
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [{"color": "green", "value": null}]
+              },
+              "unit": "watt"
+            }
+          },
+          "gridPos": {"h": 10, "w": 24, "x": 0, "y": 14},
+          "id": 8,
+          "options": {
+            "legend": {"calcs": ["mean", "max", "lastNotNull"], "displayMode": "table", "placement": "right", "showLegend": true, "sortBy": "Last *", "sortDesc": true},
+            "tooltip": {"mode": "multi", "sort": "desc"}
+          },
+          "targets": [
+            {
+              "datasource": {"type": "prometheus", "uid": "prometheus"},
+              "expr": "shelly_switch_power{device_mac=~\"$device\"} * on(device_mac) group_left(device_name) max by(device_mac, device_name) (shelly_device_info)",
+              "legendFormat": "{{device_name}}",
+              "refId": "A"
+            }
+          ],
+          "title": "Power by Device",
+          "type": "timeseries"
+        },
+        {
+          "gridPos": {"h": 1, "w": 24, "x": 0, "y": 24},
+          "id": 9,
+          "title": "Energy Consumption",
+          "type": "row"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "thresholds"},
+              "custom": {
+                "align": "auto",
+                "displayMode": "auto",
+                "inspect": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [{"color": "green", "value": null}]
+              },
+              "unit": "watth"
+            },
+            "overrides": [
+              {
+                "matcher": {"id": "byName", "options": "Device"},
+                "properties": [{"id": "custom.width", "value": 280}]
+              },
+              {
+                "matcher": {"id": "byName", "options": "Energy"},
+                "properties": [
+                  {"id": "custom.displayMode", "value": "gradient-gauge"},
+                  {"id": "color", "value": {"mode": "continuous-blues"}}
+                ]
+              }
+            ]
+          },
+          "gridPos": {"h": 10, "w": 12, "x": 0, "y": 25},
+          "id": 10,
+          "options": {
+            "footer": {"enablePagination": true, "fields": "", "reducer": ["sum"], "show": false},
+            "showHeader": true,
+            "sortBy": [{"desc": true, "displayName": "Energy"}]
+          },
+          "targets": [
+            {
+              "datasource": {"type": "prometheus", "uid": "prometheus"},
+              "expr": "shelly_switch_energy{device_mac=~\"$device\"} * on(device_mac) group_left(device_name) max by(device_mac, device_name) (shelly_device_info)",
+              "format": "table",
+              "instant": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Lifetime Energy by Device",
+          "transformations": [
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {"Time": true, "__name__": true, "device_id": true, "device_mac": true, "fw_version": true, "model": true, "app": true, "switch_id": true},
+                "renameByName": {"Value": "Energy", "device_name": "Device"}
+              }
+            }
+          ],
+          "type": "table"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "thresholds"},
+              "mappings": [
+                {"options": {"0": {"color": "red", "index": 0, "text": "OFF"}}, "type": "value"},
+                {"options": {"1": {"color": "green", "index": 1, "text": "ON"}}, "type": "value"}
+              ],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"color": "red", "value": null},
+                  {"color": "green", "value": 1}
+                ]
+              }
+            }
+          },
+          "gridPos": {"h": 10, "w": 12, "x": 12, "y": 25},
+          "id": 11,
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "auto",
+            "orientation": "horizontal",
+            "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+            "textMode": "value_and_name"
+          },
+          "targets": [
+            {
+              "datasource": {"type": "prometheus", "uid": "prometheus"},
+              "expr": "shelly_switch_state{device_mac=~\"$device\"} * on(device_mac) group_left(device_name) max by(device_mac, device_name) (shelly_device_info)",
+              "legendFormat": "{{device_name}}",
+              "refId": "A"
+            }
+          ],
+          "title": "Switch States",
+          "type": "stat"
+        },
+        {
+          "gridPos": {"h": 1, "w": 24, "x": 0, "y": 35},
+          "id": 12,
+          "title": "Electrical",
+          "type": "row"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "palette-classic"},
+              "custom": {
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 5,
+                "gradientMode": "none",
+                "hideFrom": {"legend": false, "tooltip": false, "viz": false},
+                "lineInterpolation": "smooth",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {"type": "linear"},
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {"group": "A", "mode": "none"},
+                "thresholdsStyle": {"mode": "line+area"}
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"color": "red", "value": null},
+                  {"color": "transparent", "value": 216},
+                  {"color": "transparent", "value": 253},
+                  {"color": "red", "value": 253}
+                ]
+              },
+              "unit": "volt"
+            }
+          },
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 36},
+          "id": 13,
+          "options": {
+            "legend": {"calcs": ["mean", "min", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true},
+            "tooltip": {"mode": "multi", "sort": "desc"}
+          },
+          "targets": [
+            {
+              "datasource": {"type": "prometheus", "uid": "prometheus"},
+              "expr": "shelly_switch_voltage{device_mac=~\"$device\"} * on(device_mac) group_left(device_name) max by(device_mac, device_name) (shelly_device_info)",
+              "legendFormat": "{{device_name}}",
+              "refId": "A"
+            }
+          ],
+          "title": "Voltage",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "palette-classic"},
+              "custom": {
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": {"legend": false, "tooltip": false, "viz": false},
+                "lineInterpolation": "smooth",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {"type": "linear"},
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {"group": "A", "mode": "none"},
+                "thresholdsStyle": {"mode": "off"}
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [{"color": "green", "value": null}]
+              },
+              "unit": "amp"
+            }
+          },
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 36},
+          "id": 14,
+          "options": {
+            "legend": {"calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true},
+            "tooltip": {"mode": "multi", "sort": "desc"}
+          },
+          "targets": [
+            {
+              "datasource": {"type": "prometheus", "uid": "prometheus"},
+              "expr": "shelly_switch_current{device_mac=~\"$device\"} * on(device_mac) group_left(device_name) max by(device_mac, device_name) (shelly_device_info)",
+              "legendFormat": "{{device_name}}",
+              "refId": "A"
+            }
+          ],
+          "title": "Current",
+          "type": "timeseries"
+        },
+        {
+          "gridPos": {"h": 1, "w": 24, "x": 0, "y": 44},
+          "id": 15,
+          "title": "Device Health",
+          "type": "row"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "palette-classic"},
+              "custom": {
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": {"legend": false, "tooltip": false, "viz": false},
+                "lineInterpolation": "smooth",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": {"type": "linear"},
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {"group": "A", "mode": "none"},
+                "thresholdsStyle": {"mode": "line"}
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"color": "green", "value": null},
+                  {"color": "red", "value": 70}
+                ]
+              },
+              "unit": "celsius"
+            }
+          },
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 45},
+          "id": 16,
+          "options": {
+            "legend": {"calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true},
+            "tooltip": {"mode": "multi", "sort": "desc"}
+          },
+          "targets": [
+            {
+              "datasource": {"type": "prometheus", "uid": "prometheus"},
+              "expr": "shelly_switch_temperature{device_mac=~\"$device\", temperature_unit=\"dC\"} * on(device_mac) group_left(device_name) max by(device_mac, device_name) (shelly_device_info)",
+              "legendFormat": "{{device_name}}",
+              "refId": "A"
+            }
+          ],
+          "title": "Device Temperature",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "palette-classic"},
+              "custom": {
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": {"legend": false, "tooltip": false, "viz": false},
+                "lineInterpolation": "smooth",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {"type": "linear"},
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {"group": "A", "mode": "none"},
+                "thresholdsStyle": {"mode": "line+area"}
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"color": "red", "value": null},
+                  {"color": "transparent", "value": -80},
+                  {"color": "transparent", "value": -50}
+                ]
+              },
+              "unit": "dBm",
+              "max": 0
+            }
+          },
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 45},
+          "id": 17,
+          "options": {
+            "legend": {"calcs": ["mean", "min"], "displayMode": "table", "placement": "bottom", "showLegend": true},
+            "tooltip": {"mode": "multi", "sort": "asc"}
+          },
+          "targets": [
+            {
+              "datasource": {"type": "prometheus", "uid": "prometheus"},
+              "expr": "shelly_system_wifi_rssi{device_mac=~\"$device\"} * on(device_mac) group_left(device_name) max by(device_mac, device_name) (shelly_device_info)",
+              "legendFormat": "{{device_name}}",
+              "refId": "A"
+            }
+          ],
+          "title": "WiFi Signal Strength (RSSI)",
+          "type": "timeseries"
+        },
+        {
+          "gridPos": {"h": 1, "w": 24, "x": 0, "y": 53},
+          "id": 18,
+          "title": "Device Information",
+          "type": "row"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "thresholds"},
+              "custom": {
+                "align": "auto",
+                "displayMode": "auto",
+                "inspect": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [{"color": "green", "value": null}]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {"id": "byName", "options": "Name"},
+                "properties": [{"id": "custom.width", "value": 250}]
+              },
+              {
+                "matcher": {"id": "byName", "options": "MAC"},
+                "properties": [{"id": "custom.width", "value": 140}]
+              },
+              {
+                "matcher": {"id": "byName", "options": "Firmware"},
+                "properties": [{"id": "custom.width", "value": 120}]
+              },
+              {
+                "matcher": {"id": "byName", "options": "Model"},
+                "properties": [{"id": "custom.width", "value": 160}]
+              }
+            ]
+          },
+          "gridPos": {"h": 10, "w": 14, "x": 0, "y": 54},
+          "id": 19,
+          "options": {
+            "footer": {"enablePagination": true, "fields": "", "reducer": ["sum"], "show": false},
+            "showHeader": true
+          },
+          "targets": [
+            {
+              "datasource": {"type": "prometheus", "uid": "prometheus"},
+              "expr": "shelly_device_info{device_mac=~\"$device\"}",
+              "format": "table",
+              "instant": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Device Info",
+          "transformations": [
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {"Time": true, "Value": true, "__name__": true, "device_id": true},
+                "renameByName": {"device_name": "Name", "device_mac": "MAC", "model": "Model", "fw_version": "Firmware", "app": "App"}
+              }
+            }
+          ],
+          "type": "table"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "thresholds"},
+              "custom": {
+                "align": "auto",
+                "displayMode": "auto",
+                "inspect": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [{"color": "green", "value": null}]
+              },
+              "unit": "s"
+            },
+            "overrides": [
+              {
+                "matcher": {"id": "byName", "options": "Device"},
+                "properties": [
+                  {"id": "custom.width", "value": 250},
+                  {"id": "unit", "value": "none"}
+                ]
+              }
+            ]
+          },
+          "gridPos": {"h": 10, "w": 10, "x": 14, "y": 54},
+          "id": 20,
+          "options": {
+            "footer": {"enablePagination": true, "fields": "", "reducer": ["sum"], "show": false},
+            "showHeader": true,
+            "sortBy": [{"desc": true, "displayName": "Uptime"}]
+          },
+          "targets": [
+            {
+              "datasource": {"type": "prometheus", "uid": "prometheus"},
+              "expr": "shelly_system_uptime{device_mac=~\"$device\"} * on(device_mac) group_left(device_name) max by(device_mac, device_name) (shelly_device_info)",
+              "format": "table",
+              "instant": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Device Uptime",
+          "transformations": [
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {"Time": true, "__name__": true, "device_id": true, "device_mac": true, "fw_version": true, "model": true, "app": true},
+                "renameByName": {"Value": "Uptime", "device_name": "Device"}
+              }
+            }
+          ],
+          "type": "table"
+        }
+      ],
+      "refresh": "1m",
+      "schemaVersion": 38,
+      "tags": ["shelly", "power", "energy", "iot"],
+      "time": {"from": "now-24h", "to": "now"},
+      "timepicker": {},
+      "timezone": "",
+      "title": "Shelly Devices",
+      "uid": "shelly-devices",
+      "version": 1
+    }
