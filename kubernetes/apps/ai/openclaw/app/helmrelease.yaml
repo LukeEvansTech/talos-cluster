@@ -22,13 +22,25 @@ spec:
       openclaw:
         annotations:
           reloader.stakater.com/auto: "true"
+        initContainers:
+          init-config:
+            image:
+              repository: docker.io/library/alpine
+              tag: "3.21"
+            command:
+              - /bin/sh
+              - -c
+            args:
+              - |
+                echo '{"gateway":{"bind":"lan","controlUi":{"enabled":true,"allowInsecureAuth":true},"trustedProxies":["10.42.0.0/16"]}}' > /home/node/.openclaw/openclaw.json
+            securityContext:
+              runAsUser: 1000
         containers:
           app:
             image:
               repository: ghcr.io/openclaw/openclaw
               tag: 2026.2.9
             env:
-              OPENCLAW_GATEWAY_BIND: lan
               TZ: ${TIMEZONE}
             envFrom:
               - secretRef:
