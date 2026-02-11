@@ -15,6 +15,7 @@ resources:
   - ./homebridge/ks.yaml
   - ./mosquitto/ks.yaml
   - ./node-red/ks.yaml
+  - ./shellyctl/ks.yaml
   # TODO: Update externalsecret with ZIGBEE_ADAPTER_HOST before enabling
   # - ./zigbee2mqtt/ks.yaml
   - ./zwave/ks.yaml

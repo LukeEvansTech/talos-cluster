@@ -1,0 +1,105 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: shellyctl
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: shellyctl
+  values:
+    controllers:
+      shellyctl:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        containers:
+          app:
+            image:
+              repository: ghcr.io/lukeevanstech/shellyctl
+              tag: 0.1.3
+            env:
+              TZ: ${TIMEZONE}
+              DATABASE_URL: sqlite:///./data/shellyctl.db
+              DISCOVERY_ENABLED: "true"
+              MDNS_ENABLED: "true"
+              NETWORK_SCAN_ENABLED: "true"
+              DISCOVERY_NETWORKS: "${IOT_NETWORK_CIDR}"
+              AUTO_RECONCILE_ENABLED: "false"
+            envFrom:
+              - secretRef:
+                  name: shellyctl-secret
+            probes:
+              liveness:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /api/health
+                    port: &port 8080
+                  initialDelaySeconds: 10
+                  periodSeconds: 30
+                  failureThreshold: 3
+              readiness:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /api/health
+                    port: *port
+                  initialDelaySeconds: 5
+                  periodSeconds: 10
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+              capabilities:
+                drop:
+                  - ALL
+            resources:
+              requests:
+                cpu: 10m
+                memory: 128Mi
+              limits:
+                memory: 512Mi
+
+    defaultPodOptions:
+      annotations:
+        k8s.v1.cni.cncf.io/networks: |-
+          [{
+            "name": "iot",
+            "namespace": "kube-system",
+            "ips": ["${SVC_SHELLYCTL_IOT_ADDR}/24"],
+            "mac": "02:00:00:00:00:02"
+          }]
+      imagePullSecrets:
+        - name: shellyctl-ghcr-auth
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+
+    service:
+      app:
+        controller: shellyctl
+        ports:
+          http:
+            port: *port
+
+    route:
+      app:
+        hostnames:
+          - "{{ .Release.Name }}.${SECRET_DOMAIN}"
+          - "{{ .Release.Name }}.${SECRET_INTERNAL_DOMAIN}"
+        parentRefs:
+          - name: envoy-internal
+            namespace: network
+
+    persistence:
+      data:
+        existingClaim: "{{ .Release.Name }}"
+        globalMounts:
+          - path: /app/data
