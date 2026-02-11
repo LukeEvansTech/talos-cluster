@@ -36,23 +36,25 @@ spec:
                 enabled: true
                 custom: true
                 spec:
-                  httpGet:
-                    path: /api/health
-                    port: &port 8080
+                  exec:
+                    command:
+                      - python
+                      - -c
+                      - "import urllib.request; urllib.request.urlopen('http://localhost:8080/api/health')"
                   initialDelaySeconds: 5
                   periodSeconds: 5
                   failureThreshold: 30
-                  timeoutSeconds: 3
+                  timeoutSeconds: 5
               liveness:
                 enabled: true
                 custom: true
                 spec:
                   httpGet:
                     path: /api/health
-                    port: *port
+                    port: &port 8080
                   periodSeconds: 30
-                  failureThreshold: 3
-                  timeoutSeconds: 3
+                  failureThreshold: 5
+                  timeoutSeconds: 5
               readiness:
                 enabled: true
                 custom: true
@@ -61,7 +63,7 @@ spec:
                     path: /api/health
                     port: *port
                   periodSeconds: 10
-                  timeoutSeconds: 3
+                  timeoutSeconds: 5
             securityContext:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: false
