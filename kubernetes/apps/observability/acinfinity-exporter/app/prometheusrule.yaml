@@ -88,6 +88,14 @@ spec:
           for: 0m
           labels:
             severity: warning
+        - alert: ACInfinityControllerFrozenReadings
+          annotations:
+            description: Controller {{ $labels.controller_name }} temperature has not changed for 2+ hours, controller may be offline.
+            summary: AC Infinity controller readings are frozen.
+          expr: changes(acinfinity_controller_temperature_celsius[2h]) == 0
+          for: 0m
+          labels:
+            severity: warning
         - alert: ACInfinityFirmwareMismatch
           annotations:
             description: AC Infinity controllers are running different firmware versions. Check Controller Versions table in dashboard.
