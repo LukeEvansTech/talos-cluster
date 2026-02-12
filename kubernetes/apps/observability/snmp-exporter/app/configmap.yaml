@@ -10,7 +10,7 @@ data:
     # Based on https://github.com/prometheus/snmp_exporter/blob/main/snmp.yml
     auths:
       public_v2:
-        community: public
+        community: cr-apc-ro
         security_level: noAuthNoPriv
         auth_protocol: MD5
         priv_protocol: DES
