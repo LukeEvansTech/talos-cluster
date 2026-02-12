@@ -30,7 +30,7 @@ resources:
   - ./radarr/ks.yaml
   - ./radarr4k/ks.yaml
   - ./recommendarr/ks.yaml
-  - ./recyclarr/ks.yaml
+  # - ./recyclarr/ks.yaml  # Disabled — using Profilarr instead
   - ./sonarr/ks.yaml
   - ./sortarr/ks.yaml
   - ./suggestarr/ks.yaml
