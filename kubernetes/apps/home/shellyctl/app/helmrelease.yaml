@@ -18,8 +18,7 @@ spec:
           app:
             image:
               repository: ghcr.io/lukeevanstech/shellyctl
-              tag: 0.3.1
-              pullPolicy: Always
+              tag: 0.4.0@sha256:9b359baa03573dc3de20d756c98b7e11ac29eb413b52d8a9577614ea124824fb
             env:
               TZ: ${TIMEZONE}
               DATABASE_URL: sqlite:///./data/shellyctl.db
