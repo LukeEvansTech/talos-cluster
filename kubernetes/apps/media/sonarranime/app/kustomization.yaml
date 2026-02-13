@@ -1,0 +1,30 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+components:
+  - ../../../../components/nfs-scaler
+resources:
+  - ./externalsecret.yaml
+  - ./ocirepository.yaml
+  - ./pvc.yaml
+  - ./helmrelease.yaml
+replacements:
+  - source:
+      kind: HelmRelease
+      name: sonarranime
+      fieldPath: metadata.name
+    targets:
+      - select:
+          kind: ScaledObject
+        fieldPaths:
+          - metadata.name
+          - spec.scaleTargetRef.name
+configMapGenerator:
+  - name: sonarranime-configmap
+    files:
+      - refresh-series.sh=./resources/refresh-series.sh
+generatorOptions:
+  disableNameSuffixHash: true
+  annotations:
+    kustomize.toolkit.fluxcd.io/substitute: disabled
