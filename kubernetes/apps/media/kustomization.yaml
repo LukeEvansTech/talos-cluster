@@ -13,6 +13,7 @@ resources:
   # TODO: Update externalsecret with autopulse config before enabling
   # - ./autopulse/ks.yaml
   - ./bazarr/ks.yaml
+  - ./decluttarr/ks.yaml
   - ./dispatcharr/ks.yaml
   - ./huntarr/ks.yaml
   - ./imagemaid/ks.yaml
