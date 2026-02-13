@@ -27,6 +27,19 @@ spec:
               PLEX_PREFERENCE_2: "EnableIPv6=0"
               PLEX_PREFERENCE_3: "FriendlyName=Talos Plex"
               PLEX_PREFERENCE_4: "LanNetworksBandwidth=${CR_LAN_CIDR:-0.0.0.0/0},${GH_LAN_CIDR:-0.0.0.0/0}"
+              # Hardware transcoding
+              PLEX_PREFERENCE_5: "HardwareAcceleratedCodecs=1"
+              PLEX_PREFERENCE_6: "HardwareAcceleratedEncoders=1"
+              PLEX_PREFERENCE_7: "TranscoderTempDirectory=/transcode"
+              # Disable services that don't work in Kubernetes
+              PLEX_PREFERENCE_8: "GdmEnabled=0"
+              PLEX_PREFERENCE_9: "DlnaEnabled=0"
+              PLEX_PREFERENCE_10: "RelayEnabled=0"
+              # Reduce NFS I/O
+              PLEX_PREFERENCE_11: "ButlerTaskDeepMediaAnalysis=0"
+              # Performance tuning
+              PLEX_PREFERENCE_12: "ScannerLowPriority=1"
+              PLEX_PREFERENCE_13: "logDebug=0"
               NVIDIA_VISIBLE_DEVICES: "all"
               NVIDIA_DRIVER_CAPABILITIES: "all"
               HARDWARE_DEVICE_PATH: "/dev/nvidia0"
