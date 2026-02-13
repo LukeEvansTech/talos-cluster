@@ -29,10 +29,12 @@ resources:
   - ./pulsarr/ks.yaml
   - ./radarr/ks.yaml
   - ./radarr4k/ks.yaml
+  - ./radarranime/ks.yaml
   - ./recommendarr/ks.yaml
   # - ./recyclarr/ks.yaml  # Disabled — using Profilarr instead
   - ./sonarr/ks.yaml
   - ./sonarr4k/ks.yaml
+  - ./sonarranime/ks.yaml
   - ./sortarr/ks.yaml
   - ./suggestarr/ks.yaml
   - ./tautulli/ks.yaml
