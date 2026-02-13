@@ -1,0 +1,121 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/fluxcd-community/flux2-schemas/main/helmrelease-helm-v2.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: bazarr4k
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: bazarr4k
+  values:
+    controllers:
+      bazarr4k:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        containers:
+          app:
+            image:
+              repository: ghcr.io/home-operations/bazarr
+              tag: 1.5.5@sha256:0949a30fb6e6703a63aaa9775760b8af820f7871f6a9aa9207e2ea00fd855e2c
+            env:
+              BAZARR__LOG_LEVEL: info
+              BAZARR__THEME: dark
+              TZ: ${TIMEZONE}
+            envFrom:
+              - secretRef:
+                  name: bazarr4k-secret
+            probes:
+              liveness: &probes
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /api/system/ping
+                    port: &port 6767
+                  initialDelaySeconds: 0
+                  periodSeconds: 10
+                  timeoutSeconds: 1
+                  failureThreshold: 3
+              readiness: *probes
+            securityContext: &securityContext
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities: {drop: [ALL]}
+            resources:
+              requests:
+                cpu: 10m
+              limits:
+                memory: 1Gi
+          subcleaner:
+            image:
+              repository: registry.k8s.io/git-sync/git-sync
+              tag: v4.5.1@sha256:1df295fdab03031f932f2b7dae82fa19bd77334e2510c311bbdfc7e09ef49ece
+            env:
+              GITSYNC_REPO: https://github.com/KBlixt/subcleaner
+              GITSYNC_REF: master
+              GITSYNC_PERIOD: 24h
+              GITSYNC_ROOT: /subcleaner
+            resources:
+              requests:
+                cpu: 10m
+              limits:
+                memory: 128Mi
+            securityContext: *securityContext
+    defaultPodOptions:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        supplementalGroups:
+          - 44
+          - 10000
+        seccompProfile: {type: RuntimeDefault}
+    service:
+      app:
+        controller: bazarr4k
+        ports:
+          http:
+            port: *port
+    route:
+      app:
+        hostnames:
+          - "{{ .Release.Name }}.${SECRET_DOMAIN}"
+          - "{{ .Release.Name }}.${SECRET_INTERNAL_DOMAIN}"
+        parentRefs:
+          - name: envoy-internal
+            namespace: network
+    persistence:
+      subcleaner:
+        type: emptyDir
+      cache:
+        type: emptyDir
+        globalMounts:
+          - path: /config/cache
+      config:
+        existingClaim: "{{ .Release.Name }}"
+      add-ons:
+        enabled: true
+        type: emptyDir
+        globalMounts:
+          - path: /add-ons
+      media:
+        type: nfs
+        server: ${SECRET_STORAGE_SERVER:-localhost}
+        path: /mnt/pool/media
+        globalMounts:
+          - path: /media
+            readOnly: true
+      scripts:
+        type: configMap
+        name: bazarr4k-scripts
+        defaultMode: 0775
+        globalMounts:
+          - path: /scripts/subcleaner.sh
+            subPath: subcleaner.sh
+            readOnly: true
+      tmp:
+        type: emptyDir
