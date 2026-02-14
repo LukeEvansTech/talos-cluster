@@ -28,7 +28,7 @@ spec:
           app:
             image:
               repository: ghcr.io/meceware/wapy.dev
-              tag: latest
+              tag: 2.1.3@sha256:9c5771458bf7825e1c2d7d61ec0ec416a1b024e44ce2567915c3eaa8fc03f7db
             env:
               TZ: ${TIMEZONE}
             envFrom:

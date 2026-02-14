@@ -18,7 +18,7 @@ spec:
           app:
             image:
               repository: ghcr.io/jdrbc/podly-pure-podcasts
-              tag: latest
+              tag: 2.2.2-latest@sha256:dbb7fd0321c7e043f6d3940d510165693f9c8af288aaaa6e0c429a527d30fd43
             env:
               TZ: Etc/UTC
               PUID: "1000"
