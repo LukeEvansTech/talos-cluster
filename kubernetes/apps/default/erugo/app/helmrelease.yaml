@@ -27,7 +27,7 @@ spec:
           app:
             image:
               repository: wardy784/erugo
-              tag: "0.2.15"
+              tag: "0.2.15@sha256:0d9d31365e180408baee86172694a420418a7e05badd158fe84eb873a9f77753"
             env:
               TZ: ${TIMEZONE}
               APP_NAME: Erugo

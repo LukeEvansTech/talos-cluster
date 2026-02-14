@@ -18,7 +18,7 @@ spec:
           app:
             image:
               repository: invoiceshelf/invoiceshelf
-              tag: 2.1.1-legacy
+              tag: 2.1.1-legacy@sha256:a20267aada53b6c33bb164a602e6f01d2b6d8a497da972886e80b53941ce78a0
             env:
               TZ: ${TIMEZONE}
               PUID: "1000"

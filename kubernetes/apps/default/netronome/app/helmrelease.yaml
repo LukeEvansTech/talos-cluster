@@ -18,7 +18,7 @@ spec:
           app:
             image:
               repository: ghcr.io/autobrr/netronome
-              tag: v0.10.0
+              tag: v0.10.0@sha256:f054c3303c7eeb2c8560b2f9a69bb2e32520dd288a7d4896925c5b8dbf8533a5
             env:
               TZ: ${TIMEZONE}
               NETRONOME__HOST: "0.0.0.0"

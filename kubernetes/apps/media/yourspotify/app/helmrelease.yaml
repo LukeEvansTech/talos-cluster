@@ -95,7 +95,7 @@ spec:
           app:
             image:
               repository: docker.io/library/mongo
-              tag: 6.0.4-focal
+              tag: 6.0.4-focal@sha256:862b0007cff02d5b331c3199a68a7aa0749f49952f2f368c81c50b78adc47c8c
             probes:
               liveness:
                 enabled: true

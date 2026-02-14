@@ -18,7 +18,7 @@ spec:
           app:
             image:
               repository: ghcr.io/lukeevanstech/shelly_exporter
-              tag: 0.3.1
+              tag: 0.3.1@sha256:3d123b1c26a6dc8ed2ce0927d56a66212401da8c7102c20abd21c1158e9c1d7f
             args:
               - --config
               - /config/config.yaml

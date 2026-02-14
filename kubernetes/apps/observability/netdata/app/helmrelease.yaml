@@ -17,7 +17,7 @@ spec:
   values:
     image:
       repository: netdata/netdata
-      tag: v2.8.5
+      tag: v2.8.5@sha256:acce81d81a506d7871ca91851fde490059fff78dcd72af57ed5ca5b1bde6d914
 
     ingress:
       enabled: false
