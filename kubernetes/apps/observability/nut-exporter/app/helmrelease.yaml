@@ -18,7 +18,7 @@ spec:
           app:
             image:
               repository: docker.io/hon95/prometheus-nut-exporter
-              tag: "1@sha256:a9bfbbae3b12a6486e6e4b933a69a79d01342db27346d6b4cd5512f4efc7f27"
+              tag: "1@sha256:a9bfbbae3b12a6486e6e4b933a69a79d01342db27346d6b4cd5512f4eef6b111"
             env:
               TZ: ${TIMEZONE:=UTC}
               HTTP_PATH: /metrics
