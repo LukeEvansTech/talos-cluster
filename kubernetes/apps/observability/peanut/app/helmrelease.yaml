@@ -18,7 +18,7 @@ spec:
           app:
             image:
               repository: brandawg93/peanut
-              tag: latest
+              tag: 5.22.0@sha256:14d71889539a5b050961ca69f20b3c9fd5fa5af439e388dff08ebbe32bf15c84
             env:
               TZ: ${TIMEZONE:=UTC}
               WEB_HOST: "0.0.0.0"

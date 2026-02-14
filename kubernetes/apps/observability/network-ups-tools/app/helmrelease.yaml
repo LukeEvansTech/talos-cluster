@@ -19,7 +19,7 @@ spec:
           app:
             image:
               repository: instantlinux/nut-upsd
-              tag: latest
+              tag: 2.8.3-r3@sha256:edadf0d18b7e240fba0e4073dfcc13f19f93839de0656f4b39752c0cad880cd5
             env:
               TZ: ${TIMEZONE:=UTC}
               NAME: cr-ups-main
