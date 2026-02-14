@@ -24,6 +24,7 @@ spec:
               port: &port 3003
               baseUrl: "http://{{ .Release.Name }}.${SECRET_INTERNAL_DOMAIN}"
               logLevel: info
+              CACHE_DIR: /tmp/vite-cache
             probes:
               liveness: &probes
                 enabled: true
