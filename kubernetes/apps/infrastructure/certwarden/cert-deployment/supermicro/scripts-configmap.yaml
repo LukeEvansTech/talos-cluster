@@ -51,7 +51,7 @@ data:
     echo "Certificate: ${CERTIFICATE_NAME:-unknown}"
     echo "Target Supermicro: ${SUPERMICRO_HOST}"
     echo "Namespace: ${NAMESPACE}"
-    echo "Container: ghcr.io/lukeevanstech/supermicro-ipmi-cert:latest"
+    echo "Container: ghcr.io/lukeevanstech/supermicro-ipmi-cert@sha256:fec1afbf9f59423a4b9f8149c30c106c1383d69ce4d074579a471e2c45475053"
 
     # Create a unique job name with timestamp
     JOB_NAME="supermicro-cert-deploy-${SUPERMICRO_HOST}-$(date +%s)"
@@ -90,7 +90,6 @@ data:
           containers:
             - name: supermicro-deploy
               image: ghcr.io/lukeevanstech/supermicro-ipmi-cert@sha256:fec1afbf9f59423a4b9f8149c30c106c1383d69ce4d074579a471e2c45475053
-              imagePullPolicy: Always
               command:
                 - sh
                 - -c
