@@ -26,3 +26,32 @@ spec:
               Flux instance {{ $labels.name }} is not ready
           labels:
             severity: critical
+    - name: flux-resource.rules
+      rules:
+        - alert: FluxHelmReleaseNotReady
+          expr: |-
+            flux_resource_info{kind="HelmRelease", ready="False"}
+          for: 15m
+          annotations:
+            summary: >-
+              HelmRelease {{ $labels.name }} in {{ $labels.exported_namespace }} is not ready ({{ $labels.reason }})
+          labels:
+            severity: critical
+        - alert: FluxKustomizationNotReady
+          expr: |-
+            flux_resource_info{kind="Kustomization", ready="False"}
+          for: 15m
+          annotations:
+            summary: >-
+              Kustomization {{ $labels.name }} in {{ $labels.exported_namespace }} is not ready ({{ $labels.reason }})
+          labels:
+            severity: critical
+        - alert: FluxOCIRepositoryNotReady
+          expr: |-
+            flux_resource_info{kind="OCIRepository", ready="False"}
+          for: 15m
+          annotations:
+            summary: >-
+              OCIRepository {{ $labels.name }} in {{ $labels.exported_namespace }} is not ready ({{ $labels.reason }})
+          labels:
+            severity: critical
