@@ -18,7 +18,7 @@ spec:
           app:
             image:
               repository: fedirz/faster-whisper-server
-              tag: latest-cuda
+              tag: 0.5.0-cuda@sha256:0b64050ad0b9244745746b652473ee42a8d5454d501877a252c3e65f631ffc99
             env:
               # Default model - can be overridden per request
               WHISPER__MODEL: Systran/faster-whisper-large-v3

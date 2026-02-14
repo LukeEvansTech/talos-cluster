@@ -26,7 +26,7 @@ spec:
           app:
             image:
               repository: docker.io/icereed/paperless-gpt
-              tag: latest
+              tag: v0.24.0@sha256:15bad5d455b98f21bb7b5d6615f56871ff67a8bb379dc0dd7ba411f4633071a6
             env:
               TZ: ${TIMEZONE}
               PAPERLESS_BASE_URL: "http://paperless.default.svc.cluster.local:8000"
