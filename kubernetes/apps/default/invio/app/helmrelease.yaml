@@ -58,7 +58,7 @@ spec:
           app:
             image:
               repository: ghcr.io/kittendevv/invio-frontend
-              tag: v1.13.0@sha256:0dba40aa7865ae31f1dc103761bfbf79da246461dec408a100f297f6e2bac4a8
+              tag: v1.14.0@sha256:03fa40a6763f20ebd39edd522ef9d88f013dad1d79144afdd73b8e13dcafbebb
             env:
               TZ: ${TIMEZONE}
               PORT: "8000"
