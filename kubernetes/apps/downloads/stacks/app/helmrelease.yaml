@@ -18,7 +18,7 @@ spec:
           app:
             image:
               repository: docker.io/zelest/stacks
-              tag: v1.2.1
+              tag: v1.2.1@sha256:df2d065cac30a5553a76e42b3cf6f4685c0f07c85c829b4639f8d88c906e3ce4
             env:
               TZ: ${TIMEZONE}
               SOLVERR_URL: http://flaresolverr.downloads.svc.cluster.local:8191

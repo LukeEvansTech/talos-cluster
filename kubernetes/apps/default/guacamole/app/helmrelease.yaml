@@ -19,7 +19,7 @@ spec:
           01-init-db:
             image:
               repository: ghcr.io/home-operations/postgres-init
-              tag: "18"
+              tag: "18@sha256:ae89578925b480f5972f237dda2f7a37efe36aff500d3e7bd1d3a6a3181e4191"
             envFrom: &envFrom
               - secretRef:
                   name: guacamole-secret
@@ -27,7 +27,7 @@ spec:
           02-init-schema:
             image:
               repository: guacamole/guacamole
-              tag: 1.6.0
+              tag: 1.6.0@sha256:f344085e618bb05e22b964b0208dbd06d3468275bac70206f93805245e067b40
             command:
               - /bin/sh
               - -c
@@ -38,7 +38,7 @@ spec:
           03-init-migrations:
             image:
               repository: ghcr.io/home-operations/postgres-init
-              tag: "18"
+              tag: "18@sha256:ae89578925b480f5972f237dda2f7a37efe36aff500d3e7bd1d3a6a3181e4191"
             command:
               - /bin/sh
               - -c
@@ -51,7 +51,7 @@ spec:
           app:
             image:
               repository: guacamole/guacamole
-              tag: 1.6.0
+              tag: 1.6.0@sha256:f344085e618bb05e22b964b0208dbd06d3468275bac70206f93805245e067b40
             env:
               TZ: ${TIMEZONE}
               GUACD_HOSTNAME: guacd.default.svc.cluster.local
