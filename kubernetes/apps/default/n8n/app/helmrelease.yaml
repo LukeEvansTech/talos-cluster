@@ -18,7 +18,7 @@ spec:
           app:
             image:
               repository: ghcr.io/n8n-io/n8n
-              tag: 2.8.1
+              tag: 2.8.1@sha256:893cfe024fc3eff638be14565b0992dba1021108ec5b3069ba9eb1a57766d183
             env:
               GENERIC_TIMEZONE: ${TIMEZONE}
               N8N_HOST: "{{ .Release.Name }}.${SECRET_DOMAIN}"

@@ -18,7 +18,7 @@ spec:
           app:
             image:
               repository: ghcr.io/lukeevanstech/domainpulse
-              tag: 1.2.1
+              tag: 1.2.1@sha256:1809a557d65cd6ed2b4aa9a76a7d0d919c78fdcd71af457ef1784286f6d418fb
             env:
               TZ: ${TIMEZONE}
               DEBUG: "false"
