@@ -51,7 +51,7 @@ data:
     echo "Certificate: ${CERTIFICATE_NAME:-unknown}"
     echo "Target Onyx Switch: ${ONYX_SWITCH}"
     echo "Namespace: ${NAMESPACE}"
-    echo "Container: ghcr.io/lukeevanstech/onyx-deployer:latest"
+    echo "Container: ghcr.io/lukeevanstech/onyx-deployer:0.1.0"
 
     # Create a unique job name with timestamp
     JOB_NAME="onyx-cert-deploy-${ONYX_SWITCH}-$(date +%s)"
@@ -89,8 +89,7 @@ data:
           restartPolicy: Never
           containers:
             - name: onyx-deploy
-              image: ghcr.io/lukeevanstech/onyx-deployer:latest
-              imagePullPolicy: Always
+              image: ghcr.io/lukeevanstech/onyx-deployer:0.1.0@sha256:ee44375a4215eeb3adba59187dfc0292de304b10bedfa5b38e4cec1a3a608391
               command:
                 - sh
                 - -c
