@@ -18,7 +18,7 @@ spec:
           app:
             image:
               repository: docker.io/dpage/pgadmin4
-              tag: "9.12"
+              tag: "9.12@sha256:10137f33be7ed61e47f56004493710cb5b80ba7fb0ca01758855e242f1f284a7"
             env:
               TZ: ${TIMEZONE}
             envFrom:

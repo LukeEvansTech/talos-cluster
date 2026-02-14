@@ -13,7 +13,7 @@ spec:
     fullnameOverride: volsync
     image: &image
       repository: ghcr.io/perfectra1n/volsync
-      tag: 0.17.7
+      tag: 0.17.7@sha256:9e4ed4c914f61a2f39d6acd36fb98e5b73836e8d17fd65601a1966e4a288501e
     kopia: *image
     rclone: *image
     restic: *image

@@ -75,7 +75,7 @@ spec:
             dependsOn: app
             image:
               repository: registry.k8s.io/git-sync/git-sync
-              tag: v4.6.0
+              tag: v4.6.0@sha256:228a26d5f55ac5ae9c51635812570ba0073e0b1e0bd8fc3a653a0523b918c092
             args:
               - --repo=https://github.com/VueTorrent/VueTorrent
               - --ref=latest-release
@@ -91,7 +91,7 @@ spec:
           gluetun:
             image:
               repository: ghcr.io/qdm12/gluetun
-              tag: v3.41.1
+              tag: v3.41.1@sha256:1a5bf4b4820a879cdf8d93d7ef0d2d963af56670c9ebff8981860b6804ebc8ab
             env:
               # BLOCK_MALICIOUS: off # save 300MB of RAM; https://github.com/qdm12/gluetun/issues/2054
               DOT: off
