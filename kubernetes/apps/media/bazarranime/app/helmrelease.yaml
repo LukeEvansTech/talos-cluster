@@ -108,7 +108,6 @@ spec:
         path: /mnt/pool/media
         globalMounts:
           - path: /media
-            readOnly: true
       scripts:
         type: configMap
         name: bazarranime-scripts
