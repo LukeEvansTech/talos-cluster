@@ -24,6 +24,12 @@ spec:
 
     parent:
       enabled: true
+      resources:
+        requests:
+          cpu: 10m
+          memory: 512Mi
+        limits:
+          memory: 1Gi
       alarms:
         persistence: true
         storageclass: ceph-block
@@ -35,9 +41,21 @@ spec:
 
     child:
       enabled: true
+      resources:
+        requests:
+          cpu: 10m
+          memory: 256Mi
+        limits:
+          memory: 512Mi
 
     k8sState:
       enabled: true
+      resources:
+        requests:
+          cpu: 10m
+          memory: 128Mi
+        limits:
+          memory: 256Mi
       persistence:
         enabled: true
         storageclass: ceph-block

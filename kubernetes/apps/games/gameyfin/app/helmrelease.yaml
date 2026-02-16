@@ -34,9 +34,9 @@ spec:
             resources:
               requests:
                 cpu: 10m
-                memory: 128Mi
+                memory: 2Gi
               limits:
-                memory: 3500Mi
+                memory: 2Gi
 
     # TODO: Test running as 1000:1000 instead of root for NFS compatibility
     defaultPodOptions:
