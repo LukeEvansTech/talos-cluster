@@ -56,6 +56,12 @@ spec:
                       key: GF_SECURITY_ADMIN_PASSWORD
                 - name: GF_INSTALL_PLUGINS
                   value: grafana-clock-panel,grafana-piechart-panel,grafana-worldmap-panel,natel-discrete-panel,pr0ps-trackmap-panel,vonage-status-panel
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 512Mi
+                limits:
+                  memory: 1Gi
               securityContext:
                 allowPrivilegeEscalation: false
                 readOnlyRootFilesystem: true

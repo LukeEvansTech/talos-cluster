@@ -9,6 +9,27 @@ spec:
   chartRef:
     kind: OCIRepository
     name: cert-manager
+  values:
+    resources:
+      requests:
+        cpu: 10m
+        memory: 64Mi
+      limits:
+        memory: 128Mi
+    cainjector:
+      resources:
+        requests:
+          cpu: 10m
+          memory: 128Mi
+        limits:
+          memory: 256Mi
+    webhook:
+      resources:
+        requests:
+          cpu: 10m
+          memory: 128Mi
+        limits:
+          memory: 128Mi
   valuesFrom:
     - kind: ConfigMap
       name: cert-manager-values
