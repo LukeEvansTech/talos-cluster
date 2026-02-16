@@ -11,6 +11,12 @@ spec:
     name: opnsense-dns
   values:
     fullnameOverride: opnsense-dns
+    resources:
+      requests:
+        cpu: 10m
+        memory: 128Mi
+      limits:
+        memory: 256Mi
     provider:
       name: webhook
       webhook:
@@ -47,6 +53,12 @@ spec:
             port: 8080
           initialDelaySeconds: 10
           timeoutSeconds: 5
+        resources:
+          requests:
+            cpu: 10m
+            memory: 128Mi
+          limits:
+            memory: 256Mi
     policy: upsert-only
     registry: noop
     sources:

@@ -55,9 +55,9 @@ spec:
               seccompProfile: {type: RuntimeDefault}
             resources:
               requests:
-                cpu: 100m
+                cpu: 1000m
               limits:
-                memory: 8Gi
+                memory: 12Gi
         initContainers:
           gluetun:
             image:

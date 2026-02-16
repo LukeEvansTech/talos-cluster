@@ -87,6 +87,12 @@ spec:
             Regex ^(?<time>[^ ]+) (?<stream>stdout|stderr) (?<logtag>[^ ]*) (?<log>.*)$
             Time_Key time
             Time_Format %Y-%m-%dT%H:%M:%S.%L%z
+    resources:
+      requests:
+        cpu: 10m
+        memory: 128Mi
+      limits:
+        memory: 256Mi
     dashboards:
       enabled: true
     serviceMonitor:
