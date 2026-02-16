@@ -11,6 +11,16 @@ spec:
   type: rw
   monitoring:
     enablePodMonitor: true
+  template:
+    spec:
+      containers:
+        - name: pgbouncer
+          resources:
+            requests:
+              cpu: 10m
+              memory: 128Mi
+            limits:
+              memory: 256Mi
   pgbouncer:
     poolMode: transaction
     parameters:

@@ -13,9 +13,28 @@ spec:
   values:
     installCRDs: true
     leaderElect: true
+    resources:
+      requests:
+        cpu: 10m
+        memory: 128Mi
+      limits:
+        memory: 256Mi
+    certController:
+      resources:
+        requests:
+          cpu: 10m
+          memory: 64Mi
+        limits:
+          memory: 128Mi
     grafanaDashboard:
       enabled: true
       annotations:
         grafana_folder: External-Secrets
     webhook:
       replicaCount: 2
+      resources:
+        requests:
+          cpu: 10m
+          memory: 256Mi
+        limits:
+          memory: 256Mi

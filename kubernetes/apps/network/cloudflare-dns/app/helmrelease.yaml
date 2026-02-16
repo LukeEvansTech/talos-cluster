@@ -12,6 +12,12 @@ spec:
   values:
     fullnameOverride: cloudflare-dns
     namespace: network
+    resources:
+      requests:
+        cpu: 10m
+        memory: 64Mi
+      limits:
+        memory: 128Mi
     provider: cloudflare
     env:
       - name: CF_API_TOKEN
