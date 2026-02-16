@@ -18,7 +18,7 @@ spec:
           app:
             image:
               repository: homebridge/homebridge
-              tag: "2026-02-11@sha256:599edae573f662b5d44ec22ae268d7ca1b0e9d4f033ec3d5823259715f1e2f6b"
+              tag: "2026-02-15"@sha256:599edae573f662b5d44ec22ae268d7ca1b0e9d4f033ec3d5823259715f1e2f6b"
             env:
               TZ: ${TIMEZONE}
               ENABLE_AVAHI: "1"
