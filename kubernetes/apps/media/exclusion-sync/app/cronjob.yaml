@@ -1,0 +1,74 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/batch/cronjob_v1.json
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: exclusion-sync
+spec:
+  schedule: "0 * * * *"
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app: exclusion-sync
+        spec:
+          restartPolicy: OnFailure
+          automountServiceAccountToken: false
+          containers:
+            - name: sync
+              image: docker.io/python:3.13-alpine@sha256:bb1f2fdb1065c85468775c9d680dcd344f6442a2d1181ef7916b60a623f11d40
+              command:
+                - "python3"
+                - "/scripts/sync-exclusions.py"
+              env:
+                - name: RADARR_URL
+                  value: "https://radarr.codelooks.com"
+                - name: RADARR4K_URL
+                  value: "https://radarr4k.codelooks.com"
+                - name: RADARRANIME_URL
+                  value: "https://radarranime.codelooks.com"
+                - name: SONARR_URL
+                  value: "https://sonarr.codelooks.com"
+                - name: SONARR4K_URL
+                  value: "https://sonarr4k.codelooks.com"
+                - name: SONARRANIME_URL
+                  value: "https://sonarranime.codelooks.com"
+              envFrom:
+                - secretRef:
+                    name: exclusion-sync-secret
+              volumeMounts:
+                - name: scripts
+                  mountPath: /scripts
+                  readOnly: true
+                - name: tmp
+                  mountPath: /tmp
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 32Mi
+                limits:
+                  cpu: 100m
+                  memory: 64Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                runAsUser: 65532
+                capabilities:
+                  drop:
+                    - ALL
+          volumes:
+            - name: scripts
+              configMap:
+                name: exclusion-sync-configmap
+                defaultMode: 0775
+            - name: tmp
+              emptyDir: {}
+          securityContext:
+            seccompProfile:
+              type: RuntimeDefault
