@@ -21,7 +21,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Run Checkov
-        uses: bridgecrewio/checkov-action@81ec5eb0ef150170f3bda7759e3878fa1a5bd413 # v12
+        uses: bridgecrewio/checkov-action@02daa6be7ab096bbd71d769e122e34a6dd61446c # v12
         with:
           directory: .
           framework: kubernetes,helm
