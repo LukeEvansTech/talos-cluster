@@ -16,6 +16,7 @@ resources:
   - ./bazarr4k/ks.yaml
   - ./bazarranime/ks.yaml
   - ./decluttarr/ks.yaml
+  - ./exclusion-sync/ks.yaml
   - ./dispatcharr/ks.yaml
   - ./huntarr/ks.yaml
   - ./imagemaid/ks.yaml
