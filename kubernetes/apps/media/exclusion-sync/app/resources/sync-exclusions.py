@@ -4,11 +4,8 @@
 Pulls exclusions from all instances, combines them, and pushes missing entries
 to each instance so they stay in sync. Removals are NOT synced.
 
-Environment variables (from ExternalSecret):
-  RADARR_KEY, RADARR4K_KEY, RADARRANIME_KEY
-  SONARR_KEY, SONARR4K_KEY, SONARRANIME_KEY
-  RADARR_URL, RADARR4K_URL, RADARRANIME_URL
-  SONARR_URL, SONARR4K_URL, SONARRANIME_URL
+API keys: mounted as files at /secrets/ (from ExternalSecret)
+URLs: passed as environment variables
 """
 
 import json
@@ -17,10 +14,19 @@ import sys
 import urllib.request
 from datetime import datetime
 
+SECRETS_DIR = "/secrets"
+
 
 def log(msg):
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     print(f"[{ts}] {msg}", flush=True)
+
+
+def read_secret(name):
+    """Read a secret value from a mounted file."""
+    path = os.path.join(SECRETS_DIR, name)
+    with open(path) as f:
+        return f.read().strip()
 
 
 def api_get(url, key, endpoint):
@@ -57,9 +63,9 @@ def api_post(url, key, endpoint, data):
 def sync_radarr():
     """Sync exclusions across Radarr instances by tmdbId."""
     instances = [
-        ("radarr", os.environ["RADARR_URL"], os.environ["RADARR_KEY"]),
-        ("radarr4k", os.environ["RADARR4K_URL"], os.environ["RADARR4K_KEY"]),
-        ("radarranime", os.environ["RADARRANIME_URL"], os.environ["RADARRANIME_KEY"]),
+        ("radarr", os.environ["RADARR_URL"], read_secret("RADARR_KEY")),
+        ("radarr4k", os.environ["RADARR4K_URL"], read_secret("RADARR4K_KEY")),
+        ("radarranime", os.environ["RADARRANIME_URL"], read_secret("RADARRANIME_KEY")),
     ]
 
     # Pull exclusions from all instances
@@ -106,9 +112,9 @@ def sync_radarr():
 def sync_sonarr():
     """Sync exclusions across Sonarr instances by tvdbId."""
     instances = [
-        ("sonarr", os.environ["SONARR_URL"], os.environ["SONARR_KEY"]),
-        ("sonarr4k", os.environ["SONARR4K_URL"], os.environ["SONARR4K_KEY"]),
-        ("sonarranime", os.environ["SONARRANIME_URL"], os.environ["SONARRANIME_KEY"]),
+        ("sonarr", os.environ["SONARR_URL"], read_secret("SONARR_KEY")),
+        ("sonarr4k", os.environ["SONARR4K_URL"], read_secret("SONARR4K_KEY")),
+        ("sonarranime", os.environ["SONARRANIME_URL"], read_secret("SONARRANIME_KEY")),
     ]
 
     # Pull exclusions from all instances

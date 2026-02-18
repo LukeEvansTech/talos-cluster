@@ -4,6 +4,7 @@ apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: exclusion-sync
+  namespace: media
 spec:
   schedule: "0 * * * *"
   successfulJobsHistoryLimit: 1
@@ -38,12 +39,12 @@ spec:
                   value: "https://sonarr4k.codelooks.com"
                 - name: SONARRANIME_URL
                   value: "https://sonarranime.codelooks.com"
-              envFrom:
-                - secretRef:
-                    name: exclusion-sync-secret
               volumeMounts:
                 - name: scripts
                   mountPath: /scripts
+                  readOnly: true
+                - name: secrets
+                  mountPath: /secrets
                   readOnly: true
                 - name: tmp
                   mountPath: /tmp
@@ -67,6 +68,9 @@ spec:
               configMap:
                 name: exclusion-sync-configmap
                 defaultMode: 0775
+            - name: secrets
+              secret:
+                secretName: exclusion-sync-secret
             - name: tmp
               emptyDir: {}
           securityContext:
