@@ -29,12 +29,8 @@ spec:
               env:
                 - name: RADARR_URL
                   value: "https://radarr.codelooks.com"
-                - name: RADARRANIME_URL
-                  value: "https://radarranime.codelooks.com"
                 - name: SONARR_URL
                   value: "https://sonarr.codelooks.com"
-                - name: SONARRANIME_URL
-                  value: "https://sonarranime.codelooks.com"
               volumeMounts:
                 - name: scripts
                   mountPath: /scripts
