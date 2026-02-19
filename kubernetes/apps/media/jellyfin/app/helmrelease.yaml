@@ -54,6 +54,8 @@ spec:
                 nvidia.com/gpu: 1
                 memory: 8Gi
     defaultPodOptions:
+      labels:
+        gpu-workload: "true"
       runtimeClassName: nvidia
       affinity:
         nodeAffinity:
@@ -64,6 +66,13 @@ spec:
                     operator: Exists
                   - key: extensions.talos.dev/nvidia-container-toolkit-production
                     operator: Exists
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              gpu-workload: "true"
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
