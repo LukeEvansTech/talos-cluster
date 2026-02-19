@@ -115,6 +115,16 @@
       minimumGroupSize: 2,
     },
     {
+      description: "Invio Group",
+      groupName: "Invio",
+      matchDatasources: ["docker"],
+      matchPackageNames: ["/invio/"],
+      group: {
+        commitMessageTopic: "{{{groupName}}} group",
+      },
+      minimumGroupSize: 2,
+    },
+    {
       description: "CloudNative-PG Barman Cloud Group",
       groupName: "CloudNative-PG Barman Cloud",
       matchDatasources: ["docker"],
