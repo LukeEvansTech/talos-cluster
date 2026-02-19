@@ -24,6 +24,8 @@ spec:
               PORT: &port 8787
               PUID: 1000
               PGID: 1000
+              PROTOCOL_HEADER: x-forwarded-proto
+              HOST_HEADER: x-forwarded-host
               # Sonarr configuration
               SONARR_URL: http://sonarr.media.svc.cluster.local
               SONARR_NAME: Sonarr
