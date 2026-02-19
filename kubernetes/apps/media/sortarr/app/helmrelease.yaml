@@ -32,9 +32,6 @@ spec:
               # Radarr configuration
               RADARR_URL: http://radarr.media.svc.cluster.local
               RADARR_NAME: Radarr
-              # Radarr 4K configuration
-              RADARR_URL_2: http://radarr4k.media.svc.cluster.local
-              RADARR_NAME_2: Radarr 4K
               # Tautulli configuration
               TAUTULLI_URL: http://tautulli.media.svc.cluster.local
             envFrom:
