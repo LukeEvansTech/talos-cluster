@@ -50,6 +50,8 @@ spec:
                 memory: 3Gi
                 nvidia.com/gpu: 1
     defaultPodOptions:
+      labels:
+        gpu-workload: "true"
       runtimeClassName: nvidia
       affinity:
         nodeAffinity:
@@ -60,6 +62,13 @@ spec:
                     operator: Exists
                   - key: extensions.talos.dev/nvidia-container-toolkit-production
                     operator: Exists
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              gpu-workload: "true"
     service:
       app:
         controller: dispatcharr
