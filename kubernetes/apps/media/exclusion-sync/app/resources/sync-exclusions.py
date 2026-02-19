@@ -64,7 +64,6 @@ def sync_radarr():
     """Sync exclusions across Radarr instances by tmdbId."""
     instances = [
         ("radarr", os.environ["RADARR_URL"], read_secret("RADARR_KEY")),
-        ("radarr4k", os.environ["RADARR4K_URL"], read_secret("RADARR4K_KEY")),
         ("radarranime", os.environ["RADARRANIME_URL"], read_secret("RADARRANIME_KEY")),
     ]
 
@@ -113,7 +112,6 @@ def sync_sonarr():
     """Sync exclusions across Sonarr instances by tvdbId."""
     instances = [
         ("sonarr", os.environ["SONARR_URL"], read_secret("SONARR_KEY")),
-        ("sonarr4k", os.environ["SONARR4K_URL"], read_secret("SONARR4K_KEY")),
         ("sonarranime", os.environ["SONARRANIME_URL"], read_secret("SONARRANIME_KEY")),
     ]
 
