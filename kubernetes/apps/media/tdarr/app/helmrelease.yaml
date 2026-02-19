@@ -65,6 +65,8 @@ spec:
                 memory: 4Gi
                 nvidia.com/gpu: 1
     defaultPodOptions:
+      labels:
+        gpu-workload: "true"
       runtimeClassName: nvidia
       affinity:
         nodeAffinity:
@@ -75,6 +77,13 @@ spec:
                     operator: Exists
                   - key: extensions.talos.dev/nvidia-container-toolkit-production
                     operator: Exists
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              gpu-workload: "true"
       # TODO: Test running as 1000:1000 instead of root for NFS compatibility
       securityContext:
         runAsUser: 0
