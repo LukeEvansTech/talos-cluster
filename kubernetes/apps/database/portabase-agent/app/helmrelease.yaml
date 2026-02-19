@@ -20,7 +20,7 @@ spec:
           app:
             image:
               repository: portabase/agent
-              tag: latest@sha256:ea28b03f822b1e0b4daa30a7cd9df7cee699de8f8d95f39d7db3ef49b0ac2574
+              tag: latest@sha256:6b29f4a0054289cda125f533c291ce5dabef0e7366fd76f1d047b86c5a5bf410
             env:
               TZ: ${TIMEZONE}
             envFrom:
