@@ -8,7 +8,7 @@ data:
   config.yml: |-
     ---
     libraries:
-      Films:
+      Movies:
         run_order:
           - collections
           - metadata
@@ -35,7 +35,7 @@ data:
           mass_critic_rating_update: mdb_metacritic
           mass_user_rating_update: imdb
 
-      TV Programmes:
+      TV:
         run_order:
           - collections
           - metadata
@@ -47,7 +47,6 @@ data:
           - default: imdb
         overlay_files:
           - remove_overlays: false
-          - repo: TV Shows - Overlays.yml
           - repo: TV Shows - Overlays - Charts.yml
           - repo: TV Shows - Overlays - Networks.yml
           - repo: TV Shows - Overlays - Ratings.yml
@@ -61,10 +60,63 @@ data:
           mass_critic_rating_update: mdb_metacritic
           mass_user_rating_update: imdb
 
+      Anime Movies:
+        run_order:
+          - collections
+          - metadata
+          - operations
+          - overlays
+        collection_files:
+          - default: basic
+          - default: anilist
+        overlay_files:
+          - remove_overlays: false
+          - repo: Movies - Overlays - Charts.yml
+          - repo: Movies - Overlays - Ratings.yml
+          - repo: Movies - Overlays - Streaming Services.yml
+          - repo: Movies - Overlays - Studios.yml
+        operations:
+          mass_genre_update: tmdb
+          mass_content_rating_update: omdb
+          mass_audience_rating_update: mdb_tomatoesaudience
+          mass_critic_rating_update: mdb_metacritic
+          mass_user_rating_update: imdb
+        radarr:
+          root_folder_path: /media/animemovies
+          quality_profile: Anime 1080p
+
+      Anime TV:
+        run_order:
+          - collections
+          - metadata
+          - operations
+          - overlays
+        collection_files:
+          - default: basic
+          - default: anilist
+        overlay_files:
+          - remove_overlays: false
+          - repo: TV Shows - Overlays - Charts.yml
+          - repo: TV Shows - Overlays - Networks.yml
+          - repo: TV Shows - Overlays - Ratings.yml
+          - repo: TV Shows - Overlays - Statuses.yml
+          - repo: TV Shows - Overlays - Streaming Services.yml
+          - repo: TV Shows - Overlays - Studios.yml
+        operations:
+          mass_genre_update: tmdb
+          mass_content_rating_update: omdb
+          mass_audience_rating_update: mdb_tomatoesaudience
+          mass_critic_rating_update: mdb_metacritic
+          mass_user_rating_update: imdb
+        sonarr:
+          root_folder_path: /media/animetv
+          quality_profile: Anime 1080p
+          series_type: anime
+
     settings:
       cache: true
       cache_expiration: 60
-      asset_directory: config/assets
+      asset_directory: /config/assets
       asset_folders: false
       asset_depth: 0
       create_asset_folders: false
@@ -76,6 +128,7 @@ data:
       show_asset_not_needed: true
       sync_mode: sync
       minimum_items: 1
+      default_collection_order:
       delete_below_minimum: true
       delete_not_scheduled: false
       run_again_delay: 2
@@ -127,10 +180,10 @@ data:
       token: <<RADARR_API_KEY>>
       add_missing: false
       add_existing: false
-      root_folder_path: /movies
+      root_folder_path: /media/movies
       monitor: true
       availability: announced
-      quality_profile: HD
+      quality_profile: 2160p Quality
       search: false
       upgrade_existing: false
 
@@ -139,9 +192,9 @@ data:
       token: <<SONARR_API_KEY>>
       add_missing: false
       add_existing: false
-      root_folder_path: /tv
+      root_folder_path: /media/tv
       monitor: all
-      quality_profile: HD
+      quality_profile: 2160p Quality
       language_profile: English
       series_type: standard
       season_folder: true
