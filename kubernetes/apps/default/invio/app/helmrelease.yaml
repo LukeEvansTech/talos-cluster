@@ -26,7 +26,7 @@ spec:
           app:
             image:
               repository: ghcr.io/kittendevv/invio-backend
-              tag: v1.15.0@sha256:bfb8516ffb3019fea6437b8e1a8e8abaef9e73c2118866f046a71dcc8b1ea0b7
+              tag: v1.15.1@sha256:e5dfe33867cc833a78d875f37327d390aa7366d573b1b82f201ad53c23ae2b4f
             env:
               TZ: ${TIMEZONE}
               DATABASE_PATH: /app/data/invio.db
@@ -58,7 +58,7 @@ spec:
           app:
             image:
               repository: ghcr.io/kittendevv/invio-frontend
-              tag: v1.15.0@sha256:2a8604ae47b33a21a7b9e6d744020ae68c936949b4b95d81e5df7fe683c899e7
+              tag: v1.15.1@sha256:a159c3c82613db03f3e4183769386329e1af76ce4077e30d607c57f14458691b
             env:
               TZ: ${TIMEZONE}
               PORT: "8000"
