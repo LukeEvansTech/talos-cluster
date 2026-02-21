@@ -20,6 +20,9 @@ spec:
             env:
               PORT: &port 80
               TZ: ${TIMEZONE}
+            envFrom:
+              - secretRef:
+                  name: fusion-secret
             probes:
               liveness: &probes
                 enabled: true
