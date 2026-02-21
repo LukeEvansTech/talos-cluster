@@ -13,6 +13,7 @@ resources:
   - ./atuin/ks.yaml
   - ./changedetection/ks.yaml
   - ./coder/ks.yaml
+  - ./contracthound/ks.yaml
   - ./convertx/ks.yaml
   - ./cronmaster/ks.yaml
   - ./cyberchef/ks.yaml
