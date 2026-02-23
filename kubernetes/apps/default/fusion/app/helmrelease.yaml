@@ -16,7 +16,7 @@ spec:
           app:
             image:
               repository: docker.io/rook1e404/fusion
-              tag: 1.1.0@sha256:8660c68eb6e1a5f91a906f37c07ec2f852027d235cebaf4542439f9dc52e462a
+              tag: 1.1.1@sha256:9d4f9f041f138b4ed84c6673d9c754a9f4dab6173b723872ecbf8ae3e97dfe33
             env:
               PORT: &port 80
               TZ: ${TIMEZONE}
