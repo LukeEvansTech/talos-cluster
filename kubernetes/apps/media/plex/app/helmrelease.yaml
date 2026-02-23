@@ -45,6 +45,7 @@ spec:
               NVIDIA_VISIBLE_DEVICES: "all"
               NVIDIA_DRIVER_CAPABILITIES: "all"
               CUDA_VISIBLE_DEVICES: "0"
+              LD_LIBRARY_PATH: "/usr/local/glibc/usr/lib"
               HARDWARE_DEVICE_PATH: "/dev/nvidia0"
             probes:
               liveness: &probes
