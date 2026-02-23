@@ -19,7 +19,10 @@ spec:
             image:
               repository: busybox
               tag: 1.37@sha256:b3255e7dfbcd10cb367af0d409747d511aeb66dfac98cf30e97e87e4207dd76f
-            command: ["sh", "-c", "chmod -R 700 /databasus-data"]
+            command:
+              - "sh"
+              - "-c"
+              - "chmod -R 700 /databasus-data"
         containers:
           app:
             image:
