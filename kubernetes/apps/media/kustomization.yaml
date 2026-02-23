@@ -18,7 +18,7 @@ resources:
   - ./decluttarr/ks.yaml
   - ./exclusion-sync/ks.yaml
   - ./dispatcharr/ks.yaml
-  - ./huntarr/ks.yaml
+  # - ./huntarr/ks.yaml  # Archived
   - ./imagemaid/ks.yaml
   - ./jellyfin/ks.yaml
   - ./kometa/ks.yaml
