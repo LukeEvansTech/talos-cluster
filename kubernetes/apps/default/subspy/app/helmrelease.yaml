@@ -39,6 +39,7 @@ spec:
                     port: &port 8080
                   initialDelaySeconds: 10
                   periodSeconds: 30
+                  timeoutSeconds: 5
                   failureThreshold: 3
               readiness:
                 enabled: true
@@ -49,6 +50,7 @@ spec:
                     port: *port
                   initialDelaySeconds: 5
                   periodSeconds: 10
+                  timeoutSeconds: 5
             securityContext:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: false
