@@ -11,6 +11,4 @@ resources:
   - ./cloudnative-pg/ks.yaml
   - ./dragonfly/ks.yaml
   - ./pgadmin/ks.yaml
-  - ./portabase/ks.yaml
-  - ./portabase-agent/ks.yaml
   - ./whodb/ks.yaml
