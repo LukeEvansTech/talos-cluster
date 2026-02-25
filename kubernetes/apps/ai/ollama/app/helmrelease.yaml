@@ -34,7 +34,7 @@ spec:
                 cpu: 500m
                 memory: 8Gi
               limits:
-                memory: 12Gi
+                memory: 24Gi
                 nvidia.com/gpu: 1 # requesting 1 GPU
     defaultPodOptions:
       labels:
