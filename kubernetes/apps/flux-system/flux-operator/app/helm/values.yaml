@@ -3,5 +3,12 @@ serviceMonitor:
   create: true
 web:
   enabled: true
+  config:
+    authentication:
+      type: Anonymous
+      anonymous:
+        username: flux
+        groups:
+          - flux-admin
   networkPolicy:
     create: false
