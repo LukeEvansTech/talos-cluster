@@ -33,8 +33,6 @@ spec:
               - |
                 python3 kometa.py --run --read-only-config --run-libraries "Movies";
                 python3 kometa.py --run --read-only-config --run-libraries "TV";
-                python3 kometa.py --run --read-only-config --run-libraries "Anime Movies";
-                python3 kometa.py --run --read-only-config --run-libraries "Anime TV";
             env:
               TZ: *timeZone
             envFrom:
