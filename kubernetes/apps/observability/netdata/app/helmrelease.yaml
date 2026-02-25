@@ -27,9 +27,9 @@ spec:
       resources:
         requests:
           cpu: 10m
-          memory: 2Gi
-        limits:
           memory: 4Gi
+        limits:
+          memory: 8Gi
       alarms:
         persistence: true
         storageclass: ceph-block
