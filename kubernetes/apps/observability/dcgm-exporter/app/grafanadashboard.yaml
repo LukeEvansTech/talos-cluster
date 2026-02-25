@@ -50,7 +50,7 @@ spec:
           "targets": [
             {
               "datasource": null,
-              "expr": "DCGM_FI_DEV_GPU_TEMP{instance=~\"${instance}\", gpu=~\"${gpu}\"}",
+              "expr": "DCGM_FI_DEV_GPU_TEMP{instance=~\"$${instance}\", gpu=~\"$${gpu}\"}",
               "legendFormat": "GPU {{gpu}}",
               "refId": "A"
             }
@@ -86,7 +86,7 @@ spec:
           "targets": [
             {
               "datasource": null,
-              "expr": "avg(DCGM_FI_DEV_GPU_TEMP{instance=~\"${instance}\", gpu=~\"${gpu}\"})",
+              "expr": "avg(DCGM_FI_DEV_GPU_TEMP{instance=~\"$${instance}\", gpu=~\"$${gpu}\"})",
               "legendFormat": "",
               "refId": "A"
             }
@@ -125,7 +125,7 @@ spec:
           "targets": [
             {
               "datasource": null,
-              "expr": "DCGM_FI_DEV_POWER_USAGE{instance=~\"${instance}\", gpu=~\"${gpu}\"}",
+              "expr": "DCGM_FI_DEV_POWER_USAGE{instance=~\"$${instance}\", gpu=~\"$${gpu}\"}",
               "legendFormat": "GPU {{gpu}}",
               "refId": "A"
             }
@@ -161,7 +161,7 @@ spec:
           "targets": [
             {
               "datasource": null,
-              "expr": "sum(DCGM_FI_DEV_POWER_USAGE{instance=~\"${instance}\", gpu=~\"${gpu}\"})",
+              "expr": "sum(DCGM_FI_DEV_POWER_USAGE{instance=~\"$${instance}\", gpu=~\"$${gpu}\"})",
               "legendFormat": "",
               "refId": "A"
             }
@@ -202,7 +202,7 @@ spec:
           "targets": [
             {
               "datasource": null,
-              "expr": "DCGM_FI_DEV_GPU_UTIL{instance=~\"${instance}\", gpu=~\"${gpu}\"}",
+              "expr": "DCGM_FI_DEV_GPU_UTIL{instance=~\"$${instance}\", gpu=~\"$${gpu}\"}",
               "legendFormat": "GPU {{gpu}}",
               "refId": "A"
             }
@@ -243,7 +243,7 @@ spec:
           "targets": [
             {
               "datasource": null,
-              "expr": "DCGM_FI_PROF_PIPE_TENSOR_ACTIVE{instance=~\"${instance}\", gpu=~\"${gpu}\"}",
+              "expr": "DCGM_FI_PROF_PIPE_TENSOR_ACTIVE{instance=~\"$${instance}\", gpu=~\"$${gpu}\"}",
               "legendFormat": "GPU {{gpu}}",
               "refId": "A"
             }
@@ -282,13 +282,13 @@ spec:
           "targets": [
             {
               "datasource": null,
-              "expr": "DCGM_FI_DEV_FB_USED{instance=~\"${instance}\", gpu=~\"${gpu}\"}",
+              "expr": "DCGM_FI_DEV_FB_USED{instance=~\"$${instance}\", gpu=~\"$${gpu}\"}",
               "legendFormat": "GPU {{gpu}} Used",
               "refId": "A"
             },
             {
               "datasource": null,
-              "expr": "DCGM_FI_DEV_FB_FREE{instance=~\"${instance}\", gpu=~\"${gpu}\"}",
+              "expr": "DCGM_FI_DEV_FB_FREE{instance=~\"$${instance}\", gpu=~\"$${gpu}\"}",
               "legendFormat": "GPU {{gpu}} Free",
               "refId": "B"
             }
@@ -327,7 +327,7 @@ spec:
           "targets": [
             {
               "datasource": null,
-              "expr": "DCGM_FI_DEV_SM_CLOCK{instance=~\"${instance}\", gpu=~\"${gpu}\"} * 1000000",
+              "expr": "DCGM_FI_DEV_SM_CLOCK{instance=~\"$${instance}\", gpu=~\"$${gpu}\"} * 1000000",
               "legendFormat": "GPU {{gpu}}",
               "refId": "A"
             }
