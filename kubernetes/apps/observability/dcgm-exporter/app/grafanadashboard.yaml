@@ -342,10 +342,10 @@ spec:
       "templating": {
         "list": [
           {
-            "current": {},
+            "current": {"selected": true, "text": "All", "value": "$__all"},
             "datasource": null,
             "definition": "label_values(DCGM_FI_DEV_GPU_TEMP, instance)",
-            "includeAll": false,
+            "includeAll": true,
             "multi": true,
             "name": "instance",
             "query": "label_values(DCGM_FI_DEV_GPU_TEMP, instance)",
@@ -354,13 +354,13 @@ spec:
             "type": "query"
           },
           {
-            "current": {},
+            "current": {"selected": true, "text": "All", "value": "$__all"},
             "datasource": null,
-            "definition": "label_values(gpu)",
+            "definition": "label_values(DCGM_FI_DEV_GPU_TEMP, gpu)",
             "includeAll": true,
             "multi": true,
             "name": "gpu",
-            "query": "label_values(gpu)",
+            "query": "label_values(DCGM_FI_DEV_GPU_TEMP, gpu)",
             "refresh": 2,
             "sort": 1,
             "type": "query"
