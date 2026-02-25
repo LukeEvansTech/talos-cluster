@@ -1,0 +1,44 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: dcgm-exporter
+spec:
+  groups:
+    - name: dcgm-exporter
+      rules:
+        - alert: GpuHighTemperature
+          annotations:
+            description: GPU {{ $labels.gpu }} on {{ $labels.Hostname }} temperature is {{ $value }}C which is above 85C.
+            summary: GPU temperature is critically high.
+          expr: DCGM_FI_DEV_GPU_TEMP > 85
+          for: 5m
+          labels:
+            severity: critical
+        - alert: GpuHighMemoryUsage
+          annotations:
+            description: GPU {{ $labels.gpu }} on {{ $labels.Hostname }} memory usage is above 90%.
+            summary: GPU memory usage is critically high.
+          expr: |-
+            DCGM_FI_DEV_FB_USED / (DCGM_FI_DEV_FB_USED + DCGM_FI_DEV_FB_FREE) > 0.9
+          for: 5m
+          labels:
+            severity: warning
+        - alert: GpuHighPowerUsage
+          annotations:
+            description: GPU {{ $labels.gpu }} on {{ $labels.Hostname }} power usage is {{ $value }}W which is above 90% of the power limit.
+            summary: GPU power usage is critically high.
+          expr: |-
+            DCGM_FI_DEV_POWER_USAGE / DCGM_FI_DEV_POWER_MGMT_LIMIT > 0.9
+          for: 5m
+          labels:
+            severity: warning
+        - alert: GpuXidErrors
+          annotations:
+            description: GPU {{ $labels.gpu }} on {{ $labels.Hostname }} has reported XID errors.
+            summary: GPU hardware errors detected.
+          expr: DCGM_FI_DEV_XID_ERRORS > 0
+          for: 1m
+          labels:
+            severity: critical
