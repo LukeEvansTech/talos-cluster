@@ -109,11 +109,11 @@ spec:
               tag: v3.41.1@sha256:1a5bf4b4820a879cdf8d93d7ef0d2d963af56670c9ebff8981860b6804ebc8ab
             env:
               # BLOCK_MALICIOUS: off # save 300MB of RAM; https://github.com/qdm12/gluetun/issues/2054
-              DOT: off
-              DOT_CACHING: off
+              DOT: "on"
+              DOT_CACHING: "on"
               DOT_IPV6: off
               # is absolutely needed if the container is expected to be able to resolve or communicate to any cluster services, without it cluster services cannot be resolved consistently or at all in many setups.
-              DNS_KEEP_NAMESERVER: on
+              DNS_KEEP_NAMESERVER: "on"
               FIREWALL: true
               FIREWALL_DEBUG: on
               FIREWALL_INPUT_PORTS: 80,3000,9999
