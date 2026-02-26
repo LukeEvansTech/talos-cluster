@@ -86,10 +86,10 @@ spec:
         annotations:
           gatus.home-operations.com/endpoint: |-
             group: external
-            url: https://contracthound.${SECRET_DOMAIN}/health
+            url: https://{{ .Release.Name }}.${SECRET_DOMAIN}/health
             conditions: ["[STATUS] == 200"]
         hostnames:
-          - "contracthound.${SECRET_DOMAIN}"
+          - "{{ .Release.Name }}.${SECRET_DOMAIN}"
         parentRefs:
           - name: envoy-external
             namespace: network
