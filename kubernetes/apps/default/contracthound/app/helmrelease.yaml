@@ -25,7 +25,7 @@ spec:
               OLLAMA_ENABLED: "true"
               OLLAMA_BASE_URL: http://ollama.ai.svc.cluster.local:11434
               OLLAMA_MODEL: qwen3:14b
-              APP_URL: "https://contracthound.${SECRET_DOMAIN}"
+              APP_URL: "https://{{ .Release.Name }}.${SECRET_DOMAIN}"
               OIDC_ENABLED: "true"
             envFrom:
               - secretRef:
