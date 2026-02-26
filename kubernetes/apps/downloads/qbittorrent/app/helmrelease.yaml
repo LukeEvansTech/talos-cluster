@@ -24,11 +24,7 @@ spec:
               # UMASK: "022"
               QBT_WEBUI_PORT: &port 80
               QBT_TORRENTING_PORT: &BT-port 51749
-              # QBT_Preferences__WebUI__AlternativeUIEnabled: true
-              # QBT_Preferences__WebUI__AuthSubnetWhitelistEnabled: true
-              # QBT_Preferences__WebUI__AuthSubnetWhitelist: "${CLUSTER_PODS_CIDR},${CLUSTER_SVCS_CIDR},${CR_LAN_CIDR},${GH_LAN_CIDR},${PW_LAN_CIDR}"
               QBT_Preferences__WebUI__LocalHostAuth: false
-              # QBT_Preferences__WebUI__RootFolder: /addons/VueTorrent
             probes:
               liveness:
                 enabled: true
@@ -71,16 +67,44 @@ spec:
                 memory: 64Mi
               limits:
                 memory: 256Mi
-          vuetorrent:
+          gluetun-webui:
             dependsOn: app
             image:
-              repository: registry.k8s.io/git-sync/git-sync
-              tag: v4.6.0@sha256:228a26d5f55ac5ae9c51635812570ba0073e0b1e0bd8fc3a653a0523b918c092
-            args:
-              - --repo=https://github.com/VueTorrent/VueTorrent
-              - --ref=latest-release
-              - --period=86400s
-              - --root=/addons
+              repository: docker.io/scuzza/gluetun-webui
+              tag: latest
+            env:
+              GLUETUN_CONTROL_URL: http://localhost:8000
+              PORT: &gluetun-webui-port 3000
+            probes:
+              liveness:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /
+                    port: *gluetun-webui-port
+                  periodSeconds: 30
+                  timeoutSeconds: 5
+                  failureThreshold: 5
+              readiness:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /
+                    port: *gluetun-webui-port
+                  periodSeconds: 10
+                  timeoutSeconds: 5
+                  failureThreshold: 5
+            securityContext:
+              runAsUser: 1000
+              runAsGroup: 1000
+              runAsNonRoot: true
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+              capabilities:
+                drop:
+                  - ALL
             resources:
               requests:
                 cpu: 10m
@@ -101,7 +125,7 @@ spec:
               DNS_KEEP_NAMESERVER: on
               FIREWALL: true
               FIREWALL_DEBUG: on
-              FIREWALL_INPUT_PORTS: 80,9999
+              FIREWALL_INPUT_PORTS: 80,3000,9999
               FIREWALL_OUTBOUND_SUBNETS: '"${CLUSTER_PODS_CIDR},${CLUSTER_SVCS_CIDR},${CR_LAN_CIDR},${GH_LAN_CIDR}"'
               HEALTH_SERVER_ADDRESS: ":9999"
               HEALTH_SERVER_DISABLE_LOOP: on
@@ -179,6 +203,12 @@ spec:
         ports:
           http:
             port: 8888
+
+      gluetun-webui:
+        controller: qbittorrent
+        ports:
+          http:
+            port: *gluetun-webui-port
     route:
       app:
         hostnames:
@@ -191,6 +221,18 @@ spec:
           - backendRefs:
               - name: qbittorrent-app
                 port: 80
+
+      gluetun-webui:
+        hostnames:
+          - "{{ .Release.Name }}-gluetun.${SECRET_DOMAIN}"
+          - "{{ .Release.Name }}-gluetun.${SECRET_INTERNAL_DOMAIN}"
+        parentRefs:
+          - name: envoy-internal
+            namespace: network
+        rules:
+          - backendRefs:
+              - name: qbittorrent-gluetun-webui
+                port: 3000
     persistence:
       config:
         existingClaim: "{{ .Release.Name }}"
@@ -204,10 +246,6 @@ spec:
         path: /mnt/pool/media
         globalMounts:
           - path: /media
-      addons:
-        type: emptyDir
-        globalMounts:
-          - path: /addons
             # dnsdist:
             #   type: configMap
             #   name: qbittorrent-dnsdist
