@@ -6,6 +6,7 @@ metadata:
   name: sabnzbd
 spec:
   interval: 1h
+  timeout: 10m
   chartRef:
     kind: OCIRepository
     name: sabnzbd
