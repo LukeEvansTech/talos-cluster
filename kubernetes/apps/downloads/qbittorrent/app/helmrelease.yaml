@@ -21,7 +21,6 @@ spec:
               repository: ghcr.io/home-operations/qbittorrent
               tag: 5.1.4@sha256:56ecd30a7f5e1357daf5eea2a6935134d329b7b268a3a9b9c67041b65fb87fc6
             env:
-              # UMASK: "022"
               QBT_WEBUI_PORT: &port 80
               QBT_TORRENTING_PORT: &BT-port 51749
               QBT_Preferences__WebUI__LocalHostAuth: false
@@ -80,22 +79,28 @@ spec:
                 enabled: true
                 custom: true
                 spec:
-                  httpGet:
-                    path: /
+                  tcpSocket:
                     port: *gluetun-webui-port
-                  periodSeconds: 30
+                  periodSeconds: 60
                   timeoutSeconds: 5
                   failureThreshold: 5
               readiness:
                 enabled: true
                 custom: true
                 spec:
-                  httpGet:
-                    path: /
+                  tcpSocket:
                     port: *gluetun-webui-port
-                  periodSeconds: 10
+                  periodSeconds: 30
                   timeoutSeconds: 5
                   failureThreshold: 5
+              startup:
+                enabled: true
+                custom: true
+                spec:
+                  tcpSocket:
+                    port: *gluetun-webui-port
+                  periodSeconds: 5
+                  failureThreshold: 30
             securityContext:
               runAsUser: 1000
               runAsGroup: 1000
@@ -196,14 +201,12 @@ spec:
         ports:
           http:
             port: *port
-
       gluetun:
         controller: qbittorrent
         # nameOverride: gluetun
         ports:
           http:
             port: 8888
-
       gluetun-webui:
         controller: qbittorrent
         ports:
@@ -221,7 +224,6 @@ spec:
           - backendRefs:
               - name: qbittorrent-app
                 port: 80
-
       gluetun-webui:
         hostnames:
           - "{{ .Release.Name }}-gluetun.${SECRET_DOMAIN}"

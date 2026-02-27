@@ -71,22 +71,28 @@ spec:
                 enabled: true
                 custom: true
                 spec:
-                  httpGet:
-                    path: /
+                  tcpSocket:
                     port: *gluetun-webui-port
-                  periodSeconds: 30
+                  periodSeconds: 60
                   timeoutSeconds: 5
                   failureThreshold: 5
               readiness:
                 enabled: true
                 custom: true
                 spec:
-                  httpGet:
-                    path: /
+                  tcpSocket:
                     port: *gluetun-webui-port
-                  periodSeconds: 10
+                  periodSeconds: 30
                   timeoutSeconds: 5
                   failureThreshold: 5
+              startup:
+                enabled: true
+                custom: true
+                spec:
+                  tcpSocket:
+                    port: *gluetun-webui-port
+                  periodSeconds: 5
+                  failureThreshold: 30
             securityContext:
               runAsUser: 1000
               runAsGroup: 1000
@@ -182,7 +188,6 @@ spec:
         ports:
           http:
             port: *port
-
       gluetun-webui:
         controller: sabnzbd
         ports:
@@ -200,7 +205,6 @@ spec:
           - backendRefs:
               - name: sabnzbd-app
                 port: 80
-
       gluetun-webui:
         hostnames:
           - "{{ .Release.Name }}-gluetun.${SECRET_DOMAIN}"
