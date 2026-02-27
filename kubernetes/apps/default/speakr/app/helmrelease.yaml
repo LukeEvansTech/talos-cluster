@@ -18,7 +18,7 @@ spec:
           app:
             image:
               repository: learnedmachine/speakr
-              tag: 0.8.10-alpha@sha256:4e5a70f13a84414072c39c170fa468f34331c9b9b6dd940877ba6b89767a5168
+              tag: 0.8.13-alpha@sha256:04bc8dace7a896e5fb451d6f0ba79b4eb79fe8a04842def7b6024b6ec0aabfe1
             env:
               # Timezone
               TZ: ${TIMEZONE}
