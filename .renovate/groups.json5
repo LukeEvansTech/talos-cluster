@@ -87,7 +87,6 @@
         "/kube-controller-manager/",
         "/kube-proxy/",
         "/kube-scheduler/",
-        "/kubelet/",
       ],
       group: {
         commitMessageTopic: "{{{groupName}}} group",
@@ -98,7 +97,7 @@
       description: "Talos Group",
       groupName: "Talos",
       matchDatasources: ["docker"],
-      matchPackageNames: ["/siderolabs\\/installer/"],
+      matchPackageNames: ["/siderolabs\\//"],
       group: {
         commitMessageTopic: "{{{groupName}}} group",
       },
