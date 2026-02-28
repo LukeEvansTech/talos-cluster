@@ -6,6 +6,7 @@ metadata:
   name: prowlarr
 spec:
   interval: 1h
+  timeout: 10m
   chartRef:
     kind: OCIRepository
     name: prowlarr
@@ -23,14 +24,14 @@ spec:
               tag: v3.41.1@sha256:1a5bf4b4820a879cdf8d93d7ef0d2d963af56670c9ebff8981860b6804ebc8ab
             env:
               # BLOCK_MALICIOUS: off # save 300MB of RAM; https://github.com/qdm12/gluetun/issues/2054
-              DOT: off
-              DOT_CACHING: off
+              DOT: "on"
+              DOT_CACHING: "on"
               DOT_IPV6: off
               # is absolutely needed if the container is expected to be able to resolve or communicate to any cluster services, without it cluster services cannot be resolved consistently or at all in many setups.
-              DNS_KEEP_NAMESERVER: on
+              DNS_KEEP_NAMESERVER: "on"
               FIREWALL: true
               FIREWALL_DEBUG: on
-              FIREWALL_INPUT_PORTS: 80,9999
+              FIREWALL_INPUT_PORTS: 80,3000,9999
               FIREWALL_OUTBOUND_SUBNETS: '"${CLUSTER_PODS_CIDR},${CLUSTER_SVCS_CIDR},${CR_LAN_CIDR},${GH_LAN_CIDR}"'
               HEALTH_SERVER_ADDRESS: ":9999"
               HEALTH_SERVER_DISABLE_LOOP: on
@@ -117,10 +118,61 @@ spec:
                 cpu: 100m
               limits:
                 memory: 1Gi
+          gluetun-webui:
+            dependsOn: app
+            image:
+              repository: docker.io/scuzza/gluetun-webui
+              tag: latest
+            env:
+              GLUETUN_CONTROL_URL: http://localhost:8000
+              PORT: &gluetun-webui-port 3000
+            probes:
+              liveness:
+                enabled: true
+                custom: true
+                spec:
+                  tcpSocket:
+                    port: *gluetun-webui-port
+                  periodSeconds: 60
+                  timeoutSeconds: 5
+                  failureThreshold: 5
+              readiness:
+                enabled: true
+                custom: true
+                spec:
+                  tcpSocket:
+                    port: *gluetun-webui-port
+                  periodSeconds: 30
+                  timeoutSeconds: 5
+                  failureThreshold: 5
+              startup:
+                enabled: true
+                custom: true
+                spec:
+                  tcpSocket:
+                    port: *gluetun-webui-port
+                  periodSeconds: 5
+                  failureThreshold: 30
+            securityContext:
+              runAsUser: 568
+              runAsGroup: 568
+              runAsNonRoot: true
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+              capabilities:
+                drop:
+                  - ALL
+            resources:
+              requests:
+                cpu: 10m
+                memory: 50Mi
+              limits:
+                memory: 128Mi
         pod:
           labels:
             gluetun: "true"
     defaultPodOptions:
+      terminationGracePeriodSeconds: 300
       securityContext:
         fsGroup: 568
         fsGroupChangePolicy: OnRootMismatch
@@ -132,6 +184,11 @@ spec:
         ports:
           http:
             port: *port
+      gluetun-webui:
+        controller: prowlarr
+        ports:
+          http:
+            port: *gluetun-webui-port
     route:
       app:
         hostnames:
@@ -140,6 +197,21 @@ spec:
         parentRefs:
           - name: envoy-internal
             namespace: network
+        rules:
+          - backendRefs:
+              - name: prowlarr-app
+                port: 80
+      gluetun-webui:
+        hostnames:
+          - "{{ .Release.Name }}-gluetun.${SECRET_DOMAIN}"
+          - "{{ .Release.Name }}-gluetun.${SECRET_INTERNAL_DOMAIN}"
+        parentRefs:
+          - name: envoy-internal
+            namespace: network
+        rules:
+          - backendRefs:
+              - name: prowlarr-gluetun-webui
+                port: 3000
     persistence:
       config:
         existingClaim: "{{ .Release.Name }}"
