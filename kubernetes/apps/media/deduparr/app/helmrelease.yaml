@@ -73,6 +73,6 @@ spec:
         type: configMap
         name: deduparr-configmap
         globalMounts:
-          - path: /config/config.yaml
+          - path: /app/config.yaml
             subPath: config.yaml
             readOnly: true
