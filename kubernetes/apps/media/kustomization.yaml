@@ -16,6 +16,7 @@ resources:
   # - ./bazarr4k/ks.yaml  # Removed — consolidated into bazarr (GPU transcoding)
   # - ./bazarranime/ks.yaml  # Removed — consolidated into bazarr (anime handled via root folders + profiles)
   - ./decluttarr/ks.yaml
+  - ./deduparr/ks.yaml
   - ./exclusion-sync/ks.yaml
   - ./dispatcharr/ks.yaml
   # - ./huntarr/ks.yaml  # Archived
