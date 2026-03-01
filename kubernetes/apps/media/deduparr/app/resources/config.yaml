@@ -1,4 +1,5 @@
 schedule: service
+# TODO: Change action to "remove" once dry-run results are verified
 action: dry-run
 log_level: debug
 remove_from_client: false
