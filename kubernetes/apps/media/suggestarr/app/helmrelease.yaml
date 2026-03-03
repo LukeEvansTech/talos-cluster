@@ -18,7 +18,7 @@ spec:
           app:
             image:
               repository: docker.io/ciuse99/suggestarr
-              tag: v2.4.1@sha256:ee4b223f203446712644a75e4d684e6852ae05002bbfd78bf16529188d78264b
+              tag: v2.4.1@sha256:266d20eaae283eb2034d059161fb0ca3abeda168c7148b70e9c2fdcc89f87660
             env:
               LOG_LEVEL: info
               SUGGESTARR_PORT: &port 5000
