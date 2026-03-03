@@ -55,14 +55,10 @@
       minimumGroupSize: 2,
     },
     {
-      description: "Flux Operator Group",
-      groupName: "Flux Operator",
+      description: "Flux Group",
+      groupName: "Flux",
       matchDatasources: ["docker"],
-      matchPackageNames: [
-        "/flux-operator/",
-        "/flux-instance/",
-        "/flux-operator-manifests/",
-      ],
+      matchPackageNames: ["/fluxcd\\//"],
       group: {
         commitMessageTopic: "{{{groupName}}} group",
       },
