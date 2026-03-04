@@ -64,7 +64,7 @@ spec:
           restartPolicy: OnFailure
           containers:
             - name: kubectl
-              image: ghcr.io/fluxcd/flux-cli:v2.7.5@sha256:3a4f9b0a26c26db8193c476e0abe33c32187eae8ce7a0a604d38a51783544946
+              image: ghcr.io/fluxcd/flux-cli:v2.8.1@sha256:aef48caff4c42c289f05bb9e878884b0932c882244ad13307db9fef25c9e8b8e
               imagePullPolicy: Always
               command:
                 - kubectl
