@@ -94,6 +94,7 @@
       groupName: "Talos",
       matchDatasources: ["docker"],
       matchPackageNames: ["/siderolabs\\//"],
+      excludePackageNames: ["/kubelet/"],
       group: {
         commitMessageTopic: "{{{groupName}}} group",
       },
