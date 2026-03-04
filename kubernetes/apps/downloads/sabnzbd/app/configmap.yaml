@@ -1,0 +1,95 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sabnzbd-scripts
+data:
+  replace_for.py: |
+    #!/usr/bin/python3 -OO
+    import sys
+    import os
+    import os.path
+
+    try:
+        (
+            scriptname,
+            directory,
+            orgnzbname,
+            jobname,
+            reportnumber,
+            category,
+            group,
+            postprocstatus,
+            url,
+        ) = sys.argv
+    except:
+        print("No commandline parameters found")
+        sys.exit(1)
+
+    files = os.listdir(directory)
+
+    for src in files:
+        if src.find("_") != -1:
+            dst = src.replace("_", ".")
+            os.rename(os.path.join(directory, src), os.path.join(directory, dst))
+            print(src, "renamed to ", dst)
+
+    sys.exit(0)
+  clean.py: |
+    #!/usr/bin/python3 -OO
+    import sys
+    import re
+
+    sys.argv = sys.argv[:9]
+    try:
+        (
+            scriptname,
+            nzbname,
+            postprocflags,
+            category,
+            script,
+            prio,
+            downloadsize,
+            grouplist,
+        ) = sys.argv
+    except:
+        sys.exit(1)
+
+    fwp = nzbname
+    fwp = re.sub(r"(?i)-4P$", "", fwp)
+    fwp = re.sub(r"(?i)-4Planet$", "", fwp)
+    fwp = re.sub(r"(?i)-AlternativeToRequested$", "", fwp)
+    fwp = re.sub(r"(?i)-AlteZachen$", "", fwp)
+    fwp = re.sub(r"(?i)-AsRequested$", "", fwp)
+    fwp = re.sub(r"(?i)-AsRequested-xpost$", "", fwp)
+    fwp = re.sub(r"(?i)-BUYMORE$", "", fwp)
+    fwp = re.sub(r"(?i)-Chamele0n$", "", fwp)
+    fwp = re.sub(r"(?i)-GEROV$", "", fwp)
+    fwp = re.sub(r"(?i)-iNC0GNiTO$", "", fwp)
+    fwp = re.sub(r"(?i)-NZBGeek$", "", fwp)
+    fwp = re.sub(r"(?i)-Obfuscated$", "", fwp)
+    fwp = re.sub(r"(?i)-Obfuscation$", "", fwp)
+    fwp = re.sub(r"(?i)-postbot$", "", fwp)
+    fwp = re.sub(r"(?i)-Rakuv[a-z0-9]*$", "", fwp)
+    fwp = re.sub(r"(?i)-RePACKPOST$", "", fwp)
+    fwp = re.sub(r"(?i)-Scrambled$", "", fwp)
+    fwp = re.sub(r"(?i)-WhiteRev$", "", fwp)
+    fwp = re.sub(r"(?i)-WRTEAM$", "", fwp)
+    fwp = re.sub(r"(?i)-CAPTCHA$", "", fwp)
+    fwp = re.sub(r"(?i)-Z0iDS3N$", "", fwp)
+    fwp = re.sub(r"(?i)\[eztv([ ._-]re)?\]$", "", fwp)
+    fwp = re.sub(r"(?i)\[TGx\]$", "", fwp)
+    fwp = re.sub(r"(?i)\[ettv\]$", "", fwp)
+    fwp = re.sub(r"(?i)\[TGx\]-xpost$", "", fwp)
+    fwp = re.sub(r"(?i).mkv-xpost$", "", fwp)
+    fwp = re.sub(r"(?i)-xpost$", "", fwp)
+    fwp = re.sub(r"(?i)(-D-Z0N3|\-[^-.\n]*)(\-.{4})?$", r"\1", fwp)
+
+    print("1")
+    print(fwp)
+    print()
+    print()
+    print()
+    print()
+    print()
+    sys.exit(0)
