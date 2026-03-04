@@ -5,6 +5,7 @@ kind: Kustomization
 components:
   - ../../../../components/nfs-scaler
 resources:
+  - ./configmap.yaml
   - ./externalsecret.yaml
   - ./ocirepository.yaml
   - ./helmrelease.yaml
