@@ -18,7 +18,7 @@ spec:
           app:
             image:
               repository: ghcr.io/saihgupr/homeassistanttimemachine
-              tag: 2.3.1@sha256:bcb38e5164d761203b392d631b7db37a54126bceb39b0b7084410ae1d45943f6
+              tag: 2.3.2@sha256:d30ea535d31a3e6ee3ab59f88fbe1a445ec37920e5ecc274f527508471bf8928
             env:
               TZ: ${TIMEZONE}
               HOME_ASSISTANT_URL: http://homeassistant.home.svc.cluster.local:8123
