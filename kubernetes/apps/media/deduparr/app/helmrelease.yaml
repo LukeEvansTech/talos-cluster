@@ -12,6 +12,7 @@ spec:
   values:
     controllers:
       deduparr:
+        strategy: RollingUpdate
         annotations:
           reloader.stakater.com/auto: "true"
         containers:
@@ -20,23 +21,43 @@ spec:
               repository: quay.io/kernald/deduparr
               tag: 1.2.0@sha256:81d935e48458427ca0e2896d00208efea70aba63034383a7368b9e10ad5d8cf0
             env:
+              # TODO: Change DEDUPARR_ACTION to "remove" once dry-run results are verified
+              DEDUPARR_ACTION: dry-run
+              DEDUPARR_LOG_LEVEL: debug
+              DEDUPARR_RADARR_MOVIES_ENABLED: true
+              DEDUPARR_RADARR_MOVIES_URL: http://radarr.media.svc.cluster.local
+              DEDUPARR_REMOVE_FROM_CLIENT: false
+              DEDUPARR_SCHEDULE: service
+              DEDUPARR_SERVICE__INTERVAL: 2m
+              DEDUPARR_SERVICE__PORT: &port 80
+              DEDUPARR_SONARR_SERIES_ENABLED: true
+              DEDUPARR_SONARR_SERIES_URL: http://sonarr.media.svc.cluster.local
               TZ: ${TIMEZONE}
             envFrom:
               - secretRef:
                   name: deduparr-secret
             probes:
-              liveness: &probes
+              liveness:
                 enabled: true
                 custom: true
                 spec:
                   httpGet:
                     path: /health/ready
-                    port: &port 9090
+                    port: *port
                   initialDelaySeconds: 0
                   periodSeconds: 10
                   timeoutSeconds: 1
                   failureThreshold: 3
-              readiness: *probes
+              readiness:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /health/ready
+                    port: *port
+                  periodSeconds: 10
+                  timeoutSeconds: 5
+                  failureThreshold: 5
             securityContext:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: true
@@ -68,11 +89,3 @@ spec:
             path: /metrics
             interval: 1m
             scrapeTimeout: 10s
-    persistence:
-      config-file:
-        type: configMap
-        name: deduparr-configmap
-        globalMounts:
-          - path: /app/config.yaml
-            subPath: config.yaml
-            readOnly: true
