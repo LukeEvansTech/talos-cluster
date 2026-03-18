@@ -5,7 +5,7 @@ kind: Connector
 metadata:
   name: ingress
 spec:
-  appConnector:
-    routes:
+  subnetRouter:
+    advertiseRoutes:
       - ${CR_LAN_CIDR}
   replicas: 2
