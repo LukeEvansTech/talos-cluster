@@ -18,4 +18,5 @@ spec:
           - openebs-system
           - volsync-system
           - system-upgrade
-  ingress: []
+  enableDefaultDeny:
+    ingress: true
