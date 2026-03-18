@@ -93,3 +93,4 @@ spec:
     config:
       baseURL: ""
       pluginsDir: "/build/plugins"
+      sessionTTL: 0
