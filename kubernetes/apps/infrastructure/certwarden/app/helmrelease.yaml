@@ -103,3 +103,10 @@ spec:
         defaultMode: 0755
         globalMounts:
           - path: /app/scripts/brother
+      # Post-processing scripts for NVIDIA Onyx switch deployment
+      onyx-scripts:
+        type: configMap
+        name: certwarden-onyx-scripts
+        defaultMode: 0755
+        globalMounts:
+          - path: /app/scripts/onyx
