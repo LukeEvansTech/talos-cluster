@@ -29,7 +29,7 @@ spec:
           cpu: 10m
           memory: 4Gi
         limits:
-          memory: 8Gi
+          memory: 12Gi
       alarms:
         persistence: true
         storageclass: ceph-block
@@ -44,9 +44,9 @@ spec:
       resources:
         requests:
           cpu: 10m
-          memory: 512Mi
+          memory: 1Gi
         limits:
-          memory: 2Gi
+          memory: 4Gi
 
     k8sState:
       enabled: true
@@ -55,7 +55,7 @@ spec:
           cpu: 10m
           memory: 256Mi
         limits:
-          memory: 512Mi
+          memory: 1Gi
       persistence:
         enabled: true
         storageclass: ceph-block
