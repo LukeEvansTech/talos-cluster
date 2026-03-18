@@ -18,7 +18,7 @@ spec:
           app:
             image:
               repository: ghcr.io/jaredharper1/sortarr
-              tag: latest@sha256:999e55235725154ed5661e85344095de8dabe33043c702277e2594f90d2852fa
+              tag: latest@sha256:0d46515ad4aa8c906783cd1c455d007c565a0674af765f283ecbaa33b466c42f
             env:
               TZ: ${TIMEZONE}
               PORT: &port 8787
