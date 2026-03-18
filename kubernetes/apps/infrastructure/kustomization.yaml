@@ -8,6 +8,7 @@ components:
   - ../../components/alerts
 resources:
   - ./namespace.yaml
+  - ./netpol.yaml
   - ./certwarden/ks.yaml
   - ./certwarden/cert-deployment-ks.yaml
   - ./cupdate/ks.yaml
