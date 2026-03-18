@@ -1,0 +1,13 @@
+---
+# Ceph storage nodes experience minor transient packet drops on high-throughput interfaces
+# which resolve quickly. These are benign and generate excessive alert noise (~20x/day).
+apiVersion: monitoring.giantswarm.io/v1alpha1
+kind: Silence
+metadata:
+  name: ceph-network-packet-drops
+spec:
+  matchers:
+    - name: alertname
+      value: CephNodeNetworkPacketDrops
+      isRegex: false
+      isEqual: true
