@@ -8,6 +8,7 @@ components:
   - ../../components/alerts
 resources:
   - ./namespace.yaml
+  - ./netpol.yaml
   - ./certificates/ks.yaml
   - ./cloudflare-dns/ks.yaml
   - ./cloudflare-tunnel/ks.yaml
