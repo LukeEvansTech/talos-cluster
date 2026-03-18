@@ -5,9 +5,11 @@ kind: CiliumNetworkPolicy
 metadata:
   name: allow-cross-namespace-ingress
 spec:
-  description: "Allow ingress from observability (gatus health checks, prometheus scraping)"
+  description: "Allow ingress from observability and external traffic (gateway)"
   endpointSelector: {}
   ingress:
     - fromEndpoints:
         - matchLabels:
             io.kubernetes.pod.namespace: observability
+    - fromEntities:
+        - world
