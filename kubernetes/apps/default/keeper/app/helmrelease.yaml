@@ -1,0 +1,93 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: keeper
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: keeper
+  values:
+    controllers:
+      keeper:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        initContainers:
+          init-db:
+            image:
+              repository: ghcr.io/home-operations/postgres-init
+              tag: "18@sha256:6fa1f331cddd2eb0b6afa7b8d3685c864127a81ab01c3d9400bc3ff5263a51cf"
+            envFrom:
+              - secretRef:
+                  name: keeper-secret
+        containers:
+          app:
+            image:
+              repository: ghcr.io/ridafkih/keeper-services
+              tag: 2.9@sha256:f983ac85f54f06e7ca941bf58e334ee3306b873685c7d77f595cd0b0c689f128
+            env:
+              TZ: ${TIMEZONE}
+              BETTER_AUTH_URL: "https://keeper.${SECRET_DOMAIN}"
+              TRUSTED_ORIGINS: "https://keeper.${SECRET_DOMAIN},https://keeper.${SECRET_INTERNAL_DOMAIN}"
+              WORKER_JOB_QUEUE_ENABLED: "true"
+              BLOCK_PRIVATE_RESOLUTION: "false"
+            envFrom:
+              - secretRef:
+                  name: keeper-secret
+            probes:
+              liveness: &probes
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /
+                    port: &port 3000
+                  periodSeconds: 30
+                  timeoutSeconds: 5
+                  failureThreshold: 3
+              readiness: *probes
+              startup:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /
+                    port: *port
+                  initialDelaySeconds: 10
+                  periodSeconds: 5
+                  timeoutSeconds: 5
+                  failureThreshold: 30
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+              capabilities: {drop: ["ALL"]}
+            resources:
+              requests:
+                cpu: 10m
+                memory: 256Mi
+              limits:
+                memory: 512Mi
+    defaultPodOptions:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile: {type: RuntimeDefault}
+    service:
+      app:
+        controller: keeper
+        ports:
+          http:
+            port: *port
+    route:
+      app:
+        hostnames:
+          - "{{ .Release.Name }}.${SECRET_DOMAIN}"
+          - "{{ .Release.Name }}.${SECRET_INTERNAL_DOMAIN}"
+        parentRefs:
+          - name: envoy-internal
+            namespace: network
