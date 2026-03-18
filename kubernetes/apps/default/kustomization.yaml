@@ -37,6 +37,7 @@ resources:
   - ./invoiceshelf/ks.yaml
   - ./it-tools/ks.yaml
   - ./karakeep/ks.yaml
+  - ./keeper/ks.yaml
   - ./mail-archiver/ks.yaml
   - ./mailrise/ks.yaml
   - ./manyfold/ks.yaml
