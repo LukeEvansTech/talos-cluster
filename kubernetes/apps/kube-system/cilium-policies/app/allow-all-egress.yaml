@@ -19,4 +19,6 @@ spec:
           - volsync-system
           - system-upgrade
   egress:
-    - {}
+    - toEntities:
+        - world
+        - all
