@@ -28,7 +28,7 @@ spec:
           app:
             image:
               repository: ghcr.io/alexgustafsson/cupdate
-              tag: 0.24.2@sha256:ae04f2643068a14814e3f2722418c4beed398420747dac7124a8e44d14724028
+              tag: 0.24.3@sha256:1da1b8a1976acafa082b76ee87856b579e8f12175e2a13a4eff367a8b317e00d
               pullPolicy: IfNotPresent
             env:
               TZ: ${TIMEZONE}
