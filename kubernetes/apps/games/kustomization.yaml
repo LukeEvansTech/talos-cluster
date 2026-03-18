@@ -8,6 +8,7 @@ components:
   - ../../components/alerts
 resources:
   - ./namespace.yaml
+  - ./netpol.yaml
   - ./epicgames/ks.yaml
   - ./free-game-notifier/ks.yaml
   - ./gameyfin/ks.yaml

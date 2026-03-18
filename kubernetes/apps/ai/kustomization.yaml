@@ -8,6 +8,7 @@ components:
   - ../../components/alerts
 resources:
   - ./namespace.yaml
+  - ./netpol.yaml
   - ./ollama/ks.yaml
   - ./open-webui/ks.yaml
   - ./openaiwhisper/ks.yaml

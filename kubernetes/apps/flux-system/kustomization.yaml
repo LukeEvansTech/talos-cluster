@@ -8,5 +8,6 @@ components:
   - ../../components/global-vars
 resources:
   - ./namespace.yaml
+  - ./netpol.yaml
   - ./flux-instance/ks.yaml
   - ./flux-operator/ks.yaml
