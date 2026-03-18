@@ -8,6 +8,7 @@ components:
   - ../../components/alerts
 resources:
   - ./namespace.yaml
+  - ./netpol.yaml
   - ./agregarr/ks.yaml
   - ./audiobookshelf/ks.yaml
   # TODO: Update externalsecret with autopulse config before enabling
