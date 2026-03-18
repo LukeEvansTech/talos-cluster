@@ -6,3 +6,4 @@ resources:
   - ./allow-same-namespace.yaml
   - ./allow-all-egress.yaml
   - ./allow-prometheus-scraping.yaml
+  - ./allow-kube-apiserver.yaml
