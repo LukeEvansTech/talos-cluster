@@ -14,6 +14,21 @@ spec:
       bentopdf:
         annotations:
           reloader.stakater.com/auto: "true"
+        initContainers:
+          init-nginx-dirs:
+            image:
+              repository: busybox
+              tag: latest
+            command:
+              - sh
+              - -c
+              - mkdir -p /var/lib/nginx/logs /var/lib/nginx/tmp
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop:
+                  - "ALL"
         containers:
           app:
             image:
