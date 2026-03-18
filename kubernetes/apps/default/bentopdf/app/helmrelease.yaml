@@ -64,4 +64,7 @@ spec:
             subPath: cache
           - path: /etc/nginx/tmp
             subPath: tmp
-          - path: /var/lib/nginx
+          - path: /var/lib/nginx/logs
+            subPath: logs
+          - path: /var/lib/nginx/tmp
+            subPath: lib-tmp
