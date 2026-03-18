@@ -93,4 +93,12 @@ spec:
     config:
       baseURL: ""
       pluginsDir: "/build/plugins"
-      sessionTTL: null
+  postRenderers:
+    - kustomize:
+        patches:
+          - target:
+              kind: Deployment
+              name: headlamp
+            patch: |
+              - op: remove
+                path: /spec/template/spec/containers/0/args/3
