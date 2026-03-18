@@ -93,6 +93,7 @@ spec:
     config:
       baseURL: ""
       pluginsDir: "/build/plugins"
+      sessionTTL: 1
   postRenderers:
     - kustomize:
         patches:
