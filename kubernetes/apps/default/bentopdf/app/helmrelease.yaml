@@ -65,4 +65,7 @@ spec:
       nginx-lib:
         type: emptyDir
         globalMounts:
-          - path: /var/lib/nginx
+          - path: /var/lib/nginx/logs
+            subPath: logs
+          - path: /var/lib/nginx/tmp
+            subPath: tmp
