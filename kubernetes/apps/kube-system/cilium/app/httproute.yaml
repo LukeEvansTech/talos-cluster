@@ -6,6 +6,7 @@ metadata:
   name: hubble-ui
 spec:
   hostnames:
+    - hubble.${SECRET_DOMAIN}
     - hubble.${SECRET_INTERNAL_DOMAIN}
   parentRefs:
     - name: envoy-internal
