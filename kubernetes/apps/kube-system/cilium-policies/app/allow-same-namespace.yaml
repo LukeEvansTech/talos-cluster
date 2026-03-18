@@ -1,0 +1,23 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/cilium.io/ciliumclusterwidenetworkpolicy_v2.json
+apiVersion: cilium.io/v2
+kind: CiliumClusterwideNetworkPolicy
+metadata:
+  name: allow-same-namespace
+spec:
+  description: "Allow ingress from pods in the same namespace"
+  endpointSelector:
+    matchExpressions:
+      - key: io.kubernetes.pod.namespace
+        operator: NotIn
+        values:
+          - kube-system
+          - cert-manager
+          - external-secrets
+          - rook-ceph
+          - openebs-system
+          - volsync-system
+          - system-upgrade
+  ingress:
+    - fromEndpoints:
+        - {}
