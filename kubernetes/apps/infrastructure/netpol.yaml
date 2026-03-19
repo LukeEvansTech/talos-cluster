@@ -5,9 +5,11 @@ kind: CiliumNetworkPolicy
 metadata:
   name: allow-cross-namespace-ingress
 spec:
-  description: "Allow ingress from gateway (network namespace)"
+  description: "Allow ingress from gateway and external clients (smtp-relay, vlmcsd)"
   endpointSelector: {}
   ingress:
     - fromEndpoints:
         - matchLabels:
             io.kubernetes.pod.namespace: network
+    - fromEntities:
+        - world
