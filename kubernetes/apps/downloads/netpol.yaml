@@ -13,3 +13,5 @@ spec:
             io.kubernetes.pod.namespace: network
         - matchLabels:
             io.kubernetes.pod.namespace: media
+    - fromEntities:
+        - world
