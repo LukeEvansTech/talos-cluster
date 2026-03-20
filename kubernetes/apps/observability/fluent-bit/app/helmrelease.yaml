@@ -33,6 +33,8 @@ spec:
             Tag kube.*
             Skip_Empty_Lines on
             Skip_Long_Lines on
+            Buffer_Chunk_Size 32k
+            Buffer_Max_Size 256k
             Mem_Buf_Limit 64MB
       filters: |
         [FILTER]
@@ -91,7 +93,7 @@ spec:
     resources:
       requests:
         cpu: 10m
-        memory: 128Mi
+        memory: 192Mi
       limits:
         memory: 512Mi
     dashboards:
