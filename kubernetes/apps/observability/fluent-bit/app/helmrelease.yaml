@@ -33,6 +33,7 @@ spec:
             Tag kube.*
             Skip_Empty_Lines on
             Skip_Long_Lines on
+            Mem_Buf_Limit 64MB
       filters: |
         [FILTER]
             Name kubernetes
@@ -92,7 +93,7 @@ spec:
         cpu: 10m
         memory: 128Mi
       limits:
-        memory: 256Mi
+        memory: 512Mi
     dashboards:
       enabled: true
     serviceMonitor:
