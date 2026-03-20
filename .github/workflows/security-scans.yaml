@@ -30,7 +30,7 @@ jobs:
           quiet: true
 
       - name: Upload Checkov SARIF
-        uses: github/codeql-action/upload-sarif@b1bff81932f5cdfc8695c7752dcee935dcd061c8 # v4
+        uses: github/codeql-action/upload-sarif@c6f931105cb2c34c8f901cc885ba1e2e259cf745 # v4
         with:
           sarif_file: checkov-results.sarif
           category: checkov
@@ -64,7 +64,7 @@ jobs:
           scanners: 'vuln,secret,misconfig'
 
       - name: Upload Trivy SARIF
-        uses: github/codeql-action/upload-sarif@b1bff81932f5cdfc8695c7752dcee935dcd061c8 # v4
+        uses: github/codeql-action/upload-sarif@c6f931105cb2c34c8f901cc885ba1e2e259cf745 # v4
         with:
           sarif_file: trivy-results.sarif
           category: trivy
