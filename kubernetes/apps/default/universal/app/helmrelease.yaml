@@ -18,7 +18,7 @@ spec:
           app:
             image:
               repository: ironmansoftware/universal
-              tag: 2026.1.4-ubuntu-lts@sha256:69f048a6511a9f9c6f96138ffc2d9841f4f1374ed73134a3f7e8d50554d39bb2
+              tag: 2026.1.5-ubuntu-lts@sha256:b5ffcd2da32004be1bbc2c400f0d87bfde4990dd9348740b94b6492e8dfb353f
             env:
               TZ: ${TIMEZONE}
             probes:
