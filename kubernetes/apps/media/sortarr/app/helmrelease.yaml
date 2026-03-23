@@ -78,6 +78,10 @@ spec:
         type: emptyDir
         globalMounts:
           - path: /data
+      secrets:
+        type: emptyDir
+        globalMounts:
+          - path: /app/secrets
       tmp:
         type: emptyDir
         globalMounts:
