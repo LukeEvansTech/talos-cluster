@@ -23,7 +23,7 @@ resources:
   - ./dispatcharr/ks.yaml
   # - ./huntarr/ks.yaml  # Archived
   - ./imagemaid/ks.yaml
-  - ./isponsorblocktv/ks.yaml
+  # - ./isponsorblocktv/ks.yaml  # TODO: Run iSPBTV setup to pair devices before enabling
   - ./jellyfin/ks.yaml
   - ./kometa/ks.yaml
   - ./seerr/ks.yaml
