@@ -11,7 +11,7 @@ Deploy [iSponsorBlockTV](https://github.com/dmunozv04/iSponsorBlockTV) as a head
 
 ## Architecture
 
-Standard 3-file app-template deployment in the `media` namespace. No web UI, no service/route, no ExternalSecret.
+Standard app-template deployment (ks.yaml + 3 files in app/) in the `media` namespace. No web UI, no service/route, no ExternalSecret. Requires adding `./isponsorblocktv/ks.yaml` to `kubernetes/apps/media/kustomization.yaml`.
 
 ```
 kubernetes/apps/media/isponsorblocktv/
@@ -25,8 +25,7 @@ kubernetes/apps/media/isponsorblocktv/
 ## Container Image
 
 - **Repository:** `ghcr.io/dmunozv04/isponsorblocktv`
-- **Tag:** `v2.6.1`
-- **Digest:** `sha256:545856523283753ebcf4b400a46895b9906844be5265a0f4cab98a6b0bdf84be`
+- **Tag (inline format):** `v2.6.1@sha256:545856523283753ebcf4b400a46895b9906844be5265a0f4cab98a6b0bdf84be`
 
 ## HelmRelease Spec
 
@@ -36,7 +35,8 @@ kubernetes/apps/media/isponsorblocktv/
 
 ### Container
 - No health probes (no HTTP port — background daemon)
-- Security context: `runAsNonRoot`, `readOnlyRootFilesystem`, `drop: ["ALL"]`
+- Container security context: `allowPrivilegeEscalation: false`, `readOnlyRootFilesystem: true`, `capabilities: {drop: ["ALL"]}`
+- Pod security context: `runAsNonRoot: true`, `runAsUser: 1000`, `runAsGroup: 1000`, `fsGroup: 1000`, `fsGroupChangePolicy: OnRootMismatch`, `seccompProfile: {type: RuntimeDefault}`
 - Resources: 10m CPU request, 128Mi memory request, 256Mi memory limit
 - Env: `TZ: ${TIMEZONE}`
 
