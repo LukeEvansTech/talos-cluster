@@ -18,7 +18,7 @@ spec:
           app:
             image:
               repository: ghcr.io/lukeevanstech/hookshot
-              tag: main-ffe9be2
+              tag: main-4c6998e
             env:
               TZ: ${TIMEZONE}
               DATABASE_PATH: /data/hookshot.db
