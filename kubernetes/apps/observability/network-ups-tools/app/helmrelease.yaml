@@ -24,8 +24,8 @@ spec:
               TZ: ${TIMEZONE:=UTC}
               NAME: cr-ups-main
               MAXAGE: "25"
-              API_USER: upsmon
-              API_PASSWORD: secret
+              API_USER: ${NUT_API_USER}
+              API_PASSWORD: ${NUT_API_PASSWORD}
             probes:
               liveness:
                 enabled: true
