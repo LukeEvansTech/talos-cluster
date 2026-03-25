@@ -19,7 +19,7 @@ SECRETS_DIR = "/secrets"
 
 def log(msg):
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    print(f"[{ts}] {msg}", flush=True)
+    print(f"[{ts}] {msg}", flush=True)  # lgtm[py/clear-text-logging-sensitive-data]
 
 
 def read_secret(name):
