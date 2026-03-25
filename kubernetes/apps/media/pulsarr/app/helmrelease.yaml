@@ -18,7 +18,7 @@ spec:
           app:
             image:
               repository: docker.io/lakker/pulsarr
-              tag: 0.14.0@sha256:3841149e3eb575816c6bb035389a9c785ebeb5bc716c74b0e29be4aa5ef1530f
+              tag: 0.14.2@sha256:5da3aefd0a8393ebc756ae93e596e8cf41bebb9a7193ec244d246684a6119cad
             env:
               TZ: ${TIMEZONE}
               port: &port 3003
