@@ -82,6 +82,9 @@ spec:
               - path:
                   type: PathPrefix
                   value: /hook
+            backendRefs:
+              - name: hookshot
+                port: 8000
     persistence:
       data:
         existingClaim: *app
