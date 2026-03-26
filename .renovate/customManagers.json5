@@ -2,10 +2,10 @@
   $schema: "https://docs.renovatebot.com/renovate-schema.json",
   customDatasources: {
     "minecraft-release": {
-      defaultRegistryUrlTemplate: "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json",
+      defaultRegistryUrlTemplate: "https://api.papermc.io/v2/projects/paper",
       format: "json",
       transformTemplates: [
-        '{"releases": $map($filter(versions, function($v) { $v.type = "release"}), function($v) { {"version": $v.id, "releaseTimestamp": $v.releaseTime} }), "sourceUrl": "https://minecraft.net", "homepage": "https://minecraft.net"}',
+        '{"releases": $map($filter(versions, function($v) { $not($contains($v, "-pre")) and $not($contains($v, "-rc")) }), function($v) { {"version": $v} }), "sourceUrl": "https://papermc.io", "homepage": "https://papermc.io"}',
       ],
     },
   },
