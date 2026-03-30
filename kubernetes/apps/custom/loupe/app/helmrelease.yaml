@@ -1,0 +1,81 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: loupe
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: loupe
+  values:
+    controllers:
+      loupe:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        containers:
+          app:
+            image:
+              repository: ghcr.io/lukeevantech/loupe
+              tag: 0.1.0
+            env:
+              - name: APP_SECRET_KEY
+                valueFrom:
+                  secretKeyRef:
+                    name: loupe-secret
+                    key: APP_KEY
+              - name: DATABASE_URL
+                value: "sqlite:///./data/loupe.db"
+              - name: OLLAMA_BASE_URL
+                value: http://ollama.ai.svc.cluster.local:11434
+              - name: OLLAMA_MODEL
+                value: llava
+              - name: ADMIN_USERNAME
+                value: admin
+              - name: ADMIN_PASSWORD
+                valueFrom:
+                  secretKeyRef:
+                    name: loupe-secret
+                    key: ADMIN_PASSWORD
+              - name: GRADE_THRESHOLD
+                value: "8"
+              - name: DATA_DIR
+                value: /app/data
+            resources:
+              requests:
+                cpu: 100m
+                memory: 256Mi
+              limits:
+                memory: 512Mi
+            securityContext:
+              allowPrivilegeEscalation: false
+              capabilities: {drop: ["ALL"]}
+    defaultPodOptions:
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        runAsNonRoot: true
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+    service:
+      app:
+        controller: loupe
+        ports:
+          http:
+            port: 8080
+    route:
+      app:
+        hostnames:
+          - "{{ .Release.Name }}.${SECRET_DOMAIN}"
+          - "{{ .Release.Name }}.${SECRET_INTERNAL_DOMAIN}"
+        parentRefs:
+          - name: envoy-internal
+            namespace: network
+    persistence:
+      data:
+        enabled: true
+        existingClaim: "{{ .Release.Name }}"
+        globalMounts:
+          - path: /app/data
