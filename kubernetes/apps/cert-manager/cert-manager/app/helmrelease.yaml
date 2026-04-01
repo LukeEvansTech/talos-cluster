@@ -10,6 +10,9 @@ spec:
     kind: OCIRepository
     name: cert-manager
   values:
+    extraArgs:
+      - --dns01-recursive-nameservers=1.1.1.1:53,8.8.8.8:53
+      - --dns01-recursive-nameservers-only
     resources:
       requests:
         cpu: 10m
