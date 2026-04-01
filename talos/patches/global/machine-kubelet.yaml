@@ -1,8 +1,11 @@
+---
 machine:
   kubelet:
     extraConfig:
       maxPods: 250
       serializeImagePulls: false
+      imageGCHighThresholdPercent: 55
+      imageGCLowThresholdPercent: 50
     nodeIP:
       validSubnets:
         - 10.32.8.0/24
