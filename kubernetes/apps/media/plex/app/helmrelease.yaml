@@ -75,7 +75,7 @@ spec:
                 nvidia.com/gpu: 1
               limits:
                 nvidia.com/gpu: 1
-                memory: 12Gi
+                memory: 16Gi
     defaultPodOptions:
       labels:
         gpu-workload: "true"
