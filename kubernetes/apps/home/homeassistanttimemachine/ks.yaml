@@ -17,7 +17,7 @@ spec:
       namespace: home
     - name: rook-ceph-cluster
       namespace: rook-ceph
-    - name: onepassword
+    - name: onepassword-connect
       namespace: external-secrets
   interval: 1h
   path: ./kubernetes/apps/home/homeassistanttimemachine/app
