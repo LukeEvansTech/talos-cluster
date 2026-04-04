@@ -10,7 +10,7 @@ PushSecret resources generate spurious HTTP 400 errors in logs despite successfu
 
 ```
 Warning: Errored
-set secret failed: could not write remote ref tls.key to target secretstore onepassword:
+set secret failed: could not write remote ref tls.key to target secretstore onepassword-connect:
 error updating 1Password Item: status 400: Unable to update item "codelooks-com-production-tls"
 in Vault "w7oprzm4euz5yajs6gnje7bpzu"
 ```
@@ -59,7 +59,7 @@ If status shows `Synced: True`, the secret is successfully pushed to 1Password.
 Downgrade to the last known working version:
 
 ```yaml
-# kubernetes/apps/external-secrets/onepassword/app/helmrelease.yaml
+# kubernetes/apps/external-secrets/onepassword-connect/app/helmrelease.yaml
 spec:
   values:
     connect:
@@ -77,7 +77,7 @@ spec:
 Temporary workaround that clears errors for a few days:
 
 ```bash
-kubectl rollout restart deployment onepassword -n external-secrets
+kubectl rollout restart deployment onepassword-connect -n external-secrets
 ```
 
 ### Verification
@@ -110,7 +110,7 @@ metadata:
   name: &name "${SECRET_DOMAIN/./-}-production-tls"
 spec:
   secretStoreRefs:
-    - name: onepassword
+    - name: onepassword-connect
       kind: ClusterSecretStore
   selector:
     secret:
