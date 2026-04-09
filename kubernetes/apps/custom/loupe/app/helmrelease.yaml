@@ -30,7 +30,7 @@ spec:
               - name: OLLAMA_BASE_URL
                 value: http://ollama.ai.svc.cluster.local:11434
               - name: OLLAMA_MODEL
-                value: llava
+                value: gemma4:26b
               - name: ADMIN_USERNAME
                 value: admin
               - name: ADMIN_PASSWORD
