@@ -14,6 +14,18 @@ spec:
       plex:
         annotations:
           reloader.stakater.com/auto: "true"
+        pod:
+          annotations:
+            # Cap pod egress at the BPF EDT layer (Cilium BandwidthManager).
+            # Plex pins its sockets to BBR via setsockopt, and on LAN RTTs
+            # BBR bursts at ~1 Gbps into Apple TV receive windows that only
+            # tolerate ~10-20 Mbps, causing the losses → MSS collapse → cwnd
+            # crash cycle that produces ~60s buffering pauses every ~6 min.
+            # 200M leaves generous headroom for several concurrent streams
+            # while neutralising BBR's LAN-burst pacing.
+            # See docs/known-issues.md "Plex Direct-Play Buffering on LAN
+            # Apple TVs (BBR + MTU Probing)" for full investigation.
+            kubernetes.io/egress-bandwidth: "200M"
         containers:
           app:
             image:
