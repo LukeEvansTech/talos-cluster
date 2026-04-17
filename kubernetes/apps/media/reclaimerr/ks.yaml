@@ -22,6 +22,7 @@ spec:
     substitute:
       APP: *app
       VOLSYNC_CAPACITY: 2Gi
+      VOLSYNC_CACHE_CAPACITY: 1Gi
       HOMEPAGE_NAME: Reclaimerr
       HOMEPAGE_GROUP: Media
       HOMEPAGE_ICON: mdi-broom

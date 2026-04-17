@@ -22,7 +22,7 @@ spec:
               API_HOST: 0.0.0.0
               API_PORT: &port 8000
               COOKIE_SECURE: "true"
-              CORS_ORIGINS: https://reclaimerr.${SECRET_DOMAIN}
+              CORS_ORIGINS: https://reclaimerr.${SECRET_DOMAIN},https://reclaimerr.${SECRET_INTERNAL_DOMAIN}
               LOG_LEVEL: INFO
             probes:
               liveness: &probes
