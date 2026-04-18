@@ -38,6 +38,7 @@ resources:
   - ./radarr/ks.yaml
   # - ./radarr4k/ks.yaml  # Removed — consolidated into radarr (GPU transcoding)
   # - ./radarranime/ks.yaml  # Removed — consolidated into radarr (anime handled via root folders + profiles)
+  - ./reclaimerr/ks.yaml
   - ./recommendarr/ks.yaml
   # - ./recyclarr/ks.yaml  # Disabled — using Profilarr instead
   - ./sonarr/ks.yaml
