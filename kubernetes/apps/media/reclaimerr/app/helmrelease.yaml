@@ -69,22 +69,17 @@ spec:
           http:
             port: *port
     route:
-      internal:
+      app:
         annotations:
           gatus.home-operations.com/endpoint: |-
             group: internal
             url: http://reclaimerr.media.svc.cluster.local:8000/api/info/health
             conditions: ["[STATUS] == 200"]
         hostnames:
+          - "{{ .Release.Name }}.${SECRET_DOMAIN}"
           - "{{ .Release.Name }}.${SECRET_INTERNAL_DOMAIN}"
         parentRefs:
           - name: envoy-internal
-            namespace: network
-      external:
-        hostnames:
-          - "{{ .Release.Name }}.${SECRET_DOMAIN}"
-        parentRefs:
-          - name: envoy-external
             namespace: network
     persistence:
       config:
