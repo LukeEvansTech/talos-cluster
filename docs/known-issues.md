@@ -298,9 +298,12 @@ fluctuates but `retrans` count doesn't spike.
 
 ### Resolution Status
 
-⏳ **Runtime workaround proven effective for MSS-collapse half of the problem**
-(2026-04-17). BBR-disable half and permanent-fix options documented pending
-rollout via Option 1 (Cilium egress annotation) or Option 2 (pod sysctls).
+✅ **Permanent fix applied via Option 1** (Cilium egress annotation,
+`kubernetes.io/egress-bandwidth: "200M"`, commit `4a8086bb`, rolled
+2026-04-17 22:33 UTC). Plex pod has been stable since — no restarts, no
+user-reported flaps, no MSS-collapse signal in `ss -tni`. Option 2 (pod
+sysctls via `allowed-unsafe-sysctls`) kept documented as a fallback if
+Cilium's BandwidthManager is ever disabled.
 
 ---
 
@@ -427,11 +430,19 @@ Should return nothing.
 
 ### Resolution Status
 
-✅ **Fix 1 applied** (2026-04-17, commit `f50e90c8`) — removes the broken
-`https://<fqdn>:32400` entry. ⏳ **Fix 2 (pod-IP suppression) held in
-reserve** pending confirmation that the BBR/MTU-probing permanent fix
-(`kubernetes.io/egress-bandwidth: "200M"`, commit `4a8086bb`) has
-eliminated the dominant cause of the flaps.
+✅ **Fix 1 applied and stable** (2026-04-17, commit `f50e90c8`) — removes
+the broken `https://<fqdn>:32400` entry. Zero `location=unknown` /
+`expected MediaContainer element, found html` / `TranscodeUniversalRequest`
+errors in `Plex Media Server.log` since the pod rolled.
+
+In hindsight the BBR/MTU-probing fix (Option 1 above, commit `4a8086bb`)
+was the dominant cause of user-visible flaps; this URL-advertisement fix
+addressed a real but secondary server-side failure mode that coincided
+with the same incident. Both fixes are now in place and Plex has been
+stable since 2026-04-17.
+
+**Fix 2 (pod-IP suppression) not applied** — still in reserve if Apple
+TVs ever resume stalling on `10.42.*.*:32400` connection attempts.
 
 ### Adjacent observation
 
@@ -448,5 +459,5 @@ and `ScannerLowPriority=1` are already set).
 
 ---
 
-**Last Updated**: 2026-04-20
+**Last Updated**: 2026-04-21
 **Cluster**: talos-cluster
