@@ -6,6 +6,7 @@ metadata:
   name: &app n8n
 spec:
   interval: 1h
+  timeout: 15m
   chartRef:
     kind: OCIRepository
     name: n8n
