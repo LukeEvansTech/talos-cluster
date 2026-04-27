@@ -6,6 +6,7 @@ metadata:
   name: &app epicgames
 spec:
   interval: 1h
+  timeout: 15m
   chartRef:
     kind: OCIRepository
     name: epicgames
