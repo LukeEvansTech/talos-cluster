@@ -1,0 +1,97 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: seasonpackerr
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: seasonpackerr
+  values:
+    controllers:
+      seasonpackerr:
+        containers:
+          app:
+            image:
+              repository: ghcr.io/nuxencs/seasonpackarr
+              tag: v0.14.0
+            env:
+              SEASONPACKARR__HOST: 0.0.0.0
+              SEASONPACKARR__PORT: &port 80
+              SEASONPACKARR__SMART_MODE: "true"
+              SEASONPACKARR__SMART_MODE_THRESHOLD: "0.75"
+              SEASONPACKARR__TIMEZONE: ${TIMEZONE}
+              SEASONPACKARR__CLIENTS__QBITTORRENT__HOST: qbittorrent-app.downloads.svc.cluster.local
+              SEASONPACKARR__CLIENTS__QBITTORRENT__PORT: "80"
+              SEASONPACKARR__SONARR__0__DOWNLOAD_PATH: /media/Downloads/qbittorrent/complete/sonarr
+            probes:
+              liveness:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /api/healthz/readiness
+                    port: *port
+                  periodSeconds: 30
+                  timeoutSeconds: 5
+                  failureThreshold: 5
+              readiness:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /api/healthz/readiness
+                    port: *port
+                  periodSeconds: 10
+                  timeoutSeconds: 5
+                  failureThreshold: 5
+              startup:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /api/healthz/readiness
+                    port: *port
+                  periodSeconds: 5
+                  failureThreshold: 30
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities: {drop: ["ALL"]}
+            resources:
+              requests:
+                cpu: 10m
+              limits:
+                memory: 256Mi
+    defaultPodOptions:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+    service:
+      app:
+        controller: seasonpackerr
+        ports:
+          http:
+            port: *port
+    route:
+      app:
+        hostnames:
+          - "{{ .Release.Name }}.${SECRET_DOMAIN}"
+          - "{{ .Release.Name }}.${SECRET_INTERNAL_DOMAIN}"
+        parentRefs:
+          - name: envoy-internal
+            namespace: network
+    persistence:
+      tmp:
+        type: emptyDir
+      media:
+        type: nfs
+        server: ${SECRET_STORAGE_SERVER:-localhost}
+        path: /mnt/pool/media
+        globalMounts:
+          - path: /media
