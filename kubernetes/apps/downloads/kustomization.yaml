@@ -14,7 +14,8 @@ resources:
   - ./qui/ks.yaml
   - ./prowlarr/ks.yaml
   - ./sabnzbd/ks.yaml
-  - ./seasonpackerr/ks.yaml
+  # TODO: re-enable seasonpackerr — initial deploy CrashLoopBackOff'd; needs `preImportPath` per client and possibly client renamed from QBITTORRENT → DEFAULT. See ./seasonpackerr/ for the manifests, kept in-tree for follow-up.
+  # - ./seasonpackerr/ks.yaml
   - ./flaresolverr/ks.yaml
   - ./byparr/ks.yaml
   - ./stacks/ks.yaml
