@@ -6,7 +6,5 @@ resources:
   - ./grafanadashboard.yaml
   - ./helmrelease.yaml
   - ./ocirepository.yaml
-  # Disabled for K8s 1.36 upgrade — admissionregistration.k8s.io/v1beta1 removed.
-  # Re-enable in PR 4 once mutatingadmissionpolicy.yaml is migrated to v1.
-  # - ./mutatingadmissionpolicy.yaml
+  - ./mutatingadmissionpolicy.yaml
   - ./prometheusrule.yaml
