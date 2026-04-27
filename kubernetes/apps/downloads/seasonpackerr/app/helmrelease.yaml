@@ -87,6 +87,8 @@ spec:
           - name: envoy-internal
             namespace: network
     persistence:
+      config:
+        type: emptyDir
       tmp:
         type: emptyDir
       media:
