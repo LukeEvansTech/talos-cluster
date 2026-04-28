@@ -1,3 +1,4 @@
+---
 apiVersion: v1
 data:
   certwarden-supermicro-deploy.sh: |
@@ -125,24 +126,46 @@ data:
                 secretName: ${CERT_SECRET_NAME}
     EOF
 
-    # Wait for the job to complete
+    # Wait for the Job to reach a terminal condition (Complete or Failed).
+    # kubectl wait --for=condition=complete ignores Failed, so on a fast pod
+    # failure it would block the full --timeout instead of surfacing the real
+    # error. Poll both conditions explicitly so failures are caught quickly.
     echo "Waiting for Job to complete..."
-    kubectl wait --for=condition=complete --timeout=5m "job/${JOB_NAME}" -n "${NAMESPACE}"
+    JOB_TIMEOUT=300
+    DEADLINE=$(( $(date +%s) + JOB_TIMEOUT ))
+    JOB_RESULT=""
+    while [[ $(date +%s) -lt ${DEADLINE} ]]; do
+        COMPLETE=$(kubectl get job "${JOB_NAME}" -n "${NAMESPACE}" -o jsonpath='{.status.conditions[?(@.type=="Complete")].status}' 2>/dev/null || true)
+        FAILED=$(kubectl get job "${JOB_NAME}" -n "${NAMESPACE}" -o jsonpath='{.status.conditions[?(@.type=="Failed")].status}' 2>/dev/null || true)
+        if [[ "${COMPLETE}" == "True" ]]; then
+            JOB_RESULT="complete"
+            break
+        fi
+        if [[ "${FAILED}" == "True" ]]; then
+            JOB_RESULT="failed"
+            break
+        fi
+        sleep 5
+    done
 
-    # Get the job logs
+    # Always dump pod logs so Certwarden captures them on success and failure
     echo "=== Job Logs ==="
-    kubectl logs "job/${JOB_NAME}" -n "${NAMESPACE}"
+    kubectl logs "job/${JOB_NAME}" -n "${NAMESPACE}" --all-containers --tail=-1 || true
 
-    # Check if the job succeeded
-    JOB_STATUS=$(kubectl get job "${JOB_NAME}" -n "${NAMESPACE}" -o jsonpath='{.status.conditions[?(@.type=="Complete")].status}')
-    if [[ "${JOB_STATUS}" == "True" ]]; then
-        echo "✅ Certificate deployed successfully to ${SUPERMICRO_HOST} (containerized)"
-        exit 0
-    else
-        echo "❌ Failed to deploy certificate to ${SUPERMICRO_HOST} (containerized)"
-        kubectl logs "job/${JOB_NAME}" -n "${NAMESPACE}"
-        exit 1
-    fi
+    case "${JOB_RESULT}" in
+        complete)
+            echo "✅ Certificate deployed successfully to ${SUPERMICRO_HOST} (containerized)"
+            exit 0
+            ;;
+        failed)
+            echo "❌ Failed to deploy certificate to ${SUPERMICRO_HOST} (containerized)"
+            exit 1
+            ;;
+        *)
+            echo "❌ Job did not reach a terminal state within ${JOB_TIMEOUT}s on ${SUPERMICRO_HOST}"
+            exit 1
+            ;;
+    esac
 kind: ConfigMap
 metadata:
   creationTimestamp: null
