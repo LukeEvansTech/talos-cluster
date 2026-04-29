@@ -34,8 +34,6 @@ spec:
               tag: 0.23.0@sha256:b5771d12e826ca9fabd7025a2f77f53a83baf0ea951aab733900dc6d96792bcd
             env:
               TZ: ${TIMEZONE}
-              NVIDIA_VISIBLE_DEVICES: "all"
-              NVIDIA_DRIVER_CAPABILITIES: "all"
               CELERY_BROKER_URL: redis://dragonfly.database.svc.cluster.local:6379/0
               DISPATCHARR_ENV: aio
               DISPATCHARR_LOG_LEVEL: info
