@@ -5,5 +5,7 @@ kind: HelmRepository
 metadata:
   name: nvidia
 spec:
-  interval: 1h
+  # NGC's CDN flaps with transient 502s; Renovate triggers on-demand fetches
+  # when chart versions change, so a long polling interval is safe.
+  interval: 6h
   url: https://helm.ngc.nvidia.com/nvidia
