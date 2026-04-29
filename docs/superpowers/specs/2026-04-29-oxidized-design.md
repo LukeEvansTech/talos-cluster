@@ -38,7 +38,7 @@ Single-pod deployment in `observability`, sitting next to `snmp-exporter`. Oxidi
 │                                            │                             │
 │  ┌─────────────────── oxidized pod ────────┴──────────────────┐          │
 │  │  oxidized:0.36.0  (port 8888)                              │          │
-│  │  oxidized-exporter:v1.0.7  (port 9001)                     │          │
+│  │  oxidized-exporter:v1.0.7  (port 8080)                     │          │
 │  │  initContainers:                                           │          │
 │  │   - ssh-setup       (writes deploy key to tmpfs)           │          │
 │  │   - router-db-render (envsubst → router.db on tmpfs)       │          │
@@ -178,7 +178,7 @@ controllers:
         image:
           repository: ghcr.io/akquinet/oxidized-exporter
           tag: v1.0.7@sha256:<digest>
-        args: [--oxidized-url=http://localhost:8888]
+        args: ["-U", "http://localhost:8888"]   # exporter listens on :8080 by default
         resources:
           requests: { cpu: 10m, memory: 32Mi }
           limits:   { memory: 64Mi }
@@ -193,7 +193,7 @@ service:
     controller: oxidized
     ports:
       http:    { port: 8888 }
-      metrics: { port: 9001 }
+      metrics: { port: 8080 }
 
 serviceMonitor:
   app:
@@ -392,20 +392,21 @@ spec:
     - name: oxidized
       rules:
         - alert: OxidizedDeviceStale
-          expr: (time() - oxidized_node_last_success_timestamp_seconds) > 172800
-          for: 10m
+          # 2=success, 1=never, 0=no_connection per akquinet/oxidized-exporter
+          expr: oxidized_device_status != 2
+          for: 48h
           labels: { severity: warning }
           annotations:
-            summary: "Oxidized has not polled {{ $labels.node }} in >48h"
+            summary: "Oxidized has not successfully polled {{ $labels.full_name }} in >48h"
         - alert: OxidizedDown
-          expr: up{job="oxidized"} == 0
+          expr: up{job=~".*oxidized.*"} == 0
           for: 15m
           labels: { severity: warning }
           annotations:
             summary: "Oxidized exporter is down"
 ```
 
-Exact metric name will be confirmed against `akquinet/oxidized-exporter` README during implementation and adjusted if needed.
+Metric semantics confirmed against the akquinet/oxidized-exporter source: `oxidized_device_status` is a gauge labeled `full_name`, `name`, `group`, `model` with values `2=success / 1=never / 0=no_connection`. Alert fires only after 48h of continuously not-success (with daily polls, that's at least two consecutive failed cycles).
 
 ## Preconditions
 
@@ -477,8 +478,7 @@ The git history on GitHub is durable evidence even after uninstall — redeploy 
 ## Open Items (resolved during implementation plan)
 
 - **Ruckus model choice** — confirm Unleashed vs SmartZone vs ZoneDirector before populating `router.db`.
-- **OPNsense secret stripping** — exact `remove_secret` regex tuned to OPNsense `config.xml`.
-- **Exporter metric name** — confirm against `akquinet/oxidized-exporter` README.
+- **OPNsense secret stripping** — verify after first poll whether the committed `config.xml` contains plaintext secrets; add `remove_secret` filter and any custom regex if so.
 - **Container image digests** — pinned at implementation time.
 - **NetworkPolicy egress rules** — exact device IPs/CIDRs.
 
