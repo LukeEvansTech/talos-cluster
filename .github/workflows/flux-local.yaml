@@ -54,6 +54,7 @@ jobs:
           command: >-
             docker run --rm
             -v "${{ github.workspace }}":/github/workspace
+            -e HOME=/tmp
             -e GITHUB_TOKEN
             ghcr.io/allenporter/flux-local:v8.2.0
             test --all-namespaces --enable-helm
