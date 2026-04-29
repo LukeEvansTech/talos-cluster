@@ -18,7 +18,6 @@ resources:
   - ./keda/ks.yaml
   - ./metrics-server/ks.yaml
   - ./multus/ks.yaml
-  - ./nvidia-device-plugin/ks.yaml
   - ./reflector/ks.yaml
   - ./reloader/ks.yaml
   - ./snapshot-controller/ks.yaml
