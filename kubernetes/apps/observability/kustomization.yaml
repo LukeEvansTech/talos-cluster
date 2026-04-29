@@ -11,7 +11,6 @@ resources:
   - ./netpol.yaml
   - ./acinfinity-exporter/ks.yaml
   - ./blackbox-exporter/ks.yaml
-  - ./dcgm-exporter/ks.yaml
   - ./fluent-bit/ks.yaml
   - ./gatus/ks.yaml
   - ./grafana/ks.yaml
