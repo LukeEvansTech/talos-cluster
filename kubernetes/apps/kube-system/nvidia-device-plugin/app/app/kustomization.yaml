@@ -5,4 +5,7 @@ namespace: kube-system
 resources:
   - ./ocirepository.yaml
   - ./helmrelease.yaml
-  - ./runtimeclass.yaml
+  # NOTE: ./runtimeclass.yaml moved to
+  # kubernetes/apps/gpu-operator/gpu-operator/app/ during the gpu-operator
+  # cutover (PR #2328). Do NOT re-add it here on rollback — the operator
+  # path owns RuntimeClass `nvidia` (cluster-scoped, single owner).
