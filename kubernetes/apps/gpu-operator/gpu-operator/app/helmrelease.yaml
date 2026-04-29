@@ -24,9 +24,14 @@ spec:
       enabled: true
       default: true
     devicePlugin:
-      enabled: false
+      enabled: true
+      config:
+        name: time-slicing-config
+        default: any
     dcgmExporter:
-      enabled: false
+      enabled: true
+      serviceMonitor:
+        enabled: true
     gfd:
       enabled: true
     mig:
@@ -54,12 +59,3 @@ spec:
         env:
           - name: DISABLE_DEV_CHAR_SYMLINK_CREATION
             value: "true"
-    daemonsets:
-      nodeAffinity:
-        requiredDuringSchedulingIgnoredDuringExecution:
-          nodeSelectorTerms:
-            - matchExpressions:
-                - key: extensions.talos.dev/nvidia-open-gpu-kernel-modules-production
-                  operator: Exists
-                - key: extensions.talos.dev/nvidia-container-toolkit-production
-                  operator: Exists
