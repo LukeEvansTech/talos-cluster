@@ -12,8 +12,8 @@ spec:
   components:
     - ../../../../components/volsync
   dependsOn:
-    - name: nvidia-device-plugin
-      namespace: kube-system
+    - name: gpu-operator
+      namespace: gpu-operator
     - name: rook-ceph-cluster
       namespace: rook-ceph
   interval: 1h
