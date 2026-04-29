@@ -39,26 +39,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
-      # NGC's CDN flaps with transient 502s on `helm.ngc.nvidia.com/nvidia/index.yaml`,
-      # which makes `flux-local test` blow up on the gpu-operator HelmRelease even
-      # though every other test passes and the cluster's running fine off the cached
-      # chart artifact. Retry covers most outage windows (typically <2 min).
       - name: Run flux-local test
-        uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08 # v3.0.2
+        uses: docker://ghcr.io/allenporter/flux-local:v8.2.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          timeout_minutes: 10
-          max_attempts: 3
-          retry_wait_seconds: 60
-          command: >-
-            docker run --rm
-            -v "${{ github.workspace }}":/github/workspace
-            -e HOME=/tmp
-            -e GITHUB_TOKEN
-            ghcr.io/allenporter/flux-local:v8.2.0
-            test --all-namespaces --enable-helm
-            --path /github/workspace/kubernetes/flux/cluster --verbose
+          args: >-
+            test
+            --all-namespaces
+            --enable-helm
+            --path /github/workspace/kubernetes/flux/cluster
+            --verbose
 
   diff:
     if: ${{ needs.filter.outputs.changed-files != '[]' }}
