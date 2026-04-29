@@ -18,6 +18,11 @@ resources:
   - ./keda/ks.yaml
   - ./metrics-server/ks.yaml
   - ./multus/ks.yaml
+  # ROLLBACK PATH for gpu-operator cutover (PR #2328): uncomment the line below
+  # AND set devicePlugin.enabled=false in
+  # kubernetes/apps/gpu-operator/gpu-operator/app/helmrelease.yaml.
+  # The standalone nvidia-device-plugin files are kept on disk for this purpose.
+  # - ./nvidia-device-plugin/ks.yaml
   - ./reflector/ks.yaml
   - ./reloader/ks.yaml
   - ./snapshot-controller/ks.yaml
