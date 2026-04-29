@@ -26,4 +26,8 @@ spec:
     - "error.*lookup raw\\.githubusercontent\\.com"
     - "dial.*tcp.*timeout"
     - "waiting.*socket"
+    # NGC's CDN flaps with transient 502s on index.yaml fetches; cluster keeps
+    # serving from cached chart artifact, and FluxHelmReleaseNotReady (15m for:)
+    # still fires if the operator actually breaks.
+    - "helm\\.ngc\\.nvidia\\.com.*502"
   suspend: false
