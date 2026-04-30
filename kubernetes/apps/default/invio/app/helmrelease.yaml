@@ -101,7 +101,7 @@ spec:
             namespace: network
         rules:
           - backendRefs:
-              - name: invio-app
+              - name: invio
                 port: 8000
 
     persistence:
