@@ -1,0 +1,76 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: oxidized-config
+data:
+  config: |
+    ---
+    username: placeholder
+    password: placeholder
+    model: routeros
+    interval: 86400
+    log: /home/oxidized/.config/oxidized/oxidized.log
+    debug: false
+    threads: 6
+    timeout: 30
+    retries: 2
+    rest: 0.0.0.0:8888
+    prompt: !ruby/regexp /^([\w.@-]+[#>]\s?)$/
+
+    input:
+      default: ssh
+      ssh:
+        secure: false
+
+    output:
+      default: git
+      git:
+        user: Oxidized
+        email: oxidized@${SECRET_DOMAIN}
+        repo: /home/oxidized/.config/oxidized/devices.git
+
+    source:
+      default: csv
+      csv:
+        file: /etc/oxidized/router.db.d/router.db
+        delimiter: !ruby/regexp /:/
+        map:
+          name: 0
+          ip: 1
+          model: 2
+          username: 3
+          password: 4
+
+    hooks:
+      push_to_github:
+        type: githubrepo
+        events: [post_store]
+        remote_repo: git@github.com:LukeEvansTech/network-configs.git
+        publickey_file: /home/oxidized/.ssh/id_ed25519.pub
+        privatekey_file: /home/oxidized/.ssh/id_ed25519
+      pushover_drift:
+        type: exec
+        events: [post_store]
+        cmd: |
+          curl -s --form-string "token=$PUSHOVER_TOKEN" \
+                  --form-string "user=$PUSHOVER_USER_KEY" \
+                  --form-string "title=Oxidized: config drift" \
+                  --form-string "message=$OX_NODE_NAME ($OX_NODE_MODEL) changed" \
+                  https://api.pushover.net/1/messages.json
+      pushover_fail:
+        type: exec
+        events: [node_fail]
+        cmd: |
+          curl -s --form-string "token=$PUSHOVER_TOKEN" \
+                  --form-string "user=$PUSHOVER_USER_KEY" \
+                  --form-string "title=Oxidized: poll failed" \
+                  --form-string "priority=1" \
+                  --form-string "message=$OX_NODE_NAME ($OX_NODE_MODEL) — $OX_NODE_MSG" \
+                  https://api.pushover.net/1/messages.json
+  router.db: |-
+    opnsense:opnsense.lan:opnsense:$${OPNSENSE_USERNAME}:$${OPNSENSE_PASSWORD}
+    onyx:onyx.lan:onyx:$${ONYX_USERNAME}:$${ONYX_PASSWORD}
+    mikrotik_poe:mikrotik-poe.lan:routeros:$${MIKROTIK_POE_USERNAME}:$${MIKROTIK_POE_PASSWORD}
+    mikrotik_nonpoe:mikrotik-nonpoe.lan:routeros:$${MIKROTIK_NONPOE_USERNAME}:$${MIKROTIK_NONPOE_PASSWORD}
+    ruckus:ruckus.lan:ruckusunleashed:$${RUCKUS_USERNAME}:$${RUCKUS_PASSWORD}
