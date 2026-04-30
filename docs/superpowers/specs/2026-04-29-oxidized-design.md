@@ -17,7 +17,6 @@ Purpose: drift detection. The Terraform/Ansible IaC in the sibling `network-ops`
 | MikroTik CRS354 PoE | `mikrotik-poe.lan` | `routeros` |
 | MikroTik CRS354 non-PoE | `mikrotik-nonpoe.lan` | `routeros` |
 | Ruckus AP/controller | `ruckus.lan` | `ruckusunleashed` *(model TBC during pre-deploy)* |
-| GL.iNet router | `glinet.lan` | `openwrt` |
 
 **Out of scope:**
 - APC PDU — SNMP-only; no config-dump fit for Oxidized.
@@ -38,7 +37,7 @@ Single-pod deployment in `observability`, sitting next to `snmp-exporter`. Oxidi
 │                                            │                             │
 │  ┌─────────────────── oxidized pod ────────┴──────────────────┐          │
 │  │  oxidized:0.36.0  (port 8888)                              │          │
-│  │  oxidized-exporter:v1.0.7  (port 8080)                     │          │
+│  │  oxidized-exporter:v1.0.5  (port 8080)                     │          │
 │  │  initContainers:                                           │          │
 │  │   - ssh-setup       (writes deploy key to tmpfs)           │          │
 │  │   - router-db-render (envsubst → router.db on tmpfs)       │          │
@@ -66,7 +65,7 @@ Single-pod deployment in `observability`, sitting next to `snmp-exporter`. Oxidi
 └─────────────────────────┼────────────────────────────────────────────────┘
                           │ SSH / HTTPS polls (every 24h)
                           ▼
-   opnsense · onyx · mikrotik_poe · mikrotik_nonpoe · ruckus · glinet
+   opnsense · onyx · mikrotik_poe · mikrotik_nonpoe · ruckus
 ```
 
 ## File Layout
@@ -92,7 +91,7 @@ kubernetes/apps/observability/oxidized/
 | Image | Tag | Purpose |
 |---|---|---|
 | `docker.io/oxidized/oxidized` | `0.36.0@sha256:<digest>` | Main app (resolved at implementation) |
-| `ghcr.io/akquinet/oxidized-exporter` | `v1.0.7@sha256:<digest>` | Sidecar Prometheus exporter |
+| `ghcr.io/akquinet/oxidized-exporter` | `v1.0.5@sha256:<digest>` | Sidecar Prometheus exporter |
 
 Both tracked by Renovate.
 
@@ -145,12 +144,12 @@ controllers:
           OPNSENSE_PASSWORD: { secretKeyRef: { name: oxidized-secret, key: OPNSENSE_PASSWORD } }
           ONYX_USERNAME:     { secretKeyRef: { name: oxidized-secret, key: ONYX_USERNAME } }
           ONYX_PASSWORD:     { secretKeyRef: { name: oxidized-secret, key: ONYX_PASSWORD } }
-          MIKROTIK_USERNAME: { secretKeyRef: { name: oxidized-secret, key: MIKROTIK_USERNAME } }
-          MIKROTIK_PASSWORD: { secretKeyRef: { name: oxidized-secret, key: MIKROTIK_PASSWORD } }
-          RUCKUS_USERNAME:   { secretKeyRef: { name: oxidized-secret, key: RUCKUS_USERNAME } }
-          RUCKUS_PASSWORD:   { secretKeyRef: { name: oxidized-secret, key: RUCKUS_PASSWORD } }
-          GLINET_USERNAME:   { secretKeyRef: { name: oxidized-secret, key: GLINET_USERNAME } }
-          GLINET_PASSWORD:   { secretKeyRef: { name: oxidized-secret, key: GLINET_PASSWORD } }
+          MIKROTIK_POE_USERNAME:    { secretKeyRef: { name: oxidized-secret, key: MIKROTIK_POE_USERNAME } }
+          MIKROTIK_POE_PASSWORD:    { secretKeyRef: { name: oxidized-secret, key: MIKROTIK_POE_PASSWORD } }
+          MIKROTIK_NONPOE_USERNAME: { secretKeyRef: { name: oxidized-secret, key: MIKROTIK_NONPOE_USERNAME } }
+          MIKROTIK_NONPOE_PASSWORD: { secretKeyRef: { name: oxidized-secret, key: MIKROTIK_NONPOE_PASSWORD } }
+          RUCKUS_USERNAME:          { secretKeyRef: { name: oxidized-secret, key: RUCKUS_USERNAME } }
+          RUCKUS_PASSWORD:          { secretKeyRef: { name: oxidized-secret, key: RUCKUS_PASSWORD } }
     containers:
       app:
         image:
@@ -177,7 +176,7 @@ controllers:
       exporter:
         image:
           repository: ghcr.io/akquinet/oxidized-exporter
-          tag: v1.0.7@sha256:<digest>
+          tag: v1.0.5@sha256:<digest>
         args: ["-U", "http://localhost:8888"]   # exporter listens on :8080 by default
         resources:
           requests: { cpu: 10m, memory: 32Mi }
@@ -340,10 +339,9 @@ Template content:
 ```
 opnsense:opnsense.lan:opnsense:${OPNSENSE_USERNAME}:${OPNSENSE_PASSWORD}
 onyx:onyx.lan:onyx:${ONYX_USERNAME}:${ONYX_PASSWORD}
-mikrotik_poe:mikrotik-poe.lan:routeros:${MIKROTIK_USERNAME}:${MIKROTIK_PASSWORD}
-mikrotik_nonpoe:mikrotik-nonpoe.lan:routeros:${MIKROTIK_USERNAME}:${MIKROTIK_PASSWORD}
+mikrotik_poe:mikrotik-poe.lan:routeros:${MIKROTIK_POE_USERNAME}:${MIKROTIK_POE_PASSWORD}
+mikrotik_nonpoe:mikrotik-nonpoe.lan:routeros:${MIKROTIK_NONPOE_USERNAME}:${MIKROTIK_NONPOE_PASSWORD}
 ruckus:ruckus.lan:ruckusunleashed:${RUCKUS_USERNAME}:${RUCKUS_PASSWORD}
-glinet:glinet.lan:openwrt:${GLINET_USERNAME}:${GLINET_PASSWORD}
 ```
 
 ## ExternalSecret
@@ -364,12 +362,12 @@ spec:
         OPNSENSE_PASSWORD:    "{{ .OPNSENSE_PASSWORD }}"
         ONYX_USERNAME:        "{{ .ONYX_USERNAME }}"
         ONYX_PASSWORD:        "{{ .ONYX_PASSWORD }}"
-        MIKROTIK_USERNAME:    "{{ .MIKROTIK_USERNAME }}"
-        MIKROTIK_PASSWORD:    "{{ .MIKROTIK_PASSWORD }}"
+        MIKROTIK_POE_USERNAME:    "{{ .MIKROTIK_POE_USERNAME }}"
+        MIKROTIK_POE_PASSWORD:    "{{ .MIKROTIK_POE_PASSWORD }}"
+        MIKROTIK_NONPOE_USERNAME: "{{ .MIKROTIK_NONPOE_USERNAME }}"
+        MIKROTIK_NONPOE_PASSWORD: "{{ .MIKROTIK_NONPOE_PASSWORD }}"
         RUCKUS_USERNAME:      "{{ .RUCKUS_USERNAME }}"
         RUCKUS_PASSWORD:      "{{ .RUCKUS_PASSWORD }}"
-        GLINET_USERNAME:      "{{ .GLINET_USERNAME }}"
-        GLINET_PASSWORD:      "{{ .GLINET_PASSWORD }}"
         GITHUB_DEPLOY_KEY:    "{{ .GITHUB_DEPLOY_KEY }}"
         GITHUB_KNOWN_HOSTS:   "{{ .GITHUB_KNOWN_HOSTS }}"
         PUSHOVER_TOKEN:       "{{ .PUSHOVER_TOKEN }}"
@@ -378,7 +376,7 @@ spec:
     - extract: { key: oxidized }
 ```
 
-**1Password item to create**: `oxidized` in the same vault used by other apps, with the 14 fields above. The user is responsible for creating this item before deploy.
+**1Password item to create**: `oxidized` in the **`Talos`** vault (the only vault read by `ClusterSecretStore onepassword-connect`), with the 14 fields above. Source values for MikroTik / Ruckus / OPNsense live in `Home Operations` and must be copied across via `op read` when creating the item. The user is responsible for creating this item before deploy.
 
 ## PrometheusRule
 
