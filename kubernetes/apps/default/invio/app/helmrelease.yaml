@@ -28,6 +28,17 @@ spec:
               # renovate: datasource=docker depName=ghcr.io/kittendevv/invio
               repository: ghcr.io/kittendevv/invio
               tag: v2.0.0@sha256:ee5f20a4e74aae0610148e405c14d1be6a98b10de1c8eac97d42ac5c3f3324e3
+            # The image's default Cmd lets supervisord default its main logfile
+            # to $CWD/supervisord.log = /app/supervisord.log, which user 1000
+            # cannot write to. `-l /tmp/supervisord.log` redirects it.
+            command:
+              - "/usr/bin/supervisord"
+            args:
+              - "-n"
+              - "-c"
+              - "/etc/supervisor/conf.d/supervisord.conf"
+              - "-l"
+              - "/tmp/supervisord.log"
             env:
               TZ: ${TIMEZONE}
               DATABASE_PATH: /app/data/invio.db
