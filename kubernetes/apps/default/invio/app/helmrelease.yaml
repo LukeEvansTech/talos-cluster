@@ -111,3 +111,11 @@ spec:
           app:
             app:
               - path: /app/data
+      # Deno's npm cache lives at /.cache/deno; bare image runs as user 1000
+      # which can't write to /.cache. emptyDir gives it somewhere writable.
+      cache:
+        type: emptyDir
+        advancedMounts:
+          app:
+            app:
+              - path: /.cache
