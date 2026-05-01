@@ -23,7 +23,10 @@ spec:
               - -c
               - |
                 set -eu
-                install -m 0700 -d /ssh-out
+                # /ssh-out is an emptyDir mount; perms are managed by fsGroup,
+                # we can't chmod the dir itself from a non-root UID. SSH only
+                # strictly enforces FILE perms on the private key, so rely on
+                # those.
                 printf '%s\n' "$GITHUB_DEPLOY_KEY" > /ssh-out/id_ed25519
                 chmod 0600 /ssh-out/id_ed25519
                 ssh-keygen -y -f /ssh-out/id_ed25519 > /ssh-out/id_ed25519.pub
