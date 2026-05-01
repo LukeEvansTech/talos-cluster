@@ -2,7 +2,7 @@
 # Trivy SARIF filter — path-scoped suppressions for known false positives.
 # See: https://aquasecurity.github.io/trivy/latest/docs/configuration/filtering/
 misconfigurations:
-  - id: AVD-KSV-0109
+  - id: KSV-0109
     paths:
       - "kubernetes/apps/observability/oxidized/app/configmap.yaml"
     statement: |
@@ -12,7 +12,7 @@ misconfigurations:
       by the ExternalSecret) into a Secret-mounted router.db. The 'token=' is
       a curl --form-string flag in a Pushover hook, not a secret value.
 
-  - id: AVD-KSV-01010
+  - id: KSV-01010
     paths:
       - "kubernetes/apps/observability/oxidized/app/configmap.yaml"
     statement: |-
