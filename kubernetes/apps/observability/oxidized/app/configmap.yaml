@@ -4,7 +4,7 @@ kind: ConfigMap
 metadata:
   name: oxidized-config
 data:
-  config: |
+  config: |-
     ---
     username: placeholder
     password: placeholder
@@ -68,9 +68,3 @@ data:
                   --form-string "priority=1" \
                   --form-string "message=$OX_NODE_NAME ($OX_NODE_MODEL) — $OX_NODE_MSG" \
                   https://api.pushover.net/1/messages.json
-  router.db: |-
-    opnsense:opnsense.lan:opnsense:$${OPNSENSE_USERNAME}:$${OPNSENSE_PASSWORD}
-    onyx:onyx.lan:onyx:$${ONYX_USERNAME}:$${ONYX_PASSWORD}
-    mikrotik_poe:mikrotik-poe.lan:routeros:$${MIKROTIK_POE_USERNAME}:$${MIKROTIK_POE_PASSWORD}
-    mikrotik_nonpoe:mikrotik-nonpoe.lan:routeros:$${MIKROTIK_NONPOE_USERNAME}:$${MIKROTIK_NONPOE_PASSWORD}
-    ruckus:ruckus.lan:ruckusunleashed:$${RUCKUS_USERNAME}:$${RUCKUS_PASSWORD}
