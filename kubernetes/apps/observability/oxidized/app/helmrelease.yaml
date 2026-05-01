@@ -25,11 +25,12 @@ spec:
                 set -eu
                 # /ssh-out is an emptyDir mount; perms are managed by fsGroup,
                 # we can't chmod the dir itself from a non-root UID. SSH only
-                # strictly enforces FILE perms on the private key, so rely on
-                # those.
+                # strictly enforces FILE perms on the private key.
+                # busybox does not bundle ssh-keygen, so the public key half
+                # is written directly from the secret instead of derived.
                 printf '%s\n' "$GITHUB_DEPLOY_KEY" > /ssh-out/id_ed25519
                 chmod 0600 /ssh-out/id_ed25519
-                ssh-keygen -y -f /ssh-out/id_ed25519 > /ssh-out/id_ed25519.pub
+                printf '%s\n' "$GITHUB_DEPLOY_KEY_PUB" > /ssh-out/id_ed25519.pub
                 printf '%s\n' "$GITHUB_KNOWN_HOSTS" > /ssh-out/known_hosts
                 chmod 0644 /ssh-out/id_ed25519.pub /ssh-out/known_hosts
             env:
@@ -38,6 +39,11 @@ spec:
                   secretKeyRef:
                     name: oxidized-secret
                     key: GITHUB_DEPLOY_KEY
+              GITHUB_DEPLOY_KEY_PUB:
+                valueFrom:
+                  secretKeyRef:
+                    name: oxidized-secret
+                    key: GITHUB_DEPLOY_KEY_PUB
               GITHUB_KNOWN_HOSTS:
                 valueFrom:
                   secretKeyRef:
