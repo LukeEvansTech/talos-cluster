@@ -87,7 +87,12 @@ spec:
               runAsNonRoot: true
               runAsUser: 30000
               runAsGroup: 30000
-              readOnlyRootFilesystem: true
+              # The oxidized image uses runit (runsv) as its process
+              # supervisor and writes lock files to /etc/sv/*/supervise.
+              # readOnlyRootFilesystem breaks runsv with "unable to open
+              # supervise/lock". Init + exporter keep the locked-down
+              # default; only the app container needs writable rootfs.
+              readOnlyRootFilesystem: false
               allowPrivilegeEscalation: false
               capabilities: {drop: [ALL]}
               seccompProfile: {type: RuntimeDefault}
