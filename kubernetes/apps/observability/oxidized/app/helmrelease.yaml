@@ -84,17 +84,25 @@ spec:
               requests: {cpu: 50m, memory: 128Mi}
               limits: {memory: 256Mi}
             securityContext:
-              runAsNonRoot: true
-              runAsUser: 30000
-              runAsGroup: 30000
-              # The oxidized image uses runit (runsv) as its process
-              # supervisor and writes lock files to /etc/sv/*/supervise.
-              # readOnlyRootFilesystem breaks runsv with "unable to open
-              # supervise/lock". Init + exporter keep the locked-down
-              # default; only the app container needs writable rootfs.
+              # The oxidized image bootstraps as root (uid 0): runsvdir
+              # initialises supervise dirs under /etc/service/*, runit's
+              # run script then 'chown -R oxidized:oxidized
+              # /home/oxidized/.config/oxidized' and 'gosu oxidized
+              # oxidized' to drop privileges. We must therefore start as
+              # root and grant the minimal caps needed for that handover.
+              # The actual oxidized process ends up running as uid 30000.
+              runAsNonRoot: false
+              runAsUser: 0
+              runAsGroup: 0
               readOnlyRootFilesystem: false
               allowPrivilegeEscalation: false
-              capabilities: {drop: [ALL]}
+              capabilities:
+                drop:
+                  - ALL
+                add:
+                  - CHOWN
+                  - SETUID
+                  - SETGID
               seccompProfile: {type: RuntimeDefault}
           exporter:
             image:
