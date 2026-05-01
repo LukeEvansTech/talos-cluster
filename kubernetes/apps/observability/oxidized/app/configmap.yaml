@@ -45,11 +45,19 @@ data:
 
     hooks:
       push_to_github:
-        type: githubrepo
+        # System git over SSH instead of the githubrepo hook (rugged/libgit2),
+        # which fails against current GitHub with
+        # 'Rugged::SshError: remote rejected authentication'. The system
+        # git+ssh client uses ~/.ssh/{id_ed25519,known_hosts} prepared by
+        # the ssh-setup init container.
+        type: exec
         events: [post_store]
-        remote_repo: git@github.com:LukeEvansTech/network-configs.git
-        publickey_file: /home/oxidized/.ssh/id_ed25519.pub
-        privatekey_file: /home/oxidized/.ssh/id_ed25519
+        cmd: |
+          set -e
+          cd /home/oxidized/.config/oxidized/devices.git
+          git remote get-url origin >/dev/null 2>&1 \
+            || git remote add origin git@github.com:LukeEvansTech/network-configs.git
+          git push -u origin master 2>&1
       pushover_drift:
         type: exec
         events: [post_store]
