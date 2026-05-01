@@ -1,0 +1,181 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/helm.toolkit.fluxcd.io/helmrelease_v2.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: &app oxidized
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: app-template
+  values:
+    controllers:
+      oxidized:
+        strategy: Recreate
+        initContainers:
+          ssh-setup:
+            image:
+              repository: docker.io/library/busybox
+              tag: 1.37@sha256:1487d0af5f52b4ba31c7e465126ee2123fe3f2305d638e7827681e7cf6c83d5e
+            command:
+              - /bin/sh
+              - -c
+              - |
+                set -eu
+                install -m 0700 -d /ssh-out
+                printf '%s\n' "$GITHUB_DEPLOY_KEY" > /ssh-out/id_ed25519
+                chmod 0600 /ssh-out/id_ed25519
+                ssh-keygen -y -f /ssh-out/id_ed25519 > /ssh-out/id_ed25519.pub
+                printf '%s\n' "$GITHUB_KNOWN_HOSTS" > /ssh-out/known_hosts
+                chmod 0644 /ssh-out/id_ed25519.pub /ssh-out/known_hosts
+            env:
+              GITHUB_DEPLOY_KEY:
+                valueFrom:
+                  secretKeyRef:
+                    name: oxidized-secret
+                    key: GITHUB_DEPLOY_KEY
+              GITHUB_KNOWN_HOSTS:
+                valueFrom:
+                  secretKeyRef:
+                    name: oxidized-secret
+                    key: GITHUB_KNOWN_HOSTS
+            securityContext:
+              runAsNonRoot: true
+              runAsUser: 30000
+              runAsGroup: 30000
+              readOnlyRootFilesystem: true
+              allowPrivilegeEscalation: false
+              capabilities: {drop: [ALL]}
+              seccompProfile: {type: RuntimeDefault}
+        containers:
+          app:
+            image:
+              repository: docker.io/oxidized/oxidized
+              tag: 0.36.0@sha256:12c0155d7f7c827fd884cb9d33b8aac44fa6291a9e54499cca6e3122e90c47b9
+            env:
+              PUSHOVER_TOKEN: {valueFrom: {secretKeyRef: {name: oxidized-secret, key: PUSHOVER_TOKEN}}}
+              PUSHOVER_USER_KEY: {valueFrom: {secretKeyRef: {name: oxidized-secret, key: PUSHOVER_USER_KEY}}}
+            probes:
+              liveness:
+                enabled: true
+                custom: true
+                spec:
+                  tcpSocket: {port: 8888}
+                  initialDelaySeconds: 30
+                  periodSeconds: 30
+              readiness:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet: {path: /nodes.json, port: 8888}
+                  initialDelaySeconds: 30
+                  periodSeconds: 30
+            resources:
+              requests: {cpu: 50m, memory: 128Mi}
+              limits: {memory: 256Mi}
+            securityContext:
+              runAsNonRoot: true
+              runAsUser: 30000
+              runAsGroup: 30000
+              readOnlyRootFilesystem: true
+              allowPrivilegeEscalation: false
+              capabilities: {drop: [ALL]}
+              seccompProfile: {type: RuntimeDefault}
+          exporter:
+            image:
+              repository: ghcr.io/akquinet/oxidized-exporter
+              tag: v1.0.5@sha256:93b5cc0eccd640f034d9dfa76aa3b5de1203252fcb4600650be67244262c0637
+            args:
+              - -U
+              - http://localhost:8888
+            probes:
+              liveness:
+                enabled: true
+                custom: true
+                spec:
+                  tcpSocket: {port: 8080}
+                  initialDelaySeconds: 30
+                  periodSeconds: 30
+              readiness:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet: {path: /metrics, port: 8080}
+                  initialDelaySeconds: 30
+                  periodSeconds: 30
+            resources:
+              requests: {cpu: 10m, memory: 32Mi}
+              limits: {memory: 64Mi}
+            securityContext:
+              runAsNonRoot: true
+              runAsUser: 30000
+              runAsGroup: 30000
+              readOnlyRootFilesystem: true
+              allowPrivilegeEscalation: false
+              capabilities: {drop: [ALL]}
+              seccompProfile: {type: RuntimeDefault}
+        pod:
+          securityContext:
+            fsGroup: 30000
+            fsGroupChangePolicy: OnRootMismatch
+
+    service:
+      app:
+        controller: oxidized
+        ports:
+          http: {port: 8888}
+          metrics: {port: 8080}
+
+    serviceMonitor:
+      app:
+        serviceName: oxidized
+        endpoints:
+          - port: metrics
+            interval: 30s
+            scrapeTimeout: 10s
+
+    persistence:
+      config:
+        type: persistentVolumeClaim
+        storageClass: ceph-block
+        accessMode: ReadWriteOnce
+        size: ${VOLSYNC_CAPACITY}
+        advancedMounts:
+          oxidized:
+            app:
+              - path: /home/oxidized/.config/oxidized
+      ssh:
+        type: emptyDir
+        medium: Memory
+        advancedMounts:
+          oxidized:
+            ssh-setup:
+              - path: /ssh-out
+            app:
+              - path: /home/oxidized/.ssh
+                readOnly: true
+      router-db:
+        type: secret
+        name: oxidized-secret
+        defaultMode: 0400
+        advancedMounts:
+          oxidized:
+            app:
+              - subPath: router.db
+                path: /etc/oxidized/router.db.d/router.db
+                readOnly: true
+      oxidized-config:
+        type: configMap
+        name: oxidized-config
+        advancedMounts:
+          oxidized:
+            app:
+              - subPath: config
+                path: /etc/oxidized/config
+      tmp:
+        type: emptyDir
+        advancedMounts:
+          oxidized:
+            app:
+              - path: /tmp
