@@ -48,37 +48,6 @@ spec:
               allowPrivilegeEscalation: false
               capabilities: {drop: [ALL]}
               seccompProfile: {type: RuntimeDefault}
-          router-db-render:
-            image:
-              repository: docker.io/library/alpine
-              tag: 3.21@sha256:48b0309ca019d89d40f670aa1bc06e426dc0931948452e8491e3d65087abc07d
-            command:
-              - /bin/sh
-              - -c
-              - |
-                set -eu
-                apk add --no-cache gettext >/dev/null
-                envsubst < /etc/oxidized-tmpl/router.db > /router-out/router.db
-                chmod 0600 /router-out/router.db
-            env:
-              OPNSENSE_USERNAME: {valueFrom: {secretKeyRef: {name: oxidized-secret, key: OPNSENSE_USERNAME}}}
-              OPNSENSE_PASSWORD: {valueFrom: {secretKeyRef: {name: oxidized-secret, key: OPNSENSE_PASSWORD}}}
-              ONYX_USERNAME: {valueFrom: {secretKeyRef: {name: oxidized-secret, key: ONYX_USERNAME}}}
-              ONYX_PASSWORD: {valueFrom: {secretKeyRef: {name: oxidized-secret, key: ONYX_PASSWORD}}}
-              MIKROTIK_POE_USERNAME: {valueFrom: {secretKeyRef: {name: oxidized-secret, key: MIKROTIK_POE_USERNAME}}}
-              MIKROTIK_POE_PASSWORD: {valueFrom: {secretKeyRef: {name: oxidized-secret, key: MIKROTIK_POE_PASSWORD}}}
-              MIKROTIK_NONPOE_USERNAME: {valueFrom: {secretKeyRef: {name: oxidized-secret, key: MIKROTIK_NONPOE_USERNAME}}}
-              MIKROTIK_NONPOE_PASSWORD: {valueFrom: {secretKeyRef: {name: oxidized-secret, key: MIKROTIK_NONPOE_PASSWORD}}}
-              RUCKUS_USERNAME: {valueFrom: {secretKeyRef: {name: oxidized-secret, key: RUCKUS_USERNAME}}}
-              RUCKUS_PASSWORD: {valueFrom: {secretKeyRef: {name: oxidized-secret, key: RUCKUS_PASSWORD}}}
-            securityContext:
-              runAsNonRoot: true
-              runAsUser: 30000
-              runAsGroup: 30000
-              readOnlyRootFilesystem: true
-              allowPrivilegeEscalation: false
-              capabilities: {drop: [ALL]}
-              seccompProfile: {type: RuntimeDefault}
         containers:
           app:
             image:
@@ -187,14 +156,14 @@ spec:
               - path: /home/oxidized/.ssh
                 readOnly: true
       router-db:
-        type: emptyDir
-        medium: Memory
+        type: secret
+        name: oxidized-secret
+        defaultMode: 0400
         advancedMounts:
           oxidized:
-            router-db-render:
-              - path: /router-out
             app:
-              - path: /etc/oxidized/router.db.d
+              - subPath: router.db
+                path: /etc/oxidized/router.db.d/router.db
                 readOnly: true
       oxidized-config:
         type: configMap
@@ -204,9 +173,6 @@ spec:
             app:
               - subPath: config
                 path: /etc/oxidized/config
-            router-db-render:
-              - subPath: router.db
-                path: /etc/oxidized-tmpl/router.db
       tmp:
         type: emptyDir
         advancedMounts:
