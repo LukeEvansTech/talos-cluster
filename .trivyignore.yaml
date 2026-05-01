@@ -1,0 +1,21 @@
+---
+# Trivy SARIF filter — path-scoped suppressions for known false positives.
+# See: https://aquasecurity.github.io/trivy/latest/docs/configuration/filtering/
+misconfigurations:
+  - id: AVD-KSV-0109
+    paths:
+      - "kubernetes/apps/observability/oxidized/app/configmap.yaml"
+    statement: |
+      False positive. The oxidized YAML schema requires top-level 'username'
+      and 'password' keys; the values here are literal 'placeholder' strings,
+      not secrets. Real device credentials come from oxidized-secret (rendered
+      by the ExternalSecret) into a Secret-mounted router.db. The 'token=' is
+      a curl --form-string flag in a Pushover hook, not a secret value.
+
+  - id: AVD-KSV-01010
+    paths:
+      - "kubernetes/apps/observability/oxidized/app/configmap.yaml"
+    statement: |-
+      False positive. Flagged keys (username, email, remote_repo) are config
+      field names, not sensitive content. The git commit author email and the
+      public GitHub remote URL for the network-configs repo are non-sensitive.
