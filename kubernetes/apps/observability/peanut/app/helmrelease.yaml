@@ -23,6 +23,9 @@ spec:
               TZ: ${TIMEZONE:=UTC}
               WEB_HOST: "0.0.0.0"
               WEB_PORT: "8080"
+            envFrom:
+              - secretRef:
+                  name: peanut-secret
             probes:
               liveness:
                 enabled: true
@@ -51,6 +54,13 @@ spec:
         fsGroupChangePolicy: OnRootMismatch
     persistence:
       config:
+        type: persistentVolumeClaim
+        storageClass: ceph-block
+        accessMode: ReadWriteOnce
+        size: 1Gi
+        globalMounts:
+          - path: /config
+      config-settings:
         type: configMap
         name: peanut-config
         globalMounts:
