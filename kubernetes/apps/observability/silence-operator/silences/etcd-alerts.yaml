@@ -1,0 +1,25 @@
+---
+# etcd on consumer SSDs intermittently exceeds the strict commit-duration
+# thresholds during fsync-heavy load. These have not correlated with real
+# cluster issues, so silence to cut paging noise.
+apiVersion: monitoring.giantswarm.io/v1alpha1
+kind: Silence
+metadata:
+  name: etcd-high-commit-durations
+spec:
+  matchers:
+    - name: alertname
+      value: etcdHighCommitDurations
+      isRegex: false
+      isEqual: true
+---
+apiVersion: monitoring.giantswarm.io/v1alpha1
+kind: Silence
+metadata:
+  name: etcd-member-communication-slow
+spec:
+  matchers:
+    - name: alertname
+      value: etcdMemberCommunicationSlow
+      isRegex: false
+      isEqual: true
