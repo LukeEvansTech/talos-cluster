@@ -10,6 +10,11 @@ spec:
 
   primaryUpdateStrategy: unsupervised
 
+  # Wait 60s before triggering failover after primary unhealthy. Prevents
+  # spurious failovers during control-plane restarts (Talos node apply,
+  # kube-controller-manager leader churn) which typically resolve in ~10-25s.
+  failoverDelay: 60
+
   storage:
     size: 200Gi
     storageClass: openebs-hostpath
