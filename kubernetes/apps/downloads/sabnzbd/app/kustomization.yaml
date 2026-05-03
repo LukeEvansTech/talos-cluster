@@ -9,6 +9,7 @@ resources:
   - ./externalsecret.yaml
   - ./ocirepository.yaml
   - ./helmrelease.yaml
+  - ./cleanup-cronjob.yaml
 replacements:
   - source:
       kind: HelmRelease
