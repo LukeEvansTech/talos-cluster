@@ -25,6 +25,7 @@ spec:
     - "error.*lookup github\\.com"
     - "error.*lookup raw\\.githubusercontent\\.com"
     - "dial.*tcp.*timeout"
+    - "dial.*tcp.*unreachable"
     - "waiting.*socket"
     # NGC's CDN flaps with transient 502s on index.yaml fetches; cluster keeps
     # serving from cached chart artifact, and FluxHelmReleaseNotReady (15m for:)
