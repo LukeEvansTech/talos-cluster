@@ -1,0 +1,75 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/batch/cronjob_v1.json
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: sabnzbd-incomplete-cleanup
+  namespace: downloads
+spec:
+  schedule: "0 4 * * 0"
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      ttlSecondsAfterFinished: 86400
+      activeDeadlineSeconds: 1800
+      template:
+        metadata:
+          labels:
+            app: sabnzbd-incomplete-cleanup
+        spec:
+          restartPolicy: OnFailure
+          automountServiceAccountToken: false
+          containers:
+            - name: cleanup
+              image: docker.io/python:3.14-alpine@sha256:dd4d2bd5b53d9b25a51da13addf2be586beebd5387e289e798e4083d94ca837a
+              command: ["python3", "-c"]
+              args:
+                - |
+                  import json, os, sys, urllib.request
+
+                  BASE = "http://sabnzbd-app.downloads.svc.cluster.local/api"
+                  KEY = os.environ["SABNZBD__API_KEY"]
+
+                  def call(params, timeout):
+                      url = f"{BASE}?{params}&apikey={KEY}"
+                      with urllib.request.urlopen(url, timeout=timeout) as r:
+                          return r.read().decode()
+
+                  def orphan_count():
+                      d = json.loads(call("mode=fullstatus&output=json", 60))
+                      return len((d.get("status") or {}).get("folders") or [])
+
+                  before = orphan_count()
+                  print(f"before: {before} orphans", flush=True)
+
+                  resp = json.loads(call("mode=status&name=delete_all_orphan", 1500))
+                  print(f"delete_all_orphan response: {resp}", flush=True)
+                  if not resp.get("status"):
+                      print("ERROR: SAB returned status=false", file=sys.stderr)
+                      sys.exit(1)
+
+                  after = orphan_count()
+                  print(f"after:  {after} orphans (removed {before - after})", flush=True)
+              envFrom:
+                - secretRef:
+                    name: sabnzbd-secret
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 32Mi
+                limits:
+                  cpu: 100m
+                  memory: 64Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                runAsUser: 65532
+                runAsGroup: 65532
+                capabilities:
+                  drop: ["ALL"]
+          securityContext:
+            seccompProfile:
+              type: RuntimeDefault
