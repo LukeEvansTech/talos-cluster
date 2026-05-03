@@ -17,6 +17,8 @@ talosconfig
 .private/
 .task/
 .venv/
+.claude/
+.playwright-mcp/
 .DS_Store
 Thumbs.db
 CLAUDE.md
