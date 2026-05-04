@@ -24,13 +24,16 @@ spec:
           containers:
             - name: cleanup
               image: docker.io/python:3.14-alpine@sha256:dd4d2bd5b53d9b25a51da13addf2be586beebd5387e289e798e4083d94ca837a
-              command: ["python3", "-c"]
+              command:
+                - "python3"
+                - "-c"
               args:
                 - |
-                  import json, os, sys, urllib.request
+                  import json, sys, urllib.request
 
                   BASE = "http://sabnzbd-app.downloads.svc.cluster.local/api"
-                  KEY = os.environ["SABNZBD__API_KEY"]
+                  with open("/var/run/secrets/sabnzbd/SABNZBD__API_KEY") as f:
+                      KEY = f.read().strip()
 
                   def call(params, timeout):
                       url = f"{BASE}?{params}&apikey={KEY}"
@@ -52,9 +55,10 @@ spec:
 
                   after = orphan_count()
                   print(f"after:  {after} orphans (removed {before - after})", flush=True)
-              envFrom:
-                - secretRef:
-                    name: sabnzbd-secret
+              volumeMounts:
+                - name: sabnzbd-secret
+                  mountPath: /var/run/secrets/sabnzbd
+                  readOnly: true
               resources:
                 requests:
                   cpu: 10m
@@ -69,7 +73,15 @@ spec:
                 runAsUser: 65532
                 runAsGroup: 65532
                 capabilities:
-                  drop: ["ALL"]
+                  drop:
+                    - "ALL"
           securityContext:
             seccompProfile:
               type: RuntimeDefault
+          volumes:
+            - name: sabnzbd-secret
+              secret:
+                secretName: sabnzbd-secret
+                items:
+                  - key: SABNZBD__API_KEY
+                    path: SABNZBD__API_KEY
