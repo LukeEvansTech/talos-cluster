@@ -1,0 +1,16 @@
+name: Lint
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  statuses: write
+  pull-requests: write
+
+jobs:
+  lint:
+    uses: LukeEvansTech/shared-workflows/.github/workflows/super-linter.yml@8b3eb5537e5d369e08f4e92ea630faea74e92816 # v1
