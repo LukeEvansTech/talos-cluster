@@ -69,7 +69,10 @@ spec:
               limits:
                 memory: 128Mi
         serviceAccount:
-          name: *app
+          identifier: *app
+
+    serviceAccount:
+      barman-cloud: {}
 
     defaultPodOptions:
       securityContext:
