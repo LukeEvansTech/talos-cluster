@@ -77,7 +77,6 @@ spec:
               DOT: "on"
               DOT_CACHING: "on"
               DOT_IPV6: off
-              DNS_KEEP_NAMESERVER: "on"
               FIREWALL: true
               FIREWALL_DEBUG: on
               # nginx (8443) + gluetun health server (9999)
@@ -177,15 +176,13 @@ spec:
             }
 
             stream {
-              # Cloudflare public resolver. We deliberately do NOT use
-              # cluster DNS (kube-dns) here: CoreDNS forwards external
-              # names to OPNsense Unbound, which has a local-zone
-              # redirect for i.imgur.com → this proxy's own IP — that
-              # would create an infinite loop.
-              # Querying 1.1.1.1 directly egresses via the WireGuard
-              # tunnel (gluetun's default route), so the response comes
-              # from real Cloudflare and resolves to real Imgur IPs.
-              resolver 1.1.1.1 valid=10s ipv6=off;
+              # gluetun runs an in-pod DOT proxy on 127.0.0.1:53 (default
+              # behaviour with DOT=on). It forwards encrypted DNS over the
+              # WireGuard tunnel to gluetun's configured DOT upstreams, so
+              # lookups are authenticated end-to-end (DOT cert verified)
+              # and never traverse cluster DNS (which would loop back to
+              # this proxy's own IP via the OPNsense local-zone redirect).
+              resolver 127.0.0.1 valid=10s ipv6=off;
               resolver_timeout 5s;
 
               log_format basic '$$remote_addr [$$time_local] sni=$$ssl_preread_server_name upstream=$$upstream sent=$$bytes_sent recv=$$bytes_received session=$$session_time';
