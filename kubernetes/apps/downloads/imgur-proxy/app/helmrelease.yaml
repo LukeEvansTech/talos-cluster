@@ -191,12 +191,14 @@ spec:
               log_format basic '$$remote_addr [$$time_local] sni=$$ssl_preread_server_name upstream=$$upstream sent=$$bytes_sent recv=$$bytes_received session=$$session_time';
               access_log /dev/stdout basic;
 
-              # SNI allowlist: only forward known Imgur hostnames.
-              # Empty default means any other SNI is dropped (open-relay protection).
+              # SNI allowlist: apex imgur.com + any *.imgur.com subdomain.
+              # Empty default drops other SNI (open-relay protection — only
+              # Imgur-owned hosts are relayed).
               map $$ssl_preread_server_name $$upstream {
                 hostnames;
-                i.imgur.com   $$ssl_preread_server_name;
-                default       "";
+                imgur.com    $$ssl_preread_server_name;
+                .imgur.com   $$ssl_preread_server_name;
+                default      "";
               }
 
               server {
