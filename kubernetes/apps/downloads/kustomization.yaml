@@ -18,4 +18,5 @@ resources:
   # - ./seasonpackerr/ks.yaml
   - ./flaresolverr/ks.yaml
   - ./byparr/ks.yaml
+  - ./imgur-proxy/ks.yaml
   - ./stacks/ks.yaml
