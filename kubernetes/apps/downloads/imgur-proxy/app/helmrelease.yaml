@@ -175,11 +175,7 @@ spec:
               resolver 127.0.0.1 valid=10s ipv6=off;
               resolver_timeout 5s;
 
-              log_format basic '$$remote_addr [$$time_local] '
-                               'sni=$$ssl_preread_server_name '
-                               'upstream=$$upstream '
-                               'sent=$$bytes_sent recv=$$bytes_received '
-                               'session=$$session_time';
+              log_format basic '$$remote_addr [$$time_local] sni=$$ssl_preread_server_name upstream=$$upstream sent=$$bytes_sent recv=$$bytes_received session=$$session_time';
               access_log /dev/stdout basic;
 
               # SNI allowlist: only forward known Imgur hostnames.
