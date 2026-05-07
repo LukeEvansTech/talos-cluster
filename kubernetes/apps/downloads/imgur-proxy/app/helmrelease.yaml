@@ -191,12 +191,12 @@ spec:
               log_format basic '$$remote_addr [$$time_local] sni=$$ssl_preread_server_name upstream=$$upstream sent=$$bytes_sent recv=$$bytes_received session=$$session_time';
               access_log /dev/stdout basic;
 
-              # SNI allowlist: apex imgur.com + any *.imgur.com subdomain.
+              # SNI allowlist: leading-dot `.imgur.com` matches the apex
+              # AND any subdomain in nginx's `hostnames;` map syntax.
               # Empty default drops other SNI (open-relay protection — only
               # Imgur-owned hosts are relayed).
               map $$ssl_preread_server_name $$upstream {
                 hostnames;
-                imgur.com    $$ssl_preread_server_name;
                 .imgur.com   $$ssl_preread_server_name;
                 default      "";
               }
