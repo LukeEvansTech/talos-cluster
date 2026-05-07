@@ -1,0 +1,235 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: imgur-proxy
+spec:
+  interval: 1h
+  timeout: 10m
+  chartRef:
+    kind: OCIRepository
+    name: imgur-proxy
+  values:
+    controllers:
+      imgur-proxy:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        strategy: Recreate
+        containers:
+          app:
+            nameOverride: nginx
+            image:
+              repository: docker.io/library/nginx
+              tag: 1.27-alpine
+            command:
+              - "nginx"
+            args:
+              - "-g"
+              - "daemon off;"
+            probes:
+              liveness:
+                enabled: true
+                custom: true
+                spec:
+                  tcpSocket:
+                    port: &port 8443
+                  periodSeconds: 30
+                  failureThreshold: 5
+              readiness:
+                enabled: true
+                custom: true
+                spec:
+                  tcpSocket:
+                    port: *port
+                  periodSeconds: 10
+              startup:
+                enabled: true
+                custom: true
+                spec:
+                  tcpSocket:
+                    port: *port
+                  periodSeconds: 5
+                  failureThreshold: 30
+            securityContext:
+              runAsUser: 101
+              runAsGroup: 101
+              runAsNonRoot: true
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop:
+                  - "ALL"
+              seccompProfile:
+                type: RuntimeDefault
+            resources:
+              requests:
+                cpu: 25m
+                memory: 32Mi
+              limits:
+                memory: 128Mi
+        initContainers:
+          gluetun:
+            image:
+              repository: ghcr.io/qdm12/gluetun
+              tag: v3.41.1@sha256:1a5bf4b4820a879cdf8d93d7ef0d2d963af56670c9ebff8981860b6804ebc8ab
+            env:
+              DOT: "on"
+              DOT_CACHING: "on"
+              DOT_IPV6: off
+              DNS_KEEP_NAMESERVER: "on"
+              FIREWALL: true
+              FIREWALL_DEBUG: on
+              # nginx (8443) + gluetun health server (9999)
+              FIREWALL_INPUT_PORTS: "8443,9999"
+              FIREWALL_OUTBOUND_SUBNETS: '"${CLUSTER_PODS_CIDR},${CLUSTER_SVCS_CIDR},${CR_LAN_CIDR},${GH_LAN_CIDR}"'
+              HEALTH_SERVER_ADDRESS: ":9999"
+              HEALTH_SERVER_DISABLE_LOOP: on
+              HEALTH_VPN_DURATION_INITIAL: 60s
+              LOG_LEVEL: info
+              TZ: ${TIMEZONE}
+              UPDATER_PERIOD: 12h
+              VERSION_INFORMATION: off
+              VPN_INTERFACE: wg0
+              VPN_IPV6_SERVER: off
+              VPN_TYPE: wireguard
+            # WIREGUARD_* + VPN_SERVICE_PROVIDER come from the shared
+            # `gluetun` 1Password item; SERVER_COUNTRIES comes from the
+            # per-app `imgur-proxy` item — both merged into imgur-proxy-secret
+            # by the ExternalSecret.
+            envFrom:
+              - secretRef:
+                  name: imgur-proxy-secret
+            probes:
+              liveness:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /
+                    port: 9999
+                  timeoutSeconds: 10
+                  periodSeconds: 30
+                  failureThreshold: 5
+              startup:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /
+                    port: 9999
+                  initialDelaySeconds: 10
+                  periodSeconds: 10
+                  failureThreshold: 30
+            restartPolicy: Always
+            securityContext:
+              runAsUser: 0
+              runAsNonRoot: false
+              capabilities:
+                add:
+                  - "NET_ADMIN"
+                drop:
+                  - "ALL"
+              allowPrivilegeEscalation: false
+            resources:
+              requests:
+                cpu: 25m
+                memory: 64Mi
+              limits:
+                memory: 256Mi
+                kernel.org/tun: 1
+        pod:
+          labels:
+            gluetun: "true"
+    defaultPodOptions:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 30
+    service:
+      app:
+        controller: imgur-proxy
+        type: LoadBalancer
+        annotations:
+          # Pin the LB IP from the Cilium pool. Add SVC_IMGUR_PROXY_ADDR
+          # to cluster-secrets in 1Password before applying.
+          lbipam.cilium.io/ips: ${SVC_IMGUR_PROXY_ADDR}
+        externalTrafficPolicy: Local
+        ports:
+          https:
+            port: 443
+            targetPort: 8443
+            protocol: TCP
+    configMaps:
+      nginx:
+        data:
+          nginx.conf: |
+            pid /tmp/nginx.pid;
+            worker_processes auto;
+            error_log /dev/stderr warn;
+
+            events {
+              worker_connections 1024;
+            }
+
+            stream {
+              # gluetun runs an in-pod DNS resolver on 127.0.0.1:53 (DOT proxy).
+              resolver 127.0.0.1 valid=10s ipv6=off;
+              resolver_timeout 5s;
+
+              log_format basic '$$remote_addr [$$time_local] sni=$$ssl_preread_server_name upstream=$$upstream sent=$$bytes_sent recv=$$bytes_received session=$$session_time';
+              access_log /dev/stdout basic;
+
+              # SNI allowlist: only forward known Imgur hostnames.
+              # Empty default means any other SNI is dropped (open-relay protection).
+              map $$ssl_preread_server_name $$upstream {
+                hostnames;
+                i.imgur.com   $$ssl_preread_server_name;
+                default       "";
+              }
+
+              server {
+                listen 8443;
+                ssl_preread on;
+
+                proxy_connect_timeout 5s;
+                proxy_timeout 60s;
+
+                proxy_pass $$upstream:443;
+              }
+            }
+    persistence:
+      nginx-config:
+        type: configMap
+        identifier: nginx
+        globalMounts:
+          - path: /etc/nginx/nginx.conf
+            subPath: nginx.conf
+            readOnly: true
+      tmp:
+        type: emptyDir
+        medium: Memory
+        sizeLimit: 16Mi
+        globalMounts:
+          - path: /tmp
+      var-cache-nginx:
+        type: emptyDir
+        medium: Memory
+        sizeLimit: 16Mi
+        advancedMounts:
+          imgur-proxy:
+            app:
+              - path: /var/cache/nginx
+      var-run:
+        type: emptyDir
+        medium: Memory
+        sizeLimit: 4Mi
+        advancedMounts:
+          imgur-proxy:
+            app:
+              - path: /var/run
+      gluetun-data:
+        type: emptyDir
+        sizeLimit: 16Mi
+        advancedMounts:
+          imgur-proxy:
+            gluetun:
+              - path: /gluetun
