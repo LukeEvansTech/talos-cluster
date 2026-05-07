@@ -32,7 +32,6 @@ resources:
   - ./gitsave/ks.yaml
   - ./guacamole/ks.yaml
   - ./homebox/ks.yaml
-  - ./hookshot/ks.yaml
   - ./homepage/ks.yaml
   - ./invio/ks.yaml
   - ./invoiceshelf/ks.yaml
