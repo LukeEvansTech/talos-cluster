@@ -14,8 +14,6 @@ resources:
   # TODO: Update externalsecret with autopulse config before enabling
   # - ./autopulse/ks.yaml
   - ./bazarr/ks.yaml
-  # - ./bazarr4k/ks.yaml  # Removed — consolidated into bazarr (GPU transcoding)
-  # - ./bazarranime/ks.yaml  # Removed — consolidated into bazarr (anime handled via root folders + profiles)
   - ./decluttarr/ks.yaml
   - ./deduparr/ks.yaml
   - ./exclusion-sync/ks.yaml
@@ -36,14 +34,10 @@ resources:
   - ./profilarr/ks.yaml
   - ./pulsarr/ks.yaml
   - ./radarr/ks.yaml
-  # - ./radarr4k/ks.yaml  # Removed — consolidated into radarr (GPU transcoding)
-  # - ./radarranime/ks.yaml  # Removed — consolidated into radarr (anime handled via root folders + profiles)
   - ./reclaimerr/ks.yaml
   - ./recommendarr/ks.yaml
   # - ./recyclarr/ks.yaml  # Disabled — using Profilarr instead
   - ./sonarr/ks.yaml
-  # - ./sonarr4k/ks.yaml  # Removed — consolidated into sonarr (GPU transcoding)
-  # - ./sonarranime/ks.yaml  # Removed — consolidated into sonarr (anime handled via root folders + profiles)
   - ./sortarr/ks.yaml
   - ./suggestarr/ks.yaml
   - ./tautulli/ks.yaml
