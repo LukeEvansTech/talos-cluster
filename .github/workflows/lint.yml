@@ -16,3 +16,13 @@ permissions:
 jobs:
   lint:
     uses: LukeEvansTech/shared-workflows/.github/workflows/super-linter.yml@2410829c6d03158086d6cab16e15153942c5d4b8 # v1
+    with:
+      # Kubeconform validates raw YAML source. On this Flux GitOps repo the
+      # source is meaningless until kustomize substitutes vars
+      # (${SECRET_DOMAIN}, ${SVC_*_ADDR}, ...) and merges components — so it
+      # false-positives on every CRD-shaped file regardless of schema config.
+      # Real K8s validation lives in flux-local (kustomize build pipeline).
+      validate-kubernetes-kubeconform: false
+      # Graduate to blocking: with kubeconform off, the remaining super-linter
+      # checks (yamllint, prettier, actionlint, shellcheck, ...) are clean.
+      soft-launch: false
