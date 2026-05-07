@@ -64,11 +64,6 @@
         href: https://radarr.${SECRET_DOMAIN}
         siteMonitor: https://radarr.${SECRET_DOMAIN}
         description: Movies
-    - Radarr 4K:
-        icon: radarr.svg
-        href: https://radarr4k.${SECRET_DOMAIN}
-        siteMonitor: https://radarr4k.${SECRET_DOMAIN}
-        description: 4K movies
     - Bazarr:
         icon: bazarr.svg
         href: https://bazarr.${SECRET_DOMAIN}
