@@ -149,6 +149,19 @@ spec:
           http: {port: 8888}
           metrics: {port: 8080}
 
+    route:
+      app:
+        hostnames:
+          - oxidized.${SECRET_DOMAIN}
+          - oxidized.${SECRET_INTERNAL_DOMAIN}
+        parentRefs:
+          - name: envoy-internal
+            namespace: network
+        rules:
+          - backendRefs:
+              - identifier: app
+                port: 8888
+
     serviceMonitor:
       app:
         serviceName: oxidized
