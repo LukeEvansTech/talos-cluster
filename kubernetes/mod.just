@@ -1,4 +1,6 @@
+set positional-arguments := true
 set quiet := true
+set script-interpreter := ['bash', '-euo', 'pipefail']
 set shell := ['bash', '-euo', 'pipefail', '-c']
 
 kubernetes_dir := justfile_dir() + '/kubernetes'
@@ -9,7 +11,7 @@ default:
 
 [doc('Apply local Flux Kustomization')]
 apply-ks ns ks:
-    just kube render-local-ks "{{ ns }}" "{{ ks }}" | kubectl apply --server-side --field-manager=kustomize-controller --force-conflicts -f /dev/stdin
+    just kube render-local-ks "{{ ns }}" "{{ ks }}" | kubectl apply --server-side --field-manager=kustomize-controller --force-conflicts -f -
 
 [doc('Browse a PVC')]
 browse-pvc namespace claim:
@@ -17,7 +19,7 @@ browse-pvc namespace claim:
 
 [doc('Delete local Flux Kustomization')]
 delete-ks ns ks:
-    just kube render-local-ks "{{ ns }}" "{{ ks }}" | kubectl delete -f /dev/stdin
+    just kube render-local-ks "{{ ns }}" "{{ ks }}" | kubectl delete -f -
 
 [doc('Open a shell on a node')]
 node-shell node:
