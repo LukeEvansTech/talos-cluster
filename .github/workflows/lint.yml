@@ -1,9 +1,11 @@
+---
 name: Lint
 
 on:
   pull_request:
   push:
-    branches: [main]
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
@@ -13,4 +15,4 @@ permissions:
 
 jobs:
   lint:
-    uses: LukeEvansTech/shared-workflows/.github/workflows/super-linter.yml@8b3eb5537e5d369e08f4e92ea630faea74e92816 # v1
+    uses: LukeEvansTech/shared-workflows/.github/workflows/super-linter.yml@3d818333c1c9d4f1ce54086d6fb0770b9a733cdd # v1

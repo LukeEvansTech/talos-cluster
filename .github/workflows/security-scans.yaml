@@ -11,63 +11,16 @@ on:
   schedule:
     - cron: "0 3 * * *" # nightly at 3 AM UTC
 
+# Top-level: read-only by default. The reusable workflow widens per job.
+permissions:
+  contents: read
+
 jobs:
-  checkov:
-    name: Checkov (IaC Security)
-    runs-on: ubuntu-latest
+  scan:
     permissions:
       contents: read
       security-events: write
-    steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-
-      - name: Run Checkov
-        uses: bridgecrewio/checkov-action@9201a8e6eaa919e3444d7c4ca691896efde4f033 # v12
-        with:
-          directory: .
-          framework: kubernetes,helm
-          output_format: sarif
-          output_file_path: checkov-results.sarif
-          quiet: true
-
-      - name: Upload Checkov SARIF
-        uses: github/codeql-action/upload-sarif@e46ed2cbd01164d986452f91f178727624ae40d7 # v4
-        with:
-          sarif_file: checkov-results.sarif
-          category: checkov
-
-  trivy:
-    name: Trivy (Filesystem & Secret Scan)
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      security-events: write
-    steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-
-      - name: Set up Trivy cache
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
-        with:
-          path: ~/.cache/trivy
-          key: ${{ runner.os }}-trivy-${{ hashFiles('**/go.sum', '**/package-lock.json', '**/requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-trivy-
-
-      - name: Run Trivy filesystem scan
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        with:
-          scan-type: 'fs'
-          scan-ref: '.'
-          format: 'sarif'
-          output: 'trivy-results.sarif'
-          severity: 'CRITICAL,HIGH,MEDIUM'
-          scanners: 'vuln,secret,misconfig'
-          trivyignores: '.trivyignore.yaml'
-
-      - name: Upload Trivy SARIF
-        uses: github/codeql-action/upload-sarif@e46ed2cbd01164d986452f91f178727624ae40d7 # v4
-        with:
-          sarif_file: trivy-results.sarif
-          category: trivy
+    uses: LukeEvansTech/shared-workflows/.github/workflows/security-scans.yml@3d818333c1c9d4f1ce54086d6fb0770b9a733cdd # v1
+    # Defaults match this repo's prior inline config: framework=kubernetes,helm,
+    # severity=CRITICAL,HIGH,MEDIUM, scanners=vuln,secret,misconfig,
+    # trivyignore=.trivyignore.yaml. Override here if drift becomes desirable.
