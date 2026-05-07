@@ -15,4 +15,4 @@ permissions:
 
 jobs:
   lint:
-    uses: LukeEvansTech/shared-workflows/.github/workflows/super-linter.yml@57fff6deea8cdc1b42b62a16e72ce73df3b82f97 # v1
+    uses: LukeEvansTech/shared-workflows/.github/workflows/super-linter.yml@3d818333c1c9d4f1ce54086d6fb0770b9a733cdd # v1
