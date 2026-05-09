@@ -24,6 +24,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
 
       - name: Get Changed Files
         id: changed-files
@@ -45,11 +47,13 @@ jobs:
         with:
           ref: ${{ github.event.repository.default_branch }}
           path: default
+          persist-credentials: false
 
       - name: Checkout Pull Request Branch
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           path: pull
+          persist-credentials: false
 
       - name: Extract Images from Default Branch
         id: extract-default
@@ -103,20 +107,20 @@ jobs:
     steps:
       - name: Compare Image Lists
         id: diff
+        env:
+          DEFAULT_IMAGES_JSON: ${{ needs.extract.outputs.default_images }}
+          PULL_IMAGES_JSON: ${{ needs.extract.outputs.pull_images }}
         run: |
-          # Get images from previous job
-          DEFAULT_IMAGES='${{ needs.extract.outputs.default_images }}'
-          PULL_IMAGES='${{ needs.extract.outputs.pull_images }}'
-
-          # Find new images (in pull but not in default)
+          # Find new images (in pull but not in default).
+          # Read job outputs from env, not template interpolation, to avoid
+          # zizmor template-injection (untrusted output → shell).
           NEW_IMAGES=$(jq -n \
-            --argjson default "${DEFAULT_IMAGES}" \
-            --argjson pull "${PULL_IMAGES}" \
+            --argjson default "${DEFAULT_IMAGES_JSON}" \
+            --argjson pull "${PULL_IMAGES_JSON}" \
             '$pull - $default')
 
           echo "new_images=${NEW_IMAGES}" >> "$GITHUB_OUTPUT"
 
-          # Check if there are any new images
           IMAGE_COUNT=$(echo "${NEW_IMAGES}" | jq 'length')
           if [ "${IMAGE_COUNT}" -gt 0 ]; then
             echo "has_new_images=true" >> "$GITHUB_OUTPUT"
