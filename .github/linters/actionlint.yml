@@ -1,0 +1,7 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/rhysd/actionlint/main/docs/config-schema.json
+# Declare custom self-hosted runner labels so actionlint's [runner-label]
+# rule does not false-positive on them.
+self-hosted-runner:
+  labels:
+    - talos-cluster-runner
