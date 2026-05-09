@@ -21,7 +21,7 @@ spec:
             nameOverride: nginx
             image:
               repository: docker.io/library/nginx
-              tag: 1.27-alpine
+              tag: 1.30-alpine
             command:
               - "nginx"
             args:
