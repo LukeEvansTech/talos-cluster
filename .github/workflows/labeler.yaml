@@ -4,8 +4,17 @@ name: "Labeler"
 
 on:
   workflow_dispatch:
+  # zizmor: ignore[dangerous-triggers]
+  # actions/labeler must write PR labels, including for PRs from forks
+  # where pull_request's GITHUB_TOKEN is read-only. This workflow does
+  # not check out PR code or run any PR-supplied commands, so the
+  # fork-content-injection risk this audit flags does not apply.
   pull_request_target:
-    branches: ["main"]
+    branches:
+      - "main"
+
+permissions:
+  contents: read
 
 jobs:
   labeler:
