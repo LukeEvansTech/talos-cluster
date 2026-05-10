@@ -6,7 +6,6 @@ resources:
   - ./clusterrolebinding.yaml
   - ./ocirepository.yaml
   - ./helmrelease.yaml
-  - ./httproute.yaml
 configMapGenerator:
   - name: flux-operator-values
     files:
