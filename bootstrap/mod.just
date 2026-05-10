@@ -73,7 +73,7 @@ namespaces:
 [script]
 resources:
     just log info "Running stage..." "stage" "$0"
-    if ! just template "{{ source_directory() }}/resources.yaml.j2" | kubectl apply --server-side --field-manager bootstrap --force-conflicts -f -; then
+    if ! kustomize build "{{ source_directory() }}/kustomize/apps" | just template - | kubectl apply --server-side --field-manager bootstrap --force-conflicts -f -; then
         just log fatal "Failed to apply resources" "stage" "$0"
     fi
 
