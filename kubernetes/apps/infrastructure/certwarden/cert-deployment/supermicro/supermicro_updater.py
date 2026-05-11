@@ -35,13 +35,8 @@ class RedfishIPMIUpdater:
 
         # Redfish API endpoints
         self.login_url = f"{ipmi_url}/redfish/v1/SessionService/Sessions"
-        self.cert_info_url = (
-            f"{ipmi_url}/redfish/v1/UpdateService/Oem/Supermicro/SSLCert"
-        )
-        self.upload_cert_url = (
-            f"{ipmi_url}/redfish/v1/UpdateService/Oem/Supermicro/SSLCert"
-            f"/Actions/SmcSSLCert.Upload"
-        )
+        self.cert_info_url = f"{ipmi_url}/redfish/v1/UpdateService/Oem/Supermicro/SSLCert"
+        self.upload_cert_url = f"{ipmi_url}/redfish/v1/UpdateService/Oem/Supermicro/SSLCert/Actions/SmcSSLCert.Upload"
         self.reboot_url = f"{ipmi_url}/redfish/v1/Managers/1/Actions/Manager.Reset"
 
         error_log = logging.getLogger("RedfishIPMIUpdater")
@@ -111,12 +106,8 @@ class RedfishIPMIUpdater:
         try:
             data = r.json()
             # Parse dates - Supermicro format includes timezone that needs to be stripped
-            valid_from_str = data["VaildFrom"].rstrip(
-                re.split(r"\d{4}", data["VaildFrom"])[1]
-            )
-            valid_until_str = data["GoodTHRU"].rstrip(
-                re.split(r"\d{4}", data["GoodTHRU"])[1]
-            )
+            valid_from_str = data["VaildFrom"].rstrip(re.split(r"\d{4}", data["VaildFrom"])[1])
+            valid_until_str = data["GoodTHRU"].rstrip(re.split(r"\d{4}", data["GoodTHRU"])[1])
 
             valid_from = datetime.strptime(valid_from_str, r"%b %d %H:%M:%S %Y")
             valid_until = datetime.strptime(valid_until_str, r"%b %d %H:%M:%S %Y")
@@ -193,10 +184,7 @@ class RedfishIPMIUpdater:
         self.logger.debug("Upload response status: %s", result.status_code)
         self.logger.debug("Upload response text: %s", result.text)
 
-        if (
-            "SSL certificate and private key were successfully uploaded"
-            not in result.text
-        ):
+        if "SSL certificate and private key were successfully uploaded" not in result.text:
             print(f"ERROR: Upload failed. Status: {result.status_code}")
             print(f"ERROR: Response: {result.text}")
             print(f"ERROR: Response headers: {result.headers}")
@@ -240,9 +228,7 @@ def parse_valid_until(pem_file):
 
 def _build_arg_parser():
     """Build the argparse parser for the updater CLI."""
-    parser = argparse.ArgumentParser(
-        description="Update Supermicro IPMI SSL certificate (Redfish API only)"
-    )
+    parser = argparse.ArgumentParser(description="Update Supermicro IPMI SSL certificate (Redfish API only)")
     parser.add_argument("--ipmi-url", required=True, help="Supermicro IPMI URL")
     parser.add_argument(
         "--model",
@@ -251,9 +237,7 @@ def _build_arg_parser():
     )
     parser.add_argument("--key-file", required=True, help="X.509 Private key filename")
     parser.add_argument("--cert-file", required=True, help="X.509 Certificate filename")
-    parser.add_argument(
-        "--username", required=True, help="IPMI username with admin access"
-    )
+    parser.add_argument("--username", required=True, help="IPMI username with admin access")
     parser.add_argument("--password", required=True, help="IPMI user password")
     parser.add_argument(
         "--no-reboot",
@@ -326,9 +310,7 @@ def _check_existing_cert(updater, token, args):
 
     current_valid_until = cert_info.get("valid_until", None)
     if not args.quiet and cert_info["has_cert"]:
-        print(
-            f"There exists a certificate, which is valid until: {cert_info['valid_until']}"
-        )
+        print(f"There exists a certificate, which is valid until: {cert_info['valid_until']}")
 
     new_valid_until = parse_valid_until(args.cert_file)
     if current_valid_until == new_valid_until:
@@ -378,9 +360,7 @@ def main():
         _configure_debug_logging()
 
     # Disable SSL warnings (IPMI certs are often self-signed)
-    requests.packages.urllib3.disable_warnings(
-        requests.packages.urllib3.exceptions.InsecureRequestWarning
-    )
+    requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.InsecureRequestWarning)
 
     if not args.quiet:
         print(f"Board model is {model_display}")
