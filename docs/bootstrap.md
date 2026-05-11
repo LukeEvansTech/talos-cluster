@@ -4,20 +4,20 @@ This document describes the bootstrap process for the Talos Kubernetes cluster u
 
 ## Overview
 
-The bootstrap process uses a modular, stage-based approach powered by [just](https://github.com/casey/just), a modern command runner. This replaces the previous bash script-based bootstrap system with a more maintainable and debuggable solution.
+The bootstrap process uses a modular, stage-based approach powered by [just](https://github.com/casey/just), a modern command runner. This replaces the previous Bash script-based bootstrap system with a more maintainable and debuggable solution.
 
 ## Architecture
 
 ### Task Runner Structure
 
-```
+```text
 .justfile                    # Root task runner with common utilities
 └── bootstrap/mod.just       # Bootstrap-specific tasks
 ```
 
 ### Helmfile Structure
 
-```
+```text
 bootstrap/
 ├── resources.yaml.j2        # Bootstrap secrets and resources (Jinja2 template)
 ├── helmfile.yaml           # Legacy monolithic helmfile (deprecated)
@@ -39,6 +39,7 @@ mise install
 ```
 
 **Core Tools:**
+
 - `just` - Task runner
 - `kubectl` - Kubernetes CLI
 - `helm` - Helm package manager
@@ -49,6 +50,7 @@ mise install
 - `op` - 1Password CLI (for secret injection)
 
 **Additional Tools:**
+
 - `gum` - Beautiful shell logging
 - `minijinja-cli` - Jinja2 template rendering
 
@@ -83,13 +85,15 @@ The bootstrap process consists of 8 sequential stages:
 Applies Talos configuration to all nodes in the cluster.
 
 **What it does:**
+
 - Iterates through all nodes from `talosctl config`
 - Applies Talos configuration to each node
 - Skips nodes that are already configured
 - Uses `--insecure` flag for initial bootstrap
 
 **Example output:**
-```
+
+```text
 2025-11-04T15:00:00Z INFO Running stage... stage=talos
 2025-11-04T15:00:05Z INFO Talos already configured, skipping apply of config stage=talos node=10.1.1.11
 ```
@@ -101,12 +105,14 @@ Applies Talos configuration to all nodes in the cluster.
 Initializes the Kubernetes control plane.
 
 **What it does:**
+
 - Runs `talosctl bootstrap` on the first controller
 - Retries every 5 seconds until successful
 - Completes when etcd cluster is formed
 
 **Example output:**
-```
+
+```text
 2025-11-04T15:01:00Z INFO Running stage... stage=k8s
 2025-11-04T15:01:05Z INFO Kubernetes bootstrap in progress. Retrying in 5 seconds... stage=k8s
 ```
@@ -118,17 +124,20 @@ Initializes the Kubernetes control plane.
 Downloads cluster credentials and configures kubectl.
 
 **Parameters:**
+
 - `lb` - Load balancer type (default: `cilium`)
-  - `cilium` - Use Cilium LoadBalancer IP
-  - `node` - Connect directly to control plane node
+    - `cilium` - Use Cilium LoadBalancer IP
+    - `node` - Connect directly to control plane node
 
 **What it does:**
+
 - Fetches kubeconfig from Talos
 - Sets context name to `talos-cluster`
 - Optionally updates cluster server address
 
 **Example output:**
-```
+
+```text
 2025-11-04T15:02:00Z INFO Running stage... stage=kubeconfig
 ```
 
@@ -139,12 +148,14 @@ Downloads cluster credentials and configures kubectl.
 Waits for cluster nodes to be available.
 
 **What it does:**
+
 - Checks if nodes are already `Ready=True` (skip wait)
 - Otherwise waits for nodes to transition to `Ready=False`
 - Indicates nodes are booting and preparing for configuration
 
 **Example output:**
-```
+
+```text
 2025-11-04T15:03:00Z INFO Running stage... stage=wait
 2025-11-04T15:03:05Z INFO Nodes not available, waiting for nodes to be available. Retrying in 5 seconds... stage=wait
 ```
@@ -156,12 +167,14 @@ Waits for cluster nodes to be available.
 Creates Kubernetes namespaces for all applications.
 
 **What it does:**
+
 - Scans `kubernetes/apps/*/` directories
 - Extracts `Namespace` resources from each kustomization
 - Applies namespaces server-side
 
 **Example output:**
-```
+
+```text
 2025-11-04T15:04:00Z INFO Running stage... stage=namespaces
 ```
 
@@ -172,16 +185,19 @@ Creates Kubernetes namespaces for all applications.
 Deploys critical bootstrap secrets and resources.
 
 **What it does:**
+
 - Renders `bootstrap/resources.yaml.j2` template
 - Injects secrets from 1Password using `op inject`
 - Applies resources server-side
 
 **Resources deployed:**
+
 - 1Password Connect credentials (external-secrets namespace)
 - Cloudflare tunnel ID (network namespace)
 
 **Example output:**
-```
+
+```text
 2025-11-04T15:05:00Z INFO Running stage... stage=resources
 ```
 
@@ -192,15 +208,18 @@ Deploys critical bootstrap secrets and resources.
 Installs Custom Resource Definitions from Helm charts.
 
 **What it does:**
+
 - Templates `helmfile.d/00-crds.yaml`
 - Extracts CRDs using yq post-renderer
 - Applies CRDs server-side
 
 **Current CRDs:**
+
 - Currently empty - add Helm charts here that ship CRDs
 
 **Example output:**
-```
+
+```text
 2025-11-04T15:06:00Z INFO Running stage... stage=crds
 ```
 
@@ -211,28 +230,31 @@ Installs Custom Resource Definitions from Helm charts.
 Deploys bootstrap applications via Helmfile.
 
 **What it does:**
+
 - Syncs `helmfile.d/01-apps.yaml`
 - Deploys applications in dependency order
 - Waits for jobs and pods to be ready
 - Executes post-sync hooks
 
 **Applications deployed (in order):**
+
 1. **Cilium** - Network CNI
-   - Post-hook: Waits for CRDs
+    - Post-hook: Waits for CRDs
 2. **CoreDNS** - DNS server
-   - Depends on: Cilium
+    - Depends on: Cilium
 3. **Cert-Manager** - Certificate management
-   - Depends on: CoreDNS
+    - Depends on: CoreDNS
 4. **External Secrets** - Secret management
-   - Depends on: Cert-Manager
-   - Post-hook: Waits for CRDs
+    - Depends on: Cert-Manager
+    - Post-hook: Waits for CRDs
 5. **Flux Operator** - GitOps operator
-   - Depends on: External Secrets
+    - Depends on: External Secrets
 6. **Flux Instance** - GitOps controller
-   - Depends on: Flux Operator
+    - Depends on: Flux Operator
 
 **Example output:**
-```
+
+```text
 2025-11-04T15:07:00Z INFO Running stage... stage=apps
 ```
 
@@ -294,6 +316,7 @@ graph TD
 ```
 
 **Benefits:**
+
 - Ensures correct deployment order
 - Prevents race conditions
 - Automatic retry on failures
@@ -339,12 +362,14 @@ The bootstrap uses a Go template to source Helm values from HelmRelease files:
 ```
 
 **How it works:**
+
 1. Constructs path to HelmRelease file
 2. Reads the YAML file
 3. Extracts `.spec.values`
 4. Returns as YAML
 
 **Benefits:**
+
 - Single source of truth for Helm values
 - No duplication between HelmRelease and Helmfile
 - Easier maintenance and updates
@@ -377,6 +402,7 @@ flux get kustomizations
 **Cause:** Control plane not ready
 
 **Solution:**
+
 ```bash
 # Wait for control plane
 sleep 30
@@ -388,6 +414,7 @@ just bootstrap kubeconfig
 **Cause:** Cluster not accessible
 
 **Solution:**
+
 ```bash
 # Verify kubeconfig
 kubectl cluster-info
@@ -399,6 +426,7 @@ export KUBECONFIG=$(pwd)/kubeconfig
 **Cause:** Missing CRDs or dependency failures
 
 **Solution:**
+
 ```bash
 # Check Helm releases
 helmfile -f bootstrap/helmfile.d/01-apps.yaml list
@@ -412,6 +440,7 @@ helmfile -f bootstrap/helmfile.d/01-apps.yaml sync --debug
 **Cause:** 1Password CLI not authenticated
 
 **Solution:**
+
 ```bash
 # Authenticate with 1Password
 eval $(op signin)
@@ -444,10 +473,10 @@ Edit `bootstrap/helmfile.d/00-crds.yaml`:
 
 ```yaml
 releases:
-  - name: my-operator
-    namespace: operators
-    chart: oci://registry.example.com/my-operator
-    version: 1.0.0
+    - name: my-operator
+      namespace: operators
+      chart: oci://registry.example.com/my-operator
+      version: 1.0.0
 ```
 
 #### Adding New Bootstrap Apps
@@ -456,14 +485,14 @@ Edit `bootstrap/helmfile.d/01-apps.yaml`:
 
 ```yaml
 releases:
-  - name: my-app
-    namespace: my-namespace
-    chart: oci://registry.example.com/my-app
-    version: 1.0.0
-    values:
-      - ./templates/values.yaml.gotmpl
-    needs:
-      - flux-system/flux-instance  # Depends on Flux
+    - name: my-app
+      namespace: my-namespace
+      chart: oci://registry.example.com/my-app
+      version: 1.0.0
+      values:
+          - ./templates/values.yaml.gotmpl
+      needs:
+          - flux-system/flux-instance # Depends on Flux
 ```
 
 #### Modifying Bootstrap Resources
@@ -475,10 +504,10 @@ Edit `bootstrap/resources.yaml.j2` to add secrets or resources:
 apiVersion: v1
 kind: Secret
 metadata:
-  name: my-secret
-  namespace: my-namespace
+    name: my-secret
+    namespace: my-namespace
 stringData:
-  value: op://vault/item/field
+    value: op://vault/item/field
 ```
 
 ## Migration from Bash Scripts
@@ -499,14 +528,14 @@ just bootstrap
 
 ### Key Differences
 
-| Feature | Old (Bash) | New (Just) |
-|---------|-----------|------------|
-| **Modularity** | Monolithic script | Granular stages |
-| **Dependencies** | Manual ordering | Helmfile `needs` |
-| **Logging** | Basic echo | Beautiful gum output |
-| **Debugging** | Hard to debug | Run individual stages |
-| **Values** | Duplicated | DRY via templates |
-| **Maintenance** | ~300 lines of bash | Clean task definitions |
+| Feature          | Old (Bash)         | New (Just)             |
+| ---------------- | ------------------ | ---------------------- |
+| **Modularity**   | Monolithic script  | Granular stages        |
+| **Dependencies** | Manual ordering    | Helmfile `needs`       |
+| **Logging**      | Basic echo         | Beautiful gum output   |
+| **Debugging**    | Hard to debug      | Run individual stages  |
+| **Values**       | Duplicated         | DRY via templates      |
+| **Maintenance**  | ~300 lines of Bash | Clean task definitions |
 
 ## References
 
@@ -520,10 +549,10 @@ just bootstrap
 
 ### 2025-11-04 - Bootstrap Modernization
 
-- Migrated from bash scripts to just task runner
+- Migrated from Bash scripts to just task runner
 - Implemented modular helmfile structure
 - Added DRY values templating
 - Added explicit dependency management
 - Improved logging with gum
-- Removed 325 lines of bash code
+- Removed 325 lines of Bash code
 - Added comprehensive documentation

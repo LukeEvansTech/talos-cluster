@@ -27,20 +27,20 @@ Add the component to your application's kustomization.yaml:
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 components:
-  - ../../../../components/nfs-scaler
+    - ../../../../components/nfs-scaler
 resources:
-  - ./helmrelease.yaml
+    - ./helmrelease.yaml
 replacements:
-  - source:
-      kind: HelmRelease
-      name: your-app-name
-      fieldPath: metadata.name
-    targets:
-      - select:
-          kind: ScaledObject
-        fieldPaths:
-          - metadata.name
-          - spec.scaleTargetRef.name
+    - source:
+          kind: HelmRelease
+          name: your-app-name
+          fieldPath: metadata.name
+      targets:
+          - select:
+                kind: ScaledObject
+            fieldPaths:
+                - metadata.name
+                - spec.scaleTargetRef.name
 ```
 
 The replacements section automatically configures the ScaledObject to target your deployment using the HelmRelease name.
@@ -50,6 +50,7 @@ The replacements section automatically configures the ScaledObject to target you
 The following applications use the nfs-scaler component:
 
 ### Media Apps
+
 - Plex
 - Jellyfin
 - Sonarr
@@ -59,6 +60,7 @@ The following applications use the nfs-scaler component:
 - Pinchflat
 
 ### Download Clients
+
 - qBittorrent
 - SABnzbd
 - NZBGet

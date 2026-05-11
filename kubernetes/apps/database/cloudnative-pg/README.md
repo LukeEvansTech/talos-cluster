@@ -8,7 +8,7 @@ This directory contains a complete CloudNative-PG deployment for PostgreSQL 18 w
 
 ### Directory Structure
 
-```
+```text
 cloudnative-pg/
 ├── README.md                 # This file
 ├── ks.yaml                   # Flux Kustomizations (deployment orchestration)
@@ -40,19 +40,20 @@ cloudnative-pg/
 - **Instances**: 3 for high availability with automatic failover
 - **Storage**: 20Gi using `openebs-hostpath`
 - **Resources**:
-  - Requests: 500m CPU, 2Gi memory
-  - Limits: 4Gi memory
+    - Requests: 500m CPU, 2Gi memory
+    - Limits: 4Gi memory
 - **Tuning**: Optimized for mixed workloads
-  - `max_connections: 300`
-  - `shared_buffers: 512MB`
-  - `effective_cache_size: 1536MB`
-  - Transaction-level checkpoint completion
+    - `max_connections: 300`
+    - `shared_buffers: 512MB`
+    - `effective_cache_size: 1536MB`
+    - Transaction-level checkpoint completion
 
 ### Backup Strategy
 
 We implemented a **dual backup approach** for redundancy:
 
 #### 1. Barman Cloud (S3/MinIO) - Primary
+
 - **Method**: Continuous WAL archiving via Barman Object Store
 - **Schedule**: Daily scheduled backups via `ScheduledBackup` CR
 - **Retention**: 30 days
@@ -62,6 +63,7 @@ We implemented a **dual backup approach** for redundancy:
 - **Use Case**: Point-in-time recovery (PITR), cluster bootstrap/migration
 
 #### 2. NFS Database Dumps - Secondary
+
 - **Method**: `pg_dump` via tiredofit/docker-db-backup
 - **Schedule**: Daily at 2 AM (cronjob)
 - **Retention**: 7 days (10080 minutes)
@@ -70,6 +72,7 @@ We implemented a **dual backup approach** for redundancy:
 - **Use Case**: Simple database-level restores, offsite backups
 
 **Why Both?**
+
 - Barman provides PITR and cluster-level recovery
 - NFS dumps provide simple SQL-level restores and additional redundancy
 - Different failure domains (object storage vs. file storage)
@@ -84,11 +87,13 @@ We implemented a **dual backup approach** for redundancy:
 ### Monitoring Stack
 
 #### Metrics Collection
+
 - **PodMonitor**: Scrapes PostgreSQL metrics from all instances
 - **Metrics Port**: Standard CNPG metrics endpoint
 - **Label Relabeling**: Converts `cluster` → `cnpg_cluster` for clarity
 
 #### Alerting (PrometheusRule)
+
 Seven critical alerts configured:
 
 1. **LongRunningTransaction**: Transactions > 5 minutes
@@ -100,11 +105,13 @@ Seven critical alerts configured:
 7. **ReplicaFailingReplication**: Replica replication failures
 
 #### Health Checks
+
 - **Gatus**: TCP connectivity checks every minute
 - **Endpoint**: `postgres18-rw.database.svc.cluster.local:5432`
 - **Alerts**: Gotify notifications on failure
 
 #### Dashboards
+
 - **Grafana**: Auto-deployed with operator (`grafanaDashboard.create: true`)
 
 ### External Access
@@ -118,7 +125,7 @@ Seven critical alerts configured:
 
 Flux will deploy components in this order (via `dependsOn`):
 
-```
+```text
 1. external-secrets-onepassword (pre-existing)
    ↓
 2. cloudnative-pg (operator)
@@ -129,6 +136,7 @@ Flux will deploy components in this order (via `dependsOn`):
 ```
 
 Each Flux Kustomization has:
+
 - 1h reconciliation interval
 - 2m retry interval
 - 5m timeout
@@ -138,36 +146,38 @@ Each Flux Kustomization has:
 
 Before merging/deploying, you **must** complete:
 
-#### 1. 1Password Configuration
+### 1. 1Password Configuration
 
 Create a vault item named **`cloudnative-pg`** with:
 
-```
+```text
 POSTGRES_SUPER_USER: postgres
 POSTGRES_SUPER_PASS: <generate-strong-password>
 ```
 
 **Note**: MinIO credentials are pulled from the existing `minio` vault item:
+
 - `AWS_ACCESS_KEY_ID`
 - `AWS_SECRET_ACCESS_KEY`
 
-#### 2. NFS Backup Configuration
+### 2. NFS Backup Configuration
 
 Edit `backup/helmrelease.yaml` lines 105-106:
 
 ```yaml
 backups:
-  type: nfs
-  server: nas01.${SECRET_DOMAIN_INT}  # TODO: Replace with your NAS
-  path: /mnt/data/backup               # TODO: Replace with your NFS path
+    type: nfs
+    server: nas01.${SECRET_DOMAIN_INT} # TODO: Replace with your NAS
+    path: /mnt/data/backup # TODO: Replace with your NFS path
 ```
 
 **Required**:
+
 - NFS server must be accessible from the cluster
 - Export path must exist and be writable
 - Verify with: `showmount -e <nas-server>`
 
-#### 3. MinIO S3 Bucket
+### 3. MinIO S3 Bucket
 
 Create the S3 bucket in MinIO:
 
@@ -326,25 +336,25 @@ To restore from a backup, modify `cluster/cluster.yaml`:
 
 ```yaml
 spec:
-  bootstrap:
-    recovery:
-      source: postgres18
-      recoveryTarget:
-        targetTime: "2025-11-13 12:00:00.00000+00"  # PITR
-  externalClusters:
-    - name: postgres18
-      barmanObjectStore:
-        destinationPath: s3://cloudnative-pg/
-        endpointURL: https://${SECRET_STORAGE_SERVER}:9000
-        s3Credentials:
-          accessKeyId:
-            name: cloudnative-pg-secret
-            key: AWS_ACCESS_KEY_ID
-          secretAccessKey:
-            name: cloudnative-pg-secret
-            key: AWS_SECRET_ACCESS_KEY
-        wal:
-          compression: bzip2
+    bootstrap:
+        recovery:
+            source: postgres18
+            recoveryTarget:
+                targetTime: "2025-11-13 12:00:00.00000+00" # PITR
+    externalClusters:
+        - name: postgres18
+          barmanObjectStore:
+              destinationPath: s3://cloudnative-pg/
+              endpointURL: https://${SECRET_STORAGE_SERVER}:9000
+              s3Credentials:
+                  accessKeyId:
+                      name: cloudnative-pg-secret
+                      key: AWS_ACCESS_KEY_ID
+                  secretAccessKey:
+                      name: cloudnative-pg-secret
+                      key: AWS_SECRET_ACCESS_KEY
+              wal:
+                  compression: bzip2
 ```
 
 ### Restore from NFS Dump
@@ -432,6 +442,7 @@ kubectl exec -n database postgres18-1 -- psql -U postgres -d mydb -c "VACUUM ANA
 ### Implementation Sources
 
 This implementation is based on:
+
 - [drag0n141/home-ops](https://github.com/drag0n141/home-ops/tree/master/kubernetes/apps/database/cloudnative-pg) - Primary reference for cluster config
 - [jfroy/flatops](https://github.com/jfroy/flatops/tree/main/kubernetes/apps/database/cnpg) - PodMonitor configuration
 - Previous implementation: [talos-cluster-pw](https://github.com/LukeEvansTech/talos-cluster-pw/tree/main/kubernetes/apps/database/cloudnative-pg)
