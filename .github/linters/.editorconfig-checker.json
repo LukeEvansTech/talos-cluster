@@ -1,0 +1,23 @@
+{
+  "_comment_": "Markdown is excluded from editorconfig-checker because YAML / bash / k8s manifest samples inside fenced code blocks legitimately use language-specific indents (e.g. YAML list-item continuation aligns at column 10 / 22) that the line-level checker would flag as non-multiple-of-4. Markdown style is enforced by markdownlint + prettier instead.",
+  "Verbose": false,
+  "Debug": false,
+  "IgnoreDefaults": false,
+  "SpacesAfterTabs": false,
+  "NoColor": false,
+  "exclude": [
+    "testfiles",
+    "\\.md$",
+    "kubernetes/apps/default/smokeping/app/config/Targets$"
+  ],
+  "AllowedContentTypes": [],
+  "PassedFiles": [],
+  "Disable": {
+    "EndOfLine": false,
+    "Indentation": false,
+    "InsertFinalNewline": false,
+    "TrimTrailingWhitespace": false,
+    "IndentSize": false,
+    "MaxLineLength": false
+  }
+}
