@@ -55,34 +55,48 @@ spec:
               runAsGroup: 30000
               readOnlyRootFilesystem: true
               allowPrivilegeEscalation: false
-              capabilities: {drop: [ALL]}
-              seccompProfile: {type: RuntimeDefault}
+              capabilities: { drop: [ALL] }
+              seccompProfile: { type: RuntimeDefault }
         containers:
           app:
             image:
               repository: docker.io/oxidized/oxidized
               tag: 0.36.0@sha256:12c0155d7f7c827fd884cb9d33b8aac44fa6291a9e54499cca6e3122e90c47b9
             env:
-              PUSHOVER_TOKEN: {valueFrom: {secretKeyRef: {name: oxidized-secret, key: PUSHOVER_TOKEN}}}
-              PUSHOVER_USER_KEY: {valueFrom: {secretKeyRef: {name: oxidized-secret, key: PUSHOVER_USER_KEY}}}
+              PUSHOVER_TOKEN:
+                {
+                  valueFrom:
+                    {
+                      secretKeyRef:
+                        { name: oxidized-secret, key: PUSHOVER_TOKEN },
+                    },
+                }
+              PUSHOVER_USER_KEY:
+                {
+                  valueFrom:
+                    {
+                      secretKeyRef:
+                        { name: oxidized-secret, key: PUSHOVER_USER_KEY },
+                    },
+                }
             probes:
               liveness:
                 enabled: true
                 custom: true
                 spec:
-                  tcpSocket: {port: 8888}
+                  tcpSocket: { port: 8888 }
                   initialDelaySeconds: 30
                   periodSeconds: 30
               readiness:
                 enabled: true
                 custom: true
                 spec:
-                  httpGet: {path: /nodes.json, port: 8888}
+                  httpGet: { path: /nodes.json, port: 8888 }
                   initialDelaySeconds: 30
                   periodSeconds: 30
             resources:
-              requests: {cpu: 50m, memory: 128Mi}
-              limits: {memory: 256Mi}
+              requests: { cpu: 50m, memory: 128Mi }
+              limits: { memory: 256Mi }
             securityContext:
               # The oxidized image bootstraps as root (uid 0): runsvdir
               # initialises supervise dirs under /etc/service/*, runit's
@@ -103,7 +117,7 @@ spec:
                   - CHOWN
                   - SETUID
                   - SETGID
-              seccompProfile: {type: RuntimeDefault}
+              seccompProfile: { type: RuntimeDefault }
           exporter:
             image:
               repository: ghcr.io/akquinet/oxidized-exporter
@@ -116,27 +130,27 @@ spec:
                 enabled: true
                 custom: true
                 spec:
-                  tcpSocket: {port: 8080}
+                  tcpSocket: { port: 8080 }
                   initialDelaySeconds: 30
                   periodSeconds: 30
               readiness:
                 enabled: true
                 custom: true
                 spec:
-                  httpGet: {path: /metrics, port: 8080}
+                  httpGet: { path: /metrics, port: 8080 }
                   initialDelaySeconds: 30
                   periodSeconds: 30
             resources:
-              requests: {cpu: 10m, memory: 32Mi}
-              limits: {memory: 64Mi}
+              requests: { cpu: 10m, memory: 32Mi }
+              limits: { memory: 64Mi }
             securityContext:
               runAsNonRoot: true
               runAsUser: 30000
               runAsGroup: 30000
               readOnlyRootFilesystem: true
               allowPrivilegeEscalation: false
-              capabilities: {drop: [ALL]}
-              seccompProfile: {type: RuntimeDefault}
+              capabilities: { drop: [ALL] }
+              seccompProfile: { type: RuntimeDefault }
         pod:
           securityContext:
             fsGroup: 30000
@@ -146,8 +160,8 @@ spec:
       app:
         controller: oxidized
         ports:
-          http: {port: 8888}
-          metrics: {port: 8080}
+          http: { port: 8888 }
+          metrics: { port: 8080 }
 
     route:
       app:

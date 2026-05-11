@@ -109,10 +109,10 @@ spec:
               runAsNonRoot: true
               runAsUser: 568
               runAsGroup: 568
-              seccompProfile: {type: RuntimeDefault}
+              seccompProfile: { type: RuntimeDefault }
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: true
-              capabilities: {drop: ["ALL"]}
+              capabilities: { drop: ["ALL"] }
             resources:
               requests:
                 cpu: 100m

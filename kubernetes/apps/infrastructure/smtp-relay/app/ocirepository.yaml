@@ -11,4 +11,3 @@ spec:
   ref:
     tag: 5.0.0
   url: oci://ghcr.io/bjw-s-labs/helm/app-template
-
