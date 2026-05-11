@@ -12,4 +12,3 @@ spec:
   ref:
     tag: v1.19.5
   url: oci://ghcr.io/rook/rook-ceph-cluster
-

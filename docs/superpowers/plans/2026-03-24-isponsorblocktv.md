@@ -14,19 +14,20 @@
 
 ## File Structure
 
-| Action | File | Purpose |
-|--------|------|---------|
-| Create | `kubernetes/apps/media/isponsorblocktv/ks.yaml` | Flux Kustomization with VolSync component |
-| Create | `kubernetes/apps/media/isponsorblocktv/app/kustomization.yaml` | Resource list for app directory |
-| Create | `kubernetes/apps/media/isponsorblocktv/app/helmrelease.yaml` | HelmRelease with bjw-s/app-template |
-| Create | `kubernetes/apps/media/isponsorblocktv/app/ocirepository.yaml` | OCI chart source |
-| Modify | `kubernetes/apps/media/kustomization.yaml` | Add isponsorblocktv ks.yaml to resources |
+| Action | File                                                           | Purpose                                   |
+| ------ | -------------------------------------------------------------- | ----------------------------------------- |
+| Create | `kubernetes/apps/media/isponsorblocktv/ks.yaml`                | Flux Kustomization with VolSync component |
+| Create | `kubernetes/apps/media/isponsorblocktv/app/kustomization.yaml` | Resource list for app directory           |
+| Create | `kubernetes/apps/media/isponsorblocktv/app/helmrelease.yaml`   | HelmRelease with bjw-s/app-template       |
+| Create | `kubernetes/apps/media/isponsorblocktv/app/ocirepository.yaml` | OCI chart source                          |
+| Modify | `kubernetes/apps/media/kustomization.yaml`                     | Add isponsorblocktv ks.yaml to resources  |
 
 ---
 
 ### Task 1: Create OCI Repository
 
 **Files:**
+
 - Create: `kubernetes/apps/media/isponsorblocktv/app/ocirepository.yaml`
 
 - [ ] **Step 1: Create the OCIRepository manifest**
@@ -36,15 +37,15 @@
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository
 metadata:
-  name: isponsorblocktv
+    name: isponsorblocktv
 spec:
-  interval: 1h
-  layerSelector:
-    mediaType: application/vnd.cncf.helm.chart.content.v1.tar+gzip
-    operation: copy
-  ref:
-    tag: 4.6.2
-  url: oci://ghcr.io/bjw-s-labs/helm/app-template
+    interval: 1h
+    layerSelector:
+        mediaType: application/vnd.cncf.helm.chart.content.v1.tar+gzip
+        operation: copy
+    ref:
+        tag: 4.6.2
+    url: oci://ghcr.io/bjw-s-labs/helm/app-template
 ```
 
 Reference: `kubernetes/apps/media/plex-auto-languages/app/ocirepository.yaml`
@@ -65,6 +66,7 @@ git commit -m "feat(isponsorblocktv): add OCI repository for app-template chart"
 ### Task 2: Create HelmRelease
 
 **Files:**
+
 - Create: `kubernetes/apps/media/isponsorblocktv/app/helmrelease.yaml`
 
 - [ ] **Step 1: Create the HelmRelease manifest**
@@ -75,63 +77,64 @@ git commit -m "feat(isponsorblocktv): add OCI repository for app-template chart"
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
-  name: isponsorblocktv
-spec:
-  interval: 1h
-  chartRef:
-    kind: OCIRepository
     name: isponsorblocktv
-  values:
-    controllers:
-      isponsorblocktv:
-        annotations:
-          reloader.stakater.com/auto: "true"
-        containers:
-          app:
-            image:
-              repository: ghcr.io/dmunozv04/isponsorblocktv
-              tag: v2.6.1@sha256:545856523283753ebcf4b400a46895b9906844be5265a0f4cab98a6b0bdf84be
-            env:
-              TZ: "${TIMEZONE}"
-            probes:
-              liveness:
-                enabled: false
-              readiness:
-                enabled: false
-              startup:
-                enabled: false
+spec:
+    interval: 1h
+    chartRef:
+        kind: OCIRepository
+        name: isponsorblocktv
+    values:
+        controllers:
+            isponsorblocktv:
+                annotations:
+                    reloader.stakater.com/auto: "true"
+                containers:
+                    app:
+                        image:
+                            repository: ghcr.io/dmunozv04/isponsorblocktv
+                            tag: v2.6.1@sha256:545856523283753ebcf4b400a46895b9906844be5265a0f4cab98a6b0bdf84be
+                        env:
+                            TZ: "${TIMEZONE}"
+                        probes:
+                            liveness:
+                                enabled: false
+                            readiness:
+                                enabled: false
+                            startup:
+                                enabled: false
+                        securityContext:
+                            allowPrivilegeEscalation: false
+                            readOnlyRootFilesystem: true
+                            capabilities: { drop: ["ALL"] }
+                        resources:
+                            requests:
+                                cpu: 10m
+                                memory: 128Mi
+                            limits:
+                                memory: 256Mi
+        defaultPodOptions:
             securityContext:
-              allowPrivilegeEscalation: false
-              readOnlyRootFilesystem: true
-              capabilities: {drop: ["ALL"]}
-            resources:
-              requests:
-                cpu: 10m
-                memory: 128Mi
-              limits:
-                memory: 256Mi
-    defaultPodOptions:
-      securityContext:
-        runAsNonRoot: true
-        runAsUser: 1000
-        runAsGroup: 1000
-        fsGroup: 1000
-        fsGroupChangePolicy: OnRootMismatch
-        seccompProfile: {type: RuntimeDefault}
-    persistence:
-      config:
-        existingClaim: "{{ .Release.Name }}"
-        globalMounts:
-          - path: /app/data
-      tmp:
-        type: emptyDir
-        globalMounts:
-          - path: /tmp
+                runAsNonRoot: true
+                runAsUser: 1000
+                runAsGroup: 1000
+                fsGroup: 1000
+                fsGroupChangePolicy: OnRootMismatch
+                seccompProfile: { type: RuntimeDefault }
+        persistence:
+            config:
+                existingClaim: "{{ .Release.Name }}"
+                globalMounts:
+                    - path: /app/data
+            tmp:
+                type: emptyDir
+                globalMounts:
+                    - path: /tmp
 ```
 
 Reference: `kubernetes/apps/media/plex-auto-languages/app/helmrelease.yaml` (headless daemon pattern, probes disabled)
 
 Key differences from reference:
+
 - No service/route (headless daemon with no ports)
 - No envFrom/secretRef (no external secrets needed)
 - PVC via existingClaim for VolSync (like metube pattern)
@@ -153,6 +156,7 @@ git commit -m "feat(isponsorblocktv): add HelmRelease for headless daemon deploy
 ### Task 3: Create App Kustomization
 
 **Files:**
+
 - Create: `kubernetes/apps/media/isponsorblocktv/app/kustomization.yaml`
 
 - [ ] **Step 1: Create the kustomization manifest**
@@ -163,8 +167,8 @@ git commit -m "feat(isponsorblocktv): add HelmRelease for headless daemon deploy
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  - ./ocirepository.yaml
-  - ./helmrelease.yaml
+    - ./ocirepository.yaml
+    - ./helmrelease.yaml
 ```
 
 Note: No externalsecret.yaml listed (not needed for this app).
@@ -185,6 +189,7 @@ git commit -m "feat(isponsorblocktv): add app kustomization"
 ### Task 4: Create Flux Kustomization (ks.yaml)
 
 **Files:**
+
 - Create: `kubernetes/apps/media/isponsorblocktv/ks.yaml`
 
 - [ ] **Step 1: Create the Flux Kustomization manifest**
@@ -195,33 +200,33 @@ git commit -m "feat(isponsorblocktv): add app kustomization"
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
-  name: &app isponsorblocktv
-  namespace: &namespace media
+    name: &app isponsorblocktv
+    namespace: &namespace media
 spec:
-  commonMetadata:
-    labels:
-      app.kubernetes.io/name: *app
-  components:
-    - ../../../../components/volsync
-  dependsOn:
-    - name: rook-ceph-cluster
-      namespace: rook-ceph
-  interval: 1h
-  path: ./kubernetes/apps/media/isponsorblocktv/app
-  postBuild:
-    substitute:
-      APP: *app
-      VOLSYNC_CAPACITY: 1Gi
-      VOLSYNC_CACHE_CAPACITY: 1Gi
-  prune: true
-  retryInterval: 2m
-  sourceRef:
-    kind: GitRepository
-    name: flux-system
-    namespace: flux-system
-  targetNamespace: *namespace
-  timeout: 5m
-  wait: false
+    commonMetadata:
+        labels:
+            app.kubernetes.io/name: *app
+    components:
+        - ../../../../components/volsync
+    dependsOn:
+        - name: rook-ceph-cluster
+          namespace: rook-ceph
+    interval: 1h
+    path: ./kubernetes/apps/media/isponsorblocktv/app
+    postBuild:
+        substitute:
+            APP: *app
+            VOLSYNC_CAPACITY: 1Gi
+            VOLSYNC_CACHE_CAPACITY: 1Gi
+    prune: true
+    retryInterval: 2m
+    sourceRef:
+        kind: GitRepository
+        name: flux-system
+        namespace: flux-system
+    targetNamespace: *namespace
+    timeout: 5m
+    wait: false
 ```
 
 Reference: `kubernetes/apps/media/metube/ks.yaml` (VolSync pattern with rook-ceph dependency)
@@ -242,6 +247,7 @@ git commit -m "feat(isponsorblocktv): add Flux Kustomization with VolSync"
 ### Task 5: Register App in Media Namespace
 
 **Files:**
+
 - Modify: `kubernetes/apps/media/kustomization.yaml`
 
 - [ ] **Step 1: Add isponsorblocktv to the resources list**

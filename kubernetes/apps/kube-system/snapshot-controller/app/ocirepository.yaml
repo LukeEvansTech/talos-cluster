@@ -12,4 +12,3 @@ spec:
   ref:
     tag: 5.0.4
   url: oci://ghcr.io/piraeusdatastore/helm-charts/snapshot-controller
-

@@ -14,21 +14,21 @@ echo "=========================================="
 echo ""
 
 # Check if op CLI is available
-if ! command -v op &> /dev/null; then
+if ! command -v op &>/dev/null; then
     echo "ERROR: 1Password CLI (op) not found"
     echo "Install it from: https://developer.1password.com/docs/cli/get-started/"
     exit 1
 fi
 
 # Check if authenticated
-if ! op whoami &> /dev/null; then
+if ! op whoami &>/dev/null; then
     echo "ERROR: Not authenticated with 1Password CLI"
     echo "Run: eval \$(op signin)"
     exit 1
 fi
 
 # Check if yq is available
-if ! command -v yq &> /dev/null; then
+if ! command -v yq &>/dev/null; then
     echo "ERROR: yq not found (required to parse YAML)"
     echo "Install it with: brew install yq (or equivalent for your OS)"
     exit 1
@@ -73,7 +73,7 @@ echo ""
 
 # Check if the item already exists
 echo "Checking if item '$ITEM_NAME' exists in vault '$VAULT_NAME'..."
-if op item get "$ITEM_NAME" --vault "$VAULT_NAME" &> /dev/null; then
+if op item get "$ITEM_NAME" --vault "$VAULT_NAME" &>/dev/null; then
     echo "✓ Item exists, updating fields..."
 
     # Update existing item with new fields

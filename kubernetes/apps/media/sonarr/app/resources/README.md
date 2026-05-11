@@ -15,6 +15,7 @@ Automatically refreshes series metadata when episodes are grabbed that have TBA/
 **Trigger:** On Import, On Upgrade
 
 Automatically tags series with their video codec format after downloads complete:
+
 - `codec:h265` - HEVC content
 - `codec:h264` - AVC content (includes legacy divx/xvid/mpeg2)
 - `codec:av1` - AV1 content

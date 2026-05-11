@@ -13,7 +13,7 @@ Deploy [iSponsorBlockTV](https://github.com/dmunozv04/iSponsorBlockTV) as a head
 
 Standard app-template deployment (ks.yaml + 3 files in app/) in the `media` namespace. No web UI, no service/route, no ExternalSecret. Requires adding `./isponsorblocktv/ks.yaml` to `kubernetes/apps/media/kustomization.yaml`.
 
-```
+```text
 kubernetes/apps/media/isponsorblocktv/
   ks.yaml                          # Flux Kustomization
   app/
@@ -30,10 +30,12 @@ kubernetes/apps/media/isponsorblocktv/
 ## HelmRelease Spec
 
 ### Controller
+
 - Type: Deployment (default), 1 replica
 - Reloader annotation for config changes
 
 ### Container
+
 - No health probes (no HTTP port — background daemon)
 - Container security context: `allowPrivilegeEscalation: false`, `readOnlyRootFilesystem: true`, `capabilities: {drop: ["ALL"]}`
 - Pod security context: `runAsNonRoot: true`, `runAsUser: 1000`, `runAsGroup: 1000`, `fsGroup: 1000`, `fsGroupChangePolicy: OnRootMismatch`, `seccompProfile: {type: RuntimeDefault}`
@@ -41,12 +43,14 @@ kubernetes/apps/media/isponsorblocktv/
 - Env: `TZ: ${TIMEZONE}`
 
 ### Persistence
-| Name | Type | Mount Path | Purpose |
-|------|------|------------|---------|
-| config | PVC (VolSync) | /app/data | config.json + device pairings |
-| tmp | emptyDir | /tmp | Temp files |
+
+| Name   | Type          | Mount Path | Purpose                       |
+| ------ | ------------- | ---------- | ----------------------------- |
+| config | PVC (VolSync) | /app/data  | config.json + device pairings |
+| tmp    | emptyDir      | /tmp       | Temp files                    |
 
 ### Networking
+
 - No service (no ports to expose)
 - No route/ingress (no web UI)
 - Requires LAN access to communicate with TV devices (standard pod networking)
@@ -61,9 +65,11 @@ kubernetes/apps/media/isponsorblocktv/
 ## Initial Device Pairing
 
 After deployment, run:
+
 ```bash
 kubectl exec -it -n media deploy/isponsorblocktv -- iSPBTV setup
 ```
+
 This launches the interactive TUI to pair devices via YouTube TV link codes. The resulting `config.json` is persisted to the VolSync-backed PVC.
 
 ## Decisions

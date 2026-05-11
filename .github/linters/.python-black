@@ -1,0 +1,4 @@
+[tool.black]
+# Match super-linter's ruff config (line-length = 120) so PYTHON_BLACK and
+# PYTHON_RUFF_FORMAT don't bounce a file back and forth between them.
+line-length = 120

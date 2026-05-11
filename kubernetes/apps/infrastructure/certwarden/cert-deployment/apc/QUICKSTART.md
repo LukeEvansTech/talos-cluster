@@ -23,7 +23,8 @@ ssh -o KexAlgorithms=+diffie-hellman-group1-sha1,diffie-hellman-group14-sha1 \
 ```
 
 Example output:
-```
+
+```text
 debug1: Server host key: ssh-rsa SHA256:4sd7MpvwhQrOEhAIjlL5Cr2s6ml0c22KX0rxYClwbN8
 ```
 
@@ -33,13 +34,13 @@ Copy the fingerprint (the part after `SHA256:`).
 
 Create a new item named `apc-ups-main` with these fields:
 
-| Field Name          | Example Value                            |
-|---------------------|------------------------------------------|
-| APC_HOSTNAME        | 10.32.8.58                               |
-| APC_USERNAME        | apc                                      |
-| APC_PASSWORD        | your-password                            |
+| Field Name          | Example Value                               |
+| ------------------- | ------------------------------------------- |
+| APC_HOSTNAME        | 10.32.8.58                                  |
+| APC_USERNAME        | apc                                         |
+| APC_PASSWORD        | your-password                               |
 | APC_FINGERPRINT     | 4sd7MpvwhQrOEhAIjlL5Cr2s6ml0c22KX0rxYClwbN8 |
-| APC_INSECURE_CIPHER | true                                     |
+| APC_INSECURE_CIPHER | true                                        |
 
 **Note**: Set `APC_INSECURE_CIPHER` to `true` for older APC devices that use legacy SSH ciphers (cryptlib).
 
@@ -49,13 +50,13 @@ Edit `externalsecret.yaml` if your 1Password item has a different name:
 
 ```yaml
 metadata:
-  name: apc-ups-main  # Change to match your 1Password item
+    name: apc-ups-main # Change to match your 1Password item
 spec:
-  target:
-    name: apc-ups-main  # Change to match your 1Password item
-  dataFrom:
-    - extract:
-        key: apc-ups-main  # Your 1Password item name
+    target:
+        name: apc-ups-main # Change to match your 1Password item
+    dataFrom:
+        - extract:
+              key: apc-ups-main # Your 1Password item name
 ```
 
 ### 4. Deploy
@@ -80,13 +81,13 @@ Add to your Certwarden certificate configuration:
 
 ```yaml
 postProcessing:
-  - name: deploy-to-apc
-    script: /path/to/certwarden-apc-deploy.sh
-    environment:
-      - name: APC_HOST
-        value: "ups-main"  # Matches secret pattern: apc-{APC_HOST}
-      - name: NAMESPACE
-        value: "infrastructure"
+    - name: deploy-to-apc
+      script: /path/to/certwarden-apc-deploy.sh
+      environment:
+          - name: APC_HOST
+            value: "ups-main" # Matches secret pattern: apc-{APC_HOST}
+          - name: NAMESPACE
+            value: "infrastructure"
 ```
 
 ## Testing

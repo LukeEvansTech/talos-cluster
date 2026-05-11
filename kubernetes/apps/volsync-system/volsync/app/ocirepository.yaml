@@ -12,4 +12,3 @@ spec:
   ref:
     tag: 0.18.5
   url: oci://ghcr.io/home-operations/charts-mirror/volsync-perfectra1n
-
