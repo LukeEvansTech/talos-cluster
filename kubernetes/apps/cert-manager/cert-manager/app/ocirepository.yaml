@@ -12,4 +12,3 @@ spec:
   ref:
     tag: v1.20.2
   url: oci://quay.io/jetstack/charts/cert-manager
-

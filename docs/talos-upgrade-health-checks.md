@@ -10,12 +10,12 @@ The Talos upgrade plan uses health checks to ensure the cluster is in a healthy 
 
 ```yaml
 healthChecks:
-  - apiVersion: volsync.backube/v1alpha1
-    expr: status.conditions.filter(c, c.type == "Synchronizing").all(c, c.status == "False")
-    kind: ReplicationSource
-  - apiVersion: ceph.rook.io/v1
-    expr: status.ceph.health in ['HEALTH_OK']
-    kind: CephCluster
+    - apiVersion: volsync.backube/v1alpha1
+      expr: status.conditions.filter(c, c.type == "Synchronizing").all(c, c.status == "False")
+      kind: ReplicationSource
+    - apiVersion: ceph.rook.io/v1
+      expr: status.ceph.health in ['HEALTH_OK']
+      kind: CephCluster
 ```
 
 ### 1. VolSync ReplicationSource Check
@@ -25,6 +25,7 @@ healthChecks:
 **What it checks:** Ensures no active backup/replication jobs are in progress before rebooting nodes.
 
 **Troubleshooting:**
+
 ```bash
 # Check if any ReplicationSources are actively syncing
 kubectl get replicationsource -A -o jsonpath='{range .items[*]}{.metadata.namespace}/{.metadata.name}: Synchronizing={.status.conditions[?(@.type=="Synchronizing")].status}{"\n"}{end}' | grep -v "False"
@@ -39,6 +40,7 @@ If backups are in progress, either wait for them to complete or check for stuck 
 **What it checks:** Ensures Ceph storage is fully healthy before proceeding with node operations.
 
 **Troubleshooting:**
+
 ```bash
 # Check current Ceph health
 kubectl -n rook-ceph exec deploy/rook-ceph-tools -- ceph health
@@ -53,7 +55,7 @@ kubectl -n rook-ceph exec deploy/rook-ceph-tools -- ceph status
 
 **Symptom:** Plan stalls with Ceph reporting `HEALTH_WARN` due to unacknowledged crash reports.
 
-```
+```text
 health: HEALTH_WARN
         9 mgr modules have recently crashed
 ```
@@ -61,6 +63,7 @@ health: HEALTH_WARN
 **Cause:** The Ceph manager (mgr) has experienced crashes that haven't been acknowledged. These are often transient issues that have already self-resolved, but Ceph keeps the crash reports until manually archived.
 
 **Resolution:**
+
 ```bash
 # List crash reports
 kubectl -n rook-ceph exec deploy/rook-ceph-tools -- ceph crash ls
@@ -76,12 +79,12 @@ kubectl -n rook-ceph exec deploy/rook-ceph-tools -- ceph health
 
 Other common causes of `HEALTH_WARN`:
 
-| Warning | Cause | Resolution |
-|---------|-------|------------|
-| `clock skew detected` | NTP sync issues between nodes | Fix time synchronization |
-| `osds are down` | OSD pods not running | Check OSD pod status and logs |
-| `pgs degraded` | Data not fully replicated | Wait for rebalancing or investigate failed OSDs |
-| `pool has no application` | Pool misconfiguration | Set pool application: `ceph osd pool application enable <pool> <app>` |
+| Warning                   | Cause                         | Resolution                                                            |
+| ------------------------- | ----------------------------- | --------------------------------------------------------------------- |
+| `clock skew detected`     | NTP sync issues between nodes | Fix time synchronization                                              |
+| `osds are down`           | OSD pods not running          | Check OSD pod status and logs                                         |
+| `pgs degraded`            | Data not fully replicated     | Wait for rebalancing or investigate failed OSDs                       |
+| `pool has no application` | Pool misconfiguration         | Set pool application: `ceph osd pool application enable <pool> <app>` |
 
 ```bash
 # Get detailed health information
@@ -93,6 +96,7 @@ kubectl -n rook-ceph exec deploy/rook-ceph-tools -- ceph health detail
 **Symptom:** ReplicationSource stuck in `Synchronizing=True`
 
 **Resolution:**
+
 ```bash
 # Find the stuck replication source
 kubectl get replicationsource -A -o jsonpath='{range .items[*]}{.metadata.namespace}/{.metadata.name}: Synchronizing={.status.conditions[?(@.type=="Synchronizing")].status}{"\n"}{end}' | grep "True"
@@ -123,7 +127,7 @@ If you need to bypass health checks temporarily, you can modify the plan policy:
 
 ```yaml
 policy:
-  force: true  # Bypasses health checks - use with caution!
+    force: true # Bypasses health checks - use with caution!
 ```
 
 This is **not recommended** for production use as it may cause data loss or service disruption.

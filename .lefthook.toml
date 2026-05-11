@@ -20,3 +20,10 @@ glob = [".github/workflows/*.yml", ".github/workflows/*.yaml"]
 run = "mise x --quiet -- prettier -w --log-level warn {staged_files}"
 glob = ["*.json", "*.json5"]
 stage_fixed = true
+
+# Match super-linter's YAML_PRETTIER rule locally so flow-style brace
+# spacing / quote style normalizations land at commit time, not CI time.
+[pre-commit.commands.format-yaml-prettier]
+run = "mise x --quiet -- prettier -w --log-level warn {staged_files}"
+glob = ["*.yaml", "*.yml"]
+stage_fixed = true

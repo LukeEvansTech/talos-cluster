@@ -24,11 +24,11 @@ api_call() {
 }
 
 # Check for episodes with TBA/TBD titles
-episodes=$(api_call "${SONARR_API_URL}/episode?seriesId=${SERIES_ID}" | \
+episodes=$(api_call "${SONARR_API_URL}/episode?seriesId=${SERIES_ID}" |
     jq '[.[] | select(.title // "" | ascii_downcase | test("(tba|tbd)"))] | length')
 
 # Refresh series if any TBA/TBD episodes found
-if (( episodes > 0 )); then
+if ((episodes > 0)); then
     echo "Refreshing series ${SERIES_ID} (${episodes} TBA/TBD episodes found)"
     api_call -X POST --data-binary "{\"name\": \"RefreshSeries\", \"seriesId\": ${SERIES_ID}}" \
         "${SONARR_API_URL}/command" >/dev/null

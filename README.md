@@ -8,14 +8,12 @@ _... managed with Flux, Renovate, and GitHub Actions_ 🤖
 
 <div align="center">
 
-
 [![Age-Days](https://kromgo.codelooks.com/cluster_age_days?format=badge&style=flat-square)](https://github.com/kashalls/kromgo/)&nbsp;&nbsp;
 [![Uptime-Days](https://kromgo.codelooks.com/cluster_uptime_days?format=badge&style=flat-square)](https://github.com/kashalls/kromgo/)&nbsp;&nbsp;
 [![Node-Count](https://kromgo.codelooks.com/cluster_node_count?format=badge&style=flat-square)](https://github.com/kashalls/kromgo/)&nbsp;&nbsp;
 [![Pod-Count](https://kromgo.codelooks.com/cluster_pod_count?format=badge&style=flat-square)](https://github.com/kashalls/kromgo/)&nbsp;&nbsp;
 [![CPU-Usage](https://kromgo.codelooks.com/cluster_cpu_usage?format=badge&style=flat-square)](https://github.com/kashalls/kromgo/)&nbsp;&nbsp;
 [![Memory-Usage](https://kromgo.codelooks.com/cluster_memory_usage?format=badge&style=flat-square)](https://github.com/kashalls/kromgo/)&nbsp;&nbsp;
-
 
 </div>
 
@@ -36,7 +34,7 @@ There is a template over at [onedr0p/cluster-template](https://github.com/onedr0
 
 ### Installation
 
-My clusters run [talos linux](https://www.talos.dev) immutable kubernetes OS. This is a semi-hyper-converged cluster, workloads and block storage are sharing the same available resources on my nodes while I have a separate NAS server running TrueNAS with NFS/SMB shares, bulk file storage and backups.
+My clusters run [Talos Linux](https://www.talos.dev) immutable Kubernetes OS. This is a semi-hyper-converged cluster, workloads and block storage are sharing the same available resources on my nodes while I have a separate NAS server running TrueNAS with NFS/SMB shares, bulk file storage and backups.
 
 #### Bootstrap Process
 
@@ -69,13 +67,14 @@ just bootstrap apps
 ```
 
 **Prerequisites:**
+
 - [mise](https://mise.jdx.dev/) - Tool version manager
 - [1Password CLI](https://developer.1password.com/docs/cli/) - Secret injection
 - Tools are automatically installed via mise: `mise install`
 
 ### Core Components
 
-- [actions-runner-controller](https://github.com/actions/actions-runner-controller): self-hosted Github runners
+- [actions-runner-controller](https://github.com/actions/actions-runner-controller): self-hosted GitHub runners
 - [cilium](https://github.com/cilium/cilium): internal Kubernetes networking plugin
 - [cert-manager](https://cert-manager.io/docs/): creates SSL certificates for services in my cluster
 - [cloudflared](https://github.com/cloudflare/cloudflared): enables Cloudflare secure access to my cluster services
@@ -102,7 +101,7 @@ This Git repository contains the following directories under [Kubernetes](./kube
 │   ├── 📁 apps           # applications
 │   ├── 📁 bootstrap      # bootstrap procedures
 │   ├── 📁 flux           # core flux configuration
-│   └── 📁 templates      # re-useable components
+│   └── 📁 templates      # reusable components
 └── 📁 ...             # other clusters
 ```
 
@@ -135,6 +134,7 @@ Alternative solutions to the first two of these problems would be to host a Kube
 |                                             |                                                                   | Total: ~$7/mo |
 
 ---
+
 ## 🤝 Thanks
 
 Big shout out to original [cluster-template](https://github.com/onedr0p/cluster-template), and the [Home Operations](https://discord.gg/home-operations) Discord community.

@@ -12,7 +12,7 @@ This directory contains the backup configuration for Rook-Ceph Object Storage (R
 
 ## How It Works
 
-1. **Init Container** (curl) queries Kubernetes API for all `ObjectBucketClaim` resources
+1. **Init Container** (`curl`) queries Kubernetes API for all `ObjectBucketClaim` resources
 2. Extracts bucket names and writes them to a shared volume
 3. **Main Container** (rclone) reads the bucket list and backs up each to NFS
 
@@ -23,6 +23,7 @@ No manual bucket list maintenance required - new buckets are automatically inclu
 ### Backup Destination
 
 Backups are stored on TrueNAS via NFS:
+
 - **Server**: `${SECRET_STORAGE_SERVER}` (from cluster-secrets)
 - **Path**: `/mnt/pool/backups/rook/rgw-backups/<bucket-name>/`
 
@@ -36,14 +37,14 @@ Simply create an `ObjectBucketClaim` - it will be automatically discovered and b
 apiVersion: ceph.rook.io/v1
 kind: CephObjectStoreUser
 metadata:
-  name: myapp-user
-  namespace: rook-ceph
+    name: myapp-user
+    namespace: rook-ceph
 spec:
-  store: ceph-objectstore
-  displayName: "My App User"
-  capabilities:
-    user: "*"
-    bucket: "*"
+    store: ceph-objectstore
+    displayName: "My App User"
+    capabilities:
+        user: "*"
+        bucket: "*"
 ```
 
 ### 2. Create an ObjectBucketClaim
@@ -52,14 +53,14 @@ spec:
 apiVersion: objectbucket.io/v1alpha1
 kind: ObjectBucketClaim
 metadata:
-  name: myapp-bucket
-  namespace: rook-ceph
+    name: myapp-bucket
+    namespace: rook-ceph
 spec:
-  generateBucketName: myapp
-  storageClassName: ceph-bucket
-  additionalConfig:
-    maxObjects: "1000000"
-    maxSize: "10G"
+    generateBucketName: myapp
+    storageClassName: ceph-bucket
+    additionalConfig:
+        maxObjects: "1000000"
+        maxSize: "10G"
 ```
 
 That's it! The backup CronJob will automatically discover and back up this bucket.
@@ -67,12 +68,14 @@ That's it! The backup CronJob will automatically discover and back up this bucke
 ## Access RGW
 
 ### Internal Access (from within cluster)
+
 - **Endpoint**: `http://rook-ceph-rgw-ceph-objectstore.rook-ceph.svc.cluster.local`
 - **Port**: 80
 
 ### Get S3 Credentials
 
 **For CephObjectStoreUser:**
+
 ```bash
 # Backup user
 kubectl -n rook-ceph get secret rook-ceph-object-user-ceph-objectstore-backup-user \
@@ -83,6 +86,7 @@ kubectl -n rook-ceph get secret rook-ceph-object-user-ceph-objectstore-backup-us
 ```
 
 **For ObjectBucketClaim:**
+
 ```bash
 kubectl -n rook-ceph get cm netdata-bucket -o jsonpath='{.data.BUCKET_NAME}'
 kubectl -n rook-ceph get secret netdata-bucket -o jsonpath='{.data.AWS_ACCESS_KEY_ID}' | base64 -d
@@ -92,11 +96,13 @@ kubectl -n rook-ceph get secret netdata-bucket -o jsonpath='{.data.AWS_SECRET_AC
 ## Testing
 
 Run the backup job manually:
+
 ```bash
 kubectl -n rook-ceph create job --from=cronjob/rgw-s3-backup rgw-s3-backup-manual-$(date +%s)
 ```
 
 Check the logs:
+
 ```bash
 kubectl -n rook-ceph logs -l app.kubernetes.io/name=rgw-s3-backup -f
 ```
@@ -113,7 +119,7 @@ kubectl -n rook-ceph get jobs -l app.kubernetes.io/name=rgw-s3-backup
 
 ## Backup Structure
 
-```
+```text
 /mnt/pool/backups/rook/rgw-backups/
 ├── netdata-abc123/
 │   └── (synced files)
@@ -125,6 +131,7 @@ kubectl -n rook-ceph get jobs -l app.kubernetes.io/name=rgw-s3-backup
 ## RBAC
 
 The backup job uses a dedicated ServiceAccount with minimal permissions:
+
 - **ServiceAccount**: `rgw-s3-backup`
 - **Role**: Can only `list` ObjectBucketClaims in `rook-ceph` namespace
 

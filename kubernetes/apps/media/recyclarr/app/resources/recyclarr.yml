@@ -20,7 +20,7 @@ sonarr:
     # -----------------------
     # Controls how existing custom formats are handled when syncing
     # Setting both to true ensures you always have the latest recommended formats
-    delete_old_custom_formats: true      # Remove formats no longer in the config
+    delete_old_custom_formats: true # Remove formats no longer in the config
     replace_existing_custom_formats: true # Update existing formats with new definitions
 
     # Templates to Include
@@ -32,16 +32,16 @@ sonarr:
       - template: sonarr-quality-definition-series
 
       # 1080p specific templates for web content
-      - template: sonarr-v4-quality-profile-web-1080p   # Creates the quality profile
-      - template: sonarr-v4-custom-formats-web-1080p    # Adds custom formats for 1080p
+      - template: sonarr-v4-quality-profile-web-1080p # Creates the quality profile
+      - template: sonarr-v4-custom-formats-web-1080p # Adds custom formats for 1080p
 
       # 4K/2160p specific templates for web content
-      - template: sonarr-v4-quality-profile-web-2160p   # Creates the quality profile
-      - template: sonarr-v4-custom-formats-web-2160p    # Adds custom formats for 2160p
+      - template: sonarr-v4-quality-profile-web-2160p # Creates the quality profile
+      - template: sonarr-v4-custom-formats-web-2160p # Adds custom formats for 2160p
 
       # Anime specific templates
-      - template: sonarr-v4-quality-profile-anime       # Creates anime quality profile
-      - template: sonarr-v4-custom-formats-anime        # Adds anime-specific formats
+      - template: sonarr-v4-quality-profile-anime # Creates anime quality profile
+      - template: sonarr-v4-custom-formats-anime # Adds anime-specific formats
 
     # Quality Profiles Configuration
     # ----------------------------
@@ -58,9 +58,9 @@ sonarr:
 
         # Automatic upgrade settings
         upgrade:
-          allowed: true                   # Enable upgrading to better quality
-          until_quality: WEB 1080p        # Stop upgrading when reaching this quality
-          until_score: 10000              # Stop upgrading when reaching this score
+          allowed: true # Enable upgrading to better quality
+          until_quality: WEB 1080p # Stop upgrading when reaching this quality
+          until_score: 10000 # Stop upgrading when reaching this score
 
         # How to sort qualities (top = highest quality first)
         quality_sort: top
@@ -69,19 +69,25 @@ sonarr:
         qualities:
           # 1080p Web sources are top priority
           - name: WEB 1080p
-            qualities: ["WEBDL-1080p", "WEBRip-1080p"]
+            qualities:
+              - "WEBDL-1080p"
+              - "WEBRip-1080p"
 
           # TV broadcast in 1080p is second choice
           - name: HDTV-1080p
 
           # 720p web sources are third choice
           - name: WEB 720p
-            qualities: ["WEBDL-720p", "WEBRip-720p"]
+            qualities:
+              - "WEBDL-720p"
+              - "WEBRip-720p"
 
           # Lower quality sources in descending order of preference
           - name: HDTV-720p
           - name: WEB 480p
-            qualities: ["WEBDL-480p", "WEBRip-480p"]
+            qualities:
+              - "WEBDL-480p"
+              - "WEBRip-480p"
           - name: DVD
           - name: SDTV
 
@@ -101,9 +107,9 @@ sonarr:
           - 06d66ab109d4d2eddb2794d21526d140 # Retags - Releases that have been renamed/retagged
         # Apply these scores to the following profiles
         assign_scores_to:
-          - name: WEB-2160p  # Apply to 4K profile
-          - name: WEB-1080p  # Apply to 1080p profile
-          - name: ANY        # Apply to ANY profile
+          - name: WEB-2160p # Apply to 4K profile
+          - name: WEB-1080p # Apply to 1080p profile
+          - name: ANY # Apply to ANY profile
 
       # Scene Release Format
       # ------------------
@@ -115,7 +121,7 @@ sonarr:
           - name: WEB-2160p
           - name: WEB-1080p
           - name: ANY
-            score: 0  # Override default negative score for ANY profile
+            score: 0 # Override default negative score for ANY profile
 
       # HDR Format Preferences for 4K Content
       # ------------------------------------
@@ -125,7 +131,7 @@ sonarr:
           - 0dad0a507451acddd754fe6dc3a7f5e7 # HDR10+ Boost - Improved HDR format
           - 385e9e8581d33133c3961bdcdeffb7b4 # DV HDR10+ Boost - Combined Dolby Vision and HDR10+
         assign_scores_to:
-          - name: WEB-2160p  # Only apply to 4K profile
+          - name: WEB-2160p # Only apply to 4K profile
 
       # Anime-Specific Format Settings
       # ----------------------------
@@ -167,20 +173,20 @@ radarr:
     # Custom Format Management
     # -----------------------
     # Controls how existing custom formats are handled when syncing
-    delete_old_custom_formats: true       # Remove formats no longer in the config
-    replace_existing_custom_formats: true  # Update existing formats with new definitions
+    delete_old_custom_formats: true # Remove formats no longer in the config
+    replace_existing_custom_formats: true # Update existing formats with new definitions
 
     # Quality Definition Type
     # ---------------------
     # Sets the base quality definition type for the entire configuration
     quality_definition:
-      type: movie  # Use movie-specific quality definitions
+      type: movie # Use movie-specific quality definitions
 
     # Quality Profiles
     # ---------------
     # Only a single profile is defined - focused on 4K/2160p content
     quality_profiles:
-      - name: SQP-1 (2160p)  # SQP = Standard Quality Profile from TRaSH guides
+      - name: SQP-1 (2160p) # SQP = Standard Quality Profile from TRaSH guides
 
     # Templates to Include
     # -------------------
@@ -190,8 +196,8 @@ radarr:
       - template: radarr-quality-definition-sqp-streaming
 
       # 4K/2160p specific templates
-      - template: radarr-quality-profile-sqp-1-2160p-default  # Quality profile
-      - template: radarr-custom-formats-sqp-1-2160p           # Custom formats
+      - template: radarr-quality-profile-sqp-1-2160p-default # Quality profile
+      - template: radarr-custom-formats-sqp-1-2160p # Custom formats
 
       # Anime specific templates
       - template: radarr-quality-profile-anime
@@ -209,7 +215,7 @@ radarr:
           - 839bea857ed2c0a8e084f3cbdbd65ecb # x265 (no HDR/DV)
         assign_scores_to:
           - name: SQP-1 (2160p)
-            score: 0  # Don't penalize, but don't prioritize
+            score: 0 # Don't penalize, but don't prioritize
 
       # Problematic Release Group Formats
       # --------------------------------
@@ -224,7 +230,7 @@ radarr:
           - 5c44f52a8714fdd79bb4d98e2673be1f # Retags - Releases that have been renamed/retagged
           - f537cf427b64c38c8e36298f657e4828 # Scene - Scene released content
         assign_scores_to:
-          - name: SQP-1 (2160p)  # Apply to 4K profile (with default negative scores)
+          - name: SQP-1 (2160p) # Apply to 4K profile (with default negative scores)
 
       # Anime-Specific Format Settings
       # ----------------------------
@@ -234,16 +240,16 @@ radarr:
           - 064af5f084a0a24458cc8ecd3220f93f # Uncensored - Anime without censorship
         assign_scores_to:
           - name: Remux-1080p - Anime
-            score: 0  # Neutral score
+            score: 0 # Neutral score
 
       - trash_ids:
           - a5d148168c4506b55cf53984107c396e # 10bit - Higher color depth encoding
         assign_scores_to:
           - name: Remux-1080p - Anime
-            score: 0  # Neutral score
+            score: 0 # Neutral score
 
       - trash_ids:
           - 4a3b087eea2ce012fcc1ce319259a3be # Anime Dual Audio - Both Japanese and English audio
         assign_scores_to:
           - name: Remux-1080p - Anime
-            score: 0  # Neutral score
+            score: 0 # Neutral score

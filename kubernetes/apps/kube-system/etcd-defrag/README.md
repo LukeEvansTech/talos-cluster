@@ -28,6 +28,7 @@ Use the provided script to automatically extract and store the certificates:
 ```
 
 This will:
+
 - Extract CA, CRT, and KEY from your talosconfig
 - Create or update the "talos" item in your "Talos" vault in 1Password
 - Validate all prerequisites
@@ -37,24 +38,26 @@ This will:
 If you prefer manual setup:
 
 1. Extract certificate components from your talosconfig:
-   ```bash
-   cat talos/clusterconfig/talosconfig
-   ```
+
+    ```bash
+    cat talos/clusterconfig/talosconfig
+    ```
 
 2. Add to 1Password in the "Talos" vault, item "talos":
-   - Add field `TALOS_CA`: The base64-encoded CA certificate (value of `contexts.kubernetes.ca`)
-   - Add field `TALOS_CRT`: The base64-encoded client certificate (value of `contexts.kubernetes.crt`)
-   - Add field `TALOS_KEY`: The base64-encoded client key (value of `contexts.kubernetes.key`)
+    - Add field `TALOS_CA`: The base64-encoded CA certificate (value of `contexts.kubernetes.ca`)
+    - Add field `TALOS_CRT`: The base64-encoded client certificate (value of `contexts.kubernetes.crt`)
+    - Add field `TALOS_KEY`: The base64-encoded client key (value of `contexts.kubernetes.key`)
 
 **Example talosconfig structure:**
+
 ```yaml
 context: kubernetes
 contexts:
-  kubernetes:
-    endpoints: [...]
-    ca: <copy this value to TALOS_CA>
-    crt: <copy this value to TALOS_CRT>
-    key: <copy this value to TALOS_KEY>
+    kubernetes:
+        endpoints: [...]
+        ca: <copy this value to TALOS_CA>
+        crt: <copy this value to TALOS_CRT>
+        key: <copy this value to TALOS_KEY>
 ```
 
 The ExternalSecret will automatically sync these components to Kubernetes as `etcd-defrag-talosconfig` in the `kube-system` namespace. The defragmentation script builds a minimal talosconfig at runtime from these components.
@@ -99,10 +102,11 @@ To change the defragmentation schedule, edit `app/helmrelease.yaml`:
 
 ```yaml
 cronjob:
-  schedule: "0 2 * * 0"  # Cron format: minute hour day month weekday
+    schedule: "0 2 * * 0" # Cron format: minute hour day month weekday
 ```
 
 **Examples:**
+
 - Daily: `"0 2 * * *"`
 - Bi-weekly: `"0 2 */14 * *"`
 - Monthly: `"0 2 1 * *"`
@@ -112,6 +116,7 @@ cronjob:
 ### CronJob not running
 
 Check Flux reconciliation:
+
 ```bash
 kubectl get kustomization -n flux-system etcd-defrag
 flux reconcile kustomization etcd-defrag
@@ -120,12 +125,14 @@ flux reconcile kustomization etcd-defrag
 ### Secret not found
 
 Verify the ExternalSecret is syncing:
+
 ```bash
 kubectl get externalsecret -n kube-system etcd-defrag
 kubectl describe externalsecret -n kube-system etcd-defrag
 ```
 
 Ensure these fields exist in 1Password under the "talos" vault, item "talos":
+
 - `TALOS_CA`
 - `TALOS_CRT`
 - `TALOS_KEY`
@@ -133,9 +140,10 @@ Ensure these fields exist in 1Password under the "talos" vault, item "talos":
 ### Defragmentation fails
 
 1. Check etcd cluster health:
-   ```bash
-   talosctl -n 10.32.8.80 service etcd status
-   ```
+
+    ```bash
+    talosctl -n 10.32.8.80 service etcd status
+    ```
 
 2. Ensure all control plane nodes are healthy
 3. Verify quorum (at least 2 of 3 nodes must be available)
