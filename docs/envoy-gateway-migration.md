@@ -13,9 +13,9 @@ This guide documents the implementation of Envoy Gateway v1.5.4 in the Talos clu
 - **Chart:** `oci://mirror.gcr.io/envoyproxy/gateway-helm v1.5.4`
 - **CRDs:** Installed via `just bootstrap crds` for GitOps compatibility
 - **Components:**
-  - 1 Envoy Gateway controller pod
-  - 2 external proxy replicas
-  - 2 internal proxy replicas
+    - 1 Envoy Gateway controller pod
+    - 2 external proxy replicas
+    - 2 internal proxy replicas
 
 ### 2. Certificate Management
 
@@ -33,6 +33,7 @@ network/
 ```
 
 **Key Points:**
+
 - Wildcard certificate (`*.${SECRET_DOMAIN}`) imported from 1Password
 - Certificate stored in `network` namespace (same as Gateway)
 - No cross-namespace certificate references needed
@@ -44,12 +45,13 @@ network/
 
 Two Gateway instances configured:
 
-| Gateway | IP | Type | Purpose |
-|---------|------------|----------|---------|
+| Gateway        | IP         | Type     | Purpose                |
+| -------------- | ---------- | -------- | ---------------------- |
 | envoy-external | 10.32.8.89 | external | Public-facing services |
 | envoy-internal | 10.32.8.90 | internal | Internal-only services |
 
 **Features Enabled:**
+
 - HTTP/3 support
 - Brotli & Gzip compression
 - TCP keepalive
@@ -60,6 +62,7 @@ Two Gateway instances configured:
 ### 4. IP Allocation Strategy
 
 **Current Allocation (Phased Migration):**
+
 - nginx external: `10.32.8.88` (existing)
 - nginx internal: `10.32.8.87` (existing)
 - **Envoy external: `10.32.8.89`** (new)
@@ -67,6 +70,7 @@ Two Gateway instances configured:
 
 **Post-Migration Plan:**
 When ready to decommission nginx, update Envoy Gateway IPs to:
+
 - Envoy external: `10.32.8.88`
 - Envoy internal: `10.32.8.87`
 
@@ -75,12 +79,14 @@ When ready to decommission nginx, update Envoy Gateway IPs to:
 ### Step 1: Choose Gateway Type
 
 **Internal Gateway** (`envoy-internal`):
+
 - Use for services only accessible within your network
 - Examples: Home automation, internal tools, private apps
 
 **External Gateway** (`envoy-external`):
+
 - Use for publicly accessible services
-- Examples: Public websites, external APIs
+- Examples: Public sites, external APIs
 
 ### Step 2: Add Route Configuration
 
@@ -94,28 +100,28 @@ Embed the route configuration directly in the HelmRelease values:
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
-  name: pinchflat
+    name: pinchflat
 spec:
-  values:
-    service:
-      app:
-        controller: pinchflat
-        ports:
-          http:
-            port: 80
-    route:  # Add this section
-      app:
-        hostnames:
-          - "{{ .Release.Name }}.${SECRET_DOMAIN}"
-          - "{{ .Release.Name }}.${SECRET_INTERNAL_DOMAIN}"
-        parentRefs:
-          - name: envoy-internal  # or envoy-external for public apps
-            namespace: network
-    # Comment out or remove ingress section
-    # ingress:
-    #   app:
-    #     className: internal
-    #     hosts: [...]
+    values:
+        service:
+            app:
+                controller: pinchflat
+                ports:
+                    http:
+                        port: 80
+        route: # Add this section
+            app:
+                hostnames:
+                    - "{{ .Release.Name }}.${SECRET_DOMAIN}"
+                    - "{{ .Release.Name }}.${SECRET_INTERNAL_DOMAIN}"
+                parentRefs:
+                    - name: envoy-internal # or envoy-external for public apps
+                      namespace: network
+        # Comment out or remove ingress section
+        # ingress:
+        #   app:
+        #     className: internal
+        #     hosts: [...]
 ```
 
 **No kustomization.yaml changes needed** - the app-template chart handles HTTPRoute creation automatically.
@@ -132,30 +138,30 @@ Create a separate HTTPRoute file:
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
-  name: myapp
+    name: myapp
 spec:
-  parentRefs:
-    - name: envoy-internal
-      namespace: network
-      sectionName: https
-  hostnames:
-    - "myapp.${SECRET_DOMAIN}"
-  rules:
-    - matches:
-        - path:
-            type: PathPrefix
-            value: /
-      backendRefs:
-        - name: myapp
-          port: 80
+    parentRefs:
+        - name: envoy-internal
+          namespace: network
+          sectionName: https
+    hostnames:
+        - "myapp.${SECRET_DOMAIN}"
+    rules:
+        - matches:
+              - path:
+                    type: PathPrefix
+                    value: /
+          backendRefs:
+              - name: myapp
+                port: 80
 ```
 
 Then add it to kustomization.yaml:
 
 ```yaml
 resources:
-  - ./helmrelease.yaml
-  - ./httproute.yaml
+    - ./helmrelease.yaml
+    - ./httproute.yaml
 ```
 
 ### Step 3: Commit and Deploy
@@ -205,42 +211,42 @@ kubectl logs -n envoy-gateway-system -l gateway.envoyproxy.io/owning-gateway-nam
 
 ```yaml
 rules:
-  - matches:
-      - path:
-          type: PathPrefix
-          value: /api
-    backendRefs:
-      - name: api-service
-        port: 8080
-  - matches:
-      - path:
-          type: PathPrefix
-          value: /
-    backendRefs:
-      - name: web-service
-        port: 80
+    - matches:
+          - path:
+                type: PathPrefix
+                value: /api
+      backendRefs:
+          - name: api-service
+            port: 8080
+    - matches:
+          - path:
+                type: PathPrefix
+                value: /
+      backendRefs:
+          - name: web-service
+            port: 80
 ```
 
 ### Header-Based Routing
 
 ```yaml
 rules:
-  - matches:
-      - headers:
-          - name: X-Version
-            value: v2
-    backendRefs:
-      - name: app-v2
-        port: 80
+    - matches:
+          - headers:
+                - name: X-Version
+                  value: v2
+      backendRefs:
+          - name: app-v2
+            port: 80
 ```
 
 ### Multiple Hostnames
 
 ```yaml
 hostnames:
-  - "app.${SECRET_DOMAIN}"
-  - "app.${SECRET_INTERNAL_DOMAIN}"
-  - "legacy-app.${SECRET_DOMAIN}"
+    - "app.${SECRET_DOMAIN}"
+    - "app.${SECRET_INTERNAL_DOMAIN}"
+    - "legacy-app.${SECRET_DOMAIN}"
 ```
 
 ## External-DNS Integration
@@ -250,19 +256,21 @@ External-DNS is configured to automatically create DNS records for HTTPRoutes at
 ```yaml
 # external-dns configuration (already configured)
 extraArgs:
-  - --gateway-label-filter=type=external
+    - --gateway-label-filter=type=external
 sources:
-  - "gateway-httproute"
+    - "gateway-httproute"
 ```
 
 **How it works:**
+
 - HTTPRoutes attached to `envoy-external` Gateway automatically get DNS records
 - Uses `external-dns.alpha.kubernetes.io/target` annotation from Gateway
 - No additional annotations needed on HTTPRoutes
 
 ## Migration Checklist
 
-### For app-template apps:
+### For app-template apps
+
 - [ ] Add `route` section to HelmRelease values
 - [ ] Choose correct parent Gateway (envoy-internal or envoy-external)
 - [ ] Comment out or remove `ingress` section
@@ -274,7 +282,8 @@ sources:
 - [ ] (Optional) Keep old Ingress temporarily for rollback
 - [ ] Remove old Ingress once confident
 
-### For non-app-template apps:
+### For non-app-template apps
+
 - [ ] Create HTTPRoute YAML file
 - [ ] Add HTTPRoute to app kustomization
 - [ ] Commit and push changes
@@ -287,15 +296,15 @@ sources:
 
 ## Comparison: Ingress vs Gateway API
 
-| Feature | Nginx Ingress (app-template) | Gateway API (app-template) |
-|---------|------------------------------|----------------------------|
-| Configuration Location | `ingress` section in values | `route` section in values |
-| Resource Created | `Ingress` | `HTTPRoute` |
-| Gateway Reference | `className: internal` | `parentRefs: envoy-internal` |
-| Hostname | `hosts[].host` | `hostnames[]` |
-| Path Matching | `hosts[].paths[]` | Automatic for simple cases |
-| Backend | Automatic from service | Automatic from service |
-| TLS | Per-ingress config | Configured on Gateway |
+| Feature                | Nginx Ingress (app-template) | Gateway API (app-template)   |
+| ---------------------- | ---------------------------- | ---------------------------- |
+| Configuration Location | `ingress` section in values  | `route` section in values    |
+| Resource Created       | `Ingress`                    | `HTTPRoute`                  |
+| Gateway Reference      | `className: internal`        | `parentRefs: envoy-internal` |
+| Hostname               | `hosts[].host`               | `hostnames[]`                |
+| Path Matching          | `hosts[].paths[]`            | Automatic for simple cases   |
+| Backend                | Automatic from service       | Automatic from service       |
+| TLS                    | Per-ingress config           | Configured on Gateway        |
 
 ## Example Migration
 
@@ -305,26 +314,26 @@ sources:
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
-  name: pinchflat
+    name: pinchflat
 spec:
-  values:
-    service:
-      app:
-        controller: pinchflat
-        ports:
-          http:
-            port: 80
-    ingress:
-      app:
-        className: internal
-        hosts:
-          - host: "{{ .Release.Name }}.${SECRET_DOMAIN}"
-            paths:
-              - path: /
-                pathType: Prefix
-                service:
-                  identifier: app
-                  port: http
+    values:
+        service:
+            app:
+                controller: pinchflat
+                ports:
+                    http:
+                        port: 80
+        ingress:
+            app:
+                className: internal
+                hosts:
+                    - host: "{{ .Release.Name }}.${SECRET_DOMAIN}"
+                      paths:
+                          - path: /
+                            pathType: Prefix
+                            service:
+                                identifier: app
+                                port: http
 ```
 
 ### After (Gateway API Route in HelmRelease)
@@ -333,23 +342,23 @@ spec:
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
-  name: pinchflat
+    name: pinchflat
 spec:
-  values:
-    service:
-      app:
-        controller: pinchflat
-        ports:
-          http:
-            port: 80
-    route:
-      app:
-        hostnames:
-          - "{{ .Release.Name }}.${SECRET_DOMAIN}"
-          - "{{ .Release.Name }}.${SECRET_INTERNAL_DOMAIN}"
-        parentRefs:
-          - name: envoy-internal
-            namespace: network
+    values:
+        service:
+            app:
+                controller: pinchflat
+                ports:
+                    http:
+                        port: 80
+        route:
+            app:
+                hostnames:
+                    - "{{ .Release.Name }}.${SECRET_DOMAIN}"
+                    - "{{ .Release.Name }}.${SECRET_INTERNAL_DOMAIN}"
+                parentRefs:
+                    - name: envoy-internal
+                      namespace: network
 ```
 
 ## Troubleshooting
@@ -361,6 +370,7 @@ kubectl describe httproute <name> -n <namespace>
 ```
 
 Common issues:
+
 - Backend service doesn't exist
 - Parent Gateway not found
 - Certificate issues (check Gateway status)
@@ -372,6 +382,7 @@ kubectl describe gateway -n network
 ```
 
 Common issues:
+
 - LoadBalancer IP not assigned
 - Certificate secret missing
 - CRDs not installed
@@ -391,9 +402,9 @@ kubectl logs -n envoy-gateway-system -l gateway.envoyproxy.io/owning-gateway-nam
 1. **Phase 1 (Current):** Run both nginx and Envoy Gateway in parallel
 2. **Phase 2:** Migrate 1-2 applications per day to HTTPRoutes
 3. **Phase 3:** Once all apps migrated and stable for 1 week:
-   - Update Envoy Gateway IPs to 10.32.8.88/87
-   - Remove nginx ingress controllers
-   - Clean up old Ingress resources
+    - Update Envoy Gateway IPs to 10.32.8.88/87
+    - Remove nginx ingress controllers
+    - Clean up old Ingress resources
 
 ## References
 

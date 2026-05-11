@@ -10,7 +10,7 @@ URLs: passed as environment variables
 
 import json
 import os
-import sys
+import urllib.error
 import urllib.request
 from datetime import datetime
 
@@ -18,6 +18,7 @@ SECRETS_DIR = "/secrets"
 
 
 def log(msg):
+    """Print a timestamped log message to stdout."""
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     print(f"[{ts}] {msg}", flush=True)  # lgtm[py/clear-text-logging-sensitive-data]
 
@@ -25,11 +26,12 @@ def log(msg):
 def read_secret(name):
     """Read a secret value from a mounted file."""
     path = os.path.join(SECRETS_DIR, name)
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         return f.read().strip()
 
 
 def api_get(url, key, endpoint):
+    """GET an *arr endpoint and return the decoded JSON body, or None on error."""
     req = urllib.request.Request(
         f"{url}/{endpoint}",
         headers={"X-Api-Key": key},
@@ -37,12 +39,13 @@ def api_get(url, key, endpoint):
     try:
         with urllib.request.urlopen(req, timeout=60) as resp:
             return json.loads(resp.read())
-    except Exception as e:
+    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, OSError) as e:
         log(f"  ERROR GET {url}/{endpoint}: {e}")
         return None
 
 
 def api_post(url, key, endpoint, data):
+    """POST JSON to an *arr endpoint and return (status_code, decoded_body)."""
     body = json.dumps(data).encode()
     req = urllib.request.Request(
         f"{url}/{endpoint}",
@@ -55,7 +58,7 @@ def api_post(url, key, endpoint, data):
             return resp.status, json.loads(resp.read())
     except urllib.error.HTTPError as e:
         return e.code, None
-    except Exception as e:
+    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, OSError) as e:
         log(f"  ERROR POST {url}/{endpoint}: {e}")
         return 0, None
 
@@ -159,6 +162,7 @@ def sync_sonarr():
 
 
 def main():
+    """Entry point: run Radarr then Sonarr exclusion sync."""
     log("=== Radarr exclusion sync ===")
     sync_radarr()
     log("=== Sonarr exclusion sync ===")

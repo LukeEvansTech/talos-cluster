@@ -1,0 +1,4 @@
+[codespell]
+# NotIn — Kubernetes label-selector operator literal (cilium-policies/*)
+# adn   — part of adn.20765.psicdn.net (EdgeCast CDN host in smokeping Targets)
+ignore-words-list = NotIn,adn

@@ -5,17 +5,30 @@ misconfigurations:
   - id: KSV-0109
     paths:
       - "kubernetes/apps/observability/oxidized/app/configmap.yaml"
+      - "kubernetes/apps/infrastructure/certwarden/cert-deployment/apc/scripts-configmap.yaml"
     statement: |
-      False positive. The oxidized YAML schema requires top-level 'username'
-      and 'password' keys; the values here are literal 'placeholder' strings,
-      not secrets. Real device credentials come from oxidized-secret (rendered
-      by the ExternalSecret) into a Secret-mounted router.db. The 'token=' is
-      a curl --form-string flag in a Pushover hook, not a secret value.
+      False positive. oxidized/configmap.yaml: the YAML schema requires
+      top-level 'username' and 'password' keys; the values here are literal
+      'placeholder' strings, not secrets. Real device credentials come from
+      oxidized-secret (rendered by the ExternalSecret) into a Secret-mounted
+      router.db. The 'token=' is a curl --form-string flag in a Pushover
+      hook, not a secret value.
+      certwarden/apc/scripts-configmap.yaml: the ConfigMap holds an embedded
+      Python script that reads APC_PASSWORD / APC_USERNAME from env vars
+      (populated via envFrom from an ExternalSecret-rendered Secret); the
+      literal strings Trivy matches (`export APC_PASSWORD`, `self.password`,
+      `password`) are variable / parameter NAMES inside the script, not values.
 
   - id: KSV-01010
     paths:
       - "kubernetes/apps/observability/oxidized/app/configmap.yaml"
+      - "kubernetes/apps/infrastructure/certwarden/cert-deployment/apc/scripts-configmap.yaml"
     statement: |-
-      False positive. Flagged keys (username, email, remote_repo) are config
-      field names, not sensitive content. The git commit author email and the
-      public GitHub remote URL for the network-configs repo are non-sensitive.
+      False positive. oxidized/configmap.yaml: flagged keys (username, email,
+      remote_repo) are config field names, not sensitive content. The git
+      commit author email and the public GitHub remote URL for the
+      network-configs repo are non-sensitive.
+      certwarden/apc/scripts-configmap.yaml: same pattern as KSV-0109 above
+      — the strings (`echo "APC Username`, `export APC_USERNAME`,
+      `self.username`, `username`) are variable / parameter names inside
+      an embedded Python script, not actual usernames.
