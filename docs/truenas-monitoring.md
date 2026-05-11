@@ -28,20 +28,20 @@ Two exporters are configured:
 version: "3"
 
 services:
-  node-exporter:
-    image: quay.io/prometheus/node-exporter:latest
-    container_name: node-exporter
-    restart: unless-stopped
-    network_mode: host
-    pid: host
-    command:
-      - "--path.rootfs=/host/root"
-      - "--path.procfs=/host/proc"
-      - "--path.sysfs=/host/sys"
-    volumes:
-      - /:/host/root:ro
-      - /proc:/host/proc:ro
-      - /sys:/host/sys:ro
+    node-exporter:
+        image: quay.io/prometheus/node-exporter:latest
+        container_name: node-exporter
+        restart: unless-stopped
+        network_mode: host
+        pid: host
+        command:
+            - "--path.rootfs=/host/root"
+            - "--path.procfs=/host/proc"
+            - "--path.sysfs=/host/sys"
+        volumes:
+            - /:/host/root:ro
+            - /proc:/host/proc:ro
+            - /sys:/host/sys:ro
 ```
 
 7. Click **Install**
@@ -56,15 +56,15 @@ services:
 version: "3"
 
 services:
-  smartctl-exporter:
-    image: quay.io/prometheuscommunity/smartctl-exporter:latest
-    container_name: smartctl-exporter
-    restart: unless-stopped
-    network_mode: host
-    privileged: true
-    user: root
-    ports:
-      - "9633:9633"
+    smartctl-exporter:
+        image: quay.io/prometheuscommunity/smartctl-exporter:latest
+        container_name: smartctl-exporter
+        restart: unless-stopped
+        network_mode: host
+        privileged: true
+        user: root
+        ports:
+            - "9633:9633"
 ```
 
 4. Click **Install**
@@ -103,13 +103,13 @@ These use the `SECRET_STORAGE_SERVER` variable from cluster secrets to dynamical
 Import these community dashboards in Grafana:
 
 1. **Node Exporter Full** - Dashboard ID: 1860
-   - Comprehensive system metrics (CPU, memory, disk, network)
+    - Comprehensive system metrics (CPU, memory, disk, network)
 
 2. **Node Exporter for Prometheus** - Dashboard ID: 11074
-   - Simplified system overview
+    - Simplified system overview
 
 3. **SMART Disk Monitoring** - Dashboard ID: 10530
-   - Disk health and SMART attributes
+    - Disk health and SMART attributes
 
 ### Import via Grafana UI
 

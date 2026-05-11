@@ -1,3 +1,7 @@
+---
+# editorconfig-checker-disable-file
+# (Embeds a Python script as a literal block; Python's continuation-line
+# alignment to function-argument indent is not a multiple of 2.)
 apiVersion: v1
 data:
   apc-updater.py: |
@@ -126,7 +130,6 @@ data:
                 self.logger.error(f"Failed to execute apc-p15-tool: {e}")
                 return False
 
-
     def main():
         parser = argparse.ArgumentParser(description='Update APC NMC SSL certificate')
         parser.add_argument('--hostname', required=True,
@@ -183,7 +186,6 @@ data:
             print("All done!")
 
         sys.exit(0)
-
 
     if __name__ == "__main__":
         main()

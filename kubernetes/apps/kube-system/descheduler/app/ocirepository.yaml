@@ -12,4 +12,3 @@ spec:
   ref:
     tag: 0.35.1
   url: oci://ghcr.io/home-operations/charts-mirror/descheduler
-

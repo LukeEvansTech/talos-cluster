@@ -71,7 +71,7 @@ spec:
 
     defaultPodOptions:
       securityContext:
-        seccompProfile: {type: RuntimeDefault}
+        seccompProfile: { type: RuntimeDefault }
 
     service:
       app:
