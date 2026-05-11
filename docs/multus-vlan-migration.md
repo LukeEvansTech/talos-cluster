@@ -24,24 +24,24 @@ This guide documents the process of migrating Home Assistant from the management
 
 1. **Create VLAN 70** on your managed switch
 2. **Configure trunk port** to Kubernetes nodes:
-   ```
-   # Example for most switches:
-   - Set port mode to "Trunk" or "Tagged"
-   - Allow VLANs: 1 (untagged/native), 70 (tagged)
-   ```
+    ```text
+    # Example for most switches:
+    - Set port mode to "Trunk" or "Tagged"
+    - Allow VLANs: 1 (untagged/native), 70 (tagged)
+    ```
 3. **Configure DHCP/Gateway** for IoT VLAN:
-   - Gateway: 192.168.70.1
-   - DHCP range: 192.168.70.100-192.168.70.200 (optional)
-   - DNS: Your DNS server
+    - Gateway: 192.168.70.1
+    - DHCP range: 192.168.70.100-192.168.70.200 (optional)
+    - DNS: Your DNS server
 
 4. **Configure Firewall Rules**:
-   ```
-   IoT VLAN (192.168.70.0/24) Rules:
-   - ALLOW: IoT → Internet (for firmware updates)
-   - ALLOW: Management Network (10.32.8.0/24) → IoT (for Home Assistant access)
-   - DENY: IoT → Management Network (isolate IoT devices)
-   - ALLOW: IoT → IoT (devices can communicate with each other)
-   ```
+    ```text
+    IoT VLAN (192.168.70.0/24) Rules:
+    - ALLOW: IoT → Internet (for firmware updates)
+    - ALLOW: Management Network (10.32.8.0/24) → IoT (for Home Assistant access)
+    - DENY: IoT → Management Network (isolate IoT devices)
+    - ALLOW: IoT → IoT (devices can communicate with each other)
+    ```
 
 ### Verify Switch Configuration
 
@@ -65,30 +65,31 @@ Add VLAN interface configuration to all nodes.
 
 ```yaml
 nodes:
-  - hostname: "cr-talos-01"
-    ipAddress: "10.32.8.80"
-    # ... existing configuration ...
-    networkInterfaces:
-      - deviceSelector:
-          hardwareAddr: "0c:c4:7a:ea:bf:0e"
-        dhcp: false
-        addresses:
-          - "10.32.8.80/24"
-        routes:
-          - network: "0.0.0.0/0"
-            gateway: "10.32.8.10"
-        mtu: 1500
-        vip:
-          ip: "10.32.8.85"
-        # ADD THIS SECTION:
-        vlans:
-          - vlanId: 70
+    - hostname: "cr-talos-01"
+      ipAddress: "10.32.8.80"
+      # ... existing configuration ...
+      networkInterfaces:
+          - deviceSelector:
+                hardwareAddr: "0c:c4:7a:ea:bf:0e"
             dhcp: false
+            addresses:
+                - "10.32.8.80/24"
+            routes:
+                - network: "0.0.0.0/0"
+                  gateway: "10.32.8.10"
             mtu: 1500
-            # No IP address needed - used only for container networking
+            vip:
+                ip: "10.32.8.85"
+            # ADD THIS SECTION:
+            vlans:
+                - vlanId: 70
+                  dhcp: false
+                  mtu: 1500
+                  # No IP address needed - used only for container networking
 ```
 
 **Repeat for all nodes** (cr-talos-02, cr-talos-03) with their respective MAC addresses:
+
 - cr-talos-02: `0c:c4:7a:ea:be:7a`
 - cr-talos-03: (add the MAC address)
 
@@ -142,27 +143,28 @@ This is the key change that switches from management network to IoT VLAN.
 apiVersion: k8s.cni.cncf.io/v1
 kind: NetworkAttachmentDefinition
 metadata:
-  name: iot
-  namespace: kube-system
+    name: iot
+    namespace: kube-system
 spec:
-  config: |-
-    {
-      "cniVersion": "0.3.1",
-      "name": "iot",
-      "plugins": [
+    config: |-
         {
-          "type": "macvlan",
-          "master": "enp1s0np0.70",
-          "mode": "bridge",
-          "ipam": {
-            "type": "static"
-          }
+          "cniVersion": "0.3.1",
+          "name": "iot",
+          "plugins": [
+            {
+              "type": "macvlan",
+              "master": "enp1s0np0.70",
+              "mode": "bridge",
+              "ipam": {
+                "type": "static"
+              }
+            }
+          ]
         }
-      ]
-    }
 ```
 
 **Key changes**:
+
 - `master`: `enp1s0np0` → `enp1s0np0.70` (adds VLAN tagging)
 
 ### Step 5: Update Home Assistant IP Configuration
@@ -173,17 +175,18 @@ Find the Multus annotation section and update the IP:
 
 ```yaml
 defaultPodOptions:
-  annotations:
-    k8s.v1.cni.cncf.io/networks: |-
-      [{
-        "name": "iot",
-        "namespace": "kube-system",
-        "ips": ["192.168.70.20/24"],
-        "mac": "02:00:00:00:00:01"
-      }]
+    annotations:
+        k8s.v1.cni.cncf.io/networks: |-
+            [{
+              "name": "iot",
+              "namespace": "kube-system",
+              "ips": ["192.168.70.20/24"],
+              "mac": "02:00:00:00:00:01"
+            }]
 ```
 
 **Key changes**:
+
 - `ips`: `["10.32.8.100/24"]` → `["192.168.70.20/24"]`
 
 ### Step 6: Apply Changes
@@ -269,12 +272,14 @@ kubectl exec -n default $HA_POD -- ip route show
 ### Test 2: Home Assistant Web UI
 
 Access Home Assistant at:
-- Via Ingress: https://homeassistant.example.com
-- Direct IP (from device on IoT VLAN): http://192.168.70.20:8123
+
+- Via Ingress: <https://homeassistant.example.com>
+- Direct IP (from device on IoT VLAN): <http://192.168.70.20:8123>
 
 ### Test 3: Device Discovery
 
 From Home Assistant UI:
+
 1. Navigate to **Settings** → **Devices & Services**
 2. Click **Add Integration**
 3. Try to discover devices (Chromecast, HomeKit, etc.)
@@ -295,16 +300,19 @@ kubectl exec -n default $HA_POD -- \
 **Symptom**: Pod doesn't start after migration
 
 **Check**:
+
 ```bash
 kubectl describe pod -n default $HA_POD
 ```
 
 **Common causes**:
+
 - VLAN interface not created on Talos node
 - NetworkAttachmentDefinition not found
 - IP address conflict
 
 **Solution**:
+
 ```bash
 # Verify VLAN interface exists on the node where pod is scheduled
 NODE=$(kubectl get pod -n default $HA_POD -o jsonpath='{.spec.nodeName}')
@@ -319,17 +327,20 @@ talosctl apply-config -n $NODE -f clusterconfig/talos-cluster-$NODE.yaml
 **Symptom**: Can't ping gateway from pod
 
 **Check**:
+
 ```bash
 kubectl exec -n default $HA_POD -- ip addr show net1
 kubectl exec -n default $HA_POD -- ip route show
 ```
 
 **Common causes**:
+
 - Switch VLAN not configured properly
 - Firewall blocking traffic
 - Wrong gateway IP
 
 **Solution**:
+
 ```bash
 # Test from Talos node itself
 talosctl -n 10.32.8.80 get addresses | grep 192.168.70
@@ -342,11 +353,13 @@ talosctl -n 10.32.8.80 get addresses | grep 192.168.70
 **Symptom**: Home Assistant can't discover devices on IoT VLAN
 
 **Common causes**:
+
 - mDNS reflector needed on router/gateway
 - Firewall blocking multicast traffic
 - Devices on different VLAN
 
 **Solution**:
+
 1. Enable mDNS reflector on your router (if devices are on different subnets)
 2. Ensure multicast is allowed on IoT VLAN
 3. Check firewall rules allow Home Assistant → IoT devices
@@ -358,6 +371,7 @@ talosctl -n 10.32.8.80 get addresses | grep 192.168.70
 **Note**: Ingress still uses Cilium (eth0), not Multus (net1). This should continue working.
 
 **Check**:
+
 ```bash
 kubectl get svc -n default homeassistant
 kubectl get httproute -n default homeassistant
@@ -432,10 +446,10 @@ talosctl apply-config -n 10.32.8.82 -f clusterconfig/talos-cluster-cr-talos-03.y
 - [ ] Talos VLAN interfaces created on all nodes
 - [ ] NetworkAttachmentDefinition updated to use VLAN interface
 - [ ] Home Assistant IP updated to IoT VLAN range
-- [ ] Changes committed to git
+- [ ] Changes committed to Git
 - [ ] Home Assistant pod restarted successfully
 - [ ] Dual interfaces verified (Cilium + Multus VLAN)
-- [ ] Connectivity tests passed (gateway, Internet, K8s services)
+- [ ] Connectivity tests passed (gateway, internet, K8s services)
 - [ ] Device discovery working in Home Assistant
 - [ ] Ingress/external access working
 - [ ] DNS records updated (if needed)
@@ -446,56 +460,58 @@ talosctl apply-config -n 10.32.8.82 -f clusterconfig/talos-cluster-cr-talos-03.y
 To add more VLANs (e.g., VLAN 80 for Cameras, VLAN 90 for VPN):
 
 1. **Add VLAN to Talos** (`talconfig.yaml`):
-   ```yaml
-   vlans:
-     - vlanId: 70  # IoT
-       dhcp: false
-       mtu: 1500
-     - vlanId: 80  # Cameras (new)
-       dhcp: false
-       mtu: 1500
-   ```
+
+    ```yaml
+    vlans:
+        - vlanId: 70 # IoT
+          dhcp: false
+          mtu: 1500
+        - vlanId: 80 # Cameras (new)
+          dhcp: false
+          mtu: 1500
+    ```
 
 2. **Create NetworkAttachmentDefinition**:
-   ```yaml
-   # kubernetes/apps/kube-system/multus/networks/cameras.yaml
-   apiVersion: k8s.cni.cncf.io/v1
-   kind: NetworkAttachmentDefinition
-   metadata:
-     name: cameras
-     namespace: kube-system
-   spec:
-     config: |-
-       {
-         "cniVersion": "0.3.1",
-         "name": "cameras",
-         "plugins": [
-           {
-             "type": "macvlan",
-             "master": "enp1s0np0.80",
-             "mode": "bridge",
-             "ipam": {
-               "type": "static"
-             }
-           }
-         ]
-       }
-   ```
+
+    ```yaml
+    # kubernetes/apps/kube-system/multus/networks/cameras.yaml
+    apiVersion: k8s.cni.cncf.io/v1
+    kind: NetworkAttachmentDefinition
+    metadata:
+        name: cameras
+        namespace: kube-system
+    spec:
+        config: |-
+            {
+              "cniVersion": "0.3.1",
+              "name": "cameras",
+              "plugins": [
+                {
+                  "type": "macvlan",
+                  "master": "enp1s0np0.80",
+                  "mode": "bridge",
+                  "ipam": {
+                    "type": "static"
+                  }
+                }
+              ]
+            }
+    ```
 
 3. **Use in pod annotations**:
-   ```yaml
-   annotations:
-     k8s.v1.cni.cncf.io/networks: |-
-       [{
-         "name": "iot",
-         "namespace": "kube-system",
-         "ips": ["192.168.70.20/24"]
-       }, {
-         "name": "cameras",
-         "namespace": "kube-system",
-         "ips": ["192.168.80.10/24"]
-       }]
-   ```
+    ```yaml
+    annotations:
+        k8s.v1.cni.cncf.io/networks: |-
+            [{
+              "name": "iot",
+              "namespace": "kube-system",
+              "ips": ["192.168.70.20/24"]
+            }, {
+              "name": "cameras",
+              "namespace": "kube-system",
+              "ips": ["192.168.80.10/24"]
+            }]
+    ```
 
 ## References
 
@@ -507,6 +523,7 @@ To add more VLANs (e.g., VLAN 80 for Cameras, VLAN 90 for VPN):
 ## Support
 
 If you encounter issues not covered in this guide:
+
 1. Check pod events: `kubectl describe pod -n default $HA_POD`
 2. Check Multus logs: `kubectl logs -n kube-system -l app.kubernetes.io/name=multus`
 3. Check Talos network config: `talosctl -n <node> get addresses`

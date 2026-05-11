@@ -40,7 +40,7 @@ spec:
             securityContext:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: true
-              capabilities: {drop: ["ALL"]}
+              capabilities: { drop: ["ALL"] }
               runAsNonRoot: true
               runAsUser: 1000
               runAsGroup: 1000
@@ -48,7 +48,7 @@ spec:
               fsGroupChangePolicy: OnRootMismatch
               supplementalGroups:
                 - 10000
-              seccompProfile: {type: RuntimeDefault}
+              seccompProfile: { type: RuntimeDefault }
             resources:
               requests:
                 cpu: 100m

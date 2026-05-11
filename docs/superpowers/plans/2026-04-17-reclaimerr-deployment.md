@@ -15,12 +15,14 @@
 ## File Structure
 
 **Created:**
+
 - `kubernetes/apps/media/reclaimerr/ks.yaml` — Flux Kustomization entry point
 - `kubernetes/apps/media/reclaimerr/app/kustomization.yaml` — Kustomize resource list
 - `kubernetes/apps/media/reclaimerr/app/ocirepository.yaml` — OCI chart source (bjw-s app-template)
 - `kubernetes/apps/media/reclaimerr/app/helmrelease.yaml` — HelmRelease with image, env, service, route, persistence
 
 **Modified:**
+
 - `kubernetes/apps/media/kustomization.yaml` — register `./reclaimerr/ks.yaml` alphabetically
 
 Each file has one responsibility, following established conventions. No deviation from pattern.
@@ -30,6 +32,7 @@ Each file has one responsibility, following established conventions. No deviatio
 ## Task 1: Create Flux Kustomization (`ks.yaml`)
 
 **Files:**
+
 - Create: `kubernetes/apps/media/reclaimerr/ks.yaml`
 
 - [ ] **Step 1: Write `ks.yaml`**
@@ -40,38 +43,38 @@ Each file has one responsibility, following established conventions. No deviatio
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
-  name: &app reclaimerr
-  namespace: &namespace media
+    name: &app reclaimerr
+    namespace: &namespace media
 spec:
-  commonMetadata:
-    labels:
-      app.kubernetes.io/name: *app
-  components:
-    - ../../../../components/gatus/guarded
-    - ../../../../components/homepage
-    - ../../../../components/volsync
-  dependsOn:
-    - name: rook-ceph-cluster
-      namespace: rook-ceph
-  interval: 1h
-  path: ./kubernetes/apps/media/reclaimerr/app
-  postBuild:
-    substitute:
-      APP: *app
-      VOLSYNC_CAPACITY: 2Gi
-      HOMEPAGE_NAME: Reclaimerr
-      HOMEPAGE_GROUP: Media
-      HOMEPAGE_ICON: mdi-broom
-      HOMEPAGE_DESCRIPTION: Disk space reclamation
-  prune: true
-  retryInterval: 2m
-  sourceRef:
-    kind: GitRepository
-    name: flux-system
-    namespace: flux-system
-  targetNamespace: *namespace
-  timeout: 5m
-  wait: false
+    commonMetadata:
+        labels:
+            app.kubernetes.io/name: *app
+    components:
+        - ../../../../components/gatus/guarded
+        - ../../../../components/homepage
+        - ../../../../components/volsync
+    dependsOn:
+        - name: rook-ceph-cluster
+          namespace: rook-ceph
+    interval: 1h
+    path: ./kubernetes/apps/media/reclaimerr/app
+    postBuild:
+        substitute:
+            APP: *app
+            VOLSYNC_CAPACITY: 2Gi
+            HOMEPAGE_NAME: Reclaimerr
+            HOMEPAGE_GROUP: Media
+            HOMEPAGE_ICON: mdi-broom
+            HOMEPAGE_DESCRIPTION: Disk space reclamation
+    prune: true
+    retryInterval: 2m
+    sourceRef:
+        kind: GitRepository
+        name: flux-system
+        namespace: flux-system
+    targetNamespace: *namespace
+    timeout: 5m
+    wait: false
 ```
 
 - [ ] **Step 2: Commit**
@@ -86,6 +89,7 @@ git commit -m "feat(reclaimerr): add Flux Kustomization"
 ## Task 2: Create OCI chart source (`ocirepository.yaml`)
 
 **Files:**
+
 - Create: `kubernetes/apps/media/reclaimerr/app/ocirepository.yaml`
 
 - [ ] **Step 1: Write `ocirepository.yaml`**
@@ -95,15 +99,15 @@ git commit -m "feat(reclaimerr): add Flux Kustomization"
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository
 metadata:
-  name: reclaimerr
+    name: reclaimerr
 spec:
-  interval: 1h
-  layerSelector:
-    mediaType: application/vnd.cncf.helm.chart.content.v1.tar+gzip
-    operation: copy
-  ref:
-    tag: 4.6.2
-  url: oci://ghcr.io/bjw-s-labs/helm/app-template
+    interval: 1h
+    layerSelector:
+        mediaType: application/vnd.cncf.helm.chart.content.v1.tar+gzip
+        operation: copy
+    ref:
+        tag: 4.6.2
+    url: oci://ghcr.io/bjw-s-labs/helm/app-template
 ```
 
 - [ ] **Step 2: Commit** (deferred — bundled with helmrelease in task 4)
@@ -115,6 +119,7 @@ No commit yet. File will be included in the commit for task 4.
 ## Task 3: Create Kustomize resource list (`app/kustomization.yaml`)
 
 **Files:**
+
 - Create: `kubernetes/apps/media/reclaimerr/app/kustomization.yaml`
 
 - [ ] **Step 1: Write `app/kustomization.yaml`**
@@ -125,8 +130,8 @@ No commit yet. File will be included in the commit for task 4.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  - ./ocirepository.yaml
-  - ./helmrelease.yaml
+    - ./ocirepository.yaml
+    - ./helmrelease.yaml
 ```
 
 - [ ] **Step 2: Commit** (deferred — bundled with helmrelease in task 4)
@@ -138,6 +143,7 @@ No commit yet.
 ## Task 4: Create HelmRelease (`helmrelease.yaml`)
 
 **Files:**
+
 - Create: `kubernetes/apps/media/reclaimerr/app/helmrelease.yaml`
 
 - [ ] **Step 1: Write `helmrelease.yaml`**
@@ -148,93 +154,93 @@ No commit yet.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
-  name: reclaimerr
-spec:
-  interval: 1h
-  chartRef:
-    kind: OCIRepository
     name: reclaimerr
-  values:
-    controllers:
-      reclaimerr:
-        containers:
-          app:
-            image:
-              repository: ghcr.io/jessielw/reclaimerr
-              tag: 0.1.0-beta7@sha256:b41300380197333584c09effa16a4b10caa31806ad145c0c46a04f7124ed33a4
-            env:
-              TZ: ${TIMEZONE}
-              API_HOST: 0.0.0.0
-              API_PORT: &port 8000
-              COOKIE_SECURE: "true"
-              CORS_ORIGINS: https://reclaimerr.${SECRET_DOMAIN}
-              LOG_LEVEL: INFO
-            probes:
-              liveness: &probes
-                enabled: true
-                custom: true
-                spec:
-                  httpGet:
-                    path: /api/info/health
-                    port: *port
-                  initialDelaySeconds: 0
-                  periodSeconds: 10
-                  timeoutSeconds: 3
-                  failureThreshold: 3
-              readiness: *probes
-              startup:
-                enabled: true
-                custom: true
-                spec:
-                  httpGet:
-                    path: /api/info/health
-                    port: *port
-                  failureThreshold: 30
-                  periodSeconds: 5
+spec:
+    interval: 1h
+    chartRef:
+        kind: OCIRepository
+        name: reclaimerr
+    values:
+        controllers:
+            reclaimerr:
+                containers:
+                    app:
+                        image:
+                            repository: ghcr.io/jessielw/reclaimerr
+                            tag: 0.1.0-beta7@sha256:b41300380197333584c09effa16a4b10caa31806ad145c0c46a04f7124ed33a4
+                        env:
+                            TZ: ${TIMEZONE}
+                            API_HOST: 0.0.0.0
+                            API_PORT: &port 8000
+                            COOKIE_SECURE: "true"
+                            CORS_ORIGINS: https://reclaimerr.${SECRET_DOMAIN}
+                            LOG_LEVEL: INFO
+                        probes:
+                            liveness: &probes
+                                enabled: true
+                                custom: true
+                                spec:
+                                    httpGet:
+                                        path: /api/info/health
+                                        port: *port
+                                    initialDelaySeconds: 0
+                                    periodSeconds: 10
+                                    timeoutSeconds: 3
+                                    failureThreshold: 3
+                            readiness: *probes
+                            startup:
+                                enabled: true
+                                custom: true
+                                spec:
+                                    httpGet:
+                                        path: /api/info/health
+                                        port: *port
+                                    failureThreshold: 30
+                                    periodSeconds: 5
+                        securityContext:
+                            allowPrivilegeEscalation: false
+                            readOnlyRootFilesystem: true
+                            capabilities: { drop: ["ALL"] }
+                        resources:
+                            requests:
+                                cpu: 10m
+                            limits:
+                                memory: 512Mi
+        defaultPodOptions:
             securityContext:
-              allowPrivilegeEscalation: false
-              readOnlyRootFilesystem: true
-              capabilities: {drop: ["ALL"]}
-            resources:
-              requests:
-                cpu: 10m
-              limits:
-                memory: 512Mi
-    defaultPodOptions:
-      securityContext:
-        runAsNonRoot: true
-        runAsUser: 1000
-        runAsGroup: 1000
-        fsGroup: 1000
-        fsGroupChangePolicy: OnRootMismatch
-    service:
-      app:
-        controller: reclaimerr
-        ports:
-          http:
-            port: *port
-    route:
-      app:
-        annotations:
-          gatus.home-operations.com/endpoint: |-
-            group: internal
-            url: http://reclaimerr.media.svc.cluster.local:8000/api/info/health
-            conditions: ["[STATUS] == 200"]
-        hostnames:
-          - "{{ .Release.Name }}.${SECRET_DOMAIN}"
-          - "{{ .Release.Name }}.${SECRET_INTERNAL_DOMAIN}"
-        parentRefs:
-          - name: envoy-internal
-            namespace: network
-    persistence:
-      config:
-        existingClaim: "{{ .Release.Name }}"
-        globalMounts:
-          - path: /app/data
-      tmp:
-        type: emptyDir
-        globalMounts:
-          - path: /tmp
+                runAsNonRoot: true
+                runAsUser: 1000
+                runAsGroup: 1000
+                fsGroup: 1000
+                fsGroupChangePolicy: OnRootMismatch
+        service:
+            app:
+                controller: reclaimerr
+                ports:
+                    http:
+                        port: *port
+        route:
+            app:
+                annotations:
+                    gatus.home-operations.com/endpoint: |-
+                        group: internal
+                        url: http://reclaimerr.media.svc.cluster.local:8000/api/info/health
+                        conditions: ["[STATUS] == 200"]
+                hostnames:
+                    - "{{ .Release.Name }}.${SECRET_DOMAIN}"
+                    - "{{ .Release.Name }}.${SECRET_INTERNAL_DOMAIN}"
+                parentRefs:
+                    - name: envoy-internal
+                      namespace: network
+        persistence:
+            config:
+                existingClaim: "{{ .Release.Name }}"
+                globalMounts:
+                    - path: /app/data
+            tmp:
+                type: emptyDir
+                globalMounts:
+                    - path: /tmp
 ```
 
 - [ ] **Step 2: Commit the app directory**
@@ -249,29 +255,30 @@ git commit -m "feat(reclaimerr): add HelmRelease, OCIRepository, kustomization"
 ## Task 5: Register in namespace kustomization
 
 **Files:**
+
 - Modify: `kubernetes/apps/media/kustomization.yaml` (insert between `./radarr/ks.yaml` and `./recommendarr/ks.yaml`)
 
 - [ ] **Step 1: Edit to add reclaimerr entry**
 
-Insert the line `  - ./reclaimerr/ks.yaml` between the radarr entry (line 38 `  - ./radarr/ks.yaml`) and the `  - ./recommendarr/ks.yaml` entry (currently on line 41 after commented lines).
+Insert the line `- ./reclaimerr/ks.yaml` between the radarr entry (line 38 `- ./radarr/ks.yaml`) and the `- ./recommendarr/ks.yaml` entry (currently on line 41 after commented lines).
 
 Exact edit — replace:
 
 ```yaml
-  - ./radarr/ks.yaml
-  # - ./radarr4k/ks.yaml  # Removed — consolidated into radarr (GPU transcoding)
-  # - ./radarranime/ks.yaml  # Removed — consolidated into radarr (anime handled via root folders + profiles)
-  - ./recommendarr/ks.yaml
+- ./radarr/ks.yaml
+# - ./radarr4k/ks.yaml  # Removed — consolidated into radarr (GPU transcoding)
+# - ./radarranime/ks.yaml  # Removed — consolidated into radarr (anime handled via root folders + profiles)
+- ./recommendarr/ks.yaml
 ```
 
 with:
 
 ```yaml
-  - ./radarr/ks.yaml
-  # - ./radarr4k/ks.yaml  # Removed — consolidated into radarr (GPU transcoding)
-  # - ./radarranime/ks.yaml  # Removed — consolidated into radarr (anime handled via root folders + profiles)
-  - ./reclaimerr/ks.yaml
-  - ./recommendarr/ks.yaml
+- ./radarr/ks.yaml
+# - ./radarr4k/ks.yaml  # Removed — consolidated into radarr (GPU transcoding)
+# - ./radarranime/ks.yaml  # Removed — consolidated into radarr (anime handled via root folders + profiles)
+- ./reclaimerr/ks.yaml
+- ./recommendarr/ks.yaml
 ```
 
 - [ ] **Step 2: Commit**
@@ -292,6 +299,7 @@ git commit -m "feat(reclaimerr): register in media namespace"
 Run: `flux-local test --all-namespaces --enable-helm --path kubernetes/flux/cluster --verbose`
 
 Expected: all tests pass. If tests fail specifically in `media/reclaimerr`, inspect error, fix, and re-run. Common failures:
+
 - YAML indentation mismatch in helmrelease.yaml → re-check alignment with maintainerr pattern.
 - Wrong component path → all four `../` segments needed from `kubernetes/apps/media/reclaimerr/ks.yaml` to reach `components/`.
 - Missing `VOLSYNC_CAPACITY` → required by the `volsync` component.

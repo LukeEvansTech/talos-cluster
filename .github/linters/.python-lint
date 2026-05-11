@@ -1,0 +1,15 @@
+[MASTER]
+
+# Use multiple processes to speed up Pylint.
+jobs=0
+
+[MESSAGES CONTROL]
+
+# Ignoring Import Errors is desired as super-linter
+# does not support installing dependencies as it runs.
+disable=import-error
+
+[FORMAT]
+
+# Match super-linter's ruff config (120) — black, ruff, pylint all agree.
+max-line-length=120
