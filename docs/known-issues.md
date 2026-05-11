@@ -8,7 +8,7 @@ This document tracks known issues and their workarounds in the cluster.
 
 PushSecret resources generate spurious HTTP 400 errors in logs despite successfully syncing secrets to 1Password:
 
-```
+```text
 Warning: Errored
 set secret failed: could not write remote ref tls.key to target secretstore onepassword-connect:
 error updating 1Password Item: status 400: Unable to update item "codelooks-com-production-tls"
@@ -26,6 +26,7 @@ codelooks-com-production-tls   90d   Synced
 ### Root Cause
 
 This is a **known bug** in 1Password Connect starting from version 1.7.3+:
+
 - [External Secrets Issue #3631](https://github.com/external-secrets/external-secrets/issues/3631)
 - 1Password Connect returns HTTP 400 errors even when updates succeed
 - The External Secrets Operator correctly reports the PushSecret as `Synced: True`
@@ -46,6 +47,7 @@ This is a **known bug** in 1Password Connect starting from version 1.7.3+:
 ### Workarounds
 
 #### Option 1: Ignore the Errors (Recommended)
+
 The errors are harmless. Verify PushSecret is working:
 
 ```bash
@@ -56,24 +58,26 @@ kubectl describe pushsecret <name> -n <namespace> | grep -A 5 "Status:"
 If status shows `Synced: True`, the secret is successfully pushed to 1Password.
 
 #### Option 2: Downgrade 1Password Connect
+
 Downgrade to the last known working version:
 
 ```yaml
 # kubernetes/apps/external-secrets/onepassword-connect/app/helmrelease.yaml
 spec:
-  values:
-    connect:
-      api:
-        image:
-          repository: ghcr.io/1password/connect-api
-          tag: 1.15.0
-      sync:
-        image:
-          repository: ghcr.io/1password/connect-sync
-          tag: 1.15.0
+    values:
+        connect:
+            api:
+                image:
+                    repository: ghcr.io/1password/connect-api
+                    tag: 1.15.0
+            sync:
+                image:
+                    repository: ghcr.io/1password/connect-sync
+                    tag: 1.15.0
 ```
 
 #### Option 3: Restart 1Password Connect Periodically
+
 Temporary workaround that clears errors for a few days:
 
 ```bash
@@ -85,18 +89,20 @@ kubectl rollout restart deployment onepassword-connect -n external-secrets
 To verify secrets are actually syncing to 1Password:
 
 1. Check PushSecret status:
-   ```bash
-   kubectl describe pushsecret <name> -n <namespace>
-   ```
+
+    ```bash
+    kubectl describe pushsecret <name> -n <namespace>
+    ```
 
 2. Look for `Synced Push Secrets` section showing successful sync
 
 3. Verify in 1Password vault that the item exists and contains current data
 
 4. Check External Secrets Operator logs for actual errors vs. noise:
-   ```bash
-   kubectl logs -n external-secrets -l app.kubernetes.io/name=external-secrets --tail=50
-   ```
+
+    ```bash
+    kubectl logs -n external-secrets -l app.kubernetes.io/name=external-secrets --tail=50
+    ```
 
 ### Example Configuration
 
@@ -107,30 +113,30 @@ Working PushSecret configuration for cert-manager TLS certificates:
 apiVersion: external-secrets.io/v1alpha1
 kind: PushSecret
 metadata:
-  name: &name "${SECRET_DOMAIN/./-}-production-tls"
+    name: &name "${SECRET_DOMAIN/./-}-production-tls"
 spec:
-  secretStoreRefs:
-    - name: onepassword-connect
-      kind: ClusterSecretStore
-  selector:
-    secret:
-      name: *name
-  template:
-    engineVersion: v2
+    secretStoreRefs:
+        - name: onepassword-connect
+          kind: ClusterSecretStore
+    selector:
+        secret:
+            name: *name
+    template:
+        engineVersion: v2
+        data:
+            tls.crt: '{{ index . "tls.crt" | b64enc }}'
+            tls.key: '{{ index . "tls.key" | b64enc }}'
     data:
-      tls.crt: '{{ index . "tls.crt" | b64enc }}'
-      tls.key: '{{ index . "tls.key" | b64enc }}'
-  data:
-    - match:
-        secretKey: &key tls.crt
-        remoteRef:
-          remoteKey: *name
-          property: *key
-    - match:
-        secretKey: &key tls.key
-        remoteRef:
-          remoteKey: *name
-          property: *key
+        - match:
+              secretKey: &key tls.crt
+              remoteRef:
+                  remoteKey: *name
+                  property: *key
+        - match:
+              secretKey: &key tls.key
+              remoteRef:
+                  remoteKey: *name
+                  property: *key
 ```
 
 ### References
@@ -187,7 +193,7 @@ ephemeral container (netshoot + `netadmin` profile):
 
 Key `ss -tni` fields from a dying socket (live evidence):
 
-```
+```text
 ESTAB 0 3034256 :32400 10.32.8.108:49359
   bbr ... mss:64 pmtu:1500 cwnd:1 ssthresh:158
   bytes_sent:497577854 bytes_retrans:2380056
@@ -248,12 +254,12 @@ right layer. Add to `kubernetes/apps/media/plex/app/helmrelease.yaml`:
 
 ```yaml
 spec:
-  values:
-    controllers:
-      plex:
-        annotations:
-          # existing annotations...
-          kubernetes.io/egress-bandwidth: "200M"
+    values:
+        controllers:
+            plex:
+                annotations:
+                    # existing annotations...
+                    kubernetes.io/egress-bandwidth: "200M"
 ```
 
 Requires Cilium's `bandwidth-manager` which is already enabled in this cluster
@@ -266,14 +272,14 @@ adding these to the kubelet's `allowed-unsafe-sysctls` (Talos machine config
 
 ```yaml
 spec:
-  values:
-    defaultPodOptions:
-      securityContext:
-        sysctls:
-          - name: net.ipv4.tcp_mtu_probing
-            value: "0"
-          - name: net.ipv4.tcp_allowed_congestion_control
-            value: "cubic reno"
+    values:
+        defaultPodOptions:
+            securityContext:
+                sysctls:
+                    - name: net.ipv4.tcp_mtu_probing
+                      value: "0"
+                    - name: net.ipv4.tcp_allowed_congestion_control
+                      value: "cubic reno"
 ```
 
 ### Verification
@@ -292,9 +298,9 @@ fluctuates but `retrans` count doesn't spike.
 ### References
 
 - Linux TCP persist timer / zero-window probing: `net/ipv4/tcp_output.c`
-- BBR on LAN discussion: https://groups.google.com/g/bbr-dev (search "LAN burst")
+- BBR on LAN discussion: <https://groups.google.com/g/bbr-dev> (search "LAN burst")
 - Talos sysctl defaults: `/etc/sysctl.d/`
-- Cilium BandwidthManager: https://docs.cilium.io/en/stable/network/kubernetes/bandwidth-manager/
+- Cilium BandwidthManager: <https://docs.cilium.io/en/stable/network/kubernetes/bandwidth-manager/>
 
 ### Resolution Status
 
@@ -332,41 +338,41 @@ Captured in parallel during a reported flap:
   the Plex LoadBalancer IP (healthy) **and** the gateway LoadBalancer IP
   on port 32400 (repeated SYN retransmits, no SYN+ACK — gateway doesn't
   listen on 32400, only 443).
-- Apple TV pcap showed `RST` bursts against the *healthy* Plex socket
+- Apple TV pcap showed `RST` bursts against the _healthy_ Plex socket
   exactly at the moment the user reported the drop. Not caused by server
   or network — client-side session teardown.
 - Plex's own `Plex Media Server.log` at the drop timestamp:
 
-  ```
-  ERROR - [Req#…/Transcode] Invalid value for 'location' client location attribute: unknown
-  ERROR - [Req#…/Transcode] downloadContainer: expected MediaContainer element, found html
-  ERROR - [Req#…/Transcode] TranscodeUniversalRequest: unable to get container: ///library/metadata/<id>?…
-  ```
+    ```text
+    ERROR - [Req#…/Transcode] Invalid value for 'location' client location attribute: unknown
+    ERROR - [Req#…/Transcode] downloadContainer: expected MediaContainer element, found html
+    ERROR - [Req#…/Transcode] TranscodeUniversalRequest: unable to get container: ///library/metadata/<id>?…
+    ```
 
-  Three tells in that trio: `location … unknown` (client's request URL
-  didn't match any connection it considered LAN or WAN); HTML body where
-  the transcoder expected XML (internal fetch hit a gateway error page);
-  and the triple slash `///library/metadata/…` — a classic "empty host in
-  URL-join" bug inside Plex's internal transcoder.
+    Three tells in that trio: `location … unknown` (client's request URL
+    didn't match any connection it considered LAN or WAN); HTML body where
+    the transcoder expected XML (internal fetch hit a gateway error page);
+    and the triple slash `///library/metadata/…` — a classic "empty host in
+    URL-join" bug inside Plex's internal transcoder.
 
 - Queried plex.tv for what the server is actually publishing:
 
-  ```bash
-  TOKEN=$(grep -oE 'PlexOnlineToken="[^"]+"' \
-    '/config/Library/Application Support/Plex Media Server/Preferences.xml' \
-    | cut -d\" -f2)
-  curl -s 'https://plex.tv/api/v2/resources.json?includeHttps=1' \
-    -H "X-Plex-Token: ${TOKEN}" \
-    -H 'X-Plex-Client-Identifier: diag' \
-    | jq '.[] | select(.provides=="server") | .connections[] | {local, port, uri}'
-  ```
+    ```bash
+    TOKEN=$(grep -oE 'PlexOnlineToken="[^"]+"' \
+      '/config/Library/Application Support/Plex Media Server/Preferences.xml' \
+      | cut -d\" -f2)
+    curl -s 'https://plex.tv/api/v2/resources.json?includeHttps=1' \
+      -H "X-Plex-Token: ${TOKEN}" \
+      -H 'X-Plex-Client-Identifier: diag' \
+      | jq '.[] | select(.provides=="server") | .connections[] | {local, port, uri}'
+    ```
 
-  Revealed two bogus `connections[]` entries being advertised:
+    Revealed two bogus `connections[]` entries being advertised:
 
-  | Entry | What Plex told plex.tv | Reachability |
-  |-------|-------------------------|---------------|
-  | Pod-CIDR IP, port 32400, `local:true`  | auto-discovered from the container's NIC | ❌ unreachable from LAN |
-  | External FQDN, port **32400**, `local:false` | Plex appended its default port to the HTTPS URL | ❌ gateway listens on 443, not 32400 |
+    | Entry                                        | What Plex told plex.tv                          | Reachability                         |
+    | -------------------------------------------- | ----------------------------------------------- | ------------------------------------ |
+    | Pod-CIDR IP, port 32400, `local:true`        | auto-discovered from the container's NIC        | ❌ unreachable from LAN              |
+    | External FQDN, port **32400**, `local:false` | Plex appended its default port to the HTTPS URL | ❌ gateway listens on 443, not 32400 |
 
 ### Root Cause
 
@@ -394,7 +400,7 @@ internal-URL-construction fault on the server.
 
 ```yaml
 env:
-  PLEX_ADVERTISE_URL: "http://${SVC_PLEX_ADDR:-127.0.0.1}:32400,https://plex.${SECRET_DOMAIN:-local}:443"
+    PLEX_ADVERTISE_URL: "http://${SVC_PLEX_ADDR:-127.0.0.1}:32400,https://plex.${SECRET_DOMAIN:-local}:443"
 ```
 
 Applied 2026-04-17. After Flux rolls the pod, re-run the

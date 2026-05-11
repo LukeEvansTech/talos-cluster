@@ -5,11 +5,13 @@ Automated certificate deployment to network devices via Certwarden post-processi
 ## Supported Devices
 
 ### ✅ Supermicro IPMI (X12/X13/H13)
+
 - **Status**: Production Ready
 - **API**: Redfish v1
 - **Models**: X12, X13, H13 only
 
 ### 🚧 APC UPS
+
 - **Status**: Coming Soon
 
 ## How It Works
@@ -30,7 +32,7 @@ sequenceDiagram
 
 ## Directory Structure
 
-```
+```text
 cert-deployment/
 ├── README.md                        # This file
 ├── kustomization.yaml               # Includes device types
@@ -49,25 +51,27 @@ cert-deployment/
 ### Supermicro IPMI Setup
 
 1. **Add IPMI credentials to 1Password**:
-   - Item name: `{hostname}` (e.g., `cr-storage-ipmi`)
-   - Fields: `IPMI_URL`, `IPMI_MODEL`, `IPMI_USERNAME`, `IPMI_PASSWORD`
+    - Item name: `{hostname}` (e.g., `cr-storage-ipmi`)
+    - Fields: `IPMI_URL`, `IPMI_MODEL`, `IPMI_USERNAME`, `IPMI_PASSWORD`
 
 2. **Update ExternalSecret** in `supermicro/externalsecret.yaml`:
-   ```yaml
-   dataFrom:
-     - extract:
-         key: {hostname}  # Your 1Password item name
-   ```
+
+    ```yaml
+    dataFrom:
+        - extract:
+              key: { hostname } # Your 1Password item name
+    ```
 
 3. **Deploy**:
-   ```bash
-   kubectl apply -k kubernetes/apps/infrastructure/certwarden/cert-deployment/
-   ```
+
+    ```bash
+    kubectl apply -k kubernetes/apps/infrastructure/certwarden/cert-deployment/
+    ```
 
 4. **Configure Certwarden** (via UI):
-   - Certificate → Post-Processing
-   - Script: `/app/scripts/supermicro/certwarden-supermicro-deploy.sh`
-   - Environment: `SUPERMICRO_HOST={hostname}` (e.g., `cr-storage-ipmi`)
+    - Certificate → Post-Processing
+    - Script: `/app/scripts/supermicro/certwarden-supermicro-deploy.sh`
+    - Environment: `SUPERMICRO_HOST={hostname}` (e.g., `cr-storage-ipmi`)
 
 5. **Test**: Force certificate renewal in Certwarden UI
 
@@ -92,16 +96,19 @@ kubectl logs -n infrastructure -l app.kubernetes.io/name=certwarden-supermicro-d
 ## Troubleshooting
 
 **Job fails?**
+
 ```bash
 kubectl logs -n infrastructure job/<job-name>
 ```
 
 **ExternalSecret not syncing?**
+
 ```bash
 kubectl describe externalsecret -n infrastructure supermicro-{hostname}
 ```
 
 **Force ExternalSecret sync:**
+
 ```bash
 kubectl annotate externalsecret -n infrastructure supermicro-{hostname} \
   force-sync=$(date +%s) --overwrite

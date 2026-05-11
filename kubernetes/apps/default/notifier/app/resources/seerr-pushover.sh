@@ -14,20 +14,21 @@ function _jq() {
 }
 
 function notify() {
-    local event_type=$(_jq '.notification_type')
+    local event_type
+    event_type=$(_jq '.notification_type')
 
     case "${event_type}" in
-        "TEST_NOTIFICATION")
-            printf -v PUSHOVER_TITLE "Test Notification"
-            printf -v PUSHOVER_MESSAGE "Howdy this is a test notification from <b>%s</b>" "Seerr"
-            printf -v PUSHOVER_URL "%s" "https://requests.turbo.ac"
-            printf -v PUSHOVER_URL_TITLE "Open %s" "Seerr"
-            printf -v PUSHOVER_PRIORITY "%s" "low"
-            ;;
-        "*")
-            echo "[ERROR] Unknown event type: ${event_type}" >&2
-            return 1
-            ;;
+    "TEST_NOTIFICATION")
+        printf -v PUSHOVER_TITLE "Test Notification"
+        printf -v PUSHOVER_MESSAGE "Howdy this is a test notification from <b>%s</b>" "Seerr"
+        printf -v PUSHOVER_URL "%s" "https://requests.turbo.ac"
+        printf -v PUSHOVER_URL_TITLE "Open %s" "Seerr"
+        printf -v PUSHOVER_PRIORITY "%s" "low"
+        ;;
+    "*")
+        echo "[ERROR] Unknown event type: ${event_type}" >&2
+        return 1
+        ;;
     esac
 
     apprise -vv --title "${PUSHOVER_TITLE}" --body "${PUSHOVER_MESSAGE}" --input-format html \
