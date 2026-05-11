@@ -1,4 +1,7 @@
 #!/bin/bash
+# editorconfig-checker-disable-file
+# (Embeds a YAML Job manifest in a heredoc; YAML uses 2-space indent and
+# editorconfig-checker can't distinguish that from the shell-script body.)
 #
 # Certwarden Post-Process Script for Supermicro IPMI Certificate Deployment (CONTAINERIZED)
 #
