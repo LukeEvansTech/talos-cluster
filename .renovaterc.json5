@@ -4,6 +4,7 @@
   extends: [
     "config:recommended",
     "docker:enableMajor",
+    "docker:pinDigests",
     "helpers:pinGitHubActionDigests",
     "github>LukeEvansTech/talos-cluster//.renovate/autoMerge.json5",
     "github>LukeEvansTech/talos-cluster//.renovate/changelogs.json5",
