@@ -32,5 +32,13 @@
       matchPackageNames: ["homebridge/homebridge"],
       enabled: false,
     },
+    {
+      // Flux OCIRepository has separate `tag:` and `digest:` fields; appending
+      // `@sha256:...` to `tag:` makes helm reject the chart ref with
+      // `improper constraint` (or `unable to locate any tags` on ghcr).
+      description: "Don't pin digests on Flux OCIRepository chart tags",
+      matchManagers: ["flux"],
+      pinDigests: false,
+    },
   ],
 }
