@@ -13,9 +13,9 @@ Purpose: continuous CIS / compliance scanning of the cluster with a queryable fi
 **In scope (v1):**
 
 - 3 Prowler HelmReleases in `security/prowler/`:
-  - `prowler-app` — single Deployment with **two containers** (`api` running gunicorn, `worker` running celery) sharing an emptyDir at `/tmp/prowler_api_output`
-  - `prowler-ui`
-  - `prowler-beat`
+    - `prowler-app` — single Deployment with **two containers** (`api` running gunicorn, `worker` running celery) sharing an emptyDir at `/tmp/prowler_api_output`
+    - `prowler-ui`
+    - `prowler-beat`
 - DozerDB (Neo4j-compatible) StatefulSet in `database/dozerdb/` for the asset-graph feature
 - New Postgres database `prowlerdb` + role `prowler` on the existing `postgres18` CNPG cluster
 - Reuses existing Dragonfly for Celery broker / cache
@@ -23,7 +23,7 @@ Purpose: continuous CIS / compliance scanning of the cluster with a queryable fi
 - ServiceAccount + ClusterRoleBinding (built-in `view`) for the in-cluster Kubernetes provider
 - Gatus `guarded` health check via the existing component
 
-**Why co-locate api + worker?** The api serves scan artifacts that the worker writes to `/tmp/prowler_api_output`. The cluster has no RWX StorageClass (only RWO `ceph-block`, `openebs-hostpath`, and `ceph-bucket` S3) so the two services cannot share a PVC across Deployments. Running both as containers in one Pod with a shared `emptyDir` matches the docker-compose semantics (volume sharing on a single host) and avoids introducing an NFS provisioner.
+**Why colocate the API and worker?** The API serves scan artifacts that the worker writes to `/tmp/prowler_api_output`. The cluster has no RWX StorageClass (only RWO `ceph-block`, `openebs-hostpath`, and `ceph-bucket` S3) so the two services cannot share a PVC across Deployments. Running both as containers in one Pod with a shared `emptyDir` matches the docker-compose semantics (volume sharing on a single host) and avoids introducing an NFS provisioner.
 
 **Out of scope (deferred to v2):**
 
@@ -70,7 +70,7 @@ ingress: envoy-internal
     /*       → prowler-ui:3000
 ```
 
-## Repo layout
+## Repository layout
 
 ```text
 kubernetes/apps/database/dozerdb/
@@ -109,21 +109,21 @@ Registrations:
 - **Service:** `dozerdb.database.svc.cluster.local:7687` (bolt)
 - **PVC:** 10Gi on `ceph-block`, mounted `/data`
 - **Env (config):**
-  - `NEO4J_dbms_max__databases=1000`
-  - `NEO4J_server_memory_pagecache_size=512M`
-  - `NEO4J_server_memory_heap_initial__size=512M`
-  - `NEO4J_server_memory_heap_max__size=1G`
-  - `NEO4J_PLUGINS=["apoc"]`
-  - `NEO4J_dbms_security_procedures_allowlist=apoc.*`
-  - `NEO4J_apoc_export_file_enabled=false`
-  - `NEO4J_apoc_import_file_enabled=false`
-  - `NEO4J_apoc_trigger_enabled=false`
-  - `NEO4J_dbms_connector_bolt_listen_address=0.0.0.0:7687`
+    - `NEO4J_dbms_max__databases=1000`
+    - `NEO4J_server_memory_pagecache_size=512M`
+    - `NEO4J_server_memory_heap_initial__size=512M`
+    - `NEO4J_server_memory_heap_max__size=1G`
+    - `NEO4J_PLUGINS=["apoc"]`
+    - `NEO4J_dbms_security_procedures_allowlist=apoc.*`
+    - `NEO4J_apoc_export_file_enabled=false`
+    - `NEO4J_apoc_import_file_enabled=false`
+    - `NEO4J_apoc_trigger_enabled=false`
+    - `NEO4J_dbms_connector_bolt_listen_address=0.0.0.0:7687`
 - **Env (from secret):** `NEO4J_AUTH=neo4j/${NEO4J_PASSWORD}`
 - **Probes:** TCP on 7687 (readiness + liveness)
 - **Resources:** request 100m / 1.5Gi, limit 2Gi memory
 
-### prowler-app (security namespace) — api + worker
+### prowler-app (security namespace) — API and worker
 
 - **Image (both containers):** `prowlercloud/prowler-api:stable` pinned to digest (Renovate handles)
 - **Controller:** deployment, 1 replica
@@ -146,18 +146,18 @@ Registrations:
 **Shared by both containers:**
 
 - **Env (config):**
-  - `DJANGO_SETTINGS_MODULE=config.django.production`
-  - `DJANGO_BIND_ADDRESS=0.0.0.0`
-  - `DJANGO_PORT=8080`
-  - `DJANGO_ALLOWED_HOSTS=prowler-api,prowler.${SECRET_DOMAIN},prowler.${SECRET_INTERNAL_DOMAIN}`
-  - `DJANGO_LOGGING_FORMATTER=ndjson`
-  - `DJANGO_MANAGE_DB_PARTITIONS=True`
-  - `TZ=${TIMEZONE}`
+    - `DJANGO_SETTINGS_MODULE=config.django.production`
+    - `DJANGO_BIND_ADDRESS=0.0.0.0`
+    - `DJANGO_PORT=8080`
+    - `DJANGO_ALLOWED_HOSTS=prowler-api,prowler.${SECRET_DOMAIN},prowler.${SECRET_INTERNAL_DOMAIN}`
+    - `DJANGO_LOGGING_FORMATTER=ndjson`
+    - `DJANGO_MANAGE_DB_PARTITIONS=True`
+    - `TZ=${TIMEZONE}`
 - **Env (from secret):** all `POSTGRES_*`, `INIT_POSTGRES_*`, `VALKEY_*`, `NEO4J_*`, `DJANGO_TOKEN_SIGNING_KEY`, `DJANGO_TOKEN_VERIFYING_KEY`, `DJANGO_SECRETS_ENCRYPTION_KEY`
 - **Mounts (both containers):**
-  - emptyDir `output` at `/tmp/prowler_api_output` (the shared volume worker writes / api serves)
-  - emptyDir at `/home/prowler/.config/prowler-api`
-  - emptyDir at `/tmp`
+    - emptyDir `output` at `/tmp/prowler_api_output` (the shared volume worker writes / API serves)
+    - emptyDir at `/home/prowler/.config/prowler-api`
+    - emptyDir at `/tmp`
 
 ### prowler-ui (security namespace)
 
@@ -165,13 +165,13 @@ Registrations:
 - **Controller:** deployment, 1 replica
 - **Service:** `prowler-ui.security.svc.cluster.local:3000`
 - **Env (config):**
-  - `API_BASE_URL=http://prowler-api:8080/api/v1` (server-side fetch from UI pod)
-  - `NEXT_PUBLIC_API_BASE_URL=https://prowler.${SECRET_DOMAIN}/api/v1` (browser-side)
-  - `NEXT_PUBLIC_API_DOCS_URL=https://prowler.${SECRET_DOMAIN}/api/v1/docs`
-  - `AUTH_URL=https://prowler.${SECRET_DOMAIN}`
-  - `AUTH_TRUST_HOST=true`
-  - `UI_PORT=3000`
-  - `TZ=${TIMEZONE}`
+    - `API_BASE_URL=http://prowler-api:8080/api/v1` (server-side fetch from UI pod)
+    - `NEXT_PUBLIC_API_BASE_URL=https://prowler.${SECRET_DOMAIN}/api/v1` (browser-side)
+    - `NEXT_PUBLIC_API_DOCS_URL=https://prowler.${SECRET_DOMAIN}/api/v1/docs`
+    - `AUTH_URL=https://prowler.${SECRET_DOMAIN}`
+    - `AUTH_TRUST_HOST=true`
+    - `UI_PORT=3000`
+    - `TZ=${TIMEZONE}`
 - **Env (from secret):** `AUTH_SECRET`
 - **Probes:** HTTP GET `/api/health` on 3000
 - **Resources:** request 50m / 256Mi, limit 512Mi memory
@@ -190,37 +190,37 @@ Registrations:
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
-  name: prowler
+    name: prowler
 spec:
-  parentRefs:
-    - name: envoy-internal
-      namespace: network
-  hostnames:
-    - "prowler.${SECRET_DOMAIN}"
-    - "prowler.${SECRET_INTERNAL_DOMAIN}"
-  rules:
-    # Prowler REST API — most specific match first
-    - matches:
-        - path:
-            type: PathPrefix
-            value: /api/v1
-      backendRefs:
-        - name: prowler-api
-          port: 8080
-    # Everything else, including NextAuth's /api/auth/* and /api/health, goes to the UI.
-    # Gateway API matches longest-prefix first, so /api/v1 above wins over this /.
-    - matches:
-        - path:
-            type: PathPrefix
-            value: /
-      backendRefs:
-        - name: prowler-ui
-          port: 3000
+    parentRefs:
+        - name: envoy-internal
+          namespace: network
+    hostnames:
+        - "prowler.${SECRET_DOMAIN}"
+        - "prowler.${SECRET_INTERNAL_DOMAIN}"
+    rules:
+        # Prowler REST API — most specific match first
+        - matches:
+              - path:
+                    type: PathPrefix
+                    value: /api/v1
+          backendRefs:
+              - name: prowler-api
+                port: 8080
+        # Everything else, including NextAuth's /api/auth/* and /api/health, goes to the UI.
+        # Gateway API matches longest-prefix first, so /api/v1 above wins over this /.
+        - matches:
+              - path:
+                    type: PathPrefix
+                    value: /
+          backendRefs:
+              - name: prowler-ui
+                port: 3000
 ```
 
 Both domains are internal-only (envoy-internal), matching the pocket-id pattern. external-dns publishes them to OPNsense.
 
-**Why this split:** NextAuth's callback handler lives at `/api/auth/*` *inside the UI container*, not the Prowler REST API. Prowler's REST API is under `/api/v1/*`. Routing only `/api/v1` to the api Deployment keeps NextAuth on the UI where it belongs.
+**Why this split:** NextAuth's callback handler lives at `/api/auth/*` _inside the UI container_, not the Prowler REST API. Prowler's REST API is under `/api/v1/*`. Routing only `/api/v1` to the API Deployment keeps NextAuth on the UI where it belongs.
 
 ## RBAC
 
@@ -228,24 +228,24 @@ Both domains are internal-only (envoy-internal), matching the pocket-id pattern.
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: prowler
-  namespace: security
+    name: prowler
+    namespace: security
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: prowler-view
+    name: prowler-view
 roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: view            # built-in, read-only across most resources cluster-wide
+    apiGroup: rbac.authorization.k8s.io
+    kind: ClusterRole
+    name: view # built-in, read-only across most resources cluster-wide
 subjects:
-  - kind: ServiceAccount
-    name: prowler
-    namespace: security
+    - kind: ServiceAccount
+      name: prowler
+      namespace: security
 ```
 
-The `prowler-app` Deployment (both `api` and `worker` containers) uses this ServiceAccount. The worker container actually runs the cluster scans; the api container needs read access for provider auto-discovery flows in the UI.
+The `prowler-app` Deployment (both `api` and `worker` containers) uses this ServiceAccount. The worker container actually runs the cluster scans; the API container needs read access for provider auto-discovery flows in the UI.
 
 `view` is broad but covers exactly the read surface CIS-Kubernetes checks need. A narrower replacement (modeled on upstream's `prowler-role.yaml`) is deferred to v2.
 
@@ -277,60 +277,60 @@ op item create --vault Talos --category=Login --title=dozerdb \
 
 ### 1Password items (Talos vault)
 
-| Item             | Fields                                                                                                                                   | Status   |
-| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| Item             | Fields                                                                                                                                       | Status   |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
 | `prowler`        | `PROWLER_DBUSER`, `PROWLER_DBPASS`, `DJANGO_TOKEN_SIGNING_KEY`, `DJANGO_TOKEN_VERIFYING_KEY`, `DJANGO_SECRETS_ENCRYPTION_KEY`, `AUTH_SECRET` | **new**  |
-| `dozerdb`        | `NEO4J_PASSWORD`                                                                                                                          | **new**  |
-| `cloudnative-pg` | `POSTGRES_SUPER_USER`, `POSTGRES_SUPER_PASS`                                                                                              | existing |
+| `dozerdb`        | `NEO4J_PASSWORD`                                                                                                                             | **new**  |
+| `cloudnative-pg` | `POSTGRES_SUPER_USER`, `POSTGRES_SUPER_PASS`                                                                                                 | existing |
 
 ### ExternalSecret → K8s Secret
 
-**`prowler-secret`** (security ns, consumed by prowler-app api+worker containers and prowler-beat):
+**`prowler-secret`** (security ns, consumed by prowler-app API and worker containers and prowler-beat):
 
 ```yaml
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
 metadata:
-  name: prowler
+    name: prowler
 spec:
-  secretStoreRef: {kind: ClusterSecretStore, name: onepassword-connect}
-  target:
-    name: prowler-secret
-    template:
-      engineVersion: v2
-      data:
-        # Postgres - app connection
-        POSTGRES_HOST: postgres18-rw.database.svc.cluster.local
-        POSTGRES_PORT: "5432"
-        POSTGRES_DB: prowlerdb
-        POSTGRES_USER: "{{ .PROWLER_DBUSER }}"
-        POSTGRES_PASSWORD: "{{ .PROWLER_DBPASS }}"
-        POSTGRES_ADMIN_USER: "{{ .PROWLER_DBUSER }}"
-        POSTGRES_ADMIN_PASSWORD: "{{ .PROWLER_DBPASS }}"
-        # init-db (postgres-init pattern)
-        INIT_POSTGRES_DBNAME: prowlerdb
-        INIT_POSTGRES_HOST: postgres18-rw.database.svc.cluster.local
-        INIT_POSTGRES_USER: "{{ .PROWLER_DBUSER }}"
-        INIT_POSTGRES_PASS: "{{ .PROWLER_DBPASS }}"
-        INIT_POSTGRES_SUPER_USER: "{{ .POSTGRES_SUPER_USER }}"
-        INIT_POSTGRES_SUPER_PASS: "{{ .POSTGRES_SUPER_PASS }}"
-        # Valkey / Dragonfly
-        VALKEY_HOST: dragonfly.database.svc.cluster.local
-        VALKEY_PORT: "6379"
-        VALKEY_DB: "0"
-        # Neo4j / DozerDB
-        NEO4J_HOST: dozerdb.database.svc.cluster.local
-        NEO4J_PORT: "7687"
-        NEO4J_USER: neo4j
-        NEO4J_PASSWORD: "{{ .NEO4J_PASSWORD }}"
-        # Django crypto
-        DJANGO_TOKEN_SIGNING_KEY: "{{ .DJANGO_TOKEN_SIGNING_KEY }}"
-        DJANGO_TOKEN_VERIFYING_KEY: "{{ .DJANGO_TOKEN_VERIFYING_KEY }}"
-        DJANGO_SECRETS_ENCRYPTION_KEY: "{{ .DJANGO_SECRETS_ENCRYPTION_KEY }}"
-  dataFrom:
-    - extract: {key: cloudnative-pg}
-    - extract: {key: prowler}
-    - extract: {key: dozerdb}
+    secretStoreRef: { kind: ClusterSecretStore, name: onepassword-connect }
+    target:
+        name: prowler-secret
+        template:
+            engineVersion: v2
+            data:
+                # Postgres - app connection
+                POSTGRES_HOST: postgres18-rw.database.svc.cluster.local
+                POSTGRES_PORT: "5432"
+                POSTGRES_DB: prowlerdb
+                POSTGRES_USER: "{{ .PROWLER_DBUSER }}"
+                POSTGRES_PASSWORD: "{{ .PROWLER_DBPASS }}"
+                POSTGRES_ADMIN_USER: "{{ .PROWLER_DBUSER }}"
+                POSTGRES_ADMIN_PASSWORD: "{{ .PROWLER_DBPASS }}"
+                # init-db (postgres-init pattern)
+                INIT_POSTGRES_DBNAME: prowlerdb
+                INIT_POSTGRES_HOST: postgres18-rw.database.svc.cluster.local
+                INIT_POSTGRES_USER: "{{ .PROWLER_DBUSER }}"
+                INIT_POSTGRES_PASS: "{{ .PROWLER_DBPASS }}"
+                INIT_POSTGRES_SUPER_USER: "{{ .POSTGRES_SUPER_USER }}"
+                INIT_POSTGRES_SUPER_PASS: "{{ .POSTGRES_SUPER_PASS }}"
+                # Valkey / Dragonfly
+                VALKEY_HOST: dragonfly.database.svc.cluster.local
+                VALKEY_PORT: "6379"
+                VALKEY_DB: "0"
+                # Neo4j / DozerDB
+                NEO4J_HOST: dozerdb.database.svc.cluster.local
+                NEO4J_PORT: "7687"
+                NEO4J_USER: neo4j
+                NEO4J_PASSWORD: "{{ .NEO4J_PASSWORD }}"
+                # Django crypto
+                DJANGO_TOKEN_SIGNING_KEY: "{{ .DJANGO_TOKEN_SIGNING_KEY }}"
+                DJANGO_TOKEN_VERIFYING_KEY: "{{ .DJANGO_TOKEN_VERIFYING_KEY }}"
+                DJANGO_SECRETS_ENCRYPTION_KEY: "{{ .DJANGO_SECRETS_ENCRYPTION_KEY }}"
+    dataFrom:
+        - extract: { key: cloudnative-pg }
+        - extract: { key: prowler }
+        - extract: { key: dozerdb }
 ```
 
 **`prowler-ui-secret`** (security ns): `AUTH_SECRET` from `prowler`.
@@ -347,33 +347,33 @@ No new keys needed. `${SECRET_DOMAIN}`, `${SECRET_INTERNAL_DOMAIN}`, `${TIMEZONE
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
-  name: &app prowler
-  namespace: &namespace security
+    name: &app prowler
+    namespace: &namespace security
 spec:
-  components:
-    - ../../../../components/gatus/guarded
-  dependsOn:
-    - name: cloudnative-pg-cluster
-      namespace: database
-    - name: dragonfly
-      namespace: database
-    - name: dozerdb
-      namespace: database
-  interval: 1h
-  path: ./kubernetes/apps/security/prowler/app
-  postBuild:
-    substitute:
-      APP: *app
-      GATUS_SUBDOMAIN: prowler
-  prune: true
-  retryInterval: 2m
-  sourceRef:
-    kind: GitRepository
-    name: flux-system
-    namespace: flux-system
-  targetNamespace: *namespace
-  timeout: 5m
-  wait: false
+    components:
+        - ../../../../components/gatus/guarded
+    dependsOn:
+        - name: cloudnative-pg-cluster
+          namespace: database
+        - name: dragonfly
+          namespace: database
+        - name: dozerdb
+          namespace: database
+    interval: 1h
+    path: ./kubernetes/apps/security/prowler/app
+    postBuild:
+        substitute:
+            APP: *app
+            GATUS_SUBDOMAIN: prowler
+    prune: true
+    retryInterval: 2m
+    sourceRef:
+        kind: GitRepository
+        name: flux-system
+        namespace: flux-system
+    targetNamespace: *namespace
+    timeout: 5m
+    wait: false
 ```
 
 DozerDB's own `ks.yaml` mirrors this pattern but lives under `kubernetes/apps/database/dozerdb/ks.yaml` and has no Flux dependsOn (it bootstraps independently).
@@ -384,7 +384,7 @@ After Flux reconciles:
 
 1. `flux get hr -n security` shows all three prowler HRs ready (prowler-app, prowler-ui, prowler-beat)
 2. `flux get hr -n database` shows `dozerdb` ready
-3. `kubectl get po -n security -l app.kubernetes.io/name=prowler-app` reports Running + ready (2/2 — api + worker containers)
+3. `kubectl get po -n security -l app.kubernetes.io/name=prowler-app` reports Running + ready (2/2 — API and worker containers)
 4. `kubectl logs -n security deploy/prowler-app -c init-db` shows the postgres-init succeeded
 5. `kubectl logs -n security deploy/prowler-app -c api` shows `migrate` completed and gunicorn bound on :8080
 6. Browse `https://prowler.${SECRET_DOMAIN}/sign-up`, register the first user (becomes tenant owner)
