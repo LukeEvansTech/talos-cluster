@@ -45,11 +45,12 @@ spec:
             envFrom:
               - secretRef:
                   name: dozerdb-secret
+            # NOTE: capabilities.drop is intentionally omitted — DozerDB's
+            # entrypoint chowns /var/lib/neo4j at startup and needs CAP_CHOWN.
+            # Dropping all caps causes "Operation not permitted" on chown
+            # and the container CrashLoops.
             securityContext:
               allowPrivilegeEscalation: false
-              capabilities:
-                drop:
-                  - ALL
             probes:
               liveness:
                 enabled: true
