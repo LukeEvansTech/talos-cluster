@@ -41,11 +41,13 @@
       pinDigests: false,
     },
     {
-      // pulsarr 1.1.6 was a bad upstream release; block it but allow later versions.
-      description: "Block pulsarr 1.1.6 (erroneous upstream release)",
+      // pulsarr upstream (github.com/jamcalli/Pulsarr) is still on 0.15.x.
+      // Stray 1.x tags appeared on Docker Hub (1.1.5, 1.1.6) and were pulled.
+      // Block the whole 1.x major until upstream legitimately ships a 1.0 release.
+      description: "Block pulsarr 1.x — no matching upstream release",
       matchDatasources: ["docker"],
       matchPackageNames: ["docker.io/lakker/pulsarr"],
-      allowedVersions: "!/^1\\.1\\.6$/",
+      allowedVersions: "<1.0.0",
     },
   ],
 }
