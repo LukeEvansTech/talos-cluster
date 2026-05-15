@@ -1,0 +1,98 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: &app dozerdb
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: app-template
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+      strategy: rollback
+  values:
+    controllers:
+      dozerdb:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        type: statefulset
+        containers:
+          app:
+            image:
+              repository: graphstack/dozerdb
+              tag: 5.26.3.0@sha256:a77526ea3918fdc46d1fff70c4aea7d71d3874a26ecec059179d6775845b1247
+            env:
+              TZ: ${TIMEZONE}
+              NEO4J_dbms_max__databases: "1000"
+              NEO4J_server_memory_pagecache_size: 512M
+              NEO4J_server_memory_heap_initial__size: 512M
+              NEO4J_server_memory_heap_max__size: 1G
+              NEO4J_PLUGINS: '["apoc"]'
+              NEO4J_dbms_security_procedures_allowlist: apoc.*
+              NEO4J_dbms_security_procedures_unrestricted: ""
+              NEO4J_apoc_export_file_enabled: "false"
+              NEO4J_apoc_import_file_enabled: "false"
+              NEO4J_apoc_import_file_use__neo4j__config: "true"
+              NEO4J_apoc_trigger_enabled: "false"
+              NEO4J_dbms_connector_bolt_listen__address: 0.0.0.0:7687
+            envFrom:
+              - secretRef:
+                  name: dozerdb-secret
+            probes:
+              liveness:
+                enabled: true
+                custom: true
+                spec:
+                  tcpSocket:
+                    port: &port 7687
+                  initialDelaySeconds: 30
+                  periodSeconds: 30
+                  timeoutSeconds: 5
+                  failureThreshold: 3
+              readiness:
+                enabled: true
+                custom: true
+                spec:
+                  tcpSocket:
+                    port: *port
+                  initialDelaySeconds: 30
+                  periodSeconds: 10
+                  timeoutSeconds: 5
+                  failureThreshold: 3
+            resources:
+              requests:
+                cpu: 100m
+                memory: 1536Mi
+              limits:
+                memory: 2Gi
+        statefulset:
+          volumeClaimTemplates:
+            - name: data
+              storageClass: ceph-block
+              accessMode: ReadWriteOnce
+              size: 10Gi
+              globalMounts:
+                - path: /data
+
+    defaultPodOptions:
+      # DozerDB's entrypoint writes to /var/lib/neo4j inside the image; runs as
+      # uid/gid 7474 in upstream Neo4j. We let the image set its own user and
+      # only force fsGroup so the PVC is writable.
+      securityContext:
+        fsGroup: 7474
+        fsGroupChangePolicy: OnRootMismatch
+
+    service:
+      app:
+        controller: dozerdb
+        ports:
+          bolt:
+            port: *port
+            protocol: TCP
