@@ -12,13 +12,18 @@ Purpose: continuous CIS / compliance scanning of the cluster with a queryable fi
 
 **In scope (v1):**
 
-- 4 Prowler workloads in `security/prowler/`: api, ui, worker, beat
+- 3 Prowler HelmReleases in `security/prowler/`:
+  - `prowler-app` — single Deployment with **two containers** (`api` running gunicorn, `worker` running celery) sharing an emptyDir at `/tmp/prowler_api_output`
+  - `prowler-ui`
+  - `prowler-beat`
 - DozerDB (Neo4j-compatible) StatefulSet in `database/dozerdb/` for the asset-graph feature
 - New Postgres database `prowlerdb` + role `prowler` on the existing `postgres18` CNPG cluster
 - Reuses existing Dragonfly for Celery broker / cache
 - Internal-only ingress on `envoy-internal` at `prowler.${SECRET_DOMAIN}` and `prowler.${SECRET_INTERNAL_DOMAIN}`
 - ServiceAccount + ClusterRoleBinding (built-in `view`) for the in-cluster Kubernetes provider
 - Gatus `guarded` health check via the existing component
+
+**Why co-locate api + worker?** The api serves scan artifacts that the worker writes to `/tmp/prowler_api_output`. The cluster has no RWX StorageClass (only RWO `ceph-block`, `openebs-hostpath`, and `ceph-bucket` S3) so the two services cannot share a PVC across Deployments. Running both as containers in one Pod with a shared `emptyDir` matches the docker-compose semantics (volume sharing on a single host) and avoids introducing an NFS provisioner.
 
 **Out of scope (deferred to v2):**
 
@@ -35,18 +40,18 @@ Purpose: continuous CIS / compliance scanning of the cluster with a queryable fi
 ```text
 ┌─ namespace: security ──────────────────────────────────────────────────┐
 │                                                                        │
-│   prowler-api    Deployment    gunicorn :8080    (entrypoint: prod)   │
-│      │           initContainer: init-db (postgres-init) creates DB    │
-│      │           ServiceAccount: prowler (cluster "view")              │
-│      │           mounts: /tmp/prowler_api_output (RWX NFS PVC)        │
-│      │                                                                 │
-│   prowler-ui     Deployment    next.js  :3000                          │
+│   prowler-app   Deployment, 1 replica                                  │
+│   ┌─ Pod ──────────────────────────────────────────────────────────┐  │
+│   │  initContainer: init-db (postgres-init) creates DB              │  │
+│   │  container: api    gunicorn :8080  (entrypoint: prod)           │  │
+│   │  container: worker celery worker, all queues                    │  │
+│   │  shared emptyDir at /tmp/prowler_api_output                     │  │
+│   │  ServiceAccount: prowler (cluster "view")                       │  │
+│   └─────────────────────────────────────────────────────────────────┘  │
 │                                                                        │
-│   prowler-worker Deployment    celery worker (all queues)              │
-│                  mounts: /tmp/prowler_api_output (RWX NFS PVC)         │
-│                  ServiceAccount: prowler                               │
+│   prowler-ui    Deployment    next.js  :3000                           │
 │                                                                        │
-│   prowler-beat   Deployment    celery beat (1 replica, singleton)      │
+│   prowler-beat  Deployment    celery beat (1 replica, singleton)       │
 │                                                                        │
 └────────────────────────────────────────────────────────────────────────┘
         │                  │                   │
@@ -81,13 +86,11 @@ kubernetes/apps/security/prowler/
 └── app/
     ├── kustomization.yaml
     ├── ocirepository.yaml        # app-template OCIRepository (shared across HRs)
-    ├── externalsecret.yaml       # → Secret consumed by api/worker/beat
+    ├── externalsecret.yaml       # → Secret consumed by app (api+worker) and beat
     ├── externalsecret-ui.yaml    # → Secret consumed by ui (AUTH_SECRET only)
-    ├── helmrelease-api.yaml      # has init-db initContainer
+    ├── helmrelease-app.yaml      # api + worker containers, init-db initContainer
     ├── helmrelease-ui.yaml
-    ├── helmrelease-worker.yaml
     ├── helmrelease-beat.yaml
-    ├── pvc.yaml                  # RWX NFS PVC `prowler-output` (20Gi)
     ├── httproute.yaml            # path-routed
     └── rbac.yaml                 # ServiceAccount + ClusterRoleBinding to "view"
 ```
@@ -120,14 +123,28 @@ Registrations:
 - **Probes:** TCP on 7687 (readiness + liveness)
 - **Resources:** request 100m / 1.5Gi, limit 2Gi memory
 
-### prowler-api (security namespace)
+### prowler-app (security namespace) — api + worker
 
-- **Image:** `prowlercloud/prowler-api:stable` pinned to digest (Renovate handles)
+- **Image (both containers):** `prowlercloud/prowler-api:stable` pinned to digest (Renovate handles)
 - **Controller:** deployment, 1 replica
-- **Service:** `prowler-api.security.svc.cluster.local:8080`
+- **Service:** `prowler-api.security.svc.cluster.local:8080` (exposes only the `api` container port)
 - **ServiceAccount:** `prowler` (binds to ClusterRole `view`)
 - **initContainer `init-db`:** `ghcr.io/home-operations/postgres-init:18@...` — envFrom shared secret, creates `prowlerdb` + `prowler` role with the `INIT_POSTGRES_*` vars
+
+**Container `api`:**
+
 - **Entrypoint:** default — `/home/prowler/docker-entrypoint.sh prod` runs `migrate` + `pgpartition` + gunicorn
+- **Probes:** HTTP GET `/api/v1/` on 8080
+- **Resources:** request 100m / 512Mi, limit 1Gi memory
+
+**Container `worker`:**
+
+- **args:** `["worker"]` → entrypoint runs celery worker against all queues
+- No probes (celery worker)
+- **Resources:** request 100m / 512Mi, limit 2Gi memory (scans can be spiky)
+
+**Shared by both containers:**
+
 - **Env (config):**
   - `DJANGO_SETTINGS_MODULE=config.django.production`
   - `DJANGO_BIND_ADDRESS=0.0.0.0`
@@ -137,12 +154,10 @@ Registrations:
   - `DJANGO_MANAGE_DB_PARTITIONS=True`
   - `TZ=${TIMEZONE}`
 - **Env (from secret):** all `POSTGRES_*`, `INIT_POSTGRES_*`, `VALKEY_*`, `NEO4J_*`, `DJANGO_TOKEN_SIGNING_KEY`, `DJANGO_TOKEN_VERIFYING_KEY`, `DJANGO_SECRETS_ENCRYPTION_KEY`
-- **Mounts:**
-  - RWX NFS PVC `prowler-output` at `/tmp/prowler_api_output`
+- **Mounts (both containers):**
+  - emptyDir `output` at `/tmp/prowler_api_output` (the shared volume worker writes / api serves)
   - emptyDir at `/home/prowler/.config/prowler-api`
   - emptyDir at `/tmp`
-- **Probes:** HTTP GET `/api/v1/` on 8080
-- **Resources:** request 100m / 512Mi, limit 1Gi memory
 
 ### prowler-ui (security namespace)
 
@@ -161,22 +176,13 @@ Registrations:
 - **Probes:** HTTP GET `/api/health` on 3000
 - **Resources:** request 50m / 256Mi, limit 512Mi memory
 
-### prowler-worker (security namespace)
-
-- Same image and ServiceAccount as api
-- **args:** `["worker"]` → entrypoint runs celery worker against all queues
-- envFrom the same shared api secret + same config env
-- Mounts the **same RWX PVC** at `/tmp/prowler_api_output` (worker writes scan artifacts; api serves them)
-- No probes (celery worker)
-- **Resources:** request 100m / 512Mi, limit 2Gi memory (scans can be spiky)
-
 ### prowler-beat (security namespace)
 
 - Same image, **args:** `["beat"]`
 - envFrom the shared secret
 - **1 replica only** — celery beat is a singleton; multiple instances cause duplicate scheduling
 - **Resources:** request 10m / 64Mi, limit 128Mi memory
-- No PVC, no probes
+- No probes
 
 ## Networking
 
@@ -239,7 +245,7 @@ subjects:
     namespace: security
 ```
 
-Both `prowler-api` and `prowler-worker` use this ServiceAccount. The worker actually runs the cluster scans; the api needs read access for provider auto-discovery flows in the UI.
+The `prowler-app` Deployment (both `api` and `worker` containers) uses this ServiceAccount. The worker container actually runs the cluster scans; the api container needs read access for provider auto-discovery flows in the UI.
 
 `view` is broad but covers exactly the read surface CIS-Kubernetes checks need. A narrower replacement (modeled on upstream's `prowler-role.yaml`) is deferred to v2.
 
@@ -279,7 +285,7 @@ op item create --vault Talos --category=Login --title=dozerdb \
 
 ### ExternalSecret → K8s Secret
 
-**`prowler-secret`** (security ns, consumed by api/worker/beat):
+**`prowler-secret`** (security ns, consumed by prowler-app api+worker containers and prowler-beat):
 
 ```yaml
 apiVersion: external-secrets.io/v1
@@ -376,11 +382,11 @@ DozerDB's own `ks.yaml` mirrors this pattern but lives under `kubernetes/apps/da
 
 After Flux reconciles:
 
-1. `flux get hr -n security` shows all four prowler HRs ready
+1. `flux get hr -n security` shows all three prowler HRs ready (prowler-app, prowler-ui, prowler-beat)
 2. `flux get hr -n database` shows `dozerdb` ready
-3. `kubectl get po -n security -l app.kubernetes.io/name=prowler-api` reports Running + ready (1/1)
-4. `kubectl logs -n security deploy/prowler-api -c init-db` shows the postgres-init succeeded
-5. `kubectl logs -n security deploy/prowler-api` shows `migrate` completed and gunicorn bound on :8080
+3. `kubectl get po -n security -l app.kubernetes.io/name=prowler-app` reports Running + ready (2/2 — api + worker containers)
+4. `kubectl logs -n security deploy/prowler-app -c init-db` shows the postgres-init succeeded
+5. `kubectl logs -n security deploy/prowler-app -c api` shows `migrate` completed and gunicorn bound on :8080
 6. Browse `https://prowler.${SECRET_DOMAIN}/sign-up`, register the first user (becomes tenant owner)
 7. In the UI, add a "Kubernetes" provider pointing at the in-cluster ServiceAccount; trigger a scan; confirm findings appear
 
