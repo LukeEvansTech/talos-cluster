@@ -45,6 +45,11 @@ spec:
             envFrom:
               - secretRef:
                   name: dozerdb-secret
+            securityContext:
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop:
+                  - ALL
             probes:
               liveness:
                 enabled: true
@@ -88,6 +93,8 @@ spec:
       securityContext:
         fsGroup: 7474
         fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
 
     service:
       app:
