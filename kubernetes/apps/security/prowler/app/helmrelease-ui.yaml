@@ -39,12 +39,14 @@ spec:
               - secretRef:
                   name: prowler-ui-secret
             probes:
+              # Probe `/` (returns 307 redirect to /sign-in — accepted as 2xx-3xx
+              # by kubelet). Prowler-UI's `/api/health` returns 404 in 5.26.1.
               liveness: &uiProbe
                 enabled: true
                 custom: true
                 spec:
                   httpGet:
-                    path: /api/health
+                    path: /
                     port: &port 3000
                   initialDelaySeconds: 30
                   periodSeconds: 30

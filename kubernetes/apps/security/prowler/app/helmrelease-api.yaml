@@ -48,6 +48,9 @@ spec:
               DJANGO_MANAGE_DB_PARTITIONS: "True"
             envFrom: *envFrom
             probes:
+              # Django enforces ALLOWED_HOSTS on every request. The kubelet
+              # probes by pod IP, which Django rejects with HTTP 400. Override
+              # the Host header so the probe passes ALLOWED_HOSTS validation.
               liveness: &apiProbe
                 enabled: true
                 custom: true
@@ -55,6 +58,9 @@ spec:
                   httpGet:
                     path: /api/v1/
                     port: &port 8080
+                    httpHeaders:
+                      - name: Host
+                        value: prowler-api
                   initialDelaySeconds: 60
                   periodSeconds: 30
                   timeoutSeconds: 5
