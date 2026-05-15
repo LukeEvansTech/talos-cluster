@@ -1164,7 +1164,7 @@ git push -u origin feat/prowler-app
 
 Expected: branch pushed; remote ref created.
 
-- [ ] **Step 2: Force-reconcile the Flux git source so the cluster sees the new commits without waiting for the next interval.**
+- [ ] **Step 2: Force-reconcile the Flux Git source so the cluster sees the new commits without waiting for the next interval.**
 
 ```bash
 KUBECONFIG=/Users/luke.evans/GIT/LukeEvansTech/talos-cluster/kubeconfig \
