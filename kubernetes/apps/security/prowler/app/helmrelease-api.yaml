@@ -46,6 +46,9 @@ spec:
               DJANGO_LOGGING_FORMATTER: ndjson
               DJANGO_LOGGING_LEVEL: INFO
               DJANGO_MANAGE_DB_PARTITIONS: "True"
+              # Cap gunicorn workers — defaults to (CPU*2+1) which on a
+              # 24-core node was 49 workers * ~80MB each = 4GB just for api.
+              DJANGO_WORKERS: "4"
             envFrom: *envFrom
             probes:
               # Django enforces ALLOWED_HOSTS on every request. The kubelet
@@ -75,9 +78,9 @@ spec:
             resources:
               requests:
                 cpu: 100m
-                memory: 512Mi
+                memory: 768Mi
               limits:
-                memory: 1Gi
+                memory: 2Gi
           worker:
             image: *image
             # Override the image's hardcoded ENTRYPOINT
@@ -100,9 +103,9 @@ spec:
             resources:
               requests:
                 cpu: 100m
-                memory: 512Mi
+                memory: 768Mi
               limits:
-                memory: 2Gi
+                memory: 4Gi
 
     defaultPodOptions:
       securityContext:
