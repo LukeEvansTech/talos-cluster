@@ -11,5 +11,6 @@ resources:
   - ./netpol.yaml
   - ./cloudnative-pg/ks.yaml
   - ./dragonfly/ks.yaml
+  - ./dozerdb/ks.yaml
   - ./pgadmin/ks.yaml
   - ./whodb/ks.yaml
