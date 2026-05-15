@@ -37,6 +37,14 @@ spec:
             image:
               repository: docker.io/metabase/metabase
               tag: v0.61.1@sha256:95228c25b23f014c0fbc4f86d69a66ad5f14ff74fd8e6b8223bf82e58ee416ea
+            # Explicit named container ports are required for the PodMonitor
+            # to match `port: metrics` — bjw-s app-template does not synthesise
+            # container ports from the service spec.
+            ports:
+              - name: http
+                containerPort: 3000
+              - name: metrics
+                containerPort: 9191
             env:
               TZ: ${TIMEZONE}
               MB_JETTY_PORT: "3000"
