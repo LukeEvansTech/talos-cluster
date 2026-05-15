@@ -40,5 +40,12 @@
       matchManagers: ["flux"],
       pinDigests: false,
     },
+    {
+      // pulsarr 1.1.6 was a bad upstream release; block it but allow later versions.
+      description: "Block pulsarr 1.1.6 (erroneous upstream release)",
+      matchDatasources: ["docker"],
+      matchPackageNames: ["docker.io/lakker/pulsarr"],
+      allowedVersions: "!/^1\\.1\\.6$/",
+    },
   ],
 }
