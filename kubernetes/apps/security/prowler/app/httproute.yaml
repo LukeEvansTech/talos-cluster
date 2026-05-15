@@ -1,0 +1,30 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/gateway.networking.k8s.io/httproute_v1.json
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: prowler
+spec:
+  parentRefs:
+    - name: envoy-internal
+      namespace: network
+  hostnames:
+    - "prowler.${SECRET_DOMAIN}"
+    - "prowler.${SECRET_INTERNAL_DOMAIN}"
+  rules:
+    # Prowler REST API — longest-prefix wins, so this beats `/` for /api/v1/*.
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api/v1
+      backendRefs:
+        - name: prowler-api
+          port: 8080
+    # Everything else (incl. NextAuth's /api/auth/* and /api/health) → UI.
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: prowler-ui
+          port: 3000

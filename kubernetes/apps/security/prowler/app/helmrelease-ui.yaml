@@ -1,0 +1,82 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: &app prowler-ui
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: app-template
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+      strategy: rollback
+  values:
+    controllers:
+      prowler-ui:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        containers:
+          app:
+            image:
+              repository: prowlercloud/prowler-ui
+              tag: 5.26.1@sha256:2164d3723857c802c91433c096764c7dbc0d08c1f3f2f9021aaa521be3660cba
+            env:
+              TZ: ${TIMEZONE}
+              UI_PORT: "3000"
+              AUTH_URL: "https://prowler.${SECRET_DOMAIN}"
+              AUTH_TRUST_HOST: "true"
+              API_BASE_URL: "http://prowler-api:8080/api/v1"
+              NEXT_PUBLIC_API_BASE_URL: "https://prowler.${SECRET_DOMAIN}/api/v1"
+              NEXT_PUBLIC_API_DOCS_URL: "https://prowler.${SECRET_DOMAIN}/api/v1/docs"
+            envFrom:
+              - secretRef:
+                  name: prowler-ui-secret
+            probes:
+              liveness: &uiProbe
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /api/health
+                    port: &port 3000
+                  initialDelaySeconds: 30
+                  periodSeconds: 30
+                  timeoutSeconds: 5
+                  failureThreshold: 5
+              readiness: *uiProbe
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+              capabilities:
+                drop:
+                  - ALL
+            resources:
+              requests:
+                cpu: 50m
+                memory: 256Mi
+              limits:
+                memory: 512Mi
+
+    defaultPodOptions:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+
+    service:
+      app:
+        controller: prowler-ui
+        ports:
+          http:
+            port: *port
