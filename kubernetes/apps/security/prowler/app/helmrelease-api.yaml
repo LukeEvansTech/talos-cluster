@@ -1,0 +1,138 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: &app prowler-api
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: app-template
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+      strategy: rollback
+  values:
+    controllers:
+      prowler-api:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        serviceAccount:
+          identifier: prowler
+        initContainers:
+          init-db:
+            image:
+              repository: ghcr.io/home-operations/postgres-init
+              tag: "18@sha256:6fa1f331cddd2eb0b6afa7b8d3685c864127a81ab01c3d9400bc3ff5263a51cf"
+            envFrom: &envFrom
+              - secretRef:
+                  name: prowler-secret
+        containers:
+          api:
+            image: &image
+              repository: prowlercloud/prowler-api
+              tag: 5.26.1@sha256:6c373234ad95150c761f1ab1b1be56adcaea981f272f55b6490d50fc56245a0f
+            env: &commonEnv
+              TZ: ${TIMEZONE}
+              DJANGO_SETTINGS_MODULE: config.django.production
+              DJANGO_BIND_ADDRESS: 0.0.0.0
+              DJANGO_PORT: "8080"
+              DJANGO_ALLOWED_HOSTS: "prowler-api,prowler.${SECRET_DOMAIN},prowler.${SECRET_INTERNAL_DOMAIN}"
+              DJANGO_LOGGING_FORMATTER: ndjson
+              DJANGO_LOGGING_LEVEL: INFO
+              DJANGO_MANAGE_DB_PARTITIONS: "True"
+            envFrom: *envFrom
+            probes:
+              liveness: &apiProbe
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /api/v1/
+                    port: &port 8080
+                  initialDelaySeconds: 60
+                  periodSeconds: 30
+                  timeoutSeconds: 5
+                  failureThreshold: 5
+              readiness: *apiProbe
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+              capabilities:
+                drop:
+                  - ALL
+            resources:
+              requests:
+                cpu: 100m
+                memory: 512Mi
+              limits:
+                memory: 1Gi
+          worker:
+            image: *image
+            args:
+              - "worker"
+            env: *commonEnv
+            envFrom: *envFrom
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+              capabilities:
+                drop:
+                  - ALL
+            resources:
+              requests:
+                cpu: 100m
+                memory: 512Mi
+              limits:
+                memory: 2Gi
+
+    defaultPodOptions:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+
+    serviceAccount:
+      prowler: {}
+
+    service:
+      app:
+        controller: prowler-api
+        ports:
+          http:
+            port: *port
+
+    persistence:
+      # Shared scan-output volume — written by `worker`, served by `api`.
+      output:
+        type: emptyDir
+        globalMounts:
+          - path: /tmp/prowler_api_output
+      # Django config dir (the upstream image writes here at startup).
+      config:
+        type: emptyDir
+        advancedMounts:
+          prowler-api:
+            api:
+              - path: /home/prowler/.config/prowler-api
+            worker:
+              - path: /home/prowler/.config/prowler-api
+      tmp:
+        type: emptyDir
+        advancedMounts:
+          prowler-api:
+            api:
+              - path: /tmp
+                subPath: api-tmp
+            worker:
+              - path: /tmp
+                subPath: worker-tmp
