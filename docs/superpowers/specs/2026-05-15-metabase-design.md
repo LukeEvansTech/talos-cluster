@@ -101,18 +101,18 @@ Mirrors `pgadmin/ks.yaml`:
 ```yaml
 url: oci://ghcr.io/bjw-s-labs/helm/app-template
 ref:
-  tag: 5.0.1   # match other apps; Renovate will keep current
+    tag: 5.0.1 # match other apps; Renovate will keep current
 ```
 
 ### ExternalSecret
 
 1Password item `metabase` in the `Talos` vault. Fields:
 
-| Field                          | Purpose                                                        |
-| ------------------------------ | -------------------------------------------------------------- |
-| `MB_DBUSER`                    | Literal `metabase`                                             |
-| `MB_DBPASS`                    | Random 32-char password for the app role                       |
-| `MB_ENCRYPTION_SECRET_KEY`     | 32-byte base64 — encrypts source-DB creds stored in app DB     |
+| Field                      | Purpose                                                    |
+| -------------------------- | ---------------------------------------------------------- |
+| `MB_DBUSER`                | Literal `metabase`                                         |
+| `MB_DBPASS`                | Random 32-char password for the app role                   |
+| `MB_ENCRYPTION_SECRET_KEY` | 32-byte base64 — encrypts source-DB creds stored in app DB |
 
 Created via `op item create --vault Talos --category=Login --title=metabase ...` (per project memory: never paste credentials into the 1Password UI; generate locally with `op`).
 
@@ -120,30 +120,30 @@ The ExternalSecret pulls from two 1Password items, materialising the keys consum
 
 ```yaml
 target:
-  name: metabase-secret
-  template:
-    engineVersion: v2
-    data:
-      # Metabase application
-      MB_DB_TYPE: postgres
-      MB_DB_HOST: postgres18-rw.database.svc.cluster.local
-      MB_DB_PORT: "5432"
-      MB_DB_DBNAME: metabase
-      MB_DB_USER: "{{ .MB_DBUSER }}"
-      MB_DB_PASS: "{{ .MB_DBPASS }}"
-      MB_ENCRYPTION_SECRET_KEY: "{{ .MB_ENCRYPTION_SECRET_KEY }}"
-      # postgres-init initContainer
-      INIT_POSTGRES_DBNAME: metabase
-      INIT_POSTGRES_HOST: postgres18-rw.database.svc.cluster.local
-      INIT_POSTGRES_USER: "{{ .MB_DBUSER }}"
-      INIT_POSTGRES_PASS: "{{ .MB_DBPASS }}"
-      INIT_POSTGRES_SUPER_USER: "{{ .POSTGRES_SUPER_USER }}"
-      INIT_POSTGRES_SUPER_PASS: "{{ .POSTGRES_SUPER_PASS }}"
+    name: metabase-secret
+    template:
+        engineVersion: v2
+        data:
+            # Metabase application
+            MB_DB_TYPE: postgres
+            MB_DB_HOST: postgres18-rw.database.svc.cluster.local
+            MB_DB_PORT: "5432"
+            MB_DB_DBNAME: metabase
+            MB_DB_USER: "{{ .MB_DBUSER }}"
+            MB_DB_PASS: "{{ .MB_DBPASS }}"
+            MB_ENCRYPTION_SECRET_KEY: "{{ .MB_ENCRYPTION_SECRET_KEY }}"
+            # postgres-init initContainer
+            INIT_POSTGRES_DBNAME: metabase
+            INIT_POSTGRES_HOST: postgres18-rw.database.svc.cluster.local
+            INIT_POSTGRES_USER: "{{ .MB_DBUSER }}"
+            INIT_POSTGRES_PASS: "{{ .MB_DBPASS }}"
+            INIT_POSTGRES_SUPER_USER: "{{ .POSTGRES_SUPER_USER }}"
+            INIT_POSTGRES_SUPER_PASS: "{{ .POSTGRES_SUPER_PASS }}"
 dataFrom:
-  - extract:
-      key: cloudnative-pg
-  - extract:
-      key: metabase
+    - extract:
+          key: cloudnative-pg
+    - extract:
+          key: metabase
 ```
 
 ### HelmRelease
@@ -153,12 +153,12 @@ dataFrom:
 - **Image**: `docker.io/metabase/metabase` pinned to the current stable tag with `@sha256:…` digest. Tag resolved at implementation time via the registry; Renovate keeps it fresh.
 - **initContainers.init-db**: `ghcr.io/onedr0p/postgres-init` with `envFrom: metabase-secret`.
 - **containers.app**:
-  - `envFrom: metabase-secret`.
-  - `env.MB_PROMETHEUS_SERVER_PORT: "9191"`.
-  - `env.JAVA_OPTS: "--add-opens java.base/java.nio=ALL-UNNAMED"` (required by Metabase's metrics collector on JDK 17+).
-  - `env.TZ: ${TIMEZONE}`.
-  - Probes: HTTP `GET /api/health` on `http` (3000). Startup probe `failureThreshold: 60`, `periodSeconds: 5` (Metabase cold start is ~60-90s on first run when it migrates the app DB).
-  - Resources: `requests.cpu: 100m`, `requests.memory: 1.5Gi`, `limits.memory: 3Gi`.
+    - `envFrom: metabase-secret`.
+    - `env.MB_PROMETHEUS_SERVER_PORT: "9191"`.
+    - `env.JAVA_OPTS: "--add-opens java.base/java.nio=ALL-UNNAMED"` (required by Metabase's metrics collector on JDK 17+).
+    - `env.TZ: ${TIMEZONE}`.
+    - Probes: HTTP `GET /api/health` on `http` (3000). Startup probe `failureThreshold: 60`, `periodSeconds: 5` (Metabase cold start is ~60-90s on first run when it migrates the app DB).
+    - Resources: `requests.cpu: 100m`, `requests.memory: 1.5Gi`, `limits.memory: 3Gi`.
 - **defaultPodOptions.securityContext**: `runAsNonRoot: true`, `runAsUser: 2000`, `runAsGroup: 2000`, `fsGroup: 2000`, `seccompProfile: { type: RuntimeDefault }`. (UID 2000 matches the upstream Metabase image's default user.)
 - **service.app**: ports `http: 3000`, `metrics: 9191`.
 - **route.app**: parentRef `envoy-internal/network`, hostnames `{{ .Release.Name }}.${SECRET_DOMAIN}` and `{{ .Release.Name }}.${SECRET_INTERNAL_DOMAIN}`.
@@ -170,14 +170,14 @@ dataFrom:
 apiVersion: monitoring.coreos.com/v1
 kind: PodMonitor
 metadata:
-  name: metabase
+    name: metabase
 spec:
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: metabase
-  podMetricsEndpoints:
-    - port: metrics
-      interval: 30s
+    selector:
+        matchLabels:
+            app.kubernetes.io/name: metabase
+    podMetricsEndpoints:
+        - port: metrics
+          interval: 30s
 ```
 
 ### GrafanaDashboard
@@ -197,7 +197,7 @@ spec:
 4. Metabase container starts, runs its internal Liquibase migrations on the empty app DB (first run only), and listens on `:3000` and `:9191`.
 5. Envoy-internal HTTPRoute routes `metabase.${SECRET_DOMAIN}` / `metabase.${SECRET_INTERNAL_DOMAIN}` to the Service.
 6. Operator visits the URL, completes the setup wizard, adds source databases through the UI.
-7. Prometheus scrapes port 9191 every 30s via the PodMonitor; Grafana auto-imports the dashboard CR.
+7. Prometheus scrapes port 9191 every 30s via the PodMonitor; Grafana autoimports the dashboard CR.
 
 ## Failure modes & handling
 
@@ -227,7 +227,7 @@ Post-apply:
 ## Decisions & rationale
 
 - **CNPG over embedded H2** — Metabase's own docs explicitly warn against H2 in production (corruption risk, no concurrent access). The cluster already runs a hardened, replicated, backed-up Postgres; reusing it costs one extra database.
-- **bjw-s app-template, not Metabase's own Helm chart** — every other app in this repo uses app-template; consistency wins, and the Metabase requirements (one Deployment + Service + HTTPRoute + initContainer) fit it cleanly. The official Metabase Helm chart adds little for this footprint.
+- **bjw-s app-template, not Metabase's own Helm chart** — every other app in this repository uses app-template; consistency wins, and the Metabase requirements (one Deployment + Service + HTTPRoute + initContainer) fit it cleanly. The official Metabase Helm chart adds little for this footprint.
 - **Internal-only ingress** — matches the user's stated intent and the namespace's existing posture (pgAdmin, WhoDB, DozerDB are all internal-only). Cloudflare-fronting can be added later by switching the `parentRef` and adding an external hostname.
 - **Native Prometheus, not JMX-exporter** — Metabase 0.49+ ships a built-in `/metrics` endpoint; no sidecar or javaagent needed. Fewer moving parts.
 - **No `/plugins` PVC** — third-party JDBC drivers are out of scope for the initial deploy. If/when one is needed, switching `plugins` from `emptyDir` to a small PVC is a one-line change.
