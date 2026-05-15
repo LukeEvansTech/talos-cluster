@@ -80,6 +80,13 @@ spec:
                 memory: 1Gi
           worker:
             image: *image
+            # Override the image's hardcoded ENTRYPOINT
+            # `["../docker-entrypoint.sh", "prod"]`. Without `command`,
+            # `args: [worker]` is APPENDED ("prod worker") and the script
+            # still runs in `prod` mode (migrate + gunicorn), causing
+            # port 8080 collision with the api container.
+            command:
+              - "../docker-entrypoint.sh"
             args:
               - "worker"
             env: *commonEnv
