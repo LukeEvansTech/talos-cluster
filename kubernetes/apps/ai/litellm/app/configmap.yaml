@@ -1,0 +1,39 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/configmap.json
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: litellm-configmap
+  namespace: ai
+data:
+  config.yaml: |-
+    model_list:
+      - model_name: ollama/llama3
+        litellm_params:
+          model: ollama_chat/llama3
+          api_base: http://ollama.ai.svc.cluster.local:11434
+
+      - model_name: openrouter/auto
+        litellm_params:
+          model: openrouter/openrouter/auto
+          api_key: os.environ/OPENROUTER_API_KEY
+
+    router_settings:
+      redis_host: os.environ/REDIS_HOST
+      redis_port: os.environ/REDIS_PORT
+
+    litellm_settings:
+      success_callback: ["prometheus"]
+      failure_callback: ["prometheus"]
+      cache: true
+      cache_params:
+        type: redis
+        host: os.environ/REDIS_HOST
+        port: os.environ/REDIS_PORT
+        ttl: 30
+      drop_params: true
+      num_retries: 2
+      request_timeout: 600
+
+    general_settings:
+      health_check_endpoint: /v1/health
