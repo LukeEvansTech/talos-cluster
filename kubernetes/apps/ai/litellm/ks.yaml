@@ -15,7 +15,7 @@ spec:
     - name: cloudnative-pg-cluster
       namespace: database
     - name: dragonfly-cluster
-      namespace: flux-system
+      namespace: database
     - name: onepassword-connect
       namespace: external-secrets
   interval: 1h
