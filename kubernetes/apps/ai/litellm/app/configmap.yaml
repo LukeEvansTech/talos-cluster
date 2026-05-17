@@ -8,9 +8,9 @@ metadata:
 data:
   config.yaml: |-
     model_list:
-      - model_name: ollama/llama3
+      - model_name: ollama/gemma4
         litellm_params:
-          model: ollama_chat/llama3
+          model: ollama_chat/gemma4:26b
           api_base: http://ollama.ai.svc.cluster.local:11434
 
       - model_name: openrouter/auto
