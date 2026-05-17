@@ -17,44 +17,75 @@ spec:
         containers:
           app:
             image:
-              repository: docker.io/santiagosayshey/profilarr
-              tag: v1.1.4@sha256:8a514f8429cd33885166facc9eb6504fa9ded056c737609e5e8ef32ae0afb350
+              repository: ghcr.io/dictionarry-hub/profilarr
+              tag: 2.0.0@sha256:f66cfde53ba85987d699f56783193bc5b6a42aa40ca9e0d2115135fad733e017
             env:
               TZ: ${TIMEZONE}
+              PUID: "1000"
+              PGID: "1000"
+              UMASK: "022"
+              AUTH: "on"
+              ORIGIN: https://{{ .Release.Name }}.${SECRET_DOMAIN}
+              PARSER_HOST: localhost
+              PARSER_PORT: "5000"
             resources:
               requests:
                 cpu: 10m
                 memory: 128Mi
               limits:
-                memory: 256Mi
+                memory: 512Mi
             probes:
               liveness:
                 enabled: true
               readiness:
                 enabled: true
-                # NOTE: No container-level securityContext
-                # The profilarr container handles its own user switching internally (root -> UID 1000).
-                # The following settings MUST NOT be added at container level:
-                # - allowPrivilegeEscalation: false (blocks necessary privilege operations)
-                # - capabilities: drop ALL (removes capabilities needed for user switching)
-                # - readOnlyRootFilesystem: true (prevents chown operations during startup)
+                # NOTE: No container-level securityContext.
+                # The profilarr container starts as root and drops to PUID/PGID internally (LSIO-style).
+                # Do NOT add at container level: allowPrivilegeEscalation: false, capabilities drop ALL,
+                # readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser/Group: 1000.
+          parser:
+            image:
+              repository: ghcr.io/dictionarry-hub/profilarr-parser
+              tag: 2.0.0@sha256:2d3094fed51b79fe4beee3fa596d4d47c0879370425194f0e0c5ace6c7dadd07
+            resources:
+              requests:
+                cpu: 10m
+                memory: 64Mi
+              limits:
+                memory: 256Mi
+            probes:
+              liveness:
+                enabled: true
+                custom: true
+                spec:
+                  tcpSocket:
+                    port: 5000
+                  initialDelaySeconds: 10
+                  periodSeconds: 30
+                  timeoutSeconds: 5
+                  failureThreshold: 3
+              readiness:
+                enabled: true
+                custom: true
+                spec:
+                  tcpSocket:
+                    port: 5000
+                  initialDelaySeconds: 5
+                  periodSeconds: 10
+                  timeoutSeconds: 5
+                  failureThreshold: 3
     defaultPodOptions:
-      # Security context optimized for profilarr's startup behavior
-      # The container's entrypoint internally switches from root to UID 1000:1000
+      # The app container starts as root and drops to UID/GID 1000 via PUID/PGID.
+      # fsGroup adjusts /config volume ownership so the dropped user can write.
       # References:
-      # - https://github.com/shamubernetes/home-k8s/tree/main/kubernetes/apps/arrs/profilarr
-      # - https://github.com/geekifier/k8s-home-gitops/blob/master/kubernetes/apps/default/profilarr/app/helmrelease.yaml
+      # - https://github.com/Dictionarry-Hub/profilarr (README, Production section)
       securityContext:
-        # CRITICAL: fsGroup and fsGroupChangePolicy allow Kubernetes to automatically
-        # adjust volume ownership so the app can write to /config
-        # Without these, you'll see: "chown: changing ownership of '/config': Operation not permitted"
+        # CRITICAL: fsGroup + fsGroupChangePolicy let kubelet chown the volume,
+        # otherwise the container errors with "Operation not permitted" on /config.
         fsGroup: 1000
         fsGroupChangePolicy: OnRootMismatch
-        # DO NOT ADD these settings - they prevent the container's internal user switching:
-        # - runAsUser: 1000
-        # - runAsGroup: 1000
-        # - runAsNonRoot: true
-        # These cause error: "failed switching to '1000:1000': operation not permitted"
+        # DO NOT set pod-level runAsUser/runAsGroup/runAsNonRoot - the app
+        # entrypoint must start as root to perform its user switch.
         supplementalGroups:
           - 10000
         seccompProfile:
@@ -62,10 +93,16 @@ spec:
     persistence:
       config:
         existingClaim: "{{ .Release.Name }}"
+        advancedMounts:
+          profilarr:
+            app:
+              - path: /config
       home:
         type: emptyDir
-        globalMounts:
-          - path: /home
+        advancedMounts:
+          profilarr:
+            app:
+              - path: /home
       tmp:
         type: emptyDir
     route:
