@@ -26,7 +26,7 @@ spec:
           init-db:
             image:
               repository: ghcr.io/home-operations/postgres-init
-              tag: "18@sha256:6fa1f331cddd2eb0b6afa7b8d3685c864127a81ab01c3d9400bc3ff5263a51cf"
+              tag: "18@sha256:5086f94abc783f1147d7c2a32c01db00ab594820026e4f6a82ac2af3dbde7fc7"
             envFrom:
               - secretRef:
                   name: paperless-secret
@@ -34,7 +34,7 @@ spec:
           app:
             image:
               repository: docker.io/paperlessngx/paperless-ngx
-              tag: 2.20.13@sha256:4b05bcd28e6923768000b5d247cbf2c66fd49bdc3f3b05955bd4f6790a638b01
+              tag: 2.20.15@sha256:6c86cad803970ea782683a8e80e7403444c5bf3cf70de63b4d3c8e87500db92f
             env:
               TZ: ${TIMEZONE}
               PAPERLESS_TIME_ZONE: ${TIMEZONE}
@@ -83,7 +83,7 @@ spec:
         runAsGroup: 0
         fsGroup: 0
         fsGroupChangePolicy: OnRootMismatch
-        seccompProfile: {type: RuntimeDefault}
+        seccompProfile: { type: RuntimeDefault }
 
     service:
       app:

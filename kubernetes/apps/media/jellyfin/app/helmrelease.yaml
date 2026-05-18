@@ -18,11 +18,9 @@ spec:
           app:
             image:
               repository: ghcr.io/jellyfin/jellyfin
-              tag: 10.11.6@sha256:25db4eb10143c1c12adb79ed978e31d94fc98dc499fbae2d38b2c935089ced3e
+              tag: 10.11.8@sha256:93227545077893cc9516f28b3adb733b67bc4691f41b6167428a2a0e3220b81c
             env:
               TZ: "${TIMEZONE}"
-              NVIDIA_VISIBLE_DEVICES: "all"
-              NVIDIA_DRIVER_CAPABILITIES: "all"
             probes:
               liveness: &probes
                 enabled: true
@@ -44,7 +42,7 @@ spec:
             securityContext:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: true
-              capabilities: {drop: ["ALL"]}
+              capabilities: { drop: ["ALL"] }
             resources:
               requests:
                 cpu: 100m
@@ -62,10 +60,10 @@ spec:
           requiredDuringSchedulingIgnoredDuringExecution:
             nodeSelectorTerms:
               - matchExpressions:
-                  - key: extensions.talos.dev/nvidia-open-gpu-kernel-modules-production
-                    operator: Exists
-                  - key: extensions.talos.dev/nvidia-container-toolkit-production
-                    operator: Exists
+                  - key: nvidia.com/gpu.present
+                    operator: In
+                    values:
+                      - "true"
       topologySpreadConstraints:
         - maxSkew: 1
           topologyKey: kubernetes.io/hostname
@@ -82,7 +80,7 @@ spec:
         supplementalGroups:
           - 44
           - 10000
-        seccompProfile: {type: RuntimeDefault}
+        seccompProfile: { type: RuntimeDefault }
     service:
       app:
         controller: jellyfin

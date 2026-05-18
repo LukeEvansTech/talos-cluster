@@ -32,5 +32,22 @@
       matchPackageNames: ["homebridge/homebridge"],
       enabled: false,
     },
+    {
+      // Flux OCIRepository has separate `tag:` and `digest:` fields; appending
+      // `@sha256:...` to `tag:` makes helm reject the chart ref with
+      // `improper constraint` (or `unable to locate any tags` on ghcr).
+      description: "Don't pin digests on Flux OCIRepository chart tags",
+      matchManagers: ["flux"],
+      pinDigests: false,
+    },
+    {
+      // pulsarr upstream (github.com/jamcalli/Pulsarr) is still on 0.15.x.
+      // Stray 1.x tags appeared on Docker Hub (1.1.5, 1.1.6) and were pulled.
+      // Block the whole 1.x major until upstream legitimately ships a 1.0 release.
+      description: "Block pulsarr 1.x — no matching upstream release",
+      matchDatasources: ["docker"],
+      matchPackageNames: ["docker.io/lakker/pulsarr"],
+      allowedVersions: "<1.0.0",
+    },
   ],
 }

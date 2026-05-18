@@ -18,7 +18,7 @@ spec:
           init-config:
             image:
               repository: docker.io/library/alpine
-              tag: 3.23.3@sha256:25109184c71bdad752c8312a8623239686a9a2071e8825f20acb8f2198c3f659
+              tag: 3.23.4@sha256:5b10f432ef3da1b8d4c7eb6c487f2f5a8f096bc91145e68878dd4a5019afde11
             command:
               - "/bin/sh"
               - "-c"
@@ -28,7 +28,7 @@ spec:
           app:
             image:
               repository: ghcr.io/linuxserver/smokeping
-              tag: 2.9.0@sha256:3a61afc3ea8889e3b2a791a61664939edf4f625ecb01781ea91261cd3647c78c
+              tag: 2.9.0@sha256:ebfbbc32a51612de154b6c0c105836ae40905411cbac43592257afce727c0534
             env:
               TZ: ${TIMEZONE}
               PUID: "1000"

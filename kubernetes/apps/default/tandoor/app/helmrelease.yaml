@@ -27,7 +27,7 @@ spec:
           init-db:
             image:
               repository: ghcr.io/home-operations/postgres-init
-              tag: "18@sha256:6fa1f331cddd2eb0b6afa7b8d3685c864127a81ab01c3d9400bc3ff5263a51cf"
+              tag: "18@sha256:5086f94abc783f1147d7c2a32c01db00ab594820026e4f6a82ac2af3dbde7fc7"
             envFrom:
               - secretRef:
                   name: tandoor-secret
@@ -36,7 +36,7 @@ spec:
           app:
             image:
               repository: ghcr.io/tandoorrecipes/recipes
-              tag: 2.5.3@sha256:7ce6534c9ab0e471fd0f08add67e871b9173fb580c2f86294c3ead025603a3d7
+              tag: 2.6.9@sha256:969c5b3552ffbf18a6f82b3ad5babbae89bfbd30ab6e3195fd3c158bcf3062ed
             env:
               TZ: ${TIMEZONE}
               ALLOWED_HOSTS: "*"
@@ -105,7 +105,7 @@ spec:
         runAsGroup: 0
         fsGroup: 0
         fsGroupChangePolicy: OnRootMismatch
-        seccompProfile: {type: RuntimeDefault}
+        seccompProfile: { type: RuntimeDefault }
 
     service:
       app:

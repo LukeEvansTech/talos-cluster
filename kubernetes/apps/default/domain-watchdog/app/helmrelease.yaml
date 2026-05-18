@@ -19,7 +19,7 @@ spec:
           init-db:
             image:
               repository: ghcr.io/home-operations/postgres-init
-              tag: "18@sha256:6fa1f331cddd2eb0b6afa7b8d3685c864127a81ab01c3d9400bc3ff5263a51cf"
+              tag: "18@sha256:5086f94abc783f1147d7c2a32c01db00ab594820026e4f6a82ac2af3dbde7fc7"
             envFrom:
               - secretRef:
                   name: domainwatchdog-secret
@@ -28,7 +28,7 @@ spec:
           app:
             image:
               repository: maelgangloff/domain-watchdog
-              tag: v1.4.4@sha256:211fdc73417f71a2c967c245330310ad7152e1a51e9b073e8a8886d4c6d47c27
+              tag: v1.4.5@sha256:296ef2397ef66b8e65c6986c706f33e2c237734f78aa0926346b70741f480e77
             env:
               TZ: ${TIMEZONE}
               APP_ENV: prod
@@ -69,7 +69,7 @@ spec:
           worker:
             image:
               repository: maelgangloff/domain-watchdog
-              tag: v1.4.4@sha256:211fdc73417f71a2c967c245330310ad7152e1a51e9b073e8a8886d4c6d47c27
+              tag: v1.4.5@sha256:296ef2397ef66b8e65c6986c706f33e2c237734f78aa0926346b70741f480e77
             command:
               - php
               - bin/console
@@ -113,7 +113,7 @@ spec:
         runAsGroup: 0
         fsGroup: 0
         fsGroupChangePolicy: OnRootMismatch
-        seccompProfile: {type: RuntimeDefault}
+        seccompProfile: { type: RuntimeDefault }
 
     service:
       app:

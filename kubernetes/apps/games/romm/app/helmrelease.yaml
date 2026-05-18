@@ -19,7 +19,7 @@ spec:
           init-db:
             image:
               repository: ghcr.io/home-operations/postgres-init
-              tag: "18@sha256:6fa1f331cddd2eb0b6afa7b8d3685c864127a81ab01c3d9400bc3ff5263a51cf"
+              tag: "18@sha256:5086f94abc783f1147d7c2a32c01db00ab594820026e4f6a82ac2af3dbde7fc7"
             envFrom:
               - secretRef:
                   name: romm-secret
@@ -28,7 +28,7 @@ spec:
           app:
             image:
               repository: ghcr.io/rommapp/romm
-              tag: 4.7.0@sha256:652f763dbb1133e4dba37e927353d2790d8afa027521ddeec4b56806d6964d9d
+              tag: 4.8.1@sha256:2b7a1714b287f69b081ad2a63bb8c2fa673666a17b2f21322b580b0cd51cb266
             env:
               TZ: ${TIMEZONE}
               # Disable download endpoint authentication
@@ -56,7 +56,7 @@ spec:
             securityContext:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: false
-              capabilities: {drop: ["ALL"]}
+              capabilities: { drop: ["ALL"] }
             resources:
               requests:
                 cpu: 50m

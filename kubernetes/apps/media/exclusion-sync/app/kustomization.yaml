@@ -8,7 +8,7 @@ resources:
 configMapGenerator:
   - name: exclusion-sync-configmap
     files:
-      - sync-exclusions.py=./resources/sync-exclusions.py
+      - sync_exclusions.py=./resources/sync_exclusions.py
 generatorOptions:
   disableNameSuffixHash: true
   annotations:

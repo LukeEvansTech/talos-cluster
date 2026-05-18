@@ -35,7 +35,7 @@ spec:
           init-db:
             image:
               repository: ghcr.io/home-operations/postgres-init
-              tag: "18@sha256:6fa1f331cddd2eb0b6afa7b8d3685c864127a81ab01c3d9400bc3ff5263a51cf"
+              tag: "18@sha256:5086f94abc783f1147d7c2a32c01db00ab594820026e4f6a82ac2af3dbde7fc7"
             envFrom:
               - secretRef:
                   name: tracearr-secret
@@ -43,7 +43,7 @@ spec:
           app:
             image:
               repository: ghcr.io/connorgallopo/tracearr
-              tag: 1.4.24@sha256:39cd3f0145f841fa7b4434c3ffd02cfcec83acbc17f7d405995109b06ffab715
+              tag: 1.4.27@sha256:4802c793336ec2393de8db1088b0c8aa170c8b8b0aa7bba33a56a599c5d72544
             env:
               TZ: ${TIMEZONE}
             envFrom:

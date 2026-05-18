@@ -6,6 +6,7 @@ metadata:
   name: &app epicgames
 spec:
   interval: 1h
+  timeout: 15m
   chartRef:
     kind: OCIRepository
     name: epicgames
@@ -18,7 +19,7 @@ spec:
           app:
             image:
               repository: ghcr.io/claabs/epicgames-freegames-node
-              tag: latest@sha256:df0a73aa0ffcb43e90b29406501e5e375ddc377ebbdb479aae9bce29878d0e13
+              tag: latest@sha256:e022dee7ffe596bd6c75ae1d67df3f6194bbcde092f5a3cb04c0ddba719d075a
             env:
               TZ: Europe/London
               BASE_URL: https://epicgames.${SECRET_DOMAIN}

@@ -22,10 +22,10 @@ spec:
           automountServiceAccountToken: false
           containers:
             - name: sync
-              image: docker.io/python:3.14-alpine@sha256:faee120f7885a06fcc9677922331391fa690d911c020abb9e8025ff3d908e510
+              image: docker.io/python:3.14-alpine@sha256:5a824eb82cc75361f98611f3cfc5091ea33f10a6ccea4d4ebdabbc523b9a1614
               command:
                 - "python3"
-                - "/scripts/sync-exclusions.py"
+                - "/scripts/sync_exclusions.py"
               env:
                 - name: RADARR_URL
                   value: "https://radarr.codelooks.com"

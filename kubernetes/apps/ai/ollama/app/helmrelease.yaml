@@ -18,7 +18,7 @@ spec:
           app:
             image:
               repository: docker.io/ollama/ollama
-              tag: 0.18.2@sha256:5a5d014aa774f78ebe1340c0d4afc2e35afc12a2c3b34c84e71f78ea20af4ba3
+              tag: 0.24.0@sha256:a6149234667efc71d37766d61c1a16f24c33e4cd7a0bf4125c44a7e47e2419c4
             env:
               - name: OLLAMA_HOST
                 value: 0.0.0.0
@@ -45,10 +45,10 @@ spec:
           requiredDuringSchedulingIgnoredDuringExecution:
             nodeSelectorTerms:
               - matchExpressions:
-                  - key: extensions.talos.dev/nvidia-open-gpu-kernel-modules-production
-                    operator: Exists
-                  - key: extensions.talos.dev/nvidia-container-toolkit-production
-                    operator: Exists
+                  - key: nvidia.com/gpu.present
+                    operator: In
+                    values:
+                      - "true"
       topologySpreadConstraints:
         - maxSkew: 1
           topologyKey: kubernetes.io/hostname

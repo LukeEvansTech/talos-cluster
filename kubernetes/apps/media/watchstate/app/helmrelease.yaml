@@ -18,7 +18,7 @@ spec:
           app:
             image:
               repository: ghcr.io/arabcoders/watchstate
-              tag: v1.0.8@sha256:47143eaa49135dfcdb3bbc351046c81ec1cfa7bf3c6a0141b08ed7b9c32b03d7
+              tag: v1.8.3@sha256:ff2e4c364ca0020993692d0ea95b51df127b8be5828bd58c49185d467991f7c5
             env:
               TZ: ${TIMEZONE}
             probes:
@@ -37,7 +37,7 @@ spec:
             securityContext:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: true
-              capabilities: {drop: ["ALL"]}
+              capabilities: { drop: ["ALL"] }
             resources:
               requests:
                 cpu: 50m

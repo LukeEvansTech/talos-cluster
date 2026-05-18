@@ -18,7 +18,7 @@ spec:
           app:
             image:
               repository: ghcr.io/journeydocker/plex-auto-languages
-              tag: 1.4.2@sha256:c3af64f63341be249e7c168162b64670addddda80023f9a273dacd347a1aa1b0
+              tag: 1.5.3@sha256:976ad44607f5b1ad71f7cbc7a785d3b708c4abdb61b07f27b84d0a06f67e9ed0
             env:
               TZ: "${TIMEZONE}"
               PLEX_URL: "http://plex.media.svc.cluster.local:32400"
@@ -35,13 +35,13 @@ spec:
             securityContext:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: true
-              capabilities: {drop: ["ALL"]}
+              capabilities: { drop: ["ALL"] }
             resources:
               requests:
                 cpu: 250m
-                memory: 512Mi
-              limits:
                 memory: 1Gi
+              limits:
+                memory: 2Gi
     defaultPodOptions:
       securityContext:
         runAsNonRoot: true
@@ -49,7 +49,7 @@ spec:
         runAsGroup: 1000
         fsGroup: 1000
         fsGroupChangePolicy: OnRootMismatch
-        seccompProfile: {type: RuntimeDefault}
+        seccompProfile: { type: RuntimeDefault }
     persistence:
       config:
         type: emptyDir

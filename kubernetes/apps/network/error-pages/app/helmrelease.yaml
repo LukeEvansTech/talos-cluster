@@ -20,7 +20,7 @@ spec:
           app:
             image:
               repository: ghcr.io/tarampampam/error-pages
-              tag: 3.8.1@sha256:c91f979fa0ebb781bf2ddbe1a43d62d49e124b8ec3b8e5b5f7299191a01d1a49
+              tag: 4.2.0@sha256:eb379a0390b4dc7fadcf2e818b19d4c600dae01487feef9df3c62c2fff3bfe0d
             env:
               TEMPLATE_NAME: ghost
             resources:
@@ -32,13 +32,13 @@ spec:
             securityContext:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: true
-              capabilities: {drop: ["ALL"]}
+              capabilities: { drop: ["ALL"] }
     defaultPodOptions:
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
         runAsGroup: 1000
-        seccompProfile: {type: RuntimeDefault}
+        seccompProfile: { type: RuntimeDefault }
     service:
       app:
         controller: error-pages

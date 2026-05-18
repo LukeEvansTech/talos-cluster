@@ -19,7 +19,7 @@ spec:
           init-db:
             image:
               repository: ghcr.io/home-operations/postgres-init
-              tag: "18@sha256:6fa1f331cddd2eb0b6afa7b8d3685c864127a81ab01c3d9400bc3ff5263a51cf"
+              tag: "18@sha256:5086f94abc783f1147d7c2a32c01db00ab594820026e4f6a82ac2af3dbde7fc7"
             envFrom:
               - secretRef:
                   name: mailarchiver-secret
@@ -28,7 +28,7 @@ spec:
           app:
             image:
               repository: ghcr.io/s1t5/mailarchiver
-              tag: 2603.2@sha256:c071dcbf7c9d0d788a007ebb06d118f45a65944350c42d2b7cfa0828348dca09
+              tag: 2605.1@sha256:43f9581f2d5f021a02aad42663a68089a65c5a086c184816f38efab5d0aaf8b2
             env:
               TZ: ${TIMEZONE}
               Authentication__Enabled: "true"
@@ -52,7 +52,7 @@ spec:
             securityContext:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: false
-              capabilities: {drop: ["ALL"]}
+              capabilities: { drop: ["ALL"] }
             resources:
               requests:
                 cpu: 25m
@@ -67,7 +67,7 @@ spec:
         runAsGroup: 0
         fsGroup: 0
         fsGroupChangePolicy: OnRootMismatch
-        seccompProfile: {type: RuntimeDefault}
+        seccompProfile: { type: RuntimeDefault }
 
     service:
       app:

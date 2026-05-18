@@ -25,7 +25,7 @@ spec:
           app:
             image:
               repository: ghcr.io/rackulalives/rackula
-              tag: 0.9.2@sha256:f472414fd7aea1fd2401a2166aa469bd7906968c04fa35d53cd64e9721158045
+              tag: 0.9.5@sha256:fc5ea7d4b5ce7a5d7c64bffc504d94e7dd5dd56e0c83229c2cf24f870e0df199
             env:
               TZ: ${TIMEZONE}
             resources:
@@ -37,7 +37,7 @@ spec:
             securityContext:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: true
-              capabilities: {drop: ["ALL"]}
+              capabilities: { drop: ["ALL"] }
     service:
       app:
         controller: rackula

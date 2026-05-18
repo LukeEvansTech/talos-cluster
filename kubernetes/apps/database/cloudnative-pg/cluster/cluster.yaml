@@ -6,9 +6,14 @@ metadata:
   name: postgres18
 spec:
   instances: 3
-  imageName: ghcr.io/cloudnative-pg/postgresql:18.3
+  imageName: ghcr.io/cloudnative-pg/postgresql:18.4
 
   primaryUpdateStrategy: unsupervised
+
+  # Wait 60s before triggering failover after primary unhealthy. Prevents
+  # spurious failovers during control-plane restarts (Talos node apply,
+  # kube-controller-manager leader churn) which typically resolve in ~10-25s.
+  failoverDelay: 60
 
   storage:
     size: 200Gi

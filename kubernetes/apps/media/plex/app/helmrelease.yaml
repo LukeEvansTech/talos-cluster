@@ -14,15 +14,27 @@ spec:
       plex:
         annotations:
           reloader.stakater.com/auto: "true"
+        pod:
+          annotations:
+            # Cap pod egress at the BPF EDT layer (Cilium BandwidthManager).
+            # Plex pins its sockets to BBR via setsockopt, and on LAN RTTs
+            # BBR bursts at ~1 Gbps into Apple TV receive windows that only
+            # tolerate ~10-20 Mbps, causing the losses → MSS collapse → cwnd
+            # crash cycle that produces ~60s buffering pauses every ~6 min.
+            # 200M leaves generous headroom for several concurrent streams
+            # while neutralising BBR's LAN-burst pacing.
+            # See docs/known-issues.md "Plex Direct-Play Buffering on LAN
+            # Apple TVs (BBR + MTU Probing)" for full investigation.
+            kubernetes.io/egress-bandwidth: "200M"
         containers:
           app:
             image:
               repository: ghcr.io/home-operations/plex
-              tag: 1.43.0.10492@sha256:8cb062f2b0660bd7811387e6c799da0ce5f18112078fe21485c11adcc83a9c1c
+              tag: 1.43.1.10611@sha256:a9c3723cb31cc9621df27cf5801184c290293adf1df2bfaea4b8b6fc01dbfd96
             env:
               TZ: "${TIMEZONE}"
               ALLOWED_NETWORKS: "${CR_LAN_CIDR:-0.0.0.0/0},${GH_LAN_CIDR:-0.0.0.0/0}"
-              PLEX_ADVERTISE_URL: "http://${SVC_PLEX_ADDR:-127.0.0.1}:32400,https://plex.${SECRET_DOMAIN:-local}"
+              PLEX_ADVERTISE_URL: "http://${SVC_PLEX_ADDR:-127.0.0.1}:32400,https://plex.${SECRET_DOMAIN:-local}:443"
               PLEX_PREFERENCE_1: "AllowMediaDeletion=0"
               PLEX_PREFERENCE_2: "EnableIPv6=0"
               PLEX_PREFERENCE_3: "FriendlyName=Talos Plex"
@@ -42,8 +54,6 @@ spec:
               PLEX_PREFERENCE_13: "logDebug=0"
               # Limit remote streams to 20 Mbps (forces 4K to transcode)
               PLEX_PREFERENCE_14: "WanPerStreamMaxUploadRate=20000"
-              NVIDIA_VISIBLE_DEVICES: "all"
-              NVIDIA_DRIVER_CAPABILITIES: "all"
               LD_LIBRARY_PATH: "/usr/local/glibc/usr/lib"
               HARDWARE_DEVICE_PATH: "/dev/nvidia0"
             probes:
@@ -67,15 +77,15 @@ spec:
             securityContext:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: true
-              capabilities: {drop: ["ALL"]}
+              capabilities: { drop: ["ALL"] }
             resources:
               requests:
-                cpu: 500m
+                cpu: 2000m
                 memory: 4Gi
                 nvidia.com/gpu: 1
               limits:
                 nvidia.com/gpu: 1
-                memory: 8Gi
+                memory: 16Gi
     defaultPodOptions:
       labels:
         gpu-workload: "true"
@@ -85,10 +95,10 @@ spec:
           requiredDuringSchedulingIgnoredDuringExecution:
             nodeSelectorTerms:
               - matchExpressions:
-                  - key: extensions.talos.dev/nvidia-open-gpu-kernel-modules-production
-                    operator: Exists
-                  - key: extensions.talos.dev/nvidia-container-toolkit-production
-                    operator: Exists
+                  - key: nvidia.com/gpu.present
+                    operator: In
+                    values:
+                      - "true"
       topologySpreadConstraints:
         - maxSkew: 1
           topologyKey: kubernetes.io/hostname
@@ -105,7 +115,7 @@ spec:
         supplementalGroups:
           - 44
           - 10000
-        seccompProfile: {type: RuntimeDefault}
+        seccompProfile: { type: RuntimeDefault }
     service: # TODO: Tidy up supplementalGroups when we have a better understanding of what's needed from a TrueNAS perspective
       app:
         controller: plex

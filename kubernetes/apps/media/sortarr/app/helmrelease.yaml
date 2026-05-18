@@ -18,12 +18,13 @@ spec:
           app:
             image:
               repository: ghcr.io/jaredharper1/sortarr
-              tag: latest@sha256:8a73880eeb865e07e7bee2c4b99533b5639a5805c42a6e724828baa755799914
+              tag: latest@sha256:9f78189af2e55e6a4de52138328be8119e51b7d42241020c2524a084822e57b6
             env:
               TZ: ${TIMEZONE}
               PORT: &port 8787
               PUID: 1000
               PGID: 1000
+              ENV_FILE_PATH: /app/secrets/.env
               PROTOCOL_HEADER: x-forwarded-proto
               HOST_HEADER: x-forwarded-host
               # Sonarr configuration

@@ -6,7 +6,7 @@ metadata:
   namespace: downloads
 data:
   replace_for.py: |
-    #!/usr/bin/python3 -OO
+    #!/usr/bin/env python3
     import sys
     import os
     import os.path
@@ -37,7 +37,7 @@ data:
 
     sys.exit(0)
   clean.py: |-
-    #!/usr/bin/python3 -OO
+    #!/usr/bin/env python3
     import sys
     import re
 

@@ -9,5 +9,5 @@ data:
     NUT_SERVERS:
       - HOST: network-ups-tools.observability.svc.cluster.local
         PORT: 3493
-        USERNAME: monuser
-        PASSWORD: secret
+        USERNAME: ${NUT_API_USER}
+        PASSWORD: ${NUT_API_PASSWORD}

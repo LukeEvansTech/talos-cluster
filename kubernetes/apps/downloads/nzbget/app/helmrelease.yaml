@@ -18,7 +18,7 @@ spec:
           app:
             image:
               repository: ghcr.io/home-operations/nzbget
-              tag: 26.0.0@sha256:0185f0b026696bfbb89f29aecf777b721a8aa288da90ceb1021b6ee52c6de8f7
+              tag: 26.1.0@sha256:37611bd0b2301d30998e984bd57f1331d6a9dba4adfbf2729af79a2be0bb24da
             env:
               TZ: ${TIMEZONE}
               NZBGET__SERVER__CONTROLPORT: &port 6789
@@ -40,7 +40,7 @@ spec:
             securityContext:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: true
-              capabilities: {drop: ["ALL"]}
+              capabilities: { drop: ["ALL"] }
               runAsNonRoot: true
               runAsUser: 1000
               runAsGroup: 1000
@@ -48,7 +48,7 @@ spec:
               fsGroupChangePolicy: OnRootMismatch
               supplementalGroups:
                 - 10000
-              seccompProfile: {type: RuntimeDefault}
+              seccompProfile: { type: RuntimeDefault }
             resources:
               requests:
                 cpu: 100m

@@ -13,8 +13,8 @@ spec:
     - ../../../../components/gatus/guarded
     - ../../../../components/volsync
   dependsOn:
-    - name: nvidia-device-plugin
-      namespace: kube-system
+    - name: gpu-operator
+      namespace: gpu-operator
     - name: volsync
       namespace: volsync-system
     - name: rook-ceph-cluster

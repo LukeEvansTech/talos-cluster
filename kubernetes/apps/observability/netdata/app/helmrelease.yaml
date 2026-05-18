@@ -9,7 +9,7 @@ spec:
   chart:
     spec:
       chart: netdata
-      version: 3.7.161
+      version: 3.7.165
       sourceRef:
         kind: HelmRepository
         name: netdata
@@ -17,7 +17,7 @@ spec:
   values:
     image:
       repository: netdata/netdata
-      tag: v2.9.0@sha256:4cbe33f6fc317a7f5c453c8b4997316e4e320a7abd8cc921cecba98f2a5cbcf5
+      tag: v2.10.3@sha256:bcc822ec685dd7ee488e9f99b957f479b66301be04f13f346df692ad7de94151
 
     ingress:
       enabled: false
@@ -29,7 +29,7 @@ spec:
           cpu: 10m
           memory: 4Gi
         limits:
-          memory: 12Gi
+          memory: 16Gi
       alarms:
         persistence: true
         storageclass: ceph-block
@@ -44,9 +44,9 @@ spec:
       resources:
         requests:
           cpu: 10m
-          memory: 1Gi
+          memory: 2Gi
         limits:
-          memory: 4Gi
+          memory: 8Gi
 
     k8sState:
       enabled: true

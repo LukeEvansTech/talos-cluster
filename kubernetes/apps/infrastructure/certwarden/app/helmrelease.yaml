@@ -19,7 +19,7 @@ spec:
           install-tools:
             image:
               repository: docker.io/library/alpine
-              tag: 3.23.3@sha256:25109184c71bdad752c8312a8623239686a9a2071e8825f20acb8f2198c3f659
+              tag: 3.23.4@sha256:5b10f432ef3da1b8d4c7eb6c487f2f5a8f096bc91145e68878dd4a5019afde11
             command:
               - sh
               - -c
@@ -44,7 +44,7 @@ spec:
           app:
             image:
               repository: ghcr.io/gregtwallace/certwarden
-              tag: v0.28.1@sha256:a41454be605cde8e99caf5cabe47c626c7cbb0a9c1a3c1aebd0d2100066acdc8
+              tag: v0.29.3@sha256:f8b24cd582db9bc6cb9130892cb017c89c6dc02d22bcd8aca7c28415b01a9f04
             env:
               # Add kubectl to PATH for post-processing scripts
               - name: PATH

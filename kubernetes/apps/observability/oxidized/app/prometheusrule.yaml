@@ -1,0 +1,26 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: oxidized
+spec:
+  groups:
+    - name: oxidized
+      rules:
+        - alert: OxidizedDeviceStale
+          annotations:
+            summary: Oxidized has not successfully polled {{ $labels.full_name }} in over 48h.
+            description: oxidized_device_status for {{ $labels.full_name }} ({{ $labels.model }}) has been != 2 (success) for 48h. Check device reachability or credentials.
+          expr: oxidized_device_status != 2
+          for: 48h
+          labels:
+            severity: warning
+        - alert: OxidizedDown
+          annotations:
+            summary: Oxidized exporter is down.
+            description: Prometheus has been unable to scrape oxidized-exporter for 15m.
+          expr: up{job=~".*oxidized.*"} == 0
+          for: 15m
+          labels:
+            severity: warning

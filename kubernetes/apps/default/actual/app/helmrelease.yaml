@@ -18,7 +18,7 @@ spec:
           app:
             image:
               repository: ghcr.io/actualbudget/actual-server
-              tag: 26.3.0@sha256:eb8bc26f53025e07e464594c12d77c52c4b95840c8dadd9b95c4f0c4660f8ad2
+              tag: 26.5.2@sha256:1aeeb3985db55556e716dec25e08f6ce09308c2571b65cddbc6746ee6d5e0d45
             env:
               GENERIC_TIMEZONE: ${TIMEZONE}
             resources:
@@ -34,7 +34,7 @@ spec:
         runAsGroup: 568
         fsGroup: 568
         fsGroupChangePolicy: OnRootMismatch
-        seccompProfile: {type: RuntimeDefault}
+        seccompProfile: { type: RuntimeDefault }
     service:
       app:
         controller: actual

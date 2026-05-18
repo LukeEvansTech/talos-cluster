@@ -19,7 +19,7 @@ spec:
           init-db:
             image:
               repository: ghcr.io/home-operations/postgres-init
-              tag: "18@sha256:6fa1f331cddd2eb0b6afa7b8d3685c864127a81ab01c3d9400bc3ff5263a51cf"
+              tag: "18@sha256:5086f94abc783f1147d7c2a32c01db00ab594820026e4f6a82ac2af3dbde7fc7"
             envFrom:
               - secretRef:
                   name: miniflux-secret
@@ -28,7 +28,7 @@ spec:
           app:
             image:
               repository: ghcr.io/miniflux/miniflux
-              tag: 2.2.18-distroless@sha256:e60e2f8c2cdec6d3d24f533a0870233f5a30fba9258517f0ad5e95ffc9a35652
+              tag: 2.3.0-distroless@sha256:3a95fd1f9f75eb55b880004aee4084bb94ad60d8349de302e0b86f8620612311
             env:
               TZ: ${TIMEZONE}
               BASE_URL: https://{{ .Release.Name }}.${SECRET_DOMAIN}
@@ -57,7 +57,7 @@ spec:
             securityContext:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: true
-              capabilities: {drop: ["ALL"]}
+              capabilities: { drop: ["ALL"] }
             resources:
               requests:
                 cpu: 10m
@@ -72,7 +72,7 @@ spec:
         runAsGroup: 65534
         fsGroup: 65534
         fsGroupChangePolicy: OnRootMismatch
-        seccompProfile: {type: RuntimeDefault}
+        seccompProfile: { type: RuntimeDefault }
 
     service:
       app:

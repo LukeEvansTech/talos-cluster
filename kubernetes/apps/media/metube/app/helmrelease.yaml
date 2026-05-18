@@ -18,7 +18,7 @@ spec:
           app:
             image:
               repository: ghcr.io/alexta69/metube
-              tag: "2026.03.21@sha256:afd3fa2b229e3e6d4c8750618fe148af33a1f70b32af4441ecbd2d08f29d8221"
+              tag: "2026.04.28@sha256:caf21da7d83a4003b429ef1126e9c1499f36f8401a1f8a7b158f70b94ade8edd"
             env:
               TZ: ${TIMEZONE}
               DOWNLOAD_DIR: /downloads
@@ -41,7 +41,7 @@ spec:
             securityContext:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: true
-              capabilities: {drop: ["ALL"]}
+              capabilities: { drop: ["ALL"] }
             resources:
               requests:
                 cpu: 10m

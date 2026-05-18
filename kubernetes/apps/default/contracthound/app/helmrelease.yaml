@@ -24,7 +24,7 @@ spec:
               DATABASE_URL: sqlite:///./data/contracthound.db
               OLLAMA_ENABLED: "true"
               OLLAMA_BASE_URL: http://ollama.ai.svc.cluster.local:11434
-              OLLAMA_MODEL: qwen3:14b
+              OLLAMA_MODEL: gemma4:26b
               APP_URL: "https://{{ .Release.Name }}.${SECRET_DOMAIN}"
               OIDC_ENABLED: "true"
             envFrom:

@@ -18,7 +18,7 @@ spec:
           init-db:
             image:
               repository: ghcr.io/home-operations/postgres-init
-              tag: "18@sha256:6fa1f331cddd2eb0b6afa7b8d3685c864127a81ab01c3d9400bc3ff5263a51cf"
+              tag: "18@sha256:5086f94abc783f1147d7c2a32c01db00ab594820026e4f6a82ac2af3dbde7fc7"
             envFrom:
               - secretRef:
                   name: keeper-secret
@@ -26,7 +26,7 @@ spec:
           app:
             image:
               repository: ghcr.io/ridafkih/keeper-services
-              tag: 2.9@sha256:bfbf8fda403b0861fd18d2557afbe7086bb0a589c6dd9437d9486b587236d35a
+              tag: 2.9@sha256:cff6b6fa316fe058dbd61e89c64dec568941e54b72a3ea61165a76300a402ac2
             env:
               TZ: ${TIMEZONE}
               BETTER_AUTH_URL: "https://keeper.${SECRET_DOMAIN}"
@@ -62,7 +62,7 @@ spec:
             securityContext:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: false
-              capabilities: {drop: ["ALL"]}
+              capabilities: { drop: ["ALL"] }
             resources:
               requests:
                 cpu: 10m
@@ -76,7 +76,7 @@ spec:
         runAsGroup: 0
         fsGroup: 1000
         fsGroupChangePolicy: OnRootMismatch
-        seccompProfile: {type: RuntimeDefault}
+        seccompProfile: { type: RuntimeDefault }
     service:
       app:
         controller: keeper

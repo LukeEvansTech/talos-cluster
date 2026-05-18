@@ -19,7 +19,7 @@ spec:
           init-db:
             image:
               repository: ghcr.io/home-operations/postgres-init
-              tag: "18@sha256:6fa1f331cddd2eb0b6afa7b8d3685c864127a81ab01c3d9400bc3ff5263a51cf"
+              tag: "18@sha256:5086f94abc783f1147d7c2a32c01db00ab594820026e4f6a82ac2af3dbde7fc7"
             envFrom:
               - secretRef:
                   name: domainlocker-secret
@@ -28,7 +28,7 @@ spec:
           app:
             image:
               repository: lissy93/domain-locker
-              tag: 0.1.4@sha256:c49d00d31d0bc948c01c046ce283a11af4bdc0742643ee1ab21675ce7f80da69
+              tag: 0.1.6@sha256:1b3df9808df0413d802d7c68b2a8a954315c86bc5c23c4e5a0d71af5c1a93e6a
             env:
               TZ: ${TIMEZONE}
               DL_ENV_TYPE: selfHosted
@@ -51,7 +51,7 @@ spec:
             securityContext:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: false
-              capabilities: {drop: ["ALL"]}
+              capabilities: { drop: ["ALL"] }
             resources:
               requests:
                 cpu: 10m
@@ -66,7 +66,7 @@ spec:
         runAsGroup: 1000
         fsGroup: 1000
         fsGroupChangePolicy: OnRootMismatch
-        seccompProfile: {type: RuntimeDefault}
+        seccompProfile: { type: RuntimeDefault }
 
     service:
       app:

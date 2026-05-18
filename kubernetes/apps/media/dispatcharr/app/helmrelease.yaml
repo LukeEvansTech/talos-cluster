@@ -18,7 +18,7 @@ spec:
           chown-dbdir:
             image:
               repository: docker.io/library/alpine
-              tag: 3.23.3@sha256:25109184c71bdad752c8312a8623239686a9a2071e8825f20acb8f2198c3f659
+              tag: 3.23.4@sha256:5b10f432ef3da1b8d4c7eb6c487f2f5a8f096bc91145e68878dd4a5019afde11
             command:
               - /bin/sh
               - -c
@@ -31,11 +31,9 @@ spec:
           app:
             image:
               repository: ghcr.io/dispatcharr/dispatcharr
-              tag: 0.21.1@sha256:c021bc5ad99be5f5121f3a78a31db7064ad32066131555cb7a4b38114c74b475
+              tag: 0.24.0@sha256:d5222d25ee470a8de1b0618982f5952e476f6e42ead398292b2f34096db1d196
             env:
               TZ: ${TIMEZONE}
-              NVIDIA_VISIBLE_DEVICES: "all"
-              NVIDIA_DRIVER_CAPABILITIES: "all"
               CELERY_BROKER_URL: redis://dragonfly.database.svc.cluster.local:6379/0
               DISPATCHARR_ENV: aio
               DISPATCHARR_LOG_LEVEL: info
@@ -58,10 +56,10 @@ spec:
           requiredDuringSchedulingIgnoredDuringExecution:
             nodeSelectorTerms:
               - matchExpressions:
-                  - key: extensions.talos.dev/nvidia-open-gpu-kernel-modules-production
-                    operator: Exists
-                  - key: extensions.talos.dev/nvidia-container-toolkit-production
-                    operator: Exists
+                  - key: nvidia.com/gpu.present
+                    operator: In
+                    values:
+                      - "true"
       topologySpreadConstraints:
         - maxSkew: 1
           topologyKey: kubernetes.io/hostname

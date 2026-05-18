@@ -26,7 +26,7 @@ spec:
           init-db:
             image:
               repository: ghcr.io/home-operations/postgres-init
-              tag: "18@sha256:6fa1f331cddd2eb0b6afa7b8d3685c864127a81ab01c3d9400bc3ff5263a51cf"
+              tag: "18@sha256:5086f94abc783f1147d7c2a32c01db00ab594820026e4f6a82ac2af3dbde7fc7"
             envFrom: &envFrom
               - secretRef:
                   name: pocket-id-secret
@@ -34,7 +34,7 @@ spec:
           app:
             image:
               repository: ghcr.io/pocket-id/pocket-id
-              tag: v2.4.0@sha256:3e790c5d4fd82ff276b1c2bc3242be9da13cff204a2b937768ea1eba1e892571
+              tag: v2.7.0@sha256:45bdeaf3fcd6d07cf8721e98785d93324bb8e65b586498874c05a3d489c8094e
             env:
               TZ: ${TIMEZONE}
               ALLOW_USER_SIGNUPS: "withToken" # Can be: disabled, withToken, open
@@ -100,7 +100,7 @@ spec:
         runAsGroup: 1000
         fsGroup: 1000
         fsGroupChangePolicy: Always
-        seccompProfile: {type: RuntimeDefault}
+        seccompProfile: { type: RuntimeDefault }
 
     service:
       app:

@@ -34,7 +34,6 @@ spec:
       angular_support_enabled: "true"
     server:
       enable_gzip: "true"
-      root_url: "https://grafana.${SECRET_DOMAIN}"
   deployment:
     spec:
       strategy:
@@ -65,7 +64,7 @@ spec:
               securityContext:
                 allowPrivilegeEscalation: false
                 readOnlyRootFilesystem: true
-                capabilities: {drop: ["ALL"]}
+                capabilities: { drop: ["ALL"] }
           securityContext:
             runAsNonRoot: true
             runAsUser: 1000

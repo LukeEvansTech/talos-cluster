@@ -10,3 +10,4 @@ resources:
   - ./namespace.yaml
   - ./anubis/ks.yaml
   - ./pocket-id/ks.yaml
+  - ./prowler/ks.yaml

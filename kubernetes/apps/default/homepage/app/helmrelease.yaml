@@ -23,7 +23,7 @@ spec:
           app:
             image:
               repository: ghcr.io/gethomepage/homepage
-              tag: v1.11.0@sha256:b129cb0f674bd6d204e215bde2c2fc3f11d6ad0e82f6d20007cf80f74e1acbb1
+              tag: v1.13.1@sha256:d8d784e5090111b6e4c56dfd90e272d2953a2094e87349f647165df0fa6c4401
             env:
               TZ: ${TIMEZONE}
               HOMEPAGE_ALLOWED_HOSTS: "homepage.${SECRET_DOMAIN}"

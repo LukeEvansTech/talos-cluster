@@ -11,7 +11,6 @@ resources:
   - ./netpol.yaml
   - ./acinfinity-exporter/ks.yaml
   - ./blackbox-exporter/ks.yaml
-  - ./dcgm-exporter/ks.yaml
   - ./fluent-bit/ks.yaml
   - ./gatus/ks.yaml
   - ./grafana/ks.yaml
@@ -21,6 +20,7 @@ resources:
   - ./netdata/ks.yaml
   - ./network-ups-tools/ks.yaml
   - ./nut-exporter/ks.yaml
+  - ./oxidized/ks.yaml
   - ./peanut/ks.yaml
   - ./shelly-exporter/ks.yaml
   - ./silence-operator/ks.yaml
