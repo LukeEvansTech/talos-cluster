@@ -46,7 +46,7 @@ spec:
           parser:
             image:
               repository: ghcr.io/dictionarry-hub/profilarr-parser
-              tag: 2.0.0@sha256:2d3094fed51b79fe4beee3fa596d4d47c0879370425194f0e0c5ace6c7dadd07
+              tag: 2.0.2@sha256:a7f6b6ad774d1f9f8a394e2449872eb8733e3ac1c6307491936ec9fcb3ee6c37
             resources:
               requests:
                 cpu: 10m
