@@ -18,7 +18,7 @@ spec:
           app:
             image:
               repository: ghcr.io/dictionarry-hub/profilarr
-              tag: 2.0.2@sha256:9a597204eccb60289e1b287f33bbc74665af66b92ad31c6207e6df3886d205e4
+              tag: 2.0.3@sha256:389d1a9aae584bc87b88ad16a35685c396dc0b20307258eb79e4a1a2688a9730
             env:
               TZ: ${TIMEZONE}
               PUID: "1000"
