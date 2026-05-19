@@ -18,7 +18,7 @@ spec:
           app:
             image:
               repository: itzg/minecraft-server
-              tag: java21@sha256:709e8aa50c2ba7b25acff706d2ef195aad66672f5bfddd38518ee34f43360614
+              tag: java21@sha256:1b834734dc80898e7d287380f6d66432d1a39c0ca8be49f7356434abc5b1f801
             env:
               TZ: "${TIMEZONE}"
               # Server type and version
