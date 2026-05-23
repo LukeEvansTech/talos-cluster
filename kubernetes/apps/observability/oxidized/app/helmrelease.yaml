@@ -17,7 +17,7 @@ spec:
           ssh-setup:
             image:
               repository: docker.io/library/busybox
-              tag: 1.37@sha256:1487d0af5f52b4ba31c7e465126ee2123fe3f2305d638e7827681e7cf6c83d5e
+              tag: 1.37.0@sha256:0d3f1e630be52ade0c06107515937607be2cab11a2ad2122099fc79e19bcc18b
             command:
               - /bin/sh
               - -c
@@ -55,48 +55,34 @@ spec:
               runAsGroup: 30000
               readOnlyRootFilesystem: true
               allowPrivilegeEscalation: false
-              capabilities: { drop: [ALL] }
-              seccompProfile: { type: RuntimeDefault }
+              capabilities: {drop: [ALL]}
+              seccompProfile: {type: RuntimeDefault}
         containers:
           app:
             image:
               repository: docker.io/oxidized/oxidized
               tag: 0.37.0@sha256:07d8d7d669bb210b1100d121bbe214a3d64d621b1768f8f2179a1508a772541e
             env:
-              PUSHOVER_TOKEN:
-                {
-                  valueFrom:
-                    {
-                      secretKeyRef:
-                        { name: oxidized-secret, key: PUSHOVER_TOKEN },
-                    },
-                }
-              PUSHOVER_USER_KEY:
-                {
-                  valueFrom:
-                    {
-                      secretKeyRef:
-                        { name: oxidized-secret, key: PUSHOVER_USER_KEY },
-                    },
-                }
+              PUSHOVER_TOKEN: {valueFrom: {secretKeyRef: {name: oxidized-secret, key: PUSHOVER_TOKEN}}}
+              PUSHOVER_USER_KEY: {valueFrom: {secretKeyRef: {name: oxidized-secret, key: PUSHOVER_USER_KEY}}}
             probes:
               liveness:
                 enabled: true
                 custom: true
                 spec:
-                  tcpSocket: { port: 8888 }
+                  tcpSocket: {port: 8888}
                   initialDelaySeconds: 30
                   periodSeconds: 30
               readiness:
                 enabled: true
                 custom: true
                 spec:
-                  httpGet: { path: /nodes.json, port: 8888 }
+                  httpGet: {path: /nodes.json, port: 8888}
                   initialDelaySeconds: 30
                   periodSeconds: 30
             resources:
-              requests: { cpu: 50m, memory: 128Mi }
-              limits: { memory: 256Mi }
+              requests: {cpu: 50m, memory: 128Mi}
+              limits: {memory: 256Mi}
             securityContext:
               # The oxidized image bootstraps as root (uid 0): runsvdir
               # initialises supervise dirs under /etc/service/*, runit's
@@ -117,7 +103,7 @@ spec:
                   - CHOWN
                   - SETUID
                   - SETGID
-              seccompProfile: { type: RuntimeDefault }
+              seccompProfile: {type: RuntimeDefault}
           exporter:
             image:
               repository: ghcr.io/akquinet/oxidized-exporter
@@ -130,27 +116,27 @@ spec:
                 enabled: true
                 custom: true
                 spec:
-                  tcpSocket: { port: 8080 }
+                  tcpSocket: {port: 8080}
                   initialDelaySeconds: 30
                   periodSeconds: 30
               readiness:
                 enabled: true
                 custom: true
                 spec:
-                  httpGet: { path: /metrics, port: 8080 }
+                  httpGet: {path: /metrics, port: 8080}
                   initialDelaySeconds: 30
                   periodSeconds: 30
             resources:
-              requests: { cpu: 10m, memory: 32Mi }
-              limits: { memory: 64Mi }
+              requests: {cpu: 10m, memory: 32Mi}
+              limits: {memory: 64Mi}
             securityContext:
               runAsNonRoot: true
               runAsUser: 30000
               runAsGroup: 30000
               readOnlyRootFilesystem: true
               allowPrivilegeEscalation: false
-              capabilities: { drop: [ALL] }
-              seccompProfile: { type: RuntimeDefault }
+              capabilities: {drop: [ALL]}
+              seccompProfile: {type: RuntimeDefault}
         pod:
           securityContext:
             fsGroup: 30000
@@ -160,8 +146,8 @@ spec:
       app:
         controller: oxidized
         ports:
-          http: { port: 8888 }
-          metrics: { port: 8080 }
+          http: {port: 8888}
+          metrics: {port: 8080}
 
     route:
       app:
