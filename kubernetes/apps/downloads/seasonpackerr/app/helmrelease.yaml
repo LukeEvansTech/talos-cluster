@@ -16,7 +16,7 @@ spec:
           app:
             image:
               repository: ghcr.io/nuxencs/seasonpackarr
-              tag: v0.14.0
+              tag: v0.15.0@sha256:2344936efb3fc62d16ab2ceded2f6cb5bc0b19054573065de764ee87378540e4
             env:
               SEASONPACKARR__HOST: 0.0.0.0
               SEASONPACKARR__PORT: &port 80
