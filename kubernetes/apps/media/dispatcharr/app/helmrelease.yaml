@@ -31,7 +31,7 @@ spec:
           app:
             image:
               repository: ghcr.io/dispatcharr/dispatcharr
-              tag: 0.24.0@sha256:d5222d25ee470a8de1b0618982f5952e476f6e42ead398292b2f34096db1d196
+              tag: 0.25.1@sha256:fc7baff4aee7fa9cb26ec71416fb1e986df2732bff3d7d4b9b25c416f0a202f3
             env:
               TZ: ${TIMEZONE}
               CELERY_BROKER_URL: redis://dragonfly.database.svc.cluster.local:6379/0
