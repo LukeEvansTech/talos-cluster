@@ -55,6 +55,16 @@
       minimumGroupSize: 2,
     },
     {
+      description: "Prowler Group (api + ui move in lockstep)",
+      groupName: "Prowler",
+      matchDatasources: ["docker"],
+      matchPackageNames: ["/^prowlercloud\\//"],
+      group: {
+        commitMessageTopic: "{{{groupName}}} group",
+      },
+      minimumGroupSize: 1,
+    },
+    {
       description: "Rook-Ceph Group",
       groupName: "Rook-Ceph",
       matchDatasources: ["docker"],
