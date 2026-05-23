@@ -15,6 +15,16 @@
       minimumGroupSize: 2,
     },
     {
+      description: "Busybox Group (matches any docker.io/(library/)?busybox variant)",
+      groupName: "Busybox",
+      matchDatasources: ["docker"],
+      matchPackageNames: ["/^docker\\.io\\/(library\\/)?busybox$/"],
+      group: {
+        commitMessageTopic: "{{{groupName}}} group",
+      },
+      minimumGroupSize: 1,
+    },
+    {
       description: "Cert-Manager Group",
       groupName: "Cert-Manager",
       matchDatasources: ["docker"],
