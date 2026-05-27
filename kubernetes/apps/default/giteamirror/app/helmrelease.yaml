@@ -19,7 +19,7 @@ spec:
           app:
             image:
               repository: ghcr.io/raylabshq/gitea-mirror
-              tag: v3.16.1@sha256:ad0d4c105b44ad3bd715de17803224f47d509b852c2750c4ffaca33bbae52e74
+              tag: v3.16.3@sha256:b4d9bcfb6fdd898ad4aa2e640b07b9cf27a9fb88eec980371d24d25422353e3a
             env:
               TZ: ${TIMEZONE}
               PORT: "4321"
