@@ -6,4 +6,5 @@ resources:
   - ./ceph-network-packet-drops.yaml
   - ./etcd-alerts.yaml
   - ./keda-nfs-scaler.yaml
+  - ./prometheus-rule-failures-rook-ceph.yaml
   - ./zfs-storage-memory.yaml
