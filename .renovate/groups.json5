@@ -65,6 +65,16 @@
       minimumGroupSize: 2,
     },
     {
+      description: "Profilarr Group (app + parser move in lockstep)",
+      groupName: "Profilarr",
+      matchDatasources: ["docker"],
+      matchPackageNames: ["/profilarr/"],
+      group: {
+        commitMessageTopic: "{{{groupName}}} group",
+      },
+      minimumGroupSize: 2,
+    },
+    {
       description: "Prowler Group (api + ui move in lockstep)",
       groupName: "Prowler",
       matchDatasources: ["docker"],
