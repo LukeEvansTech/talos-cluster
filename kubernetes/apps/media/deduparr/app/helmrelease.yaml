@@ -37,6 +37,10 @@ spec:
               - secretRef:
                   name: deduparr-secret
             probes:
+              # deduparr runs a dedup cycle every DEDUPARR_SERVICE__INTERVAL (2m),
+              # during which its single-threaded HTTP server stalls /health/ready
+              # for ~13s. Tolerant liveness (3 x 30s, 10s timeout = ~90s) rides out
+              # the in-run stall while still restarting a genuinely hung process.
               liveness:
                 enabled: true
                 custom: true
@@ -44,9 +48,9 @@ spec:
                   httpGet:
                     path: /health/ready
                     port: *port
-                  initialDelaySeconds: 0
-                  periodSeconds: 10
-                  timeoutSeconds: 1
+                  initialDelaySeconds: 15
+                  periodSeconds: 30
+                  timeoutSeconds: 10
                   failureThreshold: 3
               readiness:
                 enabled: true
