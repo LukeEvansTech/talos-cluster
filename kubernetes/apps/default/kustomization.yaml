@@ -43,6 +43,7 @@ resources:
   - ./manyfold/ks.yaml
   - ./miniflux/ks.yaml
   - ./n8n/ks.yaml
+  - ./netbox/ks.yaml
   - ./netronome/ks.yaml
   - ./notifier/ks.yaml
   - ./pairdrop/ks.yaml
