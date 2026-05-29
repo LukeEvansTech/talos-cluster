@@ -17,20 +17,20 @@ CNPG + `postgres-init` + Rook RGW + envoy-internal + VolSync), `drag0n141/home-o
 
 ## Decisions
 
-| Decision | Choice | Rationale |
-|---|---|---|
-| Namespace | `default` | Matches references and in-repo twins (`paperless`, `tandoor`, `whodb`). |
-| Redis | External **Dragonfly** | Repo standard; `paperless` already uses it. Bundled Valkey disabled. |
-| Media storage | Local **`ceph-block` PVC** + VolSync | Fewest moving parts; proven `paperless` pattern. (Ceph RGW S3 is available but not used here.) |
-| Worker + housekeeping | **Both enabled** | "Real" NetBox: RQ worker for webhooks/scripts/reports + housekeeping CronJob. |
-| Auth | **Superuser only (first pass)** | Get core working; pocket-id OIDC is a fast follow. |
-| Exposure | **Internal only** | DCIM/IPAM is not public. HTTPRoute on `envoy-internal`. |
+| Decision              | Choice                               | Rationale                                                                                      |
+| --------------------- | ------------------------------------ | ---------------------------------------------------------------------------------------------- |
+| Namespace             | `default`                            | Matches references and in-repo twins (`paperless`, `tandoor`, `whodb`).                        |
+| Redis                 | External **Dragonfly**               | Repository standard; `paperless` already uses it. Bundled Valkey disabled.                     |
+| Media storage         | Local **`ceph-block` PVC** + VolSync | Fewest moving parts; proven `paperless` pattern. (Ceph RGW S3 is available but not used here.) |
+| Worker + housekeeping | **Both enabled**                     | "Real" NetBox: RQ worker for webhooks/scripts/reports + housekeeping CronJob.                  |
+| Auth                  | **Superuser only (first pass)**      | Get core working; pocket-id OIDC is a fast follow.                                             |
+| Exposure              | **Internal only**                    | DCIM/IPAM is not public. HTTPRoute on `envoy-internal`.                                        |
 
 ## File Layout
 
 Standard 4-file app under `kubernetes/apps/default/netbox/`:
 
-```
+```text
 kubernetes/apps/default/netbox/
 ├── ks.yaml                      # Flux Kustomization (&app netbox)
 └── app/
@@ -54,6 +54,7 @@ ks.yaml components on top of the path build):
 `postBuild.substitute`: `APP: *app`, `VOLSYNC_CAPACITY: 5Gi`.
 
 `dependsOn`:
+
 - `cloudnative-pg-cluster` (namespace `database`)
 - `dragonfly-cluster` (namespace `database`)
 - `onepassword` is reached via the global chain; the ExternalSecret store
@@ -74,16 +75,16 @@ Renovate manages thereafter). `chartRef.kind: OCIRepository` in the HelmRelease.
   database `netbox`, username `netbox`, password from `netbox-secret`, `sslmode=require`.
 - A `postgres-init` initContainer (`ghcr.io/home-operations/postgres-init`) creates
   the `netbox` role + database using the CNPG superuser, mirroring `paperless`:
-  - `INIT_POSTGRES_HOST`, `INIT_POSTGRES_DBNAME=netbox`, `INIT_POSTGRES_USER=netbox`,
-    `INIT_POSTGRES_PASS` (app password)
-  - `INIT_POSTGRES_SUPER_USER` / `INIT_POSTGRES_SUPER_PASS` from 1Password `cloudnative-pg`.
+    - `INIT_POSTGRES_HOST`, `INIT_POSTGRES_DBNAME=netbox`, `INIT_POSTGRES_USER=netbox`,
+      `INIT_POSTGRES_PASS` (app password)
+    - `INIT_POSTGRES_SUPER_USER` / `INIT_POSTGRES_SUPER_PASS` from 1Password `cloudnative-pg`.
 
 ### Redis (Dragonfly)
 
 - Bundled `valkey.enabled: false`.
 - `externalRedis` → `dragonfly.database.svc.cluster.local:6379`, auth user `default`,
   password from 1Password `dragonfly` (`DRAGONFLY_PASSWORD`).
-- Separate logical DB indexes for the tasks queue vs the cache (e.g. tasks `0`,
+- Separate logical DB indices for the tasks queue vs the cache (e.g. tasks `0`,
   cache `1`) — final index values set per the chart's `externalRedis` schema.
 
 ### Media
@@ -136,13 +137,13 @@ see "To verify" below.)
 ## To Verify At Implementation (chart-schema specifics, not assumptions)
 
 1. Pull `netbox-chart` 8.2.x `values.yaml` and confirm:
-   - The exact `existingSecret` **key names** the chart expects
-     (e.g. `db_password`, `redis_password`, `redis_tasks_password`,
-     `superuser_password`, `superuser_api_token`, `secret_key`).
-   - The `externalRedis` value schema (tasks vs caching host/port/db/secret keys)
-     and the correct flag to disable the bundled cache (`valkey.enabled` vs
-     `redis.enabled` for this chart major).
-   - The media mount path and the persistence value keys.
+    - The exact `existingSecret` **key names** the chart expects
+      (e.g. `db_password`, `redis_password`, `redis_tasks_password`,
+      `superuser_password`, `superuser_api_token`, `secret_key`).
+    - The `externalRedis` value schema (tasks vs caching host/port/db/secret keys)
+      and the correct flag to disable the bundled cache (`valkey.enabled` vs
+      `redis.enabled` for this chart major).
+    - The media mount path and the persistence value keys.
 2. Confirm the current published chart tag.
 3. Map the `netbox` 1Password field names to the chart's `existingSecret` keys.
 
