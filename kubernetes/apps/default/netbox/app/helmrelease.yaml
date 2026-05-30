@@ -39,6 +39,18 @@ spec:
     persistence:
       enabled: true
       existingClaim: netbox
+    # The web, worker and housekeeping pods all mount the same RWO `media` PVC
+    # (ceph-block), so they must run on one node. The worker is the stable anchor
+    # (web rolls on every image update); pin the web pod to the worker's node so a
+    # rollout's surge pod can't land elsewhere and deadlock on multi-attach.
+    affinity:
+      podAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchLabels:
+                app.kubernetes.io/instance: netbox
+                app.kubernetes.io/component: worker
+            topologyKey: kubernetes.io/hostname
     resourcesPreset: none
     resources:
       requests:
