@@ -43,9 +43,18 @@ spec:
     resources:
       requests:
         cpu: 100m
-        memory: 256Mi
+        # Web pod's real steady-state is ~500Mi+ with Granian; 256Mi under-reserved it.
+        memory: 512Mi
       limits:
-        memory: 1Gi
+        # NetBox v4 serves HTTP via Granian; each worker loads the full Django app.
+        # At 4 workers the pod crept to ~956Mi and got OOMKilled against a 1Gi limit.
+        # GRANIAN_WORKERS=2 (below) halves the footprint; 1.5Gi gives headroom.
+        memory: 1536Mi
+    extraEnvs:
+      # Default is 4 (`${GRANIAN_WORKERS:-4}` in launch-netbox.sh) — overkill for this
+      # low-concurrency homelab instance and the main driver of the OOM. Drop to 2.
+      - name: GRANIAN_WORKERS
+        value: "2"
     initContainers:
       - name: init-db
         image: ghcr.io/home-operations/postgres-init:18@sha256:5086f94abc783f1147d7c2a32c01db00ab594820026e4f6a82ac2af3dbde7fc7
