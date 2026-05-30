@@ -88,3 +88,15 @@ spec:
       enabled: true
     housekeeping:
       enabled: true
+      # The housekeeping CronJob mounts the RWO `media` PVC (ceph-block), which is
+      # attached to whichever node runs the netbox web/worker pods. Without affinity
+      # the job can schedule onto a different node and hang forever in
+      # ContainerCreating (multi-attach). Pin it to the node holding the volume.
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app.kubernetes.io/instance: netbox
+                  app.kubernetes.io/component: netbox
+              topologyKey: kubernetes.io/hostname
