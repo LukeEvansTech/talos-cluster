@@ -6,6 +6,10 @@ metadata:
   name: tdarr
 spec:
   interval: 1h
+  # tdarr ships large images (~1.5GB app + ~1.2GB node) and uses a Recreate
+  # rollout, so an upgrade can exceed helm-controller's 5m default wait and trip
+  # RemediateOnFailure into an upgrade<->rollback thrash loop. Give it headroom.
+  timeout: 15m
   chartRef:
     kind: OCIRepository
     name: tdarr
