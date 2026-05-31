@@ -25,7 +25,7 @@ spec:
         containers:
           app:
             image:
-              &image # renovate: datasource=docker depName=ghcr.io/kittendevv/invio
+              # renovate: datasource=docker depName=ghcr.io/kittendevv/invio
               repository: ghcr.io/kittendevv/invio
               tag: v2.0.2@sha256:faf00642514e27f34135083ecfe17f4f28b87f3dc8850476287f3f12e8e9e8a1
             # The image's default Cmd lets supervisord default its main logfile
@@ -80,11 +80,18 @@ spec:
           # copies become user-owned) and mount it over /app/backend so deno can
           # refresh its lockfile in place.
           init-backend:
-            image: *image
+            image:
+              # renovate: datasource=docker depName=ghcr.io/kittendevv/invio
+              repository: ghcr.io/kittendevv/invio
+              tag: v2.0.2@sha256:faf00642514e27f34135083ecfe17f4f28b87f3dc8850476287f3f12e8e9e8a1
             command:
               - sh
               - -c
-              - cp -a /app/backend/. /writable-backend/
+              # cp -r (not -a): cp as uid 1000 can't preserve timestamps on the
+              # emptyDir mount root, and we don't want to preserve the source's
+              # root ownership anyway — files copied as uid 1000 are what makes
+              # deno.lock writable.
+              - cp -r /app/backend/. /writable-backend/
 
     defaultPodOptions:
       automountServiceAccountToken: false
