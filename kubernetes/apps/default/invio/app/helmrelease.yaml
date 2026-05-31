@@ -25,7 +25,7 @@ spec:
         containers:
           app:
             image:
-              # renovate: datasource=docker depName=ghcr.io/kittendevv/invio
+              &image # renovate: datasource=docker depName=ghcr.io/kittendevv/invio
               repository: ghcr.io/kittendevv/invio
               tag: v2.0.2@sha256:faf00642514e27f34135083ecfe17f4f28b87f3dc8850476287f3f12e8e9e8a1
             # The image's default Cmd lets supervisord default its main logfile
@@ -70,6 +70,21 @@ spec:
                 drop:
                   - ALL
               readOnlyRootFilesystem: false
+        initContainers:
+          # The image ships /app/backend root-owned with a stale deno.lock that
+          # deno 2.6.8 insists on rewriting at startup. User 1000 can't write the
+          # root-owned dir, so `deno task start` fails ("Failed writing lockfile
+          # ... Permission denied") and the backend crash-loops into FATAL —
+          # which makes the frontend return 500 ("Unable to connect"). Copy
+          # /app/backend into a writable emptyDir (cp runs as uid 1000, so the
+          # copies become user-owned) and mount it over /app/backend so deno can
+          # refresh its lockfile in place.
+          init-backend:
+            image: *image
+            command:
+              - sh
+              - -c
+              - cp -a /app/backend/. /writable-backend/
 
     defaultPodOptions:
       automountServiceAccountToken: false
@@ -119,3 +134,13 @@ spec:
           app:
             app:
               - path: /.cache
+      # Writable copy of the image's /app/backend (populated by the
+      # init-backend initContainer) so deno can rewrite its stale lockfile.
+      backend:
+        type: emptyDir
+        advancedMounts:
+          app:
+            init-backend:
+              - path: /writable-backend
+            app:
+              - path: /app/backend
