@@ -23,7 +23,7 @@ jobs:
       # source is meaningless until kustomize substitutes vars
       # (${SECRET_DOMAIN}, ${SVC_*_ADDR}, ...) and merges components — so it
       # false-positives on every CRD-shaped file regardless of schema config.
-      # Real K8s validation lives in flux-local (kustomize build pipeline).
+      # Real K8s validation lives in flate (kustomize build pipeline).
       validate-kubernetes-kubeconform: false
       # Graduate to blocking: with kubeconform off, the remaining super-linter
       # checks (yamllint, prettier, actionlint, shellcheck, ...) are clean.
