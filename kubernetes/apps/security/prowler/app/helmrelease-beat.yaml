@@ -29,7 +29,7 @@ spec:
           app:
             image:
               repository: prowlercloud/prowler-api
-              tag: 5.28.1@sha256:c7e8570dd14bf525bf868348f0020839b58b3ef107e510678a81510a9f9c6206
+              tag: 5.29.0@sha256:36215d5152aba74df8983d6e4f46766c4f686486f884bcfa53b93cf1ba367906
             # Override the image's hardcoded ENTRYPOINT
             # `["../docker-entrypoint.sh", "prod"]`. Without `command`,
             # `args: [beat]` is APPENDED ("prod beat") and the script
