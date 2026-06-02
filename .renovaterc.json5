@@ -2,10 +2,16 @@
   $schema: "https://docs.renovatebot.com/renovate-schema.json",
   ignorePaths: [".archive/**"],
   extends: [
-    "config:recommended",
-    "docker:enableMajor",
+    // Shared home-operations base: config:recommended, manager file patterns
+    // (incl. *.yaml.j2), custom managers (oci/cnpg/annotated/talosFactory/grafana
+    // URL), changelogs, semantic-commit policy, app versioning, dependency
+    // dashboard, :disableRateLimiting, :automergeBranch.
+    "github>home-operations/renovate-presets#1.3.1",
+    // Our customisations on top — the preset does not pin docker digests:
     "docker:pinDigests",
-    "helpers:pinGitHubActionDigests",
+    // Our auto-merge / grouping / labels / overrides + the managers the preset
+    // doesn't cover (Minecraft, homebridge date tags, GrafanaDashboard CRD format)
+    // and our extra changelog URLs (Spegel):
     "github>LukeEvansTech/talos-cluster//.renovate/autoMerge.json5",
     "github>LukeEvansTech/talos-cluster//.renovate/changelogs.json5",
     "github>LukeEvansTech/talos-cluster//.renovate/customManagers.json5",
@@ -13,30 +19,9 @@
     "github>LukeEvansTech/talos-cluster//.renovate/groups.json5",
     "github>LukeEvansTech/talos-cluster//.renovate/labels.json5",
     "github>LukeEvansTech/talos-cluster//.renovate/overrides.json5",
-    "github>LukeEvansTech/talos-cluster//.renovate/semanticCommits.json5",
-    ":automergeBranch",
-    ":dependencyDashboard",
-    ":disableRateLimiting",
-    ":semanticCommits",
     ":timezone(Europe/London)",
   ],
-  dependencyDashboardTitle: "Renovate Dashboard 🤖",
   suppressNotifications: ["prEditedNotification", "prIgnoreNotification"],
-  flux: {
-    managerFilePatterns: ["/(^|/)kubernetes/.+\\.ya?ml(?:\\.j2)?$/"],
-  },
-  "helm-values": {
-    managerFilePatterns: ["/(^|/)kubernetes/.+\\.ya?ml(?:\\.j2)?$/"],
-  },
-  helmfile: {
-    managerFilePatterns: ["/(^|/)helmfile\\.ya?ml(?:\\.j2)?$/"],
-  },
-  kubernetes: {
-    managerFilePatterns: ["/(^|/)kubernetes/.+\\.ya?ml(?:\\.j2)?$/"],
-  },
-  kustomize: {
-    managerFilePatterns: ["/^kustomization\\.ya?ml(?:\\.j2)?$/"],
-  },
   // Automatically request reviews from GitHub Copilot on all PRs
   reviewers: ["github-copilot[bot]"],
   reviewersSampleSize: 1,
