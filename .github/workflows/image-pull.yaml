@@ -15,6 +15,10 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.number || github.ref }}
   cancel-in-progress: true
 
+env:
+  # renovate: datasource=github-releases depName=home-operations/flate
+  FLATE_VERSION: "0.1.36"
+
 jobs:
   filter:
     name: Filter
@@ -38,6 +42,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: filter
     if: ${{ needs.filter.outputs.any_changed == 'true' }}
+    permissions:
+      contents: read
+      packages: read
     outputs:
       default_images: ${{ steps.set-outputs.outputs.default_images }}
       pull_images: ${{ steps.set-outputs.outputs.pull_images }}
@@ -55,46 +62,40 @@ jobs:
           path: pull
           persist-credentials: false
 
+      - name: Install flate
+        run: |
+          curl -fsSL "https://github.com/home-operations/flate/releases/download/${FLATE_VERSION}/flate_${FLATE_VERSION}_linux_amd64.tar.gz" \
+            | sudo tar -xz -C /usr/local/bin flate
+
+      - name: Authenticate to GHCR
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTOR: ${{ github.actor }}
+        run: echo "${GITHUB_TOKEN}" | docker login ghcr.io -u "${ACTOR}" --password-stdin
+
       - name: Extract Images from Default Branch
-        id: extract-default
-        uses: docker://ghcr.io/allenporter/flux-local:v8.1.0
-        with:
-          args: >-
-            get cluster
-            --path /github/workspace/default/kubernetes/flux/cluster
-            --enable-images
-            --output json
-            --output-file /tmp/default-images.json
+        run: |
+          flate get images \
+            --path default/kubernetes/flux/cluster \
+            --allow-missing-secrets \
+            --output json > /tmp/default-images.json
 
       - name: Extract Images from Pull Request Branch
-        id: extract-pull
-        uses: docker://ghcr.io/allenporter/flux-local:v8.1.0
-        with:
-          args: >-
-            get cluster
-            --path /github/workspace/pull/kubernetes/flux/cluster
-            --enable-images
-            --output json
-            --output-file /tmp/pull-images.json
-
-      - name: Parse Image Lists
-        id: parse-images
         run: |
-          # Extract unique images from default branch
-          DEFAULT_IMAGES=$(jq -r '.[] | select(.images != null) | .images[]' /tmp/default-images.json 2>/dev/null | sort -u | jq -R -s -c 'split("\n")[:-1]' || echo '[]')
-          echo "images=${DEFAULT_IMAGES}" >> "$GITHUB_OUTPUT"
-          echo "default_images=${DEFAULT_IMAGES}" > /tmp/default_images_output.txt
-
-          # Extract unique images from pull request branch
-          PULL_IMAGES=$(jq -r '.[] | select(.images != null) | .images[]' /tmp/pull-images.json 2>/dev/null | sort -u | jq -R -s -c 'split("\n")[:-1]' || echo '[]')
-          echo "pull_images=${PULL_IMAGES}" > /tmp/pull_images_output.txt
+          flate get images \
+            --path pull/kubernetes/flux/cluster \
+            --allow-missing-secrets \
+            --output json > /tmp/pull-images.json
 
       - name: Set Outputs
         id: set-outputs
         run: |
+          # flate `get images -o json` emits a flat JSON array of image strings.
+          DEFAULT_IMAGES=$(jq -c 'unique' /tmp/default-images.json)
+          PULL_IMAGES=$(jq -c 'unique' /tmp/pull-images.json)
           {
-            echo "default_images=$(cat /tmp/default_images_output.txt)"
-            echo "pull_images=$(cat /tmp/pull_images_output.txt)"
+            echo "default_images=${DEFAULT_IMAGES}"
+            echo "pull_images=${PULL_IMAGES}"
           } >> "$GITHUB_OUTPUT"
 
   diff:

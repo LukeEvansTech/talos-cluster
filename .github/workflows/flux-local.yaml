@@ -14,6 +14,10 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  # renovate: datasource=github-releases depName=home-operations/flate
+  FLATE_VERSION: "0.1.36"
+
 jobs:
   filter:
     name: Flux Local - Filter
@@ -41,17 +45,40 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Run flux-local test
-        uses: docker://ghcr.io/allenporter/flux-local:v8.2.0
+      - name: Install flate
+        run: |
+          curl -fsSL "https://github.com/home-operations/flate/releases/download/${FLATE_VERSION}/flate_${FLATE_VERSION}_linux_amd64.tar.gz" \
+            | sudo tar -xz -C /usr/local/bin flate
+
+      - name: Authenticate to GHCR
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          args: >-
-            test
-            --all-namespaces
-            --enable-helm
-            --path /github/workspace/kubernetes/flux/cluster
-            --verbose
+          ACTOR: ${{ github.actor }}
+        run: echo "${GITHUB_TOKEN}" | docker login ghcr.io -u "${ACTOR}" --password-stdin
+
+      - name: Run flate test
+        run: |
+          # Test per-namespace so we can skip gpu-operator: flate mis-resolves
+          # NGC's HelmRepository relative chart URL (requests /charts/... 404
+          # instead of /nvidia/charts/...). The cluster's flux pulls it fine;
+          # this is a flate bug — see home-operations/flate.
+          # TODO(flate): remove the gpu-operator skip below + restore plain
+          # `flate test all` once home-operations/flate fixes NGC HelmRepository
+          # relative-URL resolution. Tracking: https://github.com/home-operations/flate
+          rc=0
+          for ns in kubernetes/apps/*/; do
+            ns="$(basename "${ns}")"
+            if [ "${ns}" = "gpu-operator" ]; then
+              echo "::warning title=flate::skipping gpu-operator (flate NGC HelmRepository URL bug)"
+              continue
+            fi
+            echo "::group::flate test ${ns}"
+            flate test all --namespace "${ns}" \
+              --path kubernetes/flux/cluster \
+              --allow-missing-secrets || rc=1
+            echo "::endgroup::"
+          done
+          exit "${rc}"
 
   diff:
     if: ${{ needs.filter.outputs.changed-files != '[]' }}
@@ -81,28 +108,46 @@ jobs:
           ref: ${{ github.event.repository.default_branch }}
           persist-credentials: false
 
-      - name: Run flux-local diff
-        uses: docker://ghcr.io/allenporter/flux-local:v8.2.0
+      - name: Install flate
+        run: |
+          curl -fsSL "https://github.com/home-operations/flate/releases/download/${FLATE_VERSION}/flate_${FLATE_VERSION}_linux_amd64.tar.gz" \
+            | sudo tar -xz -C /usr/local/bin flate
+
+      - name: Authenticate to GHCR
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          args: >-
-            diff ${{ matrix.resource }}
-            --unified 6
-            --path /github/workspace/pull/kubernetes/flux/cluster
-            --path-orig /github/workspace/default/kubernetes/flux/cluster
-            --strip-attrs "helm.sh/chart,checksum/config,app.kubernetes.io/version,chart,caBundle"
-            --limit-bytes 10000
-            --all-namespaces
-            --sources "flux-system"
-            --output-file diff.patch
+          ACTOR: ${{ github.actor }}
+        run: echo "${GITHUB_TOKEN}" | docker login ghcr.io -u "${ACTOR}" --password-stdin
 
-      - name: Generate Diff
+      - name: Run flate diff
+        env:
+          RESOURCE: ${{ matrix.resource }}
+        run: |
+          # flate uses short kind names (hr/ks); keep the matrix values verbose
+          # so the required status-check names stay stable for branch protection.
+          case "${RESOURCE}" in
+            helmrelease) KIND=hr ;;
+            kustomization) KIND=ks ;;
+            *) KIND="${RESOURCE}" ;;
+          esac
+          flate diff "${KIND}" \
+            --path pull/kubernetes/flux/cluster \
+            --path-orig default/kubernetes/flux/cluster \
+            --strip-attr caBundle \
+            --allow-missing-secrets \
+            --output markdown > diff.md
+          # Cap to stay within GitHub's ~65k-char comment limit
+          if [ "$(wc -c < diff.md)" -gt 60000 ]; then
+            head -c 60000 diff.md > diff.trunc && mv diff.trunc diff.md
+            printf '\n\n_…diff truncated; see workflow logs for the full output._\n' >> diff.md
+          fi
+
+      - name: Read Diff
         id: diff
-        run: |-
+        run: |
           {
             echo 'diff<<EOF'
-            cat diff.patch
+            cat diff.md
             echo 'EOF'
           } >> "$GITHUB_OUTPUT"
 
@@ -112,10 +157,7 @@ jobs:
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           header: ${{ github.event.pull_request.number }}/kubernetes/${{ matrix.resource }}
-          message: |-
-            ```diff
-            ${{ steps.diff.outputs.diff }}
-            ```
+          message: ${{ steps.diff.outputs.diff }}
 
   success:
     if: ${{ !cancelled() }}
