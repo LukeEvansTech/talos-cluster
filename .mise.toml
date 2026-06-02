@@ -1,3 +1,8 @@
+[settings]
+# Pin exact tool versions + checksums + provenance in mise.lock for
+# reproducible, verified installs across machines and CI.
+lockfile = true
+
 [env]
 BOOTSTRAP_DIR = "{{config_root}}/bootstrap"
 JUST_UNSTABLE = "1"
