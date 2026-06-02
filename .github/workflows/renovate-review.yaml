@@ -82,8 +82,8 @@ jobs:
           # Haiku for routine patch container bumps; Sonnet for everything else
           # (minor/major, chart upgrades, github-release, high-blast-radius components).
           if echo "$LABELS" | grep -qw 'type/patch' \
-             && echo "$LABELS" | grep -qw 'renovate/container' \
-             && ! echo "$TITLE" | grep -qiE "$blast"; then
+            && echo "$LABELS" | grep -qw 'renovate/container' \
+            && ! echo "$TITLE" | grep -qiE "$blast"; then
             echo "model=claude-haiku-4-5-20251001" >> "$GITHUB_OUTPUT"
             echo "depth=light" >> "$GITHUB_OUTPUT"
           else
@@ -93,9 +93,13 @@ jobs:
 
       - id: claude
         if: steps.gate.outputs.gated == 'true'
+        # Route the secret through env (zizmor secrets-outside-env) rather than
+        # interpolating ${{ secrets.* }} directly into the action input.
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
         uses: anthropics/claude-code-action@787c5a0ce96a9a6cfb050ea0c8f4c05f2447c251 # v1.0.133
         with:
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_code_oauth_token: ${{ env.CLAUDE_CODE_OAUTH_TOKEN }}
           allowed_bots: "renovate[bot]"
           show_full_output: true
           claude_args: |
@@ -180,8 +184,8 @@ jobs:
             **light** — routine patch container bump (haiku tier):
             1. Analyze (step 1 below).
             2. Read the PR body for Renovate-embedded release notes. If present and covering the
-               full old→new range, use them. Otherwise fetch the upstream releases for that range
-               with a single `gh api` call.
+              full old→new range, use them. Otherwise fetch the upstream releases for that range
+              with a single `gh api` call.
             3. Grep/Read the repo files that reference this component (step 3 below).
             4. Submit verdict.
             Skip the multi-source breadcrumb chase (CHANGELOG files, docs sites, commit history,

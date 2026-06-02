@@ -22,12 +22,12 @@ out="${GITHUB_STEP_SUMMARY:-/dev/stdout}"
 
 r=""
 if [ -n "${EXEC_FILE:-}" ] && [ -f "$EXEC_FILE" ]; then
-  r=$(jq -c 'map(select(.type=="result")) | last' "$EXEC_FILE" 2>/dev/null)
+    r=$(jq -c 'map(select(.type=="result")) | last' "$EXEC_FILE" 2>/dev/null)
 fi
 
 if [ -z "$r" ] || [ "$r" = "null" ]; then
-  echo "model=${MODEL:-unknown} (no usage data: execution file missing or unparseable)" >> "$out"
-  exit 0
+    echo "model=${MODEL:-unknown} (no usage data: execution file missing or unparsable)" >>"$out"
+    exit 0
 fi
 
 # NOTE: computed fields must guard the source field INSIDE the expression. jq's //
@@ -35,7 +35,8 @@ fi
 # division or multiply error. Use `(.x // 0)/...` not `(.x/...) // 0`.
 get() { printf '%s' "$r" | jq -r "$1 // 0"; }
 
-table=$(cat <<EOF
+table=$(
+    cat <<EOF
 | Metric | Value |
 |---|---|
 | Model | \`${MODEL:-unknown}\` |
@@ -51,24 +52,24 @@ EOF
 
 # Write to Actions step summary
 {
-  echo "### Claude Review Usage"
-  printf '%s\n' "$table"
-} >> "$out"
+    echo "### Claude Review Usage"
+    printf '%s\n' "$table"
+} >>"$out"
 
 # Sticky PR comment as github-actions[bot] (best-effort; never fail job).
 # Upsert by hidden marker so Renovate rebase/sync re-runs update one comment
 # instead of spamming new ones.
 if [ -n "${PR:-}" ] && [ -n "${REPO:-}" ]; then
-  comment_body=$(printf '%s\n### Claude Review Usage\n%s' "$MARKER" "$table")
-  cid=$(gh api "repos/$REPO/issues/$PR/comments" --paginate \
-    --jq "[.[] | select(.user.login==\"github-actions[bot]\" and (.body|startswith(\"$MARKER\")))] | last | .id // empty" \
-    2>&1 || true)
-  if [ -n "$cid" ] && [[ "$cid" =~ ^[0-9]+$ ]]; then
-    gh api -X PATCH "repos/$REPO/issues/comments/$cid" \
-      -f body="$comment_body" || true
-  else
-    echo "Usage comment cid lookup result: ${cid:-(empty)}"
-    gh api -X POST "repos/$REPO/issues/$PR/comments" \
-      -f body="$comment_body" || true
-  fi
+    comment_body=$(printf '%s\n### Claude Review Usage\n%s' "$MARKER" "$table")
+    cid=$(gh api "repos/$REPO/issues/$PR/comments" --paginate \
+        --jq "[.[] | select(.user.login==\"github-actions[bot]\" and (.body|startswith(\"$MARKER\")))] | last | .id // empty" \
+        2>&1 || true)
+    if [ -n "$cid" ] && [[ "$cid" =~ ^[0-9]+$ ]]; then
+        gh api -X PATCH "repos/$REPO/issues/comments/$cid" \
+            -f body="$comment_body" || true
+    else
+        echo "Usage comment cid lookup result: ${cid:-(empty)}"
+        gh api -X POST "repos/$REPO/issues/$PR/comments" \
+            -f body="$comment_body" || true
+    fi
 fi
