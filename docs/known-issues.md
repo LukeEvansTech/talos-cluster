@@ -631,7 +631,7 @@ URL:
 
 ```yaml
 urls:
-  - "charts/gpu-operator-v26.3.2.tgz"
+    - "charts/gpu-operator-v26.3.2.tgz"
 ```
 
 Per the Helm spec a relative `urls:` entry resolves against the repository base
@@ -659,12 +659,10 @@ grep -rn 'TODO(flate)' .github/
 ⚠️ **Worked around in CI; upstream fix pending.** Remove the `gpu-operator`
 skip and restore plain `flate test all` once
 [home-operations/flate](https://github.com/home-operations/flate) fixes NGC
-`HelmRepository` relative-URL resolution.
-2. The `blackbox-exporter-lan` pod's intermittent DNS-resolve failure on
-   target hostnames needs investigation — likely a `dnsPolicy` /
-   resolv.conf issue post-Cilium-identity-shuffle.
-3. KEDA-on-Plex pause annotations get reverted by Flux; would be cleaner
-   to set them through chart values so they survive reconcile.
+`HelmRepository` relative-URL resolution. 2. The `blackbox-exporter-lan` pod's intermittent DNS-resolve failure on
+target hostnames needs investigation — likely a `dnsPolicy` /
+resolv.conf issue post-Cilium-identity-shuffle. 3. KEDA-on-Plex pause annotations get reverted by Flux; would be cleaner
+to set them through chart values so they survive reconcile.
 
 ---
 
