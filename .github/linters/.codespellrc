@@ -3,3 +3,6 @@
 # adn   — part of adn.20765.psicdn.net (EdgeCast CDN host in smokeping Targets)
 # flate — home-operations/flate, our flux-local replacement (CI workflows)
 ignore-words-list = NotIn,adn,flate
+# mise.lock is a generated lockfile (checksums, URLs, SLSA in-toto provenance
+# paths) — not prose. "intoto" (provenance.intoto.jsonl) trips codespell.
+skip = mise.lock
