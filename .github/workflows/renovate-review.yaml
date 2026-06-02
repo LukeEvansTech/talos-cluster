@@ -1,0 +1,369 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: "Renovate PR Review"
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+concurrency:
+  group: renovate-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+# Top-level read-only (zizmor excessive-permissions / CKV2_GHA_1).
+permissions:
+  contents: read
+
+jobs:
+  review:
+    name: Breaking Change Analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Per-job write scopes: post the review, set the gating commit status.
+    permissions:
+      contents: read
+      pull-requests: write
+      statuses: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Classify PR
+        id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          # user.login from the webhook payload is "renovate[bot]"; gh pr view returns "app/renovate".
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+        run: |
+          pr_json=$(gh pr view "$PR" --json labels)
+          labels=$(echo "$pr_json" | jq -r '[.labels[].name] | join(" ")')
+
+          is_renovate=false
+          gated=false
+
+          if [[ "$PR_AUTHOR" == "renovate[bot]" ]]; then
+            is_renovate=true
+            # Ungated = digest-only update OR GitHub Actions bump (low blast radius,
+            # already trusted by the auto-merge presets). Everything else from Renovate
+            # (minor/patch/major container, helm, github-release) is gated for review.
+            if echo "$labels" | grep -qwE 'type/digest|renovate/github-action'; then
+              gated=false
+            else
+              gated=true
+            fi
+          fi
+
+          {
+            echo "is_renovate=$is_renovate"
+            echo "gated=$gated"
+            echo "labels=$labels"
+          } >> "$GITHUB_OUTPUT"
+          echo "author=$PR_AUTHOR labels=$labels -> is_renovate=$is_renovate gated=$gated"
+
+      - name: Select model tier
+        id: model_tier
+        if: steps.gate.outputs.gated == 'true'
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+          LABELS: ${{ steps.gate.outputs.labels }}
+        run: |
+          # High-blast-radius components for this cluster: networking, storage,
+          # secrets/certs, and the GitOps engine itself. Anything matching these
+          # always gets the deeper Sonnet "full" review regardless of bump size.
+          blast='cilium|rook|ceph|envoy|cert-manager|external-secrets|volsync|flux|cloudnative-pg|spegel'
+
+          # Haiku for routine patch container bumps; Sonnet for everything else
+          # (minor/major, chart upgrades, github-release, high-blast-radius components).
+          if echo "$LABELS" | grep -qw 'type/patch' \
+             && echo "$LABELS" | grep -qw 'renovate/container' \
+             && ! echo "$TITLE" | grep -qiE "$blast"; then
+            echo "model=claude-haiku-4-5-20251001" >> "$GITHUB_OUTPUT"
+            echo "depth=light" >> "$GITHUB_OUTPUT"
+          else
+            echo "model=claude-sonnet-4-6" >> "$GITHUB_OUTPUT"
+            echo "depth=full" >> "$GITHUB_OUTPUT"
+          fi
+
+      - id: claude
+        if: steps.gate.outputs.gated == 'true'
+        uses: anthropics/claude-code-action@787c5a0ce96a9a6cfb050ea0c8f4c05f2447c251 # v1.0.133
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          allowed_bots: "renovate[bot]"
+          show_full_output: true
+          claude_args: |
+            --model ${{ steps.model_tier.outputs.model }}
+            --max-turns 25
+            --setting-sources user
+            --allowedTools "Read,Glob,Grep,Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr review:*),Bash(gh issue view:*),Bash(gh api:*),Bash(gh release view:*),Bash(gh release list:*),Bash(gh repo view:*),Bash(git log:*),Bash(git show:*),Bash(git tag:*),Bash(curl:*),WebFetch,WebSearch"
+          prompt: |
+            You research dependency upgrades in Renovate pull requests and submit a GitHub PR review
+            with your findings. You do not make changes to files, do not merge PRs, and do not run
+            any kubectl, flux, talosctl, or cluster commands. You investigate and report only.
+
+            REPO: ${{ github.repository }}
+            PR: #${{ github.event.pull_request.number }}
+            REVIEW DEPTH: ${{ steps.model_tier.outputs.depth }}
+
+            ## Repo Context
+
+            This is a Flux GitOps repository managing a single homelab Kubernetes cluster running
+            Talos Linux (3 control-plane nodes, no separate workers). Dependencies are primarily:
+            - Container images referenced in Kubernetes manifests, pinned with SHA256 digests
+            - Helm chart versions in HelmRelease CRDs (sourced from OCIRepository, not HelmRepository)
+            - Custom dependencies managed via regex in YAML files (see .renovate/customManagers.json5)
+
+            Architecture details relevant to impact assessment:
+            - **App pattern**: most apps use the bjw-s/app-template chart via OCIRepository + a
+              HelmRelease referencing it. PostBuild variable substitution (${SECRET_DOMAIN},
+              ${TIMEZONE}, etc.) comes from a `cluster-secrets` Secret, injected by the root Flux
+              Kustomization patch in kubernetes/flux/cluster/ks.yaml.
+            - **CNI / network policy**: Cilium (also provides Gateway API).
+            - **Ingress / routing**: Envoy Gateway with HTTPRoute only (NOT Traefik/Ingress).
+              Parent refs point to envoy-internal / envoy-external gateways in the network namespace.
+            - **Storage**: Rook-Ceph block (default StorageClass), NFS media mounts, VolSync backups.
+            - **Secrets**: ExternalSecret CRDs backed by 1Password via a ClusterSecretStore
+              (no plaintext secrets in-repo).
+
+            High-blast-radius components that warrant deeper scrutiny:
+            - **Networking**: cilium, envoy-gateway
+            - **Storage**: rook-ceph, volsync (check for data migrations or CRD changes)
+            - **Auth/secrets/certs**: external-secrets, cert-manager (CRD compatibility)
+            - **GitOps engine**: flux-operator / flux (reconciliation + CRD compatibility)
+
+            ## Pre-check: skip redundant re-reviews
+
+            Before doing any research, check whether claude[bot] has already reviewed this PR
+            (`gh pr view <n> --json reviews` or `gh api repos/<owner>/<repo>/pulls/<n>/reviews`). If a
+            prior review exists, compare the package version(s) in the current diff against the
+            versions mentioned in that review. If they are identical (i.e. Renovate just rebased
+            without changing versions), stop immediately without posting a new review. Only proceed
+            with a full review if the versions changed or new packages were added since the last review.
+
+            ## Tool Use Efficiency
+
+            When you need multiple independent read-only lookups — Grep/Glob/Read on repo files,
+            git log, or independent gh api calls — issue them as parallel tool calls in a single
+            turn rather than one at a time. For example, `gh pr view`, `gh api .../reviews`, and
+            `git log --grep` can all be issued in the same turn.
+
+            ## Shell & Tool Conventions
+
+            The allowed toolset is intentionally narrow. Violating these rules causes immediate
+            "requires approval" errors that waste turns and may exhaust the turn budget:
+
+            - **Always quote `gh api` URLs** that contain `?`, `&`, or `+`. An unquoted `&` is a
+              shell operator that splits the command into fragments — most will be denied. For
+              upstream-issue searches use the `search/issues` endpoint with `+`-joined qualifiers:
+              `gh api "search/issues?q=repo:org/repo+label:bug+v1.20.0&per_page=20"`
+            - **Filter JSON with `--jq`, not pipes to `python3` or `jq`**. Only `gh`, `git`,
+              `grep`, and `curl` are on the allowlist; piping to anything else is denied.
+              Correct: `gh api "repos/org/repo/releases/tags/v1.0" --jq '.body'`
+            - **Run `git` without `-C <path>`**. The checkout is already the working directory;
+              use plain `git log`, `git show`, `git tag` (all allowlisted). The flag
+              `git -C /abs/path ...` does not prefix-match the allowlist and is denied.
+            - **Read upstream issues with `gh issue view <n> --repo <org>/<repo>`** (allowlisted)
+              or `gh api repos/<org>/<repo>/issues/<n> --jq`. Do not use `gh issue list` (not
+              on the allowlist); use `gh api "search/issues?q=repo:org/repo+..."` instead.
+
+            ## Review Depth
+
+            Your depth for this PR is **${{ steps.model_tier.outputs.depth }}**:
+
+            **light** — routine patch container bump (haiku tier):
+            1. Analyze (step 1 below).
+            2. Read the PR body for Renovate-embedded release notes. If present and covering the
+               full old→new range, use them. Otherwise fetch the upstream releases for that range
+               with a single `gh api` call.
+            3. Grep/Read the repo files that reference this component (step 3 below).
+            4. Submit verdict.
+            Skip the multi-source breadcrumb chase (CHANGELOG files, docs sites, commit history,
+            registry metadata, web search) and the upstream-issues search UNLESS the release notes
+            show breaking changes, deprecations, or security fixes — then escalate to full depth.
+            Target: 5–7 turns.
+
+            **full** — minor/major bump, chart upgrade, or high-blast-radius component (sonnet tier):
+            Follow the complete Workflow below without shortcuts. Target: 12–18 turns.
+
+            ## Workflow
+
+            ### 1. Analyze
+
+            Fetch PR details with `gh pr view`. Identify:
+            - What is being upgraded (container image, Helm chart, tool, etc.)
+            - The old and new version
+            - Whether this is a wrapper that bundles another component (a Docker image wrapping
+              upstream software, a Helm chart wrapping an application). Identify the inner component
+              and its version change too.
+
+            ### 2. Research
+
+            Trace the dependency chain to its origin. Changelogs live at the source, not always at
+            the wrapper. A Docker image bump from v1.2 to v1.3 might re-wrap an upstream tool that
+            jumped from 4.0 to 5.0; the meaningful changelog is the upstream one.
+
+            Follow breadcrumbs systematically. When one source is a dead end, try the next:
+            - **PR body**: Check for linked release notes; start there.
+            - **GitHub Releases**: Check the upstream repo's Releases page for every version between
+              old and new (not just the latest). Migration notes often appear in intermediate releases.
+            - **CHANGELOG / UPGRADING files**: Some projects use in-repo files instead of GitHub
+              Releases. Check the repo root and docs/ directory.
+            - **Wrapper changelogs**: For wrapper upgrades (charts, images, meta-packages), check
+              changelogs for both the wrapper AND the underlying component separately.
+            - **Documentation sites**: Search for migration guides or "what's new" pages for
+              deprecation notices not mentioned in changelogs.
+            - **Commit history**: If no changelog exists, scan commit messages between the two
+              tags/versions for keywords: breaking, deprecat, remov, renam, migrat, drop, require.
+            - **Registry metadata**: When a repo has no releases or changelog, check the README or
+              container registry (Docker Hub, GHCR, quay.io) for links to the upstream project.
+            - **Web search**: Last resort for hard-to-find changelogs or community migration reports.
+            - **Upstream issues**: After reviewing release notes, search the upstream repo's GitHub
+              issues for open bugs or regressions reported against the new version. Use
+              `gh api "search/issues?q=repo:org/repo+label:bug+VERSION"` or WebSearch for issues
+              referencing the version number. This catches regressions that ship before being
+              documented in a changelog.
+
+            Do not stop at the first source. Cross-reference multiple sources.
+
+            ### 3. Assess Impact
+
+            Read the files in this repository that reference or consume the upgraded component:
+            HelmRelease CRDs, Kustomizations, ConfigMaps, ExternalSecrets, HTTPRoutes, and anything
+            else that touches the dependency.
+
+            Map each finding from the research step against what this repository actually uses. A
+            breaking change that affects a feature we don't use is not actionable.
+
+            ### 4. Categorize
+
+            Sort actionable findings into four buckets:
+            - **Breaking changes**: Incompatibilities requiring repo changes before or alongside
+              this upgrade
+            - **Deprecations**: Treat identically to breaking changes; update usage now rather than
+              relying on deprecated behavior
+            - **New features**: Capabilities worth adopting (simplifies config, eliminates
+              workarounds, improves functionality)
+            - **Known issues**: Open bugs or regressions reported against this version in the
+              upstream issue tracker that could affect this repo
+
+            ## Submitting the Review
+
+            Submit your findings as a single GitHub PR review.
+
+            **If there are breaking changes or deprecations that affect this repo**:
+            Use `gh pr review --request-changes` with a structured body.
+
+            **If the upgrade is safe** (no actionable findings):
+            Use `gh pr review --approve` with a brief summary.
+
+            Structure the review body as follows (omit empty sections):
+
+            ```
+            ### [package]: vOLD → vNEW
+
+            **Verdict**: Safe to merge | Changes required before merge
+
+            **Breaking changes**:
+            - [What changed] — introduced in [version]. Affects `path/to/file`. Fix: [brief description]
+
+            **Deprecations**:
+            - [Same detail as above]
+
+            **New features worth adopting**:
+            - [Feature] — [benefit]. Would change `path/to/file`.
+
+            **Known issues**:
+            - [Issue title/link] — [brief description of impact]
+
+            **Not applicable to this repo**:
+            - [Finding] — [why it doesn't apply]
+
+            **Sources consulted**:
+            - [URLs]
+            ```
+
+            ## Constraints
+
+            - NEVER modify repository files — read-only investigation only
+            - NEVER merge the PR, approve merges, or run kubectl/flux/talosctl/cluster commands
+            - Check git history for context: `git log --oneline --grep="<package>" -n 10`
+            - If unclear, research more rather than guess
+            - When stuck (private repo, ambiguous package, no changelog anywhere), report what you
+              found and what you could not find rather than fabricating information
+            - Submit exactly one `gh pr review` at the end of your analysis
+            - When citing github.com URLs in the review body (PRs, issues, commits, releases, file
+              or blob links), rewrite the host to `redirect.github.com` while keeping the full
+              `https://` scheme (e.g. `https://redirect.github.com/rook/rook/releases/tag/v1.20.0`).
+              This suppresses the cross-reference backlinks that would otherwise spam every linked
+              issue/PR with a "mentioned in" notification. Non-github.com URLs are unaffected.
+
+      - name: Publish review status
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          IS_RENOVATE: ${{ steps.gate.outputs.is_renovate }}
+          GATED: ${{ steps.gate.outputs.gated }}
+        run: |
+          context="claude/renovate-review"
+
+          if [[ "$IS_RENOVATE" != "true" ]]; then
+            # Human PR or non-Renovate author - not gated.
+            state="success"
+            desc="Not a Renovate PR - skipped"
+          elif [[ "$GATED" != "true" ]]; then
+            # Digest-only or GitHub Actions bump - ungated, pass through.
+            state="success"
+            desc="Ungated update type (digest/github-actions) - auto-approved"
+          else
+            # Gated version bump - read Claude's review verdict (fail closed).
+            state="failure"
+            desc="Claude review pending or errored"
+
+            for attempt in 1 2 3; do
+              review_state=$(gh api "repos/$REPO/pulls/$PR/reviews" --paginate \
+                --jq '[.[] | select(.user.login == "claude[bot]" or .user.login == "github-actions[bot]")]
+                      | last | .state // ""' 2>/dev/null || echo "")
+
+              if [[ "$review_state" == "APPROVED" ]]; then
+                state="success"
+                desc="Claude approved - safe to merge"
+                break
+              elif [[ "$review_state" == "CHANGES_REQUESTED" ]]; then
+                state="failure"
+                desc="Claude requested changes - manual review required"
+                break
+              fi
+
+              echo "Attempt $attempt: review_state='$review_state' - retrying in 5s..."
+              sleep 5
+            done
+          fi
+
+          echo "Posting commit status: context=$context state=$state desc=$desc"
+          gh api -X POST "repos/$REPO/statuses/$SHA" \
+            -f state="$state" \
+            -f context="$context" \
+            -f description="$desc" \
+            -f target_url="$RUN_URL"
+
+      - name: Log usage
+        if: always() && steps.gate.outputs.gated == 'true'
+        continue-on-error: true
+        env:
+          EXEC_FILE: ${{ steps.claude.outputs.execution_file }}
+          MODEL: ${{ steps.model_tier.outputs.model }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: bash .github/scripts/report-claude-usage.sh
