@@ -16,6 +16,12 @@ glob = ["*.sh"]
 run = "mise x -- actionlint -no-color"
 glob = [".github/workflows/*.yml", ".github/workflows/*.yaml"]
 
+# Audit GitHub Actions workflows for security issues (template injection,
+# dangerous triggers, credential leaks) — complements actionlint.
+[pre-commit.commands.lint-zizmor]
+run = "mise x -- zizmor --offline {staged_files}"
+glob = [".github/workflows/*.yml", ".github/workflows/*.yaml", ".github/actions/**/action.yaml"]
+
 [pre-commit.commands.format-json]
 run = "mise x --quiet -- prettier -w --log-level warn {staged_files}"
 glob = ["*.json", "*.json5"]
