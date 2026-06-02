@@ -1,24 +1,10 @@
 {
   $schema: "https://docs.renovatebot.com/renovate-schema.json",
-  customDatasources: {
-    "grafana-dashboards": {
-      defaultRegistryUrlTemplate: "https://grafana.com/api/dashboards/{{packageName}}",
-      format: "json",
-      transformTemplates: ['{"releases":[{"version": $string(revision)}]}'],
-    },
-  },
+  // The `custom.grafana-dashboards` datasource and the grafanadashboard URL-format
+  // manager come from home-operations/renovate-presets (managers/grafanaDashboards).
+  // This adds the GrafanaDashboard CRD `id:`/`revision:` format the preset doesn't
+  // cover (used by snmp-exporter, nut-exporter, ... grafanadashboard.yaml).
   customManagers: [
-    {
-      description: "Process Grafana dashboards (legacy format)",
-      customType: "regex",
-      managerFilePatterns: ["/(^|/)kubernetes/.+\\.ya?ml$/"],
-      matchStrings: [
-        'depName="(?<depName>.*)"\\n(?<indentation>\\s+)gnetId: (?<packageName>\\d+)\\n.+revision: (?<currentValue>\\d+)',
-      ],
-      autoReplaceStringTemplate: 'depName="{{{depName}}}"\n{{{indentation}}}gnetId: {{{packageName}}}\n{{{indentation}}}revision: {{{newValue}}}',
-      datasourceTemplate: "custom.grafana-dashboards",
-      versioningTemplate: "regex:^(?<major>\\d+)$",
-    },
     {
       description: "Process Grafana dashboards (GrafanaDashboard CRD format)",
       customType: "regex",
@@ -29,17 +15,6 @@
       autoReplaceStringTemplate: '# renovate: depName="{{{depName}}}"\n{{{indentation}}}id: {{{packageName}}}\n{{{indentation}}}revision: {{{newValue}}}',
       datasourceTemplate: "custom.grafana-dashboards",
       versioningTemplate: "regex:^(?<major>\\d+)$",
-    },
-    {
-      description: "Process Grafana dashboards (URL format)",
-      customType: "regex",
-      managerFilePatterns: ["/grafanadashboard\\.ya?ml(?:\\.j2)?$/"],
-      matchStrings: [
-        "dashboards\\/(?<depName>\\d+)\\/revisions\\/(?<currentValue>\\d+)\\/download",
-      ],
-      datasourceTemplate: "custom.grafana-dashboards",
-      versioningTemplate: "regex:^(?<major>\\d+)$",
-      autoReplaceStringTemplate: "dashboards/{{depName}}/revisions/{{newValue}}/download",
     },
   ],
   packageRules: [
