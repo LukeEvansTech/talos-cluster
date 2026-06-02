@@ -1,5 +1,8 @@
 {
   $schema: "https://docs.renovatebot.com/renovate-schema.json",
+  // OCI, CloudNative-PG imageName, and standard "# renovate:" annotated managers
+  // come from home-operations/renovate-presets (managers/oci, managers/cnpg,
+  // managers/annotated). Only the managers the preset does not cover live here.
   customDatasources: {
     "minecraft-release": {
       defaultRegistryUrlTemplate: "https://api.papermc.io/v2/projects/paper",
@@ -23,15 +26,6 @@
     },
     {
       customType: "regex",
-      description: "Process CloudNative-PG imageName",
-      managerFilePatterns: ["/(^|/)kubernetes/.+\\.ya?ml$/"],
-      matchStrings: [
-        "imageName: (?<depName>[^\\s:]+):(?<currentValue>\\S+)(@(?<currentDigest>sha256:\\S+)?)?",
-      ],
-      datasourceTemplate: "docker",
-    },
-    {
-      customType: "regex",
       description: "Process homebridge image tag with quotes to prevent YAML date parsing",
       managerFilePatterns: ["/(^|/)kubernetes/.+\\.ya?ml$/"],
       matchStrings: [
@@ -41,35 +35,6 @@
       datasourceTemplate: "docker",
       autoReplaceStringTemplate: 'repository: homebridge/homebridge\n              tag: "{{{newValue}}}@{{{newDigest}}}"',
       versioningTemplate: "regex:^(?<major>\\d{4})-(?<minor>\\d{2})-(?<patch>\\d{2})$",
-    },
-    {
-      customType: "regex",
-      description: "Process annotated dependencies",
-      managerFilePatterns: [
-        "/(^|/).+\\.env$/",
-        "/(^|/).+\\.sh$/",
-        "/(^|/).+\\.ya?ml(?:\\.j2)?$/",
-      ],
-      matchStrings: [
-        // # renovate: datasource=github-releases depName=k3s-io/k3s
-        // k3s_release_version: &version v1.29.0+k3s1
-        // # renovate: datasource=helm depName=cilium repository=https://helm.cilium.io
-        // version: 1.15.1
-        // # renovate: datasource=docker depName=ghcr.io/siderolabs/kubelet
-        // KUBERNETES_VERSION=v1.31.1
-        "datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)( repository=(?<registryUrl>\\S+))?\\n.+(:\\s|=)(&\\S+\\s)?(?<currentValue>\\S+)",
-        // # renovate: datasource=docker depName=ghcr.io/prometheus-operator/prometheus-operator
-        // https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/v0.80.0/example/prometheus-operator-crd/monitoring.coreos.com_alertmanagerconfigs.yaml
-        "datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\n.+/(?<currentValue>(v|\\d)[^/]+)",
-      ],
-      datasourceTemplate: "{{#if datasource}}{{{datasource}}}{{else}}github-releases{{/if}}",
-    },
-    {
-      customType: "regex",
-      description: "Process OCI dependencies",
-      managerFilePatterns: ["/\\.ya?ml(?:\\.j2)?$/"],
-      matchStrings: ["oci://(?<depName>[^:]+):(?<currentValue>\\S+)"],
-      datasourceTemplate: "docker",
     },
   ],
 }
