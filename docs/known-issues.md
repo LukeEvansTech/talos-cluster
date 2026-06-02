@@ -605,11 +605,64 @@ back to 0.
    cluster-internal Service whose endpoint may have been evicted by the
    drain. Worth raising upstream or pinning `rebootMode: kexec` to skip
    the powercycle path.
-2. The `blackbox-exporter-lan` pod's intermittent DNS-resolve failure on
-   target hostnames needs investigation — likely a `dnsPolicy` /
-   resolv.conf issue post-Cilium-identity-shuffle.
-3. KEDA-on-Plex pause annotations get reverted by Flux; would be cleaner
-   to set them through chart values so they survive reconcile.
+
+## flate Mis-Resolves NGC HelmRepository Chart URLs (gpu-operator Skipped In CI)
+
+### Issue
+
+CI's `Flux Local - Test` job (`.github/workflows/flux-local.yaml`, now powered
+by [flate](https://github.com/home-operations/flate) instead of flux-local)
+loops `flate test all --namespace <ns>` over every directory under
+`kubernetes/apps/`. It **explicitly skips the `gpu-operator` namespace** with:
+
+```text
+::warning title=flate::skipping gpu-operator (flate NGC HelmRepository URL bug)
+```
+
+Without the skip, `flate test all --namespace gpu-operator` fails to pull the
+NVIDIA GPU Operator chart and the whole test job goes red.
+
+### Root Cause
+
+This is a **flate bug**, not a real chart/cluster problem. The GPU Operator is
+served from NVIDIA's NGC Helm registry via a `HelmRepository`
+(`helm.ngc.nvidia.com/nvidia`). NGC's index lists the chart with a **relative**
+URL:
+
+```yaml
+urls:
+    - "charts/gpu-operator-v26.3.2.tgz"
+```
+
+Per the Helm spec a relative `urls:` entry resolves against the repository base
+URL — i.e. `helm.ngc.nvidia.com/nvidia/charts/gpu-operator-…tgz`. flate instead
+resolves it against the **host root**, requesting
+`helm.ngc.nvidia.com/charts/gpu-operator-…tgz` → **404**. The cluster's own
+Flux source-controller resolves the same `HelmRepository` correctly and pulls
+the chart fine, so this only affects the flate-based CI check.
+
+### Workaround
+
+The per-namespace loop in CI skips `gpu-operator` (see the `TODO(flate)` marker
+in `.github/workflows/flux-local.yaml`). Everything else is still tested. To
+validate gpu-operator manifests locally, render the HelmRelease directly rather
+than via flate's chart pull, or rely on the live cluster's Flux reconcile.
+
+Find the skip any time with:
+
+```bash
+grep -rn 'TODO(flate)' .github/
+```
+
+### Resolution Status
+
+⚠️ **Worked around in CI; upstream fix pending.** Remove the `gpu-operator`
+skip and restore plain `flate test all` once
+[home-operations/flate](https://github.com/home-operations/flate) fixes NGC
+`HelmRepository` relative-URL resolution. 2. The `blackbox-exporter-lan` pod's intermittent DNS-resolve failure on
+target hostnames needs investigation — likely a `dnsPolicy` /
+resolv.conf issue post-Cilium-identity-shuffle. 3. KEDA-on-Plex pause annotations get reverted by Flux; would be cleaner
+to set them through chart values so they survive reconcile.
 
 ---
 

@@ -20,6 +20,18 @@ browse-pvc namespace claim:
 delete-ks ns ks:
     just kube render-local-ks "{{ ns }}" "{{ ks }}" | kubectl delete -f -
 
+[doc('Render a HelmRelease offline with flate (postBuild substitutions resolved)')]
+flate-build-hr ns hr:
+    flate build hr "{{ hr }}" --namespace "{{ ns }}" --path "{{ source_directory() }}/flux/cluster" --allow-missing-secrets
+
+[doc('Render a Kustomization offline with flate (postBuild substitutions resolved)')]
+flate-build-ks ns ks:
+    flate build ks "{{ ks }}" --namespace "{{ ns }}" --path "{{ source_directory() }}/flux/cluster" --allow-missing-secrets
+
+[doc('Test all manifests offline with flate (flux-local test equivalent)')]
+flate-test:
+    flate test all --path "{{ source_directory() }}/flux/cluster" --allow-missing-secrets
+
 [doc('Open a shell on a node')]
 [script]
 node-shell node:
