@@ -93,13 +93,14 @@ jobs:
 
       - id: claude
         if: steps.gate.outputs.gated == 'true'
-        # Route the secret through env (zizmor secrets-outside-env) rather than
-        # interpolating ${{ secrets.* }} directly into the action input.
-        env:
-          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
         uses: anthropics/claude-code-action@787c5a0ce96a9a6cfb050ea0c8f4c05f2447c251 # v1.0.133
         with:
-          claude_code_oauth_token: ${{ env.CLAUDE_CODE_OAUTH_TOKEN }}
+          # zizmor secrets-outside-env wants a GitHub deployment environment, but this
+          # review runs on every Renovate PR branch: an environment with protection rules
+          # would block the automation, and one without rules adds no security. zizmor
+          # >=1.25 suppresses this audit by default; super-linter pins 1.23.1 which still
+          # emits it. Suppressed here with justification.
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }} # zizmor: ignore[secrets-outside-env]
           allowed_bots: "renovate[bot]"
           show_full_output: true
           claude_args: |
