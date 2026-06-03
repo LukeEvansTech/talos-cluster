@@ -610,7 +610,7 @@ back to 0.
 
 ### Issue
 
-CI's `Flux Local - Test` job (`.github/workflows/flux-local.yaml`, now powered
+CI's `Flate - Test` job (`.github/workflows/flate.yaml`, now powered
 by [flate](https://github.com/home-operations/flate) instead of flux-local)
 loops `flate test all --namespace <ns>` over every directory under
 `kubernetes/apps/`. It **explicitly skips the `gpu-operator` namespace** with:
@@ -644,7 +644,7 @@ the chart fine, so this only affects the flate-based CI check.
 ### Workaround
 
 The per-namespace loop in CI skips `gpu-operator` (see the `TODO(flate)` marker
-in `.github/workflows/flux-local.yaml`). Everything else is still tested. To
+in `.github/workflows/flate.yaml`). Everything else is still tested. To
 validate gpu-operator manifests locally, render the HelmRelease directly rather
 than via flate's chart pull, or rely on the live cluster's Flux reconcile.
 
