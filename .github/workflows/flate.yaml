@@ -65,6 +65,19 @@ jobs:
           # TODO(flate): remove the gpu-operator skip below + restore plain
           # `flate test all` once home-operations/flate fixes NGC HelmRepository
           # relative-URL resolution. Tracking: https://github.com/home-operations/flate
+
+          # flate test is occasionally flaky: it intermittently exits non-zero with
+          # "0 failed" in the output (substitution-cache nondeterminism). Retry once
+          # per namespace before declaring a real failure.
+          flate_test() {
+            local ns="$1"
+            flate test all --namespace "${ns}" \
+              --path kubernetes/flux/cluster --allow-missing-secrets && return 0
+            echo "::warning title=flate::flate test ${ns} failed; retrying once (flate is occasionally flaky)"
+            flate test all --namespace "${ns}" \
+              --path kubernetes/flux/cluster --allow-missing-secrets
+          }
+
           rc=0
           for ns in kubernetes/apps/*/; do
             ns="$(basename "${ns}")"
@@ -73,9 +86,7 @@ jobs:
               continue
             fi
             echo "::group::flate test ${ns}"
-            flate test all --namespace "${ns}" \
-              --path kubernetes/flux/cluster \
-              --allow-missing-secrets || rc=1
+            flate_test "${ns}" || rc=1
             echo "::endgroup::"
           done
           exit "${rc}"
