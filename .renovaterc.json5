@@ -9,20 +9,437 @@
     "github>home-operations/renovate-presets#1.3.1",
     // Our customisations on top — the preset does not pin docker digests:
     "docker:pinDigests",
-    // Our auto-merge / grouping / labels / overrides + the managers the preset
-    // doesn't cover (Minecraft, homebridge date tags, GrafanaDashboard CRD format)
-    // and our extra changelog URLs (Spegel):
-    "github>LukeEvansTech/talos-cluster//.renovate/autoMerge.json5",
-    "github>LukeEvansTech/talos-cluster//.renovate/changelogs.json5",
-    "github>LukeEvansTech/talos-cluster//.renovate/customManagers.json5",
-    "github>LukeEvansTech/talos-cluster//.renovate/grafanaDashboards.json5",
-    "github>LukeEvansTech/talos-cluster//.renovate/groups.json5",
-    "github>LukeEvansTech/talos-cluster//.renovate/labels.json5",
-    "github>LukeEvansTech/talos-cluster//.renovate/overrides.json5",
     ":timezone(Europe/London)",
   ],
   suppressNotifications: ["prEditedNotification", "prIgnoreNotification"],
   // Automatically request reviews from GitHub Copilot on all PRs
   reviewers: ["github-copilot[bot]"],
   reviewersSampleSize: 1,
+  // ---------------------------------------------------------------------------
+  // Repo-specific config previously split across .renovate/*.json5 and pulled in
+  // via self-referencing `github>LukeEvansTech/talos-cluster//.renovate/*` extends.
+  // Inlined here so Renovate no longer re-fetches this repo as a remote preset
+  // (avoids the chicken-and-egg where edits to those files don't apply in the
+  // same PR). The home-operations/renovate-presets base above is still remote.
+  // ---------------------------------------------------------------------------
+
+  // --- Custom datasources (from .renovate/customManagers.json5) ---
+  customDatasources: {
+    "minecraft-release": {
+      defaultRegistryUrlTemplate: "https://api.papermc.io/v2/projects/paper",
+      format: "json",
+      transformTemplates: [
+        '{"releases": $map($filter(versions, function($v) { $not($contains($v, "-pre")) and $not($contains($v, "-rc")) }), function($v) { {"version": $v} }), "sourceUrl": "https://papermc.io", "homepage": "https://papermc.io"}',
+      ],
+    },
+  },
+
+  // --- Custom managers (from customManagers.json5 + grafanaDashboards.json5) ---
+  // OCI, CloudNative-PG imageName, and standard "# renovate:" annotated managers
+  // come from home-operations/renovate-presets. Only the managers the preset does
+  // not cover live here (Minecraft, homebridge date tags, GrafanaDashboard CRD).
+  customManagers: [
+    {
+      customType: "regex",
+      description: "Track Minecraft release versions",
+      managerFilePatterns: ["/(^|/)kubernetes/.+\\.ya?ml$/"],
+      matchStrings: [
+        "# renovate: datasource=custom\\.minecraft-release\\n\\s+VERSION:\\s*[\"']?(?<currentValue>[^\"'\\s]+)[\"']?",
+      ],
+      datasourceTemplate: "custom.minecraft-release",
+      depNameTemplate: "minecraft-release",
+      versioningTemplate: "loose",
+    },
+    {
+      customType: "regex",
+      description: "Process homebridge image tag with quotes to prevent YAML date parsing",
+      managerFilePatterns: ["/(^|/)kubernetes/.+\\.ya?ml$/"],
+      matchStrings: [
+        "repository:\\s*homebridge/homebridge\\n\\s+tag:\\s*[\"']?(?<currentValue>\\d{4}-\\d{2}-\\d{2})(@(?<currentDigest>sha256:[a-f0-9]+))?[\"']?",
+      ],
+      depNameTemplate: "homebridge/homebridge",
+      datasourceTemplate: "docker",
+      autoReplaceStringTemplate: 'repository: homebridge/homebridge\n              tag: "{{{newValue}}}@{{{newDigest}}}"',
+      versioningTemplate: "regex:^(?<major>\\d{4})-(?<minor>\\d{2})-(?<patch>\\d{2})$",
+    },
+    {
+      description: "Process Grafana dashboards (GrafanaDashboard CRD format)",
+      customType: "regex",
+      managerFilePatterns: ["/(^|/)kubernetes/.+\\.ya?ml$/"],
+      matchStrings: [
+        '# renovate: depName="(?<depName>.*)"\\n(?<indentation>\\s+)id: (?<packageName>\\d+)\\n\\s+revision: (?<currentValue>\\d+)',
+      ],
+      autoReplaceStringTemplate: '# renovate: depName="{{{depName}}}"\n{{{indentation}}}id: {{{packageName}}}\n{{{indentation}}}revision: {{{newValue}}}',
+      datasourceTemplate: "custom.grafana-dashboards",
+      versioningTemplate: "regex:^(?<major>\\d+)$",
+    },
+  ],
+
+  // --- Package rules (order preserved from the former extends sequence:
+  //     autoMerge → changelogs → grafanaDashboards → groups → labels → overrides) ---
+  packageRules: [
+    // === Auto-merge (from autoMerge.json5) ===
+    {
+      description: "Auto-merge GitHub Actions",
+      matchManagers: ["github-actions"],
+      automerge: true,
+      automergeType: "branch",
+      matchUpdateTypes: ["minor", "patch", "digest"],
+      minimumReleaseAge: "3 days",
+      ignoreTests: true,
+    },
+    {
+      description: "Auto-merge GitHub Releases",
+      matchDatasources: ["github-releases"],
+      automerge: true,
+      automergeType: "branch",
+      matchUpdateTypes: ["minor", "patch"],
+      matchPackageNames: [
+        "/external-dns/",
+        "/gateway-api/",
+        "/prometheus-operator/",
+      ],
+      ignoreTests: true,
+    },
+    {
+      description: "Auto-merge Mise Tools",
+      matchManagers: ["mise"],
+      automerge: true,
+      automergeType: "branch",
+      matchUpdateTypes: ["minor", "patch"],
+      ignoreTests: true,
+    },
+    {
+      description: "Auto-merge OCI Charts",
+      matchDatasources: ["docker"],
+      automerge: true,
+      automergeType: "pr",
+      matchUpdateTypes: ["minor", "patch"],
+      matchPackageNames: ["/kube-prometheus-stack/", "/grafana/"],
+      ignoreTests: false,
+    },
+    {
+      description: "Auto-merge trusted container digests",
+      matchDatasources: ["docker"],
+      automerge: true,
+      automergeType: "pr",
+      matchUpdateTypes: ["digest", "minor", "patch"],
+      matchPackageNames: ["/home-operations/"],
+      ignoreTests: false,
+    },
+    {
+      description: "Auto-merge trusted GitHub Actions",
+      matchManagers: ["github-actions"],
+      matchPackageNames: ["/^actions\\//", "/^renovatebot\\//"],
+      automerge: true,
+      automergeType: "branch",
+      matchUpdateTypes: ["minor", "patch", "digest"],
+      minimumReleaseAge: "1 day",
+      ignoreTests: true,
+    },
+    {
+      description: "Auto-merge changedetection.io patch updates",
+      matchDatasources: ["docker"],
+      automerge: true,
+      automergeType: "pr",
+      matchUpdateTypes: ["patch"],
+      matchPackageNames: ["/changedetection\\.io/"],
+      ignoreTests: false,
+    },
+    {
+      description: "Auto-merge whodb container updates",
+      matchDatasources: ["docker"],
+      automerge: true,
+      automergeType: "pr",
+      matchUpdateTypes: ["minor", "patch"],
+      matchPackageNames: ["/clidey/whodb/"],
+      ignoreTests: false,
+    },
+    {
+      description: "Auto-merge databasus container updates",
+      matchDatasources: ["docker"],
+      automerge: true,
+      automergeType: "pr",
+      matchUpdateTypes: ["minor", "patch"],
+      matchPackageNames: ["/databasus/databasus/"],
+      ignoreTests: false,
+    },
+    {
+      description: "Auto-merge seerr container updates",
+      matchDatasources: ["docker"],
+      automerge: true,
+      automergeType: "pr",
+      matchUpdateTypes: ["minor", "patch"],
+      matchPackageNames: ["/seerr-team/seerr/"],
+      ignoreTests: false,
+    },
+
+    // === Changelogs (from changelogs.json5) ===
+    // 1Password Connect + cloudflared changelog URLs come from the preset's
+    // overrides/changelogs.json5. Spegel is ours (not in the preset).
+    {
+      description: "Changelog URL for Spegel",
+      matchPackageNames: ["/spegel/"],
+      changelogUrl: "https://github.com/spegel-org/spegel/blob/main/CHANGELOG.md",
+    },
+
+    // === Grafana dashboards (from grafanaDashboards.json5) ===
+    {
+      addLabels: ["renovate/grafana-dashboard"],
+      automerge: true,
+      automergeType: "branch",
+      commitMessageExtra: "({{currentVersion}} → {{newVersion}})",
+      commitMessageTopic: "dashboard {{depName}}",
+      ignoreTests: true,
+      matchDatasources: ["custom.grafana-dashboards"],
+      matchUpdateTypes: ["major"],
+      semanticCommitScope: "grafana-dashboards",
+      semanticCommitType: "chore",
+    },
+
+    // === Grouping (from groups.json5) ===
+    {
+      description: "Actions Runner Controller Group",
+      groupName: "Actions Runner Controller",
+      matchDatasources: ["docker"],
+      matchPackageNames: [
+        "/gha-runner-scale-set-controller/",
+        "/gha-runner-scale-set/",
+      ],
+      group: {
+        commitMessageTopic: "{{{groupName}}} group",
+      },
+      minimumGroupSize: 2,
+    },
+    {
+      description: "Busybox Group (matches any docker.io/(library/)?busybox variant)",
+      groupName: "Busybox",
+      matchDatasources: ["docker"],
+      matchPackageNames: ["/^docker\\.io\\/(library\\/)?busybox$/"],
+      group: {
+        commitMessageTopic: "{{{groupName}}} group",
+      },
+      minimumGroupSize: 1,
+    },
+    {
+      description: "Cert-Manager Group",
+      groupName: "Cert-Manager",
+      matchDatasources: ["docker"],
+      matchPackageNames: ["/cert-manager/"],
+      group: {
+        commitMessageTopic: "{{{groupName}}} group",
+      },
+      minimumGroupSize: 2,
+    },
+    {
+      description: "Cilium Group",
+      groupName: "Cilium",
+      matchDatasources: ["docker"],
+      matchPackageNames: ["/cilium/"],
+      group: {
+        commitMessageTopic: "{{{groupName}}} group",
+      },
+      minimumGroupSize: 2,
+    },
+    {
+      description: "CoreDNS Group",
+      groupName: "CoreDNS",
+      matchDatasources: ["docker"],
+      matchPackageNames: ["/coredns/"],
+      group: {
+        commitMessageTopic: "{{{groupName}}} group",
+      },
+      minimumGroupSize: 2,
+    },
+    {
+      description: "Flux Group",
+      groupName: "Flux",
+      matchDatasources: ["docker"],
+      matchPackageNames: ["/fluxcd\\//"],
+      group: {
+        commitMessageTopic: "{{{groupName}}} group",
+      },
+      minimumGroupSize: 2,
+    },
+    {
+      description: "Profilarr Group (app + parser move in lockstep)",
+      groupName: "Profilarr",
+      matchDatasources: ["docker"],
+      matchPackageNames: ["/profilarr/"],
+      group: {
+        commitMessageTopic: "{{{groupName}}} group",
+      },
+      minimumGroupSize: 2,
+    },
+    {
+      description: "Prowler Group (api + ui move in lockstep)",
+      groupName: "Prowler",
+      matchDatasources: ["docker"],
+      matchPackageNames: ["/^prowlercloud\\//"],
+      group: {
+        commitMessageTopic: "{{{groupName}}} group",
+      },
+      minimumGroupSize: 1,
+    },
+    {
+      description: "Rook-Ceph Group",
+      groupName: "Rook-Ceph",
+      matchDatasources: ["docker"],
+      matchPackageNames: ["/rook-ceph/", "/rook-ceph-cluster/"],
+      group: {
+        commitMessageTopic: "{{{groupName}}} group",
+      },
+      minimumGroupSize: 2,
+    },
+    {
+      description: "Kubernetes Group",
+      groupName: "Kubernetes",
+      matchDatasources: ["docker"],
+      matchPackageNames: [
+        "/kube-apiserver/",
+        "/kube-controller-manager/",
+        "/kube-proxy/",
+        "/kube-scheduler/",
+      ],
+      group: {
+        commitMessageTopic: "{{{groupName}}} group",
+      },
+      minimumGroupSize: 2,
+    },
+    {
+      description: "Talos Group",
+      groupName: "Talos",
+      matchDatasources: ["docker"],
+      // Negated match replaces the deprecated excludePackageNames: ["/kubelet/"]
+      matchPackageNames: ["/siderolabs\\//", "!/kubelet/"],
+      group: {
+        commitMessageTopic: "{{{groupName}}} group",
+      },
+      minimumGroupSize: 2,
+    },
+    {
+      description: "Your Spotify Group",
+      groupName: "Your Spotify",
+      matchDatasources: ["docker"],
+      matchPackageNames: ["/your_spotify/"],
+      group: {
+        commitMessageTopic: "{{{groupName}}} group",
+      },
+      minimumGroupSize: 2,
+    },
+    {
+      description: "Invio Group",
+      groupName: "Invio",
+      matchDatasources: ["docker"],
+      matchPackageNames: ["/invio/"],
+      group: {
+        commitMessageTopic: "{{{groupName}}} group",
+      },
+      minimumGroupSize: 2,
+    },
+    {
+      description: "Tdarr Group",
+      groupName: "Tdarr",
+      matchDatasources: ["docker"],
+      matchPackageNames: ["/tdarr/"],
+      group: {
+        commitMessageTopic: "{{{groupName}}} group",
+      },
+      minimumGroupSize: 2,
+    },
+    {
+      description: "CloudNative-PG Barman Cloud Group",
+      groupName: "CloudNative-PG Barman Cloud",
+      matchDatasources: ["docker"],
+      matchPackageNames: ["/plugin-barman-cloud/"],
+      group: {
+        commitMessageTopic: "{{{groupName}}} group",
+      },
+      minimumGroupSize: 2,
+    },
+
+    // === Labels (from labels.json5) ===
+    {
+      matchUpdateTypes: ["major"],
+      labels: ["type/major"],
+    },
+    {
+      matchUpdateTypes: ["minor"],
+      labels: ["type/minor"],
+    },
+    {
+      matchUpdateTypes: ["patch"],
+      labels: ["type/patch"],
+    },
+    {
+      matchUpdateTypes: ["digest"],
+      labels: ["type/digest"],
+    },
+    {
+      matchDatasources: ["docker"],
+      addLabels: ["renovate/container"],
+    },
+    {
+      matchDatasources: ["helm"],
+      addLabels: ["renovate/helm"],
+    },
+    {
+      matchManagers: ["github-actions"],
+      addLabels: ["renovate/github-action"],
+    },
+    {
+      matchDatasources: ["github-releases"],
+      addLabels: ["renovate/github-release"],
+    },
+
+    // === Overrides (from overrides.json5) ===
+    {
+      description: "Custom versioning for it-tools date-based tags (no v prefix)",
+      matchDatasources: ["docker"],
+      matchPackageNames: ["corentinth/it-tools"],
+      versioning: "regex:^(?<major>\\d{4})\\.(?<minor>\\d{2})\\.(?<patch>\\d{2})-(?<build>[a-f0-9]+)$",
+    },
+    {
+      description: "Custom versioning for metube date-based tags (YYYY.MM.DD)",
+      matchDatasources: ["docker"],
+      matchPackageNames: ["ghcr.io/alexta69/metube"],
+      versioning: "regex:^(?<major>\\d{4})\\.(?<minor>\\d{2})\\.(?<patch>\\d{2})$",
+    },
+    {
+      description: "Override Helmfile Dependency Name",
+      matchDatasources: ["docker"],
+      matchManagers: ["helmfile"],
+      overrideDepName: "{{packageName}}",
+    },
+    {
+      description: "Override Talos Installer Package Name",
+      matchDatasources: ["docker"],
+      matchPackageNames: ["/factory\\.talos\\.dev/"],
+      overridePackageName: "ghcr.io/siderolabs/installer",
+    },
+    {
+      description: "Disable helm-values manager for homebridge (handled by custom regex manager with quotes)",
+      matchDatasources: ["docker"],
+      matchManagers: ["helm-values"],
+      matchPackageNames: ["homebridge/homebridge"],
+      enabled: false,
+    },
+    {
+      // Flux OCIRepository has separate `tag:` and `digest:` fields; appending
+      // `@sha256:...` to `tag:` makes helm reject the chart ref with
+      // `improper constraint` (or `unable to locate any tags` on ghcr).
+      description: "Don't pin digests on Flux OCIRepository chart tags",
+      matchManagers: ["flux"],
+      pinDigests: false,
+    },
+    {
+      // pulsarr upstream (github.com/jamcalli/Pulsarr) is still on 0.15.x.
+      // Stray 1.x tags appeared on Docker Hub (1.1.5, 1.1.6) and were pulled.
+      // Block the whole 1.x major until upstream legitimately ships a 1.0 release.
+      description: "Block pulsarr 1.x — no matching upstream release",
+      matchDatasources: ["docker"],
+      matchPackageNames: ["docker.io/lakker/pulsarr"],
+      allowedVersions: "<1.0.0",
+    },
+  ],
 }
