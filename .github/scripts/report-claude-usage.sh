@@ -14,6 +14,10 @@
 #   PR           - PR number
 #   REPO         - owner/repo
 #   GH_TOKEN     - default GITHUB_TOKEN (github.token)
+#   FINGERPRINT  - sha256 of the reviewed PR diff; embedded as a hidden marker so
+#                  the next run can skip the Claude step when the diff is unchanged.
+#                  Only written here (after valid result data) so the fingerprint
+#                  is never stored for an errored/no-result run.
 
 set -u
 
@@ -60,7 +64,7 @@ EOF
 # Upsert by hidden marker so Renovate rebase/sync re-runs update one comment
 # instead of spamming new ones.
 if [ -n "${PR:-}" ] && [ -n "${REPO:-}" ]; then
-    comment_body=$(printf '%s\n### Claude Review Usage\n%s' "$MARKER" "$table")
+    comment_body=$(printf '%s\n<!-- fingerprint:%s -->\n### Claude Review Usage\n%s' "$MARKER" "${FINGERPRINT:-}" "$table")
     cid=$(gh api "repos/$REPO/issues/$PR/comments" --paginate \
         --jq "[.[] | select(.user.login==\"github-actions[bot]\" and (.body|startswith(\"$MARKER\")))] | last | .id // empty" \
         2>&1 || true)
