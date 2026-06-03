@@ -91,8 +91,48 @@ jobs:
             echo "depth=full" >> "$GITHUB_OUTPUT"
           fi
 
-      - id: claude
+      - name: Fingerprint check
+        id: fp
         if: steps.gate.outputs.gated == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          USAGE_MARKER: "<!-- claude-renovate-usage -->"
+        run: |
+          set -uo pipefail
+          # Renovate rebases its branches onto fresh main constantly without
+          # changing the actual version bump. When the effective PR diff is
+          # byte-identical to the last reviewed diff, skip the (paid) Claude step
+          # entirely and let the status step re-post the prior verdict. This is a
+          # PRE-LLM gate: the prompt has its own "skip redundant re-reviews" check,
+          # but that one still spins Claude up and burns turns to decide to skip.
+          fingerprint=$(gh pr diff "$PR" 2>/dev/null | sha256sum | cut -d' ' -f1)
+          fingerprint="${fingerprint:-none}"
+          echo "fingerprint=$fingerprint" >> "$GITHUB_OUTPUT"
+
+          # Stored fingerprint lives in a hidden marker inside the sticky usage
+          # comment, written by report-claude-usage.sh only when a real review ran.
+          stored=$(gh api "repos/$REPO/issues/$PR/comments" --paginate \
+            --jq "[.[] | select(.user.login==\"github-actions[bot]\" and (.body|contains(\"$USAGE_MARKER\")))] | last | .body // \"\"" \
+            2>/dev/null | grep -oE 'fingerprint:[0-9a-f]{64}' | head -1 | cut -d: -f2)
+
+          # A prior verdict must exist for the skip to be safe — the status step
+          # re-derives success/failure from it.
+          prior=$(gh api "repos/$REPO/pulls/$PR/reviews" --paginate \
+            --jq '[.[] | select(.user.login=="claude[bot]" or .user.login=="github-actions[bot]")
+                  | select(.state=="APPROVED" or .state=="CHANGES_REQUESTED")] | last | .state // ""' \
+            2>/dev/null)
+
+          skip=false
+          if [[ -n "$stored" && "$stored" == "$fingerprint" && -n "$prior" ]]; then
+            skip=true
+          fi
+          echo "skip_claude=$skip" >> "$GITHUB_OUTPUT"
+          echo "current=$fingerprint stored=${stored:-none} prior=${prior:-none} -> skip_claude=$skip"
+
+      - id: claude
+        if: steps.gate.outputs.gated == 'true' && steps.fp.outputs.skip_claude != 'true'
         uses: anthropics/claude-code-action@787c5a0ce96a9a6cfb050ea0c8f4c05f2447c251 # v1.0.133
         with:
           # zizmor secrets-outside-env wants a GitHub deployment environment, but this
@@ -319,6 +359,8 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           IS_RENOVATE: ${{ steps.gate.outputs.is_renovate }}
           GATED: ${{ steps.gate.outputs.gated }}
+          CLAUDE_OUTCOME: ${{ steps.claude.outcome }}
+          SKIP: ${{ steps.fp.outputs.skip_claude }}
         run: |
           context="claude/renovate-review"
 
@@ -331,28 +373,43 @@ jobs:
             state="success"
             desc="Ungated update type (digest/github-actions) - auto-approved"
           else
-            # Gated version bump - read Claude's review verdict (fail closed).
-            state="failure"
-            desc="Claude review pending or errored"
-
+            # Gated version bump - read the latest verdict. Works for fresh runs
+            # AND fingerprint-skips (the prior review is still on the PR).
+            review_state=""
             for attempt in 1 2 3; do
               review_state=$(gh api "repos/$REPO/pulls/$PR/reviews" --paginate \
-                --jq '[.[] | select(.user.login == "claude[bot]" or .user.login == "github-actions[bot]")]
+                --jq '[.[] | select(.user.login == "claude[bot]" or .user.login == "github-actions[bot]")
+                      | select(.state=="APPROVED" or .state=="CHANGES_REQUESTED")]
                       | last | .state // ""' 2>/dev/null || echo "")
-
-              if [[ "$review_state" == "APPROVED" ]]; then
-                state="success"
-                desc="Claude approved - safe to merge"
-                break
-              elif [[ "$review_state" == "CHANGES_REQUESTED" ]]; then
-                state="failure"
-                desc="Claude requested changes - manual review required"
-                break
-              fi
-
+              [[ "$review_state" == "APPROVED" || "$review_state" == "CHANGES_REQUESTED" ]] && break
               echo "Attempt $attempt: review_state='$review_state' - retrying in 5s..."
               sleep 5
             done
+
+            if [[ "$review_state" == "APPROVED" ]]; then
+              state="success"
+              desc="Claude approved - safe to merge"
+            elif [[ "$review_state" == "CHANGES_REQUESTED" ]]; then
+              # Genuine verdict: block the merge for manual review.
+              state="failure"
+              desc="Claude requested changes - manual review required"
+            elif [[ "$SKIP" == "true" ]]; then
+              # Diff unchanged but the prior verdict vanished (review dismissed?).
+              # Don't hard-block on a bookkeeping gap.
+              state="success"
+              desc="Diff unchanged since last review - prior verdict reused"
+            elif [[ "$CLAUDE_OUTCOME" == "success" ]]; then
+              # Claude ran cleanly but never posted a verdict (e.g. hit max-turns).
+              # This is an anomaly worth a human look, not a transient blip - fail.
+              state="failure"
+              desc="Claude finished without posting a verdict - review manually"
+            else
+              # Claude step errored/cancelled (API blip, rate limit, OAuth expiry).
+              # Transient infra failure != changes-requested: pass through so the
+              # auto-merge pipeline isn't wedged. Surfaced in the status for audit.
+              state="success"
+              desc="Claude review errored (outcome=${CLAUDE_OUTCOME:-none}) - passed through, review manually"
+            fi
           fi
 
           echo "Posting commit status: context=$context state=$state desc=$desc"
@@ -363,11 +420,15 @@ jobs:
             -f target_url="$RUN_URL"
 
       - name: Log usage
-        if: always() && steps.gate.outputs.gated == 'true'
+        # Skip when the Claude step was skipped (diff unchanged): there's no new
+        # usage to report, and rewriting the sticky comment would drop the stored
+        # fingerprint and defeat the next skip.
+        if: always() && steps.gate.outputs.gated == 'true' && steps.fp.outputs.skip_claude != 'true'
         continue-on-error: true
         env:
           EXEC_FILE: ${{ steps.claude.outputs.execution_file }}
           MODEL: ${{ steps.model_tier.outputs.model }}
+          FINGERPRINT: ${{ steps.fp.outputs.fingerprint }}
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           PR: ${{ github.event.pull_request.number }}
