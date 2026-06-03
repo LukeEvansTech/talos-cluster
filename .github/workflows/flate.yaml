@@ -1,6 +1,6 @@
 ---
 # yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
-name: "Flux Local"
+name: "Flate"
 
 on:
   pull_request:
@@ -20,7 +20,7 @@ env:
 
 jobs:
   filter:
-    name: Flux Local - Filter
+    name: Flate - Filter
     runs-on: ubuntu-latest
     outputs:
       changed-files: ${{ steps.changed-files.outputs.changed_files }}
@@ -34,7 +34,7 @@ jobs:
   test:
     if: ${{ needs.filter.outputs.changed-files != '[]' }}
     needs: filter
-    name: Flux Local - Test
+    name: Flate - Test
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -83,7 +83,7 @@ jobs:
   diff:
     if: ${{ needs.filter.outputs.changed-files != '[]' }}
     needs: filter
-    name: Flux Local - Diff
+    name: Flate - Diff
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -124,7 +124,8 @@ jobs:
           RESOURCE: ${{ matrix.resource }}
         run: |
           # flate uses short kind names (hr/ks); keep the matrix values verbose
-          # so the required status-check names stay stable for branch protection.
+          # so the job/check names stay descriptive (Renovate auto-merge gates on
+          # all checks green, so the names just need to be stable + readable).
           case "${RESOURCE}" in
             helmrelease) KIND=hr ;;
             kustomization) KIND=ks ;;
@@ -185,7 +186,7 @@ jobs:
     needs:
       - test
       - diff
-    name: Flux Local - Success
+    name: Flate - Success
     runs-on: ubuntu-latest
     steps:
       - name: Any jobs failed?
