@@ -101,28 +101,35 @@ jobs:
           USAGE_MARKER: "<!-- claude-renovate-usage -->"
         run: |
           set -uo pipefail
+          # NOTE: GitHub runs run-steps with `bash -e` (errexit), and `set -uo
+          # pipefail` does NOT disable it. So every fallible command below needs an
+          # explicit `|| true`, or the step dies. In particular `grep` exits 1 when
+          # there's no stored fingerprint yet (first review of a PR) - that is the
+          # expected path, not an error.
+          #
           # Renovate rebases its branches onto fresh main constantly without
           # changing the actual version bump. When the effective PR diff is
           # byte-identical to the last reviewed diff, skip the (paid) Claude step
           # entirely and let the status step re-post the prior verdict. This is a
           # PRE-LLM gate: the prompt has its own "skip redundant re-reviews" check,
           # but that one still spins Claude up and burns turns to decide to skip.
-          fingerprint=$(gh pr diff "$PR" 2>/dev/null | sha256sum | cut -d' ' -f1)
+          fingerprint=$(gh pr diff "$PR" 2>/dev/null | sha256sum | cut -d' ' -f1 || true)
           fingerprint="${fingerprint:-none}"
           echo "fingerprint=$fingerprint" >> "$GITHUB_OUTPUT"
 
           # Stored fingerprint lives in a hidden marker inside the sticky usage
           # comment, written by report-claude-usage.sh only when a real review ran.
+          # grep exits 1 on no match (first run) -> guard with || true.
           stored=$(gh api "repos/$REPO/issues/$PR/comments" --paginate \
             --jq "[.[] | select(.user.login==\"github-actions[bot]\" and (.body|contains(\"$USAGE_MARKER\")))] | last | .body // \"\"" \
-            2>/dev/null | grep -oE 'fingerprint:[0-9a-f]{64}' | head -1 | cut -d: -f2)
+            2>/dev/null | grep -oE 'fingerprint:[0-9a-f]{64}' | head -1 | cut -d: -f2 || true)
 
           # A prior verdict must exist for the skip to be safe — the status step
           # re-derives success/failure from it.
           prior=$(gh api "repos/$REPO/pulls/$PR/reviews" --paginate \
             --jq '[.[] | select(.user.login=="claude[bot]" or .user.login=="github-actions[bot]")
                   | select(.state=="APPROVED" or .state=="CHANGES_REQUESTED")] | last | .state // ""' \
-            2>/dev/null)
+            2>/dev/null || true)
 
           skip=false
           if [[ -n "$stored" && "$stored" == "$fingerprint" && -n "$prior" ]]; then
