@@ -131,8 +131,54 @@ jobs:
           echo "skip_claude=$skip" >> "$GITHUB_OUTPUT"
           echo "current=$fingerprint stored=${stored:-none} prior=${prior:-none} -> skip_claude=$skip"
 
-      - id: claude
+      - name: Validate OAuth token
+        id: token_check
         if: steps.gate.outputs.gated == 'true' && steps.fp.outputs.skip_claude != 'true'
+        env:
+          # Same rationale as the claude step: a deployment environment would only
+          # block this per-PR automation; super-linter's pinned zizmor 1.23.1 emits
+          # this (1.25 suppresses it by default). Suppressed with justification.
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }} # zizmor: ignore[secrets-outside-env]
+        run: |
+          set -uo pipefail
+          # Deterministic pre-flight: confirm the OAuth token still authenticates
+          # BEFORE spending a review. The reviewer fails OPEN on transient Claude
+          # errors (so a blip doesn't wedge auto-merge), which would otherwise let
+          # an EXPIRED/REVOKED token silently pass PRs through unreviewed. This step
+          # closes that gap: a clean 401 is flagged loudly and blocks (fail closed);
+          # 400/5xx/timeout is "inconclusive" (our request or the network, not the
+          # token) so header/model drift can never false-flag.
+          #
+          # OAuth tokens (sk-ant-oat01) authenticate via x-api-key (NOT Bearer) and
+          # require the oauth beta header; Haiku is exempt from system-prompt checks.
+          code=$(curl -s -o /tmp/tokresp.json -w '%{http_code}' --max-time 30 \
+            -X POST https://api.anthropic.com/v1/messages \
+            -H "x-api-key: ${CLAUDE_CODE_OAUTH_TOKEN}" \
+            -H "anthropic-version: 2023-06-01" \
+            -H "anthropic-beta: oauth-2025-04-20,claude-code-20250219" \
+            -H "content-type: application/json" \
+            -d '{"model":"claude-haiku-4-5-20251001","max_tokens":1,"system":"You are Claude Code, Anthropic'\''s official CLI for Claude.","messages":[{"role":"user","content":"OK"}]}') \
+            || code="000"
+
+          err_type=$(jq -r '.error.type // ""' /tmp/tokresp.json 2>/dev/null || echo "")
+          case "$code" in
+            200) state=valid ;;
+            401) state=invalid ;;
+            *) state=inconclusive ;;
+          esac
+          # Only a genuine authentication_error counts as a dead token; anything
+          # else downgrades to inconclusive so we never block on our own request.
+          if [[ "$state" == "invalid" && -n "$err_type" && "$err_type" != "authentication_error" ]]; then
+            state=inconclusive
+          fi
+          echo "token_state=$state" >> "$GITHUB_OUTPUT"
+          echo "http=$code err_type=${err_type:-none} -> token_state=$state"
+
+      - id: claude
+        if: >-
+          steps.gate.outputs.gated == 'true'
+          && steps.fp.outputs.skip_claude != 'true'
+          && steps.token_check.outputs.token_state != 'invalid'
         uses: anthropics/claude-code-action@787c5a0ce96a9a6cfb050ea0c8f4c05f2447c251 # v1.0.133
         with:
           # zizmor secrets-outside-env wants a GitHub deployment environment, but this
@@ -361,6 +407,7 @@ jobs:
           GATED: ${{ steps.gate.outputs.gated }}
           CLAUDE_OUTCOME: ${{ steps.claude.outcome }}
           SKIP: ${{ steps.fp.outputs.skip_claude }}
+          TOKEN_STATE: ${{ steps.token_check.outputs.token_state }}
         run: |
           context="claude/renovate-review"
 
@@ -372,6 +419,11 @@ jobs:
             # Digest-only or GitHub Actions bump - ungated, pass through.
             state="success"
             desc="Ungated update type (digest/github-actions) - auto-approved"
+          elif [[ "$TOKEN_STATE" == "invalid" ]]; then
+            # Dead token: no review happened. Fail closed and block - the run also
+            # fails red via the "Flag invalid token" step below.
+            state="failure"
+            desc="OAuth token invalid/expired/revoked - rotate CLAUDE_CODE_OAUTH_TOKEN (review skipped)"
           else
             # Gated version bump - read the latest verdict. Works for fresh runs
             # AND fingerprint-skips (the prior review is still on the PR).
@@ -404,8 +456,9 @@ jobs:
               state="failure"
               desc="Claude finished without posting a verdict - review manually"
             else
-              # Claude step errored/cancelled (API blip, rate limit, OAuth expiry).
-              # Transient infra failure != changes-requested: pass through so the
+              # Claude step errored/cancelled (API blip, rate limit, timeout). The
+              # token was already confirmed alive by the preflight, so this is a
+              # genuine transient failure != changes-requested: pass through so the
               # auto-merge pipeline isn't wedged. Surfaced in the status for audit.
               state="success"
               desc="Claude review errored (outcome=${CLAUDE_OUTCOME:-none}) - passed through, review manually"
@@ -433,3 +486,14 @@ jobs:
           REPO: ${{ github.repository }}
           PR: ${{ github.event.pull_request.number }}
         run: bash .github/scripts/report-claude-usage.sh
+
+      - name: Flag invalid token
+        # Dead OAuth token: make the run go red with an annotation so it can't be
+        # missed (the commit status already blocks the PR). This is the loud,
+        # in-action signal that the token needs rotating.
+        if: steps.token_check.outputs.token_state == 'invalid'
+        env:
+          REPO: ${{ github.repository }}
+        run: |-
+          echo "::error title=Claude OAuth token invalid::CLAUDE_CODE_OAUTH_TOKEN failed authentication (HTTP 401 authentication_error) - it is expired or revoked. Rotate it: run 'claude setup-token', then 'gh secret set CLAUDE_CODE_OAUTH_TOKEN -R ${REPO}', then bump the 'expires' date on the 1Password 'Claude Code OAuth Token' item. Renovate AI review is blocked until rotated."
+          exit 1
