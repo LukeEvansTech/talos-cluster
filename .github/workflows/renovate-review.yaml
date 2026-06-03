@@ -156,15 +156,19 @@ jobs:
           # 400/5xx/timeout is "inconclusive" (our request or the network, not the
           # token) so header/model drift can never false-flag.
           #
-          # OAuth tokens (sk-ant-oat01) authenticate via x-api-key (NOT Bearer) and
-          # require the oauth beta header; Haiku is exempt from system-prompt checks.
+          # sk-ant-oat01 OAuth tokens authenticate via `Authorization: Bearer`
+          # (NOT x-api-key — that returns 401 "invalid x-api-key" even for a valid
+          # token), with the `oauth-2025-04-20` beta header AND the exact system
+          # prompt the API requires for OAuth tokens (any other prefix → 401). These
+          # match the Claude Code SDK's own request; verified returning 200 against a
+          # live valid token.
           code=$(curl -s -o /tmp/tokresp.json -w '%{http_code}' --max-time 30 \
             -X POST https://api.anthropic.com/v1/messages \
-            -H "x-api-key: ${CLAUDE_CODE_OAUTH_TOKEN}" \
+            -H "authorization: Bearer ${CLAUDE_CODE_OAUTH_TOKEN}" \
             -H "anthropic-version: 2023-06-01" \
-            -H "anthropic-beta: oauth-2025-04-20,claude-code-20250219" \
+            -H "anthropic-beta: oauth-2025-04-20" \
             -H "content-type: application/json" \
-            -d '{"model":"claude-haiku-4-5-20251001","max_tokens":1,"system":"You are Claude Code, Anthropic'\''s official CLI for Claude.","messages":[{"role":"user","content":"OK"}]}') \
+            -d '{"model":"claude-haiku-4-5-20251001","max_tokens":1,"system":"You are a Claude agent, built on Anthropic'\''s Claude Agent SDK.","messages":[{"role":"user","content":"OK"}]}') \
             || code="000"
 
           err_type=$(jq -r '.error.type // ""' /tmp/tokresp.json 2>/dev/null || echo "")
