@@ -135,7 +135,10 @@ jobs:
         id: token_check
         if: steps.gate.outputs.gated == 'true' && steps.fp.outputs.skip_claude != 'true'
         env:
-          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Same rationale as the claude step: a deployment environment would only
+          # block this per-PR automation; super-linter's pinned zizmor 1.23.1 emits
+          # this (1.25 suppresses it by default). Suppressed with justification.
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }} # zizmor: ignore[secrets-outside-env]
         run: |
           set -uo pipefail
           # Deterministic pre-flight: confirm the OAuth token still authenticates
