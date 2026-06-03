@@ -191,6 +191,22 @@ url = "https://github.com/helmfile/helmfile/releases/download/v1.5.2/helmfile_1.
 checksum = "sha256:55e22265177e3d21fcf5a5dfed51f7deaf9c4f6bd460f3961263ebefd428579f"
 url = "https://github.com/helmfile/helmfile/releases/download/v1.5.2/helmfile_1.5.2_darwin_arm64.tar.gz"
 
+[[tools."aqua:helmfile/vals"]]
+version = "0.44.0"
+backend = "aqua:helmfile/vals"
+
+[tools."aqua:helmfile/vals"."platforms.linux-arm64"]
+checksum = "sha256:18d55294e92452f61cf6fcf6cca53bb51a66d8b860696666f44635964b3e5e40"
+url = "https://github.com/helmfile/vals/releases/download/v0.44.0/vals_0.44.0_linux_arm64.tar.gz"
+
+[tools."aqua:helmfile/vals"."platforms.linux-x64"]
+checksum = "sha256:728e9195fa2170e1e5c7ed7ca0e2e41fe1e910507a812f23fb579c68d6ef3678"
+url = "https://github.com/helmfile/vals/releases/download/v0.44.0/vals_0.44.0_linux_amd64.tar.gz"
+
+[tools."aqua:helmfile/vals"."platforms.macos-arm64"]
+checksum = "sha256:2d9b995d2b6325c7a6a1e124937293eec0dc56fd4a5bab785c69c2e48b52393e"
+url = "https://github.com/helmfile/vals/releases/download/v0.44.0/vals_0.44.0_darwin_arm64.tar.gz"
+
 [[tools."aqua:jqlang/jq"]]
 version = "1.7.1"
 backend = "aqua:jqlang/jq"

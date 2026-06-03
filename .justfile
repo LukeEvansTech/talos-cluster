@@ -28,7 +28,7 @@ log lvl msg *args:
 
 [private]
 template file *args:
-    minijinja-cli "{{ file }}" {{ args }} | op inject
+    minijinja-cli "{{ file }}" {{ args }} | vals eval -f -
 
 # Run super-linter locally with the same env flags as the shared CI workflow.
 # slim-v8 is amd64-only — `--platform linux/amd64` enables Rosetta emulation

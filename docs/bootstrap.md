@@ -187,7 +187,7 @@ Deploys critical bootstrap secrets and resources.
 **What it does:**
 
 - Renders `bootstrap/resources.yaml.j2` template
-- Injects secrets from 1Password using `op inject`
+- Injects secrets from 1Password using `vals eval` (resolves `ref+op://` refs via the 1Password CLI)
 - Applies resources server-side
 
 **Resources deployed:**
@@ -435,9 +435,9 @@ helmfile -f bootstrap/helmfile.d/01-apps.yaml list
 helmfile -f bootstrap/helmfile.d/01-apps.yaml sync --debug
 ```
 
-#### 4. "op inject failed"
+#### 4. "vals eval failed" / secret resolution failed
 
-**Cause:** 1Password CLI not authenticated
+**Cause:** 1Password CLI not authenticated (vals resolves `ref+op://` refs via `op`)
 
 **Solution:**
 
