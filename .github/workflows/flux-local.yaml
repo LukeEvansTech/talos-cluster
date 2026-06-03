@@ -153,7 +153,7 @@ jobs:
               --path-orig default/kubernetes/flux/cluster \
               --strip-attr caBundle \
               --allow-missing-secrets \
-              --output markdown >> diff.md || rc=1
+              --output github >> diff.md || rc=1
           done
           # Cap to stay within GitHub's ~65k-char comment limit
           if [ "$(wc -c < diff.md)" -gt 60000 ]; then
