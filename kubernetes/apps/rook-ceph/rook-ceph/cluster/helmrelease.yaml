@@ -178,6 +178,21 @@ spec:
                 memory: 2Gi
             instances: 2
             priorityClassName: system-cluster-critical
+            # Spread the gateway replicas across nodes. Both share instance_id
+            # "a", so co-locating them makes a node's ceph-exporter emit every
+            # ceph_rgw_* series twice with identical labels -> Prometheus
+            # "different value but same timestamp" drops. Spreading also gives
+            # the object store real HA. Soft (ScheduleAnyway) so both still
+            # schedule during single-node maintenance/upgrades.
+            placement:
+              topologySpreadConstraints:
+                - maxSkew: 1
+                  topologyKey: kubernetes.io/hostname
+                  whenUnsatisfiable: ScheduleAnyway
+                  labelSelector:
+                    matchLabels:
+                      app: rook-ceph-rgw
+                      rook_object_store: ceph-objectstore
           healthCheck:
             bucket:
               interval: 60s
