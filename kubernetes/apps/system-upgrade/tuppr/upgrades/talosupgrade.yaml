@@ -10,6 +10,14 @@ spec:
     version: v1.13.2
   policy:
     rebootMode: default
+  # Drain each node before its reboot. With Rook-Ceph (ceph-block) this lets the
+  # node flush/unmount its Ceph volumes while the mons on the other two nodes are
+  # still alive — avoiding the shutdown-time unmount stall that wedges the node
+  # half-down and requires an IPMI reset (GH #2728). Combined with the default
+  # parallelism: 1 (one node at a time) and the CephCluster HEALTH_OK gate below,
+  # this is the "drain-first, one-node-at-a-time" mitigation #2728 identified.
+  drain:
+    enabled: true
   healthChecks:
     - apiVersion: volsync.backube/v1alpha1
       kind: ReplicationSource
