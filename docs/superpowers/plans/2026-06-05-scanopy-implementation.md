@@ -10,7 +10,7 @@
 
 ---
 
-## Confirmed facts (verified against the live repo, 2026-06-05)
+## Confirmed facts (verified against the live repository, 2026-06-05)
 
 These resolve every "confirm/verify" note from the design spec. Do **not** re-litigate them:
 
@@ -32,7 +32,7 @@ These resolve every "confirm/verify" note from the design spec. Do **not** re-li
 
 **Deviations from the design spec, locked here:**
 
-1. **Drop the `onepassword` dependsOn** — non-idiomatic in this repo.
+1. **Drop the `onepassword` dependsOn** — non-idiomatic in this repository.
 2. **Drop the `gatus.home-operations.com/endpoint` route annotation** — the locked `gatus/guarded` component is a DNS check; mixing in an HTTP annotation creates a second, redundant endpoint. Keep `gatus/guarded` + `GATUS_SUBDOMAIN: scanopy` only.
 3. **DB URL uses `?sslmode=require`** (per the corrected spec).
 
@@ -40,7 +40,7 @@ These resolve every "confirm/verify" note from the design spec. Do **not** re-li
 
 ## File structure
 
-```
+```text
 kubernetes/apps/network/scanopy/
 ├── ks.yaml                      # Flux Kustomization (network ns); components volsync + gatus/guarded
 └── app/
@@ -60,7 +60,7 @@ Plus one line added to `kubernetes/apps/network/kustomization.yaml`.
 
 - [ ] **P1: Create the 1Password `scanopy` item in the `Talos` vault.**
 
-The repo is PUBLIC and the ClusterSecretStore only reads the `Talos` vault. Never paste secrets in the 1Password UI — use the CLI. `SNMP_COMMUNITY` is the one value only Luke can supply.
+The repository is PUBLIC and the ClusterSecretStore only reads the `Talos` vault. Never paste secrets in the 1Password UI — use the CLI. `SNMP_COMMUNITY` is the one value only Luke can supply.
 
 ```bash
 op item create --vault Talos --title scanopy --category 'API Credential' \
@@ -506,7 +506,7 @@ Expected: renders all 5 resources (1 OCIRepository, 2 ExternalSecrets, 2 HelmRel
 - [ ] **Step 2: flux-local / flate build of the Kustomization**
 
 Run: `flate test all --path kubernetes/flux/cluster --allow-missing-secrets`
-Expected: passes; the `scanopy` Kustomization builds and its HelmReleases template without error. (This is the trusted K8s validator for this repo — kubeconform-on-raw-source is disabled here.)
+Expected: passes; the `scanopy` Kustomization builds and its HelmReleases template without error. (This is the trusted K8s validator for this repository — kubeconform-on-raw-source is disabled here.)
 
 - [ ] **Step 3: Secret-key coverage grep**
 
@@ -530,7 +530,7 @@ Expected: super-linter mirror passes (or only pre-existing unrelated findings).
 
 ## Task 8: Commit and open PR
 
-**Files:** none (git only)
+**Files:** none (Git only)
 
 - [ ] **Step 1: Stage and commit**
 
@@ -618,6 +618,6 @@ Then browse `https://scanopy.${SECRET_DOMAIN}` (internal). Expected: UI loads; f
 - **No placeholders:** every manifest is complete with real digests; the only intentional human input is `SNMP_COMMUNITY` (P1) and the PR branch choice (T8).
 - **Type/name consistency:** `scanopy` (OCIRepository / server HR / Service / PVC / ExternalSecret target `scanopy-secret`) and `scanopy-daemon` (daemon HR) used consistently; both HRs reference `chartRef.name: scanopy`; daemon `envFrom` + server `envFrom` both read `scanopy-secret`; SNMP secret `scanopy-snmp-secret` produced by `externalsecret-snmp.yaml` and mounted in T5.
 
-```
+```text
 
 ```
