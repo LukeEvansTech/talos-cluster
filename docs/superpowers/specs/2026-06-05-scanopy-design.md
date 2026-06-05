@@ -30,7 +30,7 @@ containerd, there is no docker socket. Disabled explicitly via `SCANOPY_ENABLE_L
 |----------|--------|-----------|
 | Daemon networking | **Privileged `hostNetwork` DaemonSet** | Proven reference path; one per-node scanner, named per node. L2 reach to the nodes' primary LAN + L3/SNMP reach to anything routable. Multus rejected: only existing NAD (`iot`) is a macvlan on the same primary NIC, so it adds nothing over hostNetwork unless we author VLAN-tagged NADs. |
 | Database | **Shared CNPG `postgres18-rw.database.svc`** | Cluster standard (metabase, netbox). `init-db` initContainer provisions DB + user. |
-| DB TLS | **No `sslmode` param (TLS opportunistic, unverified)** | CNPG presents `postgres18-tls` AND accepts plaintext. Scanopy's Rust client defaults to `sslmode=prefer` → uses TLS without CA verification, so CNPG's empty-issuer-DN cert (which broke Metabase's Java verifier — see `project_cnpg_jvm_jdbc_ssl`) is a non-issue. Fallback only if handshake fails at apply: append `?sslmode=disable`. |
+| DB TLS | **`?sslmode=require`** on the connection URL | CNPG has had real cert-manager TLS since Nov 2025: `cluster.yaml` sets `serverTLSSecret`/`serverCASecret: postgres18-tls`, a Certificate with correct SANs (`postgres18-rw/ro/-r.database.svc.cluster.local`) issued by `postgres18-selfsigned-issuer`. So the cert chain is valid with a real issuer DN — **not** empty/unverified. NetBox (the most recent DB app) connects with `sslmode: require`; we match it. Metabase's `sslmode=disable` is a **JVM-only** workaround (Java's strict TLS verifier), irrelevant to Scanopy's Rust client. Harden later to `verify-full` by mounting `postgres18-tls`'s `ca.crt` and setting `sslrootcert`. |
 | Auth | **Built-in password login** (no OIDC) | First-run creates admin in UI. No `oidc.toml`, no pocket-id client. Can be added later. |
 | SMTP | **In** — `smtp-relay.infrastructure.svc.cluster.local:25` | Canonical internal relay (used by pocket-id/epicgames), unauthenticated. |
 | SNMP | **In** — community via ExternalSecret, mounted read-only at neutral path | Community string lives only in 1Password (repo is PUBLIC). Mount path `/run/secrets/snmp-community` — no vendor name in git. SNMP credential then configured in scanopy UI pointing at the file. |
@@ -174,8 +174,9 @@ spec:
         INIT_POSTGRES_SUPER_USER: "{{ .POSTGRES_SUPER_USER }}"
         INIT_POSTGRES_SUPER_PASS: "{{ .POSTGRES_SUPER_PASS }}"
         # ---- scanopy server/daemon ----
-        # TLS opportunistic/unverified (Rust default sslmode=prefer); no sslmode param.
-        SCANOPY_DATABASE_URL: postgresql://{{ .SCANOPY_POSTGRES_USER }}:{{ .SCANOPY_POSTGRES_PASSWORD }}@postgres18-rw.database.svc.cluster.local:5432/scanopy
+        # TLS enforced (sslmode=require) — CNPG presents a valid cert-manager cert.
+        # Matches NetBox; harden to verify-full later via mounted ca.crt + sslrootcert.
+        SCANOPY_DATABASE_URL: postgresql://{{ .SCANOPY_POSTGRES_USER }}:{{ .SCANOPY_POSTGRES_PASSWORD }}@postgres18-rw.database.svc.cluster.local:5432/scanopy?sslmode=require
         SCANOPY_DAEMON_API_KEY: "{{ .SCANOPY_DAEMON_API_KEY }}"
         SCANOPY_NETWORK_ID: "{{ .SCANOPY_NETWORK_ID }}"
   dataFrom:
@@ -428,8 +429,10 @@ Renovate manages bumps afterward.
 
 ## 7. Risks / things to verify at apply-time
 
-1. **DB TLS** — expect TLS-unverified connect to succeed. If logs show a TLS handshake error,
-   append `?sslmode=disable` to `SCANOPY_DATABASE_URL` (CNPG accepts plaintext — proven by metabase).
+1. **DB TLS** — `sslmode=require` connect should succeed against CNPG's cert-manager cert.
+   If the Rust client unexpectedly rejects the self-signed chain, mount `postgres18-tls`'s
+   `ca.crt` and switch to `verify-full` with `sslrootcert` (do **not** drop to `sslmode=disable` —
+   the cluster has working TLS; plaintext is the JVM-only Metabase exception, not the default).
 2. **First-run pairing** — with password login, create the admin in the UI, then confirm each
    per-node daemon registers against the server using the shared `SCANOPY_NETWORK_ID` /
    `SCANOPY_DAEMON_API_KEY`. If the daemon won't register until a "network" exists, create it in-UI.
