@@ -20,6 +20,13 @@ spec:
   values:
     controllers:
       scanopy:
+        # Recreate (not RollingUpdate): the single replica mounts the RWO
+        # ceph-block `scanopy` PVC, so a surge pod landing on another node would
+        # deadlock on multi-attach. Recreate tears the old pod down first.
+        # Caveat: if the old pod gets stuck Terminating, helm's 5m timeout can
+        # thrash upgrade<->rollback — recovery is suspend HR, force-delete the
+        # pod, resume (cleanupOnFail + remediation below bound the blast radius).
+        strategy: Recreate
         annotations:
           reloader.stakater.com/auto: "true"
         initContainers:
