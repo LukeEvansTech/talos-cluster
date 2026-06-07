@@ -10,7 +10,33 @@ synthesises least-privilege **NetworkPolicy**, **CiliumNetworkPolicy**, and
 > hand, vetted, used to harvest policies, then removed — not committed to the
 > auto-reconciling Flux tree. Nothing here is picked up by Flux.
 
-## Talos compatibility assessment
+## Result (2026-06-07): ❌ blocked on Talos kernel 6.18
+
+Ran live against this cluster (chart 1.12.0, controller 1.8.1, amd64,
+kernel 6.18.29-talos). Broker, database, evaluator, and frontend all came up
+healthy — but **the eBPF controller crash-loops on every node**: the kernel
+verifier rejects its network-probe program at load:
+
+```text
+libbpf: prog 'trace_udp_send': BPF program load failed: -EINVAL
+  10: (85) call bpf_probe_read#4
+  program of this type cannot use helper bpf_probe_read#4
+Error: Failed to load network probe eBPF: Invalid argument (os error 22)
+```
+
+`trace_udp_send` is an fentry/BTF tracing program (`BPF_PROG(... struct sock
+*sk ...)`), and tracing-type programs may not call the legacy `bpf_probe_read`
+helper — they must use `bpf_probe_read_kernel`. Talos's 6.18 kernel enforces
+this strictly, so the program never loads and no traffic/syscall data is ever
+captured. **No policies can be generated.** This is an upstream kguardian/libbpf
+defect against newer kernels, not a Talos misconfiguration — the prerequisites
+below are all satisfied.
+
+**Verdict:** not usable on this cluster until upstream fixes the helper usage.
+Filed for follow-up; recheck on a newer chart/controller release, or test
+against a node pinned to an older (6.2–6.11) kernel.
+
+## Prerequisites (all met — failure is at eBPF load, not setup)
 
 | Requirement                                                                 | This cluster                                       | Verdict                                                  |
 | --------------------------------------------------------------------------- | -------------------------------------------------- | -------------------------------------------------------- |
@@ -90,9 +116,8 @@ kubectl delete -f docs/spikes/kguardian/namespace.yaml   # also removes the bund
 - Decide whether the controller runs continuously (drift detection) or is
   spun up periodically just to regenerate policies.
 
-## What this spike does NOT do
+## Status
 
-These files are a **vetted, ready-to-run** install + runbook. They do **not**
-deploy kguardian or produce generated policies on their own — that needs a live
-`helm install` against the cluster plus real workload traffic. Running it is a
-privileged, live-cluster operation, so it's left as an explicit manual step.
+Run live on 2026-06-07 and **torn down** — see the Result section above. The
+install + runbook here are kept as a vetted, ready-to-run reference for a recheck
+once upstream fixes the eBPF helper usage (or against an older-kernel node).
