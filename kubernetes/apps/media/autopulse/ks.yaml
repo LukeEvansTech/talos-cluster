@@ -12,11 +12,13 @@ spec:
   components:
     - ../../../../components/gatus/guarded
     - ../../../../components/homepage
+    - ../../../../components/volsync
   interval: 1h
   path: ./kubernetes/apps/media/autopulse/app
   postBuild:
     substitute:
       APP: *app
+      VOLSYNC_CAPACITY: 1Gi
       HOMEPAGE_NAME: Autopulse
       HOMEPAGE_GROUP: Media
       HOMEPAGE_ICON: autopulse.svg

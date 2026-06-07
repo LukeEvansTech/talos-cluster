@@ -11,8 +11,7 @@ resources:
   - ./netpol.yaml
   - ./agregarr/ks.yaml
   - ./audiobookshelf/ks.yaml
-  # TODO: Update externalsecret with autopulse config before enabling
-  # - ./autopulse/ks.yaml
+  - ./autopulse/ks.yaml
   - ./bazarr/ks.yaml
   - ./decluttarr/ks.yaml
   - ./deduparr/ks.yaml
