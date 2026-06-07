@@ -1,0 +1,95 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: &app scanopy
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: scanopy
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+      strategy: rollback
+  values:
+    controllers:
+      scanopy:
+        # Recreate (not RollingUpdate): the single replica mounts the RWO
+        # ceph-block `scanopy` PVC, so a surge pod landing on another node would
+        # deadlock on multi-attach. Recreate tears the old pod down first.
+        # Caveat: if the old pod gets stuck Terminating, helm's 5m timeout can
+        # thrash upgrade<->rollback — recovery is suspend HR, force-delete the
+        # pod, resume (cleanupOnFail + remediation below bound the blast radius).
+        strategy: Recreate
+        annotations:
+          reloader.stakater.com/auto: "true"
+        initContainers:
+          init-db:
+            image:
+              repository: ghcr.io/home-operations/postgres-init
+              tag: 18@sha256:5086f94abc783f1147d7c2a32c01db00ab594820026e4f6a82ac2af3dbde7fc7
+            envFrom: &envFrom
+              - secretRef:
+                  name: scanopy-secret
+        containers:
+          app:
+            image:
+              repository: ghcr.io/scanopy/scanopy/server
+              tag: v0.16.2@sha256:e3c55cd639b9643c01e21c1fcc5470c6524ea5c3ac316768bf028737c656bbe6
+            env:
+              TZ: ${TIMEZONE}
+              SCANOPY_LOG_LEVEL: info
+              SCANOPY_PUBLIC_URL: https://scanopy.${SECRET_DOMAIN}
+              SCANOPY_WEB_EXTERNAL_PATH: /app/static
+              SCANOPY_USE_SECURE_SESSION_COOKIES: "true"
+              SCANOPY_SMTP_RELAY: smtp-relay.infrastructure.svc.cluster.local:25
+              SCANOPY_SMTP_EMAIL: scanopy@${SECRET_DOMAIN}
+            envFrom: *envFrom
+            probes:
+              liveness: &probe
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /api/health
+                    port: &port 60072
+                  initialDelaySeconds: 15
+                  periodSeconds: 10
+                  timeoutSeconds: 5
+                  failureThreshold: 3
+              readiness: *probe
+            resources:
+              requests:
+                cpu: 50m
+                memory: 256Mi
+              limits:
+                memory: 512Mi
+    defaultPodOptions:
+      dnsConfig:
+        options:
+          - { name: ndots, value: "1" }
+    service:
+      app:
+        controller: scanopy
+        ports:
+          http:
+            port: *port
+    route:
+      app:
+        hostnames:
+          - "{{ .Release.Name }}.${SECRET_DOMAIN}"
+          - "{{ .Release.Name }}.${SECRET_INTERNAL_DOMAIN}"
+        parentRefs:
+          - name: envoy-internal
+            namespace: network
+    persistence:
+      data:
+        existingClaim: scanopy
+        globalMounts:
+          - path: /data
