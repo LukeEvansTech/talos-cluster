@@ -45,6 +45,17 @@ spec:
               # and saturates node conntrack. enp1s0np0 = LAN 10.32.8.0/24
               # (same kernel name on all three nodes).
               SCANOPY_INTERFACES: enp1s0np0
+              # NOTE: SCANOPY_INTERFACES only scopes L2 (local-interface)
+              # scanning. Scanopy still L3-scans remote subnets it discovers via
+              # SNMP routing tables, so scope + conntrack grow as routable
+              # subnets appear.
+              # TODO(vlan-buildout): new VLANs are being stood up (the extra
+              # 10.32.x / 10.32.16.0/23 subnets the scanner reports). After the
+              # buildout settles, re-check nf_conntrack_count on the scanner
+              # node — validated peak was ~9% of 262144 pre-VLANs. If it nears
+              # the limit, raise net.netfilter.nf_conntrack_max via
+              # talos/talconfig.yaml machine.sysctls, and/or narrow scan scope
+              # per-discovery in the Scanopy UI.
               # Cap simultaneous host scans (default auto-detects ~10-20).
               SCANOPY_CONCURRENT_SCANS: "5"
               # Stable identity for the single scanner (was per-node nodeName).
