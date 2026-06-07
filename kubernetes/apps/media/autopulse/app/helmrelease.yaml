@@ -69,13 +69,6 @@ spec:
           - path: /app/config.yaml
             subPath: config.yaml
             readOnly: true
-      media:
-        type: nfs
-        server: nas01.${SECRET_INTERNAL_DOMAIN}
-        path: /mnt/data/media
-        globalMounts:
-          - path: /mnt/data/media
-            readOnly: true
       tmp:
         type: emptyDir
         globalMounts:
