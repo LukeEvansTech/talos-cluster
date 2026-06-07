@@ -12,8 +12,26 @@ spec:
   values:
     controllers:
       ollama:
+        # StatefulSet so each replica gets its own RWO model/config PVC
+        # (no RWX storage class available) and a stable per-node identity.
+        type: statefulset
+        replicas: 3
         annotations:
           reloader.stakater.com/auto: "true"
+        statefulset:
+          volumeClaimTemplates:
+            - name: models
+              size: 100Gi
+              accessMode: ReadWriteOnce
+              storageClass: ceph-block
+              globalMounts:
+                - path: /models
+            - name: config
+              size: 1Gi
+              accessMode: ReadWriteOnce
+              storageClass: ceph-block
+              globalMounts:
+                - path: /root/.ollama
         containers:
           app:
             image:
@@ -25,17 +43,23 @@ spec:
               - name: OLLAMA_ORIGINS
                 value: "*"
               - name: OLLAMA_MODELS
-                value: &modelPath "/models"
+                value: "/models"
               - name: OLLAMA_KEEP_ALIVE
                 value: "24h"
+              # Batch concurrent requests per replica. KV-cache is the limiter:
+              # ~24Gi VRAM - ~18Gi model leaves ~6Gi, shared (time-sliced GPU)
+              # with the whisper workloads. Start at 2; watch nvidia-smi before
+              # raising. Cap context length below if KV-cache OOMs.
+              - name: OLLAMA_NUM_PARALLEL
+                value: "2"
             resources:
               requests:
-                nvidia.com/gpu: 1 # requesting 1 GPU
+                nvidia.com/gpu: 1 # one time-slice on the node's physical GPU
                 cpu: 500m
                 memory: 8Gi
               limits:
                 memory: 24Gi
-                nvidia.com/gpu: 1 # requesting 1 GPU
+                nvidia.com/gpu: 1
     defaultPodOptions:
       labels:
         gpu-workload: "true"
@@ -50,9 +74,10 @@ spec:
                     values:
                       - "true"
       topologySpreadConstraints:
+        # One replica per node so each lands on a distinct physical GPU.
         - maxSkew: 1
           topologyKey: kubernetes.io/hostname
-          whenUnsatisfiable: ScheduleAnyway
+          whenUnsatisfiable: DoNotSchedule
           labelSelector:
             matchLabels:
               gpu-workload: "true"
@@ -70,16 +95,3 @@ spec:
         parentRefs:
           - name: envoy-internal
             namespace: network
-    persistence:
-      models:
-        enabled: true
-        existingClaim: "{{ .Release.Name }}-models"
-        advancedMounts:
-          ollama:
-            app:
-              - path: *modelPath
-      config:
-        enabled: true
-        existingClaim: "{{ .Release.Name }}"
-        globalMounts:
-          - path: /root/.ollama
