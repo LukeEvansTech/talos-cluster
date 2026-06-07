@@ -58,6 +58,10 @@ spec:
           - name: envoy-internal
             namespace: network
     persistence:
+      data:
+        existingClaim: "{{ .Release.Name }}"
+        globalMounts:
+          - path: /app/data
       config:
         type: secret
         name: autopulse-secret
