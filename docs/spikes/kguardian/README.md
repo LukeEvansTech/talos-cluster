@@ -12,19 +12,19 @@ synthesises least-privilege **NetworkPolicy**, **CiliumNetworkPolicy**, and
 
 ## Talos compatibility assessment
 
-| Requirement | This cluster | Verdict |
-|-------------|--------------|---------|
-| Kernel 6.2+ (eBPF CO-RE) | Talos v1.13.2 → **Linux 6.12** | ✅ |
-| containerd socket `/run/containerd/containerd.sock` | Talos CRI containerd default path | ✅ (no override, unlike k3s) |
-| runtime bundle `/run/containerd/io.containerd.runtime.v2.task` | Talos CRI default | ✅ |
-| `/sys/fs/bpf`, `/sys/kernel/debug`, `/sys/kernel/tracing`, `/proc` hostPath | present on Talos nodes | ✅ |
-| `privileged: true` + `CAP_BPF` + `hostNetwork` DaemonSet | Talos enforces PSA | ⚠️ needs **privileged** namespace (see `namespace.yaml`) |
-| PostgreSQL backend | bundled PG18 on `ceph-block` (spike) / CNPG (prod) | ✅ |
-| Tolerates `node-role.kubernetes.io/control-plane:NoSchedule` | 3× control-plane nodes | ✅ runs on all nodes |
+| Requirement                                                                 | This cluster                                       | Verdict                                                  |
+| --------------------------------------------------------------------------- | -------------------------------------------------- | -------------------------------------------------------- |
+| Kernel 6.2+ (eBPF CO-RE)                                                    | Talos v1.13.2 → **Linux 6.18**                     | ✅                                                       |
+| containerd socket `/run/containerd/containerd.sock`                         | Talos CRI containerd default path                  | ✅ (no override, unlike k3s)                             |
+| runtime bundle `/run/containerd/io.containerd.runtime.v2.task`              | Talos CRI default                                  | ✅                                                       |
+| `/sys/fs/bpf`, `/sys/kernel/debug`, `/sys/kernel/tracing`, `/proc` hostPath | present on Talos nodes                             | ✅                                                       |
+| `privileged: true` + `CAP_BPF` + `hostNetwork` DaemonSet                    | Talos enforces PSA                                 | ⚠️ needs **privileged** namespace (see `namespace.yaml`) |
+| PostgreSQL backend                                                          | bundled PG18 on `ceph-block` (spike) / CNPG (prod) | ✅                                                       |
+| Tolerates `node-role.kubernetes.io/control-plane:NoSchedule`                | 3× control-plane nodes                             | ✅ runs on all nodes                                     |
 
 **The one real risk** — `hostNetwork: true`. We've had a `hostNetwork`
 conntrack-flood incident on this cluster before (scanopy). kguardian is
-*passive* eBPF observation (not active scanning), so it should not flood
+_passive_ eBPF observation (not active scanning), so it should not flood
 conntrack — but watch node conntrack while it runs:
 `talosctl -n <node> read /proc/sys/net/netfilter/nf_conntrack_count`.
 
