@@ -1,0 +1,47 @@
+---
+# Talos-tuned values for a kguardian SPIKE (manual `helm install`, not GitOps).
+# Chart: oci://ghcr.io/kguardian-dev/charts/kguardian  (chart v1.12.0)
+#
+# Self-contained: uses the chart's bundled PostgreSQL on ceph-block so the spike
+# can be torn down cleanly. For a real deployment, point the broker at CNPG
+# instead (see README "Productionising").
+
+controller:
+  # privileged: true / CAP_BPF / hostNetwork / hostPath are chart defaults and
+  # are REQUIRED for eBPF — do not override. The Talos CRI containerd socket is
+  # at the chart's default path, so containerdSockPath / containerdBundlePath
+  # need no change (unlike k3s).
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+  # Keep the controller off cluster-critical / high-churn namespaces during the
+  # spike to reduce eBPF noise and conntrack pressure on hostNetwork.
+  excludedNamespaces:
+    - kguardian
+    - kube-system
+    - flux-system
+    - rook-ceph
+    - cert-manager
+    - external-secrets
+  ignoreDaemonSet: true
+
+broker:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 512Mi
+
+# Bundled in-cluster PostgreSQL (PG18-alpine) on Rook-Ceph block storage.
+database:
+  enabled: true
+  persistence:
+    enabled: true
+    size: 10Gi
+    storageClassName: ceph-block
+# Frontend/UI: no Gateway route for the spike — reach it over port-forward (see
+# README). Keeps a throwaway eval off the public/internal gateways.

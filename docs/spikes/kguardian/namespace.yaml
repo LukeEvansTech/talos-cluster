@@ -1,0 +1,13 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/v1/namespace.json
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kguardian
+  labels:
+    # The eBPF controller DaemonSet runs privileged + hostNetwork + hostPath
+    # (containerd socket, /sys/fs/bpf, debugfs). Talos enforces PSA; this
+    # namespace must be privileged or the controller pods are rejected.
+    pod-security.kubernetes.io/enforce: privileged
+    pod-security.kubernetes.io/audit: privileged
+    pod-security.kubernetes.io/warn: privileged
