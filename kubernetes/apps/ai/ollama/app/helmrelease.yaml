@@ -75,12 +75,15 @@ spec:
                       - "true"
       topologySpreadConstraints:
         # One replica per node so each lands on a distinct physical GPU.
+        # Select ollama pods only — `gpu-workload` is shared by many GPU apps
+        # (plex, jellyfin, whisper, …) and would skew the spread across all of
+        # them instead of distributing the 3 ollama replicas.
         - maxSkew: 1
           topologyKey: kubernetes.io/hostname
           whenUnsatisfiable: DoNotSchedule
           labelSelector:
             matchLabels:
-              gpu-workload: "true"
+              app.kubernetes.io/name: ollama
     service:
       app:
         controller: ollama
