@@ -1,0 +1,20 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/source.toolkit.fluxcd.io/ocirepository_v1.json
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: gpu-operator
+spec:
+  # Community OCI mirror of the NGC chart (home-operations/charts-mirror).
+  # NVIDIA OCI support is tracked upstream in NVIDIA/gpu-operator#2520; the
+  # mirror deprecates 6 months after official OCI artifacts land. Migrating off
+  # the NGC HelmRepository also fixes flate's relative-chart-URL 404 bug, which
+  # had forced a per-namespace gpu-operator skip in the Flate workflow.
+  interval: 6h
+  layerSelector:
+    mediaType: application/vnd.cncf.helm.chart.content.v1.tar+gzip
+    operation: copy
+  url: oci://ghcr.io/home-operations/charts-mirror/nvidia-gpu-operator
+  ref:
+    # renovate: datasource=docker
+    tag: 26.3.2
