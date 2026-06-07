@@ -58,38 +58,14 @@ jobs:
 
       - name: Run flate test
         run: |
-          # Test per-namespace so we can skip gpu-operator: flate mis-resolves
-          # NGC's HelmRepository relative chart URL (requests /charts/... 404
-          # instead of /nvidia/charts/...). The cluster's flux pulls it fine;
-          # this is a flate bug — see home-operations/flate.
-          # TODO(flate): remove the gpu-operator skip below + restore plain
-          # `flate test all` once home-operations/flate fixes NGC HelmRepository
-          # relative-URL resolution. Tracking: https://github.com/home-operations/flate
-
           # flate test is occasionally flaky: it intermittently exits non-zero with
           # "0 failed" in the output (substitution-cache nondeterminism). Retry once
-          # per namespace before declaring a real failure.
-          flate_test() {
-            local ns="$1"
-            flate test all --namespace "${ns}" \
-              --path kubernetes/flux/cluster --allow-missing-secrets && return 0
-            echo "::warning title=flate::flate test ${ns} failed; retrying once (flate is occasionally flaky)"
-            flate test all --namespace "${ns}" \
-              --path kubernetes/flux/cluster --allow-missing-secrets
-          }
-
-          rc=0
-          for ns in kubernetes/apps/*/; do
-            ns="$(basename "${ns}")"
-            if [ "${ns}" = "gpu-operator" ]; then
-              echo "::warning title=flate::skipping gpu-operator (flate NGC HelmRepository URL bug)"
-              continue
-            fi
-            echo "::group::flate test ${ns}"
-            flate_test "${ns}" || rc=1
-            echo "::endgroup::"
-          done
-          exit "${rc}"
+          # before declaring a real failure.
+          flate test all \
+            --path kubernetes/flux/cluster --allow-missing-secrets && exit 0
+          echo "::warning title=flate::flate test failed; retrying once (flate is occasionally flaky)"
+          flate test all \
+            --path kubernetes/flux/cluster --allow-missing-secrets
 
   diff:
     if: ${{ needs.filter.outputs.changed-files != '[]' }}
@@ -142,37 +118,19 @@ jobs:
             kustomization) KIND=ks ;;
             *) KIND="${RESOURCE}" ;;
           esac
-          # Diff per-namespace so we can skip gpu-operator: flate mis-resolves
-          # NGC's HelmRepository relative chart URL (404), and a single failed
-          # reconcile aborts the entire `flate diff`. Any PR touching a
-          # gpu-operator file would otherwise pull it into the diff and fail.
-          # TODO(flate): drop the gpu-operator skip + restore a single global
-          # `flate diff` once home-operations/flate fixes NGC HelmRepository
-          # relative-URL resolution. Tracking: https://github.com/home-operations/flate
-          mapfile -t namespaces < <(
-            find pull/kubernetes/apps default/kubernetes/apps \
-              -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort -u
-          )
           : > diff.md
           rc=0
-          for ns in "${namespaces[@]}"; do
-            if [ "${ns}" = "gpu-operator" ]; then
-              echo "::warning title=flate::skipping gpu-operator diff (flate NGC HelmRepository URL bug)"
-              continue
-            fi
-            flate diff "${KIND}" --namespace "${ns}" \
-              --path pull/kubernetes/flux/cluster \
-              --path-orig default/kubernetes/flux/cluster \
-              --strip-attr caBundle \
-              --allow-missing-secrets \
-              --output github >> diff.md || rc=1
-          done
+          flate diff "${KIND}" \
+            --path pull/kubernetes/flux/cluster \
+            --path-orig default/kubernetes/flux/cluster \
+            --strip-attr caBundle \
+            --allow-missing-secrets \
+            --output github >> diff.md || rc=1
           # Cap to stay within GitHub's ~65k-char comment limit
           if [ "$(wc -c < diff.md)" -gt 60000 ]; then
             head -c 60000 diff.md > diff.trunc && mv diff.trunc diff.md
             printf '\n\n_…diff truncated; see workflow logs for the full output._\n' >> diff.md
           fi
-          # Fail the job if any (non-gpu-operator) namespace diff errored.
           exit "${rc}"
 
       - name: Read Diff
