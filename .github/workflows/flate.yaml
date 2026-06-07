@@ -47,7 +47,11 @@ jobs:
 
       - name: Install flate
         run: |
-          curl -fsSL "https://github.com/home-operations/flate/releases/download/${FLATE_VERSION}/flate_${FLATE_VERSION}_linux_amd64.tar.gz" \
+          # Tag carries the leading "v" (v0.3.2); goreleaser strips it from the
+          # asset filename (flate_0.3.2_...). Keep ${FLATE_VERSION} in the path,
+          # use ${FLATE_VERSION#v} for the filename so both v- and bare-version
+          # tags resolve.
+          curl -fsSL "https://github.com/home-operations/flate/releases/download/${FLATE_VERSION}/flate_${FLATE_VERSION#v}_linux_amd64.tar.gz" \
             | sudo tar -xz -C /usr/local/bin flate
 
       - name: Authenticate to GHCR
@@ -97,7 +101,11 @@ jobs:
 
       - name: Install flate
         run: |
-          curl -fsSL "https://github.com/home-operations/flate/releases/download/${FLATE_VERSION}/flate_${FLATE_VERSION}_linux_amd64.tar.gz" \
+          # Tag carries the leading "v" (v0.3.2); goreleaser strips it from the
+          # asset filename (flate_0.3.2_...). Keep ${FLATE_VERSION} in the path,
+          # use ${FLATE_VERSION#v} for the filename so both v- and bare-version
+          # tags resolve.
+          curl -fsSL "https://github.com/home-operations/flate/releases/download/${FLATE_VERSION}/flate_${FLATE_VERSION#v}_linux_amd64.tar.gz" \
             | sudo tar -xz -C /usr/local/bin flate
 
       - name: Authenticate to GHCR
