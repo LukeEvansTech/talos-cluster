@@ -12,7 +12,7 @@ spec:
   components:
     - ../../../../components/gatus/guarded
     - ../../../../components/homepage
-    # - ../../../../components/volsync  # TODO: Enable once app is running and ready for backups
+    - ../../../../components/volsync
   dependsOn:
     - name: rook-ceph-cluster
       namespace: rook-ceph
