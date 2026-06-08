@@ -190,7 +190,7 @@ jobs:
           steps.gate.outputs.gated == 'true'
           && steps.fp.outputs.skip_claude != 'true'
           && steps.token_check.outputs.token_state != 'invalid'
-        uses: anthropics/claude-code-action@0b1b62002952733671bde978d429b50b51c51c85 # v1.0.136
+        uses: anthropics/claude-code-action@41ea7642c1436fa0ee57aae58347904b71a5af27 # v1.0.137
         with:
           # zizmor secrets-outside-env wants a GitHub deployment environment, but this
           # review runs on every Renovate PR branch: an environment with protection rules
