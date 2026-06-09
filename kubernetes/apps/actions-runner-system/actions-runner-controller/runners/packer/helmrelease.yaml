@@ -1,0 +1,47 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/helm.toolkit.fluxcd.io/helmrelease_v2.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: &name packer-runner
+spec:
+  chartRef:
+    kind: OCIRepository
+    name: gha-runner-scale-set-packer
+  interval: 1h
+  values:
+    fullnameOverride: *name
+    githubConfigUrl: https://github.com/codelooks-com/packer-vsphere
+    githubConfigSecret: packer-runner-secret
+    runnerGroup: default
+    runnerScaleSetName: packer-vsphere
+    maxRunners: 3
+    minRunners: 0
+    containerMode:
+      type: kubernetes
+      kubernetesModeWorkVolumeClaim:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: openebs-hostpath
+        resources:
+          requests:
+            storage: 40Gi
+    template:
+      spec:
+        serviceAccountName: packer-runner
+        containers:
+          - name: runner
+            image: ghcr.io/codelooks-com/packer-runner:latest
+            command: ["/home/runner/run.sh"]
+            env:
+              # containerMode: kubernetes defaults this to "true", which REFUSES
+              # plain `run:` jobs. Our tools live in the runner image and steps run
+              # directly on it, so this must be "false" (the existing
+              # talos-cluster-runner sets it too).
+              - name: ACTIONS_RUNNER_REQUIRE_JOB_CONTAINER
+                value: "false"
+            envFrom:
+              - secretRef:
+                  name: packer-vsphere-creds
+    controllerServiceAccount:
+      name: actions-runner-controller
+      namespace: actions-runner-system
