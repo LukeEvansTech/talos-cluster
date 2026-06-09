@@ -8,10 +8,12 @@ metadata:
 data:
   config.yaml: |-
     model_list:
+      # NB: `model_name` is the litellm-exposed alias (kept stable for existing
+      # clients); the backend is centralized via ${OLLAMA_MODEL}/${OLLAMA_BASE_URL}.
       - model_name: ollama/gemma4
         litellm_params:
-          model: ollama_chat/gemma4:26b
-          api_base: http://ollama.ai.svc.cluster.local:11434
+          model: ollama_chat/${OLLAMA_MODEL}
+          api_base: ${OLLAMA_BASE_URL}
 
       - model_name: openrouter/auto
         litellm_params:

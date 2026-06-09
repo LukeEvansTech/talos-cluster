@@ -8,3 +8,5 @@ resources:
   # ExternalSecret overwrites it with real values in-cluster.
   - ./cluster-secrets.yaml
   - ./cluster-secrets-externalsecret.yaml
+  # Non-secret cluster-wide settings (Git-tracked, no ExternalSecret needed).
+  - ./cluster-settings.yaml
