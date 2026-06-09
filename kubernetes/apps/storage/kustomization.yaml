@@ -8,5 +8,3 @@ components:
   - ../../components/alerts
 resources:
   - ./namespace.yaml
-  # TODO: Update externalsecret with garage.toml config before enabling
-  # - ./garage/ks.yaml
