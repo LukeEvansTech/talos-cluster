@@ -84,10 +84,10 @@ spec:
           labelSelector:
             matchLabels:
               gpu-workload: "true"
-      # TODO: Test running as 1000:1000 instead of root for NFS compatibility
       securityContext:
-        runAsUser: 0
-        runAsGroup: 0
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
         fsGroup: 1000
         fsGroupChangePolicy: OnRootMismatch
         supplementalGroups:
@@ -124,11 +124,9 @@ spec:
         type: emptyDir
         globalMounts:
           - path: /cache
-            # NFS mounts for media - uncomment and configure when ready
-            # media:
-            #   type: nfs
-            #   server: ${SECRET_STORAGE_SERVER}
-            #   path: /path/to/media
-            #   globalMounts:
-            #     - path: /media
-            #       readOnly: false
+      media:
+        type: nfs
+        server: ${SECRET_STORAGE_SERVER}
+        path: /mnt/pool/media
+        globalMounts:
+          - path: /media
