@@ -39,11 +39,14 @@ spec:
                 memory: 2Gi
 
     defaultPodOptions:
+      # Image entrypoint runs groupmod and must start as root; it can't run as a
+      # non-root pod. NFS games export is all_squash→1000, so writes land as 1000
+      # regardless of the runtime UID.
       securityContext:
-        runAsNonRoot: true
-        runAsUser: 1000
-        runAsGroup: 1000
-        fsGroup: 1000
+        runAsNonRoot: false
+        runAsUser: 0
+        runAsGroup: 0
+        fsGroup: 0
         fsGroupChangePolicy: OnRootMismatch
 
     service:
