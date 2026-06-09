@@ -1,4 +1,8 @@
 ---
+# Intentionally no pod-management Role: this SA suppresses the chart's
+# auto-created kube-mode SA, so `container:` jobs, service containers, and
+# docker:// actions will fail on this runner — plain `run:` steps only.
+# See the ACTIONS_RUNNER_REQUIRE_JOB_CONTAINER note in helmrelease.yaml.
 apiVersion: v1
 kind: ServiceAccount
 metadata:
