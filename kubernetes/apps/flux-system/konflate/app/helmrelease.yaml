@@ -27,7 +27,11 @@ spec:
     persistence:
       enabled: true
       storageClass: ceph-block
-      size: 5Gi
+      # Konflate caches many small OCI/Helm artifacts and exhausted inodes
+      # on 5Gi within ~25h (KubePersistentVolumeInodesFillingUp). Grown to
+      # 20Gi for inode headroom — PVCs can't shrink, so this must stay >=
+      # the live volume's capacity or helm upgrades fail the PVC apply.
+      size: 20Gi
     monitoring:
       serviceMonitor:
         enabled: true
