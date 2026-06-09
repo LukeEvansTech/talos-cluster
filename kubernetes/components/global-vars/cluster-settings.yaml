@@ -1,0 +1,18 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/configmap.json
+# Non-secret cluster-wide settings, substituted into apps via the root
+# cluster-apps Kustomization postBuild (alongside the cluster-secrets Secret).
+# Unlike cluster-secrets, values live in Git — change them here in a PR and
+# every consumer picks them up on reconcile.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cluster-settings
+  annotations:
+    # Namespace is provided by Kustomize component usage
+    checkov.io/skip1: CKV_K8S_21=Namespace provided by kustomization overlay
+data:
+  # The local LLM that in-cluster apps target via ollama. Flip this one line to
+  # move every consumer (contracthound, subspy, loupe, litellm, …) at once.
+  OLLAMA_MODEL: qwen3.6-35b-a3b
+  OLLAMA_BASE_URL: http://ollama.ai.svc.cluster.local:11434
