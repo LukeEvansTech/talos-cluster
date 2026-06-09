@@ -88,6 +88,7 @@ spec:
       # non-root pod. NFS media export is all_squash→1000, so transcoded files
       # land as 1000 regardless of the runtime UID.
       securityContext:
+        runAsNonRoot: false
         runAsUser: 0
         runAsGroup: 0
         fsGroup: 1000
