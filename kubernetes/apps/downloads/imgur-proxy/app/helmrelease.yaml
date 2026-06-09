@@ -121,6 +121,19 @@ spec:
                   periodSeconds: 10
                   failureThreshold: 30
             restartPolicy: Always
+            # gluetun shares the pod netns across container restarts, so an
+            # abrupt exit leaves an orphaned policy-routing rule for the
+            # wireguard table. The next start then fails with
+            # "adding ip rule 101 ... table 51820: file exists" and never
+            # connects. Clear stale v4/v6 rules on (re)start so gluetun can
+            # re-add them cleanly. See gluetun-wiki setup/advanced/kubernetes.
+            lifecycle:
+              postStart:
+                exec:
+                  command:
+                    - "/bin/sh"
+                    - "-c"
+                    - "(ip rule del table 51820; ip -6 rule del table 51820) || true"
             securityContext:
               runAsUser: 0
               runAsNonRoot: false
