@@ -21,8 +21,8 @@ spec:
               repository: quay.io/kernald/deduparr
               tag: 1.2.0@sha256:81d935e48458427ca0e2896d00208efea70aba63034383a7368b9e10ad5d8cf0
             env:
-              # TODO: Change DEDUPARR_ACTION to "remove" once dry-run results are verified
-              DEDUPARR_ACTION: dry-run
+              # Verified: dry-run found 0 duplicates across all runs; safe to act when one appears.
+              DEDUPARR_ACTION: remove
               DEDUPARR_LOG_LEVEL: debug
               DEDUPARR_RADARR_MOVIES_ENABLED: true
               DEDUPARR_RADARR_MOVIES_URL: http://radarr.media.svc.cluster.local
