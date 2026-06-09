@@ -38,13 +38,12 @@ spec:
               limits:
                 memory: 2Gi
 
-    # TODO: Test running as 1000:1000 instead of root for NFS compatibility
     defaultPodOptions:
       securityContext:
-        runAsNonRoot: false
-        runAsUser: 0
-        runAsGroup: 0
-        fsGroup: 0
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
         fsGroupChangePolicy: OnRootMismatch
 
     service:
@@ -77,12 +76,12 @@ spec:
                 subPath: db
               - path: /opt/gameyfin/plugindata
                 subPath: plugin
-      # games:
-      #   type: nfs
-      #   server: ${SECRET_STORAGE_SERVER}
-      #   path: /path/to/games  # TODO: Configure your games library path
-      #   globalMounts:
-      #     - path: /games
+      games:
+        type: nfs
+        server: ${SECRET_STORAGE_SERVER}
+        path: /mnt/pool/games
+        globalMounts:
+          - path: /games
       tmp:
         type: emptyDir
         advancedMounts:
