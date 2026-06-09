@@ -36,7 +36,11 @@ jobs:
     steps:
       - name: Trigger render
         env:
-          PUSH_TOKEN: ${{ secrets.KONFLATE_PUSH_TOKEN }}
+          # zizmor secrets-outside-env wants a GitHub deployment environment, but this
+          # runs per-PR; an environment with protection rules would block the
+          # automation, and one without rules adds no security (same stance as
+          # renovate-review.yaml). The token only triggers konflate re-renders.
+          PUSH_TOKEN: ${{ secrets.KONFLATE_PUSH_TOKEN }} # zizmor: ignore[secrets-outside-env]
           PR: ${{ github.event.pull_request.number }}
         run: |
           # Konflate polls every 15m (no webhook); an authenticated refresh
@@ -55,10 +59,10 @@ jobs:
           # flight, so curl --retry waits the render out. Skip (don't fail) if
           # konflate is unreachable — flate.yaml remains the blocking check.
           if status="$(curl -fsS --retry 15 --retry-delay 5 --retry-all-errors \
-               -H 'Accept: text/markdown' \
-               -o summary.md -w '%header{x-konflate-render-status}' \
-               "${KONFLATE_URL}/api/prs/${PR}/summary")" \
-             && [ -s summary.md ]; then
+              -H 'Accept: text/markdown' \
+              -o summary.md -w '%header{x-konflate-render-status}' \
+              "${KONFLATE_URL}/api/prs/${PR}/summary")" \
+            && [ -s summary.md ]; then
             {
               echo "ready=true"
               echo "status=${status}"
