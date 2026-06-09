@@ -112,11 +112,8 @@ spec:
         runAsGroup: 1000
         fsGroup: 1000
         fsGroupChangePolicy: OnRootMismatch
-        supplementalGroups:
-          - 44
-          - 10000
         seccompProfile: { type: RuntimeDefault }
-    service: # TODO: Tidy up supplementalGroups when we have a better understanding of what's needed from a TrueNAS perspective
+    service:
       app:
         controller: plex
         type: LoadBalancer
