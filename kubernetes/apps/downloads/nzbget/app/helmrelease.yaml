@@ -74,8 +74,9 @@ spec:
               HEALTH_SERVER_DISABLE_LOOP: on
               HEALTH_VPN_DURATION_INITIAL: 60s
               LOG_LEVEL: debug
-              #TODO - Enable when ready - https://github.com/qdm12/gluetun-wiki/blob/main/setup/options/others.md. Getting ""ERROR public ip check settings: API name: API name is not valid: "cloudflare" can only be "ipinfo" or "ip2location""
-              # PUBLICIP_API: cloudflare
+              # Public IP check provider — gluetun only accepts "ipinfo" or "ip2location" (not "cloudflare").
+              # https://github.com/qdm12/gluetun-wiki/blob/main/setup/options/others.md
+              PUBLICIP_API: ipinfo
               # STORAGE_FILEPATH: "" # prevent memory spike and avoid I/O
               TZ: ${TIMEZONE}
               UPDATER_PERIOD: 12h
