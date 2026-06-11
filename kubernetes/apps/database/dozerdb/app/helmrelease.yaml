@@ -27,7 +27,7 @@ spec:
           app:
             image:
               repository: graphstack/dozerdb
-              tag: 5.26.3.0@sha256:a77526ea3918fdc46d1fff70c4aea7d71d3874a26ecec059179d6775845b1247
+              tag: 5.26.27.0@sha256:195f0bf22939afdc3f5015e5a43946118bb9dbdebce0adc8a0224abe66cb7a1e
             env:
               TZ: ${TIMEZONE}
               NEO4J_dbms_max__databases: "1000"
