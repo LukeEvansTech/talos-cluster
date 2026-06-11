@@ -7,14 +7,16 @@ metadata:
 spec:
   backend:
     filesystem:
-      # Dedicated subdirectory inside the existing VolSync NFS export —
-      # isolated from the volsync kopia repository at the export root.
-      # Promote to a dedicated TrueNAS dataset if the trial sticks.
-      path: /kopiur
+      # `path` is the volume MOUNTPOINT inside mover pods (the repo lives at
+      # its root), so isolation from the volsync kopia repo at the export
+      # root must happen at the NFS layer: mount the /kopiur subdirectory of
+      # the export (pre-created on the NAS). Promote to a dedicated TrueNAS
+      # dataset if the trial sticks.
+      path: /repo
       volume:
         nfs:
           server: ${SECRET_STORAGE_SERVER}
-          path: ${SECRET_STORAGE_SERVER_VOLSYNC_NFS}
+          path: ${SECRET_STORAGE_SERVER_VOLSYNC_NFS}/kopiur
   encryption:
     passwordSecretRef:
       name: kopiur-nas-secret
