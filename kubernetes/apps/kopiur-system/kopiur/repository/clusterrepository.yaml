@@ -29,10 +29,13 @@ spec:
     # lets mover Jobs in allowed namespaces receive the repository credentials.
     allowed: true
   allowedNamespaces:
-    # Trial scope: only the namespace holding the trial apps (apprise, atuin).
-    # Widen (or switch to all: true) after the evaluation period.
+    # Trial scope: the namespace holding the trial apps (apprise, atuin) PLUS
+    # the operator's own namespace — the managed Maintenance CR is created in
+    # kopiur-system and is webhook-gated by this same list (onedr0p hit the
+    # identical issue, home-ops 90232c18). Widen after the evaluation period.
     list:
       - default
+      - kopiur-system
   identityDefaults:
     hostnameExpr: namespace
     usernameExpr: namespace + '-' + policyName
