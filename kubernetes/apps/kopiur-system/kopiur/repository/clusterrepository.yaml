@@ -24,6 +24,10 @@ spec:
       key: KOPIA_PASSWORD
   create:
     enabled: true
+  credentialProjection:
+    # Owner-side grant matching the components' credentialProjection.enabled —
+    # lets mover Jobs in allowed namespaces receive the repository credentials.
+    allowed: true
   allowedNamespaces:
     # Trial scope: only the namespace holding the trial apps (apprise, atuin).
     # Widen (or switch to all: true) after the evaluation period.
