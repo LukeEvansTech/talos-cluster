@@ -16,7 +16,7 @@ spec:
   postBuild:
     substitute:
       APP: *app
-      GATUS_PATH: /talos_version
+      GATUS_PATH: /badges/talos_version
   prune: true
   retryInterval: 2m
   sourceRef:
