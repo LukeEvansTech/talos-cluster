@@ -34,22 +34,9 @@ jobs:
       contents: read
       pull-requests: write
     steps:
-      - name: Trigger render
-        env:
-          # zizmor secrets-outside-env wants a GitHub deployment environment, but this
-          # runs per-PR; an environment with protection rules would block the
-          # automation, and one without rules adds no security (same stance as
-          # renovate-review.yaml). The token only triggers konflate re-renders.
-          PUSH_TOKEN: ${{ secrets.KONFLATE_PUSH_TOKEN }} # zizmor: ignore[secrets-outside-env]
-          PR: ${{ github.event.pull_request.number }}
-        run: |
-          # Konflate polls every 15m (no webhook); an authenticated refresh
-          # re-renders this PR's new head now so the summary below is never
-          # stale. Non-fatal: a fresh render may already exist.
-          curl -fsS -X POST -H "Authorization: Bearer ${PUSH_TOKEN}" \
-            "${KONFLATE_URL}/api/prs/${PR}/refresh" \
-            || echo "::warning::konflate refresh failed; summary may lag the latest push"
-
+      # Renders are triggered by the GitHub webhook (HMAC-validated POST
+      # /hooks via the konflate-webhook HTTPRoute); the 15m poll remains as
+      # the missed-webhook backstop. This job only consumes the summary.
       - name: Fetch rendered summary
         id: fetch
         env:
