@@ -12,7 +12,7 @@ spec:
   values:
     image:
       repository: ghcr.io/lukeevanstech/shelly-operator
-      tag: 0.1.0@sha256:970e27efc24c6176ade9cf354cbbb9b7df370c36f55e32b93390c75cdf3d46bf
+      tag: 0.1.1@sha256:5532885087a503efe2af5f2a29a8f94b6a101b5587420b2b0051b73f5841de05
     discovery:
       # Substituted from cluster-secrets (public repo: no literal LAN CIDRs).
       # IOT_NETWORK_CIDR is the current device network (also used by
