@@ -8,12 +8,12 @@ _... managed with Flux, Renovate, and GitHub Actions_ 🤖
 
 <div align="center">
 
-[![Age-Days](https://kromgo.codelooks.com/cluster_birth_age?format=badge&style=flat-square)](https://github.com/home-operations/kromgo/)&nbsp;&nbsp;
-[![Uptime-Days](https://kromgo.codelooks.com/cluster_uptime_age?format=badge&style=flat-square)](https://github.com/home-operations/kromgo/)&nbsp;&nbsp;
-[![Node-Count](https://kromgo.codelooks.com/cluster_node_count?format=badge&style=flat-square)](https://github.com/home-operations/kromgo/)&nbsp;&nbsp;
-[![Pod-Count](https://kromgo.codelooks.com/cluster_pod_count?format=badge&style=flat-square)](https://github.com/home-operations/kromgo/)&nbsp;&nbsp;
-[![CPU-Usage](https://kromgo.codelooks.com/cluster_cpu_usage?format=badge&style=flat-square)](https://github.com/home-operations/kromgo/)&nbsp;&nbsp;
-[![Memory-Usage](https://kromgo.codelooks.com/cluster_memory_usage?format=badge&style=flat-square)](https://github.com/home-operations/kromgo/)&nbsp;&nbsp;
+[![Age-Days](https://kromgo.codelooks.com/badges/cluster_birth_age)](https://github.com/home-operations/kromgo/)&nbsp;&nbsp;
+[![Uptime-Days](https://kromgo.codelooks.com/badges/cluster_uptime_age)](https://github.com/home-operations/kromgo/)&nbsp;&nbsp;
+[![Node-Count](https://kromgo.codelooks.com/badges/cluster_node_count)](https://github.com/home-operations/kromgo/)&nbsp;&nbsp;
+[![Pod-Count](https://kromgo.codelooks.com/badges/cluster_pod_count)](https://github.com/home-operations/kromgo/)&nbsp;&nbsp;
+[![CPU-Usage](https://kromgo.codelooks.com/badges/cluster_cpu_usage)](https://github.com/home-operations/kromgo/)&nbsp;&nbsp;
+[![Memory-Usage](https://kromgo.codelooks.com/badges/cluster_memory_usage)](https://github.com/home-operations/kromgo/)&nbsp;&nbsp;
 
 </div>
 
