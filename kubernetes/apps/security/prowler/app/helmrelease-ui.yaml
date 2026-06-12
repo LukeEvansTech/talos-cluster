@@ -39,14 +39,14 @@ spec:
               - secretRef:
                   name: prowler-ui-secret
             probes:
-              # Probe `/` (returns 307 redirect to /sign-in — accepted as 2xx-3xx
-              # by kubelet). Prowler-UI's `/api/health` returns 404 in 5.26.1.
+              # /api/auth/session is a standard NextAuth endpoint that returns
+              # {} with HTTP 200 for unauthenticated requests — no redirect.
               liveness: &uiProbe
                 enabled: true
                 custom: true
                 spec:
                   httpGet:
-                    path: /
+                    path: /api/auth/session
                     port: &port 3000
                   initialDelaySeconds: 30
                   periodSeconds: 30
