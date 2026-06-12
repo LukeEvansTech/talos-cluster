@@ -21,7 +21,6 @@ resources:
   - ./nut-exporter/ks.yaml
   - ./oxidized/ks.yaml
   - ./peanut/ks.yaml
-  - ./shelly-exporter/ks.yaml
   - ./silence-operator/ks.yaml
   - ./smartctl-exporter/ks.yaml
   - ./snmp-exporter/ks.yaml

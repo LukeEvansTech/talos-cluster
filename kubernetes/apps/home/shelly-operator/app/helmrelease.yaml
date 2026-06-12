@@ -1,0 +1,34 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/helm.toolkit.fluxcd.io/helmrelease_v2.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: shelly-operator
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: shelly-operator
+  values:
+    image:
+      repository: ghcr.io/lukeevanstech/shelly-operator
+      tag: 0.1.1@sha256:5532885087a503efe2af5f2a29a8f94b6a101b5587420b2b0051b73f5841de05
+    discovery:
+      # Substituted from cluster-secrets (public repo: no literal LAN CIDRs).
+      # IOT_NETWORK_CIDR is the current device network (also used by
+      # shellyctl); IOT_TRUSTED_NETWORK_CIDR is the IoT VLAN the fleet
+      # migrates to and must be added to the 1Password cluster-secrets item
+      # before this reconciles.
+      cidrs:
+        - "${IOT_NETWORK_CIDR}"
+        - "${IOT_TRUSTED_NETWORK_CIDR}"
+    deviceNamespace: home
+    nameMap: shelly-names
+    exporterConfigMap: shelly-exporter-config
+    dashboard:
+      enabled: true
+    metrics:
+      enabled: true
+    serviceMonitor:
+      enabled: true
+    reloader: true
