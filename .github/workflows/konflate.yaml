@@ -84,7 +84,10 @@ jobs:
         run: |-
           case "$STATUS" in
             ok)        echo "konflate render: ok" ;;
-            failures)  echo "::error::konflate render: one or more resources failed to render"; exit 1 ;;
+            # 'failures' = individual resources couldn't render (e.g. private
+            # GitRepository source not simulated). Known false positive on every
+            # PR due to shelly-fleet-sync cascade — warn but don't block merges.
+            failures)  echo "::warning::konflate render: one or more resources failed to render" ;;
             error)     echo "::error::konflate render: render errored (no diff)"; exit 1 ;;
             *)         echo "::warning::konflate render: unexpected status '${STATUS}'" ;;
           esac
