@@ -9,10 +9,17 @@ spec:
   chartRef:
     kind: OCIRepository
     name: shelly-operator
+  # The chart ships CRDs in crds/; helm-controller skips CRD upgrades by
+  # default, so 0.2.0's new fields (firmware section, availableFirmware)
+  # need an explicit CreateReplace policy.
+  install:
+    crds: CreateReplace
+  upgrade:
+    crds: CreateReplace
   values:
     image:
       repository: ghcr.io/lukeevanstech/shelly-operator
-      tag: 0.1.1@sha256:5532885087a503efe2af5f2a29a8f94b6a101b5587420b2b0051b73f5841de05
+      tag: 0.2.0@sha256:ca2ce3f23e2dc6d06b933203ae7a9b20439c353c0953131f1bf9f564e91a7d3c
     discovery:
       # Substituted from cluster-secrets (public repo: no literal LAN CIDRs).
       # IOT_TRUSTED_NETWORK_CIDR is the IoT VLAN the whole fleet lives on
