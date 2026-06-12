@@ -78,8 +78,10 @@ spec:
             protocol: TCP
     persistence:
       config:
-        type: secret
-        name: shelly-exporter-secret
+        # Rendered by shelly-operator's exporter feed (replaces the old
+        # 1Password "Shelly Exporter" inventory ExternalSecret).
+        type: configMap
+        name: shelly-exporter-config
         globalMounts:
           - path: /config/config.yaml
             subPath: config.yaml
