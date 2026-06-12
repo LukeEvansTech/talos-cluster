@@ -1,0 +1,13 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/source.toolkit.fluxcd.io/gitrepository_v1.json
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: shelly-fleet
+spec:
+  interval: 1h
+  ref:
+    branch: main
+  secretRef:
+    name: shelly-fleet-deploy
+  url: ssh://git@github.com/LukeEvansTech/shelly-fleet.git
