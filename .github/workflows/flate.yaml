@@ -16,7 +16,7 @@ permissions:
 
 env:
   # renovate: datasource=github-releases depName=home-operations/flate
-  # Pinned to v0.3.3: v0.4.4 cascades a skipped GitRepository source to block
+  # Pinned to v0.3.3: v0.4.5 cascades a skipped GitRepository source to block
   # all dependents (shelly-fleet-sync → 209 blocked). v0.3.3 marks the source
   # skipped and leaves dependents unblocked. TODO: upgrade once
   # shelly-fleet-sync is restructured to not use a private-key-gated source.
