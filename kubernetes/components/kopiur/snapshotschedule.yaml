@@ -15,10 +15,4 @@ spec:
     # Trial: take a first snapshot immediately on creation so the
     # repository and identity wiring are validated without waiting a day.
     runOnCreate: true
-    # TODO(#2989): unsuspend once the kopiur chart bump carrying
-    # home-operations/kopiur#82 (source staging) lands — see the resume
-    # checklist on the issue. SUSPENDED because in <=0.3.2 copyMethod
-    # Snapshot still mounts the live RWO PVC into the mover, which
-    # Multi-Attach-wedges whenever the mover lands on a different node
-    # than the app.
-    suspend: true
+    suspend: false
