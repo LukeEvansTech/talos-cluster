@@ -15,12 +15,10 @@ spec:
       tag: 0.1.1@sha256:5532885087a503efe2af5f2a29a8f94b6a101b5587420b2b0051b73f5841de05
     discovery:
       # Substituted from cluster-secrets (public repo: no literal LAN CIDRs).
-      # IOT_NETWORK_CIDR is the current device network (also used by
-      # shellyctl); IOT_TRUSTED_NETWORK_CIDR is the IoT VLAN the fleet
-      # migrates to and must be added to the 1Password cluster-secrets item
-      # before this reconciles.
+      # IOT_TRUSTED_NETWORK_CIDR is the IoT VLAN the whole fleet lives on
+      # (migration completed 2026-06-12; the old flat-LAN CIDR was dropped
+      # from the sweep in Phase 5 cleanup).
       cidrs:
-        - "${IOT_NETWORK_CIDR}"
         - "${IOT_TRUSTED_NETWORK_CIDR}"
     deviceNamespace: home
     nameMap: shelly-names
