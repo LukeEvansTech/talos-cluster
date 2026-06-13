@@ -11,11 +11,18 @@ spec:
   interval: 1h
   values:
     config:
-      # Public repo → anonymous read is sufficient. A missed-webhook backstop
-      # re-renders open PRs (and reconciles the PR list) on this interval.
+      # Public repo → App auth lifts the API rate limit and supplies the write
+      # identity. A missed-webhook backstop re-renders open PRs (and reconciles
+      # the PR list) on this interval.
       repo: github://LukeEvansTech/talos-cluster
       refreshInterval: 15m
       logFormat: json
+      # Post the native `Konflate` commit status + PR summary comment per
+      # render (replaces the flate.yaml/konflate.yaml CI gate). statusCheckName
+      # left unset → defaults to "Konflate" (the required branch-protection check).
+      statusChecks: true
+      prComments: true
+      publicUrl: "https://konflate.${SECRET_DOMAIN}"
     secret:
       # KONFLATE_PUSH_TOKEN — lets the Konflate PR workflow force a re-render of
       # the PR's new head (POST /api/prs/{n}/refresh) instead of waiting out the
