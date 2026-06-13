@@ -1,0 +1,50 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
+#
+# Fleet-health alerts on the shelly-operator's per-device metrics
+# (shelly_device_online / _in_sync / _update_available), scraped via the
+# operator's already-enabled ServiceMonitor. These metrics ship in operator
+# v0.3.x; before that they are absent and the rules simply never fire.
+# Power/temperature alerts live in the shelly-exporter PrometheusRule -- not
+# duplicated here.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: shelly-operator
+spec:
+  groups:
+    - name: shelly-operator
+      rules:
+        - alert: ShellyDeviceOffline
+          annotations:
+            summary: Shelly device offline.
+            description: >-
+              {{ $labels.name }} ({{ $labels.mac }}) has been offline
+              (undiscovered by the operator sweep) for over 15m.
+          expr: shelly_device_online == 0
+          for: 15m
+          labels:
+            severity: warning
+        - alert: ShellyDeviceOutOfSync
+          annotations:
+            summary: Shelly device config drift not converging.
+            description: >-
+              {{ $labels.name }} ({{ $labels.mac }}) is online but its config
+              has not matched its profile for over 1h (enforcement failing or
+              damped).
+          # Online only -- an offline device is covered by ShellyDeviceOffline.
+          expr: (shelly_device_in_sync == 0) and on(mac, name) (shelly_device_online == 1)
+          for: 1h
+          labels:
+            severity: warning
+        - alert: ShellyDevicePendingFirmware
+          annotations:
+            summary: Shelly device has a pending firmware update.
+            description: >-
+              {{ $labels.name }} ({{ $labels.mac }}) has had a stable firmware
+              update available for over 24h -- auto-update may not be working
+              (it should apply at the device's daily 00:00 window).
+          expr: shelly_device_update_available == 1
+          for: 24h
+          labels:
+            severity: info
