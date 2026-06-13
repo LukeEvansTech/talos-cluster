@@ -20,7 +20,8 @@ spec:
     containerMode:
       type: kubernetes
       kubernetesModeWorkVolumeClaim:
-        accessModes: ["ReadWriteOnce"]
+        accessModes:
+          - "ReadWriteOnce"
         storageClassName: openebs-hostpath
         resources:
           requests:
@@ -30,8 +31,14 @@ spec:
         serviceAccountName: packer-runner
         containers:
           - name: runner
-            image: ghcr.io/codelooks-com/packer-runner:latest
-            command: ["/home/runner/run.sh"]
+            # Pinned to an immutable digest (matches the home-operations
+            # actions-runner convention). Mutable :latest let nodes keep a
+            # stale cached image whose baked ansible venv/pywinrm was absent,
+            # so Windows WinRM provisioning failed with "No module named
+            # 'winrm'". Renovate bumps the digest as new images are built.
+            image: ghcr.io/codelooks-com/packer-runner:latest@sha256:bac14351c202dd8684b3aa061abb5c3a299ad99f88ce98b5a44a7fa218bf6c94
+            command:
+              - "/home/runner/run.sh"
             env:
               # containerMode: kubernetes defaults this to "true", which REFUSES
               # plain `run:` jobs. Our tools live in the runner image and steps run
