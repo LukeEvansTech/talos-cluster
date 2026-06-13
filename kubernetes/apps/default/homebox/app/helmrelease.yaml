@@ -22,9 +22,12 @@ spec:
               HBOX_LOG_FORMAT: text
               HBOX_MEB_MAX_UPLOAD_SIZE: 10
               HBOX_WEB_PORT: &port 7745
+            envFrom:
+              - secretRef:
+                  name: homebox-secret
             image:
               repository: ghcr.io/sysadminsmedia/homebox
-              tag: 0.25.0@sha256:6506480a3dfadd2cc885fa97b32d11b0ee28ec58629fa34a76afdb4ac540c7fc
+              tag: 0.26.1@sha256:17d82459c12a6592b056d9319d3bc8dc46a2a0272062b433cd6ced4aa7155de7
             probes:
               liveness:
                 enabled: true
