@@ -449,6 +449,7 @@
       // cascades the root to a timeout, blocking ~209 dependents (0 failed, 1
       // skipped, 209 blocked). v0.3.3 is the last release with the old engine
       // (0 blocked). Pin <0.3.4 until upstream fixes the skip→blocked cascade.
+      // Tracked upstream: home-operations/flate#752.
       description: "Pin flate <0.3.4 — v0.3.4+ DAG scheduler cascades skipped source to 209-blocked",
       matchDatasources: ["github-releases"],
       matchPackageNames: ["home-operations/flate"],
