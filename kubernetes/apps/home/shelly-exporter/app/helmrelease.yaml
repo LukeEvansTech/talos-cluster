@@ -18,11 +18,11 @@ spec:
           app:
             image:
               repository: ghcr.io/lukeevanstech/shelly-prometheus-exporter
-              # TODO(auth SP-2): bump to the digest-auth release once
-              # LukeEvansTech/shelly-prometheus-exporter PR #1 is merged and CI
-              # publishes a new tag. Digest auth is a no-op on this old image,
-              # so the SHELLY_* env below is inert until this is bumped.
-              tag: 0.3.1@sha256:3d123b1c26a6dc8ed2ce0927d56a66212401da8c7102c20abd21c1158e9c1d7f
+              # 0.4.0 adds Shelly Gen2 digest auth; with SHELLY_PASSWORD (env
+              # below, from the auth-credentials Secret) it authenticates to
+              # plugs that have auth on, and is a clean no-op on those that
+              # don't (digest only engages on a 401).
+              tag: 0.4.0@sha256:807220f4c0ea659e8e7c72fe52b74ef430bafd660b4ea3b56e83cc14f5a03648
             args:
               - --config
               - /config/config.yaml
