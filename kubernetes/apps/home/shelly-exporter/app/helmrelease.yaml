@@ -28,18 +28,18 @@ spec:
               - /config/config.yaml
             env:
               TZ: ${TIMEZONE:=UTC}
-              # Shelly device admin auth (fleet auth rollout SP-2). optional:
-              # true so the exporter keeps running UNauthenticated until the
-              # auth-credentials Secret exists (created by the shelly-fleet
-              # externalsecret-auth.yaml, SP-3) -- a missing Secret will not
-              # block the pod from starting.
+              # Shelly device admin auth (fleet auth rollout). The
+              # auth-credentials Secret already exists (created by the
+              # shelly-fleet externalsecret-auth.yaml, SP-3). NOTE: app-template's
+              # env schema does NOT allow `optional` on secretKeyRef, so it is
+              # omitted -- the Secret is present and managed, so a hard ref is
+              # fine. Digest auth is a no-op against non-auth devices.
               SHELLY_USERNAME: admin
               SHELLY_PASSWORD:
                 valueFrom:
                   secretKeyRef:
                     name: auth-credentials
                     key: password
-                    optional: true
             probes:
               liveness:
                 enabled: true
