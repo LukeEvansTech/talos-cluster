@@ -80,6 +80,10 @@ spec:
               kind: Deployment
               name: helm-controller
           - # Set resources for source-controller
+            # 256Mi OOM-crashlooped during a burst of merges (artifact server
+            # rebuilds + 10-chart helm cache + --concurrent=10). Observed ~474Mi
+            # while re-fetching the full artifact set, so 512Mi left almost no
+            # headroom — set 1Gi to survive future merge bursts.
             patch: |-
               apiVersion: apps/v1
               kind: Deployment
@@ -93,9 +97,9 @@ spec:
                         resources:
                           requests:
                             cpu: 10m
-                            memory: 256Mi
+                            memory: 1Gi
                           limits:
-                            memory: 256Mi
+                            memory: 1Gi
             target:
               kind: Deployment
               name: source-controller
