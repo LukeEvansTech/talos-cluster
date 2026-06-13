@@ -18,12 +18,28 @@ spec:
           app:
             image:
               repository: ghcr.io/lukeevanstech/shelly-prometheus-exporter
+              # TODO(auth SP-2): bump to the digest-auth release once
+              # LukeEvansTech/shelly-prometheus-exporter PR #1 is merged and CI
+              # publishes a new tag. Digest auth is a no-op on this old image,
+              # so the SHELLY_* env below is inert until this is bumped.
               tag: 0.3.1@sha256:3d123b1c26a6dc8ed2ce0927d56a66212401da8c7102c20abd21c1158e9c1d7f
             args:
               - --config
               - /config/config.yaml
             env:
               TZ: ${TIMEZONE:=UTC}
+              # Shelly device admin auth (fleet auth rollout SP-2). optional:
+              # true so the exporter keeps running UNauthenticated until the
+              # auth-credentials Secret exists (created by the shelly-fleet
+              # externalsecret-auth.yaml, SP-3) -- a missing Secret will not
+              # block the pod from starting.
+              SHELLY_USERNAME: admin
+              SHELLY_PASSWORD:
+                valueFrom:
+                  secretKeyRef:
+                    name: auth-credentials
+                    key: password
+                    optional: true
             probes:
               liveness:
                 enabled: true
