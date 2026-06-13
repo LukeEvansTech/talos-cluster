@@ -16,10 +16,13 @@ permissions:
 
 env:
   # renovate: datasource=github-releases depName=home-operations/flate
-  # Pinned to v0.3.3: v0.4.4 cascades a skipped GitRepository source to block
-  # all dependents (shelly-fleet-sync → 209 blocked). v0.3.3 marks the source
-  # skipped and leaves dependents unblocked. TODO: upgrade once
-  # shelly-fleet-sync is restructured to not use a private-key-gated source.
+  # Pinned to v0.3.3: v0.4.4+ cascades an unresolvable source (the private
+  # shelly-fleet GitRepository, whose SSH deploy key only exists at runtime)
+  # to BLOCK every dependent — ~209 blocked. v0.3.3 marks the source skipped
+  # and leaves dependents unblocked. A placeholder secret doesn't help: flate
+  # then parses the bogus key and fails the source loud (still cascades).
+  # Real fixes tracked separately (drop flate-test in favour of konflate, or
+  # restructure shelly-fleet to bootstrap from the private repo).
   FLATE_VERSION: "v0.3.3"
 
 jobs:
