@@ -445,15 +445,17 @@
       // flate v0.3.4 made the DAG fixpoint scheduler the default. On this repo's
       // recursive root Kustomization (cluster-apps, path ./kubernetes), the
       // skipped private shelly-fleet GitRepository (SSH key only exists at
-      // runtime) no longer propagates its skip to the consuming KS — instead it
-      // cascades the root to a timeout, blocking ~209 dependents (0 failed, 1
-      // skipped, 209 blocked). v0.3.3 is the last release with the old engine
-      // (0 blocked). Pin <0.3.4 until upstream fixes the skip→blocked cascade.
-      // Tracked upstream: home-operations/flate#752.
-      description: "Pin flate <0.3.4 — v0.3.4+ DAG scheduler cascades skipped source to 209-blocked",
+      // runtime) no longer propagated its skip to the consuming KS — instead it
+      // cascaded the root to a timeout, blocking ~209 dependents (0 failed, 1
+      // skipped, 209 blocked). v0.3.3 was the last release with the old engine
+      // (0 blocked). Fixed upstream by home-operations/flate#757 (closes #752),
+      // which first ships in v0.4.6. Accept >=0.4.6 and keep the broken
+      // 0.3.4–0.4.5 line blocked; flate-test + claude/renovate-review validate
+      // the bump before it merges.
+      description: "Allow flate >=0.4.6 — skip→blocked cascade fixed by home-operations/flate#757; block broken 0.3.4-0.4.5",
       matchDatasources: ["github-releases"],
       matchPackageNames: ["home-operations/flate"],
-      allowedVersions: "<0.3.4",
+      allowedVersions: ">=0.4.6",
     },
   ],
 }
