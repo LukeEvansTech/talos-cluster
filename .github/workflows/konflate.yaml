@@ -19,17 +19,19 @@ permissions:
   contents: read
 
 env:
-  # In-cluster Service URL — konflate is only exposed via envoy-internal, so
-  # this workflow must run on the in-cluster runner to reach it.
-  KONFLATE_URL: http://konflate.flux-system.svc.cluster.local:8080
+  # External Konflate URL — set via repo variable KONFLATE_URL
+  # (e.g. https://konflate.<your-domain>). Falls back to the in-cluster
+  # service URL if the variable is not set (self-hosted runner path).
+  KONFLATE_URL: ${{ vars.KONFLATE_URL || 'http://konflate.flux-system.svc.cluster.local:8080' }}
 
 jobs:
   comment:
     name: Konflate - Comment
-    # Same-repo PRs only: the repo is public and this job runs on a self-hosted
-    # runner, which must never execute fork-originated workflow runs.
+    # Same-repo PRs only: Konflate renders against our cluster state so there
+    # is no value running it for external forks, and the fallback path still
+    # uses a self-hosted runner.
     if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
-    runs-on: talos-cluster-runner
+    runs-on: ${{ vars.KONFLATE_URL && 'ubuntu-latest' || 'talos-cluster-runner' }}
     permissions:
       contents: read
       pull-requests: write
