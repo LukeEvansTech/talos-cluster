@@ -46,6 +46,8 @@ spec:
     envFrom:
       - secretRef:
           name: tailscale-creds
+      - secretRef:
+          name: tenv-token
 ---
 apiVersion: config.terraform.padok.cloud/v1alpha1
 kind: TerraformLayer

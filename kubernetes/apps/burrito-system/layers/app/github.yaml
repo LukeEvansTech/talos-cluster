@@ -44,6 +44,8 @@ spec:
     envFrom:
       - secretRef:
           name: github-creds
+      - secretRef:
+          name: tenv-token
 ---
 apiVersion: config.terraform.padok.cloud/v1alpha1
 kind: TerraformLayer
