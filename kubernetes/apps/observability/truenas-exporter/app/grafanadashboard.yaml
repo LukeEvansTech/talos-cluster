@@ -1,0 +1,87 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/grafana.integreatly.org/grafanadashboard_v1beta1.json
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  name: truenas-scale
+spec:
+  allowCrossNamespaceImport: true
+  instanceSelector:
+    matchLabels:
+      grafana.internal/instance: grafana
+  resyncPeriod: 1h
+  # Author ships these with a Mimir datasource input (DS_MIMIR); remap it onto
+  # our Prometheus datasource so panels bind on import.
+  datasources:
+    - datasourceName: prometheus
+      inputName: DS_MIMIR
+  # renovate: depName="Supporterino/truenas-graphite-to-prometheus" datasource=github-tags
+  url: https://raw.githubusercontent.com/Supporterino/truenas-graphite-to-prometheus/v2.2.1/dashboards/truenas_scale.json
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/grafana.integreatly.org/grafanadashboard_v1beta1.json
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  name: truenas-scale-disk-insights
+spec:
+  allowCrossNamespaceImport: true
+  instanceSelector:
+    matchLabels:
+      grafana.internal/instance: grafana
+  resyncPeriod: 1h
+  datasources:
+    - datasourceName: prometheus
+      inputName: DS_MIMIR
+  # renovate: depName="Supporterino/truenas-graphite-to-prometheus" datasource=github-tags
+  url: https://raw.githubusercontent.com/Supporterino/truenas-graphite-to-prometheus/v2.2.1/dashboards/truenas_scale_disk_insights.json
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/grafana.integreatly.org/grafanadashboard_v1beta1.json
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  name: truenas-scale-temperatures
+spec:
+  allowCrossNamespaceImport: true
+  instanceSelector:
+    matchLabels:
+      grafana.internal/instance: grafana
+  resyncPeriod: 1h
+  datasources:
+    - datasourceName: prometheus
+      inputName: DS_MIMIR
+  # renovate: depName="Supporterino/truenas-graphite-to-prometheus" datasource=github-tags
+  url: https://raw.githubusercontent.com/Supporterino/truenas-graphite-to-prometheus/v2.2.1/dashboards/truenas_scale_temperatures.json
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/grafana.integreatly.org/grafanadashboard_v1beta1.json
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  name: truenas-scale-cgroups
+spec:
+  allowCrossNamespaceImport: true
+  instanceSelector:
+    matchLabels:
+      grafana.internal/instance: grafana
+  resyncPeriod: 1h
+  datasources:
+    - datasourceName: prometheus
+      inputName: DS_MIMIR
+  # renovate: depName="Supporterino/truenas-graphite-to-prometheus" datasource=github-tags
+  url: https://raw.githubusercontent.com/Supporterino/truenas-graphite-to-prometheus/v2.2.1/dashboards/truenas_scale_cgroups.json
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/grafana.integreatly.org/grafanadashboard_v1beta1.json
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  name: truenas-scale-applications-k3s
+spec:
+  allowCrossNamespaceImport: true
+  instanceSelector:
+    matchLabels:
+      grafana.internal/instance: grafana
+  resyncPeriod: 1h
+  datasources:
+    - datasourceName: prometheus
+      inputName: DS_MIMIR
+  # renovate: depName="Supporterino/truenas-graphite-to-prometheus" datasource=github-tags
+  url: https://raw.githubusercontent.com/Supporterino/truenas-graphite-to-prometheus/v2.2.1/dashboards/truenas_scale_applications_k3s.json
