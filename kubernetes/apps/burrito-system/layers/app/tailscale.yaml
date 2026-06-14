@@ -1,0 +1,59 @@
+---
+# Tailscale tailnet policy stack — OpenTofu, R2 s3 backend. The ACL lives in acl.hujson at
+# the repo root, so it's covered by the layer's path ".". Creds from tailscale-creds.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: tailscale-creds
+spec:
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: onepassword-connect
+  target:
+    name: tailscale-creds
+    template:
+      engineVersion: v2
+      data:
+        AWS_ACCESS_KEY_ID: "{{ .R2_ACCESS_KEY_ID }}"
+        AWS_SECRET_ACCESS_KEY: "{{ .R2_SECRET_ACCESS_KEY }}"
+        AWS_REGION: auto
+        AWS_ENDPOINT_URL_S3: "{{ .R2_S3_ENDPOINT }}"
+        TF_VAR_tailscale_oauth_client_id: "{{ .TS_OAUTH_CLIENT_ID }}"
+        TF_VAR_tailscale_oauth_client_secret: "{{ .TS_OAUTH_CLIENT_SECRET }}"
+        TF_VAR_tailscale_tailnet: "{{ .TS_TAILNET }}"
+  dataFrom:
+    - extract:
+        key: cloudflare-r2-tfstate
+    - extract:
+        key: tailscale-terraform
+---
+apiVersion: config.terraform.padok.cloud/v1alpha1
+kind: TerraformRepository
+metadata:
+  name: terraform-tailscale
+spec:
+  repository:
+    url: https://github.com/codelooks-com/terraform-tailscale
+  terraform:
+    enabled: false
+  opentofu:
+    enabled: true
+    version: "1.12.2"
+  remediationStrategy:
+    autoApply: false
+  overrideRunnerSpec:
+    serviceAccountName: runner
+    envFrom:
+      - secretRef:
+          name: tailscale-creds
+---
+apiVersion: config.terraform.padok.cloud/v1alpha1
+kind: TerraformLayer
+metadata:
+  name: tailscale
+spec:
+  branch: main
+  path: "."
+  repository:
+    name: terraform-tailscale
+    namespace: terraform
