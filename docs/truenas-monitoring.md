@@ -90,7 +90,23 @@ Then point TrueNAS at it:
     - **Prefix**: `truenas`
     - **Update every**: match your Prometheus scrape interval
 
-> The exporter ships with the mapping config baked into the image, so no mapping file mount is required. Only `netdata.conf` and the Reporting exporter need to be configured TrueNAS-side.
+> The exporter ships with the mapping config baked into the image, so no mapping file mount is required.
+
+**Preferred (no hand-edited config):** create the Reporting exporter via the REST API instead of the
+GUI — it reconfigures the built-in netdata's exporting engine the supported way, with no
+`/etc/netdata/netdata.conf` hand-edit (which TrueNAS middleware manages/overwrites):
+
+```bash
+midclt call reporting.exporters.create '{"enabled": true, "name": "prometheus-graphite",
+  "attributes": {"exporter_type": "GRAPHITE", "destination_ip": "127.0.0.1",
+  "destination_port": 9109, "prefix": "truenas", "namespace": "truenas",
+  "update_every": 10, "send_names_instead_of_ids": true, "matching_charts": "*"}}'
+```
+
+> **Do NOT** deploy the upstream `netdata.conf` on 25.10 unless you accept the trade-off: it
+> switches netdata to vanilla charts (so the upstream dashboards match) but degrades the native
+> TrueNAS **Reporting UI** and is overwritten on update. `prefix` MUST be `truenas` (the bridge
+> mapping hardcodes it).
 
 ### 4. Verify Exporters are Running
 
@@ -103,13 +119,36 @@ curl http://localhost:9100/metrics
 # Test smartctl-exporter
 curl http://localhost:9633/metrics
 
-# Test truenas-graphite-exporter (should show zfs_*, disk_*, cpu_* series once netdata is pushing)
+# Test truenas-graphite-exporter (should show truenas_arcstats, disk_io, cpu_temperature,
+# cgroup_*, nfs_*, interface_* series once netdata is pushing — see "Metric reality" below)
 curl http://localhost:9108/metrics
 ```
 
 ### 5. Configure TrueNAS Firewall (if needed)
 
 If TrueNAS has a firewall enabled, ensure ports 9100, 9633, and 9108 are accessible from your Kubernetes cluster network. Port 9109 only needs to be reachable from netdata on the TrueNAS host itself.
+
+## Metric reality on TrueNAS SCALE 25.10 (verified 2026-06-14)
+
+25.10's netdata emits a **reduced, custom-named** chart set, so the bridge does **not** reproduce
+the full vanilla-netdata metric set the upstream mapping + dashboards assume. Confirmed against live
+`/metrics` on `cr-storage`:
+
+| Area                     | Present                                             | Notes                                                                                                                                                           |
+| ------------------------ | --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Disk I/O                 | `disk_io`, `disk_io_ops`, `disk_busy`               | no `disk_await/utilization/qops/size/iotime/backlog`                                                                                                            |
+| CPU temp                 | `cpu_temperature`                                   | ✅                                                                                                                                                              |
+| cgroups / k8s            | `cgroup_*`                                          | ✅ full                                                                                                                                                         |
+| NFS / network / services | `nfs_*`, `interface_*`, `services_*`, `system_load` | ✅                                                                                                                                                              |
+| ZFS ARC                  | `truenas_arcstats{type=...}`                        | raw chart — **not** vanilla `zfs.arc_size`; bridged to `zfs_arc_size` / `zfs_arc_free_bytes` / `zfs_arc_hit_ratio` via recording rules in `prometheusrule.yaml` |
+| ZFS pool state           | **absent**                                          | no `zfs_pool`/scrub metric — rely on TrueNAS native ZFS event detection + alerts                                                                                |
+| Disk temperature         | **absent** from graphite                            | use `smartctl_device_temperature` (smartctl-exporter) — the disk-temp alert is repointed there                                                                  |
+| Memory / detailed CPU    | **absent**                                          | `physical_memory`/`memory_*`/`cpu_frequency` not emitted                                                                                                        |
+
+Consequence for the bundled dashboards: **cgroups** is fully populated; **disk_insights**,
+**temperatures**, and the main **truenas_scale** dashboard are partial (empty panels for the absent
+metrics); **applications_k3s** was removed (it targets `k3s_pod_*` — this box runs Talos separately).
+A faithful ZFS dashboard needs either the netdata.conf swap (declined above) or a bespoke dashboard.
 
 ## Kubernetes Configuration
 
