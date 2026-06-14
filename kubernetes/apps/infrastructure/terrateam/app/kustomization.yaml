@@ -7,5 +7,6 @@ resources:
   - ./cluster.yaml
   - ./externalsecret.yaml
   - ./helmrelease.yaml
+  - ./networkpolicy.yaml
   - ./httproute.yaml
   - ./httproute-internal.yaml
