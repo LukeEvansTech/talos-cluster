@@ -1,0 +1,30 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: mktxp.rules
+spec:
+  groups:
+    - name: mktxp.rules
+      rules:
+        - alert: MktxpExporterDown
+          annotations:
+            summary: "mktxp exporter ({{ $labels.instance }}) is not being scraped."
+          expr: |-
+            up{job="mktxp"} == 0
+          for: 5m
+          labels:
+            severity: critical
+        # mktxp drops a router's series when it can't reach it. Confirm the exact
+        # uptime metric/label against live /metrics before relying on this.
+        - alert: MktxpRouterUnreachable
+          annotations:
+            summary: "mktxp cannot collect from RouterOS device {{ $labels.routerboard_name }}{{ $labels.name }}."
+          expr: |-
+            mktxp_system_routerboard_uptime == 0
+            or
+            absent(mktxp_system_routerboard_uptime)
+          for: 10m
+          labels:
+            severity: warning
