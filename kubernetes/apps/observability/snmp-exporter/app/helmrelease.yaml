@@ -14,24 +14,31 @@ spec:
     image:
       repository: quay.io/prometheus/snmp-exporter
       tag: v0.30.1@sha256:e5fd5e8b43ace6c088fe9bf0b37b7fff0e04380bee352be7ec41b853a4dd5859
+    # chart 9.14.0 reads scrape targets from serviceMonitor.params[] (not a
+    # top-level params:); per-entry module/auth fall back to the globals here.
     serviceMonitor:
       enabled: true
-    params:
-      # Mellanox Onyx SN2700 core switch (sw-main-core). if_mib gives all port
-      # counters/status; auth public_v2 maps to the bundled community "public"
-      # (the switch's existing read-only SNMP community).
-      - name: onyx-core
-        module:
-          - if_mib
-        target: 10.32.8.195
-        auth:
-          - public_v2
-    path: /snmp
-    scrapeTimeout: 30s
-    relabelings:
-      - sourceLabels:
-          - __param_target
-        targetLabel: instance
+      path: /snmp
+      module:
+        - if_mib
+      auth:
+        - public_v2
+      params:
+        # Mellanox Onyx SN2700 core switch (sw-main-core). if_mib gives all port
+        # counters/status; auth public_v2 maps to the bundled community "public"
+        # (the switch's existing read-only SNMP community).
+        - name: onyx-core
+          target: 10.32.8.195
+          module:
+            - if_mib
+          auth:
+            - public_v2
+          interval: 60s
+          scrapeTimeout: 30s
+          relabelings:
+            - sourceLabels:
+                - __param_target
+              targetLabel: instance
     resources:
       requests:
         cpu: 10m
