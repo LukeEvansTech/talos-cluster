@@ -34,6 +34,9 @@ spec:
             env:
               TZ: ${TIMEZONE}
               GARAGE_CONFIG_FILE: /etc/garage.toml
+            envFrom:
+              - secretRef:
+                  name: garage-secret
             securityContext:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: true
@@ -121,8 +124,8 @@ spec:
                 port: 3900
     persistence:
       config:
-        type: secret
-        name: garage-secret
+        type: configMap
+        name: garage-config
         globalMounts:
           - path: /etc/garage.toml
             subPath: garage.toml
