@@ -9,3 +9,13 @@ resources:
   - ./ocirepository.yaml
   - ./prometheusrule.yaml
   - ./servicemonitor.yaml
+configMapGenerator:
+  - name: opnsense-exporter-dashboard
+    files:
+      - dashboards/opnsense-exporter.json
+generatorOptions:
+  disableNameSuffixHash: true
+  annotations:
+    # Dashboard JSON uses Grafana ${datasource}/${opnsense_instance} macros;
+    # disable Flux postBuild substitution so they are not clobbered to empty.
+    kustomize.toolkit.fluxcd.io/substitute: disabled
