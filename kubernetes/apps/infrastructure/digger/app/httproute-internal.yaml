@@ -1,0 +1,26 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/gateway.networking.k8s.io/httproute_v1.json
+# INTERNAL route: the full Digger app — dashboard/UI, run history, project pages, the
+# /github/setup wizard and OAuth callback — reachable only on the internal network via the
+# internal gateway. Split-horizon DNS resolves digger.${SECRET_DOMAIN} to the internal
+# gateway for in-cluster/VPN clients, so the UI is never exposed publicly. GitHub only ever
+# needs the webhook, which is the one path served publicly (httproute.yaml).
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: digger-internal
+spec:
+  hostnames:
+    - digger.${SECRET_DOMAIN}
+    - digger.${SECRET_INTERNAL_DOMAIN}
+  parentRefs:
+    - name: envoy-internal
+      namespace: network
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: digger-backend-web
+          port: 3000
