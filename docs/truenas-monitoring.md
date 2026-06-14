@@ -78,17 +78,17 @@ This exporter bundles `prometheus/graphite_exporter` with a TrueNAS-specific map
 
 1. Repeat the Custom App process. Set the image to `ghcr.io/supporterino/truenas-graphite-to-prometheus:latest`.
 2. Add two port mappings (host network or node ports):
-   - Container `9109` → host `9109` (TCP) — Graphite ingest
-   - Container `9108` → host `9108` (TCP) — Prometheus metrics
+    - Container `9109` → host `9109` (TCP) — Graphite ingest
+    - Container `9108` → host `9108` (TCP) — Prometheus metrics
 3. Click **Install**.
 
 Then point TrueNAS at it:
 
 1. Deploy the project's `netdata.conf` to `/etc/netdata/netdata.conf` on TrueNAS (enables the netdata Graphite backend; see the [upstream `TRUENAS.md`](https://github.com/Supporterino/truenas-graphite-to-prometheus/blob/main/TRUENAS.md)).
 2. In TrueNAS go to **Reporting → Exporters → Add** and create a **Graphite** exporter:
-   - **Destination IP / Port**: the exporter host and `9109`
-   - **Prefix**: `truenas`
-   - **Update every**: match your Prometheus scrape interval
+    - **Destination IP / Port**: the exporter host and `9109`
+    - **Prefix**: `truenas`
+    - **Update every**: match your Prometheus scrape interval
 
 > The exporter ships with the mapping config baked into the image, so no mapping file mount is required. Only `netdata.conf` and the Reporting exporter need to be configured TrueNAS-side.
 
@@ -139,11 +139,11 @@ Dashboards and alert rules are reconciled by Flux — no manual import. The `tru
 
 All dashboards are provisioned as `GrafanaDashboard` CRs via grafana-operator — do not import by hand, or changes will be overwritten on reconcile.
 
-| Dashboard | Source | Provisioned by |
-| --- | --- | --- |
-| Node Exporter Full | grafana.com 1860 | `kube-prometheus-stack/app/grafanadashboard-node-exporter.yaml` |
-| SMART Disk Monitoring | grafana.com 22604 | `smartctl-exporter/app/grafanadashboard.yaml` |
-| TrueNAS SCALE (+ disk insights, temperatures, cgroups, apps) | upstream repository JSON | `truenas-exporter/app/grafanadashboard.yaml` |
+| Dashboard                                                    | Source                   | Provisioned by                                                  |
+| ------------------------------------------------------------ | ------------------------ | --------------------------------------------------------------- |
+| Node Exporter Full                                           | grafana.com 1860         | `kube-prometheus-stack/app/grafanadashboard-node-exporter.yaml` |
+| SMART Disk Monitoring                                        | grafana.com 22604        | `smartctl-exporter/app/grafanadashboard.yaml`                   |
+| TrueNAS SCALE (+ disk insights, temperatures, cgroups, apps) | upstream repository JSON | `truenas-exporter/app/grafanadashboard.yaml`                    |
 
 To add another, drop a new `GrafanaDashboard` CR into the relevant app and let Flux reconcile.
 
