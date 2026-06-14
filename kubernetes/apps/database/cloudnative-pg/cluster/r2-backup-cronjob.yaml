@@ -47,13 +47,13 @@ spec:
                 - name: RCLONE_VERBOSE
                   value: "1"
 
-                # MinIO (source) configuration
+                # Garage (source) configuration
                 - name: RCLONE_CONFIG_MINIO_TYPE
                   value: s3
                 - name: RCLONE_CONFIG_MINIO_PROVIDER
-                  value: Minio
+                  value: Other
                 - name: RCLONE_CONFIG_MINIO_ENDPOINT
-                  value: https://minio.${SECRET_INTERNAL_DOMAIN}:9000
+                  value: http://garage.storage.svc.cluster.local:3900
                 - name: RCLONE_CONFIG_MINIO_ACL
                   value: private
 
