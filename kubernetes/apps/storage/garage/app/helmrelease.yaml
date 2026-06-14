@@ -1,0 +1,132 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: garage
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: garage
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+      strategy: rollback
+  values:
+    controllers:
+      garage:
+        type: statefulset
+        replicas: 3
+        serviceAccount:
+          identifier: garage
+        annotations:
+          reloader.stakater.com/auto: "true"
+        containers:
+          app:
+            image:
+              repository: docker.io/dxflrs/garage
+              tag: v2.3.0@sha256:866bd13ed2038ba7e7190e840482bc27234c4afaf77be8cfa439ae088c1e4690
+            env:
+              TZ: ${TIMEZONE}
+              GARAGE_CONFIG_FILE: /etc/garage.toml
+            envFrom:
+              - secretRef:
+                  name: garage-secret
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop:
+                  - ALL
+            probes:
+              liveness:
+                enabled: true
+                custom: true
+                spec:
+                  tcpSocket:
+                    port: 3900
+                  initialDelaySeconds: 30
+                  periodSeconds: 30
+                  timeoutSeconds: 5
+                  failureThreshold: 3
+              readiness:
+                enabled: true
+                custom: true
+                spec:
+                  tcpSocket:
+                    port: 3900
+                  initialDelaySeconds: 15
+                  periodSeconds: 10
+                  timeoutSeconds: 5
+                  failureThreshold: 3
+            resources:
+              requests:
+                cpu: 50m
+                memory: 256Mi
+              limits:
+                memory: 1Gi
+        statefulset:
+          volumeClaimTemplates:
+            - name: meta
+              storageClass: openebs-hostpath
+              accessMode: ReadWriteOnce
+              size: 5Gi
+              globalMounts:
+                - path: /mnt/meta
+            - name: data
+              storageClass: openebs-hostpath
+              accessMode: ReadWriteOnce
+              size: 100Gi
+              globalMounts:
+                - path: /mnt/data
+    defaultPodOptions:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: garage
+              topologyKey: kubernetes.io/hostname
+    serviceAccount:
+      garage: {}
+    service:
+      app:
+        controller: garage
+        ports:
+          s3:
+            port: 3900
+          admin:
+            port: 3903
+    route:
+      app:
+        hostnames:
+          - "s3.${SECRET_DOMAIN}"
+          - "s3.${SECRET_INTERNAL_DOMAIN}"
+        parentRefs:
+          - name: envoy-internal
+            namespace: network
+        rules:
+          - backendRefs:
+              - name: garage
+                port: 3900
+    persistence:
+      config:
+        type: configMap
+        name: garage-config
+        globalMounts:
+          - path: /etc/garage.toml
+            subPath: garage.toml
+            readOnly: true

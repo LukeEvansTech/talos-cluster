@@ -8,3 +8,4 @@ components:
   - ../../components/alerts
 resources:
   - ./namespace.yaml
+  - ./garage/ks.yaml
