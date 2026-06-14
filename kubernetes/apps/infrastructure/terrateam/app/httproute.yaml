@@ -1,7 +1,10 @@
 ---
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/gateway.networking.k8s.io/httproute_v1.json
-# Exposes the Terrateam server to GitHub webhooks + OAuth via the external gateway.
-# VERIFY the backend service name/port against the chart render (default svc port 8080).
+# PUBLIC route: only the GitHub webhook API is exposed via the external gateway.
+# GitHub delivers events to /api/github/v1/events; everything else (the dashboard/UI)
+# is served by the internal route (httproute-internal.yaml) so it is not reachable from
+# the public internet. Backend Service is `terrateam-server` — the chart renders the
+# Service as {applicationName}-{terrateam.name}, and terrateam.name defaults to "server".
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
@@ -18,7 +21,7 @@ spec:
     - matches:
         - path:
             type: PathPrefix
-            value: /
+            value: /api/github/v1/
       backendRefs:
-        - name: terrateam
+        - name: terrateam-server
           port: 8080
