@@ -1,22 +1,27 @@
 ---
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/batch/cronjob_v1.json
+# Hourly directional sync: in-cluster Garage -> NAS Garage (cluster-mirror bucket).
+# This is the BACKUP path for cluster object data (Garage has no native cross-cluster
+# replication). The NAS copy lands on a ZFS-snapshotted dataset = point-in-time undo.
+# NOTE: extend the rclone lines as more cluster app buckets are added. The NAS `veeam`
+# bucket is intentionally excluded (Veeam writes there directly; never round-trip).
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: postgres18-r2-backup
-  namespace: database
+  name: garage-cluster-to-nas-sync
+  namespace: storage
 spec:
-  schedule: "0 3 * * *" # Daily at 3:00 AM (after barman backup completes)
+  schedule: "0 * * * *" # hourly
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 1
   failedJobsHistoryLimit: 2
   jobTemplate:
     spec:
-      ttlSecondsAfterFinished: 86400 # Clean up jobs after 24 hours
+      ttlSecondsAfterFinished: 86400
       template:
         metadata:
           labels:
-            app.kubernetes.io/name: postgres18-r2-backup
+            app.kubernetes.io/name: garage-cluster-to-nas-sync
             app.kubernetes.io/component: backup
         spec:
           automountServiceAccountToken: false
@@ -36,39 +41,36 @@ spec:
                 - /bin/sh
                 - -c
                 - |
-                  export RCLONE_CONFIG_MINIO_ACCESS_KEY_ID=$(cat /secrets/AWS_ACCESS_KEY_ID)
-                  export RCLONE_CONFIG_MINIO_SECRET_ACCESS_KEY=$(cat /secrets/AWS_SECRET_ACCESS_KEY)
-                  export RCLONE_CONFIG_CLOUDFLARE_ACCESS_KEY_ID=$(cat /secrets/R2_ACCESS_KEY_ID)
-                  export RCLONE_CONFIG_CLOUDFLARE_SECRET_ACCESS_KEY=$(cat /secrets/R2_SECRET_ACCESS_KEY)
-                  export RCLONE_CONFIG_CLOUDFLARE_ENDPOINT=$(cat /secrets/R2_ENDPOINT)
-                  exec rclone copy --verbose --stats-one-line --stats=5m --fast-list minio:cnpg/ cloudflare:cnpg/
+                  export RCLONE_CONFIG_SRC_ACCESS_KEY_ID=$(cat /secrets/CLUSTER_ACCESS_KEY_ID)
+                  export RCLONE_CONFIG_SRC_SECRET_ACCESS_KEY=$(cat /secrets/CLUSTER_SECRET_ACCESS_KEY)
+                  export RCLONE_CONFIG_DST_ACCESS_KEY_ID=$(cat /secrets/NAS_ACCESS_KEY_ID)
+                  export RCLONE_CONFIG_DST_SECRET_ACCESS_KEY=$(cat /secrets/NAS_SECRET_ACCESS_KEY)
+                  exec rclone sync --verbose --stats-one-line --stats=5m --fast-list src:cnpg/ dst:cluster-mirror/cnpg/
               env:
-                # Logging
                 - name: RCLONE_VERBOSE
                   value: "1"
-
-                # Garage (source) configuration
-                - name: RCLONE_CONFIG_MINIO_TYPE
+                # Source: in-cluster Garage
+                - name: RCLONE_CONFIG_SRC_TYPE
                   value: s3
-                - name: RCLONE_CONFIG_MINIO_PROVIDER
+                - name: RCLONE_CONFIG_SRC_PROVIDER
                   value: Other
-                - name: RCLONE_CONFIG_MINIO_ENDPOINT
+                - name: RCLONE_CONFIG_SRC_ENDPOINT
                   value: http://garage.storage.svc.cluster.local:3900
-                - name: RCLONE_CONFIG_MINIO_ACL
+                - name: RCLONE_CONFIG_SRC_REGION
+                  value: us-east-1
+                - name: RCLONE_CONFIG_SRC_ACL
                   value: private
-
-                # Cloudflare R2 (destination) configuration
-                - name: RCLONE_CONFIG_CLOUDFLARE_TYPE
+                # Destination: NAS Garage
+                - name: RCLONE_CONFIG_DST_TYPE
                   value: s3
-                - name: RCLONE_CONFIG_CLOUDFLARE_PROVIDER
-                  value: Cloudflare
-                - name: RCLONE_CONFIG_CLOUDFLARE_REGION
-                  value: auto
-                - name: RCLONE_CONFIG_CLOUDFLARE_ACL
+                - name: RCLONE_CONFIG_DST_PROVIDER
+                  value: Other
+                - name: RCLONE_CONFIG_DST_ENDPOINT
+                  value: http://${SECRET_STORAGE_SERVER}:3900
+                - name: RCLONE_CONFIG_DST_REGION
+                  value: us-east-1
+                - name: RCLONE_CONFIG_DST_ACL
                   value: private
-                - name: RCLONE_CONFIG_CLOUDFLARE_NO_CHECK_BUCKET
-                  value: "true"
-
               resources:
                 requests:
                   cpu: 100m
@@ -76,12 +78,10 @@ spec:
                 limits:
                   cpu: 500m
                   memory: 512Mi
-
               volumeMounts:
                 - name: secrets
                   mountPath: /secrets
                   readOnly: true
-
               securityContext:
                 runAsNonRoot: true
                 runAsUser: 65534
@@ -94,5 +94,5 @@ spec:
           volumes:
             - name: secrets
               secret:
-                secretName: cloudnative-pg-secret
+                secretName: garage-sync-secret
                 defaultMode: 0400
