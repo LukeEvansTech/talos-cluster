@@ -1,0 +1,68 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: &app vmware-exporter
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: app-template
+  values:
+    controllers:
+      vmware-exporter:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        containers:
+          app:
+            image:
+              repository: docker.io/pryorda/vmware_exporter
+              tag: v0.18.4
+              digest: sha256:79925e63e59ffe962762697da3c9f14bc1c132e0b0ca873f75d0e2cadaff361e
+            env:
+              # The target vCenter is supplied per-scrape via the ServiceMonitor
+              # `?vsphere_host=` param (see servicemonitor.yaml); creds come from
+              # the secret (envFrom). vCenter presents an untrusted VMCA cert.
+              VSPHERE_IGNORE_SSL: "True"
+              VSPHERE_SPECS_SIZE: "2000"
+            envFrom:
+              - secretRef:
+                  name: vmware-exporter-secret
+            probes:
+              liveness:
+                enabled: true
+              readiness:
+                enabled: true
+            resources:
+              requests:
+                cpu: 25m
+                memory: 128Mi
+              limits:
+                # Per-VM perf-counter pulls can be memory-hungry on a busy vCenter.
+                memory: 512Mi
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop:
+                  - ALL
+    defaultPodOptions:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+    persistence:
+      # pyvmomi/requests write transient files; give them a writable /tmp so the
+      # root filesystem can stay read-only.
+      tmp:
+        type: emptyDir
+        globalMounts:
+          - path: /tmp
+    service:
+      app:
+        controller: *app
+        ports:
+          metrics:
+            port: 9272
+            protocol: TCP
