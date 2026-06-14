@@ -14,6 +14,34 @@ spec:
       mktxp:
         annotations:
           reloader.stakater.com/auto: "true"
+        initContainers:
+          # mktxp normalizes its config on load (writes back to mktxp.conf). Copy
+          # the secret-rendered config into a writable emptyDir so that write
+          # succeeds instead of erroring against a read-only secret mount.
+          init-config:
+            image:
+              repository: ghcr.io/akpw/mktxp
+              tag: v1.2.17
+              digest: sha256:bd6f22f7db0a79557c4af8a73aa22517f4c32d54fafa19fb0de29e7332440613
+            command:
+              - "sh"
+              - "-c"
+              - "cp -f /config-src/mktxp.conf /config-src/_mktxp.conf /etc/mktxp/"
+            resources:
+              requests:
+                cpu: 10m
+                memory: 16Mi
+              limits:
+                memory: 32Mi
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              runAsNonRoot: true
+              runAsUser: 65534
+              runAsGroup: 65534
+              capabilities:
+                drop:
+                  - ALL
         containers:
           app:
             image:
@@ -51,13 +79,21 @@ spec:
         runAsUser: 65534
         runAsGroup: 65534
     persistence:
-      # The rendered config dir (mktxp.conf + _mktxp.conf) from the ExternalSecret.
-      config:
+      # Secret-rendered config (mktxp.conf + _mktxp.conf), mounted read-only on
+      # the init container only; it copies into the writable `config` emptyDir.
+      config-src:
         type: secret
         name: mktxp-secret
+        advancedMounts:
+          mktxp:
+            init-config:
+              - path: /config-src
+                readOnly: true
+      # Writable config dir mktxp reads from (and rewrites on load).
+      config:
+        type: emptyDir
         globalMounts:
           - path: /etc/mktxp
-            readOnly: true
       tmp:
         type: emptyDir
         globalMounts:
