@@ -1,4 +1,13 @@
 ---
+# Vendored from grafana.com dashboard 21113 rev 1 (AthennaMind "OPNSense Exporter"),
+# with its hardcoded datasource __input replaced by a ${datasource} template
+# variable. The operator's input-mapping substitutes the datasource NAME
+# ("prometheus") as the panel datasource uid, but this Grafana's prometheus
+# datasource has an auto-generated uid — so panels read "Data source not found"
+# / "No data". A ${datasource} var binds to the default datasource regardless of
+# uid (same pattern as the kube-prometheus-stack + truenas-zfs dashboards).
+# To refresh: re-run ~/Scratch/truenas/vendor_opnsense_dashboard.py against a new
+# 21113 revision. dashboard 21113 only publishes revision 1 today.
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/grafana.integreatly.org/grafanadashboard_v1beta1.json
 apiVersion: grafana.integreatly.org/v1beta1
 kind: GrafanaDashboard
@@ -9,17 +18,7 @@ spec:
   instanceSelector:
     matchLabels:
       grafana.internal/instance: grafana
-  # Dashboard 21113 declares its datasource __input as "DS_PROMETHEUS-K0" (label
-  # "prometheus-k0") and references ${DS_PROMETHEUS-K0} in all 38 targets + the
-  # opnsense_instance template var. inputName MUST match that exactly or the
-  # operator leaves it unbound → variable errors and every panel reads "No data".
-  datasources:
-    - datasourceName: prometheus
-      inputName: DS_PROMETHEUS-K0
-  grafanaCom:
-    # renovate: depName="OPNsense"
-    # Official AthennaMind/opnsense-exporter dashboard.
-    # NOTE: grafana.com dashboard 21113 only publishes revision 1; revisions >1
-    # 404 and leave the CR in InvalidModelResolution (dashboard never loads).
-    id: 21113
-    revision: 1
+  resyncPeriod: 1h
+  configMapRef:
+    name: opnsense-exporter-dashboard
+    key: opnsense-exporter.json
