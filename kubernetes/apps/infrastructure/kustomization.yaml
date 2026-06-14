@@ -12,6 +12,7 @@ resources:
   - ./certwarden/ks.yaml
   - ./certwarden/cert-deployment-ks.yaml
   - ./cupdate/ks.yaml
+  - ./digger/ks.yaml
   - ./nextdns/ks.yaml
   - ./smtp-relay/ks.yaml
   - ./vlmcsd/ks.yaml

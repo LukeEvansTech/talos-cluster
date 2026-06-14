@@ -1,0 +1,57 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/batch/job_v1.json
+# Idempotently creates the `digger` role + database on the shared postgres18 CNPG cluster
+# (the digger-backend chart connects to an external Postgres and does NOT bootstrap the
+# role/database itself). Uses the home-operations postgres-init image, same as metabase.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: digger-db-init
+  namespace: infrastructure
+  annotations:
+    # CKV_K8S_35: the postgres-init image reads INIT_POSTGRES_* only from environment
+    # variables; it has no file-based secret interface, so secrets-as-files is impossible.
+    checkov.io/skip1: CKV_K8S_35=postgres-init only accepts env vars (no file interface)
+    # CKV2_K8S_6: intra/cross-namespace traffic for this pod is governed by the
+    # infrastructure-namespace CiliumNetworkPolicy, which Checkov does not recognise as a
+    # (native) NetworkPolicy. Egress to postgres18 is already whitelisted in database/netpol.
+    checkov.io/skip2: CKV2_K8S_6=traffic governed by a CiliumNetworkPolicy Checkov can't see
+spec:
+  ttlSecondsAfterFinished: 3600
+  backoffLimit: 6
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: digger-db-init
+      annotations:
+        checkov.io/skip1: CKV_K8S_35=postgres-init only accepts env vars (no file interface)
+        checkov.io/skip2: CKV2_K8S_6=traffic governed by a CiliumNetworkPolicy Checkov can't see
+    spec:
+      restartPolicy: OnFailure
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+        fsGroup: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: init-db
+          image: ghcr.io/home-operations/postgres-init:18.4.0@sha256:5086f94abc783f1147d7c2a32c01db00ab594820026e4f6a82ac2af3dbde7fc7
+          envFrom:
+            - secretRef:
+                name: digger-db-init-secret
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
