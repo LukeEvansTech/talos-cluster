@@ -1,0 +1,57 @@
+---
+# GitHub repositories stack — OpenTofu, R2 s3 backend. Provider token + R2 backend creds
+# injected from the github-creds Secret. (owner vars are defaulted in the repo's variables.tf)
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: github-creds
+spec:
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: onepassword-connect
+  target:
+    name: github-creds
+    template:
+      engineVersion: v2
+      data:
+        AWS_ACCESS_KEY_ID: "{{ .R2_ACCESS_KEY_ID }}"
+        AWS_SECRET_ACCESS_KEY: "{{ .R2_SECRET_ACCESS_KEY }}"
+        AWS_REGION: auto
+        AWS_ENDPOINT_URL_S3: "{{ .R2_S3_ENDPOINT }}"
+        TF_VAR_github_token: "{{ .GITHUB_TOKEN }}"
+  dataFrom:
+    - extract:
+        key: cloudflare-r2-tfstate
+    - extract:
+        key: github-terraform
+---
+apiVersion: config.terraform.padok.cloud/v1alpha1
+kind: TerraformRepository
+metadata:
+  name: terraform-github
+spec:
+  repository:
+    url: https://github.com/codelooks-com/terraform-github
+  terraform:
+    enabled: false
+  opentofu:
+    enabled: true
+    version: "1.12.2"
+  remediationStrategy:
+    autoApply: false
+  overrideRunnerSpec:
+    serviceAccountName: runner
+    envFrom:
+      - secretRef:
+          name: github-creds
+---
+apiVersion: config.terraform.padok.cloud/v1alpha1
+kind: TerraformLayer
+metadata:
+  name: github
+spec:
+  branch: main
+  path: "."
+  repository:
+    name: terraform-github
+    namespace: terraform
