@@ -1,0 +1,98 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/batch/cronjob_v1.json
+# Hourly directional sync: in-cluster Garage -> NAS Garage (cluster-mirror bucket).
+# This is the BACKUP path for cluster object data (Garage has no native cross-cluster
+# replication). The NAS copy lands on a ZFS-snapshotted dataset = point-in-time undo.
+# NOTE: extend the rclone lines as more cluster app buckets are added. The NAS `veeam`
+# bucket is intentionally excluded (Veeam writes there directly; never round-trip).
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: garage-cluster-to-nas-sync
+  namespace: storage
+spec:
+  schedule: "0 * * * *" # hourly
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 2
+  jobTemplate:
+    spec:
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: garage-cluster-to-nas-sync
+            app.kubernetes.io/component: backup
+        spec:
+          automountServiceAccountToken: false
+          restartPolicy: OnFailure
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            runAsGroup: 65534
+            fsGroup: 65534
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: rclone
+              image: docker.io/rclone/rclone:1.74.3@sha256:623378ad0ff3ebd5cebf77720843c0e02edfe46e2d5b5ac6bed54c6371780dfb
+              imagePullPolicy: IfNotPresent
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  export RCLONE_CONFIG_SRC_ACCESS_KEY_ID=$(cat /secrets/CLUSTER_ACCESS_KEY_ID)
+                  export RCLONE_CONFIG_SRC_SECRET_ACCESS_KEY=$(cat /secrets/CLUSTER_SECRET_ACCESS_KEY)
+                  export RCLONE_CONFIG_DST_ACCESS_KEY_ID=$(cat /secrets/NAS_ACCESS_KEY_ID)
+                  export RCLONE_CONFIG_DST_SECRET_ACCESS_KEY=$(cat /secrets/NAS_SECRET_ACCESS_KEY)
+                  exec rclone sync --verbose --stats-one-line --stats=5m --fast-list src:cnpg/ dst:cluster-mirror/cnpg/
+              env:
+                - name: RCLONE_VERBOSE
+                  value: "1"
+                # Source: in-cluster Garage
+                - name: RCLONE_CONFIG_SRC_TYPE
+                  value: s3
+                - name: RCLONE_CONFIG_SRC_PROVIDER
+                  value: Other
+                - name: RCLONE_CONFIG_SRC_ENDPOINT
+                  value: http://garage.storage.svc.cluster.local:3900
+                - name: RCLONE_CONFIG_SRC_REGION
+                  value: us-east-1
+                - name: RCLONE_CONFIG_SRC_ACL
+                  value: private
+                # Destination: NAS Garage
+                - name: RCLONE_CONFIG_DST_TYPE
+                  value: s3
+                - name: RCLONE_CONFIG_DST_PROVIDER
+                  value: Other
+                - name: RCLONE_CONFIG_DST_ENDPOINT
+                  value: http://${SECRET_STORAGE_SERVER}:3900
+                - name: RCLONE_CONFIG_DST_REGION
+                  value: us-east-1
+                - name: RCLONE_CONFIG_DST_ACL
+                  value: private
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+                limits:
+                  cpu: 500m
+                  memory: 512Mi
+              volumeMounts:
+                - name: secrets
+                  mountPath: /secrets
+                  readOnly: true
+              securityContext:
+                runAsNonRoot: true
+                runAsUser: 65534
+                runAsGroup: 65534
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop:
+                    - ALL
+          volumes:
+            - name: secrets
+              secret:
+                secretName: garage-sync-secret
+                defaultMode: 0400
