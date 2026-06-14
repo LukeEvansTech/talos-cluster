@@ -6,6 +6,30 @@ metadata:
   name: truenas-exporter.rules
 spec:
   groups:
+    # ------------------------------------------------------------------
+    # Recording rules — bridge TrueNAS SCALE 25.10's raw netdata arcstats
+    # into conventional zfs_arc_* series. 25.10 emits `truenas_arcstats{type=...}`
+    # (a rawer chart than vanilla netdata's zfs.arc_size), so the upstream
+    # dashboard's zfs_arc_size panel is otherwise empty. Verified against live
+    # /metrics 2026-06-14 — see docs/truenas-monitoring.md "metric reality".
+    # ------------------------------------------------------------------
+    - name: truenas-exporter.recording
+      rules:
+        # Current ARC size (bytes). op="arcsz" matches the upstream panel's
+        # zfs_arc_size{op=~"arcsz|target"} (no separate "target" series exists).
+        - record: zfs_arc_size
+          expr: |-
+            label_replace(truenas_arcstats{job="truenas-graphite-exporter", type="size"}, "op", "arcsz", "", "")
+        - record: zfs_arc_free_bytes
+          expr: |-
+            truenas_arcstats{job="truenas-graphite-exporter", type="free"}
+        # ARC hit ratio (%), from demand data+metadata hits vs hits+misses.
+        - record: zfs_arc_hit_ratio
+          expr: |-
+            100
+            * sum by (instance) (truenas_arcstats{job="truenas-graphite-exporter", type=~"dmhit|ddhit"})
+            / clamp_min(sum by (instance) (truenas_arcstats{job="truenas-graphite-exporter", type=~"dmhit|ddhit|dmmis|ddmis"}), 1)
+
     - name: truenas-exporter.rules
       rules:
         - alert: TrueNASGraphiteExporterDown
@@ -16,22 +40,14 @@ spec:
           for: 5m
           labels:
             severity: critical
-        # NOTE: zfs_pool encodes pool state as netdata dimensions. Confirm the exact
-        # label key/value against the live /metrics output (or METRICS.md) before
-        # relying on this — if the label schema differs the rule is a silent no-op.
-        - alert: TrueNASZFSPoolNotHealthy
-          annotations:
-            summary: "TrueNAS ZFS pool {{ $labels.pool }} is not ONLINE (state {{ $labels.state }})."
-          expr: |-
-            zfs_pool{job="truenas-graphite-exporter", state="online"} != 1
-          for: 5m
-          labels:
-            severity: critical
+        # Disk temperature comes from smartctl-exporter (per-device, already scraped),
+        # NOT the graphite bridge: TrueNAS 25.10 netdata does not export a
+        # disk_temperature series (only cpu_temperature). See docs/truenas-monitoring.md.
         - alert: TrueNASDiskTemperatureHigh
           annotations:
-            summary: "TrueNAS disk {{ $labels.disk }} temperature is {{ $value }}°C."
+            summary: "TrueNAS disk {{ $labels.device }} temperature is {{ $value }}°C."
           expr: |-
-            disk_temperature{job="truenas-graphite-exporter"} > 60
+            smartctl_device_temperature{job="smartctl-exporter", temperature_type="current"} > 60
           for: 10m
           labels:
             severity: warning
@@ -43,3 +59,9 @@ spec:
           for: 10m
           labels:
             severity: warning
+        # NOTE: no ZFS pool-state alert here. TrueNAS 25.10 netdata exposes no
+        # zfs_pool/scrub-state metric via the graphite bridge (only the absent
+        # truenas_pool.usage chart). Pool degradation/scrub failures are covered by
+        # TrueNAS's own real-time ZFS event detection + system alerts. Revisit if a
+        # pool-state metric becomes available (e.g. the netdata.conf swap, declined
+        # for its impact on the TrueNAS Reporting UI).
