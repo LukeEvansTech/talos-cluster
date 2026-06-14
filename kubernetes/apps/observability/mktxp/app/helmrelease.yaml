@@ -22,7 +22,7 @@ spec:
               digest: sha256:bd6f22f7db0a79557c4af8a73aa22517f4c32d54fafa19fb0de29e7332440613
             command:
               - "mktxp"
-              - "-cfg-dir"
+              - "--cfg-dir"
               - "/etc/mktxp"
               - "export"
             env:
