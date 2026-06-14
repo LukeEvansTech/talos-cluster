@@ -1,0 +1,39 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: opnsense-exporter.rules
+spec:
+  groups:
+    - name: opnsense-exporter.rules
+      rules:
+        - alert: OPNsenseExporterDown
+          annotations:
+            summary: "OPNsense exporter ({{ $labels.instance }}) is not being scraped."
+          expr: |-
+            up{job="opnsense-exporter"} == 0
+          for: 5m
+          labels:
+            severity: critical
+        # NOTE: confirm the gateway metric name/label encoding against live /metrics.
+        # AthennaMind exposes opnsense_gateways_status with a status label
+        # (e.g. "online"/"down"); adjust the matcher if your version differs.
+        - alert: OPNsenseGatewayDown
+          annotations:
+            summary: "OPNsense gateway {{ $labels.name }} is not online (status {{ $labels.status }})."
+          expr: |-
+            opnsense_gateways_status{job="opnsense-exporter", status!="online"} == 1
+          for: 5m
+          labels:
+            severity: critical
+        # Unbound (the resolver behind opnsense-dns / split-horizon) being down
+        # breaks internal name resolution cluster-wide.
+        - alert: OPNsenseUnboundDown
+          annotations:
+            summary: "OPNsense Unbound DNS service is not running."
+          expr: |-
+            opnsense_unbound_uptime_seconds{job="opnsense-exporter"} == 0
+          for: 5m
+          labels:
+            severity: warning
