@@ -25,7 +25,7 @@ data:
     skip_crd = true
 
     [s3_api]
-    s3_region = "garage"
+    s3_region = "us-east-1"
     api_bind_addr = "[::]:3900"
     root_domain = ".s3.${SECRET_INTERNAL_DOMAIN}"
 
