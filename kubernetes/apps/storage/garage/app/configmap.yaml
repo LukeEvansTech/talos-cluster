@@ -1,0 +1,39 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/v1/configmap.json
+# garage.toml TEMPLATE. Flux postBuild substitutes ${SECRET_INTERNAL_DOMAIN}; the
+# ExternalSecret (templateFrom this ConfigMap) then renders the {{ }} secret fields
+# into the `garage-secret` Secret, which is mounted at /etc/garage.toml.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: garage-config
+data:
+  garage.toml: |
+    metadata_dir = "/mnt/meta"
+    data_dir = "/mnt/data"
+    db_engine = "lmdb"
+    metadata_auto_snapshot_interval = "6h"
+    replication_factor = 3
+    consistency_mode = "consistent"
+
+    rpc_bind_addr = "[::]:3901"
+    rpc_secret = "{{ .GARAGE_RPC_SECRET }}"
+
+    [kubernetes_discovery]
+    namespace = "storage"
+    service_name = "garage"
+    skip_crd = true
+
+    [s3_api]
+    s3_region = "garage"
+    api_bind_addr = "[::]:3900"
+    root_domain = ".s3.${SECRET_INTERNAL_DOMAIN}"
+
+    [s3_web]
+    bind_addr = "[::]:3902"
+    root_domain = ".web.${SECRET_INTERNAL_DOMAIN}"
+    index = "index.html"
+
+    [admin]
+    api_bind_addr = "[::]:3903"
+    admin_token = "{{ .GARAGE_ADMIN_TOKEN }}"
