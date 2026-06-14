@@ -6,3 +6,13 @@ resources:
   - ./scrapeconfig.yaml
   - ./grafanadashboard.yaml
   - ./prometheusrule.yaml
+configMapGenerator:
+  - name: truenas-zfs-dashboard
+    files:
+      - dashboards/truenas-zfs.json
+generatorOptions:
+  disableNameSuffixHash: true
+  annotations:
+    # The dashboard JSON uses Grafana's own ${datasource}/${__interval} macros;
+    # disable Flux postBuild var substitution so they are not clobbered to empty.
+    kustomize.toolkit.fluxcd.io/substitute: disabled
