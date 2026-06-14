@@ -6,4 +6,3 @@ resources:
   - ./talos-cluster
   - ./packer
   - ./terraform-vsphere
-  - ./cloudflare
