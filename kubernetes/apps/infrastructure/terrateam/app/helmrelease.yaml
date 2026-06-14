@@ -38,14 +38,14 @@ spec:
           webhookSecretName: terrateam-github
           webhookSecretKey: webhook-secret
         db:
-          hostname: terrateam-db-rw
+          hostname: postgres18-rw.database.svc.cluster.local
           port: 5432
           databaseName: terrateam
           username: terrateam
-          passwordSecretName: terrateam-db-app
+          passwordSecretName: terrateam-db
           passwordSecretKey: password
-    # Use the dedicated CNPG cluster (cluster.yaml) — disable the chart's bundled Postgres,
-    # which otherwise deploys a second "terrateam-db" Deployment that fails on a missing
-    # terrateam-db-password secret and an unbound PVC.
+    # Use the shared cluster-wide CNPG (database/postgres18) so terrateam is covered by the
+    # postgres18-s3 barman backup. The terrateam database + role are provisioned on it by the
+    # postgres-init Job (db-init-job.yaml). Disable the chart's bundled Postgres.
     db:
       enabled: false
