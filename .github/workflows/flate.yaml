@@ -16,7 +16,7 @@ permissions:
 
 env:
   # renovate: datasource=github-releases depName=home-operations/flate
-  # Pinned to v0.3.3: v0.4.4+ cascades an unresolvable source (the private
+  # Pinned to v0.3.3: v0.4.6 cascades an unresolvable source (the private
   # shelly-fleet GitRepository, whose SSH deploy key only exists at runtime)
   # to BLOCK every dependent — ~209 blocked. v0.3.3 marks the source skipped
   # and leaves dependents unblocked. A placeholder secret doesn't help: flate
