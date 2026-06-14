@@ -56,9 +56,10 @@ spec:
         database: digger
         host: postgres18-rw.database.svc.cluster.local
         port: "5432"
-        # First reconcile runs migrations against a fresh schema; flip to true in Part B
-        # once the schema exists so subsequent upgrades don't refuse a dirty DB.
-        allow_dirty: false
+        # The first reconcile migrated a fresh schema; now it exists, so allow the backend
+        # to start against it on subsequent restarts (e.g. picking up the GitHub App
+        # credentials) without refusing a non-empty ("dirty") database.
+        allow_dirty: true
       # Non-secret env injected here (Flux substitutes ${SECRET_DOMAIN}). HOSTNAME must be
       # the PUBLIC URL so GitHub can deliver webhooks.
       customEnv:
