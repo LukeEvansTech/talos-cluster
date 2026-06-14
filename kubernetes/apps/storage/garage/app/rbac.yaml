@@ -1,0 +1,28 @@
+---
+# Garage kubernetes_discovery needs to manage GarageNode CRs (namespaced) in its own
+# namespace. CRD is vendored (crd.yaml) with skip_crd=true, so NO cluster-scoped
+# customresourcedefinitions grant is required (production-recommended, least privilege).
+# The ServiceAccount `garage` is created by the HelmRelease (serviceAccount: { garage: {} }).
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: garage
+  namespace: storage
+rules:
+  - apiGroups: ["deuxfleurs.fr"]
+    resources: ["garagenodes"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: garage
+  namespace: storage
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: garage
+subjects:
+  - kind: ServiceAccount
+    name: garage
+    namespace: storage

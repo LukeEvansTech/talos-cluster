@@ -12,16 +12,11 @@ spec:
   components:
     - ../../../../components/gatus/guarded
     - ../../../../components/homepage
-    - ../../../../components/volsync
-  dependsOn:
-    - name: rook-ceph-cluster
-      namespace: rook-ceph
   interval: 1h
   path: ./kubernetes/apps/storage/garage/app
   postBuild:
     substitute:
       APP: *app
-      VOLSYNC_CAPACITY: 50Gi
       HOMEPAGE_NAME: Garage
       HOMEPAGE_GROUP: Storage
       HOMEPAGE_ICON: garage.svg
