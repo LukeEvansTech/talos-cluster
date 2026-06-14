@@ -15,5 +15,7 @@ spec:
   grafanaCom:
     # renovate: depName="OPNsense"
     # Official AthennaMind/opnsense-exporter dashboard.
+    # NOTE: grafana.com dashboard 21113 only publishes revision 1; revisions >1
+    # 404 and leave the CR in InvalidModelResolution (dashboard never loads).
     id: 21113
-    revision: 3
+    revision: 1
