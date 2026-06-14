@@ -1,0 +1,71 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/helm.toolkit.fluxcd.io/helmrelease_v2.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: digger-backend
+spec:
+  interval: 1h
+  chart:
+    spec:
+      chart: digger-backend
+      version: 0.1.12
+      sourceRef:
+        kind: HelmRepository
+        name: digger
+        namespace: infrastructure
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    remediation:
+      retries: 3
+  values:
+    # Pin the rendered Service to `digger-backend-web` (chart appends `-web`).
+    fullnameOverride: digger-backend
+    digger:
+      image:
+        repository: ghcr.io/diggerhq/digger_backend
+        # Aligned with the diggerhq/digger action/CLI version pinned in the repos.
+        tag: v0.6.146@sha256:485d855e92af1fb844e603b8a50e8cbea9cabdb453e2e5ea2b3da4e4d637a7ac
+      logLevel: INFO
+      # Routing is handled by Gateway-API HTTPRoutes, not the chart's native Ingress.
+      ingress:
+        enabled: false
+      service:
+        type: ClusterIP
+        port: 3000
+      resources:
+        requests:
+          cpu: 50m
+          memory: 256Mi
+        limits:
+          memory: 512Mi
+      # Backend env is supplied by the digger-backend-secret ExternalSecret (envFrom).
+      secret:
+        useExistingSecret: true
+        existingSecretName: digger-backend-secret
+      # External Postgres = the shared, backup-covered postgres18 CNPG cluster. The
+      # `digger` role + database are created by the digger-db-init Job. Password is read
+      # from the same secret (key POSTGRES_PASSWORD).
+      postgres:
+        existingSecretName: digger-backend-secret
+        existingSecretKey: POSTGRES_PASSWORD
+        sslmode: disable
+        user: digger
+        database: digger
+        host: postgres18-rw.database.svc.cluster.local
+        port: "5432"
+        # First reconcile runs migrations against a fresh schema; flip to true in Part B
+        # once the schema exists so subsequent upgrades don't refuse a dirty DB.
+        allow_dirty: false
+      # Non-secret env injected here (Flux substitutes ${SECRET_DOMAIN}). HOSTNAME must be
+      # the PUBLIC URL so GitHub can deliver webhooks.
+      customEnv:
+        - name: HOSTNAME
+          value: https://digger.${SECRET_DOMAIN}
+        - name: GITHUB_ORG
+          value: codelooks-com
+    # Do not deploy the chart's bundled (ephemeral, test-only) Postgres.
+    postgres:
+      enabled: false

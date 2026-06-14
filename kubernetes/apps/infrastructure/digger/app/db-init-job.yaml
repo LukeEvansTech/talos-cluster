@@ -1,0 +1,44 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/batch/job_v1.json
+# Idempotently creates the `digger` role + database on the shared postgres18 CNPG cluster
+# (the digger-backend chart connects to an external Postgres and does NOT bootstrap the
+# role/database itself). Uses the home-operations postgres-init image, same as metabase.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: digger-db-init
+spec:
+  ttlSecondsAfterFinished: 3600
+  backoffLimit: 6
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: digger-db-init
+    spec:
+      restartPolicy: OnFailure
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+        fsGroup: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: init-db
+          image: ghcr.io/home-operations/postgres-init:18.4.0@sha256:5086f94abc783f1147d7c2a32c01db00ab594820026e4f6a82ac2af3dbde7fc7
+          envFrom:
+            - secretRef:
+                name: digger-db-init-secret
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              memory: 64Mi
