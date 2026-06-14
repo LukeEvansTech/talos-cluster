@@ -24,4 +24,5 @@ resources:
   - ./silence-operator/ks.yaml
   - ./smartctl-exporter/ks.yaml
   - ./snmp-exporter/ks.yaml
+  - ./truenas-exporter/ks.yaml
   - ./victoria-logs/ks.yaml

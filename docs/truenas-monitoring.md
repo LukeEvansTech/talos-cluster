@@ -8,10 +8,13 @@ The monitoring setup uses TrueNAS SCALE's Docker integration to run Prometheus e
 
 ## Exporters
 
-Two exporters are configured:
+Three exporters are configured:
 
 1. **node-exporter** (port 9100) - System metrics (CPU, memory, network, filesystem)
 2. **smartctl-exporter** (port 9633) - SMART disk health metrics
+3. **truenas-graphite-exporter** (ingest 9109 / metrics 9108) - TrueNAS/ZFS-native metrics (ZFS pool state, ARC, per-dataset and per-disk I/O, temperatures), bridged from the built-in netdata Graphite output via [`Supporterino/truenas-graphite-to-prometheus`](https://github.com/Supporterino/truenas-graphite-to-prometheus)
+
+The first two treat TrueNAS as a generic Linux host. The third surfaces the ZFS internals that node-exporter cannot see — pool health, ARC hit ratio, scrub state — which are the highest-value storage signals.
 
 ## TrueNAS Setup
 
@@ -69,7 +72,27 @@ services:
 
 4. Click **Install**
 
-### 3. Verify Exporters are Running
+### 3. Install TrueNAS Graphite Exporter (ZFS / netdata metrics)
+
+This exporter bundles `prometheus/graphite_exporter` with a TrueNAS-specific mapping. TrueNAS's built-in netdata pushes Graphite-formatted metrics into it (ingest port `9109`); it re-exposes them as Prometheus metrics on port `9108`.
+
+1. Repeat the Custom App process. Set the image to `ghcr.io/supporterino/truenas-graphite-to-prometheus:latest`.
+2. Add two port mappings (host network or node ports):
+   - Container `9109` → host `9109` (TCP) — Graphite ingest
+   - Container `9108` → host `9108` (TCP) — Prometheus metrics
+3. Click **Install**.
+
+Then point TrueNAS at it:
+
+1. Deploy the project's `netdata.conf` to `/etc/netdata/netdata.conf` on TrueNAS (enables the netdata Graphite backend; see the [upstream `TRUENAS.md`](https://github.com/Supporterino/truenas-graphite-to-prometheus/blob/main/TRUENAS.md)).
+2. In TrueNAS go to **Reporting → Exporters → Add** and create a **Graphite** exporter:
+   - **Destination IP / Port**: the exporter host and `9109`
+   - **Prefix**: `truenas`
+   - **Update every**: match your Prometheus scrape interval
+
+> The exporter ships with the mapping config baked into the image, so no mapping file mount is required. Only `netdata.conf` and the Reporting exporter need to be configured TrueNAS-side.
+
+### 4. Verify Exporters are Running
 
 From the TrueNAS shell or via SSH:
 
@@ -79,44 +102,50 @@ curl http://localhost:9100/metrics
 
 # Test smartctl-exporter
 curl http://localhost:9633/metrics
+
+# Test truenas-graphite-exporter (should show zfs_*, disk_*, cpu_* series once netdata is pushing)
+curl http://localhost:9108/metrics
 ```
 
-### 4. Configure TrueNAS Firewall (if needed)
+### 5. Configure TrueNAS Firewall (if needed)
 
-If TrueNAS has a firewall enabled, ensure ports 9100 and 9633 are accessible from your Kubernetes cluster network.
+If TrueNAS has a firewall enabled, ensure ports 9100, 9633, and 9108 are accessible from your Kubernetes cluster network. Port 9109 only needs to be reachable from netdata on the TrueNAS host itself.
 
 ## Kubernetes Configuration
 
-The Prometheus ScrapeConfigs are defined in `app/scrapeconfig.yaml` and automatically discovered by kube-prometheus-stack.
+ScrapeConfigs are automatically discovered by kube-prometheus-stack. They are split across two locations:
+
+- `kube-prometheus-stack/app/scrapeconfig.yaml` — the host-level exporters
+- `truenas-exporter/app/scrapeconfig.yaml` — the Graphite exporter (this app also carries its dashboards and alert rules)
 
 ### ScrapeConfig Resources
 
 - **node-exporter**: Scrapes `${SECRET_STORAGE_SERVER}:9100`
 - **smartctl-exporter**: Scrapes `${SECRET_STORAGE_SERVER}:9633`
+- **truenas-graphite-exporter**: Scrapes `${SECRET_STORAGE_SERVER}:9108`
 
 These use the `SECRET_STORAGE_SERVER` variable from cluster secrets to dynamically configure the target hostname.
 
+### Dashboards and Alerts (GitOps-managed)
+
+Dashboards and alert rules are reconciled by Flux — no manual import. The `truenas-exporter` app provisions:
+
+- **GrafanaDashboard** CRs (`grafanadashboard.yaml`) pulling the five upstream dashboards (`truenas_scale`, `disk_insights`, `temperatures`, `cgroups`, `applications_k3s`) pinned to a release tag, with the dashboards' `DS_MIMIR` datasource input remapped onto the cluster `prometheus` datasource.
+- A **PrometheusRule** (`prometheusrule.yaml`) with exporter-down, ZFS-pool-unhealthy, and disk/CPU over-temperature alerts.
+
+> The ZFS-pool alert's `zfs_pool` label/value encoding (netdata dimensions) should be confirmed against live `/metrics` output — see the inline note in `prometheusrule.yaml`.
+
 ## Grafana Dashboards
 
-### Recommended Dashboards
+All dashboards are provisioned as `GrafanaDashboard` CRs via grafana-operator — do not import by hand, or changes will be overwritten on reconcile.
 
-Import these community dashboards in Grafana:
+| Dashboard | Source | Provisioned by |
+| --- | --- | --- |
+| Node Exporter Full | grafana.com 1860 | `kube-prometheus-stack/app/grafanadashboard-node-exporter.yaml` |
+| SMART Disk Monitoring | grafana.com 22604 | `smartctl-exporter/app/grafanadashboard.yaml` |
+| TrueNAS SCALE (+ disk insights, temperatures, cgroups, apps) | upstream repository JSON | `truenas-exporter/app/grafanadashboard.yaml` |
 
-1. **Node Exporter Full** - Dashboard ID: 1860
-    - Comprehensive system metrics (CPU, memory, disk, network)
-
-2. **Node Exporter for Prometheus** - Dashboard ID: 11074
-    - Simplified system overview
-
-3. **SMART Disk Monitoring** - Dashboard ID: 10530
-    - Disk health and SMART attributes
-
-### Import via Grafana UI
-
-1. Go to Grafana → Dashboards → Import
-2. Enter the Dashboard ID
-3. Select the Prometheus data source
-4. Click Import
+To add another, drop a new `GrafanaDashboard` CR into the relevant app and let Flux reconcile.
 
 ## Metrics Examples
 
@@ -153,6 +182,27 @@ smartctl_device_power_on_seconds / 3600
 smartctl_device_attribute_value{attribute_name="Reallocated_Sector_Ct"}
 ```
 
+### TrueNAS Graphite Exporter Metrics (ZFS)
+
+These come from the netdata Graphite bridge (`job="truenas-graphite-exporter"`). See the upstream [`METRICS.md`](https://github.com/Supporterino/truenas-graphite-to-prometheus/blob/main/METRICS.md) for the full list; exact label keys depend on your netdata version, so confirm against live `/metrics`.
+
+```promql
+# ZFS ARC size
+zfs_arc_size{job="truenas-graphite-exporter"}
+
+# ZFS ARC hit rate
+zfs_hits_rate{job="truenas-graphite-exporter"}
+
+# ZFS pool state (dimension/value encoding is netdata-specific — verify)
+zfs_pool{job="truenas-graphite-exporter"}
+
+# Per-disk temperature
+disk_temperature{job="truenas-graphite-exporter"}
+
+# CPU temperature
+cpu_temperature{job="truenas-graphite-exporter"}
+```
+
 ## Troubleshooting
 
 ### Exporters Not Starting
@@ -169,7 +219,7 @@ kubectl get scrapeconfig -n observability
 
 # Check Prometheus targets
 # Go to Prometheus UI → Status → Targets
-# Look for node-exporter and smartctl-exporter jobs
+# Look for node-exporter, smartctl-exporter, and truenas-graphite-exporter jobs
 ```
 
 ### Metrics Not Showing in Grafana
