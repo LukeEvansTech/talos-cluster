@@ -85,6 +85,10 @@ spec:
               globalMounts:
                 - path: /mnt/data
     defaultPodOptions:
+      # Required: Garage's kubernetes_discovery reads the in-cluster SA token to
+      # publish/list GarageNode CRs. app-template defaults this to false, which
+      # leaves each node isolated ("failed to read the default namespace").
+      automountServiceAccountToken: true
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
