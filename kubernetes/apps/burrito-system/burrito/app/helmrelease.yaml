@@ -1,0 +1,55 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/helm.toolkit.fluxcd.io/helmrelease_v2.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: burrito
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: burrito
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    remediation:
+      retries: 3
+  values:
+    config:
+      burrito:
+        controller:
+          # Namespaces the controllers watch for Terraform* resources.
+          namespaces:
+            - terraform
+          timers:
+            driftDetection: 10m
+            repositorySync: 5m
+        datastore:
+          # Plan artifacts / run logs / git bundles live in the Cloudflare R2 bucket
+          # `burrito` (S3-compatible). Endpoint + keys come from the env Secret below.
+          storage:
+            s3:
+              bucket: burrito
+              usePathStyle: true # R2 has no virtual-hosted-style; path-style required
+        server:
+          # UI/API behind basic auth (the webhook path is exempt + HMAC-validated).
+          basicAuth:
+            enabled: true
+    # Routing via Gateway-API HTTPRoutes, not the chart's native Ingress.
+    server:
+      ingress:
+        enabled: false
+    # Inject the R2 credentials (AWS_* + endpoint) into the datastore pod.
+    datastore:
+      deployment:
+        envFrom:
+          - secretRef:
+              name: burrito-datastore-r2
+    # Create the single tenant namespace + runner service account.
+    tenants:
+      - namespace:
+          create: true
+          name: terraform
+        serviceAccounts:
+          - name: runner
