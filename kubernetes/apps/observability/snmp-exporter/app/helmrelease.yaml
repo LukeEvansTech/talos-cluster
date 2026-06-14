@@ -35,15 +35,15 @@ spec:
         - public_v2
       params:
         # Mellanox Onyx SN2700 core switch (sw-main-core). if_mib gives all port
-        # counters/status; auth public_v2 maps to the bundled community "public"
-        # (the switch's existing read-only SNMP community).
+        # counters/status; entity_sensor adds temp/fan/PSU/optics. auth onyx_ro
+        # uses the dedicated cr-onyx-ro community (see configmap-entity-sensor).
         - name: onyx-core
           target: 10.32.8.195
           module:
             - if_mib
             - entity_sensor
           auth:
-            - public_v2
+            - onyx_ro
           interval: 60s
           scrapeTimeout: 30s
           relabelings:
