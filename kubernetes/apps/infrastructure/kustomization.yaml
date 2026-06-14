@@ -14,5 +14,4 @@ resources:
   - ./cupdate/ks.yaml
   - ./nextdns/ks.yaml
   - ./smtp-relay/ks.yaml
-  - ./terrateam/ks.yaml
   - ./vlmcsd/ks.yaml
