@@ -27,9 +27,18 @@ spec:
               - "sh"
               - "-c"
               - "cp -f /config-src/mktxp.conf /config-src/_mktxp.conf /etc/mktxp/"
+            resources:
+              requests:
+                cpu: 10m
+                memory: 16Mi
+              limits:
+                memory: 32Mi
             securityContext:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: true
+              runAsNonRoot: true
+              runAsUser: 65534
+              runAsGroup: 65534
               capabilities:
                 drop:
                   - ALL
