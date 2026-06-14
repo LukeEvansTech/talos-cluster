@@ -58,7 +58,7 @@ Because monitoring references **DNS names**, this is a one-line change:
 1. Edit the `server:` for that host in `network-ops` `ansible/vars/dns.yml`.
 2. Apply: `op run --env-file=.env -- ansible-playbook ansible/playbooks/opnsense-dns.yml`
    (or `mise run opnsense-dns`). Requires the `ansibleguy.opnsense` collection
-   and `httpx` in the ansible Python — see Gotchas.
+   and `httpx` in the Ansible Python — see Gotchas.
 3. Nothing in this repository changes; the exporters re-resolve the name on the
    next scrape.
 
@@ -153,9 +153,9 @@ kubectl exec -n observability deploy/snmp-exporter -- \
 - **`mktxp` and `pryorda/vmware_exporter` use binary/API protocols, not REST.**
   A `401` when you test the RouterOS REST API is expected — the read-only user
   intentionally lacks the `web` policy; mktxp uses the binary API on `8729`.
-- **The `network-ops` ansible needs one-time setup** the repository does not
+- **The `network-ops` Ansible setup needs one-time steps** the repository does not
   automate: `ansible-galaxy collection install -r ansible/requirements.yml`,
-  `httpx` available to the ansible Python (the `ansibleguy.opnsense` module needs
+  `httpx` available to the Ansible Python (the `ansibleguy.opnsense` module needs
   it), and `OPNSENSE_API_KEY` / `OPNSENSE_API_SECRET` present in the local `.env`.
 - **TrueNAS ZFS metrics** require the graphite Custom App to be installed on
   TrueNAS itself (see `truenas-monitoring.md`); until then
