@@ -25,3 +25,4 @@ resources:
   - ./smartctl-exporter/ks.yaml
   - ./snmp-exporter/ks.yaml
   - ./victoria-logs/ks.yaml
+  - ./vmware-exporter/ks.yaml
