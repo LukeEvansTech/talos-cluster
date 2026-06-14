@@ -1,0 +1,80 @@
+---
+# Custom snmp_exporter module for ENTITY-SENSOR-MIB (RFC 3433) — temperature,
+# fan, voltage and PSU sensors exposed by the Mellanox Onyx SN2700 (and any
+# device implementing the standard MIB). Merged with the image's bundled
+# snmp.yml via a second --config.file (see helmrelease extraArgs); reuses the
+# bundled public_v2 auth.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: snmp-exporter-entity-sensor
+  namespace: observability
+data:
+  snmp.yml: |-
+    modules:
+      entity_sensor:
+        walk:
+          - 1.3.6.1.2.1.47.1.1.1.1.2   # entPhysicalDescr
+          - 1.3.6.1.2.1.47.1.1.1.1.7   # entPhysicalName
+          - 1.3.6.1.2.1.99.1.1.1       # entPhySensorEntry
+        metrics:
+          - name: entPhySensorValue
+            oid: 1.3.6.1.2.1.99.1.1.1.4
+            type: gauge
+            help: ENTITY-SENSOR-MIB entPhySensorValue (scale by entPhySensorPrecision)
+            indexes:
+              - labelname: entPhysicalIndex
+                type: gauge
+            lookups:
+              - labels: [entPhysicalIndex]
+                labelname: entPhysicalName
+                oid: 1.3.6.1.2.1.47.1.1.1.1.7
+                type: DisplayString
+              - labels: [entPhysicalIndex]
+                labelname: entPhysicalDescr
+                oid: 1.3.6.1.2.1.47.1.1.1.1.2
+                type: DisplayString
+          - name: entPhySensorType
+            oid: 1.3.6.1.2.1.99.1.1.1.1
+            type: EnumAsInfo
+            help: ENTITY-SENSOR-MIB entPhySensorType
+            enum_values:
+              1: other
+              2: unknown
+              3: voltsAC
+              4: voltsDC
+              5: amperes
+              6: watts
+              7: hertz
+              8: celsius
+              9: percentRH
+              10: rpm
+              11: cmm
+              12: truthvalue
+            indexes:
+              - labelname: entPhysicalIndex
+                type: gauge
+            lookups:
+              - labels: [entPhysicalIndex]
+                labelname: entPhysicalName
+                oid: 1.3.6.1.2.1.47.1.1.1.1.7
+                type: DisplayString
+          - name: entPhySensorPrecision
+            oid: 1.3.6.1.2.1.99.1.1.1.3
+            type: gauge
+            help: ENTITY-SENSOR-MIB entPhySensorPrecision (decimal places)
+            indexes:
+              - labelname: entPhysicalIndex
+                type: gauge
+          - name: entPhySensorOperStatus
+            oid: 1.3.6.1.2.1.99.1.1.1.5
+            type: gauge
+            help: ENTITY-SENSOR-MIB entPhySensorOperStatus (1=ok 2=unavailable 3=nonoperational)
+            indexes:
+              - labelname: entPhysicalIndex
+                type: gauge
+            lookups:
+              - labels: [entPhysicalIndex]
+                labelname: entPhysicalName
+                oid: 1.3.6.1.2.1.47.1.1.1.1.7
+                type: DisplayString

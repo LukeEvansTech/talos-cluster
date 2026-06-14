@@ -1,0 +1,30 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: snmp-exporter.rules
+spec:
+  groups:
+    - name: snmp-exporter.rules
+      rules:
+        - alert: SnmpTargetDown
+          annotations:
+            summary: "SNMP target {{ $labels.instance }} is not being scraped."
+          expr: |-
+            up{job="snmp-exporter"} == 0
+          for: 5m
+          labels:
+            severity: critical
+        # entPhySensorOperStatus: 1=ok, 2=unavailable, 3=nonoperational. Catches
+        # fan/PSU/temperature sensor hardware faults on the Onyx core switch.
+        # (entPhySensorValue carries the readings for dashboards; raw value must
+        # be divided by 10^entPhySensorPrecision for the real figure.)
+        - alert: OnyxSensorFault
+          annotations:
+            summary: "Onyx sensor {{ $labels.entPhysicalName }} (idx {{ $labels.entPhysicalIndex }}) is faulted (operStatus {{ $value }})."
+          expr: |-
+            entPhySensorOperStatus{job="snmp-exporter"} > 1
+          for: 5m
+          labels:
+            severity: warning
