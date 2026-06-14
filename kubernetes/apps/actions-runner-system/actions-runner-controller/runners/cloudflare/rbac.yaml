@@ -1,0 +1,11 @@
+---
+# Intentionally no pod-management Role: this SA suppresses the chart's
+# auto-created kube-mode SA, so `container:` jobs, service containers, and
+# docker:// actions will fail on this runner — plain `run:` steps only.
+# terraform-cloudflare talks to the Cloudflare API + R2, never the Kubernetes
+# API, so no cluster permissions are required.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cloudflare-runner
+  namespace: actions-runner-system

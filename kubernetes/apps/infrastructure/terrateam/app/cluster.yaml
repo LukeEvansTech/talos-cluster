@@ -1,0 +1,26 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/postgresql.cnpg.io/cluster_v1.json
+# Dedicated single-instance Postgres for Terrateam (CNPG operator already runs in
+# the cluster). CNPG generates the connection secret `terrateam-db-app` with keys
+# username/password/dbname/host/port (consumed by the HelmRelease db.* values).
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: terrateam-db
+spec:
+  instances: 1
+  imageName: ghcr.io/cloudnative-pg/postgresql:18.4
+  primaryUpdateStrategy: unsupervised
+  storage:
+    size: 5Gi
+    storageClass: openebs-hostpath
+  bootstrap:
+    initdb:
+      database: terrateam
+      owner: terrateam
+  resources:
+    requests:
+      cpu: 50m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
