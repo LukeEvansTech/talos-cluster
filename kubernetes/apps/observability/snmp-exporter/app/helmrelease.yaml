@@ -38,7 +38,7 @@ spec:
         # counters/status; entity_sensor adds temp/fan/PSU/optics. auth onyx_ro
         # uses the dedicated cr-onyx-ro community (see configmap-entity-sensor).
         - name: onyx-core
-          target: 10.32.8.195
+          target: ${ONYX_ADDR}
           module:
             - if_mib
             - entity_sensor
