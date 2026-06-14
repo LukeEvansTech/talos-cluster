@@ -1,0 +1,62 @@
+---
+# Cloudflare DNS stack — OpenTofu, R2 s3 backend. Runner creds (R2 backend + Cloudflare
+# provider token) are injected from the cloudflare-creds Secret below.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: cloudflare-creds
+spec:
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: onepassword-connect
+  target:
+    name: cloudflare-creds
+    template:
+      engineVersion: v2
+      data:
+        # R2 s3 backend (endpoint via env; providers.tf has no endpoints block).
+        AWS_ACCESS_KEY_ID: "{{ .R2_ACCESS_KEY_ID }}"
+        AWS_SECRET_ACCESS_KEY: "{{ .R2_SECRET_ACCESS_KEY }}"
+        AWS_REGION: auto
+        AWS_ENDPOINT_URL_S3: "{{ .R2_S3_ENDPOINT }}"
+        # Cloudflare provider + required account-id variable.
+        TF_VAR_cloudflare_api_token: "{{ .CLOUDFLARE_API_TOKEN }}"
+        TF_VAR_cloudflare_account_id: "{{ .CLOUDFLARE_ACCOUNT_ID }}"
+  dataFrom:
+    - extract:
+        key: cloudflare-r2-tfstate
+    - extract:
+        key: cloudflare-terraform
+---
+apiVersion: config.terraform.padok.cloud/v1alpha1
+kind: TerraformRepository
+metadata:
+  name: terraform-cloudflare
+spec:
+  repository:
+    url: https://github.com/codelooks-com/terraform-cloudflare
+  terraform:
+    enabled: false
+  opentofu:
+    enabled: true
+    version: "1.12.2"
+  remediationStrategy:
+    # Plan on PR + on drift; apply is manual for now (flip to true per layer for
+    # apply-on-merge + drift self-healing once you're comfortable).
+    autoApply: false
+  overrideRunnerSpec:
+    serviceAccountName: runner
+    envFrom:
+      - secretRef:
+          name: cloudflare-creds
+---
+apiVersion: config.terraform.padok.cloud/v1alpha1
+kind: TerraformLayer
+metadata:
+  name: cloudflare
+spec:
+  branch: main
+  path: "."
+  repository:
+    name: terraform-cloudflare
+    namespace: terraform

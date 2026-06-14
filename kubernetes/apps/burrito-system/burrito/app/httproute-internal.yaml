@@ -1,0 +1,24 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/gateway.networking.k8s.io/httproute_v1.json
+# INTERNAL route: the Burrito web UI + its data API, reachable only on the internal network
+# via the internal gateway (split-horizon DNS). The UI is behind basic auth; GitHub only
+# ever needs /api/webhook, which is the single path served publicly (httproute.yaml).
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: burrito-ui
+spec:
+  hostnames:
+    - burrito.${SECRET_DOMAIN}
+    - burrito.${SECRET_INTERNAL_DOMAIN}
+  parentRefs:
+    - name: envoy-internal
+      namespace: network
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: burrito-server
+          port: 80
