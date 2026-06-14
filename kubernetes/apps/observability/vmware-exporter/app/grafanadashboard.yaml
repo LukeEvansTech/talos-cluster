@@ -1,0 +1,44 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/grafana.integreatly.org/grafanadashboard_v1beta1.json
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  name: vmware-exporter-cluster
+spec:
+  allowCrossNamespaceImport: true
+  instanceSelector:
+    matchLabels:
+      grafana.internal/instance: grafana
+  resyncPeriod: 1h
+  # These dashboards use a built-in `$datasource` picker (no __inputs), which
+  # defaults to the default Prometheus datasource — no remap required.
+  # renovate: depName="pryorda/vmware_exporter" datasource=github-tags
+  url: https://raw.githubusercontent.com/pryorda/vmware_exporter/v0.18.4/dashboards/cluster.json
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/grafana.integreatly.org/grafanadashboard_v1beta1.json
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  name: vmware-exporter-esxi
+spec:
+  allowCrossNamespaceImport: true
+  instanceSelector:
+    matchLabels:
+      grafana.internal/instance: grafana
+  resyncPeriod: 1h
+  # renovate: depName="pryorda/vmware_exporter" datasource=github-tags
+  url: https://raw.githubusercontent.com/pryorda/vmware_exporter/v0.18.4/dashboards/esxi.json
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/grafana.integreatly.org/grafanadashboard_v1beta1.json
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  name: vmware-exporter-virtualmachine
+spec:
+  allowCrossNamespaceImport: true
+  instanceSelector:
+    matchLabels:
+      grafana.internal/instance: grafana
+  resyncPeriod: 1h
+  # renovate: depName="pryorda/vmware_exporter" datasource=github-tags
+  url: https://raw.githubusercontent.com/pryorda/vmware_exporter/v0.18.4/dashboards/virtualmachine.json

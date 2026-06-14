@@ -1,0 +1,48 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: vmware-exporter.rules
+spec:
+  groups:
+    - name: vmware-exporter.rules
+      rules:
+        - alert: VMwareExporterDown
+          annotations:
+            summary: "VMware exporter scrape of {{ $labels.instance }} is failing."
+          # Long `for` — pryorda scrapes are slow and an occasional timeout is normal.
+          expr: |-
+            up{job="vmware-exporter"} == 0
+          for: 15m
+          labels:
+            severity: critical
+        - alert: VMwareDatastoreLowSpace
+          annotations:
+            summary: "Datastore {{ $labels.ds_name }} has less than 10% free space."
+          expr: |-
+            (
+              vmware_datastore_freespace_size{job="vmware-exporter"}
+              /
+              vmware_datastore_capacity_size{job="vmware-exporter"}
+            ) < 0.10
+          for: 30m
+          labels:
+            severity: warning
+        - alert: VMwareHostPoweredOff
+          annotations:
+            summary: "ESXi host {{ $labels.host_name }} is not powered on."
+          # vmware_host_power_state: 1 = poweredOn. Confirm encoding against live /metrics.
+          expr: |-
+            vmware_host_power_state{job="vmware-exporter"} != 1
+          for: 5m
+          labels:
+            severity: critical
+        - alert: VMwareSnapshotAgeHigh
+          annotations:
+            summary: "VM {{ $labels.vm_name }} has a snapshot older than 7 days."
+          expr: |-
+            (time() - vmware_vm_snapshot_timestamp_seconds{job="vmware-exporter"}) > (7 * 24 * 3600)
+          for: 1h
+          labels:
+            severity: warning

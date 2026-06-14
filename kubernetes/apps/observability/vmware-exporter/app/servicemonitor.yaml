@@ -1,0 +1,26 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/servicemonitor_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: &app vmware-exporter
+  labels:
+    app.kubernetes.io/name: *app
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: *app
+  endpoints:
+    - port: metrics
+      path: /metrics
+      # pryorda is slow (per-VM perf counters) — keep timeout < interval and both high.
+      interval: 180s
+      scrapeTimeout: 120s
+      params:
+        vsphere_host:
+          - ${SECRET_VSPHERE_ENDPOINT}
+      relabelings:
+        # Surface the polled vCenter as the instance label instead of the pod IP.
+        - sourceLabels:
+            - __param_vsphere_host
+          targetLabel: instance
