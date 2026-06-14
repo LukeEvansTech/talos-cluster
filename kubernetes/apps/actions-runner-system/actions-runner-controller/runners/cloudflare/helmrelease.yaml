@@ -1,0 +1,50 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/helm.toolkit.fluxcd.io/helmrelease_v2.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: &name cloudflare-runner
+spec:
+  chartRef:
+    kind: OCIRepository
+    name: gha-runner-scale-set-cloudflare
+  interval: 1h
+  values:
+    fullnameOverride: *name
+    githubConfigUrl: https://github.com/codelooks-com/terraform-cloudflare
+    githubConfigSecret: cloudflare-runner-secret
+    runnerGroup: default
+    runnerScaleSetName: terraform-cloudflare
+    maxRunners: 2
+    minRunners: 0
+    containerMode:
+      type: kubernetes
+      kubernetesModeWorkVolumeClaim:
+        accessModes:
+          - "ReadWriteOnce"
+        storageClassName: openebs-hostpath
+        resources:
+          requests:
+            # Remote state + small providers — terraform needs little scratch.
+            storage: 5Gi
+    template:
+      spec:
+        serviceAccountName: cloudflare-runner
+        containers:
+          - name: runner
+            # Generic home-operations runner (same digest as terraform-vsphere).
+            # The IaC binary (tofu/terraform) is installed by the workflow/Terrateam.
+            # Renovate manages this digest.
+            image: ghcr.io/home-operations/actions-runner:2.335.1@sha256:3d544e5eed58722c0b6a97212a31eada0f9f2e99f189c41911a5573a23d7386a
+            command:
+              - "/home/runner/run.sh"
+            env:
+              # kubernetes mode defaults this to "true" (refuses plain run: jobs).
+              - name: ACTIONS_RUNNER_REQUIRE_JOB_CONTAINER
+                value: "false"
+            envFrom:
+              - secretRef:
+                  name: cloudflare-tf-creds
+    controllerServiceAccount:
+      name: actions-runner-controller
+      namespace: actions-runner-system
