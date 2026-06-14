@@ -27,6 +27,12 @@ spec:
               OPNSENSE_EXPORTER_OPS_INSECURE: "true"
               OPNSENSE_EXPORTER_INSTANCE_LABEL: opnsense
               OPNSENSE_EXPORTER_WEB_LISTEN_ADDRESS: :8080
+              # api/unbound/diagnostics/stats returns an empty body on this
+              # OPNsense version (the collector errors `parsing '' to int` every
+              # scrape; enabling unbound extended-statistics did not change it).
+              # No metrics are lost — the endpoint yields nothing either way — so
+              # disable the broken collector to keep the logs clean.
+              OPNSENSE_EXPORTER_DISABLE_UNBOUND: "true"
             envFrom:
               - secretRef:
                   name: opnsense-exporter-secret
