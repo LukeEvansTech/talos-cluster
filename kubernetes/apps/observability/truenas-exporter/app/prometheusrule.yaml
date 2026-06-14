@@ -1,0 +1,45 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: truenas-exporter.rules
+spec:
+  groups:
+    - name: truenas-exporter.rules
+      rules:
+        - alert: TrueNASGraphiteExporterDown
+          annotations:
+            summary: "TrueNAS graphite exporter ({{ $labels.instance }}) is not being scraped."
+          expr: |-
+            up{job="truenas-graphite-exporter"} == 0
+          for: 5m
+          labels:
+            severity: critical
+        # NOTE: zfs_pool encodes pool state as netdata dimensions. Confirm the exact
+        # label key/value against the live /metrics output (or METRICS.md) before
+        # relying on this — if the label schema differs the rule is a silent no-op.
+        - alert: TrueNASZFSPoolNotHealthy
+          annotations:
+            summary: "TrueNAS ZFS pool {{ $labels.pool }} is not ONLINE (state {{ $labels.state }})."
+          expr: |-
+            zfs_pool{job="truenas-graphite-exporter", state="online"} != 1
+          for: 5m
+          labels:
+            severity: critical
+        - alert: TrueNASDiskTemperatureHigh
+          annotations:
+            summary: "TrueNAS disk {{ $labels.disk }} temperature is {{ $value }}°C."
+          expr: |-
+            disk_temperature{job="truenas-graphite-exporter"} > 60
+          for: 10m
+          labels:
+            severity: warning
+        - alert: TrueNASCPUTemperatureHigh
+          annotations:
+            summary: "TrueNAS CPU temperature is {{ $value }}°C."
+          expr: |-
+            cpu_temperature{job="truenas-graphite-exporter"} > 85
+          for: 10m
+          labels:
+            severity: warning
