@@ -1,0 +1,12 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ./helmrepository.yaml
+  - ./externalsecret.yaml
+  - ./externalsecret-db.yaml
+  - ./db-init-job.yaml
+  - ./helmrelease.yaml
+  - ./httproute.yaml
+  - ./httproute-internal.yaml
