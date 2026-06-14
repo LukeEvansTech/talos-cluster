@@ -18,13 +18,14 @@ spec:
             severity: critical
         # mktxp drops a router's series when it can't reach it. Confirm the exact
         # uptime metric/label against live /metrics before relying on this.
+        # mktxp drops a router's series when it can't reach it. Both CRS354
+        # switches should report mktxp_system_uptime; fewer than 2 means one is
+        # unreachable. (Adjust the threshold if the switch count changes.)
         - alert: MktxpRouterUnreachable
           annotations:
-            summary: "mktxp cannot collect from RouterOS device {{ $labels.routerboard_name }}{{ $labels.name }}."
+            summary: "mktxp is collecting from fewer than 2 RouterOS devices — a switch is unreachable."
           expr: |-
-            mktxp_system_routerboard_uptime == 0
-            or
-            absent(mktxp_system_routerboard_uptime)
+            count(mktxp_system_uptime) < 2
           for: 10m
           labels:
             severity: warning
