@@ -9,9 +9,13 @@ spec:
   instanceSelector:
     matchLabels:
       grafana.internal/instance: grafana
+  # Dashboard 21113 declares its datasource __input as "DS_PROMETHEUS-K0" (label
+  # "prometheus-k0") and references ${DS_PROMETHEUS-K0} in all 38 targets + the
+  # opnsense_instance template var. inputName MUST match that exactly or the
+  # operator leaves it unbound → variable errors and every panel reads "No data".
   datasources:
     - datasourceName: prometheus
-      inputName: DS_PROMETHEUS
+      inputName: DS_PROMETHEUS-K0
   grafanaCom:
     # renovate: depName="OPNsense"
     # Official AthennaMind/opnsense-exporter dashboard.
