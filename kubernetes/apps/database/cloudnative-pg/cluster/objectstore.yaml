@@ -10,9 +10,9 @@ spec:
 
   # Barman configuration
   configuration:
-    # S3 destination (MinIO)
+    # S3 destination (in-cluster Garage)
     destinationPath: s3://cnpg/
-    endpointURL: https://minio.${SECRET_INTERNAL_DOMAIN}:9000
+    endpointURL: http://garage.storage.svc.cluster.local:3900
 
     # Credentials from existing secret
     s3Credentials:

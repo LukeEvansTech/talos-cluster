@@ -6,6 +6,8 @@ resources:
   - ./crd.yaml
   - ./rbac.yaml
   - ./configmap.yaml
+  - ./sync-externalsecret.yaml
+  - ./sync-cronjob.yaml
   - ./externalsecret.yaml
   - ./ocirepository.yaml
   - ./helmrelease.yaml
