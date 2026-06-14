@@ -1,4 +1,15 @@
 ---
+# COVERAGE NOTE (TrueNAS SCALE 25.10 "Goldeye", verified against live /metrics 2026-06-14):
+# 25.10's netdata emits a reduced, custom-named chart set vs the vanilla netdata these
+# upstream dashboards target. Real coverage on this box:
+#   • cgroups        — ✅ full (all cgroup_* present)
+#   • disk_insights  — ⚠️ partial (disk_io/io_ops/busy yes; await/utilization/qops/size/iotime no)
+#   • temperatures   — ⚠️ cpu_temperature yes; disk_temperature absent (disk temps via smartctl-exporter)
+#   • truenas_scale  — ⚠️ system/disk-io/nfs/interface/services yes; ARC size via the zfs_arc_size
+#                        recording rule (prometheusrule.yaml); memory_*, detailed cpu, zfs_pool absent
+# applications_k3s removed — it queries k3s_pod_* (k3s-on-TrueNAS); this box runs Talos separately.
+# Faithfully reproducing the ZFS/memory panels needs either the upstream netdata.conf swap
+# (declined — impacts the TrueNAS Reporting UI) or a bespoke dashboard. See docs/truenas-monitoring.md.
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/grafana.integreatly.org/grafanadashboard_v1beta1.json
 apiVersion: grafana.integreatly.org/v1beta1
 kind: GrafanaDashboard
@@ -68,20 +79,3 @@ spec:
       inputName: DS_MIMIR
   # renovate: depName="Supporterino/truenas-graphite-to-prometheus" datasource=github-tags
   url: https://raw.githubusercontent.com/Supporterino/truenas-graphite-to-prometheus/v2.2.1/dashboards/truenas_scale_cgroups.json
----
-# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/grafana.integreatly.org/grafanadashboard_v1beta1.json
-apiVersion: grafana.integreatly.org/v1beta1
-kind: GrafanaDashboard
-metadata:
-  name: truenas-scale-applications-k3s
-spec:
-  allowCrossNamespaceImport: true
-  instanceSelector:
-    matchLabels:
-      grafana.internal/instance: grafana
-  resyncPeriod: 1h
-  datasources:
-    - datasourceName: prometheus
-      inputName: DS_MIMIR
-  # renovate: depName="Supporterino/truenas-graphite-to-prometheus" datasource=github-tags
-  url: https://raw.githubusercontent.com/Supporterino/truenas-graphite-to-prometheus/v2.2.1/dashboards/truenas_scale_applications_k3s.json
