@@ -26,7 +26,6 @@ spec:
         fqdn: terrateam.${SECRET_DOMAIN}
         uiBase: https://terrateam.${SECRET_DOMAIN}
         github:
-          # VERIFY: set to the app slug from Task 0 (github.com/apps/<slug>)
           appUrl: https://github.com/apps/terrateam-codelooks
           appIdSecretName: terrateam-github
           appIdSecretKey: app-id
@@ -45,3 +44,8 @@ spec:
           username: terrateam
           passwordSecretName: terrateam-db-app
           passwordSecretKey: password
+    # Use the dedicated CNPG cluster (cluster.yaml) — disable the chart's bundled Postgres,
+    # which otherwise deploys a second "terrateam-db" Deployment that fails on a missing
+    # terrateam-db-password secret and an unbound PVC.
+    db:
+      enabled: false
