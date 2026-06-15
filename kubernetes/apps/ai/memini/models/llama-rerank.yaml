@@ -1,0 +1,125 @@
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: llama-rerank
+spec:
+  accessModes:
+    - "ReadWriteOnce"
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: ceph-block
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: llama-rerank
+spec:
+  chartRef:
+    kind: OCIRepository
+    name: memini-models
+  interval: 1h
+  values:
+    controllers:
+      llama-rerank:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        initContainers:
+          # Qwen3-Reranker-0.6B is a public GGUF (no HF token needed).
+          model-download:
+            image:
+              repository: python
+              tag: 3.14-slim
+            command:
+              - /bin/sh
+              - -ec
+              - |
+                set -euo pipefail
+                if [ ! -s /models/Qwen3-Reranker-0.6B/qwen3-reranker-0.6b-q8_0.gguf ]; then
+                  pip install --no-cache-dir "huggingface_hub[hf_transfer]"
+                  mkdir -p /models/Qwen3-Reranker-0.6B
+                  hf download \
+                    ggml-org/Qwen3-Reranker-0.6B-Q8_0-GGUF \
+                    qwen3-reranker-0.6b-q8_0.gguf \
+                    --local-dir /models/Qwen3-Reranker-0.6B
+                  echo "Qwen3-Reranker-0.6B download complete"
+                else
+                  echo "Qwen3-Reranker-0.6B already present, skipping"
+                fi
+            env:
+              HF_HUB_ENABLE_HF_TRANSFER: "1"
+            resources:
+              requests:
+                cpu: 250m
+                memory: 512Mi
+              limits:
+                memory: 2Gi
+        containers:
+          app:
+            image:
+              repository: ghcr.io/ggml-org/llama.cpp
+              tag: server
+            args:
+              - --host
+              - 0.0.0.0
+              - --port
+              - "8080"
+              - --alias
+              - qwen3-reranker
+              - --model
+              - /models/Qwen3-Reranker-0.6B/qwen3-reranker-0.6b-q8_0.gguf
+              - --rerank
+              - --pooling
+              - rank
+              - --ctx-size
+              - "8192"
+              - --parallel
+              - "4"
+              - --cont-batching
+              - --batch-size
+              - "4096"
+              - --ubatch-size
+              - "4096"
+              - --threads
+              - "4"
+              - --metrics
+              - --mmap
+            resources:
+              requests:
+                cpu: 250m
+                memory: 1Gi
+              limits:
+                memory: 2Gi
+            probes:
+              liveness: &probe
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /health
+                    port: 8080
+                  initialDelaySeconds: 30
+                  periodSeconds: 30
+                  failureThreshold: 6
+              readiness: *probe
+              startup:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /health
+                    port: 8080
+                  failureThreshold: 60
+                  periodSeconds: 10
+    persistence:
+      models:
+        existingClaim: llama-rerank
+        globalMounts:
+          - path: /models
+    service:
+      app:
+        ports:
+          http:
+            port: 8080
