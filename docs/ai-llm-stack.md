@@ -6,14 +6,14 @@ re-targeted to this cluster — **NVIDIA L4 GPUs + Ollama** instead of his AMD/M
 
 ## Components
 
-| App          | Role                                                               | Status            |
-| ------------ | ------------------------------------------------------------------ | ----------------- |
-| `litellm`    | OpenAI-compatible gateway: routing, fallbacks, cache, metrics, MCP | live              |
-| `ollama`     | local inference (3× L4, one per node); embeddings + general chat   | live              |
-| `open-webui` | chat UI                                                            | live              |
-| `toolhive`   | MCP servers (kubectl/flux/talos/searxng) wired into LiteLLM        | live              |
-| `memini`     | agent long-term memory (sqlite + CPU embed/rerank)                 | live              |
-| `llmkube`    | llama.cpp serving for select hot models on L4 (CUDA)               | Layer 4 (planned) |
+| App          | Role                                                               | Status        |
+| ------------ | ------------------------------------------------------------------ | ------------- |
+| `litellm`    | OpenAI-compatible gateway: routing, fallbacks, cache, metrics, MCP | live          |
+| `ollama`     | local inference (3× L4, one per node); embeddings + general chat   | live          |
+| `open-webui` | chat UI                                                            | live          |
+| `toolhive`   | MCP servers (kubectl/flux/talos/searxng) wired into LiteLLM        | live          |
+| `memini`     | agent long-term memory (sqlite + CPU embed/rerank)                 | live          |
+| `llmkube`    | llama.cpp model-serving operator (CUDA); model template staged     | operator live |
 
 LiteLLM persists to CNPG `postgres18` (`litellm` db) and caches in Dragonfly. Internal-only route
 (`litellm.${SECRET_INTERNAL_DOMAIN}`, envoy-internal).
@@ -40,8 +40,9 @@ llama.cpp backends to the existing `self-hosted` group with no client change.
    LiteLLM `mcp_servers`. (VirtualMCPServer aggregate + semantic filter deferred — see below.)
 3. **memini** — agent memory; embeddings + rerank via tiny CPU llama.cpp servers, consolidation via
    LiteLLM.
-4. **llmkube** — llama.cpp `Model` + `InferenceService` CRs on L4 (CUDA); registered as
-   `self-hosted` group backends. Optional ComfyUI image gen.
+4. **llmkube** — operator installed; a CUDA `Model` + `InferenceService` template is documented
+   below (running it needs GPU headroom from Ollama + model storage). ComfyUI image gen skipped
+   (also GPU-bound, AMD-only upstream).
 
 Each layer is a separate commit on one branch (one PR). Cross-layer wiring (e.g. `mcp_servers`) is
 staged as commented blocks in `litellm/app/configmap.yaml` and switched on when the producing layer
@@ -146,6 +147,73 @@ from the `litellm` item). Data PVC via the volsync component (10Gi). Route:
 
 To move embeddings onto the GPU later, swap `llama-embed`/`llama-rerank` for llmkube
 `InferenceService`s (Layer 4) and repoint `MEMINI_EMBED_BASE_URL` / `MEMINI_RERANK`.
+
+## Layer 4 — llama.cpp serving (llmkube)
+
+The [llmkube](https://github.com/defilantech/LLMKube) operator (`0.8.7`) is installed in `ai`. It
+serves llama.cpp models declaratively: a `Model` CR (weights source + hardware) plus an
+`InferenceService` CR (the serving pod). **No model runs by default** — two prerequisites must be
+met first:
+
+1. **GPU memory.** Each L4 (24 GB) is already ~17 GB into Ollama. A 27B llama.cpp model needs
+   another ~17 GB, which won't fit alongside Ollama on the same card (time-slicing shares compute,
+   not memory). To run one, scale Ollama down (fewer replicas / smaller model / lower
+   `OLLAMA_NUM_PARALLEL`) or choose a small model that fits the ~5–6 GB headroom.
+2. **Model storage.** This cluster has only RWO `ceph-block`; llmkube's shared download cache and
+   `pvc://` staging assume RWX (`ceph-filesystem`). A single `InferenceService` works on an RWO
+   `ceph-block` PVC (one pod); for an `https://` source set `modelCache.enabled: true` in the
+   operator HR and give it a cache PVC.
+
+### A CUDA model template
+
+Drop this under `llmkube/models/` (its own Flux Kustomization, `dependsOn: llmkube`) and add the
+path to `ai/kustomization.yaml`. `replicas: 0` keeps it staged until you scale it up:
+
+```yaml
+---
+apiVersion: inference.llmkube.dev/v1alpha1
+kind: Model
+metadata:
+    name: qwen3.6-27b
+spec:
+    source: https://huggingface.co/<org>/<repo>-GGUF/resolve/main/<file>.gguf # direct GGUF URL
+    format: gguf
+    quantization: UD-Q4_K_XL
+    hardware:
+        accelerator: cuda
+        gpu: { enabled: true, vendor: nvidia, count: 1, layers: 99 }
+---
+apiVersion: inference.llmkube.dev/v1alpha1
+kind: InferenceService
+metadata:
+    name: llama-nvidia
+spec:
+    modelRef: qwen3.6-27b
+    runtime: llamacpp
+    image: ghcr.io/ggml-org/llama.cpp:server-cuda
+    replicas: 0 # scale to 1 once GPU headroom exists
+    runtimeClassName: nvidia
+    contextSize: 131072
+    flashAttention: true
+    cacheTypeK: q8_0
+    cacheTypeV: q8_0
+    resources: { gpu: 1, cpu: "500m", memory: 16Gi }
+    endpoint: { port: 8080, type: ClusterIP }
+```
+
+Then add it to LiteLLM's `self-hosted` group (in `litellm/app/configmap.yaml`) as `order: 2`:
+
+```yaml
+- model_name: self-hosted
+  litellm_params:
+      model: openai/llama-nvidia
+      api_base: http://llama-nvidia.ai.svc.cluster.local:8080/v1
+      api_key: llama-nvidia
+      order: 2
+```
+
+LiteLLM then load-balances `self-hosted` across Ollama (order 1) and llama.cpp (order 2), failing
+over automatically — no client change.
 
 ## Gotchas
 
