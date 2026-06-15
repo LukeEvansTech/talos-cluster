@@ -1,0 +1,34 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/toolhive.stacklok.dev/mcpserver_v1alpha1.json
+apiVersion: toolhive.stacklok.dev/v1alpha1
+kind: MCPServer
+metadata:
+  name: grafana
+spec:
+  image: docker.io/grafana/mcp-grafana
+  transport: stdio
+  proxyMode: streamable-http
+  proxyPort: 8080
+  # The image defaults to streamable-http; force stdio so ToolHive proxies it.
+  podTemplateSpec:
+    spec:
+      containers:
+        - name: mcp
+          args:
+            - -t
+            - stdio
+  env:
+    - name: GRAFANA_URL
+      value: http://grafana-service.observability.svc.cluster.local:3000
+  secrets:
+    - name: toolhive-grafana
+      key: token
+      targetEnvName: GRAFANA_SERVICE_ACCOUNT_TOKEN
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+  groupRef:
+    name: mcp-tools

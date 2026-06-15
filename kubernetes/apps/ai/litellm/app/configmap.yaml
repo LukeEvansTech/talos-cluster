@@ -43,17 +43,16 @@ data:
           api_key: os.environ/OPENROUTER_API_KEY
 
       # ------------------------------------------------------------------
-      # Embedding — enabled in Layer 2 (semantic tool filter + memory).
-      # Needs an embedding model present on EVERY Ollama replica first (the
-      # StatefulSet has 3 separate RWO PVCs); Layer 2 stages it. Commented so
-      # the proxy doesn't health-check an absent model.
+      # Embedding — served by the CPU llama-embed pod (all-MiniLM-L6-v2, 384-dim,
+      # OpenAI /v1). Powers the MCP semantic tool filter below.
       # ------------------------------------------------------------------
-      # - model_name: nomic-embed-text
-      #   model_info:
-      #     mode: embedding
-      #   litellm_params:
-      #     model: ollama/nomic-embed-text
-      #     api_base: ${OLLAMA_BASE_URL}
+      - model_name: all-minilm
+        model_info:
+          mode: embedding
+        litellm_params:
+          model: openai/sentence-transformers/all-MiniLM-L6-v2
+          api_base: http://llama-embed.ai.svc.cluster.local:8080/v1
+          api_key: llama-embed
 
       # ------------------------------------------------------------------
       # Optional cloud providers (Jory's set). To enable one: add its key to the
@@ -108,17 +107,17 @@ data:
       drop_params: true
       num_retries: 2
       request_timeout: 600
-      # Enabled in Layer 2: surfaces only the top-k relevant MCP tools per request
-      # (needs the embedding model above + ToolHive MCP servers).
-      # mcp_semantic_tool_filter:
-      #   enabled: true
-      #   embedding_model: nomic-embed-text
-      #   top_k: 6
-      #   similarity_threshold: 0.3
+      # Surfaces only the top-k relevant MCP tools per request (6 servers, ~110
+      # tools) using the all-minilm embedding model above.
+      mcp_semantic_tool_filter:
+        enabled: true
+        embedding_model: all-minilm
+        top_k: 8
+        similarity_threshold: 0.3
 
     # MCP tools proxied to any LiteLLM client (ToolHive-managed endpoints, ai ns).
-    # ~30 tools across 4 servers — small enough to expose without the semantic
-    # filter above. Re-enable the filter if this list grows large.
+    # ~110 tools across 6 servers — the semantic filter above trims each request
+    # to the top-k relevant tools.
     mcp_servers:
       kubectl:
         url: http://mcp-kubectl.ai.svc.cluster.local:8000/mcp
@@ -128,6 +127,10 @@ data:
         url: http://mcp-talos-mcp.ai.svc.cluster.local:8080/mcp
       searxng:
         url: http://mcp-searxng.ai.svc.cluster.local:3000/mcp
+      github:
+        url: http://mcp-github-proxy.ai.svc.cluster.local:8080/mcp
+      grafana:
+        url: http://mcp-grafana-proxy.ai.svc.cluster.local:8080/mcp
 
     general_settings:
       health_check_endpoint: /v1/health
