@@ -116,12 +116,18 @@ data:
       #   top_k: 6
       #   similarity_threshold: 0.3
 
-    # MCP servers proxied to clients — populated in Layer 2 (ToolHive endpoints).
-    # mcp_servers:
-    #   kubectl:
-    #     url: http://mcp-kubectl.ai:8080/mcp
-    #   flux:
-    #     url: http://mcp-flux.ai:8080/mcp
+    # MCP tools proxied to any LiteLLM client (ToolHive-managed endpoints, ai ns).
+    # ~30 tools across 4 servers — small enough to expose without the semantic
+    # filter above. Re-enable the filter if this list grows large.
+    mcp_servers:
+      kubectl:
+        url: http://mcp-kubectl.ai.svc.cluster.local:8000/mcp
+      flux:
+        url: http://mcp-flux.ai.svc.cluster.local:8000/mcp
+      talos:
+        url: http://mcp-talos-mcp.ai.svc.cluster.local:8080/mcp
+      searxng:
+        url: http://mcp-searxng.ai.svc.cluster.local:3000/mcp
 
     general_settings:
       health_check_endpoint: /v1/health
