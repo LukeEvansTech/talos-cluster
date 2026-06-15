@@ -1,20 +1,12 @@
 {
   $schema: "https://docs.renovatebot.com/renovate-schema.json",
   ignorePaths: [".archive/**"],
-  extends: [
-    // Shared home-operations base: config:recommended, manager file patterns
-    // (incl. *.yaml.j2), custom managers (oci/cnpg/annotated/talosFactory/grafana
-    // URL), changelogs, semantic-commit policy, app versioning, dependency
-    // dashboard, :disableRateLimiting, :automergeBranch.
-    "github>home-operations/renovate-presets#2.0.0",
-    // Our customisations on top — the preset does not pin docker digests:
-    "docker:pinDigests",
-    ":timezone(Europe/London)",
-  ],
-  suppressNotifications: ["prEditedNotification", "prIgnoreNotification"],
-  // Automatically request reviews from GitHub Copilot on all PRs
-  reviewers: ["github-copilot[bot]"],
-  reviewersSampleSize: 1,
+  // The shared house standard (github>LukeEvansTech/renovate-config) provides
+  // the home-operations/renovate-presets base, docker:pinDigests,
+  // :timezone(Europe/London), Copilot reviewers, suppressNotifications,
+  // dependencies/security labels, and vulnerabilityAlerts — single source of
+  // truth, so they are no longer duplicated here.
+  extends: ["github>LukeEvansTech/renovate-config"],
   // ---------------------------------------------------------------------------
   // Repo-specific config previously split across .renovate/*.json5 and pulled in
   // via self-referencing `github>LukeEvansTech/talos-cluster//.renovate/*` extends.
