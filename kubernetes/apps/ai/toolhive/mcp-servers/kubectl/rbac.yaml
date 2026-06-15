@@ -3,6 +3,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: kubectl-mcp-readonly
+  namespace: ai
 ---
 # Broad read-only access for the kubectl + flux MCP servers. Kubernetes Secrets
 # (core v1) are deliberately excluded so the LLM can inspect cluster state but

@@ -12,7 +12,7 @@ re-targeted to this cluster — **NVIDIA L4 GPUs + Ollama** instead of his AMD/M
 | `ollama`     | local inference (3× L4, one per node); embeddings + general chat   | live          |
 | `open-webui` | chat UI                                                            | live          |
 | `toolhive`   | MCP servers (kubectl/flux/talos/searxng) wired into LiteLLM        | live          |
-| `memini`     | agent long-term memory (sqlite + CPU embed/rerank)                 | live          |
+| `memini`     | agent long-term memory (SQLite + CPU embed/rerank)                 | live          |
 | `llmkube`    | llama.cpp model-serving operator (CUDA); model template staged     | operator live |
 
 LiteLLM persists to CNPG `postgres18` (`litellm` db) and caches in Dragonfly. Internal-only route
@@ -48,7 +48,7 @@ Each layer is a separate commit on one branch (one PR). Cross-layer wiring (e.g.
 staged as commented blocks in `litellm/app/configmap.yaml` and switched on when the producing layer
 lands.
 
-> Not ported from Jory's repo: `hermes`, `openclaw` (agent runtimes), and `agentmemory` (whose main
+> Not ported from Jory's repository: `hermes`, `openclaw` (agent runtimes), and `agentmemory` (whose main
 > consumers are hermes/openclaw).
 
 ## How to extend LiteLLM
@@ -131,7 +131,7 @@ endpoint to LiteLLM's `mcp_servers`. The service is `mcp-<name>` on the spec's `
 
 ## Agent memory (memini)
 
-Layer 3 runs [memini](https://github.com/eleboucher/memini) (sqlite backend) for agent long-term
+Layer 3 runs [memini](https://github.com/eleboucher/memini) (SQLite backend) for agent long-term
 memory, plus two tiny CPU `llama.cpp` model servers in `ai`:
 
 - `llama-embed` — all-MiniLM-L6-v2 (384-dim), `--embeddings`, OpenAI `/v1`.
@@ -217,7 +217,7 @@ over automatically — no client change.
 
 ## Gotchas
 
-- **Public repo** — no LAN IPs / internal hostnames in git (see `CLAUDE.md`). Cluster service DNS
+- **Public repository** — no LAN IPs / internal hostnames in Git (see `CLAUDE.md`). Cluster service DNS
   and `${SECRET_*}` placeholders are fine.
 - **Metrics** — `require_auth_for_metrics_endpoint: false` **and** ServiceMonitor path `/metrics/`
   (trailing slash, no redirect-follow) are both required for in-cluster Prometheus scraping.
