@@ -8,22 +8,91 @@ metadata:
 data:
   config.yaml: |-
     model_list:
-      # NB: `model_name` is the litellm-exposed alias (kept stable for existing
-      # clients); the backend is centralized via ${OLLAMA_MODEL}/${OLLAMA_BASE_URL}.
+      # ------------------------------------------------------------------
+      # Local — Ollama (qwen3.6-35b-a3b). Backend centralized via the cluster
+      # vars ${OLLAMA_MODEL}/${OLLAMA_BASE_URL} (components/global-vars).
+      # ------------------------------------------------------------------
+
+      # Backward-compatible alias for any client already pointing at this name.
       - model_name: ollama/gemma4
         litellm_params:
           model: ollama_chat/${OLLAMA_MODEL}
           api_base: ${OLLAMA_BASE_URL}
 
+      # Stable "self-hosted" group. One backend today (Ollama, order 1). Layer 4
+      # (llama.cpp via llmkube) appends entries with the SAME model_name and a
+      # higher order: LiteLLM then load-balances / fails over across them with no
+      # client change.
+      - model_name: self-hosted
+        model_info:
+          mode: chat
+          supports_function_calling: true
+          supports_vision: false
+        litellm_params:
+          model: ollama_chat/${OLLAMA_MODEL}
+          api_base: ${OLLAMA_BASE_URL}
+          max_parallel_requests: 3
+          order: 1
+
+      # ------------------------------------------------------------------
+      # Cloud
+      # ------------------------------------------------------------------
       - model_name: openrouter/auto
         litellm_params:
           model: openrouter/openrouter/auto
           api_key: os.environ/OPENROUTER_API_KEY
 
+      # ------------------------------------------------------------------
+      # Embedding — enabled in Layer 2 (semantic tool filter + memory).
+      # Needs an embedding model present on EVERY Ollama replica first (the
+      # StatefulSet has 3 separate RWO PVCs); Layer 2 stages it. Commented so
+      # the proxy doesn't health-check an absent model.
+      # ------------------------------------------------------------------
+      # - model_name: nomic-embed-text
+      #   model_info:
+      #     mode: embedding
+      #   litellm_params:
+      #     model: ollama/nomic-embed-text
+      #     api_base: ${OLLAMA_BASE_URL}
+
+      # ------------------------------------------------------------------
+      # Optional cloud providers (Jory's set). To enable one: add its key to the
+      # `litellm` 1Password item, add the matching line to externalsecret.yaml's
+      # template, then uncomment. Disabled by default so a missing key can't fail
+      # the deploy.
+      # ------------------------------------------------------------------
+      # - model_name: kimi-k2                       # Moonshot
+      #   model_info: {mode: chat, supports_function_calling: true}
+      #   litellm_params:
+      #     model: moonshot/kimi-k2
+      #     api_base: https://api.moonshot.ai/v1
+      #     api_key: os.environ/MOONSHOT_API_KEY
+      # - model_name: MiniMax                       # MiniMax (Anthropic-format)
+      #   model_info: {mode: messages, supports_function_calling: true, supports_vision: true}
+      #   litellm_params:
+      #     model: minimax/MiniMax-M2
+      #     api_base: https://api.minimax.io/anthropic/v1/messages
+      #     api_key: os.environ/MINIMAX_API_KEY
+      #     cache_control_injection_points:
+      #       - {location: message, role: system}
+      #       - {location: message, index: -1}
+      # - model_name: zen/glm                       # OpenCode "zen" (one key, many models)
+      #   model_info: {mode: chat, supports_function_calling: true}
+      #   litellm_params:
+      #     model: openai/glm-4.6
+      #     api_base: https://opencode.ai/zen/go/v1
+      #     api_key: os.environ/OPENCODE_API_KEY
+
     router_settings:
       redis_host: os.environ/REDIS_HOST
       redis_port: os.environ/REDIS_PORT
       redis_password: os.environ/REDIS_PASSWORD
+      cooldown_time: 30
+      enable_pre_call_checks: true
+      # If the local model is cooling-down / unhealthy, spill to cloud.
+      fallbacks:
+        - self-hosted: ["openrouter/auto"]
+        - ollama/gemma4: ["openrouter/auto"]
 
     litellm_settings:
       success_callback: ["prometheus"]
@@ -39,6 +108,26 @@ data:
       drop_params: true
       num_retries: 2
       request_timeout: 600
+      # Enabled in Layer 2: surfaces only the top-k relevant MCP tools per request
+      # (needs the embedding model above + ToolHive MCP servers).
+      # mcp_semantic_tool_filter:
+      #   enabled: true
+      #   embedding_model: nomic-embed-text
+      #   top_k: 6
+      #   similarity_threshold: 0.3
+
+    # MCP tools proxied to any LiteLLM client (ToolHive-managed endpoints, ai ns).
+    # ~30 tools across 4 servers — small enough to expose without the semantic
+    # filter above. Re-enable the filter if this list grows large.
+    mcp_servers:
+      kubectl:
+        url: http://mcp-kubectl.ai.svc.cluster.local:8000/mcp
+      flux:
+        url: http://mcp-flux.ai.svc.cluster.local:8000/mcp
+      talos:
+        url: http://mcp-talos-mcp.ai.svc.cluster.local:8080/mcp
+      searxng:
+        url: http://mcp-searxng.ai.svc.cluster.local:3000/mcp
 
     general_settings:
       health_check_endpoint: /v1/health
