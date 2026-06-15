@@ -19,8 +19,9 @@ spec:
           annotations:
             summary: Shelly device offline.
             description: >-
-              {{ $labels.name }} ({{ $labels.mac }}) has been offline
-              (undiscovered by the operator sweep) for over 15m.
+              {{ $labels.name }}{{ with $labels.room }} in {{ . }}{{ end }}
+              ({{ $labels.mac }}) has been offline (undiscovered by the
+              operator sweep) for over 15m.
           expr: shelly_device_online == 0
           for: 15m
           labels:
@@ -29,9 +30,9 @@ spec:
           annotations:
             summary: Shelly device config drift not converging.
             description: >-
-              {{ $labels.name }} ({{ $labels.mac }}) is online but its config
-              has not matched its profile for over 1h (enforcement failing or
-              damped).
+              {{ $labels.name }}{{ with $labels.room }} in {{ . }}{{ end }}
+              ({{ $labels.mac }}) is online but its config has not matched its
+              profile for over 1h (enforcement failing or damped).
           # Online only -- an offline device is covered by ShellyDeviceOffline.
           expr: (shelly_device_in_sync == 0) and on(mac, name) (shelly_device_online == 1)
           for: 1h
@@ -41,9 +42,10 @@ spec:
           annotations:
             summary: Shelly device has a pending firmware update.
             description: >-
-              {{ $labels.name }} ({{ $labels.mac }}) has had a stable firmware
-              update available for over 24h -- auto-update may not be working
-              (it should apply at the device's daily 00:00 window).
+              {{ $labels.name }}{{ with $labels.room }} in {{ . }}{{ end }}
+              ({{ $labels.mac }}) has had a stable firmware update available for
+              over 24h -- auto-update may not be working (it should apply at the
+              device's daily 00:00 window).
           expr: shelly_device_update_available == 1
           for: 24h
           labels:
