@@ -66,7 +66,8 @@ spec:
                 - name: RCLONE_CONFIG_DST_PROVIDER
                   value: Other
                 - name: RCLONE_CONFIG_DST_ENDPOINT
-                  value: http://${SECRET_STORAGE_SERVER}:3900
+                  # NAS Garage is now bridge+Traefik (s3-nas), not the old host :3900
+                  value: https://s3-nas.${SECRET_INTERNAL_DOMAIN}
                 - name: RCLONE_CONFIG_DST_REGION
                   value: us-east-1
                 - name: RCLONE_CONFIG_DST_ACL
