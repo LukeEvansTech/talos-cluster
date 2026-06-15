@@ -58,3 +58,13 @@ misconfigurations:
       Required ARC kubernetes-mode container-hook RBAC: the hook creates and
       deletes a per-job secret to inject the workflow context. Scoped to
       actions-runner-system.
+
+  - id: KSV-0046
+    paths:
+      - "kubernetes/apps/ai/toolhive/mcp-servers/kubectl/rbac.yaml"
+    statement: |-
+      Intentional read-only ClusterRole. kubectl-mcp-readonly grants only
+      get/list/watch for the kubectl + flux MCP servers. resources: ["*"]
+      applies to non-core API groups only (Secret objects live in the core
+      "" group, which is listed explicitly with `secrets` omitted). The
+      breadth lets the MCP inspect any CRD; no write or management verbs.
