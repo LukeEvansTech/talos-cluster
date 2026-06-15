@@ -1,0 +1,126 @@
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: llama-embed
+spec:
+  accessModes:
+    - "ReadWriteOnce"
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: ceph-block
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: llama-embed
+spec:
+  chartRef:
+    kind: OCIRepository
+    name: memini-models
+  interval: 1h
+  values:
+    controllers:
+      llama-embed:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        initContainers:
+          # All-MiniLM-L6-v2 is a public GGUF (no HF token needed). Downloaded
+          # once into the RWO model PVC, reused on restart.
+          model-download:
+            image:
+              repository: python
+              tag: 3.14-slim
+            command:
+              - /bin/sh
+              - -ec
+              - |
+                set -euo pipefail
+                if [ ! -s /models/all-MiniLM-L6-v2/all-MiniLM-L6-v2-Q8_0.gguf ]; then
+                  pip install --no-cache-dir "huggingface_hub[hf_transfer]"
+                  mkdir -p /models/all-MiniLM-L6-v2
+                  hf download \
+                    second-state/All-MiniLM-L6-v2-Embedding-GGUF \
+                    all-MiniLM-L6-v2-Q8_0.gguf \
+                    --local-dir /models/all-MiniLM-L6-v2
+                  echo "all-MiniLM-L6-v2 download complete"
+                else
+                  echo "all-MiniLM-L6-v2 already present, skipping"
+                fi
+            env:
+              HF_HUB_ENABLE_HF_TRANSFER: "1"
+            resources:
+              requests:
+                cpu: 250m
+                memory: 512Mi
+              limits:
+                memory: 2Gi
+        containers:
+          app:
+            image:
+              repository: ghcr.io/ggml-org/llama.cpp
+              tag: server
+            args:
+              - --host
+              - 0.0.0.0
+              - --port
+              - "8080"
+              - --alias
+              - sentence-transformers/all-MiniLM-L6-v2
+              - --model
+              - /models/all-MiniLM-L6-v2/all-MiniLM-L6-v2-Q8_0.gguf
+              - --embeddings
+              - --pooling
+              - mean
+              - --ctx-size
+              - "8192"
+              - --parallel
+              - "4"
+              - --cont-batching
+              - --batch-size
+              - "8192"
+              - --ubatch-size
+              - "8192"
+              - --threads
+              - "4"
+              - --metrics
+              - --mmap
+            resources:
+              requests:
+                cpu: 250m
+                memory: 1Gi
+              limits:
+                memory: 2Gi
+            probes:
+              liveness: &probe
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /health
+                    port: 8080
+                  initialDelaySeconds: 30
+                  periodSeconds: 30
+                  failureThreshold: 6
+              readiness: *probe
+              startup:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /health
+                    port: 8080
+                  failureThreshold: 60
+                  periodSeconds: 10
+    persistence:
+      models:
+        existingClaim: llama-embed
+        globalMounts:
+          - path: /models
+    service:
+      app:
+        ports:
+          http:
+            port: 8080

@@ -12,7 +12,7 @@ re-targeted to this cluster — **NVIDIA L4 GPUs + Ollama** instead of his AMD/M
 | `ollama`     | local inference (3× L4, one per node); embeddings + general chat   | live              |
 | `open-webui` | chat UI                                                            | live              |
 | `toolhive`   | MCP servers (kubectl/flux/talos/searxng) wired into LiteLLM        | live              |
-| `memini`     | agent long-term memory                                             | Layer 3 (planned) |
+| `memini`     | agent long-term memory (sqlite + CPU embed/rerank)                 | live              |
 | `llmkube`    | llama.cpp serving for select hot models on L4 (CUDA)               | Layer 4 (planned) |
 
 LiteLLM persists to CNPG `postgres18` (`litellm` db) and caches in Dragonfly. Internal-only route
@@ -38,7 +38,8 @@ llama.cpp backends to the existing `self-hosted` group with no client change.
    cloud providers.
 2. **ToolHive + MCP** — operator + curated MCP servers (kubectl, flux, talos, searxng) wired into
    LiteLLM `mcp_servers`. (VirtualMCPServer aggregate + semantic filter deferred — see below.)
-3. **memini** — agent memory; embeddings via Ollama, consolidation via LiteLLM.
+3. **memini** — agent memory; embeddings + rerank via tiny CPU llama.cpp servers, consolidation via
+   LiteLLM.
 4. **llmkube** — llama.cpp `Model` + `InferenceService` CRs on L4 (CUDA); registered as
    `self-hosted` group backends. Optional ComfyUI image gen.
 
@@ -126,6 +127,25 @@ calling chain.
 Drop an `MCPServer` (operator-managed) or `MCPServerEntry` (remote URL) with `groupRef: mcp-tools`
 under `toolhive/mcp-servers/<name>/`, list it in that dir's `kustomization.yaml`, then add its
 endpoint to LiteLLM's `mcp_servers`. The service is `mcp-<name>` on the spec's `mcpPort`.
+
+## Agent memory (memini)
+
+Layer 3 runs [memini](https://github.com/eleboucher/memini) (sqlite backend) for agent long-term
+memory, plus two tiny CPU `llama.cpp` model servers in `ai`:
+
+- `llama-embed` — all-MiniLM-L6-v2 (384-dim), `--embeddings`, OpenAI `/v1`.
+- `llama-rerank` — Qwen3-Reranker-0.6B, `--rerank`.
+
+Both are the same models Jory serves, but run on **CPU** (`ghcr.io/ggml-org/llama.cpp:server`,
+GPU/Vulkan bits stripped) — the L4s are spoken for by Ollama and these models are small (~30 MB /
+~600 MB). memini's consolidation LLM is LiteLLM's `self-hosted` group (→ Ollama).
+
+Secrets: a generated `MEMINI_API_KEY` (Talos vault item `memini`) + `LITELLM_MASTER_KEY` (reused
+from the `litellm` item). Data PVC via the volsync component (10Gi). Route:
+`memini.${SECRET_INTERNAL_DOMAIN}` (internal).
+
+To move embeddings onto the GPU later, swap `llama-embed`/`llama-rerank` for llmkube
+`InferenceService`s (Layer 4) and repoint `MEMINI_EMBED_BASE_URL` / `MEMINI_RERANK`.
 
 ## Gotchas
 
