@@ -28,8 +28,10 @@ joryirving's `.agents/` contains exactly three files plus a root `AGENTS.md` it 
 | `pr-review.instructions.md` | **Skip** | It is the literal `system_prompt_file` for `misospace/pr-reviewer-action`, which this repo does not run (this repo uses `renovate-review.yaml` / claude-code-action). Its "documented conventions" are joryirving-specific and partly contradict this repo (we *do* set `metadata.namespace` on ConfigMaps for Checkov CKV_K8S_21; we *do* use per-app `ocirepository.yaml`). |
 | `sorting.instructions.md` | **Port** (light adaptation) | Generic YAML + app-template rules; this repo is an app-template shop. |
 | `add-app/SKILL.md` | **Port** (heavy adaptation) | High value; needs full remap to this repo's single-cluster, per-app `app/` layout. |
-| Root `AGENTS.md` | **Symlink → `CLAUDE.md`** | Tool-agnostic entrypoint with zero duplication / drift. |
+| Root `AGENTS.md` | **Public-safe committed file** (revised — see note) | Originally planned as a `→ CLAUDE.md` symlink, but `CLAUDE.md` is **gitignored/private** and contains LAN IPs, so a symlink would dangle in clones and risk leaking internal data. Instead AGENTS.md is a standalone public-safe conventions guide (scrubbed of IPs/hostnames/device names); Claude Code auto-loads it via an `@AGENTS.md` import in the local private `CLAUDE.md`. |
 | Process | Spec doc → review → plan → build, in a worktree | User preference. |
+
+> **Discovered constraint (during build):** the repo's root `.gitignore` ignores **both `.claude/` and `CLAUDE.md`** — they are local/private (CLAUDE.md holds LAN IPs). Consequences: (a) the `.claude/skills/add-app` symlink is a **local-only** convenience (gitignored, per working tree), not a committed artifact; (b) AGENTS.md is a committed public file rather than a symlink; (c) the "Claude finds it automatically" wiring is a one-line `@AGENTS.md` import the user adds to their local `CLAUDE.md` post-merge. Separately, a **repo-wide exposure** of LAN IPs / node names / device models in tracked manifests and docs was surfaced and **deferred** by the user to a separate effort.
 
 ## Target layout & wiring
 
@@ -40,18 +42,20 @@ joryirving's `.agents/` contains exactly three files plus a root `AGENTS.md` it 
 └── skills/
     └── add-app/
         └── SKILL.md                    # adapted (heavy)
-.claude/skills/add-app  ->  ../../.agents/skills/add-app   # dir symlink (Claude Code discovery)
-AGENTS.md               ->  CLAUDE.md                        # file symlink (tool-agnostic entrypoint)
-CLAUDE.md                                                    # + one pointer line to sorting.instructions.md
+AGENTS.md                                                   # COMMITTED public-safe conventions guide
+.claude/skills/add-app  ->  ../../.agents/skills/add-app   # LOCAL-ONLY symlink (.claude is gitignored)
+CLAUDE.md  (local/private)                                  # + `@AGENTS.md` import line (post-merge, local)
 ```
 
+- `AGENTS.md` is a **committed public file** (not a symlink) — public-safe, scrubbed of IPs/hostnames/device names.
 - The `add-app` skill is an action skill → exposed to Claude Code via a **relative directory
-  symlink** `.claude/skills/add-app -> ../../.agents/skills/add-app`.
-- `sorting.instructions.md` is *reference* material (not an action skill). Claude Code does not
-  auto-load `.agents/instructions/`, so discovery is via a **one-line pointer added to `CLAUDE.md`**
-  rather than a skill symlink.
-- `AGENTS.md -> CLAUDE.md` relative symlink at repo root.
-- Committed relative symlinks are stored by git and survive fresh clones.
+  symlink** `.claude/skills/add-app -> ../../.agents/skills/add-app`. Because `.claude/` is gitignored,
+  this symlink is **local-only** (recreate it per working tree / per clone); it is *not* committed.
+- `sorting.instructions.md` is *reference* material (not an action skill). It is committed under
+  `.agents/instructions/` and referenced from `AGENTS.md`'s "Agent tooling" section.
+- "Claude finds AGENTS.md automatically" is achieved by adding `@AGENTS.md` to the local (private)
+  `CLAUDE.md`; Claude Code has no native AGENTS.md auto-load. This is a **post-merge local step**
+  (CLAUDE.md is gitignored and absent from this worktree).
 
 ## Component 1 — `sorting.instructions.md` (light adaptation)
 
@@ -67,7 +71,9 @@ Everything else maps cleanly and is retained unchanged:
 - Alphabetical-by-default at every level; leading `---`; `yaml-language-server` schema comment.
 - K8s ordering `apiVersion` → `kind` → `metadata` → `spec`.
 - `metadata` ordering `name` → `namespace` → `annotations` → `labels`.
-- app-template `spec` ordering (`chartRef`, `interval`, `dependsOn`, `install`, `upgrade`, `values`),
+- app-template `spec` ordering — **corrected to this repo's actual convention** `interval` →
+  `chartRef` → `dependsOn` → `install` → `upgrade` → `values` (this repo puts `interval` before
+  `chartRef`, the reverse of joryirving; verified across `error-pages`, `mosquitto`, `karakeep`),
   `spec.values` (`defaultPodOptions` first, then alphabetical), and the
   controllers / containers / persistence / service nested ordering rules.
 - The "do not sort YAML embedded inside string fields (e.g. `configMap.data.*`)" caveat.
