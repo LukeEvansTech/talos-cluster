@@ -19,7 +19,7 @@ spec:
   values:
     image:
       repository: ghcr.io/lukeevanstech/shelly-operator
-      tag: 0.3.0@sha256:aa58ebced0075501d917d0971f53537fb7a765c8ad812eedeaa0b1868d99d2bb
+      tag: 0.3.1@sha256:8c0c019036f4f219345e85a865a0cbd883bc96e8d12b4c7332dc59119986ba63
     discovery:
       # Substituted from cluster-secrets (public repo: no literal LAN CIDRs).
       # IOT_TRUSTED_NETWORK_CIDR is the IoT VLAN the whole fleet lives on
