@@ -1,0 +1,14 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/toolhive.stacklok.dev/mcpserverentry_v1alpha1.json
+# Registers the externally-deployed mcp-searxng into the mcp-tools group (for a
+# future VirtualMCPServer aggregate). LiteLLM reaches it directly via its
+# mcp_servers config; this entry is harmless without the aggregate.
+apiVersion: toolhive.stacklok.dev/v1alpha1
+kind: MCPServerEntry
+metadata:
+  name: searxng
+spec:
+  remoteUrl: http://mcp-searxng.ai.svc.cluster.local:3000/mcp
+  transport: streamable-http
+  groupRef:
+    name: mcp-tools

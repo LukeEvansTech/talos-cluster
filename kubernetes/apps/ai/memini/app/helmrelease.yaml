@@ -1,0 +1,75 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/helm.toolkit.fluxcd.io/helmrelease_v2.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: &app memini
+spec:
+  chartRef:
+    kind: OCIRepository
+    name: *app
+  interval: 1h
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+  values:
+    fullnameOverride: memini
+    controllers:
+      main:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        containers:
+          main:
+            env:
+              MEMINI_BACKEND: sqlite
+              MEMINI_DEFAULT_NAMESPACE: default
+              # Embeddings + rerank served by the CPU llama.cpp pods in this ns.
+              MEMINI_EMBED_BASE_URL: http://llama-embed.ai.svc.cluster.local:8080/v1
+              MEMINI_EMBED_MODEL: sentence-transformers/all-MiniLM-L6-v2
+              MEMINI_EMBED_DIMS: "384"
+              MEMINI_RERANK: http://llama-rerank.ai.svc.cluster.local:8080/v1
+              MEMINI_RERANK_MODEL: qwen3-reranker
+              # Consolidation LLM via LiteLLM's self-hosted group (-> Ollama).
+              MEMINI_LLM_BASE_URL: http://litellm.ai.svc.cluster.local:4000
+              MEMINI_LLM_MODEL: self-hosted
+              MEMINI_LLM_API_KEY:
+                valueFrom:
+                  secretKeyRef:
+                    name: memini
+                    key: llm-api-key
+              MEMINI_API_KEY:
+                valueFrom:
+                  secretKeyRef:
+                    name: memini
+                    key: api-key
+            resources:
+              requests:
+                cpu: 25m
+                memory: 128Mi
+              limits:
+                memory: 512Mi
+      fsck:
+        enabled: true
+        cronjob:
+          schedule: "0 5 * * *"
+    persistence:
+      data:
+        existingClaim: memini
+    route:
+      internal:
+        enabled: true
+        hostnames:
+          - "memini.${SECRET_INTERNAL_DOMAIN}"
+        parentRefs:
+          - name: envoy-internal
+            namespace: network
+    serviceMonitor:
+      main:
+        enabled: true
+    grafanaDashboards:
+      enabled: true
+      folder: ai
