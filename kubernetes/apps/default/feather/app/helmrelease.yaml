@@ -69,13 +69,14 @@ spec:
             namespace: network
     persistence:
       # Served content, read-only over NFS from the TrueNAS sideload export.
-      # Fed by: Mac ~/sideload --Syncthing--> /mnt/pool/syncthing/sideload (NFS share id 25, ro).
+      # Fed by: Mac ~/sideload --Syncthing--> /mnt/pool/apps/syncthing/data/sideload (NFS share id 25, ro).
+      # Dataset consolidated under pool/apps/ 2026-06-15 (was /mnt/pool/syncthing/sideload).
       www:
         type: custom
         volumeSpec:
           nfs:
             server: "${SECRET_STORAGE_SERVER}"
-            path: /mnt/pool/syncthing/sideload
+            path: /mnt/pool/apps/syncthing/data/sideload
         globalMounts:
           - path: /usr/share/nginx/html
             readOnly: true
