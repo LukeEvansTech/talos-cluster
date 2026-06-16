@@ -24,3 +24,18 @@ jobs:
     # Defaults match this repo's prior inline config: framework=kubernetes,helm,
     # severity=CRITICAL,HIGH,MEDIUM, scanners=vuln,secret,misconfig,
     # trivyignore=.trivyignore.yaml. Override here if drift becomes desirable.
+
+  internal-identifiers:
+    name: Internal Identifier Scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+      # This repo is PUBLIC. Fail the build if a tracked file introduces a LAN IP,
+      # node/device hostname, MAC, internal hostname, or device model outside the
+      # accepted-functional allowlist. See the script for the allowlist + rationale.
+      - name: Scan tracked files for internal infrastructure identifiers
+        run: python3 .github/scripts/check_internal_identifiers.py

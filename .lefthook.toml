@@ -4,6 +4,9 @@ parallel = true
 [pre-commit.commands.format-yaml]
 run = "mise x -- yamlfmt {staged_files}"
 glob = ["*.yaml", "*.yml"]
+# .markdownlint.yml must byte-match the shared-workflows canonical (zensical
+# drift check); yamlfmt would add a `---` document-start and break that match.
+exclude = ["**/.markdownlint.yml", ".markdownlint.yml"]
 stage_fixed = true
 
 # Lint shell scripts with shellcheck if any are staged.

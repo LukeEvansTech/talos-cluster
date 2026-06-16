@@ -28,3 +28,8 @@ jobs:
       # Graduate to blocking: with kubeconform off, the remaining super-linter
       # checks (yamllint, prettier, actionlint, shellcheck, ...) are clean.
       soft-launch: false
+      # The zensical docs tree (docs/) is owned by the canonical .markdownlint.yml
+      # + the docs-standard-check (drift) workflow, which use MD007 indent 2.
+      # Exclude it here so super-linter's indent-4 markdown config doesn't
+      # double-lint it with a conflicting rule. docs/superpowers/ is gitignored.
+      filter-regex-exclude: '(^|/)(node_modules|\.venv|site)/|(^|/)docs/'
