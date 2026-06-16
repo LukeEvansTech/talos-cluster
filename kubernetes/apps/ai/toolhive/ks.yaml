@@ -59,6 +59,8 @@ spec:
   dependsOn:
     - name: toolhive
       namespace: *namespace
+    - name: onepassword-connect
+      namespace: external-secrets
   interval: 1h
   path: ./kubernetes/apps/ai/toolhive/mcp-servers
   prune: true
