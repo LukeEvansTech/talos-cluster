@@ -52,7 +52,7 @@ flux reconcile source git flux-system
 
 # 2. Reconcile the dependency chain (if a Kustomization shows "not ready")
 flux reconcile kustomization external-secrets -n external-secrets
-flux reconcile kustomization onepassword -n external-secrets
+flux reconcile kustomization onepassword-connect -n external-secrets
 
 # 3. Reconcile the target app Kustomization
 flux reconcile kustomization <app-name> -n <namespace>
@@ -61,7 +61,7 @@ flux reconcile kustomization <app-name> -n <namespace>
 flux reconcile helmrelease <app-name> -n <namespace>
 ```
 
-Many app Kustomizations `dependsOn` `external-secrets/onepassword`, so reconcile that chain first if
+Many app Kustomizations `dependsOn` `external-secrets/onepassword-connect`, so reconcile that chain first if
 apps report "dependency not ready". A ConfigMap content change does not roll pods, so follow up with
 `kubectl rollout restart deploy <app> -n <ns>`.
 
