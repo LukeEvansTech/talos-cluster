@@ -11,26 +11,15 @@ spec:
     kind: OCIRepository
     name: rook-ceph
   values:
+    # Rook v1.20 removed CSI driver deployment from the operator chart; driver
+    # config (CephFS toggle, plugin tolerations, RBD sidecar resources, liveness)
+    # now lives in the ceph-csi-drivers HelmRelease (../csi-drivers). The operator
+    # only installs the ceph-csi-operator and still owns the CSI ServiceMonitor.
     csi:
-      cephFSKernelMountOptions: ms_mode=prefer-crc
-      # NOTE: Enable the driver and shapshotter if you want to use CephFS
-      enableCephfsDriver: false
-      enableCephfsSnapshotter: false
-      enableLiveness: true
       serviceMonitor:
         enabled: true
-      csiRBDProvisionerResource:
-        limits:
-          memory: 256Mi
-        requests:
-          memory: 128Mi
-          cpu: 100m
-      csiRBDPluginResource:
-        limits:
-          memory: 256Mi
-        requests:
-          memory: 128Mi
-          cpu: 100m
+    # Don't let the operator prune crush rules it doesn't recognise.
+    deleteUnusedCrushRules: false
     image:
       repository: ghcr.io/rook/ceph
     monitoring:
