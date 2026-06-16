@@ -65,3 +65,63 @@ spec:
             # TrueNAS's own real-time ZFS event detection + system alerts. Revisit if a
             # pool-state metric becomes available (e.g. the netdata.conf swap, declined
             # for its impact on the TrueNAS Reporting UI).
+
+    # ------------------------------------------------------------------
+    # Docker container lifecycle alerts — fed by docker_state_exporter on
+    # the NAS (:9419, scraped as job=truenas-docker-exporter). Container
+    # CPU/mem already come from the graphite bridge's cgroup_* series (by
+    # ID); these add up/down, health, restart and OOM by container NAME.
+    # severity=critical routes to Pushover via the existing AlertmanagerConfig.
+    # ------------------------------------------------------------------
+    - name: truenas-docker.rules
+      rules:
+        - alert: TrueNASDockerStateExporterDown
+          annotations:
+            summary: "TrueNAS docker-state exporter is not being scraped."
+          expr: |-
+            up{job="truenas-docker-exporter"} == 0
+          for: 5m
+          labels:
+            severity: critical
+        # "exited|dead" scoped to the doco-cd-managed fleet so intentionally
+        # stopped containers (e.g. the decommissioned minio app) don't page.
+        - alert: TrueNASContainerDown
+          annotations:
+            summary: "TrueNAS container {{ $labels.name }} is not running (state: {{ $labels.status }})."
+          expr: |-
+            container_state_status{job="truenas-docker-exporter", status=~"exited|dead", container_label_cd_doco_metadata_manager="doco-cd"} == 1
+          for: 5m
+          labels:
+            severity: critical
+        - alert: TrueNASContainerUnhealthy
+          annotations:
+            summary: "TrueNAS container {{ $labels.name }} healthcheck is failing (unhealthy)."
+          expr: |-
+            container_state_health_status{job="truenas-docker-exporter", health_status="unhealthy"} == 1
+          for: 5m
+          labels:
+            severity: critical
+        - alert: TrueNASContainerRestarting
+          annotations:
+            summary: "TrueNAS container {{ $labels.name }} is stuck restarting (crash loop)."
+          expr: |-
+            container_state_status{job="truenas-docker-exporter", status="restarting"} == 1
+          for: 5m
+          labels:
+            severity: critical
+        - alert: TrueNASContainerOOMKilled
+          annotations:
+            summary: "TrueNAS container {{ $labels.name }} was OOM-killed."
+          expr: |-
+            container_state_oomkilled{job="truenas-docker-exporter"} == 1
+          for: 0m
+          labels:
+            severity: critical
+        - alert: TrueNASContainerFlapping
+          annotations:
+            summary: "TrueNAS container {{ $labels.name }} restart count changed {{ $value }} times in the last hour."
+          expr: |-
+            changes(container_restartcount{job="truenas-docker-exporter"}[1h]) > 3
+          for: 5m
+          labels:
+            severity: warning
