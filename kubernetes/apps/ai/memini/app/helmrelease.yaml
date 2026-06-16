@@ -56,6 +56,16 @@ spec:
         enabled: true
         cronjob:
           schedule: "0 5 * * *"
+        # The chart's fsck curl uses --variable %MEMINI_API_KEY, so the fsck
+        # container needs the same bearer token as the main container.
+        containers:
+          fsck:
+            env:
+              MEMINI_API_KEY:
+                valueFrom:
+                  secretKeyRef:
+                    name: memini
+                    key: api-key
     persistence:
       data:
         existingClaim: memini
