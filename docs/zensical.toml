@@ -27,12 +27,17 @@ extra_javascript = [
 nav = [
   { "Home" = "index.md" },
   { "Architecture" = [
+    { "Overview" = "architecture/overview.md" },
+    { "Networking" = "architecture/networking.md" },
     { "Split DNS" = "architecture/split-dns.md" },
+    { "Storage" = "architecture/storage.md" },
+    { "Secrets" = "architecture/secrets.md" },
     { "AI / LLM stack" = "architecture/ai-llm-stack.md" },
   ] },
   { "Operations" = [
     { "Bootstrap" = "operations/bootstrap.md" },
     { "Talos & K8s upgrades" = "operations/talos-upgrades.md" },
+    { "Backups" = "operations/backups.md" },
     { "Device monitoring" = "operations/device-monitoring.md" },
     { "TrueNAS monitoring" = "operations/truenas-monitoring.md" },
   ] },
@@ -52,6 +57,19 @@ nav = [
     { "Reclaimerr" = "apps/reclaimerr.md" },
     { "iSponsorBlockTV" = "apps/isponsorblocktv.md" },
   ] },
+  { "Troubleshooting" = [
+    { "Symptom ladder" = "troubleshooting/index.md" },
+    { "KB" = [
+      { "001: PushSecret false 400s" = "troubleshooting/kb/001-1password-connect-pushsecret-false-400-errors.md" },
+      { "002: Plex direct-play buffering" = "troubleshooting/kb/002-plex-direct-play-buffering-bbr-mtu-probing.md" },
+      { "003: Plex broken connection URLs" = "troubleshooting/kb/003-plex-advertises-broken-connection-urls.md" },
+      { "004: Talos patch rollout (tuppr)" = "troubleshooting/kb/004-talos-patch-rollout-gotchas-tuppr.md" },
+      { "005: flate NGC HelmRepository URLs" = "troubleshooting/kb/005-flate-misresolves-ngc-helmrepository-chart-urls.md" },
+      { "006: Checkov CKV_K8S_21" = "troubleshooting/kb/006-checkov-ckv-k8s-21-namespaced-resources.md" },
+    ] },
+  ] },
+  { "FAQ" = "faq.md" },
+  { "Contributing" = "contributing.md" },
 ]
 
 [project.theme]
