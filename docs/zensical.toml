@@ -26,6 +26,21 @@ extra_javascript = [
 # Navigation
 nav = [
   { "Home" = "index.md" },
+  { "Architecture" = [
+    { "Split DNS" = "architecture/split-dns.md" },
+    { "AI / LLM stack" = "architecture/ai-llm-stack.md" },
+  ] },
+  { "Operations" = [
+    { "Bootstrap" = "operations/bootstrap.md" },
+    { "Talos & K8s upgrades" = "operations/talos-upgrades.md" },
+    { "Device monitoring" = "operations/device-monitoring.md" },
+    { "TrueNAS monitoring" = "operations/truenas-monitoring.md" },
+  ] },
+  { "Migrations" = [
+    { "Envoy Gateway" = "migrations/envoy-gateway.md" },
+    { "Multus VLAN" = "migrations/multus-vlan.md" },
+    { "VolSync / Kopia" = "migrations/volsync-kopia.md" },
+  ] },
 ]
 
 [project.theme]
