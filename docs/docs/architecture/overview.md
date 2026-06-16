@@ -11,7 +11,9 @@ Git push → Flux detects change → reconciles Kustomizations → deploys HelmR
 
 The top-level Kustomization (`kubernetes/flux/cluster/ks.yaml`) recursively discovers every app under
 `kubernetes/apps/` and applies default patches to each child — notably `postBuild.substituteFrom`
-injecting the `cluster-secrets` Secret, and the HelmRelease install/upgrade/rollback defaults.
+injecting both the `cluster-secrets` Secret and the `cluster-settings` ConfigMap
+(`kubernetes/components/global-vars/cluster-settings.yaml`), and the HelmRelease
+install/upgrade/rollback defaults.
 
 ## Repository layout
 
@@ -37,8 +39,8 @@ Every app follows the same shape:
 
 ## Key conventions
 
-- Namespace `kustomization.yaml` files list apps alphabetically and reference the namespace's
-  components.
+- Namespace `kustomization.yaml` files list apps (generally in alphabetical order) and reference
+  the namespace's components.
 - ConfigMaps set `metadata.namespace` explicitly (Checkov CKV_K8S_21 scans raw YAML before Flux
   applies `targetNamespace`).
 - Flux `postBuild` replaces `${VAR}` against `cluster-secrets`/`cluster-settings`; undefined vars
