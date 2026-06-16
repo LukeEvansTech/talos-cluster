@@ -163,7 +163,7 @@ domainFilters:
 - `external.${SECRET_DOMAIN}` CNAME → `${CLOUDFLARE_TUNNEL_ID}.cfargotunnel.com` (from the one `DNSEndpoint` CRD, `cloudflare-tunnel`)
 - `<app>.${SECRET_DOMAIN}` records for apps whose `HTTPRoute` attaches to `envoy-external` (from the `gateway-httproute` source), proxied through Cloudflare
 
-**Key Design Decision**: `--cloudflare-proxied` is **enabled** — see [Why `--cloudflare-proxied` is enabled](#why---cloudflare-proxied-is-enabled).
+**Key Design Decision**: `--cloudflare-proxied` is **enabled** — see [Why `--cloudflare-proxied` is enabled](#why-cloudflare-proxied-is-enabled).
 
 ### opnsense-dns (Internal)
 
