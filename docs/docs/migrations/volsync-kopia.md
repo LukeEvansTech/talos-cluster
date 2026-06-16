@@ -206,29 +206,11 @@ spec:
 
 **Current Architecture:**
 
-```text
-┌─────────────────┐
-│   35+ Apps      │
-│   (PVCs)        │
-└────────┬────────┘
-         │ hourly
-         ▼
-┌─────────────────┐
-│  Kopia/Volsync  │
-│  (snapshots)    │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│   NFS Storage   │
-│  /repository    │
-└────────┬────────┘
-         │ nightly
-         ▼
-┌─────────────────┐
-│  TrueNAS → R2   │
-│  (offsite)      │
-└─────────────────┘
+```mermaid
+flowchart TB
+    A["35+ Apps<br/>(PVCs)"] -->|hourly| B["Kopia/Volsync<br/>(snapshots)"]
+    B --> C["NFS Storage<br/>/repository"]
+    C -->|nightly| D["TrueNAS → R2<br/>(offsite)"]
 ```
 
 **Backup Flow:**
