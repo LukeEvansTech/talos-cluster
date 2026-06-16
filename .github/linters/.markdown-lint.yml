@@ -3,7 +3,7 @@
 # Merges super-linter's bundled defaults (line_length=400, etc.) with two
 # overrides this repo needs:
 #   - MD007.indent = 4 to match .editorconfig's `[*.md] indent_size = 4`
-#   - MD024.siblings_only so docs/known-issues.md can reuse "Issue / Root Cause /
+#   - MD024.siblings_only so the troubleshooting KB entries can reuse "Issue / Root Cause /
 #     Verification / References / Resolution Status" subheadings under multiple
 #     parent ## issues.
 

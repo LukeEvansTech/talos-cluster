@@ -1,21 +1,21 @@
 # Multus VLAN Migration Guide
 
-This guide documents the process of migrating Home Assistant from the management network (10.32.8.0/24) to a dedicated IoT VLAN for network isolation.
+This guide documents the process of migrating Home Assistant from the management network (<mgmt-net>/24) to a dedicated IoT VLAN for network isolation.
 
 ## Current State
 
 - **Primary Network**: Cilium (10.42.0.0/16 pods, 10.43.0.0/16 services)
-- **Management Network**: 10.32.8.0/24
-- **Home Assistant Multus IP**: 10.32.8.100/24
+- **Management Network**: <mgmt-net>/24
+- **Home Assistant Multus IP**: <ha-mgmt-ip>/24
 - **Physical Interface**: enp1s0np0
 - **VLAN Configuration**: None (direct macvlan on physical interface)
 
 ## Target State
 
 - **Primary Network**: Cilium (unchanged)
-- **Management Network**: 10.32.8.0/24 (unchanged)
-- **IoT VLAN**: VLAN 70 - 192.168.70.0/24 (new)
-- **Home Assistant Multus IP**: 192.168.70.20/24
+- **Management Network**: <mgmt-net>/24 (unchanged)
+- **IoT VLAN**: VLAN 70 - <iot-vlan-net>/24 (new)
+- **Home Assistant Multus IP**: <ha-iot-ip>/24
 - **Physical Interface**: enp1s0np0.70 (VLAN tagged)
 
 ## Prerequisites
@@ -30,15 +30,15 @@ This guide documents the process of migrating Home Assistant from the management
     - Allow VLANs: 1 (untagged/native), 70 (tagged)
     ```
 3. **Configure DHCP/Gateway** for IoT VLAN:
-    - Gateway: 192.168.70.1
-    - DHCP range: 192.168.70.100-192.168.70.200 (optional)
+    - Gateway: <iot-gateway>
+    - DHCP range: <iot-dhcp-start>-<iot-dhcp-end> (optional)
     - DNS: Your DNS server
 
 4. **Configure Firewall Rules**:
     ```text
-    IoT VLAN (192.168.70.0/24) Rules:
+    IoT VLAN (<iot-vlan-net>/24) Rules:
     - ALLOW: IoT → Internet (for firmware updates)
-    - ALLOW: Management Network (10.32.8.0/24) → IoT (for Home Assistant access)
+    - ALLOW: Management Network (<mgmt-net>/24) → IoT (for Home Assistant access)
     - DENY: IoT → Management Network (isolate IoT devices)
     - ALLOW: IoT → IoT (devices can communicate with each other)
     ```
@@ -49,10 +49,10 @@ Before proceeding, verify VLAN configuration:
 
 ```bash
 # From a device on the IoT VLAN
-ping 192.168.70.1  # Should reach gateway
+ping <iot-gateway>  # Should reach gateway
 
 # From management network (if firewall allows)
-ping 192.168.70.1  # Should reach gateway
+ping <iot-gateway>  # Should reach gateway
 ```
 
 ## Migration Steps
@@ -65,21 +65,21 @@ Add VLAN interface configuration to all nodes.
 
 ```yaml
 nodes:
-    - hostname: "cr-talos-01"
-      ipAddress: "10.32.8.80"
+    - hostname: "<node1>"
+      ipAddress: "<node1-ip>"
       # ... existing configuration ...
       networkInterfaces:
           - deviceSelector:
-                hardwareAddr: "0c:c4:7a:ea:bf:0e"
+                hardwareAddr: "<node1-mac>"
             dhcp: false
             addresses:
-                - "10.32.8.80/24"
+                - "<node1-ip>/24"
             routes:
                 - network: "0.0.0.0/0"
-                  gateway: "10.32.8.10"
+                  gateway: "<mgmt-gateway>"
             mtu: 1500
             vip:
-                ip: "10.32.8.85"
+                ip: "<vip>"
             # ADD THIS SECTION:
             vlans:
                 - vlanId: 70
@@ -88,10 +88,10 @@ nodes:
                   # No IP address needed - used only for container networking
 ```
 
-**Repeat for all nodes** (cr-talos-02, cr-talos-03) with their respective MAC addresses:
+**Repeat for all nodes** (<node2>, <node3>) with their respective MAC addresses:
 
-- cr-talos-02: `0c:c4:7a:ea:be:7a`
-- cr-talos-03: (add the MAC address)
+- <node2>: `<node2-mac>`
+- <node3>: (add the MAC address)
 
 ### Step 2: Generate and Apply Talos Configuration
 
@@ -100,14 +100,14 @@ nodes:
 talhelper genconfig
 
 # Apply to each node (one at a time to avoid downtime)
-talosctl apply-config -n 10.32.8.80 -f clusterconfig/talos-cluster-cr-talos-01.yaml
-talosctl apply-config -n 10.32.8.81 -f clusterconfig/talos-cluster-cr-talos-02.yaml
-talosctl apply-config -n 10.32.8.82 -f clusterconfig/talos-cluster-cr-talos-03.yaml
+talosctl apply-config -n <node1-ip> -f clusterconfig/talos-cluster-<node1>.yaml
+talosctl apply-config -n <node2-ip> -f clusterconfig/talos-cluster-<node2>.yaml
+talosctl apply-config -n <node3-ip> -f clusterconfig/talos-cluster-<node3>.yaml
 
 # Verify VLAN interface exists on each node
-talosctl -n 10.32.8.80 get links | grep "enp1s0np0.70"
-talosctl -n 10.32.8.81 get links | grep "enp1s0np0.70"
-talosctl -n 10.32.8.82 get links | grep "enp1s0np0.70"
+talosctl -n <node1-ip> get links | grep "enp1s0np0.70"
+talosctl -n <node2-ip> get links | grep "enp1s0np0.70"
+talosctl -n <node3-ip> get links | grep "enp1s0np0.70"
 ```
 
 **Expected output**: You should see the VLAN interface listed with VLAN ID 70.
@@ -180,14 +180,14 @@ defaultPodOptions:
             [{
               "name": "iot",
               "namespace": "kube-system",
-              "ips": ["192.168.70.20/24"],
-              "mac": "02:00:00:00:00:01"
+              "ips": ["<ha-iot-ip>/24"],
+              "mac": "<mac>"
             }]
 ```
 
 **Key changes**:
 
-- `ips`: `["10.32.8.100/24"]` → `["192.168.70.20/24"]`
+- `ips`: `["<ha-mgmt-ip>/24"]` → `["<ha-iot-ip>/24"]`
 
 ### Step 6: Apply Changes
 
@@ -204,7 +204,7 @@ git commit -m "feat(network): migrate Home Assistant to IoT VLAN 70
 
 - Add VLAN 70 interface to all Talos nodes
 - Update Multus NetworkAttachmentDefinition to use VLAN interface
-- Change Home Assistant IP from 10.32.8.100 to 192.168.70.20
+- Change Home Assistant IP from <ha-mgmt-ip> to <ha-iot-ip>
 - Enables network isolation for IoT devices"
 
 # Push to trigger Flux reconciliation
@@ -233,10 +233,10 @@ kubectl exec -n default $HA_POD -- ip addr show
 
 # Expected output:
 # eth0: 10.42.0.x/32 (Cilium)
-# net1: 192.168.70.20/24 (Multus IoT VLAN) ← Should be new IP
+# net1: <ha-iot-ip>/24 (Multus IoT VLAN) ← Should be new IP
 
 # 4. Test connectivity to IoT VLAN gateway
-kubectl exec -n default $HA_POD -- ping -c 3 192.168.70.1
+kubectl exec -n default $HA_POD -- ping -c 3 <iot-gateway>
 
 # 5. Test Internet connectivity (via Cilium)
 kubectl exec -n default $HA_POD -- ping -c 3 8.8.8.8
@@ -251,10 +251,10 @@ If you have DNS records pointing to the old IP:
 
 ```bash
 # Update any static DNS entries from:
-homeassistant.lan  A  10.32.8.100
+homeassistant.${SECRET_INTERNAL_DOMAIN}  A  <ha-mgmt-ip>
 
 # To:
-homeassistant.lan  A  192.168.70.20
+homeassistant.${SECRET_INTERNAL_DOMAIN}  A  <ha-iot-ip>
 ```
 
 ## Validation Tests
@@ -266,7 +266,7 @@ kubectl exec -n default $HA_POD -- ip route show
 
 # Expected output should show:
 # - Default route via Cilium (eth0)
-# - Direct route to 192.168.70.0/24 via net1
+# - Direct route to <iot-vlan-net>/24 via net1
 ```
 
 ### Test 2: Home Assistant Web UI
@@ -274,7 +274,7 @@ kubectl exec -n default $HA_POD -- ip route show
 Access Home Assistant at:
 
 - Via Ingress: <https://homeassistant.example.com>
-- Direct IP (from device on IoT VLAN): <http://192.168.70.20:8123>
+- Direct IP (from device on IoT VLAN): <http://<ha-iot-ip>:8123>
 
 ### Test 3: Device Discovery
 
@@ -343,7 +343,7 @@ kubectl exec -n default $HA_POD -- ip route show
 
 ```bash
 # Test from Talos node itself
-talosctl -n 10.32.8.80 get addresses | grep 192.168.70
+talosctl -n <node1-ip> get addresses | grep 192.168.70
 
 # If node can't reach VLAN, check switch configuration
 ```
@@ -413,7 +413,7 @@ EOF
 
 # Update Home Assistant IP back to management network
 kubectl edit helmrelease -n default homeassistant
-# Change ips: ["192.168.70.20/24"] → ["10.32.8.100/24"]
+# Change ips: ["<ha-iot-ip>/24"] → ["<ha-mgmt-ip>/24"]
 
 # Delete pod to force recreation
 kubectl delete pod -n default -l app.kubernetes.io/name=homeassistant
@@ -433,9 +433,9 @@ flux reconcile kustomization homeassistant -n default
 # Remove VLAN interfaces from Talos (optional - they won't hurt if left)
 # Edit talconfig.yaml to remove vlans section, then:
 talhelper genconfig
-talosctl apply-config -n 10.32.8.80 -f clusterconfig/talos-cluster-cr-talos-01.yaml
-talosctl apply-config -n 10.32.8.81 -f clusterconfig/talos-cluster-cr-talos-02.yaml
-talosctl apply-config -n 10.32.8.82 -f clusterconfig/talos-cluster-cr-talos-03.yaml
+talosctl apply-config -n <node1-ip> -f clusterconfig/talos-cluster-<node1>.yaml
+talosctl apply-config -n <node2-ip> -f clusterconfig/talos-cluster-<node2>.yaml
+talosctl apply-config -n <node3-ip> -f clusterconfig/talos-cluster-<node3>.yaml
 ```
 
 ## Post-Migration Checklist
@@ -505,11 +505,11 @@ To add more VLANs (e.g., VLAN 80 for Cameras, VLAN 90 for VPN):
             [{
               "name": "iot",
               "namespace": "kube-system",
-              "ips": ["192.168.70.20/24"]
+              "ips": ["<ha-iot-ip>/24"]
             }, {
               "name": "cameras",
               "namespace": "kube-system",
-              "ips": ["192.168.80.10/24"]
+              "ips": ["<cam-vlan-ip>/24"]
             }]
     ```
 

@@ -7,7 +7,7 @@ metadata:
 spec:
   # TrueNAS netdata pushes Graphite metrics into the bundled graphite_exporter
   # (ingest :9109), which re-exposes them in Prometheus format on :9108.
-  # See docs/truenas-monitoring.md for the TrueNAS-side Custom App + Reporting setup.
+  # See docs/docs/operations/truenas-monitoring.md for the TrueNAS-side Custom App + Reporting setup.
   staticConfigs:
     - targets:
         - ${SECRET_STORAGE_SERVER}:9108

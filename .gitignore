@@ -13,6 +13,8 @@
 # Kubernetes
 kubeconfig
 talosconfig
+# AI planning artifacts (superpowers specs/plans) — local-only, may contain internal identifiers
+docs/superpowers/
 # Misc.
 .private/
 .task/

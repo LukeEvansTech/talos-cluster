@@ -1,0 +1,14 @@
+{
+  "name": "talos-cluster-docs",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "start": "zensical serve",
+    "build": "zensical build",
+    "serve": "zensical serve",
+    "clean": "zensical build --clean"
+  },
+  "engines": {
+    "node": ">=20.0"
+  }
+}

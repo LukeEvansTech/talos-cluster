@@ -1,0 +1,133 @@
+# Zensical configuration
+# https://zensical.org/docs/
+
+[project]
+site_name = "talos-cluster"
+site_description = "Home Kubernetes cluster (Talos + Flux) — architecture, operations, and knowledge base."
+site_author = "Luke Evans"
+site_url = "https://lukeevanstech.github.io/talos-cluster/"
+copyright = "Copyright (c) 2026 Luke Evans"
+
+docs_dir = "docs"
+site_dir = "site"
+use_directory_urls = true
+dev_addr = "localhost:8000"
+
+# Repository integration
+repo_url = "https://github.com/LukeEvansTech/talos-cluster/"
+repo_name = "LukeEvansTech/talos-cluster"
+edit_uri = "edit/main/docs/docs"
+
+# Mermaid 11 from CDN (Material's built-in Mermaid bridge handles theme switching).
+extra_javascript = [
+  "https://unpkg.com/mermaid@11/dist/mermaid.min.js",
+]
+
+# Navigation
+nav = [
+  { "Home" = "index.md" },
+  { "Architecture" = [
+    { "Overview" = "architecture/overview.md" },
+    { "Networking" = "architecture/networking.md" },
+    { "Split DNS" = "architecture/split-dns.md" },
+    { "Storage" = "architecture/storage.md" },
+    { "Secrets" = "architecture/secrets.md" },
+    { "AI / LLM stack" = "architecture/ai-llm-stack.md" },
+  ] },
+  { "Operations" = [
+    { "Bootstrap" = "operations/bootstrap.md" },
+    { "Talos & K8s upgrades" = "operations/talos-upgrades.md" },
+    { "Backups" = "operations/backups.md" },
+    { "Device monitoring" = "operations/device-monitoring.md" },
+    { "TrueNAS monitoring" = "operations/truenas-monitoring.md" },
+  ] },
+  { "Migrations" = [
+    { "Envoy Gateway" = "migrations/envoy-gateway.md" },
+    { "Multus VLAN" = "migrations/multus-vlan.md" },
+    { "VolSync / Kopia" = "migrations/volsync-kopia.md" },
+  ] },
+  { "Apps" = [
+    { "LiteLLM" = "apps/litellm.md" },
+    { "NetBox" = "apps/netbox.md" },
+    { "Prowler" = "apps/prowler.md" },
+    { "Metabase" = "apps/metabase.md" },
+    { "Oxidized" = "apps/oxidized.md" },
+    { "Scanopy" = "apps/scanopy.md" },
+    { "Autopulse" = "apps/autopulse.md" },
+    { "Reclaimerr" = "apps/reclaimerr.md" },
+    { "iSponsorBlockTV" = "apps/isponsorblocktv.md" },
+  ] },
+  { "Troubleshooting" = [
+    { "Symptom ladder" = "troubleshooting/index.md" },
+    { "KB" = [
+      { "001: PushSecret false 400s" = "troubleshooting/kb/001-1password-connect-pushsecret-false-400-errors.md" },
+      { "002: Plex direct-play buffering" = "troubleshooting/kb/002-plex-direct-play-buffering-bbr-mtu-probing.md" },
+      { "003: Plex broken connection URLs" = "troubleshooting/kb/003-plex-advertises-broken-connection-urls.md" },
+      { "004: Talos patch rollout (tuppr)" = "troubleshooting/kb/004-talos-patch-rollout-gotchas-tuppr.md" },
+      { "005: flate NGC HelmRepository URLs" = "troubleshooting/kb/005-flate-misresolves-ngc-helmrepository-chart-urls.md" },
+      { "006: Checkov CKV_K8S_21" = "troubleshooting/kb/006-checkov-ckv-k8s-21-namespaced-resources.md" },
+    ] },
+  ] },
+  { "FAQ" = "faq.md" },
+  { "Contributing" = "contributing.md" },
+]
+
+[project.theme]
+name = "material"
+variant = "modern"
+language = "en"
+features = [
+  "navigation.tabs",
+  "navigation.sections",
+  "navigation.top",
+  "search.suggest",
+  "search.highlight",
+  "content.code.copy",
+  "content.tabs.link",
+]
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme: light)"
+scheme = "default"
+primary = "blue"
+accent = "light-blue"
+
+[project.theme.palette.toggle]
+icon = "material/brightness-7"
+name = "Switch to dark mode"
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme: dark)"
+scheme = "slate"
+primary = "blue"
+accent = "light-blue"
+
+[project.theme.palette.toggle]
+icon = "material/brightness-4"
+name = "Switch to light mode"
+
+[project.theme.icon]
+repo = "fontawesome/brands/github"
+
+# Markdown extensions
+[markdown_extensions]
+admonition = {}
+attr_list = {}
+md_in_html = {}
+tables = {}
+toc = { permalink = true }
+
+[markdown_extensions.pymdownx]
+details = {}
+highlight = { anchor_linenums = true, line_spans = "__span", pygments_lang_class = true }
+inlinehilite = {}
+snippets = {}
+tabbed = { alternate_style = true }
+
+# Mermaid client-side render via pymdownx.superfences custom_fence.
+# Theme bridging (light/dark) is handled by Material's Mermaid integration.
+# (No `superfences = {}` line: the table-array below implicitly defines it.)
+[[markdown_extensions.pymdownx.superfences.custom_fences]]
+name = "mermaid"
+class = "mermaid"
+format = "pymdownx.superfences.fence_code_format"

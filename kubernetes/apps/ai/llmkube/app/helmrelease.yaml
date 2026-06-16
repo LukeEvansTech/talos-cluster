@@ -23,7 +23,7 @@ spec:
   values:
     # No https model sources are served yet, so the shared download cache stays
     # off. Enable it (and provide an RWX cache PVC) before adding a Model with an
-    # https:// source — see docs/ai-llm-stack.md "Layer 4".
+    # https:// source — see docs/docs/architecture/ai-llm-stack.md "Layer 4".
     modelCache:
       enabled: false
     prometheus:

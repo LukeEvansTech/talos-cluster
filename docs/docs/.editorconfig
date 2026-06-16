@@ -1,0 +1,6 @@
+# Zensical content follows markdownlint's default MD007 (2-space list indent).
+# Override the repo root [*.md] indent_size = 4 for this tree only.
+root = false
+
+[*.md]
+indent_size = 2

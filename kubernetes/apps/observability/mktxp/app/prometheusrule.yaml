@@ -18,7 +18,7 @@ spec:
             severity: critical
         # mktxp drops a router's series when it can't reach it. Confirm the exact
         # uptime metric/label against live /metrics before relying on this.
-        # mktxp drops a router's series when it can't reach it. Both CRS354
+        # mktxp drops a router's series when it can't reach it. Both
         # switches should report mktxp_system_uptime; fewer than 2 means one is
         # unreachable. (Adjust the threshold if the switch count changes.)
         - alert: MktxpRouterUnreachable

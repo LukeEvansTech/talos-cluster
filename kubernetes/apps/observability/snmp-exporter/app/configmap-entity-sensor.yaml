@@ -1,6 +1,6 @@
 ---
 # Custom snmp_exporter module for ENTITY-SENSOR-MIB (RFC 3433) — temperature,
-# fan, voltage and PSU sensors exposed by the Mellanox Onyx SN2700 (and any
+# fan, voltage and PSU sensors exposed by the core switch (and any
 # device implementing the standard MIB). Merged with the image's bundled
 # snmp.yml via a second --config.file (see helmrelease extraArgs).
 # Also defines the dedicated read-only auth (community cr-onyx-ro) used in

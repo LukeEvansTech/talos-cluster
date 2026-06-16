@@ -11,7 +11,7 @@ spec:
     # into conventional zfs_arc_* series. 25.10 emits `truenas_arcstats{type=...}`
     # (a rawer chart than vanilla netdata's zfs.arc_size), so the upstream
     # dashboard's zfs_arc_size panel is otherwise empty. Verified against live
-    # /metrics 2026-06-14 — see docs/truenas-monitoring.md "metric reality".
+    # /metrics 2026-06-14 — see docs/docs/operations/truenas-monitoring.md "metric reality".
     # ------------------------------------------------------------------
     - name: truenas-exporter.recording
       rules:
@@ -42,7 +42,7 @@ spec:
             severity: critical
         # Disk temperature comes from smartctl-exporter (per-device, already scraped),
         # NOT the graphite bridge: TrueNAS 25.10 netdata does not export a
-        # disk_temperature series (only cpu_temperature). See docs/truenas-monitoring.md.
+        # disk_temperature series (only cpu_temperature). See docs/docs/operations/truenas-monitoring.md.
         - alert: TrueNASDiskTemperatureHigh
           annotations:
             summary: "TrueNAS disk {{ $labels.device }} temperature is {{ $value }}°C."
@@ -59,9 +59,9 @@ spec:
           for: 10m
           labels:
             severity: warning
-        # NOTE: no ZFS pool-state alert here. TrueNAS 25.10 netdata exposes no
-        # zfs_pool/scrub-state metric via the graphite bridge (only the absent
-        # truenas_pool.usage chart). Pool degradation/scrub failures are covered by
-        # TrueNAS's own real-time ZFS event detection + system alerts. Revisit if a
-        # pool-state metric becomes available (e.g. the netdata.conf swap, declined
-        # for its impact on the TrueNAS Reporting UI).
+            # NOTE: no ZFS pool-state alert here. TrueNAS 25.10 netdata exposes no
+            # zfs_pool/scrub-state metric via the graphite bridge (only the absent
+            # truenas_pool.usage chart). Pool degradation/scrub failures are covered by
+            # TrueNAS's own real-time ZFS event detection + system alerts. Revisit if a
+            # pool-state metric becomes available (e.g. the netdata.conf swap, declined
+            # for its impact on the TrueNAS Reporting UI).
