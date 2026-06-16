@@ -41,6 +41,17 @@ nav = [
     { "Multus VLAN" = "migrations/multus-vlan.md" },
     { "VolSync / Kopia" = "migrations/volsync-kopia.md" },
   ] },
+  { "Apps" = [
+    { "LiteLLM" = "apps/litellm.md" },
+    { "NetBox" = "apps/netbox.md" },
+    { "Prowler" = "apps/prowler.md" },
+    { "Metabase" = "apps/metabase.md" },
+    { "Oxidized" = "apps/oxidized.md" },
+    { "Scanopy" = "apps/scanopy.md" },
+    { "Autopulse" = "apps/autopulse.md" },
+    { "Reclaimerr" = "apps/reclaimerr.md" },
+    { "iSponsorBlockTV" = "apps/isponsorblocktv.md" },
+  ] },
 ]
 
 [project.theme]
