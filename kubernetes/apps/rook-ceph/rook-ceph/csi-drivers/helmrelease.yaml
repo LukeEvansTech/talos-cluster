@@ -16,6 +16,11 @@ spec:
     drivers:
       rbd:
         enabled: true
+        # MUST match the existing StorageClass provisioner and all in-use PVs.
+        # This mirror packages the upstream ceph-csi-operator chart, which
+        # defaults the driver name to the unprefixed "rbd.csi.ceph.com"; Rook's
+        # convention (and our ceph-block SC) prefixes the operator namespace.
+        name: rook-ceph.rbd.csi.ceph.com
       cephfs:
         enabled: false
       nfs:
