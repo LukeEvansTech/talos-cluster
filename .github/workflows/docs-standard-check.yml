@@ -1,0 +1,21 @@
+---
+# Canonical docs-standard-check workflow.
+# Calls the zensical-drift-check reusable on every PR touching docs/ or workflows.
+# Build-only repos override `allow-no-pages: true`.
+name: Docs Standard Check
+
+on:
+  pull_request:
+    paths:
+      - "docs/**"
+      - ".github/workflows/**"
+      - "renovate.json"
+      - ".markdownlint.yml"
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  drift:
+    uses: LukeEvansTech/shared-workflows/.github/workflows/zensical-drift-check.yml@8fd92dc677d0ca251d3a287e7a0077df201f8135 # v1

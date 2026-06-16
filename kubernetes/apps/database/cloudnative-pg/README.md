@@ -24,7 +24,7 @@ cloudnative-pg/
 │   ├── podmonitor.yaml       # Prometheus metrics collection
 │   ├── prometheusrule.yaml   # 7 critical alerts
 │   ├── gatus.yaml            # TCP health checks
-│   ├── service.yaml          # LoadBalancer at 192.168.222.18
+│   ├── service.yaml          # LoadBalancer at <example-peer-ip>
 │   └── kustomization.yaml
 └── backup/                   # NFS Database Dumps
     ├── helmrelease.yaml      # Daily cronjob (2 AM)
@@ -40,13 +40,13 @@ cloudnative-pg/
 - **Instances**: 3 for high availability with automatic failover
 - **Storage**: 20Gi using `openebs-hostpath`
 - **Resources**:
-    - Requests: 500m CPU, 2Gi memory
-    - Limits: 4Gi memory
+  - Requests: 500m CPU, 2Gi memory
+  - Limits: 4Gi memory
 - **Tuning**: Optimized for mixed workloads
-    - `max_connections: 300`
-    - `shared_buffers: 512MB`
-    - `effective_cache_size: 1536MB`
-    - Transaction-level checkpoint completion
+  - `max_connections: 300`
+  - `shared_buffers: 512MB`
+  - `effective_cache_size: 1536MB`
+  - Transaction-level checkpoint completion
 
 ### Backup Strategy
 
@@ -166,9 +166,9 @@ Edit `backup/helmrelease.yaml` lines 105-106:
 
 ```yaml
 backups:
-    type: nfs
-    server: nas01.${SECRET_DOMAIN_INT} # TODO: Replace with your NAS
-    path: /mnt/data/backup # TODO: Replace with your NFS path
+  type: nfs
+  server: nas01.${SECRET_DOMAIN_INT} # TODO: Replace with your NAS
+  path: /mnt/data/backup # TODO: Replace with your NFS path
 ```
 
 **Required**:
@@ -252,7 +252,7 @@ kubectl run -it --rm psql --image=postgres:18 --restart=Never -- \
 #### External (via LoadBalancer)
 
 ```bash
-psql -h 10.32.8.91 -U postgres -d postgres
+psql -h <node-ip> -U postgres -d postgres
 # Or via DNS
 psql -h postgres18.${SECRET_DOMAIN_INT} -U postgres -d postgres
 ```
@@ -282,7 +282,7 @@ curl localhost:9187/metrics | grep cnpg
 postgres://postgres:<password>@postgres18-rw.database.svc.cluster.local:5432/postgres
 
 # Via LoadBalancer
-postgres://postgres:<password>@192.168.222.18:5432/postgres
+postgres://postgres:<password>@<example-peer-ip>:5432/postgres
 
 # Via pooler (recommended for apps)
 postgres://postgres:<password>@postgres18-pgbouncer-rw.database.svc.cluster.local:5432/postgres
@@ -336,25 +336,25 @@ To restore from a backup, modify `cluster/cluster.yaml`:
 
 ```yaml
 spec:
-    bootstrap:
-        recovery:
-            source: postgres18
-            recoveryTarget:
-                targetTime: "2025-11-13 12:00:00.00000+00" # PITR
-    externalClusters:
-        - name: postgres18
-          barmanObjectStore:
-              destinationPath: s3://cloudnative-pg/
-              endpointURL: https://${SECRET_STORAGE_SERVER}:9000
-              s3Credentials:
-                  accessKeyId:
-                      name: cloudnative-pg-secret
-                      key: AWS_ACCESS_KEY_ID
-                  secretAccessKey:
-                      name: cloudnative-pg-secret
-                      key: AWS_SECRET_ACCESS_KEY
-              wal:
-                  compression: bzip2
+  bootstrap:
+    recovery:
+      source: postgres18
+      recoveryTarget:
+        targetTime: "2025-11-13 12:00:00.00000+00" # PITR
+  externalClusters:
+    - name: postgres18
+      barmanObjectStore:
+        destinationPath: s3://cloudnative-pg/
+        endpointURL: https://${SECRET_STORAGE_SERVER}:9000
+        s3Credentials:
+          accessKeyId:
+            name: cloudnative-pg-secret
+            key: AWS_ACCESS_KEY_ID
+          secretAccessKey:
+            name: cloudnative-pg-secret
+            key: AWS_SECRET_ACCESS_KEY
+        wal:
+          compression: bzip2
 ```
 
 ### Restore from NFS Dump

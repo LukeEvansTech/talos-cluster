@@ -34,7 +34,7 @@ spec:
       auth:
         - public_v2
       params:
-        # Mellanox Onyx SN2700 core switch (sw-main-core). if_mib gives all port
+        # the core switch. if_mib gives all port
         # counters/status; entity_sensor adds temp/fan/PSU/optics. auth onyx_ro
         # uses the dedicated cr-onyx-ro community (see configmap-entity-sensor).
         - name: onyx-core

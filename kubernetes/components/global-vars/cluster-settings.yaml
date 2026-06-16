@@ -16,9 +16,8 @@ data:
   # move every consumer (contracthound, subspy, loupe, litellm, …) at once.
   OLLAMA_MODEL: qwen3.6-35b-a3b
   OLLAMA_BASE_URL: http://ollama.ai.svc.cluster.local:11434
-  # Network switch addresses (DNS names; host-overrides managed in network-ops
-  # opnsense-dns.yml). Monitoring references these so a renumber is a one-line
-  # DNS edit, not a hunt for hardcoded IPs.
-  ONYX_ADDR: sw-main-core.core.codelooks.com
-  MIKROTIK_POE_ADDR: sw-comms-access.core.codelooks.com
-  MIKROTIK_NONPOE_ADDR: sw-main-mgmt.core.codelooks.com
+  # Network device addresses (ONYX_ADDR, MIKROTIK_POE_ADDR, MIKROTIK_NONPOE_ADDR)
+  # live in the cluster-secrets 1Password item, not here — they are internal
+  # hostnames and this is a public repo. Flux still substitutes ${...} from
+  # cluster-secrets, so consumers are unchanged. To change one, edit the field in
+  # the cluster-secrets item (vault Talos) and force-sync the ExternalSecret.

@@ -1,0 +1,23 @@
+# Canonical markdownlint config for zensical docs repos.
+# Source of truth: shared-workflows/templates/.markdownlint.yml
+# Drift check verifies SHA-256 of this file matches what each repo has.
+default: true
+
+# MD013: line length — disabled for prose
+MD013: false
+
+# MD033: inline HTML — allowed (zensical/material uses some inline HTML in admonitions, tabs)
+MD033: false
+
+# MD041: first-line h1 — disabled (zensical uses page title from nav/site_name)
+MD041: false
+
+# MD024: duplicate headings — only block siblings, not nested
+MD024:
+  siblings_only: true
+
+# MD060: table-column-style — disabled. Newer markdownlint rule that enforces
+# exact pipe-padding consistency across every table cell; on hand-maintained
+# docs (wide config/reference tables) it produces pure stylistic churn with no
+# correctness value.
+MD060: false
