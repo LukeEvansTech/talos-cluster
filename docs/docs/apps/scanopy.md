@@ -16,11 +16,16 @@ L2/L3/workload/application diagrams by continuously scanning the infrastructure.
 
 ## Design decisions
 
-- **Daemon networking — privileged `hostNetwork` DaemonSet.** One scanner per node (named per node
-  via `SCANOPY_NAME` from `spec.nodeName`), giving L2 reach to the nodes' primary LAN plus
-  L3/SNMP reach to anything routable on the management network. Multus was rejected: the only
-  existing NAD is a macvlan on the same primary NIC, so it adds nothing over hostNetwork without
-  authoring VLAN-tagged NADs. Requires `dnsPolicy: ClusterFirstWithHostNet`.
+- **Daemon networking — privileged `hostNetwork` Deployment (single replica).** One scanner total
+  for the flat LAN /24; a per-node DaemonSet was rejected because all nodes share the same /24
+  and would scan it three times, and two hostNetwork pods would contend for host port `60073`
+  during a rollout. `SCANOPY_NAME: scanopy-codelooks` is a fixed static identity (previously
+  derived from `spec.nodeName` when the daemon was a DaemonSet). `SCANOPY_INTERFACES=enp1s0np0`
+  restricts L2 scanning to the physical LAN NIC, preventing the hostNetwork daemon from
+  auto-scanning Cilium pod/service CIDRs and saturating node conntrack.
+  `SCANOPY_CONCURRENT_SCANS=5` caps simultaneous host scans. Requires
+  `dnsPolicy: ClusterFirstWithHostNet`. Multus was rejected: the only existing NAD is a macvlan
+  on the same primary NIC, so it adds nothing over hostNetwork without authoring VLAN-tagged NADs.
 - **Database — shared CNPG `postgres18-rw.database.svc`.** Cluster standard (metabase, netbox). A
   `postgres-init` initContainer provisions the DB + user; the Flux Kustomization `dependsOn`
   `cloudnative-pg-cluster` in `database`.
@@ -89,11 +94,11 @@ L2/L3/workload/application diagrams by continuously scanning the infrastructure.
   kubectl -n network logs deploy/scanopy -c app | grep -iE 'tls|ssl|database|connect'
   ```
 
-- Confirm one daemon per node and that each registered:
+- Confirm the daemon pod is running and registered:
 
   ```bash
   kubectl -n network get pods -l app.kubernetes.io/name=scanopy -o wide
-  kubectl -n network logs ds/scanopy-daemon | grep -iE 'register|network|server'
+  kubectl -n network logs deploy/scanopy-daemon | grep -iE 'register|network|server'
   ```
 
 - After deploy, in the UI: create an SNMP credential pointing at `/run/secrets/snmp-community` and

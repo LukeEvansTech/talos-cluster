@@ -19,13 +19,16 @@ The bootstrap process uses a modular, stage-based approach powered by [just](htt
 
 ```text
 bootstrap/
-├── resources.yaml.j2        # Bootstrap secrets and resources (Jinja2 template)
-├── helmfile.yaml           # Legacy monolithic helmfile (deprecated)
-└── helmfile.d/             # Modular helmfile structure
-    ├── 00-crds.yaml        # CRD extraction from Helm charts
-    ├── 01-apps.yaml        # Bootstrap applications
-    └── templates/
-        └── values.yaml.gotmpl  # DRY values template
+├── helmfile.d/             # Modular helmfile structure
+│   ├── 00-crds.yaml        # CRD extraction from Helm charts
+│   ├── 01-apps.yaml        # Bootstrap applications
+│   └── templates/
+│       └── values.yaml.gotmpl  # DRY values template
+├── kustomize/              # Kustomize-based bootstrap secrets
+│   └── apps/
+│       ├── external-secrets/   # 1Password Connect credentials
+│       └── network/            # Cloudflare tunnel secret
+└── mod.just                # Bootstrap task definitions
 ```
 
 ## Prerequisites
@@ -47,7 +50,7 @@ mise install
 - `talosctl` - Talos Linux CLI
 - `kustomize` - Kubernetes configuration management
 - `yq` - YAML processor
-- `op` - 1Password CLI (for secret injection)
+- `op` - 1Password CLI (for secret injection; install separately, e.g. via Homebrew — not in the mise toolchain)
 
 **Additional Tools:**
 
@@ -58,7 +61,6 @@ mise install
 
 - `talos/clusterconfig/talosconfig` - Talos configuration
 - `talos/clusterconfig/talos-cluster-*.yaml` - Per-node Talos configs
-- `bootstrap/resources.yaml.j2` - Bootstrap resources template
 
 ### 1Password Authentication
 
@@ -100,7 +102,7 @@ Applies Talos configuration to all nodes in the cluster.
 
 ### Stage 2: Kubernetes Bootstrap
 
-**Command:** `just bootstrap k8s`
+**Command:** `just bootstrap kube`
 
 Initializes the Kubernetes control plane.
 
@@ -113,8 +115,8 @@ Initializes the Kubernetes control plane.
 **Example output:**
 
 ```text
-2025-11-04T15:01:00Z INFO Running stage... stage=k8s
-2025-11-04T15:01:05Z INFO Kubernetes bootstrap in progress. Retrying in 5 seconds... stage=k8s
+2025-11-04T15:01:00Z INFO Running stage... stage=kube
+2025-11-04T15:01:05Z INFO Kubernetes bootstrap in progress. Retrying in 5 seconds... stage=kube
 ```
 
 ### Stage 3: Kubeconfig Retrieval
@@ -126,13 +128,13 @@ Downloads cluster credentials and configures kubectl.
 **Parameters:**
 
 - `lb` - Load balancer type (default: `cilium`)
-    - `cilium` - Use Cilium LoadBalancer IP
-    - `node` - Connect directly to control plane node
+  - `cilium` - Use Cilium LoadBalancer IP
+  - `node` - Connect directly to control plane node
 
 **What it does:**
 
 - Fetches kubeconfig from Talos
-- Sets context name to `talos-cluster`
+- Sets context name to `main`
 - Optionally updates cluster server address
 
 **Example output:**
@@ -186,8 +188,8 @@ Deploys critical bootstrap secrets and resources.
 
 **What it does:**
 
-- Renders `bootstrap/resources.yaml.j2` template
-- Injects secrets from 1Password using `vals eval` (resolves `ref+op://` refs via the 1Password CLI)
+- Runs `kustomize build bootstrap/kustomize/apps`
+- Pipes through `just template` (minijinja-cli + `vals eval`) to resolve `ref+op://` refs
 - Applies resources server-side
 
 **Resources deployed:**
@@ -215,7 +217,11 @@ Installs Custom Resource Definitions from Helm charts.
 
 **Current CRDs:**
 
-- Currently empty - add Helm charts here that ship CRDs
+- `cloudflare-dns` (external-dns chart, `network` namespace)
+- `envoy-gateway` (`network` namespace)
+- `grafana-operator` (`observability` namespace)
+- `keda` (`observability` namespace)
+- `kube-prometheus-stack` (`observability` namespace)
 
 **Example output:**
 
@@ -239,17 +245,21 @@ Deploys bootstrap applications via Helmfile.
 **Applications deployed (in order):**
 
 1. **Cilium** - Network CNI
-    - Post-hook: Waits for CRDs
+    - Post-hook: Waits for Cilium CRDs (`kubectl wait --for=create --timeout=2m`)
 2. **CoreDNS** - DNS server
     - Depends on: Cilium
-3. **Cert-Manager** - Certificate management
+3. **Spegel** - OCI registry mirror
     - Depends on: CoreDNS
-4. **External Secrets** - Secret management
+4. **Cert-Manager** - Certificate management
+    - Depends on: Spegel
+5. **External Secrets** - Secret management
     - Depends on: Cert-Manager
-    - Post-hook: Waits for CRDs
-5. **Flux Operator** - GitOps operator
+6. **OnePassword Connect** - 1Password secrets backend
     - Depends on: External Secrets
-6. **Flux Instance** - GitOps controller
+    - Post-hook: Waits for ClusterSecretStore CRD (`kubectl wait --for=create --timeout=2m`)
+7. **Flux Operator** - GitOps operator
+    - Depends on: OnePassword Connect
+8. **Flux Instance** - GitOps controller
     - Depends on: Flux Operator
 
 **Example output:**
@@ -272,7 +282,7 @@ This is equivalent to:
 
 ```bash
 just bootstrap talos
-just bootstrap k8s
+just bootstrap kube
 just bootstrap kubeconfig
 just bootstrap wait
 just bootstrap namespaces
@@ -309,10 +319,12 @@ Applications are deployed with explicit dependency chains using Helmfile's `need
 ```mermaid
 graph TD
     A[Cilium] --> B[CoreDNS]
-    B --> C[Cert-Manager]
-    C --> D[External Secrets]
-    D --> E[Flux Operator]
-    E --> F[Flux Instance]
+    B --> C[Spegel]
+    C --> D[Cert-Manager]
+    D --> E[External Secrets]
+    E --> F[OnePassword Connect]
+    F --> G[Flux Operator]
+    G --> H[Flux Instance]
 ```
 
 **Benefits:**
@@ -328,24 +340,25 @@ Certain applications use post-sync hooks to ensure dependent resources are ready
 
 ### Cilium Hook
 
-Waits for CRDs to be available:
+Waits for Cilium CRDs to be available (helmfile `postsync` hook):
 
 ```bash
-until kubectl get crd \
-  ciliumloadbalancerippools.cilium.io \
-  ciliumbgpadvertisements.cilium.io \
-  ciliumbgppeerconfigs.cilium.io \
-  ciliumbgpclusterconfigs.cilium.io \
-  &>/dev/null; do sleep 5; done
+kubectl wait --for=create \
+  crd/ciliumbgpadvertisements.cilium.io \
+  crd/ciliumbgpclusterconfigs.cilium.io \
+  crd/ciliumbgppeerconfigs.cilium.io \
+  crd/ciliumloadbalancerippools.cilium.io \
+  --timeout=2m
 ```
 
-### External Secrets Hook
+### OnePassword Connect Hook
 
-Waits for ClusterSecretStore CRD:
+Waits for ClusterSecretStore CRD (helmfile `postsync` hook on `onepassword-connect`):
 
 ```bash
-until kubectl get crd clustersecretstores.external-secrets.io \
-  &>/dev/null; do sleep 5; done
+kubectl wait --for=create \
+  crd/clustersecretstores.external-secrets.io \
+  --timeout=2m
 ```
 
 ## Values Template (DRY Principle)
@@ -497,7 +510,7 @@ releases:
 
 #### Modifying Bootstrap Resources
 
-Edit `bootstrap/resources.yaml.j2` to add secrets or resources:
+Add secrets or resources under `bootstrap/kustomize/apps/<namespace>/` and reference them from the namespace's `kustomization.yaml`. Use `ref+op://` notation for 1Password-backed values:
 
 ```yaml
 ---
@@ -507,7 +520,7 @@ metadata:
     name: my-secret
     namespace: my-namespace
 stringData:
-    value: op://vault/item/field
+    value: ref+op://vault/item/field
 ```
 
 ## Migration from Bash Scripts

@@ -1,4 +1,4 @@
-# KB-004: Talos Patch Rollout Gotchas (TUPPR v0.1.27 / Talos v1.13.0 → v1.13.2)
+# KB-004: Talos Patch Rollout Gotchas (TUPPR v0.1.27 at incident time, now v0.2.6 / Talos v1.13.0 → v1.13.2)
 
 **Status:** Workarounds documented; root causes not yet fixed. Open items below.
 
@@ -13,7 +13,7 @@ The node was left:
 - Drained, so 6 pods (mon-c, osd-X, dragonfly-N, postgres18-N, mosquitto-0, per-volume affinity) sat `Pending` indefinitely.
 - Ceph in `HEALTH_WARN` (1 mon + 2 OSDs down) for as long as the cordon stood.
 
-This blocked TUPPR's own health-check (`CephCluster.status.ceph.health == 'HEALTH_OK'`) from passing, so TUPPR refused to create another upgrade Job — a classic chicken-and-egg.
+This blocked TUPPR's own health-check (`status.ceph.health in ['HEALTH_OK']`) from passing, so TUPPR refused to create another upgrade Job — a classic chicken-and-egg.
 
 ## Cause
 

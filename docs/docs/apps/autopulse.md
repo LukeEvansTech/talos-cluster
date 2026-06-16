@@ -7,7 +7,8 @@ web UI on the internal route, no triggers/targets wired yet.
 ## Purpose
 
 - Bring autopulse online on image `v2.0.0` in a deliberately minimal config:
-  - Pod becomes `Ready`; web UI reachable at `autopulse.${SECRET_INTERNAL_DOMAIN}`.
+  - Pod becomes `Ready`; web UI reachable at `autopulse.${SECRET_DOMAIN}` and
+      `autopulse.${SECRET_INTERNAL_DOMAIN}` (both served via `envoy-internal`, internal-only).
   - SQLite database persisted on a VolSync-backed PVC (NFS + remote backups).
   - Triggers/targets intentionally omitted — integrations are added later.
 - Not in scope (for the minimal bring-up): wiring source/target integrations,

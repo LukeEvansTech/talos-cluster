@@ -4,7 +4,7 @@ The cluster uses three storage tiers, chosen per workload:
 
 - **Rook-Ceph** (`ceph-block` StorageClass) — replicated block storage for stateful workloads that
   need durability and to move between nodes.
-- **OpenEBS** (`openebs-system`) — hostpath / node-local volumes for workloads that want fast
+- **OpenEBS** (`openebs-hostpath` StorageClass) — hostpath / node-local volumes for workloads that want fast
   node-local storage and tolerate being pinned to a node.
 - **NFS** (TrueNAS) — bulk storage (media, etc.) and a backup target.
 
@@ -18,6 +18,6 @@ The cluster uses three storage tiers, chosen per workload:
 
 ## Backups
 
-PVC backups are handled by VolSync (Kopia) to NFS and a remote target — see
+PVC backups are handled by VolSync — Kopia to NFS, Restic to a remote (R2) target — see
 [Backups](../operations/backups.md) and the
 [VolSync / Kopia migration](../migrations/volsync-kopia.md).

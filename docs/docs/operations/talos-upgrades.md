@@ -114,20 +114,27 @@ kubectl get pods -n <namespace> | grep <replicationsource-name>
 # Watch system-upgrade pods
 kubectl get pods -n system-upgrade -w
 
-# Check upgrade logs
-kubectl logs -n system-upgrade -l upgrade.cattle.io/plan=talos -f
+# Check tuppr upgrade jobs
+kubectl get jobs -n system-upgrade
+
+# Check tuppr controller logs
+kubectl logs -n system-upgrade -l app.kubernetes.io/name=tuppr -f
 
 # Check node versions
 kubectl get nodes -o custom-columns=NAME:.metadata.name,VERSION:.status.nodeInfo.kubeletVersion,OS:.status.nodeInfo.osImage
 ```
 
-## Forcing Upgrade (Use with Caution)
+## Bypassing a Blocked Upgrade (Use with Caution)
 
-If you need to bypass health checks temporarily, you can modify the plan policy:
+Tuppr's `TalosUpgrade` spec does not have a `force` field. To bypass a blocked upgrade, address the blocking condition directly or use `talosctl` to upgrade a node out-of-band:
 
-```yaml
-policy:
-    force: true # Bypasses health checks - use with caution!
-```
+1. **Fix the blocking condition** — archive Ceph crash reports, wait for VolSync to finish, or resolve the health check failure.
+2. **Manual per-node upgrade** — bypasses tuppr entirely:
 
-This is **not recommended** for production use as it may cause data loss or service disruption.
+   ```bash
+   talosctl upgrade --nodes <node-ip> --image <talos-installer-image>:<version> --timeout=10m
+   ```
+
+   Replace `<node-ip>` and `<version>` with the target node address and Talos version from `talos/talconfig.yaml`.
+
+This is **not recommended** for production use unless the cluster health is understood. Always resolve the underlying issue before proceeding.

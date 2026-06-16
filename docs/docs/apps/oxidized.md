@@ -23,37 +23,43 @@ GUI/SSH edits) that bypass the IaC.
 
 ## Design decisions
 
-- **bjw-s `app-template` single pod, two containers + two init containers.** The `app` container runs
+- **bjw-s `app-template` single pod, two containers + one init container.** The `app` container runs
   Oxidized (REST on `:8888`); a sidecar exporter scrapes Oxidized's `/nodes.json` and exposes
-  per-device last-success metrics on `:8080`. Two init containers stage secrets onto memory-backed
-  `emptyDir`s before the app starts.
-- **The device inventory/lookup table (`router.db`) and device credentials are templated INSIDE the
-  ExternalSecret `target.template.data` block and mounted from the rendered Secret — NEVER rendered
-  into a ConfigMap in git.** This is the repository-wide rule for any device address or credential
-  table. In this app it is realised as:
-  - The ConfigMap holds only a `router.db` *template* with `${VAR}` placeholders (no real addresses or
-    credentials).
-  - An init container reads that template and runs `envsubst` against env vars sourced from the
-    ExternalSecret-built Secret, writing the rendered `router.db` to a `tmpfs` `emptyDir` (memory).
-  - The main container mounts that `tmpfs` read-only. Net effect: device credentials never land on the
-    Ceph PVC and never appear in the ConfigMap or in git.
-  - Flux `postBuild` leaves the device `${VAR}` placeholders literal because they don't exist in
-    `cluster-secrets` (only `${SECRET_DOMAIN}` is substituted at apply time); the init container does
-    the real substitution at boot.
+  per-device last-success metrics on `:8080`. One init container (`ssh-setup`) stages the SSH deploy
+  key onto a memory-backed `emptyDir` before the app starts.
+- **The device inventory/lookup table (`router.db`) and device credentials are rendered INSIDE the
+  ExternalSecret `target.template.data` block using Golang template syntax (`{{ .VAR }}`), then
+  mounted directly from the rendered Secret — NEVER stored in a ConfigMap in git.** This is the
+  repository-wide rule for any device address or credential table. In this app it is realised as:
+  - The ExternalSecret renders `router.db` inline in its `target.template.data` block, substituting
+    per-device hostnames, usernames, and passwords from the 1Password item using `{{ .VAR }}`
+    Golang template syntax.
+  - The rendered `router.db` is mounted directly from the Secret (`type: secret`, name:
+    `oxidized-secret`) at `/etc/oxidized/router.db.d/router.db` as a read-only file. Net effect:
+    device credentials never land on the Ceph PVC and never appear in git.
+  - The ConfigMap holds only the Oxidized YAML config (not a `router.db` template). There is no
+    `envsubst` init container for `router.db`.
 - **Secrets flow 1Password → ExternalSecret → Secret.** A single 1Password item (in the `Talos` vault,
   the only vault the cluster's `ClusterSecretStore` reads) carries per-device username/password pairs,
   the GitHub deploy key, the `known_hosts` line, and the notification provider token/user key.
-- **Secrets only on tmpfs.** The SSH deploy key is written by an init container to a memory-backed
-  `emptyDir` (`~/.ssh`), and the rendered `router.db` lives on another. The Ceph PVC holds only
-  Oxidized state and the bare Git repo.
-- **Push target is a private GitHub repo over SSH.** Oxidized's `githubrepo` hook pushes on
-  `post_store` using a dedicated write-scoped ed25519 deploy key. The repo stays private — even after
+- **SSH key only on tmpfs.** The SSH deploy key is written by the `ssh-setup` init container to a
+  memory-backed `emptyDir` (`~/.ssh`). The Ceph PVC holds only Oxidized state and the bare Git
+  repo.
+- **Push target is a private GitHub repo over SSH.** An `exec` hook (not the `githubrepo` hook)
+  fires on `post_store` and runs system git over SSH using the ed25519 deploy key staged by the init
+  container. The `githubrepo` hook (rugged/libgit2) was abandoned because it fails against current
+  GitHub with `Rugged::SshError: remote rejected authentication`. The repo stays private — even after
   secret stripping, configs may carry topology/address detail.
 - **Notifications are split.** Drift and poll-failure events fire a direct `exec` hook to the push
   notification provider; longer-horizon staleness is alerted through the existing
   kube-prometheus-stack → Alertmanager route.
-- **Hardened containers.** All containers run `runAsNonRoot` (uid/gid `30000`),
-  `readOnlyRootFilesystem`, drop all capabilities, and use `seccompProfile: RuntimeDefault`.
+- **Partially hardened containers.** The init container (`ssh-setup`) and the `exporter` sidecar
+  run as uid/gid `30000` with `runAsNonRoot: true`, `readOnlyRootFilesystem: true`, all capabilities
+  dropped, and `seccompProfile: RuntimeDefault`. The main `app` container must start as root
+  (`runAsUser: 0`, `runAsNonRoot: false`, `readOnlyRootFilesystem: false`) because the oxidized image
+  bootstraps via runit/runsvdir before using `gosu` to drop to uid `30000` at runtime; it is granted
+  the minimal capabilities needed for that handover (`CHOWN`, `SETUID`, `SETGID`) and all others are
+  dropped.
 - **Backups + routing.** The state PVC is `ceph-block` (RWO) and snapshotted by the VolSync component
   (`VOLSYNC_CAPACITY: 1Gi`). The UI is reached via an internal `HTTPRoute` on `envoy-internal`
   (`oxidized.${SECRET_DOMAIN}`). Both images are Renovate-tracked and digest-pinned.
@@ -65,25 +71,26 @@ GUI/SSH edits) that bypass the IaC.
   must agree exactly or every device parses wrong.
 - **Per-device, not shared, credentials.** Some device roles that look like a matched pair (e.g. two
   switches) have *separate* credentials in 1Password. Don't collapse them into one
-  username/password — split into per-device secret keys, and make sure the ExternalSecret template,
-  init-container env vars, and `router.db` template all use the same per-device key names.
-- **Init-container ordering and mounts.** The key-staging init writes to one memory `emptyDir`; the
-  `router.db` render init writes to another; the app mounts both read-only. A failed first init is
-  usually a malformed deploy key; a failed render init is usually a missing env var, i.e. the
-  ExternalSecret hasn't synced yet (`SecretSynced` vs `SecretSyncError`).
+  username/password — split into per-device secret keys, and make sure the ExternalSecret template
+  and `router.db` rendering all use the same per-device key names.
+- **Init-container and Secret mount.** The `ssh-setup` init writes the deploy key to a memory
+  `emptyDir`; `router.db` is mounted directly from the rendered Secret. A failed init is usually a
+  malformed deploy key; if `router.db` is missing or empty, the ExternalSecret hasn't synced yet
+  (check `SecretSynced` vs `SecretSyncError`).
 - **`rest: 0.0.0.0:8888` is required.** Without the REST listener the HTTPRoute, the exporter
   (`-U http://localhost:8888`), and the readiness probe (`/nodes.json`) all have nothing to talk to.
 - **Pin image digests and confirm the exporter tag exists.** Pin all four images
-  (Oxidized, exporter, and the two init base images) to `@sha256:` digests. The exporter's "latest"
+  (Oxidized, exporter, and the init base image) to `@sha256:` digests. The exporter's "latest"
   release tag on the registry may lag its GitHub release — pull the digest for a tag that actually
   has a published image, or Renovate can't track it.
 - **Confirm the AP-controller model string before first poll.** The correct Oxidized model name
   depends on the controller's product variant; an unverified guess just makes that one device's polls
-  fail. Fixing it is a one-line `router.db` template edit + ConfigMap redeploy.
+  fail. Fixing it is a one-line edit to the `router.db` entry in the ExternalSecret template, then
+  waiting for the Secret to re-sync.
 - **Reachability + DNS are preconditions.** The pod must be able to reach each device on SSH (and HTTPS
   where used), reach `github.com:22` and the notification API, and resolve the internal hostnames. A
   blocked path is almost always a missing firewall rule from the cluster pod CIDR to the device VLAN;
-  if internal DNS doesn't resolve for the pod, fall back to addresses in the rendered `router.db`.
+  if internal DNS doesn't resolve for the pod, fall back to IP addresses in `router.db`.
 - **Notification token vs user key.** The push provider needs a per-application token (created in the
   provider's UI, not via API) *and* a user key — swapping the two yields silent non-delivery while Git
   commits still succeed.
@@ -111,6 +118,7 @@ GUI/SSH edits) that bypass the IaC.
   from the GitHub backup repo — the remote history is durable and a redeploy picks up where it left
   off. Uninstall is `just kube delete-ks observability oxidized` (+ optional PVC delete); the 1Password
   item and GitHub repo persist for clean redeploy.
-- **Restart after ConfigMap-only changes.** Editing the Oxidized config or `router.db` template in the
-  ConfigMap does not roll the pod automatically — re-apply the Kustomization or restart the deployment
-  so the new content is picked up.
+- **Restart after ConfigMap-only changes.** Editing the Oxidized config in the ConfigMap does not roll
+  the pod automatically — re-apply the Kustomization or restart the deployment so the new content is
+  picked up. Changes to `router.db` require updating the ExternalSecret template and waiting for the
+  Secret to re-sync (or force-syncing via `just kube sync-es`).

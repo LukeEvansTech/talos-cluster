@@ -52,7 +52,8 @@ If status shows `Synced: True`, the secret is successfully pushed to 1Password.
 
 ### Option 2: Downgrade 1Password Connect
 
-Downgrade to the last known working version:
+Downgrade to the last known working version by pinning the image repositories in the HelmRelease
+and the chart version via the OCIRepository tag:
 
 ```yaml
 # kubernetes/apps/external-secrets/onepassword-connect/app/helmrelease.yaml
@@ -60,14 +61,20 @@ spec:
   values:
     connect:
       api:
-        image:
-          repository: ghcr.io/1password/connect-api
-          tag: 1.15.0
+        imageRepository: ghcr.io/1password/connect-api
       sync:
-        image:
-          repository: ghcr.io/1password/connect-sync
-          tag: 1.15.0
+        imageRepository: ghcr.io/1password/connect-sync
 ```
+
+```yaml
+# kubernetes/apps/external-secrets/onepassword-connect/app/ocirepository.yaml
+spec:
+  ref:
+    tag: <chart-version-that-bundles-connect-1.15.0>
+```
+
+The image tag is controlled by the chart version pinned in the OCIRepository `ref.tag`, not by a
+separate `image.tag` field in the HelmRelease values.
 
 ### Option 3: Restart 1Password Connect periodically
 
