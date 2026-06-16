@@ -47,8 +47,8 @@ Two Gateway instances configured:
 
 | Gateway        | IP         | Type     | Purpose                |
 | -------------- | ---------- | -------- | ---------------------- |
-| envoy-external | 10.32.8.89 | external | Public-facing services |
-| envoy-internal | 10.32.8.90 | internal | Internal-only services |
+| envoy-external | <lb-ip> | external | Public-facing services |
+| envoy-internal | <lb-ip-2> | internal | Internal-only services |
 
 **Features Enabled:**
 
@@ -63,16 +63,16 @@ Two Gateway instances configured:
 
 **Current Allocation (Phased Migration):**
 
-- nginx external: `10.32.8.88` (existing)
-- nginx internal: `10.32.8.87` (existing)
-- **Envoy external: `10.32.8.89`** (new)
-- **Envoy internal: `10.32.8.90`** (new)
+- nginx external: `<envoy-external-ip>` (existing)
+- nginx internal: `<envoy-internal-ip>` (existing)
+- **Envoy external: `<lb-ip>`** (new)
+- **Envoy internal: `<lb-ip-2>`** (new)
 
 **Post-Migration Plan:**
 When ready to decommission nginx, update Envoy Gateway IPs to:
 
-- Envoy external: `10.32.8.88`
-- Envoy internal: `10.32.8.87`
+- Envoy external: `<envoy-external-ip>`
+- Envoy internal: `<envoy-internal-ip>`
 
 ## Migrating Applications to Envoy Gateway
 
@@ -402,7 +402,7 @@ kubectl logs -n envoy-gateway-system -l gateway.envoyproxy.io/owning-gateway-nam
 1. **Phase 1 (Current):** Run both nginx and Envoy Gateway in parallel
 2. **Phase 2:** Migrate 1-2 applications per day to HTTPRoutes
 3. **Phase 3:** Once all apps migrated and stable for 1 week:
-    - Update Envoy Gateway IPs to 10.32.8.88/87
+    - Update Envoy Gateway IPs to <envoy-external-ip>/87
     - Remove nginx ingress controllers
     - Clean up old Ingress resources
 

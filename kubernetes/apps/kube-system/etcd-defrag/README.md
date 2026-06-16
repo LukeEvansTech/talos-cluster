@@ -70,15 +70,15 @@ To defragment immediately without waiting for the CronJob:
 
 ```bash
 # Check current status
-talosctl -n 10.32.8.80,10.32.8.81,10.32.8.82 service etcd status
+talosctl -n <node1-ip>,<node2-ip>,<node3-ip> service etcd status
 
 # Defragment each node sequentially
-talosctl -n 10.32.8.80 service etcd defragment  # cr-talos-01
-talosctl -n 10.32.8.81 service etcd defragment  # cr-talos-02
-talosctl -n 10.32.8.82 service etcd defragment  # cr-talos-03
+talosctl -n <node1-ip> service etcd defragment  # <node1>
+talosctl -n <node2-ip> service etcd defragment  # <node2>
+talosctl -n <node3-ip> service etcd defragment  # <node3>
 
 # Verify completion
-talosctl -n 10.32.8.80,10.32.8.81,10.32.8.82 service etcd status
+talosctl -n <node1-ip>,<node2-ip>,<node3-ip> service etcd status
 ```
 
 ## Monitoring
@@ -142,7 +142,7 @@ Ensure these fields exist in 1Password under the "talos" vault, item "talos":
 1. Check etcd cluster health:
 
     ```bash
-    talosctl -n 10.32.8.80 service etcd status
+    talosctl -n <node1-ip> service etcd status
     ```
 
 2. Ensure all control plane nodes are healthy

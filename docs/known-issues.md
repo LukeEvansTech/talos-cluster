@@ -167,17 +167,17 @@ playback resumes once a new TCP connection has refilled the client buffer.
 
 Ruled out (all clean under load):
 
-- NFS media read path: `cr-storage-data:/mnt/pool/media` sustains 1.5 GB/s
+- NFS media read path: `<storage-host>:/mnt/pool/media` sustains 1.5 GB/s
 - Rook-Ceph: `HEALTH_OK`, 121 pgs clean, nominal IOPS
-- Node 25G NIC (`enp1s0np0` on cr-talos-02): 25-45 Mbps egress, no errors
+- Node 25G NIC (`enp1s0np0` on <node2>): 25-45 Mbps egress, no errors
 - Cilium data plane: no drops against Apple TV flows (`cilium-dbg monitor`)
 - GPU contention with Ollama: does not affect direct-play (no transcode)
-- Switch / LAG path (MikroTik PoE → Mellanox SN2700 Po2): clean
+- Switch / LAG path (PoE access switch → core switch Po2): clean
 
 Signal captured in `ss -tni` on the Plex pod, from a privileged `kubectl debug`
 ephemeral container (netshoot + `netadmin` profile):
 
-1. Every ~6 minutes a new TCP video socket opens (`src=:32400 dst=10.32.8.108:49xxx`,
+1. Every ~6 minutes a new TCP video socket opens (`src=:32400 dst=<node-ip>:49xxx`,
    `rcvmss:1056` — the HLS 4K-segment signature) and starts direct-playing.
 2. The Apple TV Plex client drives its receive window down toward zero
    (`snd_wnd` from `~130000` to `64` to `32`) and enters **persist mode**.
@@ -194,7 +194,7 @@ ephemeral container (netshoot + `netadmin` profile):
 Key `ss -tni` fields from a dying socket (live evidence):
 
 ```text
-ESTAB 0 3034256 :32400 10.32.8.108:49359
+ESTAB 0 3034256 :32400 <node-ip>:49359
   bbr ... mss:64 pmtu:1500 cwnd:1 ssthresh:158
   bytes_sent:497577854 bytes_retrans:2380056
   retrans:1/1829 lost:133 rehash:9
@@ -231,7 +231,7 @@ pod. Requires `NET_ADMIN` in the target netns, not node-wide:
 
 ```bash
 # Find Plex PID on the node running the Plex pod
-kubectl debug node/cr-talos-02 -it --image=nicolaka/netshoot:latest --profile=sysadmin
+kubectl debug node/<node2> -it --image=nicolaka/netshoot:latest --profile=sysadmin
 # Inside the debug pod:
 PLEX_PID=$(pgrep -f "/plexmediaserver/Plex Media Server" | head -1)
 
@@ -538,8 +538,8 @@ kubectl uncordon cr-talos-XX
 Volume-pinned pods schedule back, Ceph recovers to `HEALTH_OK` within
 ~60-90 s, TUPPR's pre-flight health-check passes, TUPPR creates a fresh
 upgrade Job. **Caveat**: the same RPC-timeout failure pattern often recurs
-on the retry. For cr-talos-03 the recipe eventually worked after 1-2
-retries; for cr-talos-02 it failed 3x in a row and we fell back to Option A.
+on the retry. For <node3> the recipe eventually worked after 1-2
+retries; for <node2> it failed 3x in a row and we fell back to Option A.
 
 ### Related cleanup
 
@@ -566,7 +566,7 @@ cleaned up on pod termination; only the API-level record is stale).
 #### KEDA `nfs-scaler` flap during the rollout
 
 When the `blackbox-exporter-lan` pod gets shuffled by the drain, the
-fresh pod's blackbox probe to `cr-storage-data:2049` returns
+fresh pod's blackbox probe to `<storage-host>:2049` returns
 `probe_success=0` (with `probe_ip_addr_hash 0` — DNS resolve fails inside
 the pod even though the same lookup works from `kubectl run --image=netshoot`
 in the same namespace). This trips the

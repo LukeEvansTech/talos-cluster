@@ -15,9 +15,9 @@ cross-cutting "what lives where and how to update it" reference.
 | TrueNAS host   | node-exporter / smartctl-exporter | `kube-prometheus-stack` (`scrapeconfig.yaml`) | `${SECRET_STORAGE_SERVER}`                         | — (Docker apps on TrueNAS)             |
 | TrueNAS ZFS    | graphite bridge                   | `truenas-exporter`                            | `${SECRET_STORAGE_SERVER}`                         | — (Custom App on TrueNAS)              |
 | vCenter / ESXi | `pryorda/vmware_exporter`         | `vmware-exporter`                             | `${SECRET_VSPHERE_ENDPOINT}`                       | `vsphere-monitoring`                   |
-| OPNsense       | `AthennaMind/opnsense-exporter`   | `opnsense-exporter`                           | `host` field in item                               | `opnsense-exporter`                    |
-| MikroTik ×2    | `akpw/mktxp`                      | `mktxp`                                       | `${MIKROTIK_POE_ADDR}` / `${MIKROTIK_NONPOE_ADDR}` | `mktxp`                                |
-| Mellanox Onyx  | `prometheus/snmp_exporter`        | `snmp-exporter`                               | `${ONYX_ADDR}`                                     | — (SNMP community `cr-onyx-ro`)        |
+| Firewall       | `AthennaMind/opnsense-exporter`   | `opnsense-exporter`                           | `host` field in item                               | `opnsense-exporter`                    |
+| Switches ×2    | `akpw/mktxp`                      | `mktxp`                                       | `${MIKROTIK_POE_ADDR}` / `${MIKROTIK_NONPOE_ADDR}` | `mktxp`                                |
+| Core switch    | `prometheus/snmp_exporter`        | `snmp-exporter`                               | `${ONYX_ADDR}`                                     | — (SNMP community `<community>`)        |
 
 All of these run on **least-privilege, dedicated read-only accounts**, never an
 admin credential.
@@ -31,23 +31,23 @@ whole game:
    Host-overrides are declared in the `network-ops` repository
    (`ansible/vars/dns.yml`, applied by `ansible/playbooks/opnsense-dns.yml`) and
    served by OPNsense Unbound.
-    - `sw-main-core.core.codelooks.com` → Onyx
-    - `sw-comms-access.core.codelooks.com` → MikroTik PoE
-    - `sw-main-mgmt.core.codelooks.com` → MikroTik management
+    - `<core-switch>.${SECRET_INTERNAL_DOMAIN}` → the core switch
+    - `<access-switch>.${SECRET_INTERNAL_DOMAIN}` → the PoE access switch
+    - `<mgmt-switch>.${SECRET_INTERNAL_DOMAIN}` → the management switch
 2. **`cluster-settings`** (non-secret, Git-tracked) —
-   `kubernetes/components/global-vars/cluster-settings.yaml`. Holds the DNS names
-   the monitoring manifests reference as `${...}`: `ONYX_ADDR`,
-   `MIKROTIK_POE_ADDR`, `MIKROTIK_NONPOE_ADDR`.
+   `kubernetes/components/global-vars/cluster-settings.yaml`. Holds non-sensitive
+   `${...}` values the manifests reference (e.g. `OLLAMA_MODEL`).
 3. **`cluster-secrets`** (1Password-backed) — `SECRET_STORAGE_SERVER`,
-   `SECRET_VSPHERE_ENDPOINT`. The Git copy under `components/global-vars/` is a
-   placeholder; the real values come from the `cluster-secrets` 1Password item.
+   `SECRET_VSPHERE_ENDPOINT`, and the device DNS names `ONYX_ADDR`,
+   `MIKROTIK_POE_ADDR`, `MIKROTIK_NONPOE_ADDR` (internal hostnames kept out of
+   this public repo). Flux substitutes `${...}` from this Secret the same way; the
+   real values live in the `cluster-secrets` 1Password item (vault `Talos`).
 4. **Per-app 1Password items** (vault `Talos`, read by External Secrets via the
    `onepassword-connect` ClusterSecretStore) — the device credentials themselves.
 
 > Device **admin** credentials (used by `network-ops` to manage the devices)
-> live in the **`Home Operations`** vault (`Network-OPNsense`,
-> `Network-MikroTik-PoE`/`-NonPoE`, `Network-Onyx`). The cluster never reads
-> these; it only reads the dedicated read-only items in `Talos`.
+> live in the **`Home Operations`** vault (separate per-device admin items). The
+> cluster never reads these; it only reads the dedicated read-only items in `Talos`.
 
 ## Maintenance recipes
 
@@ -68,8 +68,11 @@ For TrueNAS / vCenter the address is a `cluster-secrets` variable instead — ed
 
 ### Change the DNS name a monitor uses
 
-Edit the relevant variable in `cluster-settings.yaml` (e.g. `ONYX_ADDR`) and open
-a pull request. Flux substitutes it into the manifests on reconcile. For
+Edit the relevant field (e.g. `ONYX_ADDR`) in the `cluster-secrets` 1Password item
+(vault `Talos`). The `cluster-secrets` ExternalSecret is replicated into every
+namespace; it refreshes within 1h, or force-sync the consuming namespace now, e.g.
+`kubectl annotate externalsecret cluster-secrets -n observability force-sync="$(date +%s)" --overwrite`.
+Flux re-substitutes it into the manifests on the next reconcile. For
 `snmp-exporter` you must then restart the pod (see Gotchas).
 
 ### Rotate a credential
@@ -139,7 +142,7 @@ Direct-scrape an SNMP target through the exporter (bypasses Prometheus):
 
 ```bash
 kubectl exec -n observability deploy/snmp-exporter -- \
-  wget -qO- 'http://localhost:9116/snmp?target=sw-main-core.core.codelooks.com&module=if_mib,entity_sensor&auth=onyx_ro'
+  wget -qO- 'http://localhost:9116/snmp?target=<core-switch>.${SECRET_INTERNAL_DOMAIN}&module=if_mib,entity_sensor&auth=<community>'
 ```
 
 ## Gotchas

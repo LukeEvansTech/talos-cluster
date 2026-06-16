@@ -24,7 +24,7 @@ cloudnative-pg/
 │   ├── podmonitor.yaml       # Prometheus metrics collection
 │   ├── prometheusrule.yaml   # 7 critical alerts
 │   ├── gatus.yaml            # TCP health checks
-│   ├── service.yaml          # LoadBalancer at 192.168.222.18
+│   ├── service.yaml          # LoadBalancer at <example-peer-ip>
 │   └── kustomization.yaml
 └── backup/                   # NFS Database Dumps
     ├── helmrelease.yaml      # Daily cronjob (2 AM)
@@ -252,7 +252,7 @@ kubectl run -it --rm psql --image=postgres:18 --restart=Never -- \
 #### External (via LoadBalancer)
 
 ```bash
-psql -h 10.32.8.91 -U postgres -d postgres
+psql -h <node-ip> -U postgres -d postgres
 # Or via DNS
 psql -h postgres18.${SECRET_DOMAIN_INT} -U postgres -d postgres
 ```
@@ -282,7 +282,7 @@ curl localhost:9187/metrics | grep cnpg
 postgres://postgres:<password>@postgres18-rw.database.svc.cluster.local:5432/postgres
 
 # Via LoadBalancer
-postgres://postgres:<password>@192.168.222.18:5432/postgres
+postgres://postgres:<password>@<example-peer-ip>:5432/postgres
 
 # Via pooler (recommended for apps)
 postgres://postgres:<password>@postgres18-pgbouncer-rw.database.svc.cluster.local:5432/postgres

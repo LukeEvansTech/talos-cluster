@@ -19,7 +19,7 @@ For APC devices (which use cryptlib SSH), use this command:
 ssh -o KexAlgorithms=+diffie-hellman-group1-sha1,diffie-hellman-group14-sha1 \
     -o HostKeyAlgorithms=+ssh-rsa \
     -o PubkeyAcceptedAlgorithms=+ssh-rsa \
-    -v apc@10.32.8.58 exit 2>&1 | grep "Server host key"
+    -v apc@<device-ip> exit 2>&1 | grep "Server host key"
 ```
 
 Example output:
@@ -36,7 +36,7 @@ Create a new item named `apc-ups-main` with these fields:
 
 | Field Name          | Example Value                               |
 | ------------------- | ------------------------------------------- |
-| APC_HOSTNAME        | 10.32.8.58                                  |
+| APC_HOSTNAME        | <device-ip>                                  |
 | APC_USERNAME        | apc                                         |
 | APC_PASSWORD        | your-password                               |
 | APC_FINGERPRINT     | 4sd7MpvwhQrOEhAIjlL5Cr2s6ml0c22KX0rxYClwbN8 |
@@ -135,7 +135,7 @@ kubectl logs -n infrastructure job/$JOB
 
 ## Your Specific Configuration
 
-For your APC device at `10.32.8.58`:
+For your APC device at `<device-ip>`:
 
 - **Fingerprint**: `4sd7MpvwhQrOEhAIjlL5Cr2s6ml0c22KX0rxYClwbN8`
 - **Insecure Cipher**: Required (set to `true`)

@@ -132,7 +132,7 @@ If TrueNAS has a firewall enabled, ensure ports 9100, 9633, and 9108 are accessi
 
 25.10's netdata emits a **reduced, custom-named** chart set, so the bridge does **not** reproduce
 the full vanilla-netdata metric set the upstream mapping + dashboards assume. Confirmed against live
-`/metrics` on `cr-storage`:
+`/metrics` on `<storage-host>`:
 
 | Area                     | Present                                             | Notes                                                                                                                                                           |
 | ------------------------ | --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |

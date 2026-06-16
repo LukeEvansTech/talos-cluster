@@ -51,7 +51,7 @@ cert-deployment/
 ### Supermicro IPMI Setup
 
 1. **Add IPMI credentials to 1Password**:
-    - Item name: `{hostname}` (e.g., `cr-storage-ipmi`)
+    - Item name: `{hostname}` (e.g., `<device-ipmi>`)
     - Fields: `IPMI_URL`, `IPMI_MODEL`, `IPMI_USERNAME`, `IPMI_PASSWORD`
 
 2. **Update ExternalSecret** in `supermicro/externalsecret.yaml`:
@@ -71,7 +71,7 @@ cert-deployment/
 4. **Configure Certwarden** (via UI):
     - Certificate → Post-Processing
     - Script: `/app/scripts/supermicro/certwarden-supermicro-deploy.sh`
-    - Environment: `SUPERMICRO_HOST={hostname}` (e.g., `cr-storage-ipmi`)
+    - Environment: `SUPERMICRO_HOST={hostname}` (e.g., `<device-ipmi>`)
 
 5. **Test**: Force certificate renewal in Certwarden UI
 
