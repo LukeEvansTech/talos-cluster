@@ -1,0 +1,89 @@
+# Zensical configuration
+# https://zensical.org/docs/
+
+[project]
+site_name = "talos-cluster"
+site_description = "Home Kubernetes cluster (Talos + Flux) — architecture, operations, and knowledge base."
+site_author = "Luke Evans"
+site_url = "https://lukeevanstech.github.io/talos-cluster/"
+copyright = "Copyright (c) 2026 Luke Evans"
+
+docs_dir = "docs"
+site_dir = "site"
+use_directory_urls = true
+dev_addr = "localhost:8000"
+
+# Repository integration
+repo_url = "https://github.com/LukeEvansTech/talos-cluster/"
+repo_name = "LukeEvansTech/talos-cluster"
+edit_uri = "edit/main/docs/docs"
+
+# Mermaid 11 from CDN (Material's built-in Mermaid bridge handles theme switching).
+extra_javascript = [
+  "https://unpkg.com/mermaid@11/dist/mermaid.min.js",
+]
+
+# Navigation
+nav = [
+  { "Home" = "index.md" },
+]
+
+[project.theme]
+name = "material"
+variant = "modern"
+language = "en"
+features = [
+  "navigation.tabs",
+  "navigation.sections",
+  "navigation.top",
+  "search.suggest",
+  "search.highlight",
+  "content.code.copy",
+  "content.tabs.link",
+]
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme: light)"
+scheme = "default"
+primary = "blue"
+accent = "light-blue"
+
+[project.theme.palette.toggle]
+icon = "material/brightness-7"
+name = "Switch to dark mode"
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme: dark)"
+scheme = "slate"
+primary = "blue"
+accent = "light-blue"
+
+[project.theme.palette.toggle]
+icon = "material/brightness-4"
+name = "Switch to light mode"
+
+[project.theme.icon]
+repo = "fontawesome/brands/github"
+
+# Markdown extensions
+[markdown_extensions]
+admonition = {}
+attr_list = {}
+md_in_html = {}
+tables = {}
+toc = { permalink = true }
+
+[markdown_extensions.pymdownx]
+details = {}
+highlight = { anchor_linenums = true, line_spans = "__span", pygments_lang_class = true }
+inlinehilite = {}
+snippets = {}
+tabbed = { alternate_style = true }
+
+# Mermaid client-side render via pymdownx.superfences custom_fence.
+# Theme bridging (light/dark) is handled by Material's Mermaid integration.
+# (No `superfences = {}` line: the table-array below implicitly defines it.)
+[[markdown_extensions.pymdownx.superfences.custom_fences]]
+name = "mermaid"
+class = "mermaid"
+format = "pymdownx.superfences.fence_code_format"
