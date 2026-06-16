@@ -67,21 +67,26 @@ Layer 2 runs the [StackLok ToolHive](https://github.com/stacklok/toolhive) opera
 separate CRDs + operator charts) in `ai`, an `MCPGroup` (`mcp-tools`), and these MCP servers, all
 wired into LiteLLM's `mcp_servers`:
 
-| Server    | Source                          | Access                              |
-| --------- | ------------------------------- | ----------------------------------- |
-| `kubectl` | kubectl-mcp-server              | cluster read-only, secrets excluded |
-| `flux`    | flux-operator-mcp               | Flux read-only (write is opt-in)    |
-| `talos`   | talos-mcp                       | Talos `os:reader` (talosconfig SA)  |
-| `searxng` | mcp-searxng → `searxng.default` | web search                          |
+| Server    | Source                          | Access                                                  |
+| --------- | ------------------------------- | ------------------------------------------------------- |
+| `kubectl` | kubectl-mcp-server              | cluster read-only, secrets excluded                     |
+| `flux`    | flux-operator-mcp               | Flux read-only (write is opt-in)                        |
+| `talos`   | talos-mcp                       | Talos `os:reader` (talosconfig SA)                      |
+| `searxng` | mcp-searxng → `searxng.default` | web search                                              |
+| `github`  | github-mcp-server               | GitHub read-only (`GITHUB_READ_ONLY`, fine-grained PAT) |
+| `grafana` | grafana/mcp-grafana             | Grafana Viewer SA token (read-only)                     |
 
 kubectl + flux share one read-only `ClusterRole` (`kubectl-mcp-readonly`) built from this cluster's
 API groups with core `secrets` omitted — keep it in sync with `kubectl api-resources` as you add
 CRDs. The talos MCP mounts a `talos.dev` `ServiceAccount`-minted `os:reader` talosconfig.
 
+The `mcp_semantic_tool_filter` is **on** (top_k 8, embeddings via the `all-minilm` model on the
+CPU `llama-embed` pod): with ~110 tools across 6 servers it trims each request to the most
+relevant tools. `github` + `grafana` are read-only — a fine-grained PAT (`toolhive-github`) and a
+Grafana Viewer service-account token (`toolhive-grafana`).
+
 Deferred (add later): the `VirtualMCPServer` aggregate + `EmbeddingServer` (a single
-`mcp.<domain>` endpoint for non-LiteLLM clients — it's what pulls in a Dragonfly + embedder),
-`github` (needs a PAT in 1Password), `grafana-mcp` (needs a grafana MCP server), and LiteLLM's
-`mcp_semantic_tool_filter` (only worth enabling past ~50 tools).
+`mcp.<domain>` endpoint for non-LiteLLM clients — it's what pulls in a Dragonfly + embedder).
 
 ### Enabling flux-mcp write access
 
