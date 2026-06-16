@@ -36,13 +36,10 @@ SELF_PATH = ".github/scripts/check_internal_identifiers.py"
 PATTERNS: dict[str, re.Pattern] = {
     "LAN IP": re.compile(r"(?<![\d.])(?:10\.32|192\.168|172\.(?:1[6-9]|2\d|3[01]))\.\d+\.\d+(?![\d.])"),
     "node name": re.compile(r"cr-talos-\d+"),
-    # site-prefixed device hostnames: cr-<word>-<word...> and sw-<word>-<word...>,
-    # excluding the cluster nodes (cr-talos-*, caught above) and substrings of
-    # longer tokens like "ghcr-auth" (the (?<![a-z0-9]) guard).
-    "device hostname": re.compile(
-        r"(?<![a-z0-9])cr-(?!talos(?:-|\b))[a-z][a-z0-9]*(?:-[a-z0-9]+)+"
-        r"|(?<![a-z0-9])sw-(?:main|comms)-[a-z0-9]+"
-    ),
+    # site-prefixed device hostnames, kept as two single-line patterns so black and
+    # ruff agree; both exclude cr-talos-* and "ghcr-auth"-style substrings.
+    "device hostname (cr)": re.compile(r"(?<![a-z0-9])cr-(?!talos(?:-|\b))[a-z][a-z0-9]*(?:-[a-z0-9]+)+"),
+    "device hostname (sw)": re.compile(r"(?<![a-z0-9])sw-(?:main|comms)-[a-z0-9]+"),
     "MAC address": re.compile(r"(?<![0-9a-fA-F:])(?:[0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}(?![0-9a-fA-F:])"),
     "internal hostname": re.compile(r"\b[a-z0-9_-]+\.(?:lan|internal)\b"),
 }
