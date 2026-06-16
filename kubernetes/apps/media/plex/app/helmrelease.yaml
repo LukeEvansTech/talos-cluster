@@ -23,7 +23,7 @@ spec:
             # crash cycle that produces ~60s buffering pauses every ~6 min.
             # 200M leaves generous headroom for several concurrent streams
             # while neutralising BBR's LAN-burst pacing.
-            # See docs/known-issues.md "Plex Direct-Play Buffering on LAN
+            # See docs/docs/troubleshooting/kb/002-plex-direct-play-buffering-bbr-mtu-probing.md "Plex Direct-Play Buffering on LAN
             # Apple TVs (BBR + MTU Probing)" for full investigation.
             kubernetes.io/egress-bandwidth: "200M"
         containers:

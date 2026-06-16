@@ -12,7 +12,7 @@
 #                                    gives friendly per-container cgroup detail truenas-zfs cannot)
 # applications_k3s was removed earlier (queries k3s_pod_* — this box runs Talos separately).
 # Pool state / scrub has no metric anywhere on the box → stays on TrueNAS-native alerting +
-# the SMART-health table. See docs/truenas-monitoring.md and the spec in dashboards/.
+# the SMART-health table. See docs/docs/operations/truenas-monitoring.md and the spec in dashboards/.
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/grafana.integreatly.org/grafanadashboard_v1beta1.json
 apiVersion: grafana.integreatly.org/v1beta1
 kind: GrafanaDashboard
