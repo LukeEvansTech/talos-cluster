@@ -1,0 +1,33 @@
+---
+# Canonical docs workflow for zensical docs repos.
+# Thin caller of LukeEvansTech/shared-workflows zensical reusable.
+# Build-only repos override `publish: false`.
+name: Docs
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "docs/**"
+      - ".github/workflows/docs.yml"
+  pull_request:
+    paths:
+      - "docs/**"
+      - ".github/workflows/docs.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  docs:
+    uses: LukeEvansTech/shared-workflows/.github/workflows/zensical.yml@c0a84f2a9f307fdfa394681ab5ff30f7de78b702 # v1
+    with:
+      publish: ${{ github.event_name != 'pull_request' }}
