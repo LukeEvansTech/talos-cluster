@@ -1,5 +1,8 @@
 # Volsync Kopia Migration Guide
 
+!!! note "Completed migration"
+    This page is a record of a migration that is already complete. The steps below are preserved as history; some current-state paths, names, and commands have since drifted. Commands and paths flagged in review are corrected inline — see the Architecture and Operations sections for the present-day setup.
+
 ## Overview
 
 This guide documents the migration from restic to kopia as the backup backend for volsync in the Talos cluster. The migration was completed on 2025-10-29 and affects all 35+ applications using persistent volume backups.
@@ -21,7 +24,7 @@ This guide documents the migration from restic to kopia as the backup backend fo
 **Changes:**
 
 - Switched from official volsync chart to perfectra1n fork
-- Changed from OCIRepository to HelmRepository source
+- Source is an OCIRepository (not HelmRepository — this was an intermediate step; the current state uses an OCIRepository mirrored via home-operations)
 - Updated to version with kopia CRDs (v0.16.13+)
 
 **Before (restic):**
@@ -36,34 +39,26 @@ spec:
                 name: volsync
 ```
 
-**After (kopia):**
-
-```yaml
-spec:
-    chart:
-        spec:
-            chart: volsync
-            version: ">=0.16.0"
-            sourceRef:
-                kind: HelmRepository
-                name: volsync-perfectra1n # New helm repository
-```
-
-**helmrepository.yaml:**
+**After (kopia, current state):**
 
 ```yaml
 apiVersion: source.toolkit.fluxcd.io/v1
-kind: HelmRepository
+kind: OCIRepository
 metadata:
-    name: volsync-perfectra1n
+    name: volsync
 spec:
-    interval: 1h
-    url: https://perfectra1n.github.io/volsync/charts
+    interval: 15m
+    layerSelector:
+        mediaType: application/vnd.cncf.helm.chart.content.v1.tar+gzip
+        operation: copy
+    ref:
+        tag: 0.18.5
+    url: oci://ghcr.io/home-operations/charts-mirror/volsync-perfectra1n
 ```
 
 ### 2. Kopia Server Deployment
 
-**Location:** `kubernetes/apps/volsync-system/kopia-nfs/`
+**Location:** `kubernetes/apps/volsync-system/kopia/`
 
 Deployed kopia server with web UI for NFS repository management:
 
@@ -73,7 +68,7 @@ Deployed kopia server with web UI for NFS repository management:
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
-    name: kopia-nfs
+    name: kopia
 spec:
     chartRef:
         kind: OCIRepository
@@ -85,13 +80,13 @@ spec:
                     app:
                         image:
                             repository: ghcr.io/home-operations/kopia
-                            tag: 0.21.1
+                            tag: 0.23.1
                         env:
                             KOPIA_WEB_ENABLED: true
                             KOPIA_WEB_PORT: 80
                         envFrom:
                             - secretRef:
-                                  name: kopia-nfs-secret
+                                  name: kopia-secret
                         args:
                             - --without-password # Passwordless web UI
         configMaps:
@@ -131,19 +126,17 @@ spec:
 
 **Web UI Access:**
 
-- **URL**: `kopianfs.${SECRET_DOMAIN}` (configured via HTTPRoute)
-- **DNSEndpoint**: Automatic DNS record via external-dns
+- **URL**: `kopia.${SECRET_DOMAIN}` (routing defined inline in helmrelease.yaml)
 - **Gateway**: Routes through envoy-internal
 
 **Structure:**
 
 ```text
-kopia-nfs/
+kopia/
 ├── app/
-│   ├── dnsendpoint.yaml      # DNS record for kopianfs.domain
 │   ├── externalsecret.yaml   # Pulls KOPIA_PASSWORD from 1Password
-│   ├── helmrelease.yaml      # Kopia server deployment
-│   ├── httproute.yaml        # HTTPRoute for web UI access
+│   ├── gatus.yaml            # Health check probe
+│   ├── helmrelease.yaml      # Kopia server deployment (route inline)
 │   ├── kustomization.yaml
 │   └── ocirepository.yaml    # app-template chart reference
 └── ks.yaml                    # Flux Kustomization
@@ -161,15 +154,18 @@ Converted from restic to kopia backend:
 spec:
     sourcePVC: ${APP}
     trigger:
-        schedule: 0 * * * * # Hourly backups
+        schedule: 0 */4 * * * # Every 4 hours
     kopia: # Changed from 'restic:' to 'kopia:'
         compression: zstd-fastest
         copyMethod: ${VOLSYNC_COPYMETHOD:=Snapshot}
         parallelism: 2
         repository: ${APP}-volsync-nfs-secret
         retain:
-            hourly: 24
-            daily: 7
+            hourly: 168
+            daily: 90
+            weekly: 52
+            monthly: 24
+            yearly: 10
         volumeSnapshotClassName: ${VOLSYNC_SNAPSHOTCLASS:=csi-ceph-blockpool}
 ```
 
@@ -208,16 +204,16 @@ spec:
 
 ```mermaid
 flowchart TB
-    A["35+ Apps<br/>(PVCs)"] -->|hourly| B["Kopia/Volsync<br/>(snapshots)"]
+    A["35+ Apps<br/>(PVCs)"] -->|every 4h| B["Kopia/Volsync<br/>(snapshots)"]
     B --> C["NFS Storage<br/>/repository"]
     C -->|nightly| D["TrueNAS → R2<br/>(offsite)"]
 ```
 
 **Backup Flow:**
 
-1. **Hourly**: Apps → Kopia snapshots → NFS
+1. **Every 4 hours**: Apps → Kopia snapshots → NFS
 2. **Nightly**: TrueNAS backs up NFS dataset to R2
-3. **Retention**: 24 hourly, 7 daily snapshots
+3. **Retention**: 168 hourly, 90 daily, 52 weekly, 24 monthly, 10 yearly snapshots
 
 **Previous Strategy (abandoned during migration):**
 
@@ -229,28 +225,33 @@ flowchart TB
 
 ### Step 1: Update Volsync to Kopia-Enabled Fork
 
-1. Created HelmRepository for perfectra1n fork:
+1. Created OCIRepository for perfectra1n fork (mirrored via home-operations):
 
 ```yaml
-# kubernetes/apps/volsync-system/volsync/app/helmrepository.yaml
+# kubernetes/apps/volsync-system/volsync/app/ocirepository.yaml
 apiVersion: source.toolkit.fluxcd.io/v1
-kind: HelmRepository
+kind: OCIRepository
 metadata:
-    name: volsync-perfectra1n
+    name: volsync
 spec:
-    interval: 1h
-    url: https://perfectra1n.github.io/volsync/charts
+    interval: 15m
+    layerSelector:
+        mediaType: application/vnd.cncf.helm.chart.content.v1.tar+gzip
+        operation: copy
+    ref:
+        tag: 0.18.5
+    url: oci://ghcr.io/home-operations/charts-mirror/volsync-perfectra1n
 ```
 
-2. Updated HelmRelease to use new repository:
+1. Updated HelmRelease to use new OCIRepository:
 
 ```yaml
 spec:
     chart:
         spec:
             sourceRef:
-                kind: HelmRepository
-                name: volsync-perfectra1n
+                kind: OCIRepository
+                name: volsync
     values:
         fullnameOverride: volsync
         image: &image
@@ -260,23 +261,21 @@ spec:
         manageCRDs: true
 ```
 
-3. Disabled KopiaMaintenance (unstable):
+1. KopiaMaintenance was initially disabled (unstable), then enabled — now live:
 
 ```yaml
-# kubernetes/apps/volsync-system/volsync/app/kustomization.yaml
-resources:
-    - ./helmrepository.yaml
-    - ./helmrelease.yaml
-    # Maintenance disabled until KopiaMaintenance CRD is stable
-    # - ../maintenance
+# kubernetes/apps/volsync-system/volsync/ks.yaml
+# The volsync-maintenance Kustomization is active and points to ./maintenance
+# kubernetes/apps/volsync-system/volsync/maintenance/kopiamaintenance.yaml
+# spec.enabled: true, trigger.schedule: 30 */4 * * *
 ```
 
 ### Step 2: Deploy Kopia Server
 
-1. Created kopia-nfs application structure
-2. Configured repository.config with consistent identity
-3. Added HTTPRoute and DNSEndpoint for web UI
-4. Applied configuration:
+1. Created kopia application structure
+1. Configured repository.config with consistent identity
+1. Added route inline in helmrelease.yaml for web UI
+1. Applied configuration:
 
 ```bash
 flux reconcile kustomization cluster-apps --with-source
@@ -296,14 +295,14 @@ flux reconcile kustomization cluster-apps --with-source
 kubectl get replicationsource -A | grep nfs
 ```
 
-2. Verify first backups completed:
+1. Verify first backups completed:
 
 ```bash
 kubectl get replicationsource smokeping-nfs -n default -o yaml
 ```
 
-3. Access web UI at `kopianfs.${SECRET_DOMAIN}`
-4. Use "All Snapshots" dropdown to view all app snapshots
+1. Access web UI at `kopia.${SECRET_DOMAIN}`
+1. Use "All Snapshots" dropdown to view all app snapshots
 
 ## Key Differences: Restic vs Kopia
 
@@ -315,13 +314,13 @@ kubectl get replicationsource smokeping-nfs -n default -o yaml
 | **Identity**              | Per-app                                | Configurable via repository.config   |
 | **CRD Field**             | `spec.restic:`                         | `spec.kopia:`                        |
 | **Restore**               | Direct PVC reference                   | Requires `sourceIdentity.sourceName` |
-| **Maintenance**           | Manual                                 | KopiaMaintenance CRD (when stable)   |
+| **Maintenance**           | Manual                                 | KopiaMaintenance CRD (live, every 4h)|
 
 ## Web UI Usage
 
 ### Accessing the Web UI
 
-Navigate to `kopianfs.${SECRET_DOMAIN}` in your browser.
+Navigate to `kopia.${SECRET_DOMAIN}` in your browser.
 
 ### Viewing All Snapshots
 
@@ -363,18 +362,18 @@ The **Repository** tab shows:
 
 ### HTTPRoute Returns 500 Error
 
-**Symptom**: `kopianfs.${SECRET_DOMAIN}` returns HTTP 500
+**Symptom**: `kopia.${SECRET_DOMAIN}` returns HTTP 500
 
 **Cause**: Service name mismatch between HTTPRoute backend and actual service
 
 **Fix**: Ensure HTTPRoute references correct service:
 
 ```yaml
-# httproute.yaml
+# helmrelease.yaml route: block
 spec:
     rules:
         - backendRefs:
-              - name: kopia-nfs # Must match service name from app-template
+              - name: kopia # Must match service name from app-template
                 port: 80
 ```
 
@@ -412,28 +411,28 @@ kubectl logs -n {namespace} -l volsync.backube/replicationSource={app}-nfs
 ### List All Snapshots
 
 ```bash
-kubectl exec -n volsync-system deployment/kopia-nfs -- \
+kubectl exec -n volsync-system deployment/kopia -- \
   kopia snapshot list --all
 ```
 
 ### View Specific App Snapshots
 
 ```bash
-kubectl exec -n volsync-system deployment/kopia-nfs -- \
+kubectl exec -n volsync-system deployment/kopia -- \
   kopia snapshot list actual-nfs@default
 ```
 
 ### Repository Status
 
 ```bash
-kubectl exec -n volsync-system deployment/kopia-nfs -- \
+kubectl exec -n volsync-system deployment/kopia -- \
   kopia repository status
 ```
 
 ### Restore Snapshot (Manual)
 
 ```bash
-kubectl exec -n volsync-system deployment/kopia-nfs -- \
+kubectl exec -n volsync-system deployment/kopia -- \
   kopia snapshot restore k{snapshot-id} /restore-path
 ```
 
@@ -445,7 +444,7 @@ The migration reuses the existing `volsync-template` secret in 1Password:
 
 - `KOPIA_PASSWORD`: Repository encryption password
 
-**Note**: The same password is used for both backup operations and the kopia-nfs server to connect to the repository.
+**Note**: The same password is used for both backup operations and the kopia server to connect to the repository.
 
 ## Post-Migration Status
 
@@ -453,7 +452,7 @@ The migration reuses the existing `volsync-template` secret in 1Password:
 
 **volsync-system namespace**:
 
-- 1 × kopia-nfs deployment (web UI server)
+- 1 × kopia deployment (web UI server)
 - 2 × volsync controller replicas
 - 35+ × volsync-nfs-secret (one per app)
 
@@ -467,8 +466,8 @@ The migration reuses the existing `volsync-template` secret in 1Password:
 
 - **Total applications**: 35+
 - **Namespaces**: default, media, downloads, ai, games, infrastructure
-- **Backup frequency**: Hourly (0 \* \* \* \*)
-- **Retention**: 24 hourly, 7 daily, plus weekly/monthly/annual
+- **Backup frequency**: Every 4 hours (0 \*/4 \* \* \*)
+- **Retention**: 168 hourly, 90 daily, 52 weekly, 24 monthly, 10 yearly
 - **Repository size**: Tracked in web UI (Repository tab)
 
 ### Commits
@@ -484,22 +483,24 @@ bc773e4e - fix(volsync): correct service name in kopia-nfs HTTPRoute
 
 ## Future Enhancements
 
-### Re-enable KopiaMaintenance
+### KopiaMaintenance (completed)
 
-Once the perfectra1n fork stabilizes the KopiaMaintenance CRD:
+KopiaMaintenance is now live. The `volsync-maintenance` Flux Kustomization is active in
+`kubernetes/apps/volsync-system/volsync/ks.yaml` and points to the maintenance path:
 
 ```yaml
-# kubernetes/apps/volsync-system/volsync/maintenance/kopiamaintenance-nfs.yaml
+# kubernetes/apps/volsync-system/volsync/maintenance/kopiamaintenance.yaml
 apiVersion: volsync.backube/v1alpha1
 kind: KopiaMaintenance
 metadata:
-    name: kopia-nfs-maintenance
+    name: daily
+    namespace: volsync-system
 spec:
-    repository: kopia-nfs-secret
-    schedule: "0 2 * * *" # 2 AM daily
-    operations:
-        - full
-        - quick
+    enabled: true
+    trigger:
+        schedule: 30 */4 * * *
+    repository:
+        repository: volsync-maintenance-secret
 ```
 
 ### Monitoring Integration

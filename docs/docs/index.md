@@ -1,4 +1,4 @@
-# talos-cluster
+# Talos Cluster
 
 > A single-tenant **home Kubernetes cluster** built on Talos Linux and managed entirely by GitOps
 > (Flux). This site is the knowledge base for how it works, how to operate it, and the gotchas worth

@@ -2,7 +2,7 @@
 # https://zensical.org/docs/
 
 [project]
-site_name = "talos-cluster"
+site_name = "Talos Cluster"
 site_description = "Home Kubernetes cluster (Talos + Flux) — architecture, operations, and knowledge base."
 site_author = "Luke Evans"
 site_url = "https://lukeevanstech.github.io/talos-cluster/"

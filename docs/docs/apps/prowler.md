@@ -21,7 +21,7 @@ Kubernetes cluster, with a queryable findings dashboard.
 
 - **Three HelmReleases under `security/prowler/`** plus one for DozerDB under
   `database/dozerdb/`:
-  - `prowler-app` — one Deployment with **two containers**, `api` (gunicorn) and
+  - `prowler-api` — one Deployment with **two containers**, `api` (gunicorn) and
     `worker` (celery), sharing an `emptyDir` at `/tmp/prowler_api_output`, plus an
     `init-db` initContainer that bootstraps the database and role.
   - `prowler-ui` — the Next.js frontend (NextAuth lives here).
@@ -49,13 +49,16 @@ Kubernetes cluster, with a queryable findings dashboard.
 
 ## Deploy gotchas
 
-- **The mode arg is baked into the image ENTRYPOINT.** The same `prowler-api` image
-  becomes API, worker, or beat depending on the container `args`:
-  - no args → the default entrypoint runs `migrate` + `pgpartition` + gunicorn
-  - `args: ["worker"]` → celery worker across all queues
-  - `args: ["beat"]` → celery beat
-  Do not try to override the command to inject a mode flag elsewhere — pass it as the
-  positional arg the entrypoint expects.
+- **The mode arg is baked into the image ENTRYPOINT, but both `command` and `args`
+  must be overridden.** The same `prowler-api` image becomes API, worker, or beat
+  depending on how the container is launched:
+  - no overrides → the default entrypoint (`../docker-entrypoint.sh prod`) runs
+    `migrate` + `pgpartition` + gunicorn
+  - `command: ["../docker-entrypoint.sh"], args: ["worker"]` → celery worker across all queues
+  - `command: ["../docker-entrypoint.sh"], args: ["beat"]` → celery beat
+  The `command` override is required. Without it, `args: ["worker"]` is appended to
+  the image's hardcoded `["../docker-entrypoint.sh", "prod"]`, yielding `prod worker`,
+  which still runs gunicorn and causes a port 8080 collision with the API container.
 - **`NEO4J_AUTH` cannot contain a `/`.** The value is `neo4j/<password>` and DozerDB
   parses it by splitting on the first `/`, so a generated password containing `/`
   silently corrupts the credential. Generate the DozerDB password without `/` (or
@@ -74,11 +77,11 @@ Kubernetes cluster, with a queryable findings dashboard.
   worker per CPU core, which on a multi-core node far exceeds the container memory
   limit and OOMKills the API. Pin the worker count explicitly to a small value so
   memory stays within the request/limit.
-- **Service `nameOverride`.** The UI's `API_BASE_URL` and Django's `ALLOWED_HOSTS`
-  expect the API Service to resolve as `prowler-api`, but app-template names the
-  Service after the HelmRelease (`prowler-app`). Override the Service name to
-  `prowler-api`; if the chart version does not honor it, rename the HelmRelease to
-  `prowler-api` instead.
+- **Service `nameOverride` (resolved by renaming the HelmRelease).** The UI's
+  `API_BASE_URL` and Django's `ALLOWED_HOSTS` require the API Service to resolve as
+  `prowler-api`. app-template names the Service after the HelmRelease, so the
+  HelmRelease was renamed to `prowler-api` (rather than relying on a `nameOverride`
+  that not all chart versions honour) to ensure the Service name matches.
 - **celery beat is a singleton.** Run exactly one `prowler-beat` replica with a
   `Recreate` strategy — two beat instances cause duplicate task scheduling.
 

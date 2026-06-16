@@ -16,8 +16,8 @@ and its `existingSecret` contract are already modelled by the upstream chart.
 
 - **Namespace** `default`, modelled on the in-repo `paperless` app (its closest twin).
 - **PostgreSQL** — shared CNPG cluster (`postgres18-rw.database.svc.cluster.local`, `sslmode=require`);
-  bundled Postgres disabled. A `postgres-init` initContainer creates the `netbox` role + database
-  using the CNPG superuser before first boot.
+  bundled Postgres disabled. An `init-db` initContainer (using the `postgres-init` image) creates
+  the `netbox` role + database using the CNPG superuser before first boot.
 - **Redis** — external **Dragonfly** (`dragonfly.database.svc.cluster.local:6379`); the chart's
   bundled cache (`valkey.enabled`) is disabled. Separate logical DB indices for the tasks queue
   (`0`) vs the cache (`1`).
@@ -34,12 +34,12 @@ and its `existingSecret` contract are already modelled by the upstream chart.
   references (global `existingSecret`, `superuser.existingSecret`, `externalDatabase` /
   `tasksDatabase` / `cachingDatabase` `existingSecretName`) point at the single `netbox-secret`, so
   that Secret must contain every key the chart projects, spelled exactly as the chart expects:
-    - `secret_key`, `email-password` (the chart's projected `secrets` volume **requires the key to
-      exist** even when email is unused — set it to an empty string).
-    - `password` and `api_token` (superuser).
-    - `db_password` (the value of `externalDatabase.existingSecretKey`).
-    - `tasks_password` and `cache_password` (the Dragonfly tasks/caching DB keys).
-  - These mismatches do **not** show up in `flate`/`flux-local` render or CI — the manifest is
+  - `secret_key`, `email_password` (the chart's projected `secrets` volume **requires the key to
+    exist** even when email is unused — set it to an empty string).
+  - `password` and `api_token` (superuser).
+  - `db_password` (the value of `externalDatabase.existingSecretKey`).
+  - `tasks_password` and `cache_password` (the Dragonfly tasks/caching DB keys).
+- These mismatches do **not** show up in `flate`/`flux-local` render or CI — the manifest is
     valid. They only fail at runtime as pod `FailedMount` (`references non-existent secret key`) or
     `CreateContainerConfigError` (`couldn't find key …`). Before wiring the ExternalSecret, render
     the chart and grep the output for every `secretKeyRef` `key:` and projected-volume `items[].key`:
@@ -56,8 +56,9 @@ and its `existingSecret` contract are already modelled by the upstream chart.
   `GRANIAN_WORKERS=2` and give the web pod request 512Mi / limit 1.5Gi.
 - **Django host guarding rejects unlisted Host headers, including kubelet probes.** `ALLOWED_HOSTS`
   must include both the route host(s) and the in-cluster service name (the chart's
-  `allowedHostsIncludesPodIP` covers the pod IP), and CSRF trusted origins must list
-  `https://netbox.${SECRET_INTERNAL_DOMAIN}`. Miss this and probes (and the UI) get a 400.
+  `allowedHostsIncludesPodIP` covers the pod IP), and CSRF trusted origins must list both
+  `https://netbox.${SECRET_DOMAIN}` and `https://netbox.${SECRET_INTERNAL_DOMAIN}`. Miss this and
+  probes (and the UI) get a 400.
 - **`SECRET_KEY` must be 50+ characters.** Generate it long enough (e.g. `openssl rand -base64 60`)
   or NetBox refuses to start.
 - The 1Password source item lives in the `Talos` vault and is created via the `op` CLI (never the
