@@ -38,4 +38,4 @@ jobs:
       # node/device hostname, MAC, internal hostname, or device model outside the
       # accepted-functional allowlist. See the script for the allowlist + rationale.
       - name: Scan tracked files for internal infrastructure identifiers
-        run: python3 .github/scripts/check-internal-identifiers.py
+        run: python3 .github/scripts/check_internal_identifiers.py

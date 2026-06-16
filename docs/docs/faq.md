@@ -75,7 +75,7 @@ The repository is publicly readable, so anything committed is world-visible. **N
 - Disk serials and vendor-specific device models that map the home network.
 
 Use the `${SECRET_DOMAIN}` / `${SECRET_INTERNAL_DOMAIN}` placeholders and let Flux substitute the
-real values at apply time. A CI guard (`check-internal-identifiers.py`, run by the security-scans
+real values at apply time. A CI guard (`check_internal_identifiers.py`, run by the security-scans
 workflow) fails any pull request that introduces one of these identifiers outside a small allowlist.
 See [Secret management](architecture/secrets.md).
 

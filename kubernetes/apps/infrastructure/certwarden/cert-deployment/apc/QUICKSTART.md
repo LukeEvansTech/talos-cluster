@@ -36,7 +36,7 @@ Create a new item named `apc-ups-main` with these fields:
 
 | Field Name          | Example Value                               |
 | ------------------- | ------------------------------------------- |
-| APC_HOSTNAME        | <device-ip>                                  |
+| APC_HOSTNAME        | <device-ip>                                 |
 | APC_USERNAME        | apc                                         |
 | APC_PASSWORD        | your-password                               |
 | APC_FINGERPRINT     | 4sd7MpvwhQrOEhAIjlL5Cr2s6ml0c22KX0rxYClwbN8 |
@@ -50,13 +50,13 @@ Edit `externalsecret.yaml` if your 1Password item has a different name:
 
 ```yaml
 metadata:
-    name: apc-ups-main # Change to match your 1Password item
+  name: apc-ups-main # Change to match your 1Password item
 spec:
-    target:
-        name: apc-ups-main # Change to match your 1Password item
-    dataFrom:
-        - extract:
-              key: apc-ups-main # Your 1Password item name
+  target:
+    name: apc-ups-main # Change to match your 1Password item
+  dataFrom:
+    - extract:
+        key: apc-ups-main # Your 1Password item name
 ```
 
 ### 4. Deploy
@@ -81,13 +81,13 @@ Add to your Certwarden certificate configuration:
 
 ```yaml
 postProcessing:
-    - name: deploy-to-apc
-      script: /path/to/certwarden-apc-deploy.sh
-      environment:
-          - name: APC_HOST
-            value: "ups-main" # Matches secret pattern: apc-{APC_HOST}
-          - name: NAMESPACE
-            value: "infrastructure"
+  - name: deploy-to-apc
+    script: /path/to/certwarden-apc-deploy.sh
+    environment:
+      - name: APC_HOST
+        value: "ups-main" # Matches secret pattern: apc-{APC_HOST}
+      - name: NAMESPACE
+        value: "infrastructure"
 ```
 
 ## Testing

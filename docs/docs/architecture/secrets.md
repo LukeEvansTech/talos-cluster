@@ -27,6 +27,6 @@ Secrets never live in Git. They flow:
   templated inside an ExternalSecret's `target.template.data` block and mounted from the rendered
   Secret — never rendered into a ConfigMap in Git. Internal device DNS names live in the
   `cluster-secrets` 1Password item, not in `cluster-settings`.
-- A CI guard (`.github/scripts/check-internal-identifiers.py`, run by the security-scans workflow)
+- A CI guard (`.github/scripts/check_internal_identifiers.py`, run by the security-scans workflow)
   fails any pull request that introduces a LAN IP, node or device hostname, MAC, internal hostname,
   or device model outside a small allowlist of accepted functional configs.
