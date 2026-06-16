@@ -1,4 +1,3 @@
----
 # Canonical markdownlint config for zensical docs repos.
 # Source of truth: shared-workflows/templates/.markdownlint.yml
 # Drift check verifies SHA-256 of this file matches what each repo has.

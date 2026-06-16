@@ -34,9 +34,7 @@ SELF_PATH = ".github/scripts/check_internal_identifiers.py"
 # what it is meant to keep out of git). It catches the structural naming scheme
 # (site-prefixed `cr-*` / `sw-*` hostnames, private IPs, MACs, internal TLDs).
 PATTERNS: dict[str, re.Pattern] = {
-    "LAN IP": re.compile(
-        r"(?<![\d.])(?:10\.32|192\.168|172\.(?:1[6-9]|2\d|3[01]))\.\d+\.\d+(?![\d.])"
-    ),
+    "LAN IP": re.compile(r"(?<![\d.])(?:10\.32|192\.168|172\.(?:1[6-9]|2\d|3[01]))\.\d+\.\d+(?![\d.])"),
     "node name": re.compile(r"cr-talos-\d+"),
     # site-prefixed device hostnames: cr-<word>-<word...> and sw-<word>-<word...>,
     # excluding the cluster nodes (cr-talos-*, caught above) and substrings of
@@ -45,9 +43,7 @@ PATTERNS: dict[str, re.Pattern] = {
         r"(?<![a-z0-9])cr-(?!talos(?:-|\b))[a-z][a-z0-9]*(?:-[a-z0-9]+)+"
         r"|(?<![a-z0-9])sw-(?:main|comms)-[a-z0-9]+"
     ),
-    "MAC address": re.compile(
-        r"(?<![0-9a-fA-F:])(?:[0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}(?![0-9a-fA-F:])"
-    ),
+    "MAC address": re.compile(r"(?<![0-9a-fA-F:])(?:[0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}(?![0-9a-fA-F:])"),
     "internal hostname": re.compile(r"\b[a-z0-9_-]+\.(?:lan|internal)\b"),
 }
 
@@ -59,25 +55,25 @@ BENIGN = (
     re.compile(r"^02:00:00:00:00"),  # locally-administered example MAC
 )
 
-# Accepted functional configs (glob -> reason). These are unavoidable values that
-# operate the cluster; the topology they expose is an informed, documented
-# acceptance (see .private/ inventory report).
+# Accepted functional configs (glob -> short reason). These are unavoidable values
+# that operate the cluster; the topology they expose is an informed, documented
+# acceptance (see the .private/ inventory report).
 ALLOWLIST: dict[str, str] = {
-    "talos/**": "Talos machine config -- node IPs/VIP/MACs/names are load-bearing",
-    "kubernetes/apps/infrastructure/certwarden/cert-deployment/**": "device cert deployment -- hostnames are k8s resource names / 1Password keys",
-    ".github/workflows/image-pull.yaml": "CI passes node IPs to talosctl --nodes",
-    "kubernetes/apps/default/shlink/app/helmrelease.yaml": "RFC1918 blocks in DISABLE_TRACKING_FROM (no specific subnet revealed)",
-    "kubernetes/apps/home/homeassistant/app/helmrelease.yaml": "trusted-proxy IP + multus MAC for the home-automation pod",
+    "talos/**": "Talos machine config",
+    "kubernetes/apps/infrastructure/certwarden/cert-deployment/**": "device cert deployment",
+    ".github/workflows/image-pull.yaml": "talosctl --nodes in CI",
+    "kubernetes/apps/default/shlink/app/helmrelease.yaml": "RFC1918 blocks (DISABLE_TRACKING_FROM)",
+    "kubernetes/apps/home/homeassistant/app/helmrelease.yaml": "trusted-proxy IP + multus MAC",
     "kubernetes/apps/kube-system/cilium/app/networks.yaml": "LB IP pool / API host",
-    "kubernetes/apps/kube-system/etcd-defrag/app/configmap.yaml": "etcd-defrag script targets nodes by IP/name",
-    "kubernetes/apps/network/envoy-gateway/app/envoy.yaml": "Envoy gateway LoadBalancer listener IPs",
+    "kubernetes/apps/kube-system/etcd-defrag/app/configmap.yaml": "etcd-defrag node targets",
+    "kubernetes/apps/network/envoy-gateway/app/envoy.yaml": "Envoy LB listener IPs",
     "kubernetes/apps/network/scanopy/app/daemon-helmrelease.yaml": "LAN scan ranges",
-    "kubernetes/apps/observability/blackbox-exporter/lan/probes.yaml": "blackbox LAN probe targets (hostname literal, domain templated)",
-    "kubernetes/apps/observability/mktxp/app/externalsecret.yaml": "mktxp.conf section names = Prometheus instance labels",
+    "kubernetes/apps/observability/blackbox-exporter/lan/probes.yaml": "blackbox LAN probe targets",
+    "kubernetes/apps/observability/mktxp/app/externalsecret.yaml": "mktxp.conf instance labels",
     "kubernetes/apps/observability/network-ups-tools/app/configmap.yaml": "NUT UPS device names",
-    "kubernetes/apps/observability/network-ups-tools/app/helmrelease.yaml": "NUT UPS device name + address",
-    "kubernetes/apps/observability/nut-exporter/app/servicemonitor.yaml": "NUT exporter scrape targets",
-    "kubernetes/apps/observability/snmp-exporter/app/configmap-entity-sensor.yaml": "SNMP sensor module references the core switch",
+    "kubernetes/apps/observability/network-ups-tools/app/helmrelease.yaml": "NUT UPS device + address",
+    "kubernetes/apps/observability/nut-exporter/app/servicemonitor.yaml": "NUT scrape targets",
+    "kubernetes/apps/observability/snmp-exporter/app/configmap-entity-sensor.yaml": "SNMP sensor module",
     "kubernetes/apps/observability/snmp-exporter/app/configmap.yaml": "SNMP module config",
     "kubernetes/apps/observability/snmp-exporter/app/helmrelease.yaml": "SNMP scrape target",
 }
@@ -85,9 +81,7 @@ ALLOWLIST: dict[str, str] = {
 
 def allowlisted(path: str) -> bool:
     """Return True if the path matches an accepted-functional-config glob."""
-    return any(
-        fnmatch(path, glob) or path.startswith(glob.rstrip("*")) for glob in ALLOWLIST
-    )
+    return any(fnmatch(path, glob) or path.startswith(glob.rstrip("*")) for glob in ALLOWLIST)
 
 
 def tracked_files() -> list[str]:
