@@ -36,8 +36,10 @@ See the [AI / LLM stack](../architecture/ai-llm-stack.md) page for how it fits t
   (config-file keys are unaffected). Note this on the 1Password item.
 - Keep provider API keys out of git and out of the rendered ConfigMap by referencing them as
   `os.environ/<NAME>` in `config.yaml`.
-- In the Grafana dashboard JSON, escape template variables `${var}` as `$${var}` so Flux `postBuild`
-  does not strip them; use `"datasource": null` rather than a hard-coded UID.
+- The Grafana dashboard is fetched from grafana.com via URL in the `GrafanaDashboard` CR — Flux
+  `postBuild` does not process remotely fetched JSON, so no `$${var}` escaping is needed. If you
+  ever vendor the dashboard JSON into a ConfigMap instead, escape Grafana template variables as
+  `$${var}` and use `"datasource": null` rather than a hard-coded UID.
 - The ConfigMap must set `metadata.namespace` explicitly (Checkov CKV_K8S_21).
 
 ## Operational notes

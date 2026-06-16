@@ -1,8 +1,11 @@
 # Envoy Gateway Migration Guide
 
+!!! note "Completed migration"
+    This page is a record of a migration that is already complete. The steps below are preserved as history; some current-state paths, names, and commands have since drifted. Commands and paths flagged in review are corrected inline — see the Architecture and Operations sections for the present-day setup.
+
 ## Overview
 
-This guide documents the implementation of Envoy Gateway v1.5.4 in the Talos cluster and provides instructions for migrating applications from nginx ingress to Gateway API HTTPRoutes.
+This guide documents the implementation of Envoy Gateway v1.8.1 in the Talos cluster and provides instructions for migrating applications from nginx ingress to Gateway API HTTPRoutes.
 
 ## What Was Implemented
 
@@ -10,12 +13,12 @@ This guide documents the implementation of Envoy Gateway v1.5.4 in the Talos clu
 
 **Location:** `kubernetes/apps/network/envoy-gateway/`
 
-- **Chart:** `oci://mirror.gcr.io/envoyproxy/gateway-helm v1.5.4`
+- **Chart:** `oci://mirror.gcr.io/envoyproxy/gateway-helm v1.8.1`
 - **CRDs:** Installed via `just bootstrap crds` for GitOps compatibility
 - **Components:**
-    - 1 Envoy Gateway controller pod
-    - 2 external proxy replicas
-    - 2 internal proxy replicas
+  - 1 Envoy Gateway controller pod
+  - 2 external proxy replicas
+  - 2 internal proxy replicas
 
 ### 2. Certificate Management
 
@@ -26,7 +29,7 @@ Created certificate import structure following onedr0p's pattern:
 ```yaml
 network/
 ├── certificates/
-│   ├── import/
+│   ├── app/
 │   │   ├── externalsecret.yaml  # Pulls wildcard cert from 1Password
 │   │   └── kustomization.yaml
 │   └── ks.yaml
@@ -53,7 +56,7 @@ Two Gateway instances configured:
 **Features Enabled:**
 
 - HTTP/3 support
-- Brotli & Gzip compression
+- Zstd, Brotli & Gzip compression
 - TCP keepalive
 - TLS 1.2+ with ALPN (h2, http/1.1)
 - Advanced buffer management
@@ -134,7 +137,7 @@ Create a separate HTTPRoute file:
 
 ```yaml
 ---
-# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/gateway.networking.k8s.io/httproute_v1.json
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/gateway.networking.k8s.io/httproute_v1.json
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
@@ -197,10 +200,10 @@ kubectl get gateway -n network
 kubectl describe httproute <name> -n <namespace>
 
 # View Envoy Gateway logs
-kubectl logs -n envoy-gateway-system -l app.kubernetes.io/name=envoy-gateway
+kubectl logs -n network -l app.kubernetes.io/name=envoy-gateway
 
 # View proxy logs
-kubectl logs -n envoy-gateway-system -l gateway.envoyproxy.io/owning-gateway-name=envoy-internal
+kubectl logs -n network -l gateway.envoyproxy.io/owning-gateway-name=envoy-internal
 ```
 
 ## Advanced HTTPRoute Patterns
@@ -394,17 +397,18 @@ Common issues:
 kubectl get endpoints <service-name> -n <namespace>
 
 # Check proxy logs
-kubectl logs -n envoy-gateway-system -l gateway.envoyproxy.io/owning-gateway-name=<gateway-name>
+kubectl logs -n network -l gateway.envoyproxy.io/owning-gateway-name=<gateway-name>
 ```
 
-## Future Migration Steps
+## Migration Status
 
-1. **Phase 1 (Current):** Run both nginx and Envoy Gateway in parallel
+The migration is complete. nginx ingress has been fully decommissioned; no `kind: Ingress` resources or ingress-nginx controllers remain in the cluster. All applications now use Gateway API HTTPRoutes attached to `envoy-external` or `envoy-internal`. The phased plan below is preserved as historical context only.
+
+**Historical phases (completed):**
+
+1. **Phase 1:** Run both nginx and Envoy Gateway in parallel
 2. **Phase 2:** Migrate 1-2 applications per day to HTTPRoutes
-3. **Phase 3:** Once all apps migrated and stable for 1 week:
-    - Update Envoy Gateway IPs to <envoy-external-ip>/87
-    - Remove nginx ingress controllers
-    - Clean up old Ingress resources
+3. **Phase 3:** Update Envoy Gateway IPs, remove nginx ingress controllers, and clean up old Ingress resources
 
 ## References
 

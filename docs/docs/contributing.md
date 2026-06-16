@@ -11,11 +11,11 @@ Cursor, Claude Code) can apply the same conventions:
 
 - `.agents/instructions/sorting.instructions.md` — YAML sorting conventions (alphabetical defaults
   plus app-template-specific ordering). Apply this when asked to sort YAML.
-- `.agents/skills/add-app/` — a skill that scaffolds a new app-template application following the
-  conventions below. Claude Code discovers it via a local `.claude/skills/add-app` symlink.
+- `.agents/skills/add-app/SKILL.md` — a skill that scaffolds a new app-template application
+  following the conventions below. Agent tools that read `.agents/skills/` can invoke it directly.
 
-`AGENTS.md` at the repository root is the canonical conventions guide; the local `CLAUDE.md` imports
-it via `@AGENTS.md`.
+`AGENTS.md` at the repository root is the canonical conventions guide. The local `CLAUDE.md` is a
+standalone file and does not import `AGENTS.md`.
 
 ## Adding a new app
 
@@ -59,7 +59,7 @@ plus security scans (Checkov/Trivy) and super-linter. Mirror it locally first:
 
 ```bash
 # Render a single app's HelmRelease
-flate build hr <app> -n <namespace> --path kubernetes/flux/cluster
+flate build hr <app> -n <namespace> --path kubernetes/flux/cluster --allow-missing-secrets
 
 # Test all Kustomizations + HelmReleases
 flate test all --path kubernetes/flux/cluster --allow-missing-secrets

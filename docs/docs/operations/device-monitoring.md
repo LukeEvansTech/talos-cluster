@@ -14,6 +14,7 @@ cross-cutting "what lives where and how to update it" reference.
 | -------------- | --------------------------------- | --------------------------------------------- | -------------------------------------------------- | -------------------------------------- |
 | TrueNAS host   | node-exporter / smartctl-exporter | `kube-prometheus-stack` (`scrapeconfig.yaml`) | `${SECRET_STORAGE_SERVER}`                         | — (Docker apps on TrueNAS)             |
 | TrueNAS ZFS    | graphite bridge                   | `truenas-exporter`                            | `${SECRET_STORAGE_SERVER}`                         | — (Custom App on TrueNAS)              |
+| TrueNAS Docker | docker_state_exporter (port 9419) | `truenas-exporter` (`scrapeconfig.yaml`)      | `${SECRET_STORAGE_SERVER}`                         | — (Docker app on TrueNAS)              |
 | vCenter / ESXi | `pryorda/vmware_exporter`         | `vmware-exporter`                             | `${SECRET_VSPHERE_ENDPOINT}`                       | `vsphere-monitoring`                   |
 | Firewall       | `AthennaMind/opnsense-exporter`   | `opnsense-exporter`                           | `host` field in item                               | `opnsense-exporter`                    |
 | Switches ×2    | `akpw/mktxp`                      | `mktxp`                                       | `${MIKROTIK_POE_ADDR}` / `${MIKROTIK_NONPOE_ADDR}` | `mktxp`                                |
@@ -129,7 +130,7 @@ Check every device collector at once:
 ```bash
 kubectl exec -n observability pod/prometheus-kube-prometheus-stack-0 -c prometheus -- \
   promtool query instant http://localhost:9090 \
-  'up{job=~"truenas-graphite-exporter|vmware-exporter|opnsense-exporter|mktxp|snmp-exporter"}'
+  'up{job=~"truenas-graphite-exporter|truenas-docker-exporter|vmware-exporter|opnsense-exporter|mktxp|snmp-exporter"}'
 ```
 
 Or per job, with a metric-name count to confirm real data is flowing:

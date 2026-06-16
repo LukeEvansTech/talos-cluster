@@ -44,9 +44,9 @@ llama.cpp backends to the existing `self-hosted` group with no client change.
    below (running it needs GPU headroom from Ollama + model storage). ComfyUI image gen skipped
    (also GPU-bound, AMD-only upstream).
 
-Each layer is a separate commit on one branch (one PR). Cross-layer wiring (e.g. `mcp_servers`) is
-staged as commented blocks in `litellm/app/configmap.yaml` and switched on when the producing layer
-lands.
+Each layer is a separate commit on one branch (one PR). `mcp_servers` and
+`mcp_semantic_tool_filter` are now fully active in `litellm/app/configmap.yaml`; only the optional
+cloud-provider stubs remain commented out.
 
 > Not ported from Jory's repository: `hermes`, `openclaw` (agent runtimes), and `agentmemory` (whose main
 > consumers are hermes/openclaw).
@@ -92,7 +92,8 @@ Deferred (add later): the `VirtualMCPServer` aggregate + `EmbeddingServer` (a si
 
 The flux MCP is read-only by default. To let it — and therefore any model behind LiteLLM —
 reconcile / suspend / resume / apply / delete Flux objects, append to
-`toolhive/mcp-servers/flux/rbac.yaml` and add it to that dir's `kustomization.yaml`:
+`toolhive/mcp-servers/flux/rbac.yaml` (no `kustomization.yaml` change needed — `rbac.yaml` is
+already listed there):
 
 ```yaml
 ---
@@ -132,7 +133,12 @@ calling chain.
 
 Drop an `MCPServer` (operator-managed) or `MCPServerEntry` (remote URL) with `groupRef: mcp-tools`
 under `toolhive/mcp-servers/<name>/`, list it in that dir's `kustomization.yaml`, then add its
-endpoint to LiteLLM's `mcp_servers`. The service is `mcp-<name>` on the spec's `mcpPort`.
+endpoint to LiteLLM's `mcp_servers`. The service name depends on the transport:
+
+- **Native `streamable-http` transport** (e.g. kubectl, flux): ToolHive creates `mcp-<name>` on the
+  spec's `mcpPort`.
+- **`stdio` transport with `proxyMode: streamable-http`** (e.g. github, grafana): ToolHive creates
+  `mcp-<name>-proxy` on the spec's `proxyPort` (typically 8080).
 
 ## Agent memory (memini)
 

@@ -56,8 +56,10 @@ spec:
     controllers:
       plex:
         annotations:
-          # existing annotations...
-          kubernetes.io/egress-bandwidth: "200M"
+          # existing annotations (e.g. reloader.stakater.com/auto: "true")
+        pod:
+          annotations:
+            kubernetes.io/egress-bandwidth: "200M"
 ```
 
 Requires Cilium's `bandwidth-manager`, which is already enabled in this cluster (`BandwidthManager: EDT with BPF [BBR]` per `cilium status`).

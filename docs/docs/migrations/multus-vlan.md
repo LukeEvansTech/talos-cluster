@@ -1,5 +1,8 @@
 # Multus VLAN Migration Guide
 
+!!! note "Completed migration"
+    This page is a record of a migration that is already complete. The steps below are preserved as history; some current-state paths, names, and commands have since drifted. Commands and paths flagged in review are corrected inline — see the Architecture and Operations sections for the present-day setup.
+
 This guide documents the process of migrating Home Assistant from the management network (<mgmt-net>/24) to a dedicated IoT VLAN for network isolation.
 
 ## Current State
@@ -24,17 +27,20 @@ This guide documents the process of migrating Home Assistant from the management
 
 1. **Create VLAN 70** on your managed switch
 2. **Configure trunk port** to Kubernetes nodes:
+
     ```text
     # Example for most switches:
     - Set port mode to "Trunk" or "Tagged"
     - Allow VLANs: 1 (untagged/native), 70 (tagged)
     ```
+
 3. **Configure DHCP/Gateway** for IoT VLAN:
     - Gateway: <iot-gateway>
     - DHCP range: <iot-dhcp-start>-<iot-dhcp-end> (optional)
     - DNS: Your DNS server
 
 4. **Configure Firewall Rules**:
+
     ```text
     IoT VLAN (<iot-vlan-net>/24) Rules:
     - ALLOW: IoT → Internet (for firmware updates)
@@ -100,9 +106,9 @@ nodes:
 talhelper genconfig
 
 # Apply to each node (one at a time to avoid downtime)
-talosctl apply-config -n <node1-ip> -f clusterconfig/talos-cluster-<node1>.yaml
-talosctl apply-config -n <node2-ip> -f clusterconfig/talos-cluster-<node2>.yaml
-talosctl apply-config -n <node3-ip> -f clusterconfig/talos-cluster-<node3>.yaml
+talosctl apply-config -n <node1-ip> -f talos/clusterconfig/kubernetes-<node1>.yaml
+talosctl apply-config -n <node2-ip> -f talos/clusterconfig/kubernetes-<node2>.yaml
+talosctl apply-config -n <node3-ip> -f talos/clusterconfig/kubernetes-<node3>.yaml
 
 # Verify VLAN interface exists on each node
 talosctl -n <node1-ip> get links | grep "enp1s0np0.70"
@@ -169,7 +175,7 @@ spec:
 
 ### Step 5: Update Home Assistant IP Configuration
 
-**File**: `kubernetes/apps/default/homeassistant/app/helmrelease.yaml`
+**File**: `kubernetes/apps/home/homeassistant/app/helmrelease.yaml`
 
 Find the Multus annotation section and update the IP:
 
@@ -197,7 +203,7 @@ Commit all changes and let Flux reconcile:
 # Stage all changes
 git add talos/talconfig.yaml \
         kubernetes/apps/kube-system/multus/networks/iot.yaml \
-        kubernetes/apps/default/homeassistant/app/helmrelease.yaml
+        kubernetes/apps/home/homeassistant/app/helmrelease.yaml
 
 # Commit with descriptive message
 git commit -m "feat(network): migrate Home Assistant to IoT VLAN 70
@@ -213,7 +219,7 @@ git push
 # Force reconcile for faster deployment
 flux reconcile source git flux-system -n flux-system
 flux reconcile kustomization multus-networks -n kube-system
-flux reconcile kustomization homeassistant -n default
+flux reconcile kustomization homeassistant -n home
 ```
 
 ### Step 7: Verify Migration
@@ -223,26 +229,26 @@ flux reconcile kustomization homeassistant -n default
 kubectl get network-attachment-definitions -n kube-system iot -o yaml
 
 # 2. Wait for Home Assistant pod to restart (Flux will recreate it)
-kubectl get pods -n default -l app.kubernetes.io/name=homeassistant -w
+kubectl get pods -n home -l app.kubernetes.io/name=homeassistant -w
 
 # 3. Verify new network configuration
-HA_POD=$(kubectl get pod -n default -l app.kubernetes.io/name=homeassistant -o jsonpath='{.items[0].metadata.name}')
+HA_POD=$(kubectl get pod -n home -l app.kubernetes.io/name=homeassistant -o jsonpath='{.items[0].metadata.name}')
 
 # Check IP addresses
-kubectl exec -n default $HA_POD -- ip addr show
+kubectl exec -n home $HA_POD -- ip addr show
 
 # Expected output:
 # eth0: 10.42.0.x/32 (Cilium)
 # net1: <ha-iot-ip>/24 (Multus IoT VLAN) ← Should be new IP
 
 # 4. Test connectivity to IoT VLAN gateway
-kubectl exec -n default $HA_POD -- ping -c 3 <iot-gateway>
+kubectl exec -n home $HA_POD -- ping -c 3 <iot-gateway>
 
 # 5. Test Internet connectivity (via Cilium)
-kubectl exec -n default $HA_POD -- ping -c 3 8.8.8.8
+kubectl exec -n home $HA_POD -- ping -c 3 8.8.8.8
 
 # 6. Test Kubernetes service discovery (via Cilium)
-kubectl exec -n default $HA_POD -- nslookup kubernetes.default.svc.cluster.local
+kubectl exec -n home $HA_POD -- nslookup kubernetes.default.svc.cluster.local
 ```
 
 ### Step 8: Update DNS Records (if needed)
@@ -262,7 +268,7 @@ homeassistant.${SECRET_INTERNAL_DOMAIN}  A  <ha-iot-ip>
 ### Test 1: Dual Network Interfaces
 
 ```bash
-kubectl exec -n default $HA_POD -- ip route show
+kubectl exec -n home $HA_POD -- ip route show
 
 # Expected output should show:
 # - Default route via Cilium (eth0)
@@ -273,7 +279,7 @@ kubectl exec -n default $HA_POD -- ip route show
 
 Access Home Assistant at:
 
-- Via Ingress: <https://homeassistant.example.com>
+- Via HTTPRoute: <https://homeassistant.example.com>
 - Direct IP (from device on IoT VLAN): <http://<ha-iot-ip>:8123>
 
 ### Test 3: Device Discovery
@@ -289,8 +295,8 @@ From Home Assistant UI:
 
 ```bash
 # If you deployed Mosquitto MQTT broker
-kubectl exec -n default $HA_POD -- \
-  mosquitto_pub -h mosquitto.default.svc.cluster.local -t test -m "hello"
+kubectl exec -n home $HA_POD -- \
+  mosquitto_pub -h mosquitto.home.svc.cluster.local -t test -m "hello"
 ```
 
 ## Troubleshooting
@@ -302,7 +308,7 @@ kubectl exec -n default $HA_POD -- \
 **Check**:
 
 ```bash
-kubectl describe pod -n default $HA_POD
+kubectl describe pod -n home $HA_POD
 ```
 
 **Common causes**:
@@ -315,11 +321,11 @@ kubectl describe pod -n default $HA_POD
 
 ```bash
 # Verify VLAN interface exists on the node where pod is scheduled
-NODE=$(kubectl get pod -n default $HA_POD -o jsonpath='{.spec.nodeName}')
+NODE=$(kubectl get pod -n home $HA_POD -o jsonpath='{.spec.nodeName}')
 talosctl -n $NODE get links | grep enp1s0np0.70
 
 # If missing, reapply Talos config
-talosctl apply-config -n $NODE -f clusterconfig/talos-cluster-$NODE.yaml
+talosctl apply-config -n $NODE -f talos/clusterconfig/kubernetes-$NODE.yaml
 ```
 
 ### Issue 2: No Network Connectivity on net1
@@ -329,8 +335,8 @@ talosctl apply-config -n $NODE -f clusterconfig/talos-cluster-$NODE.yaml
 **Check**:
 
 ```bash
-kubectl exec -n default $HA_POD -- ip addr show net1
-kubectl exec -n default $HA_POD -- ip route show
+kubectl exec -n home $HA_POD -- ip addr show net1
+kubectl exec -n home $HA_POD -- ip route show
 ```
 
 **Common causes**:
@@ -366,18 +372,18 @@ talosctl -n <node1-ip> get addresses | grep 192.168.70
 
 ### Issue 4: Can't Access Home Assistant Externally
 
-**Symptom**: Ingress not working after migration
+**Symptom**: HTTPRoute / Gateway API not working after migration
 
-**Note**: Ingress still uses Cilium (eth0), not Multus (net1). This should continue working.
+**Note**: HTTPRoute / Gateway API still uses Cilium (eth0), not Multus (net1). This should continue working.
 
 **Check**:
 
 ```bash
-kubectl get svc -n default homeassistant
-kubectl get httproute -n default homeassistant
+kubectl get svc -n home homeassistant
+kubectl get httproute -n home homeassistant
 ```
 
-**Solution**: Ingress routing is independent of Multus networking and should not be affected.
+**Solution**: HTTPRoute / Gateway API routing is independent of Multus networking and should not be affected.
 
 ## Rollback Procedure
 
@@ -412,11 +418,11 @@ spec:
 EOF
 
 # Update Home Assistant IP back to management network
-kubectl edit helmrelease -n default homeassistant
+kubectl edit helmrelease -n home homeassistant
 # Change ips: ["<ha-iot-ip>/24"] → ["<ha-mgmt-ip>/24"]
 
 # Delete pod to force recreation
-kubectl delete pod -n default -l app.kubernetes.io/name=homeassistant
+kubectl delete pod -n home -l app.kubernetes.io/name=homeassistant
 ```
 
 ### Full Rollback (Including Talos)
@@ -428,14 +434,14 @@ git push
 
 # Flux will automatically reconcile back to previous state
 flux reconcile kustomization multus-networks -n kube-system
-flux reconcile kustomization homeassistant -n default
+flux reconcile kustomization homeassistant -n home
 
 # Remove VLAN interfaces from Talos (optional - they won't hurt if left)
 # Edit talconfig.yaml to remove vlans section, then:
 talhelper genconfig
-talosctl apply-config -n <node1-ip> -f clusterconfig/talos-cluster-<node1>.yaml
-talosctl apply-config -n <node2-ip> -f clusterconfig/talos-cluster-<node2>.yaml
-talosctl apply-config -n <node3-ip> -f clusterconfig/talos-cluster-<node3>.yaml
+talosctl apply-config -n <node1-ip> -f talos/clusterconfig/kubernetes-<node1>.yaml
+talosctl apply-config -n <node2-ip> -f talos/clusterconfig/kubernetes-<node2>.yaml
+talosctl apply-config -n <node3-ip> -f talos/clusterconfig/kubernetes-<node3>.yaml
 ```
 
 ## Post-Migration Checklist
@@ -451,7 +457,7 @@ talosctl apply-config -n <node3-ip> -f clusterconfig/talos-cluster-<node3>.yaml
 - [ ] Dual interfaces verified (Cilium + Multus VLAN)
 - [ ] Connectivity tests passed (gateway, internet, K8s services)
 - [ ] Device discovery working in Home Assistant
-- [ ] Ingress/external access working
+- [ ] HTTPRoute/external access working
 - [ ] DNS records updated (if needed)
 - [ ] Documentation updated
 
@@ -499,6 +505,7 @@ To add more VLANs (e.g., VLAN 80 for Cameras, VLAN 90 for VPN):
     ```
 
 3. **Use in pod annotations**:
+
     ```yaml
     annotations:
         k8s.v1.cni.cncf.io/networks: |-
@@ -524,7 +531,7 @@ To add more VLANs (e.g., VLAN 80 for Cameras, VLAN 90 for VPN):
 
 If you encounter issues not covered in this guide:
 
-1. Check pod events: `kubectl describe pod -n default $HA_POD`
+1. Check pod events: `kubectl describe pod -n home $HA_POD`
 2. Check Multus logs: `kubectl logs -n kube-system -l app.kubernetes.io/name=multus`
 3. Check Talos network config: `talosctl -n <node> get addresses`
 4. Review this guide's troubleshooting section
