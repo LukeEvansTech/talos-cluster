@@ -16,3 +16,28 @@ spec:
     - action: replace
       targetLabel: job
       replacement: *name
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/scrapeconfig_v1alpha1.json
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: ScrapeConfig
+metadata:
+  name: &name truenas-docker-exporter
+spec:
+  # docker_state_exporter on the NAS (truenas-apps apps/monitoring) — per-container
+  # state/health/restartcount/oomkilled keyed by container name on :9419. Drives the
+  # truenas-docker.rules lifecycle alerts (the graphite bridge's cgroup_* series are
+  # keyed by container ID and disappear once a container stops, so they can't).
+  # metricRelabelings drop the ~25 noisy container_label_* values (compose/doco-cd
+  # shas) but keep cd_doco_metadata_manager so "container down" scopes to the
+  # GitOps-managed fleet (auto-excludes the intentionally-stopped minio app).
+  staticConfigs:
+    - targets:
+        - ${SECRET_STORAGE_SERVER}:9419
+  metricsPath: /metrics
+  relabelings:
+    - action: replace
+      targetLabel: job
+      replacement: *name
+  metricRelabelings:
+    - action: labelkeep
+      regex: __name__|job|instance|name|status|health_status|container_label_cd_doco_metadata_manager
