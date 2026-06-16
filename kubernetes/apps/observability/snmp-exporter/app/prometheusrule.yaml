@@ -17,7 +17,7 @@ spec:
           labels:
             severity: critical
         # entPhySensorOperStatus: 1=ok, 2=unavailable, 3=nonoperational. Catches
-        # fan/PSU/temperature sensor hardware faults on the Onyx core switch.
+        # fan/PSU/temperature sensor hardware faults on the core switch.
         # (entPhySensorValue carries the readings for dashboards; raw value must
         # be divided by 10^entPhySensorPrecision for the real figure.)
         - alert: OnyxSensorFault
