@@ -20,7 +20,7 @@ Scaffold a new application for this repository's **single-cluster** Flux layout.
   `Talos` 1Password vault). ES-using apps `dependsOn` `onepassword-connect`.
 - Ingress is Envoy Gateway via the app-template `route:` values (preferred) on the
   `envoy-internal` / `envoy-external` listeners in the `network` namespace.
-- This repo is **PUBLIC** — never write LAN IPs, `.lan`/`.internal` hostnames, or device names.
+- This repository is **PUBLIC** — never write LAN IPs, `.lan`/`.internal` hostnames, or device names.
   Hosts use `${SECRET_DOMAIN}` / `${SECRET_INTERNAL_DOMAIN}` (Flux substitutes them at apply time).
   Any literal `${VAR}` that must survive Flux substitution has to be escaped as `$${VAR}`.
 
@@ -62,7 +62,7 @@ rarer case, e.g. catch-all routes).
 
 `kubernetes/apps/<namespace>/<app>/ks.yaml`:
 
-```yaml
+```text
 ---
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/kustomize.toolkit.fluxcd.io/kustomization_v1.json
 apiVersion: kustomize.toolkit.fluxcd.io/v1
@@ -90,7 +90,7 @@ spec:
 
 If the app uses an `ExternalSecret`, add a `dependsOn` (alphabetically, after `commonMetadata`):
 
-```yaml
+```text
   dependsOn:
     - name: onepassword-connect
       namespace: external-secrets
@@ -99,7 +99,7 @@ If the app uses an `ExternalSecret`, add a `dependsOn` (alphabetically, after `c
 If the app uses components (gatus/volsync/etc.), add `spec.components` and replace `postBuild: {}`
 with the matching substitutes. Component paths are `../../../../components/...` relative to the app:
 
-```yaml
+```text
   components:
     - ../../../../components/gatus/guarded
     - ../../../../components/volsync
@@ -111,11 +111,11 @@ with the matching substitutes. Component paths are `../../../../components/...` 
 
 The `volsync` component goes in `ks.yaml` `spec.components` **only** — never also in
 `app/kustomization.yaml` (Flux applies ks.yaml components on top of the path build; listing in both
-double-applies). Keep `spec` keys alphabetical (this repo's ks.yaml convention).
+double-applies). Keep `spec` keys alphabetical (this repository's ks.yaml convention).
 
 ### Step 5: Generate `app/kustomization.yaml`
 
-```yaml
+```text
 ---
 # yaml-language-server: $schema=https://json.schemastore.org/kustomization
 apiVersion: kustomize.config.k8s.io/v1beta1
@@ -129,7 +129,7 @@ Add `./externalsecret.yaml` and/or `./httproute.yaml` lines only when those file
 
 ### Step 6: Generate `app/ocirepository.yaml`
 
-```yaml
+```text
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository
@@ -147,10 +147,10 @@ spec:
 
 ### Step 7: Generate `app/helmrelease.yaml`
 
-`spec` order is `interval` → `chartRef` → (`dependsOn`) → `values` (this repo omits `install`/`upgrade`
+`spec` order is `interval` → `chartRef` → (`dependsOn`) → `values` (this repository omits `install`/`upgrade`
 on most HRs — the root kustomization injects those defaults):
 
-```yaml
+```text
 ---
 # yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
 apiVersion: helm.toolkit.fluxcd.io/v2
@@ -202,7 +202,7 @@ spec:
 
 If the app needs a route, add (internal-only default — both hostnames resolve via `envoy-internal`):
 
-```yaml
+```text
     route:
       app:
         hostnames:
@@ -212,12 +212,12 @@ If the app needs a route, add (internal-only default — both hostnames resolve 
             namespace: network
 ```
 
-For **external** exposure, use `name: envoy-external` instead (and confirm the intent — this repo is
+For **external** exposure, use `name: envoy-external` instead (and confirm the intent — this repository is
 public). For GPU workloads, set `runtimeClassName: nvidia` under the controller's `pod`.
 
 ### Step 8: Generate `app/externalsecret.yaml` (only if needed)
 
-```yaml
+```text
 ---
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/external-secrets.io/externalsecret_v1.json
 apiVersion: external-secrets.io/v1
@@ -253,10 +253,10 @@ list alphabetical. Match the exact reference style used by neighbours (e.g. `./<
 4. No plain-text secrets, LAN IPs, or internal hostnames were introduced.
 5. Render and validate with flate:
 
-   ```bash
-   flate build hr <app> -n <namespace> --path kubernetes/flux/cluster
-   flate test all --path kubernetes/flux/cluster --allow-missing-secrets
-   ```
+    ```bash
+    flate build hr <app> -n <namespace> --path kubernetes/flux/cluster
+    flate test all --path kubernetes/flux/cluster --allow-missing-secrets
+    ```
 
 ## Notes
 

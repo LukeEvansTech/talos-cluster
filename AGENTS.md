@@ -2,7 +2,7 @@
 
 This is a **home Kubernetes cluster monorepo** managed with GitOps (Talos Linux, Flux, Renovate,
 GitHub Actions). This file is the tool-agnostic conventions guide (read by Codex, Copilot, Cursor,
-etc.). Claude Code loads it via an `@AGENTS.md` import in the repo's local `CLAUDE.md`.
+etc.). Claude Code loads it via an `@AGENTS.md` import in the repository's local `CLAUDE.md`.
 
 > ⚠️ **This repository is PUBLIC.** Anything committed is world-visible. **Never commit** LAN IPs,
 > `.lan` / `.internal` hostnames, device names, deployment topology, MACs, disk serials, or
@@ -14,7 +14,7 @@ etc.). Claude Code loads it via an `@AGENTS.md` import in the repo's local `CLAU
 
 ## Repository structure
 
-```
+```text
 kubernetes/
 ├── apps/                  # App manifests by namespace
 │   └── <namespace>/
@@ -37,22 +37,22 @@ talos/                     # Talos OS machine configs (talconfig.yaml + patches)
 
 ## Key technologies
 
-| Category   | Tool                          | Purpose                                   |
-| ---------- | ----------------------------- | ----------------------------------------- |
-| OS         | Talos Linux (immutable)       | Node OS; pins kubelet + node together     |
-| GitOps     | Flux                          | Deploys configs from Git to Kubernetes    |
-| CI         | Renovate + GitHub Actions     | Dependency updates, validation            |
-| CNI        | Cilium                        | Pod networking                            |
-| Ingress    | Envoy Gateway (Gateway API)   | L7 routing via `HTTPRoute` (not Ingress)  |
-| DNS        | external-dns + cloudflared    | Internal (OPNsense) + external (Cloudflare)|
-| Secrets    | external-secrets + 1Password  | Secret management                         |
-| Storage    | Rook-Ceph + OpenEBS           | Block + node-local volumes                |
-| Backups    | VolSync (Kopia) → NFS/remote  | PVC snapshots and backups                 |
-| Charts     | bjw-s `app-template`          | The chart most apps use                   |
+| Category | Tool                         | Purpose                                     |
+| -------- | ---------------------------- | ------------------------------------------- |
+| OS       | Talos Linux (immutable)      | Node OS; pins kubelet + node together       |
+| GitOps   | Flux                         | Deploys configs from Git to Kubernetes      |
+| CI       | Renovate + GitHub Actions    | Dependency updates, validation              |
+| CNI      | Cilium                       | Pod networking                              |
+| Ingress  | Envoy Gateway (Gateway API)  | L7 routing via `HTTPRoute` (not Ingress)    |
+| DNS      | external-dns + cloudflared   | Internal (OPNsense) + external (Cloudflare) |
+| Secrets  | external-secrets + 1Password | Secret management                           |
+| Storage  | Rook-Ceph + OpenEBS          | Block + node-local volumes                  |
+| Backups  | VolSync (Kopia) → NFS/remote | PVC snapshots and backups                   |
+| Charts   | bjw-s `app-template`         | The chart most apps use                     |
 
 ## GitOps flow
 
-```
+```text
 Git push → Flux detects change → reconciles Kustomizations → deploys HelmReleases
 ```
 
@@ -74,7 +74,7 @@ Inside `app/`:
   `oci://ghcr.io/bjw-s-labs/helm/app-template`; the HelmRelease references it via
   `spec.chartRef.kind: OCIRepository`, `name: <app>`. There is **no** shared `app-template`
   OCIRepository. (Non-app-template charts may use a `HelmRepository` source instead.)
-- **HelmRelease `spec` order** is `interval` → `chartRef` → `dependsOn` → `values` (this repo orders
+- **HelmRelease `spec` order** is `interval` → `chartRef` → `dependsOn` → `values` (this repository orders
   `interval` before `chartRef`; most HRs omit `install`/`upgrade` and inherit them from the root
   Kustomization).
 - **Routing** is usually an inline `route:` in HR values on the `envoy-internal` / `envoy-external`
