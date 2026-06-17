@@ -21,6 +21,13 @@ spec:
         # defaults the driver name to the unprefixed "rbd.csi.ceph.com"; Rook's
         # convention (and our ceph-block SC) prefixes the operator namespace.
         name: rook-ceph.rbd.csi.ceph.com
+        # Deploy the csi-snapshotter sidecar. The chart defaults this to "none",
+        # which omits the sidecar entirely -- so the cluster snapshot-controller
+        # creates VolumeSnapshotContents that nothing ever calls CreateSnapshot
+        # on (stuck ReadyToUse=false). The pre-v1.20 rook-managed CSI shipped the
+        # snapshotter by default; VolSync's copyMethod: Snapshot movers depend on
+        # it for every *-nfs/-r2 ReplicationSource.
+        snapshotPolicy: volumeSnapshot
       cephfs:
         enabled: false
       nfs:
