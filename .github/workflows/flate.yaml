@@ -132,18 +132,31 @@ jobs:
             kustomization) KIND=ks ;;
             *) KIND="${RESOURCE}" ;;
           esac
-          : > diff.md
+          : > diff.raw
           rc=0
           flate diff "${KIND}" \
             --path pull/kubernetes/flux/cluster \
             --path-orig default/kubernetes/flux/cluster \
             --strip-attr caBundle \
             --allow-missing-secrets \
-            --output github >> diff.md || rc=1
-          # Cap to stay within GitHub's ~65k-char comment limit
-          if [ "$(wc -c < diff.md)" -gt 60000 ]; then
-            head -c 60000 diff.md > diff.trunc && mv diff.trunc diff.md
-            printf '\n\n_…diff truncated; see workflow logs for the full output._\n' >> diff.md
+            --output github >> diff.raw || rc=1
+          # flate's `github` format emits diff-prefixed lines (@@/#/!/+/-) intended
+          # for GitHub's diff lexer, which only colours them inside a ```diff fence.
+          # Posted raw, GitHub renders them as plain markdown — the `#` line becomes
+          # a heading (auto-linked when it looks like a URL) and `+`/`-` collapse to
+          # a bullet list, losing the diff. Wrap the output in a fence so it renders
+          # as a real diff. Build it AFTER the 60k cap so the closing fence is never
+          # truncated away; the truncation note stays outside the fence.
+          : > diff.md
+          if [ -s diff.raw ]; then
+            {
+              printf '```diff\n'
+              head -c 60000 diff.raw
+              printf '\n```\n'
+            } > diff.md
+            if [ "$(wc -c < diff.raw)" -gt 60000 ]; then
+              printf '\n_…diff truncated; see workflow logs for the full output._\n' >> diff.md
+            fi
           fi
           exit "${rc}"
 
