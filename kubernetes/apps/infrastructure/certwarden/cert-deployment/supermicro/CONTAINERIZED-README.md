@@ -7,10 +7,10 @@ This deployment now uses a **pre-built container** for faster and more reliable 
 - **Container**: `ghcr.io/lukeevanstech/supermicro-ipmi-cert:latest`
 - **Script**: `certwarden-supermicro-deploy.sh`
 - **Benefits**:
-    - Faster execution (no runtime dependency installation)
-    - Consistent environment across deployments
-    - Reduced job execution time by ~30-60 seconds
-    - Better security (minimal container, no runtime downloads)
+  - Faster execution (no runtime dependency installation)
+  - Consistent environment across deployments
+  - Reduced job execution time by ~30-60 seconds
+  - Better security (minimal container, no runtime downloads)
 
 ## Files
 
@@ -23,9 +23,9 @@ This deployment now uses a **pre-built container** for faster and more reliable 
 1. Certwarden calls `certwarden-supermicro-deploy.sh` after certificate renewal
 2. Script creates a Kubernetes Job using the pre-built container
 3. Container has all dependencies pre-installed:
-    - kubectl v1.32.0
-    - Python 3.12 + requests + pyOpenSSL
-    - supermicro_ipmi_cert.py script
+   - kubectl v1.32.0
+   - Python 3.12 + requests + pyOpenSSL
+   - supermicro_ipmi_cert.py script
 4. Job deploys certificate via Redfish API
 5. Job auto-cleans up after 5 minutes
 
@@ -45,25 +45,25 @@ If you need to rollback to the old runtime-installation method:
 
 1. Edit `kustomization.yaml`:
 
-    ```yaml
-    # Comment out containerized approach:
-    # - name: certwarden-supermicro-scripts
-    #   files:
-    #     - certwarden-supermicro-deploy.sh
+   ```yaml
+   # Comment out containerized approach:
+   # - name: certwarden-supermicro-scripts
+   #   files:
+   #     - certwarden-supermicro-deploy.sh
 
-    # Uncomment old approach:
-    - name: certwarden-supermicro-scripts
-      files:
-          - supermicro_updater.py
-          - certwarden-supermicro-deploy.sh.OLD
-    ```
+   # Uncomment old approach:
+   - name: certwarden-supermicro-scripts
+     files:
+       - supermicro_updater.py
+       - certwarden-supermicro-deploy.sh.OLD
+   ```
 
 2. Apply changes:
 
-    ```bash
-    kubectl delete configmap certwarden-supermicro-scripts -n infrastructure
-    kubectl apply -k .
-    ```
+   ```bash
+   kubectl delete configmap certwarden-supermicro-scripts -n infrastructure
+   kubectl apply -k .
+   ```
 
 3. Restart Certwarden to pick up the new ConfigMap
 
