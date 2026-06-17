@@ -56,6 +56,19 @@ spec:
         enabled: true
         cronjob:
           schedule: "0 5 * * *"
+        pod:
+          # The data PVC is ReadWriteOnce (ceph-block), shared with the main
+          # StatefulSet pod. Pin the fsck job to the node running main so both
+          # can mount the RWO volume; otherwise the fsck pod Multi-Attach-stalls
+          # in ContainerCreating until it happens to land on the right node.
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                - labelSelector:
+                    matchLabels:
+                      app.kubernetes.io/name: memini
+                      app.kubernetes.io/controller: main
+                  topologyKey: kubernetes.io/hostname
         # The chart's fsck curl uses --variable %MEMINI_API_KEY, so the fsck
         # container needs the same bearer token as the main container.
         containers:
