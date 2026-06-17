@@ -253,10 +253,10 @@ list alphabetical. Match the exact reference style used by neighbours (e.g. `./<
 4. No plain-text secrets, LAN IPs, or internal hostnames were introduced.
 5. Render and validate with flate:
 
-    ```bash
-    flate build hr <app> -n <namespace> --path kubernetes/flux/cluster
-    flate test all --path kubernetes/flux/cluster --allow-missing-secrets
-    ```
+   ```bash
+   flate build hr <app> -n <namespace> --path kubernetes/flux/cluster
+   flate test all --path kubernetes/flux/cluster --allow-missing-secrets
+   ```
 
 ## Notes
 
