@@ -37,6 +37,7 @@ nav = [
   { "Operations" = [
     { "Bootstrap" = "operations/bootstrap.md" },
     { "Talos & K8s upgrades" = "operations/talos-upgrades.md" },
+    { "Renovate auto-merge" = "operations/renovate-automerge.md" },
     { "Backups" = "operations/backups.md" },
     { "Device monitoring" = "operations/device-monitoring.md" },
     { "TrueNAS monitoring" = "operations/truenas-monitoring.md" },
