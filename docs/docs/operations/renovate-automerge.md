@@ -49,7 +49,7 @@ The protected-infra guard keeps these on manual review for all update types (inc
 | OS / kubelet | `siderolabs/` (Talos), `kubelet` |
 | Control plane | `kube-apiserver`, `kube-controller-manager`, `kube-proxy`, `kube-scheduler` |
 | CNI | `cilium` |
-| Storage | `rook-ceph`, `rook-ceph-cluster` |
+| Storage | `rook-ceph`, `rook-ceph-cluster`, `openebs` |
 | GitOps | `fluxcd/` (controllers), `controlplaneio-fluxcd` (operator + instance) |
 | Certs / DNS / secrets | `cert-manager`, `coredns`, `external-secrets`, `1password` (onepassword-connect) |
 | Image mirror | `spegel` |
