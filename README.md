@@ -4,6 +4,8 @@
 
 _... managed with Flux, Renovate, and GitHub Actions_ 🤖
 
+📖 **[Documentation &amp; Knowledge Base →](https://lukeevanstech.github.io/talos-cluster/)**
+
 </div>
 
 <div align="center">
@@ -25,6 +27,8 @@ This is a monorepository is for my home kubernetes clusters.
 I try to adhere to Infrastructure as Code (IaC) and GitOps practices using tools like [Kubernetes](https://kubernetes.io/), [Flux](https://github.com/fluxcd/flux2), [Renovate](https://github.com/renovatebot/renovate), and [GitHub Actions](https://github.com/features/actions).
 
 The purpose here is to learn k8s, while practicing Gitops.
+
+📖 Architecture, operations runbooks, and troubleshooting notes live in the **[documentation site](https://lukeevanstech.github.io/talos-cluster/)** (built from `docs/` with [Zensical](https://zensical.org/) and published to GitHub Pages).
 
 ---
 
