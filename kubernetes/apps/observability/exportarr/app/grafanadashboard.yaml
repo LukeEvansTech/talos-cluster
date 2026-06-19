@@ -1,0 +1,24 @@
+---
+# Vendored from jfroy/flatops "Media Dashboard" (exportarr-dashboard2.json):
+# https://github.com/jfroy/flatops/tree/main/kubernetes/apps/observability/exportarr
+# Covers sonarr/radarr/bazarr/prowlarr/sabnzbd. The DS_PROMETHEUS __input is mapped
+# to the cluster Prometheus datasource via spec.datasources below (same pattern as
+# smartctl-exporter). The configMapGenerator carries substitute:disabled so Flux
+# postBuild does not clobber the dashboard's ${DS_PROMETHEUS} / $__rate_interval macros.
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/grafana.integreatly.org/grafanadashboard_v1beta1.json
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  name: exportarr
+spec:
+  allowCrossNamespaceImport: true
+  instanceSelector:
+    matchLabels:
+      grafana.internal/instance: grafana
+  datasources:
+    - datasourceName: Prometheus
+      inputName: DS_PROMETHEUS
+  resyncPeriod: 1h
+  configMapRef:
+    name: exportarr-dashboard
+    key: exportarr.json
