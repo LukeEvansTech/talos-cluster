@@ -13,8 +13,11 @@ spec:
   endpoints:
     - port: metrics
       scheme: http
+      # ENABLE_ADDITIONAL_METRICS iterates every movie; scrape less often and
+      # allow more time (matches sonarr; the standard exportarr pattern).
       path: /metrics
-      interval: 60s
+      interval: 5m
+      scrapeTimeout: 2m
       relabelings:
         - action: replace
           targetLabel: instance
