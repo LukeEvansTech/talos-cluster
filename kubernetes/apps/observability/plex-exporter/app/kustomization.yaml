@@ -1,0 +1,21 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ./externalsecret.yaml
+  - ./grafanadashboard.yaml
+  - ./helmrelease.yaml
+  - ./ocirepository.yaml
+  - ./prometheusrule.yaml
+  - ./servicemonitor.yaml
+configMapGenerator:
+  - name: plex-exporter-dashboard
+    files:
+      - dashboards/plex.json
+generatorOptions:
+  disableNameSuffixHash: true
+  annotations:
+    # The dashboard JSON uses Grafana's own ${datasource}/${__interval} macros;
+    # disable Flux postBuild var substitution so they are not clobbered to empty.
+    kustomize.toolkit.fluxcd.io/substitute: disabled
