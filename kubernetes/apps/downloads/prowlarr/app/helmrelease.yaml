@@ -31,7 +31,7 @@ spec:
               DNS_KEEP_NAMESERVER: "on"
               FIREWALL: true
               FIREWALL_DEBUG: on
-              FIREWALL_INPUT_PORTS: 80,3000,9999
+              FIREWALL_INPUT_PORTS: 80,3000,9707,9999
               FIREWALL_OUTBOUND_SUBNETS: '"${CLUSTER_PODS_CIDR},${CLUSTER_SVCS_CIDR},${CR_LAN_CIDR},${GH_LAN_CIDR}"'
               HEALTH_SERVER_ADDRESS: ":9999"
               HEALTH_SERVER_DISABLE_LOOP: on
@@ -169,6 +169,35 @@ spec:
                 memory: 50Mi
               limits:
                 memory: 128Mi
+          metrics:
+            dependsOn: app
+            image:
+              repository: ghcr.io/onedr0p/exportarr
+              tag: v2.3.0@sha256:af535d94061cf97a52e1661945ffba78c03f9443eae7c0da1a80a5a4be56b520
+            args:
+              - "prowlarr"
+            env:
+              PORT: &metricsPort 9707
+              URL: "http://localhost:80"
+              API_KEY:
+                valueFrom:
+                  secretKeyRef:
+                    name: prowlarr-secret
+                    key: PROWLARR__AUTH__APIKEY
+            securityContext:
+              runAsNonRoot: true
+              runAsUser: 568
+              runAsGroup: 568
+              seccompProfile: { type: RuntimeDefault }
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities: { drop: ["ALL"] }
+            resources:
+              requests:
+                cpu: 10m
+                memory: 64Mi
+              limits:
+                memory: 128Mi
         pod:
           labels:
             gluetun: "true"
@@ -185,6 +214,8 @@ spec:
         ports:
           http:
             port: *port
+          metrics:
+            port: *metricsPort
       gluetun-webui:
         controller: prowlarr
         ports:

@@ -8,6 +8,7 @@ resources:
   - ./externalsecret.yaml
   - ./ocirepository.yaml
   - ./helmrelease.yaml
+  - ./servicemonitor.yaml
 replacements:
   - source:
       kind: HelmRelease
