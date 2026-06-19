@@ -1,0 +1,19 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/grafana.integreatly.org/grafanadashboard_v1beta1.json
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  name: plex-exporter
+spec:
+  allowCrossNamespaceImport: true
+  instanceSelector:
+    matchLabels:
+      grafana.internal/instance: grafana
+  resyncPeriod: 1h
+  # The vendored dashboard has empty `__inputs` and uses a built-in `$datasource`
+  # template variable, so there is no DS_PROMETHEUS input to remap — a `datasources`
+  # block here would be a no-op. Same as the vmware-exporter dashboards: the picker
+  # defaults to the Prometheus datasource. (Verify panels populate post-deploy.)
+  configMapRef:
+    name: plex-exporter-dashboard
+    key: plex.json
