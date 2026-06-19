@@ -24,6 +24,8 @@ resources:
   - ./oxidized/ks.yaml
   - ./peanut/ks.yaml
   - ./plex-exporter/ks.yaml
+  - ./scrutiny/ks.yaml
+  - ./scrutiny-collector/ks.yaml
   - ./silence-operator/ks.yaml
   - ./smartctl-exporter/ks.yaml
   - ./snmp-exporter/ks.yaml
