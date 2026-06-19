@@ -13,8 +13,12 @@ spec:
   endpoints:
     - port: metrics
       scheme: http
+      # ENABLE_ADDITIONAL_METRICS iterates every series/episode, so the scrape
+      # runs long (it exceeds the default 10s scrapeTimeout on a large library).
+      # Scrape less often and allow more time — the standard exportarr pattern.
       path: /metrics
-      interval: 60s
+      interval: 5m
+      scrapeTimeout: 2m
       relabelings:
         - action: replace
           targetLabel: instance
