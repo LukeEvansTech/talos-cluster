@@ -9,6 +9,7 @@ resources:
   - ./ocirepository.yaml
   - ./pvc.yaml
   - ./helmrelease.yaml
+  - ./servicemonitor.yaml
 replacements:
   - source:
       kind: HelmRelease
