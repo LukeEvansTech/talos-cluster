@@ -1,0 +1,35 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: plex-exporter.rules
+spec:
+  groups:
+    - name: plex-exporter.rules
+      rules:
+        - alert: PlexExporterDown
+          annotations:
+            summary: "Plex exporter scrape is failing."
+          expr: |-
+            up{job="plex-exporter"} == 0
+          for: 10m
+          labels:
+            severity: warning
+        - alert: PlexServerUnreachable
+          annotations:
+            summary: "Plex exporter is up but cannot reach the Plex server."
+          # server_info disappears when the exporter can't talk to Plex.
+          expr: |-
+            absent(server_info{job="plex-exporter"})
+          for: 10m
+          labels:
+            severity: warning
+        - alert: PlexHostCPUHigh
+          annotations:
+            summary: "Plex host CPU is above 90% — likely transcode overload."
+          expr: |-
+            host_cpu_util{job="plex-exporter"} > 90
+          for: 15m
+          labels:
+            severity: warning
