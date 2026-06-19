@@ -1,0 +1,18 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: exportarr.rules
+spec:
+  groups:
+    - name: exportarr.rules
+      rules:
+        - alert: ExportarrDown
+          annotations:
+            summary: "exportarr for {{ $labels.instance }} ({{ $labels.namespace }}) is not being scraped."
+          expr: |-
+            up{instance=~"sonarr|radarr|bazarr|prowlarr|sabnzbd"} == 0
+          for: 5m
+          labels:
+            severity: warning
