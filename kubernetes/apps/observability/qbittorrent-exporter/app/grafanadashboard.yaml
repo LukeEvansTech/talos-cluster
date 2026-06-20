@@ -1,0 +1,24 @@
+---
+# Vendored from martabal/qbittorrent-exporter v2.0.1 (grafana/dashboard.json):
+# https://github.com/martabal/qbittorrent-exporter
+# The DS_PROMETHEUS __input is mapped to the cluster Prometheus datasource via
+# spec.datasources below (same pattern as smartctl-exporter / exportarr). The
+# configMapGenerator carries substitute:disabled so Flux postBuild does not
+# clobber the dashboard's ${DS_PROMETHEUS} / $__rate_interval macros.
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/grafana.integreatly.org/grafanadashboard_v1beta1.json
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  name: qbittorrent-exporter
+spec:
+  allowCrossNamespaceImport: true
+  instanceSelector:
+    matchLabels:
+      grafana.internal/instance: grafana
+  datasources:
+    - datasourceName: Prometheus
+      inputName: DS_PROMETHEUS
+  resyncPeriod: 1h
+  configMapRef:
+    name: qbittorrent-exporter-dashboard
+    key: qbittorrent.json

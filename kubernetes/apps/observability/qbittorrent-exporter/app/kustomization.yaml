@@ -1,0 +1,17 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ./grafanadashboard.yaml
+  - ./prometheusrule.yaml
+configMapGenerator:
+  - name: qbittorrent-exporter-dashboard
+    files:
+      - qbittorrent.json=./dashboards/qbittorrent.json
+generatorOptions:
+  disableNameSuffixHash: true
+  annotations:
+    # Dashboard JSON uses Grafana ${DS_PROMETHEUS}/$__rate_interval macros;
+    # disable Flux postBuild substitution so they are not clobbered to empty.
+    kustomize.toolkit.fluxcd.io/substitute: disabled

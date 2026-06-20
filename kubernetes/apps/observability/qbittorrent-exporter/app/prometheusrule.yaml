@@ -1,0 +1,18 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: qbittorrent-exporter.rules
+spec:
+  groups:
+    - name: qbittorrent-exporter.rules
+      rules:
+        - alert: QbittorrentExporterDown
+          annotations:
+            summary: "qbittorrent exporter ({{ $labels.instance }}) is not being scraped."
+          expr: |-
+            up{instance="qbittorrent"} == 0
+          for: 5m
+          labels:
+            severity: warning
