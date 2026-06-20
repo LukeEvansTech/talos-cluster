@@ -85,6 +85,10 @@ spec:
                   secretKeyRef:
                     name: qbittorrent-secret
                     key: QBT_WEBUI_PASSWORD
+              # qBittorrent >= 5.2.0 names the WebUI session cookie QBT_SID_<port>
+              # (here QBT_SID_80); the exporter must track it or it loops re-auth
+              # once the localhost-auth bypass is off.
+              QBITTORRENT_COOKIE_NAME: QBT_SID_80
               EXPORTER_PORT: &metricsPort 9710
               # Per-torrent series (qbittorrent_torrent_info / qbittorrent_tracker_info)
               ENABLE_HIGH_CARDINALITY: "true"
