@@ -24,7 +24,10 @@ spec:
             env:
               QBT_WEBUI_PORT: &port 80
               QBT_TORRENTING_PORT: &BT-port 51749
-              QBT_Preferences__WebUI__LocalHostAuth: false
+              # Require WebUI auth even on localhost so the metrics sidecar must present
+              # real credentials (from the ExternalSecret) instead of riding an
+              # unauthenticated localhost bypass.
+              QBT_Preferences__WebUI__LocalHostAuth: true
             probes:
               liveness:
                 enabled: true
@@ -73,10 +76,18 @@ spec:
               repository: ghcr.io/martabal/qbittorrent-exporter
               tag: v2.0.1@sha256:ddf2bff9b357e50be4ddb699b6489ac5a49e4fac8c7dc5d4ca2abe1e5855f4dd
             env:
-              # qbittorrent has WebUI LocalHostAuth bypass (QBT_…__LocalHostAuth: false),
-              # so this localhost sidecar reaches the API unauthenticated — no creds needed.
+              # Authenticate to the qBittorrent WebUI with real credentials from the
+              # ExternalSecret (the localhost-auth bypass is disabled on the app container).
               QBITTORRENT_BASE_URL: "http://localhost:80"
+              QBITTORRENT_USERNAME: admin
+              QBITTORRENT_PASSWORD:
+                valueFrom:
+                  secretKeyRef:
+                    name: qbittorrent-secret
+                    key: QBT_WEBUI_PASSWORD
               EXPORTER_PORT: &metricsPort 9710
+              # Per-torrent series (qbittorrent_torrent_info / qbittorrent_tracker_info)
+              ENABLE_HIGH_CARDINALITY: "true"
             securityContext:
               runAsNonRoot: true
               runAsUser: 1000
