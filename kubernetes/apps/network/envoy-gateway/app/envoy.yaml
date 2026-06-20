@@ -54,6 +54,9 @@ metadata:
     type: external
   annotations:
     external-dns.alpha.kubernetes.io/target: &hostname external.${SECRET_DOMAIN}
+    # Default gatus group for routes on this gateway; the sidecar inherits it to attached HTTPRoutes
+    gatus.home-operations.com/endpoint: |
+      group: external
 spec:
   gatewayClassName: envoy
   infrastructure:
@@ -89,6 +92,9 @@ metadata:
     external-dns.alpha.kubernetes.io/record-type: A
     external-dns.alpha.kubernetes.io/target: ${ENVOY_INTERNAL_IP}
     external-dns.alpha.kubernetes.io/hostname: &internalHost internal.${SECRET_DOMAIN}
+    # Default gatus group for routes on this gateway; the sidecar inherits it to attached HTTPRoutes
+    gatus.home-operations.com/endpoint: |
+      group: internal
 spec:
   gatewayClassName: envoy
   infrastructure:
