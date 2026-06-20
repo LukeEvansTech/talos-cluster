@@ -10,7 +10,7 @@ spec:
       rules:
         - alert: GatusEndpointDown
           expr: |
-            gatus_results_endpoint_success{group="external"} == 0
+            gatus_results_endpoint_success{group=~"internal|external"} == 0
           for: 5m
           annotations:
             summary: >-
@@ -18,6 +18,9 @@ spec:
           labels:
             severity: critical
 
+        # NOTE: the "guarded" exposure-detection group has no live endpoints since the
+        # move to sidecar auto-discovery — this alert is currently inactive (restoring
+        # exposure-detection is a separate decision; see the gatus migration).
         - alert: GatusEndpointExposed
           expr: |
             gatus_results_endpoint_success{group="guarded"} == 0
