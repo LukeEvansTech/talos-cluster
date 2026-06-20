@@ -119,7 +119,7 @@ spec:
         annotations:
           # garage S3 API answers anonymous GET with 403 — treat 200/403 as healthy
           gatus.home-operations.com/endpoint: |
-            conditions: ["[STATUS] any of 200, 403"]
+            conditions: ["[STATUS] == any(200, 403)"]
         hostnames:
           - "s3.${SECRET_DOMAIN}"
           - "s3.${SECRET_INTERNAL_DOMAIN}"
