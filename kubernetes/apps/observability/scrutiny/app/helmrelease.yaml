@@ -1,0 +1,69 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: &app scrutiny
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: app-template
+  values:
+    controllers:
+      scrutiny:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        containers:
+          app:
+            image:
+              repository: ghcr.io/starosdev/scrutiny
+              tag: 1.64.0-omnibus@sha256:d027f018648b1d89552d051a10a3603abf1e2bd52357b1517d0fac1086094b15
+            env:
+              TZ: ${TIMEZONE:=UTC}
+              # In-pod collector disabled: collection is handled uniformly by the
+              # scrutiny-collector DaemonSet, keeping this server unprivileged.
+              COLLECTOR_RUN_STARTUP: "false"
+              COLLECTOR_CRON_SCHEDULE: "0 0 30 2 *" # 30 February — never fires
+            probes:
+              liveness:
+                enabled: true
+              readiness:
+                enabled: true
+              startup:
+                enabled: true
+            resources:
+              requests:
+                cpu: 25m
+                memory: 256Mi
+              limits:
+                memory: 1Gi
+    defaultPodOptions:
+      securityContext:
+        # Omnibus uses s6-overlay + an embedded InfluxDB and must run as root.
+        runAsNonRoot: false
+    service:
+      app:
+        controller: *app
+        ports:
+          http:
+            port: 8080
+    route:
+      app:
+        hostnames:
+          - scrutiny.${SECRET_DOMAIN}
+        parentRefs:
+          - name: envoy-internal
+            namespace: network
+        rules:
+          - backendRefs:
+              - identifier: app
+                port: 8080
+    persistence:
+      config:
+        existingClaim: "{{ .Release.Name }}"
+        globalMounts:
+          - path: /opt/scrutiny/config
+            subPath: config
+          - path: /opt/scrutiny/influxdb
+            subPath: influxdb
