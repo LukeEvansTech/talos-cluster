@@ -34,8 +34,6 @@ spec:
   commonMetadata:
     labels:
       app.kubernetes.io/name: grafana
-  components:
-    - ../../../../components/gatus/guarded
   dependsOn:
     - name: grafana-operator
   interval: 1h
