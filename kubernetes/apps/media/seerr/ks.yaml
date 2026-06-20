@@ -10,7 +10,6 @@ spec:
     labels:
       app.kubernetes.io/name: *app
   components:
-    - ../../../../components/gatus/external
     - ../../../../components/homepage
     - ../../../../components/volsync
   dependsOn:
@@ -21,8 +20,6 @@ spec:
   postBuild:
     substitute:
       APP: *app
-      GATUS_PATH: /api/v1/status
-      GATUS_SUBDOMAIN: requests
       VOLSYNC_CAPACITY: 5Gi
       HOMEPAGE_NAME: Seerr
       HOMEPAGE_GROUP: Requests

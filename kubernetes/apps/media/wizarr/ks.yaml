@@ -10,7 +10,6 @@ spec:
     labels:
       app.kubernetes.io/name: *app
   components:
-    - ../../../../components/gatus/external
     - ../../../../components/homepage
     - ../../../../components/volsync
   interval: 1h
@@ -18,7 +17,6 @@ spec:
   postBuild:
     substitute:
       APP: *app
-      GATUS_PATH: /
       VOLSYNC_CAPACITY: 5Gi
       VOLSYNC_CACHE_CAPACITY: 4Gi
       HOMEPAGE_NAME: Wizarr

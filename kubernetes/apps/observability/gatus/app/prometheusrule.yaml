@@ -17,16 +17,3 @@ spec:
               The {{ $labels.name }} endpoint is down
           labels:
             severity: critical
-
-        # NOTE: the "guarded" exposure-detection group has no live endpoints since the
-        # move to sidecar auto-discovery — this alert is currently inactive (restoring
-        # exposure-detection is a separate decision; see the gatus migration).
-        - alert: GatusEndpointExposed
-          expr: |
-            gatus_results_endpoint_success{group="guarded"} == 0
-          for: 5m
-          annotations:
-            summary: >-
-              The {{ $labels.name }} endpoint has a public DNS record and is exposed
-          labels:
-            severity: critical

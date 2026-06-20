@@ -12,7 +12,6 @@ spec:
   dependsOn:
     - name: mc-router
   components:
-    - ../../../../components/gatus/guarded
     - ../../../../components/volsync
   interval: 1h
   path: ./kubernetes/apps/games/minecraft/app
