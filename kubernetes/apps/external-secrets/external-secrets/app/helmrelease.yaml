@@ -13,6 +13,14 @@ spec:
   values:
     installCRDs: true
     leaderElect: true
+    # Expose controller/webhook/cert-controller metrics (:8080) and scrape them —
+    # the bundled Grafana dashboard (grafanaDashboard below) is blank without this.
+    serviceMonitor:
+      enabled: true
+      interval: 1m
+    metrics:
+      service:
+        enabled: true
     resources:
       requests:
         cpu: 10m
@@ -20,6 +28,9 @@ spec:
       limits:
         memory: 256Mi
     certController:
+      metrics:
+        service:
+          enabled: true
       resources:
         requests:
           cpu: 10m
@@ -32,6 +43,9 @@ spec:
         grafana_folder: External-Secrets
     webhook:
       replicaCount: 2
+      metrics:
+        service:
+          enabled: true
       resources:
         requests:
           cpu: 10m
