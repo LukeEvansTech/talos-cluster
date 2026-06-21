@@ -1,0 +1,26 @@
+---
+# Dedicated SABnzbd view, lifted from the exportarr "Media Dashboard"
+# (kubernetes/apps/observability/exportarr/app/dashboards/exportarr.json). Every
+# panel queries exportarr's own `sabnzbd_*` series, so it is metric-native — unlike
+# every public grafana.com SABnzbd dashboard, which targets the incompatible
+# msroest/sabnzbd_exporter and would render blank. The DS_PROMETHEUS __input is
+# mapped to the cluster Prometheus datasource via spec.datasources below; the
+# configMapGenerator carries substitute:disabled so Flux postBuild does not clobber
+# the dashboard's ${DS_PROMETHEUS} / $__rate_interval macros.
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/grafana.integreatly.org/grafanadashboard_v1beta1.json
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  name: sabnzbd
+spec:
+  allowCrossNamespaceImport: true
+  instanceSelector:
+    matchLabels:
+      grafana.internal/instance: grafana
+  datasources:
+    - datasourceName: prometheus
+      inputName: DS_PROMETHEUS
+  resyncPeriod: 1h
+  configMapRef:
+    name: sabnzbd-dashboard
+    key: sabnzbd.json

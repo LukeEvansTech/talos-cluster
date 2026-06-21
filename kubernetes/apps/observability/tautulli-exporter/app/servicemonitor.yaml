@@ -1,0 +1,27 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/servicemonitor_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: &app tautulli-exporter
+  labels:
+    app.kubernetes.io/name: *app
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: *app
+  endpoints:
+    - port: metrics
+      scheme: http
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s
+      relabelings:
+        # This exporter emits `plex_*` metrics (same prefix as the PPE Plex
+        # exporter); pin job/instance so the dashboard can disambiguate the two.
+        - action: replace
+          targetLabel: job
+          replacement: tautulli-exporter
+        - action: replace
+          targetLabel: instance
+          replacement: tautulli
