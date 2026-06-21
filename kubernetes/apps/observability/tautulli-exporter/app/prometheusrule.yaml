@@ -1,0 +1,27 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: tautulli-exporter.rules
+spec:
+  groups:
+    - name: tautulli-exporter.rules
+      rules:
+        - alert: TautulliExporterDown
+          annotations:
+            summary: "Tautulli exporter scrape is failing."
+          expr: |-
+            up{job="tautulli-exporter"} == 0
+          for: 10m
+          labels:
+            severity: warning
+        - alert: TautulliUnreachable
+          annotations:
+            summary: "Tautulli exporter is up but cannot reach the Tautulli API."
+          # The active-streams gauge disappears when the exporter can't reach Tautulli.
+          expr: |-
+            absent(plex_active_streams_total{job="tautulli-exporter"})
+          for: 15m
+          labels:
+            severity: warning

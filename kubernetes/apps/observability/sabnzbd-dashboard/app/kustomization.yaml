@@ -3,21 +3,14 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  - ./externalsecret.yaml
   - ./grafanadashboard.yaml
-  - ./helmrelease.yaml
-  - ./ocirepository.yaml
-  - ./prometheusrule.yaml
-  - ./servicemonitor.yaml
 configMapGenerator:
-  - name: vmware-exporter-dashboards
+  - name: sabnzbd-dashboard
     files:
-      - cluster.json=./dashboards/cluster.json
-      - esxi.json=./dashboards/esxi.json
-      - virtualmachine.json=./dashboards/virtualmachine.json
+      - sabnzbd.json=./dashboards/sabnzbd.json
 generatorOptions:
   disableNameSuffixHash: true
   annotations:
-    # Dashboard JSON uses Grafana's own ${datasource}/${__interval} macros;
+    # Dashboard JSON uses Grafana ${DS_PROMETHEUS}/$__rate_interval macros;
     # disable Flux postBuild substitution so they are not clobbered to empty.
     kustomize.toolkit.fluxcd.io/substitute: disabled
