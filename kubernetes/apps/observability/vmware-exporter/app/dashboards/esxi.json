@@ -1681,10 +1681,7 @@
       },
       {
         "allValue": null,
-        "current": {
-          "text": "192.168.0.27",
-          "value": "192.168.0.27"
-        },
+        "current": {},
         "datasource": "$datasource",
         "definition": "",
         "hide": 0,

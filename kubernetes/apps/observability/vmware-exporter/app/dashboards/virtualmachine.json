@@ -1876,10 +1876,7 @@
       },
       {
         "allValue": null,
-        "current": {
-          "text": "centos-dhcp",
-          "value": "centos-dhcp"
-        },
+        "current": {},
         "datasource": "$datasource",
         "definition": "label_values(vm_name)",
         "hide": 0,

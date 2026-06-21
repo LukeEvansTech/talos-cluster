@@ -1933,10 +1933,7 @@
       },
       {
         "allValue": null,
-        "current": {
-          "text": "cluster1",
-          "value": ["cluster1"]
-        },
+        "current": {},
         "datasource": "$datasource",
         "definition": "label_values(cluster_name)",
         "hide": 0,
