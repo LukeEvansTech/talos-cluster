@@ -5,6 +5,7 @@ kind: GrafanaDashboard
 metadata:
   name: cilium
 spec:
+  folder: kube-system
   allowCrossNamespaceImport: true
   instanceSelector:
     matchLabels:
@@ -22,6 +23,7 @@ kind: GrafanaDashboard
 metadata:
   name: cilium-operator
 spec:
+  folder: kube-system
   allowCrossNamespaceImport: true
   instanceSelector:
     matchLabels:
