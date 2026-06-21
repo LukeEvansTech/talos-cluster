@@ -145,7 +145,6 @@ spec:
               targetLabel: kubernetes_node
     grafana:
       enabled: false
-      forceDeployDashboards: true
     additionalPrometheusRulesMap:
       dockerhub-rules:
         groups:
