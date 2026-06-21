@@ -639,7 +639,7 @@
         }
       ],
       "thresholds": "50,80",
-      "title": "Memory Capaciy",
+      "title": "Memory Capacity",
       "type": "singlestat",
       "valueFontSize": "80%",
       "valueMaps": [
