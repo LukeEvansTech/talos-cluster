@@ -1933,11 +1933,15 @@
       },
       {
         "allValue": null,
-        "current": {},
+        "current": {
+          "selected": true,
+          "text": ["All"],
+          "value": ["$__all"]
+        },
         "datasource": "$datasource",
         "definition": "label_values(cluster_name)",
         "hide": 0,
-        "includeAll": false,
+        "includeAll": true,
         "label": "cluster",
         "multi": true,
         "name": "cluster",
