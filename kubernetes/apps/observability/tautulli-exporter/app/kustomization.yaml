@@ -10,14 +10,12 @@ resources:
   - ./prometheusrule.yaml
   - ./servicemonitor.yaml
 configMapGenerator:
-  - name: vmware-exporter-dashboards
+  - name: tautulli-exporter-dashboard
     files:
-      - cluster.json=./dashboards/cluster.json
-      - esxi.json=./dashboards/esxi.json
-      - virtualmachine.json=./dashboards/virtualmachine.json
+      - tautulli.json=./dashboards/tautulli.json
 generatorOptions:
   disableNameSuffixHash: true
   annotations:
-    # Dashboard JSON uses Grafana's own ${datasource}/${__interval} macros;
-    # disable Flux postBuild substitution so they are not clobbered to empty.
+    # Dashboard JSON uses Grafana ${DS_PROMETHEUS} macros; disable Flux postBuild
+    # substitution so they are not clobbered to empty.
     kustomize.toolkit.fluxcd.io/substitute: disabled
