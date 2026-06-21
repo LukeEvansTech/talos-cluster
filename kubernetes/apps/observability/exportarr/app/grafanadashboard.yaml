@@ -16,7 +16,7 @@ spec:
     matchLabels:
       grafana.internal/instance: grafana
   datasources:
-    - datasourceName: Prometheus
+    - datasourceName: prometheus
       inputName: DS_PROMETHEUS
   resyncPeriod: 1h
   configMapRef:

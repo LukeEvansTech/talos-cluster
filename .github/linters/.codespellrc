@@ -3,7 +3,8 @@
 # adn   — part of adn.20765.psicdn.net (EdgeCast CDN host in smokeping Targets)
 # flate  — home-operations/flate, our flux-local replacement (CI workflows)
 # intoto — SLSA in-toto provenance paths in mise.lock (provenance.intoto.jsonl)
-ignore-words-list = NotIn,adn,flate,intoto
+# showin — Grafana annotation schema key `showIn` (vendored dashboard JSON)
+ignore-words-list = NotIn,adn,flate,intoto,showin
 # mise.lock is a generated lockfile (checksums/URLs); not prose. NB: super-linter
 # passes files explicitly with its own --skip, so the config `skip` below is
 # ignored in CI — `intoto` above is the load-bearing fix. Kept for local runs.

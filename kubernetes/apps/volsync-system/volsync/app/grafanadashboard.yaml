@@ -15,6 +15,6 @@ spec:
     revision: 3
   datasources:
     - inputName: DS_PROMETHEUS
-      datasourceName: Prometheus
+      datasourceName: prometheus
     - inputName: VAR_REPLICATIONDESTNAME
       datasourceName: .*-dst

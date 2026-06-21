@@ -1,4 +1,11 @@
 ---
+# Vendored from pryorda/vmware_exporter v0.18.4 (dashboards/*.json):
+# https://github.com/pryorda/vmware_exporter/tree/v0.18.4/dashboards
+# These were previously imported via `url:`, but the upstream JSON hard-codes its
+# `$datasource` template variable to "Prometheus" (capital), which does not match
+# this cluster's datasource (name `prometheus`) — so every panel rendered blank.
+# Vendoring lets us pin that variable to `prometheus` (configMapGenerator carries
+# substitute:disabled so Flux postBuild leaves the dashboard macros intact).
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/grafana.integreatly.org/grafanadashboard_v1beta1.json
 apiVersion: grafana.integreatly.org/v1beta1
 kind: GrafanaDashboard
@@ -10,10 +17,9 @@ spec:
     matchLabels:
       grafana.internal/instance: grafana
   resyncPeriod: 1h
-  # These dashboards use a built-in `$datasource` picker (no __inputs), which
-  # defaults to the default Prometheus datasource — no remap required.
-  # renovate: depName="pryorda/vmware_exporter" datasource=github-tags
-  url: https://raw.githubusercontent.com/pryorda/vmware_exporter/v0.18.4/dashboards/cluster.json
+  configMapRef:
+    name: vmware-exporter-dashboards
+    key: cluster.json
 ---
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/grafana.integreatly.org/grafanadashboard_v1beta1.json
 apiVersion: grafana.integreatly.org/v1beta1
@@ -26,8 +32,9 @@ spec:
     matchLabels:
       grafana.internal/instance: grafana
   resyncPeriod: 1h
-  # renovate: depName="pryorda/vmware_exporter" datasource=github-tags
-  url: https://raw.githubusercontent.com/pryorda/vmware_exporter/v0.18.4/dashboards/esxi.json
+  configMapRef:
+    name: vmware-exporter-dashboards
+    key: esxi.json
 ---
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/grafana.integreatly.org/grafanadashboard_v1beta1.json
 apiVersion: grafana.integreatly.org/v1beta1
@@ -40,5 +47,6 @@ spec:
     matchLabels:
       grafana.internal/instance: grafana
   resyncPeriod: 1h
-  # renovate: depName="pryorda/vmware_exporter" datasource=github-tags
-  url: https://raw.githubusercontent.com/pryorda/vmware_exporter/v0.18.4/dashboards/virtualmachine.json
+  configMapRef:
+    name: vmware-exporter-dashboards
+    key: virtualmachine.json
