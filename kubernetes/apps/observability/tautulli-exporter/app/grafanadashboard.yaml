@@ -1,0 +1,26 @@
+---
+# Hand-built dashboard for mm503/tautulli-exporter (image mm404/tautulli-exporter).
+# The exporter ships no dashboard and emits bespoke `plex_*` gauges (active streams,
+# transcodes, LAN/WAN bandwidth) — every public "Tautulli" dashboard targets a
+# different metric schema and would render blank. Queries are pinned to
+# job="tautulli-exporter" so they don't collide with the PPE Plex exporter's
+# `plex_*` series. The DS_PROMETHEUS __input is mapped to the cluster Prometheus
+# datasource via spec.datasources below; the configMapGenerator carries
+# substitute:disabled so Flux postBuild leaves the dashboard macros intact.
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/grafana.integreatly.org/grafanadashboard_v1beta1.json
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  name: tautulli
+spec:
+  allowCrossNamespaceImport: true
+  instanceSelector:
+    matchLabels:
+      grafana.internal/instance: grafana
+  datasources:
+    - datasourceName: prometheus
+      inputName: DS_PROMETHEUS
+  resyncPeriod: 1h
+  configMapRef:
+    name: tautulli-exporter-dashboard
+    key: tautulli.json
