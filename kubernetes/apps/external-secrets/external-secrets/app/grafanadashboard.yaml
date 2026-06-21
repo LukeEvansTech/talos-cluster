@@ -5,6 +5,10 @@ kind: GrafanaDashboard
 metadata:
   name: external-secrets
 spec:
+  # Override the chart configMap's `grafana_folder: External-Secrets` annotation so this
+  # dashboard files under the lowercase namespace folder like every other app (folderless
+  # CRs default to their namespace; this one is the exception only because of that annotation).
+  folder: external-secrets
   allowCrossNamespaceImport: true
   instanceSelector:
     matchLabels:
