@@ -5,6 +5,7 @@ kind: GrafanaDashboard
 metadata:
   name: spegel
 spec:
+  folder: kube-system
   allowCrossNamespaceImport: true
   instanceSelector:
     matchLabels:
