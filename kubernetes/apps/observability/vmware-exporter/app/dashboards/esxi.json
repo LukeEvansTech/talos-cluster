@@ -1681,11 +1681,15 @@
       },
       {
         "allValue": null,
-        "current": {},
+        "current": {
+          "selected": true,
+          "text": ["All"],
+          "value": ["$__all"]
+        },
         "datasource": "$datasource",
         "definition": "",
         "hide": 0,
-        "includeAll": false,
+        "includeAll": true,
         "label": "esxhost",
         "multi": true,
         "name": "esxhost",

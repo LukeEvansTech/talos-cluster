@@ -782,7 +782,7 @@
           "editorMode": "code",
           "expr": "plex_active_streams_total{job=\"tautulli-exporter\"}",
           "range": true,
-          "refId": "Tot",
+          "refId": "A",
           "legendFormat": "Total"
         },
         {
@@ -793,7 +793,7 @@
           "editorMode": "code",
           "expr": "plex_active_streams_direct_play{job=\"tautulli-exporter\"}",
           "range": true,
-          "refId": "Dir",
+          "refId": "B",
           "legendFormat": "Direct Play"
         },
         {
@@ -804,7 +804,7 @@
           "editorMode": "code",
           "expr": "plex_active_streams_direct_stream{job=\"tautulli-exporter\"}",
           "range": true,
-          "refId": "Dir",
+          "refId": "C",
           "legendFormat": "Direct Stream"
         },
         {
@@ -815,7 +815,7 @@
           "editorMode": "code",
           "expr": "plex_active_streams_transcode{job=\"tautulli-exporter\"}",
           "range": true,
-          "refId": "Tra",
+          "refId": "D",
           "legendFormat": "Transcode"
         }
       ]
@@ -1109,7 +1109,7 @@
           "editorMode": "code",
           "expr": "plex_transcode_video_sessions{job=\"tautulli-exporter\"}",
           "range": true,
-          "refId": "Vid",
+          "refId": "A",
           "legendFormat": "Video"
         },
         {
@@ -1120,7 +1120,7 @@
           "editorMode": "code",
           "expr": "plex_transcode_audio_sessions{job=\"tautulli-exporter\"}",
           "range": true,
-          "refId": "Aud",
+          "refId": "B",
           "legendFormat": "Audio"
         },
         {
@@ -1131,7 +1131,7 @@
           "editorMode": "code",
           "expr": "plex_transcode_container_sessions{job=\"tautulli-exporter\"}",
           "range": true,
-          "refId": "Con",
+          "refId": "C",
           "legendFormat": "Container"
         }
       ]
@@ -1417,7 +1417,7 @@
           "editorMode": "code",
           "expr": "plex_bandwidth_total_kbps{job=\"tautulli-exporter\"}",
           "range": true,
-          "refId": "Tot",
+          "refId": "A",
           "legendFormat": "Total"
         },
         {
@@ -1428,7 +1428,7 @@
           "editorMode": "code",
           "expr": "plex_bandwidth_lan_kbps{job=\"tautulli-exporter\"}",
           "range": true,
-          "refId": "LAN",
+          "refId": "B",
           "legendFormat": "LAN"
         },
         {
@@ -1439,7 +1439,7 @@
           "editorMode": "code",
           "expr": "plex_bandwidth_wan_kbps{job=\"tautulli-exporter\"}",
           "range": true,
-          "refId": "WAN",
+          "refId": "C",
           "legendFormat": "WAN"
         }
       ]
