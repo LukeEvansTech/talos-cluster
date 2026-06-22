@@ -1,0 +1,209 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: &app sentinel-syslog
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: sentinel-syslog
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+      strategy: rollback
+  values:
+    controllers:
+      sentinel-syslog:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        # Run as the SA whose token the Entra federated credential trusts
+        # (subject = system:serviceaccount:security:sentinel-syslog).
+        serviceAccount:
+          identifier: sentinel-syslog
+        containers:
+          app:
+            image:
+              # Custom image: Logstash + microsoft-sentinel output plugin (LukeEvansTech/containers).
+              repository: ghcr.io/lukeevanstech/logstash-sentinel
+              tag: 9.1.10
+            env:
+              TZ: ${TIMEZONE}
+              # Bound the JVM heap for the semi-hyperconverged nodes.
+              LS_JAVA_OPTS: "-Xms512m -Xmx512m"
+              # Workload identity (federated, NO secret). The plugin's managed_identity mode
+              # auto-detects these. Identifiers are sourced from cluster-secrets (1Password) because
+              # this repo is public — populate after terraform-entra + -azure-platform apply.
+              AZURE_CLIENT_ID: "${SECRET_SENTINEL_SYSLOG_CLIENT_ID}"
+              AZURE_TENANT_ID: "${SECRET_AZURE_TENANT_ID}"
+              AZURE_AUTHORITY_HOST: "https://login.microsoftonline.com/"
+              AZURE_FEDERATED_TOKEN_FILE: "/var/run/secrets/azure/tokens/azure-identity-token"
+              # Non-secret DCE/DCR coordinates (also via cluster-secrets for public-repo hygiene).
+              DCE_URI: "${SECRET_SYSLOG_DCE_URI}"
+              DCR_IMMUTABLE_ID: "${SECRET_SYSLOG_DCR_ID}"
+            probes:
+              liveness:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /
+                    port: &monitor 9600
+                  initialDelaySeconds: 90
+                  periodSeconds: 30
+                  failureThreshold: 5
+              readiness:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /
+                    port: *monitor
+                  initialDelaySeconds: 90
+                  periodSeconds: 30
+                  failureThreshold: 5
+            securityContext:
+              allowPrivilegeEscalation: false
+              # TODO(hardening): set true once data/logs/tmp are all emptyDir-mounted.
+              readOnlyRootFilesystem: false
+              capabilities:
+                drop:
+                  - ALL
+            resources:
+              requests:
+                cpu: 100m
+                memory: 768Mi
+              limits:
+                memory: 1536Mi
+
+    serviceAccount:
+      sentinel-syslog: {}
+
+    defaultPodOptions:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+
+    service:
+      app:
+        controller: sentinel-syslog
+        type: LoadBalancer
+        annotations:
+          # The shared LAN syslog endpoint — any source ships here. CONFIRM .90 is free in the
+          # 10.32.8.0/24 pool (existing statics: .87/.88/.89); ideally register SVC_SYSLOG_ADDR.
+          lbipam.cilium.io/ips: ${SVC_SYSLOG_ADDR:=10.32.8.90}
+        externalTrafficPolicy: Local
+        ports:
+          syslog-udp:
+            port: 514
+            protocol: UDP
+          syslog-tcp:
+            port: 514
+            protocol: TCP
+          monitor:
+            port: *monitor
+
+    configMaps:
+      pipeline:
+        data:
+          logstash.conf: |-
+            input {
+              # Logstash syslog input listens on TCP+UDP 514. Senders should use RFC3164.
+              # This is the generic ingestion point — any syslog source can target it.
+              syslog {
+                port => 514
+              }
+            }
+
+            filter {
+              # ---- FILTER HARD (cost control; deliberate per design) ----
+              # Per-source rules below. Sources with no rule pass through to the Syslog table as-is.
+
+              # --- Source: OPNsense firewall (filterlog) ---
+              # Keep block/reject; drop routine "pass" (allow) noise. First 7 CSV fields are stable
+              # across IP versions: rule,subrule,anchor,tracker,iface,reason,action
+              if [program] == "filterlog" {
+                dissect {
+                  mapping => {
+                    "message" => "%{?rule},%{?subrule},%{?anchor},%{?tracker},%{?iface},%{?reason},%{fw_action},%{}"
+                  }
+                }
+                if [fw_action] == "pass" {
+                  drop {}
+                }
+                mutate { remove_field => ["fw_action"] }
+              }
+
+              # --- Source: OPNsense Unbound DNS resolver ---
+              # Very high volume — sample to ~10% to protect the budget. Promote to keep-all later
+              # if DNS threat-hunting needs full fidelity.
+              if [program] == "unbound" {
+                drop { percentage => 90 }
+              }
+
+              # --- Source: OPNsense Suricata/IDS ---
+              # Kept whole (security-relevant, low volume) — no rule needed.
+
+              # --- Future sources (Mikrotik, switches, Linux hosts) ---
+              # Add per-source filter blocks here; otherwise they ingest verbatim.
+            }
+
+            output {
+              # Federated workload identity — no secret. The plugin auto-detects the AKS-style
+              # AZURE_* env + projected token (AZURE_FEDERATED_TOKEN_FILE) and does the OIDC exchange.
+              microsoft-sentinel-log-analytics-logstash-output-plugin {
+                managed_identity         => true
+                data_collection_endpoint => "${DCE_URI}"
+                dcr_immutable_id         => "${DCR_IMMUTABLE_ID}"
+                dcr_stream_name          => "Custom-SyslogStream"
+                create_sample_file       => false
+              }
+            }
+      settings:
+        data:
+          logstash.yml: |-
+            http.host: 0.0.0.0
+            log.level: info
+
+    persistence:
+      # Projected SA token Azure federates against (no webhook — projected manually).
+      # audience api://AzureADTokenExchange is what Entra expects for the client assertion.
+      azure-token:
+        type: custom
+        volumeSpec:
+          projected:
+            defaultMode: 0644
+            sources:
+              - serviceAccountToken:
+                  path: azure-identity-token
+                  expirationSeconds: 3600
+                  audience: api://AzureADTokenExchange
+        globalMounts:
+          - path: /var/run/secrets/azure/tokens
+            readOnly: true
+      pipeline-file:
+        type: configMap
+        identifier: pipeline
+        globalMounts:
+          - path: /usr/share/logstash/pipeline/logstash.conf
+            subPath: logstash.conf
+      settings-file:
+        type: configMap
+        identifier: settings
+        globalMounts:
+          - path: /usr/share/logstash/config/logstash.yml
+            subPath: logstash.yml
+      data:
+        type: emptyDir
+        globalMounts:
+          - path: /usr/share/logstash/data
