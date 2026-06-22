@@ -172,7 +172,9 @@ spec:
       settings:
         data:
           logstash.yml: |-
-            http.host: 0.0.0.0
+            # Logstash 9.x: the monitoring API bind settings moved under api.* —
+            # plain `http.host` was removed and makes Logstash exit on startup.
+            api.http.host: 0.0.0.0
             log.level: info
 
     persistence:
