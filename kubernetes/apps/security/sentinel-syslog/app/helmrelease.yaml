@@ -100,7 +100,7 @@ spec:
         type: LoadBalancer
         annotations:
           # The shared LAN syslog endpoint — any source ships here. CONFIRM .90 is free in the
-          # 10.32.8.0/24 pool (existing statics: .87/.88/.89); ideally register SVC_SYSLOG_ADDR.
+          # 10.32.8.0/24 pool (existing static IPs: .87/.88/.89); ideally register SVC_SYSLOG_ADDR.
           lbipam.cilium.io/ips: ${SVC_SYSLOG_ADDR:=10.32.8.90}
         externalTrafficPolicy: Local
         ports:
