@@ -11,3 +11,4 @@ resources:
   - ./anubis/ks.yaml
   - ./pocket-id/ks.yaml
   - ./prowler/ks.yaml
+  - ./sentinel-syslog/ks.yaml
