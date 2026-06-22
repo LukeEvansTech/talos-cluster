@@ -7,6 +7,13 @@ cluster:
     extraArgs:
       # https://kubernetes.io/docs/tasks/extend-kubernetes/configure-aggregation-layer/
       enable-aggregator-routing: true
+      # Public OIDC issuer so Entra (and other clouds) can federate the cluster's service-account
+      # tokens — backs the sentinel-syslog workload identity (no secrets). Served as static OIDC
+      # discovery + JWKS by the `network/oidc-talos` app at this exact URL. MUST match byte-for-byte:
+      # the oidc-talos openid-configuration `issuer` + terraform-entra var.sentinel_syslog_oidc_issuer.
+      # ── OPS: control-plane change (rolling apiserver restart). Apply in a maintenance window;
+      #     existing pods re-auth as their projected SA tokens rotate (self-healing, brief).
+      service-account-issuer: https://oidc-talos.codelooks.com
     resources:
       requests:
         memory: 2Gi
