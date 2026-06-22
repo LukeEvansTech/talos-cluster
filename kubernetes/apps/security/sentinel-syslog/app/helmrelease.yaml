@@ -162,14 +162,15 @@ spec:
               # Federated workload identity — no secret. The plugin auto-detects the AKS-style
               # AZURE_* env + projected token (AZURE_FEDERATED_TOKEN_FILE) and does the OIDC exchange.
               microsoft-sentinel-log-analytics-logstash-output-plugin {
-                managed_identity         => true
+                # plugin v2.1.0 option names: dcr_id / stream_name (NOT dcr_immutable_id /
+                # dcr_stream_name). No managed_identity/client_app_* option — with none set, the
+                # plugin uses Azure DefaultAzureCredential, which auto-detects the federated
+                # workload identity from the AZURE_* env + projected token (no secret).
                 # $$ escapes Flux postBuild substitution so these reach Logstash as ${DCE_URI} /
-                # ${DCR_IMMUTABLE_ID} — Logstash then resolves them from the container env (set from
-                # cluster-secrets above). Without the $$, Flux substitutes them to empty (not a
-                # cluster-secrets key) → "data_collection_endpoint cannot be empty".
+                # ${DCR_IMMUTABLE_ID}, which Logstash resolves from the container env (cluster-secrets).
                 data_collection_endpoint => "$${DCE_URI}"
-                dcr_immutable_id         => "$${DCR_IMMUTABLE_ID}"
-                dcr_stream_name          => "Custom-SyslogStream"
+                dcr_id                   => "$${DCR_IMMUTABLE_ID}"
+                stream_name              => "Custom-SyslogStream"
                 create_sample_file       => false
               }
             }
