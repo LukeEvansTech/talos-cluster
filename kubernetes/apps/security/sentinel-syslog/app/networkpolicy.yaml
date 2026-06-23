@@ -1,0 +1,27 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/cilium.io/ciliumnetworkpolicy_v2.json
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: sentinel-syslog-allow-external-syslog
+spec:
+  # The cluster runs default-deny ingress (see kube-system cilium-policies). External
+  # syslog senders are seen by Cilium as the `world` identity, so without this rule the
+  # LoadBalancer'd syslog ports are dropped at pod ingress ("Policy denied", bpf_lxc).
+  # Scoped tightly (least privilege): only the sentinel-syslog pod, only the syslog
+  # ports — NOT the :9600 Logstash monitoring API (that stays cluster-internal /
+  # prometheus-scraped). The LB IP is RFC1918 (LAN/VPN-reachable only), so `world` here
+  # is effectively the on-prem LAN; using the entity keeps LAN CIDRs out of this public repo.
+  description: "Allow external (LAN) syslog senders to reach the sentinel-syslog collector on 514/udp+tcp"
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: sentinel-syslog
+  ingress:
+    - fromEntities:
+        - world
+      toPorts:
+        - ports:
+            - port: "514"
+              protocol: UDP
+            - port: "514"
+              protocol: TCP
