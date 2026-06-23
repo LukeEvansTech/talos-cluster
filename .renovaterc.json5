@@ -17,6 +17,13 @@
   // too — clean auto-merges stay silent.
   assignees: ["LukeEvansTech"],
   assignAutomerge: false,
+  // Only rebase a PR when it actually conflicts — NOT every time it falls behind
+  // main (the default with automerge enabled). With high auto-merge volume every
+  // merge would otherwise re-rebase all open PRs and re-run the full CI suite on
+  // each (PRs accumulated ~55 redundant runs). Behind-base PRs still auto-merge
+  // when green: platformAutomerge:false self-merges and there is no ruleset
+  // requiring up-to-date branches.
+  rebaseWhen: "conflicted",
   // ---------------------------------------------------------------------------
   // Repo-specific config previously split across .renovate/*.json5 and pulled in
   // via self-referencing `github>LukeEvansTech/talos-cluster//.renovate/*` extends.
