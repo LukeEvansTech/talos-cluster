@@ -91,10 +91,10 @@ spec:
                 while true; do
                   sleep 3600
                   if curl --fail --silent --show-error --max-time 10 --retry 3 --retry-delay 5 --retry-all-errors \
-                       --cacert /var/run/secrets/kubernetes.io/serviceaccount/ca.crt \
-                       -H "Authorization: Bearer $$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" \
-                       https://kubernetes.default.svc/openid/v1/jwks -o /jwks/jwks.new \
-                     && grep -q '"keys"' /jwks/jwks.new; then
+                    --cacert /var/run/secrets/kubernetes.io/serviceaccount/ca.crt \
+                    -H "Authorization: Bearer $$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" \
+                    https://kubernetes.default.svc/openid/v1/jwks -o /jwks/jwks.new \
+                    && grep -q '"keys"' /jwks/jwks.new; then
                     mv /jwks/jwks.new /jwks/jwks
                     echo "refreshed JWKS"
                   else
