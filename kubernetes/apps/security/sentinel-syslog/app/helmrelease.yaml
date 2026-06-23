@@ -102,7 +102,7 @@ spec:
           # The shared LAN syslog endpoint — any source ships here. Address comes from
           # cluster-secrets (SVC_SYSLOG_ADDR), reserved in the Cilium LB pool like the other svcs
           # (kept out of this PUBLIC repo per the internal-identifier scan).
-          lbipam.cilium.io/ips: ${SVC_SYSLOG_ADDR}
+          lbipam.cilium.io/ips: "${SVC_SYSLOG_ADDR}"
         externalTrafficPolicy: Local
         ports:
           syslog-udp:
