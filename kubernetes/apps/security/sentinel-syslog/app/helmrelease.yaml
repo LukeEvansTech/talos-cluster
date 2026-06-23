@@ -34,8 +34,10 @@ spec:
               tag: 9.1.10
             env:
               TZ: ${TIMEZONE}
-              # Bound the JVM heap for the semi-hyperconverged nodes.
-              LS_JAVA_OPTS: "-Xms512m -Xmx512m"
+              # Bound the JVM heap AND Netty/direct off-heap for the semi-hyperconverged
+              # nodes. Without -XX:MaxDirectMemorySize the syslog input's Netty buffers
+              # creep uncapped past the 1536Mi container limit (OOMKilled ~every 4h).
+              LS_JAVA_OPTS: "-Xms512m -Xmx512m -XX:MaxDirectMemorySize=256m"
               # Workload identity (federated, NO secret). The plugin's managed_identity mode
               # auto-detects these. Identifiers are sourced from cluster-secrets (1Password) because
               # this repo is public — populate after terraform-entra + -azure-platform apply.
@@ -199,6 +201,12 @@ spec:
             # plain `http.host` was removed and makes Logstash exit on startup.
             api.http.host: 0.0.0.0
             log.level: info
+            # The node has 24 cores and the container sets no CPU limit, so Logstash
+            # defaults pipeline.workers to 24 → 24 worker threads + Netty arenas sized
+            # for 24 cores, pushing RSS past the 1536Mi limit (OOMKilled ~every 4h).
+            # A syslog→Sentinel shipper needs far less; pin it small (raise to 4 if UDP
+            # syslog ever shows drop-off under burst).
+            pipeline.workers: 2
 
     persistence:
       # Projected SA token Azure federates against (no webhook — projected manually).
