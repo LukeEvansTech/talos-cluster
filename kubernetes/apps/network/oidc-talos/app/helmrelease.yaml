@@ -27,6 +27,9 @@ spec:
     # cluster-specific key material — this bootstraps clean on any cluster reusing the name. The
     # discovery doc is static (URLs only). Cluster-scoped name so other clusters get their own.
     defaultPodOptions:
+      # The init/refresh containers authenticate to the apiserver with this token (app-template
+      # disables the automount by default).
+      automountServiceAccountToken: true
       securityContext:
         runAsUser: 101
         runAsGroup: 101
