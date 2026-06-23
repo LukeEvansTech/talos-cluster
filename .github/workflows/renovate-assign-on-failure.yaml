@@ -1,0 +1,67 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: "Renovate Assign On Failure"
+
+# Renovate self-gates on CI (platformAutomerge:false), so a failed check means the
+# auto-merge PR stays open and needs a human. Auto-merge PRs are intentionally NOT
+# assigned (assignAutomerge:false in .renovaterc.json5), so they don't reach my
+# "Participating" notifications on a quiet watch level. This workflow closes that
+# gap: when a CI workflow fails on a Renovate PR, assign me — assignment notifies
+# regardless of repo Watch level, so a broken bump emails me while clean ones stay
+# silent. (Manual PRs — protected-infra + major — are already assigned at creation.)
+
+on:
+  # zizmor: ignore[dangerous-triggers]
+  # workflow_run runs in the base-repo context with a write token, but this
+  # workflow never checks out PR code or runs PR-supplied commands — it only
+  # calls gh to assign the repo owner, so the code-injection risk this audit
+  # flags does not apply.
+  workflow_run:
+    workflows:
+      - "Flate"
+      - "security-scans"
+      - "Lint"
+    types:
+      - completed
+
+# Top-level read-only (zizmor excessive-permissions / CKV2_GHA_1).
+permissions:
+  contents: read
+
+jobs:
+  assign:
+    name: Assign owner on CI failure
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # Only act on failed runs that originated from a pull request.
+    if: >-
+      github.event.workflow_run.conclusion == 'failure' &&
+      github.event.workflow_run.event == 'pull_request'
+    # Per-job write scope: add the assignee that triggers the e-mail.
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Assign repo owner to failed Renovate PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |-
+          # Resolve the open PR for this run's head branch, and only act if it is a
+          # Renovate PR. gh reports the bot author as "app/renovate" (the webhook
+          # payload calls it "renovate[bot]" — see renovate-review.yaml).
+          pr=$(gh pr list --head "$HEAD_BRANCH" --state open \
+            --json number,author \
+            --jq '.[] | select(.author.login == "app/renovate") | .number' | head -n1)
+
+          if [[ -z "$pr" ]]; then
+            echo "No open Renovate PR for branch ${HEAD_BRANCH} — nothing to do."
+            exit 0
+          fi
+
+          echo "CI failed on ${HEAD_SHA}; assigning owner to Renovate PR #${pr}."
+          # Idempotent: re-adding an existing assignee is a no-op and does not
+          # re-notify, so repeated failures across the 3 CI workflows e-mail once.
+          gh pr edit "$pr" --add-assignee LukeEvansTech
