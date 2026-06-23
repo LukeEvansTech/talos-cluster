@@ -55,25 +55,18 @@ spec:
             command:
               - /bin/sh
               - -c
+              # NB: $$ escapes Flux postBuild substitution so $(cat ...) reaches the shell intact;
+              # the URL uses kubernetes.default.svc (no ${KUBERNETES_SERVICE_*}, which Flux would eat).
+              # curl does the retries; set -e + the grep make a bad/empty payload fail the init.
               - |
                 set -eu
-                sa=/var/run/secrets/kubernetes.io/serviceaccount
-                url="https://${KUBERNETES_SERVICE_HOST}:${KUBERNETES_SERVICE_PORT}/openid/v1/jwks"
-                i=0
-                while true; do
-                  if curl --fail --silent --show-error --max-time 10 \
-                       --cacert "$sa/ca.crt" \
-                       -H "Authorization: Bearer $(cat "$sa/token")" \
-                       "$url" -o /jwks/jwks.new && grep -q '"keys"' /jwks/jwks.new; then
-                    mv /jwks/jwks.new /jwks/jwks
-                    echo "fetched JWKS ($(wc -c < /jwks/jwks) bytes)"
-                    exit 0
-                  fi
-                  i=$((i + 1))
-                  [ "$i" -ge 30 ] && { echo "giving up after ${i} attempts"; exit 1; }
-                  echo "fetch attempt ${i} failed; retrying in 2s"
-                  sleep 2
-                done
+                curl --fail --silent --show-error --max-time 10 --retry 5 --retry-delay 2 --retry-all-errors \
+                  --cacert /var/run/secrets/kubernetes.io/serviceaccount/ca.crt \
+                  -H "Authorization: Bearer $$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" \
+                  https://kubernetes.default.svc/openid/v1/jwks -o /jwks/jwks.new
+                grep -q '"keys"' /jwks/jwks.new
+                mv /jwks/jwks.new /jwks/jwks
+                echo "fetched JWKS ($$(wc -c < /jwks/jwks) bytes)"
             securityContext: &hardened
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: true
@@ -92,15 +85,16 @@ spec:
             command:
               - /bin/sh
               - -c
+              # $$ escapes Flux postBuild substitution (see fetch-jwks). Failures are non-fatal:
+              # the previously written /jwks/jwks keeps being served.
               - |
-                sa=/var/run/secrets/kubernetes.io/serviceaccount
-                url="https://${KUBERNETES_SERVICE_HOST}:${KUBERNETES_SERVICE_PORT}/openid/v1/jwks"
                 while true; do
                   sleep 3600
-                  if curl --fail --silent --show-error --max-time 10 \
-                       --cacert "$sa/ca.crt" \
-                       -H "Authorization: Bearer $(cat "$sa/token")" \
-                       "$url" -o /jwks/jwks.new && grep -q '"keys"' /jwks/jwks.new; then
+                  if curl --fail --silent --show-error --max-time 10 --retry 3 --retry-delay 5 --retry-all-errors \
+                       --cacert /var/run/secrets/kubernetes.io/serviceaccount/ca.crt \
+                       -H "Authorization: Bearer $$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" \
+                       https://kubernetes.default.svc/openid/v1/jwks -o /jwks/jwks.new \
+                     && grep -q '"keys"' /jwks/jwks.new; then
                     mv /jwks/jwks.new /jwks/jwks
                     echo "refreshed JWKS"
                   else
