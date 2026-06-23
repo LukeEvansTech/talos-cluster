@@ -36,3 +36,44 @@ stage_fixed = true
 run = "mise x --quiet -- prettier -w --log-level warn {staged_files}"
 glob = ["*.yaml", "*.yml"]
 stage_fixed = true
+
+# ---------------------------------------------------------------------------
+# super-linter parity (report-only — these block the commit, they don't fix).
+#
+# The checks above auto-format; the four below mirror the remaining
+# non-Docker super-linter linters so their findings surface at commit time
+# instead of in CI. Each points at the SAME config super-linter uses under
+# .github/linters/, and is scoped to staged files — matching CI's
+# changed-files-only behaviour on PRs. docs/ is excluded everywhere because
+# the zensical toolchain (canonical root .markdownlint.yml, 2-space indent)
+# owns it and super-linter excludes it too. Tool versions are pinned in
+# .mise.toml to match the super-linter v8 pin in shared-workflows.
+# ---------------------------------------------------------------------------
+
+# yamllint (super-linter YAML). Non-strict to match CI: level:warning rules
+# (line-length, braces, indentation, ...) are reported but only error-level
+# rules (key-duplicates, CRLF line endings) fail the commit.
+[pre-commit.commands.lint-yamllint]
+run = "mise x -- yamllint -c .github/linters/.yaml-lint.yml {staged_files}"
+glob = ["*.yaml", "*.yml"]
+exclude = ["docs/**"]
+
+# codespell (super-linter spell check). No glob — scans every staged file;
+# codespell auto-skips binaries. Honours ignore-words-list from .codespellrc.
+[pre-commit.commands.lint-codespell]
+run = "mise x -- codespell --config .github/linters/.codespellrc {staged_files}"
+exclude = ["docs/**"]
+
+# markdownlint (super-linter MARKDOWN). Uses the indent-4 .markdown-lint.yml;
+# docs/ (indent-2) is excluded to avoid the MD007 indent conflict.
+[pre-commit.commands.lint-markdownlint]
+run = "mise x -- markdownlint --config .github/linters/.markdown-lint.yml {staged_files}"
+glob = ["*.md"]
+exclude = ["docs/**"]
+
+# editorconfig-checker (super-linter EDITORCONFIG). The `ec` binary applies
+# .editorconfig rules + its own .editorconfig-checker.json excludes (Markdown,
+# fixtures, smokeping Targets), so no glob is needed here.
+[pre-commit.commands.lint-editorconfig]
+run = "mise x -- ec -config .github/linters/.editorconfig-checker.json {staged_files}"
+exclude = ["docs/**"]
