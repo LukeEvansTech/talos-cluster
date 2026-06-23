@@ -99,10 +99,11 @@ spec:
         controller: sentinel-syslog
         type: LoadBalancer
         annotations:
-          # The shared LAN syslog endpoint — any source ships here. Address comes from
-          # cluster-secrets (SVC_SYSLOG_ADDR), reserved in the Cilium LB pool like the other svcs
-          # (kept out of this PUBLIC repo per the internal-identifier scan).
-          lbipam.cilium.io/ips: "${SVC_SYSLOG_ADDR}"
+          # The shared LAN syslog endpoint — any source ships here. The real address is in
+          # cluster-secrets (SVC_SYSLOG_ADDR, 1Password), with a CI placeholder in
+          # components/global-vars/cluster-secrets.yaml — kept out of this PUBLIC repo per the
+          # internal-identifier scan, same pattern as the other SVC_*_ADDR LB services.
+          lbipam.cilium.io/ips: ${SVC_SYSLOG_ADDR}
         externalTrafficPolicy: Local
         ports:
           syslog-udp:
