@@ -19,21 +19,101 @@ spec:
       strategy: rollback
   values:
     # Publishes THIS cluster's OIDC discovery doc + JWKS publicly so Entra (and any other cloud) can
-    # federate the cluster's service-account tokens — no apiserver exposure, just two static JSON
-    # files. The apiserver's `service-account-issuer` (talos/patches/controller/cluster.yaml) must
-    # equal https://oidc-talos.${SECRET_DOMAIN}. Only PUBLIC keys are served — the private SA signing
-    # key never leaves the apiserver. Cluster-scoped name (oidc-talos) so other clusters get their own.
+    # federate the cluster's service-account tokens — no apiserver exposure, just two JSON files. The
+    # apiserver's `service-account-issuer` (talos/patches/controller/cluster.yaml) must equal
+    # https://oidc-talos.${SECRET_DOMAIN}. Only PUBLIC keys are served — the private SA signing key
+    # never leaves the apiserver. The JWKS is fetched LIVE from the apiserver's discovery endpoint at
+    # pod start (init container) and refreshed hourly (sidecar), so there is no committed,
+    # cluster-specific key material — this bootstraps clean on any cluster reusing the name. The
+    # discovery doc is static (URLs only). Cluster-scoped name so other clusters get their own.
     defaultPodOptions:
       securityContext:
         runAsUser: 101
         runAsGroup: 101
         runAsNonRoot: true
+        fsGroup: 101
+        fsGroupChangePolicy: OnRootMismatch
         seccompProfile:
           type: RuntimeDefault
     controllers:
       oidc-talos:
         annotations:
           reloader.stakater.com/auto: "true"
+        # Run as a dedicated SA bound to system:service-account-issuer-discovery (rbac.yaml) so the
+        # fetch/refresh containers can read the apiserver JWKS without the cluster-wide binding.
+        serviceAccount:
+          identifier: oidc-talos
+        initContainers:
+          # Populate the served JWKS from the live apiserver before nginx starts. Authn = the SA's
+          # auto-mounted token; authz = the discovery ClusterRoleBinding. Retries, validates the
+          # payload, writes atomically. KUBERNETES_SERVICE_HOST/_PORT are injected by kubelet, so no
+          # cluster-internal addresses are committed here.
+          fetch-jwks:
+            image: &curlImage
+              repository: docker.io/curlimages/curl
+              tag: 8.11.1@sha256:c1fe1679c34d9784c1b0d1e5f62ac0a79fca01fb6377cdd33e90473c6f9f9a69
+            command:
+              - /bin/sh
+              - -c
+              - |
+                set -eu
+                sa=/var/run/secrets/kubernetes.io/serviceaccount
+                url="https://${KUBERNETES_SERVICE_HOST}:${KUBERNETES_SERVICE_PORT}/openid/v1/jwks"
+                i=0
+                while true; do
+                  if curl --fail --silent --show-error --max-time 10 \
+                       --cacert "$sa/ca.crt" \
+                       -H "Authorization: Bearer $(cat "$sa/token")" \
+                       "$url" -o /jwks/jwks.new && grep -q '"keys"' /jwks/jwks.new; then
+                    mv /jwks/jwks.new /jwks/jwks
+                    echo "fetched JWKS ($(wc -c < /jwks/jwks) bytes)"
+                    exit 0
+                  fi
+                  i=$((i + 1))
+                  [ "$i" -ge 30 ] && { echo "giving up after ${i} attempts"; exit 1; }
+                  echo "fetch attempt ${i} failed; retrying in 2s"
+                  sleep 2
+                done
+            securityContext: &hardened
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities: { drop: ["ALL"] }
+            resources:
+              requests:
+                cpu: 10m
+                memory: 16Mi
+              limits:
+                memory: 32Mi
+          # Native sidecar: re-fetch hourly so a cluster SA-key rotation is picked up without a pod
+          # restart. Failures are non-fatal — the last good JWKS keeps being served.
+          refresh-jwks:
+            restartPolicy: Always
+            image: *curlImage
+            command:
+              - /bin/sh
+              - -c
+              - |
+                sa=/var/run/secrets/kubernetes.io/serviceaccount
+                url="https://${KUBERNETES_SERVICE_HOST}:${KUBERNETES_SERVICE_PORT}/openid/v1/jwks"
+                while true; do
+                  sleep 3600
+                  if curl --fail --silent --show-error --max-time 10 \
+                       --cacert "$sa/ca.crt" \
+                       -H "Authorization: Bearer $(cat "$sa/token")" \
+                       "$url" -o /jwks/jwks.new && grep -q '"keys"' /jwks/jwks.new; then
+                    mv /jwks/jwks.new /jwks/jwks
+                    echo "refreshed JWKS"
+                  else
+                    echo "refresh failed; keeping previous JWKS"
+                  fi
+                done
+            securityContext: *hardened
+            resources:
+              requests:
+                cpu: 10m
+                memory: 16Mi
+              limits:
+                memory: 32Mi
         containers:
           app:
             image:
@@ -64,6 +144,10 @@ spec:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: true
               capabilities: { drop: ["ALL"] }
+    # Create the SA the controller references above; the discovery ClusterRoleBinding (rbac.yaml)
+    # targets this name (network/oidc-talos).
+    serviceAccount:
+      oidc-talos: {}
     service:
       app:
         controller: oidc-talos
@@ -93,22 +177,6 @@ spec:
               "subject_types_supported": ["public"],
               "id_token_signing_alg_values_supported": ["RS256"]
             }
-          # Live cluster JWKS (public SA-signing keys, from `kubectl get --raw /openid/v1/jwks`,
-          # 2026-06-18). Safe to commit — public keys only. If the cluster SA signing key ever
-          # rotates, re-fetch and re-commit this block.
-          jwks: |-
-            {
-              "keys": [
-                {
-                  "use": "sig",
-                  "kty": "RSA",
-                  "kid": "G2IhcVbYVTxL8-5ftqOqebOSA1NEPuIuWi8Zi9yZxHw",
-                  "alg": "RS256",
-                  "n": "60hvAuCcvdRTAlJkSkor4Q46nzuP-41o0A7k9G8qTJC4xDYlyybASxa4zOotkLPHZ9pXIl1xUsPsE2skwXRV8nGkI1tEV2XsRBFZc7hwdstNy103RxKWhfWkX_7Qo0g3N563LzTelux2BfZwa_ENlyHV1QgXueap0Ubcir4myv4XlNCvtX26FB8z7PNOJGuxYMBugMJWgb-6KCKDycT-hr_hmbiahxPd7ZyfYp4vO4Vd_weRQ3hVTE7HBAXDvHiELpU5QcdVFsDIdFoPXqk-pdnNCf79ZkKKYWCWiCEObOldFsCX8m0qTHtwNUD3lS0hYqgkVbm-gD5V_fSVuulLL1YrIcpNDcijF_SkKcy6sAb8gUQDsLf-UXx05-mAA8Dw0hdNSeuliFtUqIYK97HOJvKUGx7R3AGC5RS6hgmoS00ndJVxwFqCOrBuGozeub1u6iDPl8M7UdTHfF9bBM-SYFj7Sl7q3QiinwRiwVcngiLIZQ-YKKAiWNZAnjajU1cxlE2Ztb7IlE28FT9V4O3E8Lra_1FAFFumq7P9P4fjjbuXJukKUkmIK21zGbNpysioSzle_cFeKHjTMcsz4GjQP-n3O6V4tua-0EdqecU6i3L7PbpnAFICNriqsiHFHf0OKBfT1kjzzhzLJa2xv9b4k-4LQToSTGjFHo8gamc0Pcs",
-                  "e": "AQAB"
-                }
-              ]
-            }
       nginx:
         data:
           default.conf: |-
@@ -121,7 +189,8 @@ spec:
               }
               location = /openid/v1/jwks {
                 default_type application/json;
-                alias /config/jwks;
+                # Served from the emptyDir the init/refresh containers populate from the live apiserver.
+                alias /jwks/jwks;
               }
               location = /healthz {
                 default_type text/plain;
@@ -130,28 +199,43 @@ spec:
               location / { return 404; }
             }
     persistence:
+      # Live JWKS, fetched from the apiserver by the init/refresh containers (rw) and served by nginx (ro).
+      jwks:
+        type: emptyDir
+        globalMounts:
+          - path: /jwks
       content:
         type: configMap
         identifier: content
-        globalMounts:
-          - path: /config
-            readOnly: true
+        advancedMounts:
+          oidc-talos:
+            app:
+              - path: /config
+                readOnly: true
       nginx-conf:
         type: configMap
         identifier: nginx
-        globalMounts:
-          - path: /etc/nginx/conf.d/default.conf
-            subPath: default.conf
-            readOnly: true
+        advancedMounts:
+          oidc-talos:
+            app:
+              - path: /etc/nginx/conf.d/default.conf
+                subPath: default.conf
+                readOnly: true
       tmp:
         type: emptyDir
-        globalMounts:
-          - path: /tmp
+        advancedMounts:
+          oidc-talos:
+            app:
+              - path: /tmp
       cache:
         type: emptyDir
-        globalMounts:
-          - path: /var/cache/nginx
+        advancedMounts:
+          oidc-talos:
+            app:
+              - path: /var/cache/nginx
       run:
         type: emptyDir
-        globalMounts:
-          - path: /var/run
+        advancedMounts:
+          oidc-talos:
+            app:
+              - path: /var/run
