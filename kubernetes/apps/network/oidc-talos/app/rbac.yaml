@@ -1,0 +1,17 @@
+---
+# Lets the oidc-talos ServiceAccount read the apiserver's OIDC discovery endpoints
+# (/.well-known/openid-configuration + /openid/v1/jwks) so the init/refresh containers can
+# fetch the live JWKS. Bound explicitly to this SA (not relying on the cluster-wide
+# system:serviceaccounts binding) so the app bootstraps clean on a fresh cluster.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: oidc-talos-issuer-discovery
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:service-account-issuer-discovery
+subjects:
+  - kind: ServiceAccount
+    name: oidc-talos
+    namespace: network
