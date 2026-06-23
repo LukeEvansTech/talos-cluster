@@ -1,0 +1,21 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/servicemonitor_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: &app flux-operator
+  labels:
+    app.kubernetes.io/name: *app
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: *app
+      app.kubernetes.io/instance: *app
+  endpoints:
+    # Scrape via the named service port (http = 8080) rather than the chart default `targetPort: 8080`.
+    # prometheus-operator resolves an integer targetPort through the deprecated v1 Endpoints API,
+    # which is degraded on k8s 1.33+ — so on pod churn the target silently drops and flux_instance_info
+    # disappears (FluxInstanceAbsent). A named port doesn't need that resolution path. See README/PR.
+    - port: http
+      interval: 60s
+      path: /metrics
