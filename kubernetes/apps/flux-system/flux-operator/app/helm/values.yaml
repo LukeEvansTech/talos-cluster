@@ -1,6 +1,10 @@
 ---
+# The chart's ServiceMonitor scrapes via `targetPort: 8080`, which prometheus-operator can't
+# resolve on k8s 1.33+ (it relies on the deprecated v1 Endpoints API) — the scrape target silently
+# drops on pod churn, breaking flux_instance_info (→ FluxInstanceAbsent). We ship our own named-port
+# ServiceMonitor (servicemonitor.yaml) instead.
 serviceMonitor:
-  create: true
+  create: false
 web:
   enabled: true
   config:
