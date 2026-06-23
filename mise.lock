@@ -118,6 +118,22 @@ url = "https://github.com/cue-lang/cue/releases/download/v0.16.1/cue_v0.16.1_lin
 checksum = "sha256:a72b0cddb377c52d1b003bed9a335d893b70cd75a182cd5e3fee8bae30ddb6d6"
 url = "https://github.com/cue-lang/cue/releases/download/v0.16.1/cue_v0.16.1_darwin_arm64.tar.gz"
 
+[[tools."aqua:editorconfig-checker/editorconfig-checker"]]
+version = "3.6.1"
+backend = "aqua:editorconfig-checker/editorconfig-checker"
+
+[tools."aqua:editorconfig-checker/editorconfig-checker"."platforms.linux-arm64"]
+checksum = "sha256:a471181b0741982afa4f3dbc1e433b6caa0c5e6daad580572841884fd9957220"
+url = "https://github.com/editorconfig-checker/editorconfig-checker/releases/download/v3.6.1/ec-linux-arm64.tar.gz"
+
+[tools."aqua:editorconfig-checker/editorconfig-checker"."platforms.linux-x64"]
+checksum = "sha256:cd32084fce5f3d49ba49697f362ac3a114989715c98819303247dd54c1f368b0"
+url = "https://github.com/editorconfig-checker/editorconfig-checker/releases/download/v3.6.1/ec-linux-amd64.tar.gz"
+
+[tools."aqua:editorconfig-checker/editorconfig-checker"."platforms.macos-arm64"]
+checksum = "sha256:64f6006e4ae880ef140ac175f30b5b4cab72fa92b3708d9104006441fb7ed723"
+url = "https://github.com/editorconfig-checker/editorconfig-checker/releases/download/v3.6.1/ec-darwin-arm64.tar.gz"
+
 [[tools."aqua:fluxcd/flux2"]]
 version = "2.8.8"
 backend = "aqua:fluxcd/flux2"
@@ -408,9 +424,21 @@ url = "https://nodejs.org/dist/v24.14.0/node-v24.14.0-linux-x64.tar.gz"
 checksum = "sha256:a1a54f46a750d2523d628d924aab61758a51c9dad3e0238beb14141be9615dd3"
 url = "https://nodejs.org/dist/v24.14.0/node-v24.14.0-darwin-arm64.tar.gz"
 
+[[tools."npm:markdownlint-cli"]]
+version = "0.48.0"
+backend = "npm:markdownlint-cli"
+
 [[tools."npm:prettier"]]
 version = "3.8.1"
 backend = "npm:prettier"
+
+[[tools."pipx:codespell"]]
+version = "2.4.2"
+backend = "pipx:codespell"
+
+[[tools."pipx:yamllint"]]
+version = "1.38.0"
+backend = "pipx:yamllint"
 
 [[tools.python]]
 version = "3.14.6"

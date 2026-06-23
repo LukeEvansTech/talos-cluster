@@ -25,6 +25,11 @@ run = "uv pip install -r requirements.txt"
 "aqua:cli/cli" = "2.95.0"
 "aqua:cloudflare/cloudflared" = "2026.6.1"
 "aqua:cue-lang/cue" = "0.16.1"
+# editorconfig-checker / yamllint / codespell / markdownlint-cli mirror the
+# linters super-linter v8 bundles, so lefthook catches their findings locally
+# before CI. Versions pinned to match super-linter@9e863354 (v8): bumping
+# super-linter may require bumping these in lockstep to avoid local/CI drift.
+"aqua:editorconfig-checker/editorconfig-checker" = "3.6.1"
 "aqua:fluxcd/flux2" = "2.8.8"
 "aqua:google/yamlfmt" = "0.21.0"
 "aqua:helm/helm" = "4.2.2"
@@ -44,4 +49,7 @@ run = "uv pip install -r requirements.txt"
 python = "3.14.6"
 uv = "0.11.23"
 node = "24"
+"npm:markdownlint-cli" = "0.48.0"
 "npm:prettier" = "3"
+"pipx:codespell" = "2.4.2"
+"pipx:yamllint" = "1.38.0"
