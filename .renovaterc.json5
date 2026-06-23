@@ -7,6 +7,16 @@
   // dependencies/security labels, and vulnerabilityAlerts — single source of
   // truth, so they are no longer duplicated here.
   extends: ["github>LukeEvansTech/renovate-config"],
+  // Assign manual PRs to me so they reach my GitHub "Participating" notifications.
+  // assignAutomerge:false (the Renovate default, pinned here for clarity) means
+  // auto-merge PRs are NOT assigned — so with the repo Watch set to
+  // "Participating and @mentions" (not "All Activity"), only PRs that need a human
+  // (protected-infra guard + any `major`) email me. Auto-merge PRs that FAIL CI
+  // won't merge (platformAutomerge:false self-gates on CI) and get me assigned by
+  // .github/workflows/renovate-assign-on-failure.yaml, so a broken bump emails me
+  // too — clean auto-merges stay silent.
+  assignees: ["LukeEvansTech"],
+  assignAutomerge: false,
   // ---------------------------------------------------------------------------
   // Repo-specific config previously split across .renovate/*.json5 and pulled in
   // via self-referencing `github>LukeEvansTech/talos-cluster//.renovate/*` extends.
