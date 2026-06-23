@@ -1,0 +1,67 @@
+---
+# Super-linter yamllint config.
+#
+# Materialized verbatim from super-linter v8's bundled TEMPLATES/.yaml-lint.yml
+# (super-linter@9e863354). Previously this repo had no yamllint config, so CI
+# used super-linter's hidden bundled default. Making it explicit here means:
+#   - CI behaviour is unchanged (super-linter auto-discovers configs in
+#     .github/linters/ and this is byte-identical to its bundled default), and
+#   - the lefthook `lint-yamllint` hook can point at the SAME file with `-c`,
+#     so local pre-commit and CI run identical rules (no local-pass/CI-fail
+#     drift). yamllint is NOT run in strict mode (matching super-linter), so
+#     `level: warning` problems are reported but do not fail — only the
+#     error-level rules (key-duplicates, new-lines) fail a commit.
+#
+# If you bump the super-linter pin in shared-workflows, re-sync this file.
+
+rules:
+  braces:
+    level: warning
+    min-spaces-inside: 0
+    max-spaces-inside: 0
+    min-spaces-inside-empty: 1
+    max-spaces-inside-empty: 5
+  brackets:
+    level: warning
+    min-spaces-inside: 0
+    max-spaces-inside: 0
+    min-spaces-inside-empty: 1
+    max-spaces-inside-empty: 5
+  colons:
+    level: warning
+    max-spaces-before: 0
+    max-spaces-after: 1
+  commas:
+    level: warning
+    max-spaces-before: 0
+    min-spaces-after: 1
+    max-spaces-after: 1
+  comments: disable
+  comments-indentation: disable
+  document-end: disable
+  document-start:
+    level: warning
+    present: true
+  empty-lines:
+    level: warning
+    max: 2
+    max-start: 0
+    max-end: 0
+  hyphens:
+    level: warning
+    max-spaces-after: 1
+  indentation:
+    level: warning
+    spaces: consistent
+    indent-sequences: true
+    check-multi-line-strings: false
+  key-duplicates: enable
+  line-length:
+    level: warning
+    max: 80
+    allow-non-breakable-words: true
+    allow-non-breakable-inline-mappings: true
+  new-line-at-end-of-file: disable
+  new-lines:
+    type: unix
+  trailing-spaces: disable
