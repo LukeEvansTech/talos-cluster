@@ -124,10 +124,26 @@ spec:
               # This is the generic ingestion point — any syslog source can target it.
               syslog {
                 port => 514
+                # Emit CLASSIC flat fields (program, logsource, facility_label, severity_label,
+                # host, timestamp) that the DCR's Custom-SyslogStream + transformKql expect and
+                # that the per-source filters below key on. Logstash 8/9 default this input to
+                # ECS v8, which nests them ([log][syslog][appname] ...) and leaves [program]
+                # empty — so the filters never matched and Computer/Facility/ProcessName/Severity
+                # landed blank in the Syslog table. Verified against real OPNsense data 2026-06-23.
+                ecs_compatibility => "disabled"
               }
             }
 
             filter {
+              # OPNsense (cr-fw) keeps its clock in UTC and sends RFC3164 timestamps with no zone.
+              # The syslog input otherwise reads them in the container's local zone (Europe/London
+              # => BST in summer), shifting TimeGenerated ~1h behind ingestion. Re-parse as UTC so
+              # TimeGenerated (= the plugin's ls_timestamp = @timestamp) is correct.
+              date {
+                match    => ["timestamp", "MMM dd HH:mm:ss", "MMM  d HH:mm:ss"]
+                timezone => "UTC"
+              }
+
               # ---- FILTER HARD (cost control; deliberate per design) ----
               # Per-source rules below. Sources with no rule pass through to the Syslog table as-is.
 
