@@ -14,15 +14,21 @@ Work down from what you observe to the most likely entry:
     - konflate checks fail on every open PR ("all CIs failing"), or `konflate-cache` runs out of inodes → [KB-011](kb/011-konflate-render-failures.md)
 - **Networking**
     - One node's cross-node pod traffic flips/breaks while its host traffic is fine; its spegel pod goes `0/1` → [KB-008](kb/008-cilium-cross-node-pod-networking-breaks.md)
+    - An app 404s through the gateway on its real hostname but works on its pod IP (live HTTPRoute drifted to `*.example.com`) → [KB-020](kb/020-httproute-drifts-to-placeholder-hostnames.md)
+    - `NodeHighNumberConntrackEntriesUsed` on every node at once right after deploying a scanner → [KB-023](kb/023-node-conntrack-saturation-host-network-scanner.md)
 - **Storage / backups**
     - Backup pod stuck `PodInitializing` (`mount.nfs: Failed to resolve`), or `CreateContainerConfigError` on a subPath → [KB-009](kb/009-nfs-mount-failures-host-dns-readonly-export.md)
     - After a Rook v1.20 upgrade: RBD nodeplugin `FailedCreate`, or ~88 `VolSyncVolumeOutOfSync` alerts → [KB-010](kb/010-rook-ceph-v120-csi-driver-split.md)
     - `volsync-system/kopia` repo server OOM-crashloops (`exit 137`) → [KB-016](kb/016-kopia-repo-server-oom-repo-size.md)
+    - `CephMonDownQuorumAtRisk` (critical) fires minutes after cordoning a control-plane node → [KB-019](kb/019-cordon-control-plane-breaks-ceph-mon-quorum.md)
 - **Workloads / pods**
     - A JVM/Logstash pod OOMKills on a cadence despite a bounded heap → [KB-012](kb/012-jvm-container-rss-oom-malloc-arena-max.md)
     - A pure-Go pod SIGSEGVs (`exit 139`) on a large fraction of starts, before any logs → [KB-013](kb/013-go-1264-binary-startup-sigsegv.md)
     - HelmRelease `UpgradeFailed`/rollback loop, pod stuck `ContainerCreating` with a `Pulling` event (large image) → [KB-015](kb/015-slow-image-pulls-exceed-helmrelease-timeout.md)
     - `allocatable.nvidia.com/gpu = 0` for minutes after a device-plugin swap → [KB-014](kb/014-gpu-device-plugin-handover-allocatable-zero.md)
+    - `CreateContainerConfigError: runAsUser breaks non-root policy` on a fresh render of an s6/LinuxServer image → [KB-022](kb/022-s6-image-createcontainerconfigerror-non-root.md)
+- **Monitoring / Grafana**
+    - Every panel on one dashboard shows "No data" / "Datasource Prometheus was not found" → [KB-021](kb/021-grafana-dashboard-panels-blank-datasource-case.md)
 - **Plex playback**
     - 4K direct-play freezes for ~60s every ~6 minutes on LAN Apple TVs → [KB-002](kb/002-plex-direct-play-buffering-bbr-mtu-probing.md)
     - "Server unavailable" / connection drops at session start, pod otherwise healthy → [KB-003](kb/003-plex-advertises-broken-connection-urls.md)
@@ -54,3 +60,8 @@ Work down from what you observe to the most likely entry:
 - [KB-016: Kopia Repo Server OOM = Repo Size, Not a Maintenance Failure](kb/016-kopia-repo-server-oom-repo-size.md)
 - [KB-017: `mise` + lefthook Symlink Race Blocks the First Commit After a Tool Bump](kb/017-mise-lefthook-symlink-race-on-commit.md)
 - [KB-018: Plex Remote 4K Transcode-Decision Crash (`bad lexical cast`)](kb/018-plex-remote-4k-transcode-decision-crash.md)
+- [KB-019: Cordoning a Control-Plane Node Breaks Ceph Mon Quorum](kb/019-cordon-control-plane-breaks-ceph-mon-quorum.md)
+- [KB-020: App Returns 404 Through the Gateway (HTTPRoute Drifted to Placeholder Hostnames)](kb/020-httproute-drifts-to-placeholder-hostnames.md)
+- [KB-021: Grafana Dashboard Panels All Blank ("Datasource … was not found")](kb/021-grafana-dashboard-panels-blank-datasource-case.md)
+- [KB-022: Container Won't Start as Non-Root (s6 / LinuxServer Image `CreateContainerConfigError`)](kb/022-s6-image-createcontainerconfigerror-non-root.md)
+- [KB-023: Node Conntrack Table Saturates from a Host-Network Scanner](kb/023-node-conntrack-saturation-host-network-scanner.md)
