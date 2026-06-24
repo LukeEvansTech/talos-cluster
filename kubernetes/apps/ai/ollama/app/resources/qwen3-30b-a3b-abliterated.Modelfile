@@ -1,0 +1,20 @@
+# Abliterated (uncensored) Qwen3 MoE. Exposed via LiteLLM as
+# `self-hosted-uncensored` (deliberately NO cloud fallback — a cloud model would
+# reintroduce refusals and defeat the point).
+#
+# mlabonne's Qwen3-30B-A3B abliterated, via mradermacher's imatrix GGUF at
+# Q4_K_S ≈ 17.5Gi — matches the ~17Gi VRAM budget on a 24Gi L4. ChatML stops +
+# sampling defaults (Qwen3 is ChatML; call with think:false for extraction).
+#
+# Why not the exact 3.6-35B-A3B abliterated sibling: huihui-ai's `...-MTP-GGUF`
+# names files with bare `Q3_K`/`Q4_K` quant tags that Ollama's HF puller rejects
+# ("not a valid quantization scheme"), and only its Q2_K fits VRAM. mradermacher
+# uses standard scheme names, so Q4_K_S pulls cleanly.
+#
+# Provisioned automatically on every replica by the reconciler sidecar — see
+# resources/reconcile.sh and app/kustomization.yaml (no manual `ollama create`).
+FROM hf.co/mradermacher/Qwen3-30B-A3B-abliterated-i1-GGUF:Q4_K_S
+PARAMETER temperature 0.6
+PARAMETER top_p 0.95
+PARAMETER stop "<|im_start|>"
+PARAMETER stop "<|im_end|>"

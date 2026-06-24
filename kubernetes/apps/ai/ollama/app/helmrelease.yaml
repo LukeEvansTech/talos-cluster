@@ -61,6 +61,28 @@ spec:
               limits:
                 memory: 24Gi
                 nvidia.com/gpu: 1
+          # GPU-less reconciler: the ollama image as a CLI client against the
+          # server container in this same pod. Keeps the declared model set
+          # (resources/*.Modelfile + models.list) present on this replica's
+          # /models PVC. Runs on every replica → identical set by construction.
+          # The loop never exits (a crash would flip the pod NotReady and pull
+          # the server out of the Service); see resources/reconcile.sh.
+          provisioner:
+            image:
+              repository: docker.io/ollama/ollama
+              tag: 0.30.10@sha256:bfc9c6d53cc6989aa5131a6fde6b162b2802d4d337657f3253b5f69579bddeee
+            command:
+              - "/bin/sh"
+              - "/config/reconcile.sh"
+            env:
+              - name: OLLAMA_HOST
+                value: "127.0.0.1:11434"
+            resources:
+              requests:
+                cpu: 25m
+                memory: 64Mi
+              limits:
+                memory: 256Mi
     defaultPodOptions:
       labels:
         gpu-workload: "true"
@@ -99,3 +121,14 @@ spec:
         parentRefs:
           - name: envoy-internal
             namespace: network
+    persistence:
+      # Model set + reconcile script (generated from app/resources/ by
+      # configMapGenerator). Mounted into the provisioner container only.
+      model-defs:
+        type: configMap
+        name: ollama-models
+        advancedMounts:
+          ollama:
+            provisioner:
+              - path: /config
+                readOnly: true
