@@ -32,6 +32,30 @@ LiteLLM model-**groups** make this transparent: several backends share one clien
 `model_name` with an `order:`, and LiteLLM load-balances / fails over across them. So Layer 4 adds
 llama.cpp backends to the existing `self-hosted` group with no client change.
 
+## Ollama model provisioning
+
+Models are **provisioned declaratively** by a GPU-less `provisioner` sidecar in the Ollama
+StatefulSet — the ollama image used as a CLI client against the server in the same pod. It
+reconciles the declared set (`kubernetes/apps/ai/ollama/app/resources/`: `models.list` plus
+`*.Modelfile`, bundled into the `ollama-models` ConfigMap) onto **each** replica's RWO
+`/models` PVC, so the set is identical across the fleet and a fresh PVC self-heals. The loop is
+idempotent and never exits — a crash would flip the pod NotReady and drop the server from the
+Service.
+
+Declared today: `qwen3.6:27b`, `qwen3.6-35b-a3b` (the default, `OLLAMA_MODEL` → `self-hosted`),
+and `qwen3-30b-a3b-abliterated` — mradermacher's imatrix GGUF of mlabonne's Qwen3-30B-A3B
+abliterated (Q4_K_S ≈ 17.5Gi), exposed via LiteLLM as `self-hosted-uncensored` with **no** cloud
+fallback (a cloud model would reintroduce refusals). Two ~17Gi models can't co-reside on one 24Gi
+card, so alternating between the default and the uncensored model triggers a model swap
+(~seconds) — fine for ad-hoc use. (The exact huihui-ai 3.6-35B-A3B abliterated GGUF is avoided —
+its bare `Q3_K`/`Q4_K` file tags aren't valid Ollama quant schemes.)
+
+To add a model: drop a `<name>.Modelfile` (or a `models.list` line) under `app/resources/`, add
+it to the `configMapGenerator` in `app/kustomization.yaml`, and commit — Reloader restarts the
+pods and the reconciler pulls/creates it. `kubectl -n ai rollout restart statefulset/ollama`
+applies it immediately. The generator sets `kustomize.toolkit.fluxcd.io/substitute: disabled` so
+Flux postBuild doesn't empty the `${...}` shell vars in `reconcile.sh`.
+
 ## Rollout (staged)
 
 1. **LiteLLM uplift** — model-groups + router fallbacks + commented hooks for MCP / embeddings /
@@ -233,6 +257,8 @@ over automatically — no client change.
 - **Metrics** — `require_auth_for_metrics_endpoint: false` **and** ServiceMonitor path `/metrics/`
   (trailing slash, no redirect-follow) are both required for in-cluster Prometheus scraping.
 - **Ollama embeddings** — the StatefulSet has 3 separate RWO PVCs, so an embedding model must be
-  pulled on **every** replica or requests routed to a replica that lacks it fail.
+  pulled on **every** replica or requests routed to a replica that lacks it fail. The model
+  reconciler (see "Ollama model provisioning") handles this for anything declared in
+  `app/resources/`; an ad-hoc `ollama pull` still has to be repeated per replica.
 - **ConfigMap reloads** — the `litellm` controller is annotated `reloader.stakater.com/auto`, so
   Stakater Reloader restarts it automatically when the configmap changes.
