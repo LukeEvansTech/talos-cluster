@@ -5,3 +5,16 @@ kind: Kustomization
 resources:
   - ./ocirepository.yaml
   - ./helmrelease.yaml
+configMapGenerator:
+  - name: ollama-models
+    files:
+      - ./resources/reconcile.sh
+      - ./resources/models.list
+      - ./resources/qwen3.6-35b-a3b.Modelfile
+      - ./resources/qwen3-30b-a3b-abliterated.Modelfile
+generatorOptions:
+  disableNameSuffixHash: true
+  annotations:
+    # reconcile.sh contains literal ${...} shell vars — keep Flux postBuild from
+    # substituting (and emptying) them.
+    kustomize.toolkit.fluxcd.io/substitute: disabled
