@@ -108,6 +108,35 @@ kubectl describe replicationsource <name> -n <namespace>
 kubectl get pods -n <namespace> | grep <replicationsource-name>
 ```
 
+### `just talos gen-config` fails: "is not a supported Talos version"
+
+**Symptom:** right after a Talos **minor** bump (e.g. v1.12.x → v1.13.x), `just talos gen-config`
+errors:
+
+```text
+field: "talosVersion"
+  * "vX.Y.Z" is not a supported Talos version
+```
+
+**Cause:** talhelper carries a hardcoded list of supported Talos versions via its
+`github.com/siderolabs/talos/pkg/machinery` dependency. A new Talos **minor** needs a talhelper
+release that bumps that dependency, which typically lags Talos GA by **1–2 days**. (Patch bumps
+within a minor — v1.13.0 → v1.13.1 — don't need a talhelper update.)
+
+**Resolution:**
+
+- A **version-bump-only** upgrade still works: TUPPR drives `TalosUpgrade` / `KubernetesUpgrade`
+  independently of talhelper, so you don't need `gen-config` to roll the fleet to the new version.
+- If you need a **machine-config regen** before talhelper catches up (e.g. an apiserver flag or
+  feature-gate change), edit each control plane out-of-band with a scripted `EDITOR`:
+
+  ```bash
+  talosctl edit machineconfig --nodes <node-ip>
+  ```
+
+- Watch for a matching release at <https://github.com/budimanjojo/talhelper/releases>, then return
+  to the normal `just talos gen-config` flow.
+
 ## Monitoring Upgrade Progress
 
 ```bash
