@@ -39,9 +39,16 @@ on the 35B and guarantees valid typed objects.
 
 ## Notes
 
-- The reconciler is idempotent and resilient: it only pulls/creates what's missing, swallows
-  transient failures, and loops every ~30m (`RECONCILE_INTERVAL`). It never exits, so it can't
-  flip the pod to NotReady and drop the server from the Service.
+- The reconciler is idempotent and resilient: it pulls missing library models and **always
+  re-runs `ollama create`** for each Modelfile (so `PARAMETER` changes like `num_ctx` converge on
+  existing replicas — create is cheap when the blob is local). It swallows transient failures and
+  loops every ~30m (`RECONCILE_INTERVAL`). It never exits, so it can't flip the pod to NotReady
+  and drop the server from the Service. A changed `PARAMETER` takes effect on the next model load
+  (keep-alive expiry, eviction, or a manual `ollama stop <name>` on each replica).
+- `num_ctx`: Ollama defaults to 4096, which is too small for agent/coding use. The abliterated
+  model sets `num_ctx 8192` in its Modelfile (verified to load ~20Gi 100% on-GPU, leaving headroom
+  for the time-sliced Plex/Jellyfin transcodes sharing the L4). Raising it further squeezes that
+  shared VRAM — 16384 fits at ~21.4/23Gi but leaves only ~1.6Gi.
 - The exact 3.6-35B-A3B abliterated sibling (huihui-ai's `...-MTP-GGUF`) is intentionally not
   used: its files carry bare `Q3_K`/`Q4_K` quant tags that Ollama's HF puller rejects ("not a
   valid quantization scheme"), and only its `Q2_K` fits VRAM. mradermacher's imatrix GGUF of

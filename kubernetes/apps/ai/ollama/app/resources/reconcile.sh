@@ -45,16 +45,17 @@ while true; do
         done <"${CONFIG_DIR}/models.list"
     fi
 
-    # 2. Modelfile creates (<name>.Modelfile -> model <name>:latest).
+    # 2. Modelfile (re)creates (<name>.Modelfile -> model <name>:latest).
+    # Always run create so PARAMETER changes (e.g. num_ctx) converge on existing
+    # replicas — `ollama create` is cheap when the FROM blob is already local (it
+    # just rewrites the manifest) and does not unload a running model. A changed
+    # parameter takes effect on the next model load (keep-alive expiry, eviction,
+    # or a manual `ollama stop`).
     for mf in "${CONFIG_DIR}"/*.Modelfile; do
         [ -e "${mf}" ] || continue
         name="$(basename "${mf}" .Modelfile)"
-        if have_model "${name}:latest"; then
-            log "present: ${name}"
-        else
-            log "creating: ${name}"
-            ollama create "${name}" -f "${mf}" || log "WARN create failed: ${name}"
-        fi
+        log "ensuring: ${name}"
+        ollama create "${name}" -f "${mf}" || log "WARN create failed: ${name}"
     done
 
     log "reconcile pass complete; sleeping ${INTERVAL}s"

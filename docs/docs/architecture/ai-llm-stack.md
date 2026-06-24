@@ -48,7 +48,12 @@ abliterated (Q4_K_S ≈ 17.5Gi), exposed via LiteLLM as `self-hosted-uncensored`
 fallback (a cloud model would reintroduce refusals). Two ~17Gi models can't co-reside on one 24Gi
 card, so alternating between the default and the uncensored model triggers a model swap
 (~seconds) — fine for ad-hoc use. (The exact huihui-ai 3.6-35B-A3B abliterated GGUF is avoided —
-its bare `Q3_K`/`Q4_K` file tags aren't valid Ollama quant schemes.)
+its bare `Q3_K`/`Q4_K` file tags aren't valid Ollama quant schemes.) The abliterated model sets
+`PARAMETER num_ctx 8192` (2× Ollama's 4096 default) so it's usable from opencode/agents; it loads
+~20Gi 100% on-GPU, preserving headroom for the time-sliced Plex/Jellyfin transcodes on the same
+L4. The reconciler **always** re-runs `ollama create` for Modelfiles so such `PARAMETER` changes
+converge (the change applies on the next model load — keep-alive expiry, eviction, or
+`ollama stop`).
 
 To add a model: drop a `<name>.Modelfile` (or a `models.list` line) under `app/resources/`, add
 it to the `configMapGenerator` in `app/kustomization.yaml`, and commit — Reloader restarts the
