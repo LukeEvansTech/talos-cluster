@@ -19,6 +19,5 @@ resources:
   - ./shelly-exporter/ks.yaml
   - ./shelly-fleet/ks.yaml
   - ./shelly-operator/ks.yaml
-  # TODO: Update externalsecret with ZIGBEE_ADAPTER_HOST before enabling
-  # - ./zigbee2mqtt/ks.yaml
+  - ./zigbee2mqtt/ks.yaml
   - ./zwave/ks.yaml
