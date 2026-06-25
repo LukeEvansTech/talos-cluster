@@ -25,7 +25,7 @@ spec:
               ZIGBEE2MQTT_CONFIG_MQTT_SERVER: mqtt://mosquitto.home.svc.cluster.local:1883
               ZIGBEE2MQTT_CONFIG_HOMEASSISTANT_ENABLED: "true"
               ZIGBEE2MQTT_CONFIG_SERIAL_ADAPTER: zstack
-              ZIGBEE2MQTT_CONFIG_ONBOARDING: "false"
+              Z2M_ONBOARD_NO_SERVER: "1"
               ZIGBEE2MQTT_CONFIG_HOMEASSISTANT_DISCOVERY_TOPIC: homeassistant
               ZIGBEE2MQTT_CONFIG_HOMEASSISTANT_STATUS_TOPIC: homeassistant/status
               ZIGBEE2MQTT_CONFIG_PERMIT_JOIN: "false"
