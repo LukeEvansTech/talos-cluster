@@ -56,7 +56,11 @@ spec:
               GITSYNC_REPO: https://github.com/KBlixt/subcleaner
               GITSYNC_REF: master
               GITSYNC_PERIOD: 24h
-              GITSYNC_ROOT: /subcleaner
+              # Sync into the shared `subcleaner` volume mounted at /opt so the app
+              # container resolves /opt/subcleaner/subcleaner.py (git-sync creates the
+              # `subcleaner` symlink -> current worktree by default).
+              GITSYNC_ROOT: /opt
+              GITSYNC_LINK: subcleaner
             resources:
               requests:
                 cpu: 10m
@@ -118,6 +122,8 @@ spec:
     persistence:
       subcleaner:
         type: emptyDir
+        globalMounts:
+          - path: /opt
       cache:
         type: emptyDir
         globalMounts:
