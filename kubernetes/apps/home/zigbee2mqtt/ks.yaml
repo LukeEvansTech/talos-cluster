@@ -16,7 +16,7 @@ spec:
     - name: rook-ceph-cluster
       namespace: rook-ceph
     - name: mosquitto
-      namespace: default
+      namespace: home
   interval: 1h
   path: ./kubernetes/apps/home/zigbee2mqtt/app
   postBuild:
