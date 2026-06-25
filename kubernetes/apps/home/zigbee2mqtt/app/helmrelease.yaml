@@ -35,7 +35,7 @@ spec:
               ZIGBEE2MQTT_CONFIG_AVAILABILITY_PASSIVE_TIMEOUT: 2000
             envFrom:
               - secretRef:
-                  name: "{{ .Release.Name }}-secret"
+                  name: zigbee2mqtt-secret
             securityContext:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: true
