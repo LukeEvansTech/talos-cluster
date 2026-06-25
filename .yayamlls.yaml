@@ -1,0 +1,13 @@
+---
+# yayamlls workspace config — https://github.com/home-operations/yayamlls
+#
+# Kubernetes apiVersion+kind schema auto-detect and the schemastore catalog are
+# on by default, so the only thing worth setting here is the Flux renderer:
+# flate renders HelmReleases and Kustomizations inline (code lens + diagnostics)
+# by following Flux source references from the cluster root. Keep `path` in sync
+# with the flate root our CI uses (kubernetes/flux/cluster), not onedr0p's
+# kubernetes — our root Flux Kustomization + GitRepository live one level down.
+renderers:
+  flate:
+    enabled: true
+    path: kubernetes/flux/cluster
