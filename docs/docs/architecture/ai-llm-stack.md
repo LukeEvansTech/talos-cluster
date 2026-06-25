@@ -90,6 +90,28 @@ cloud-provider stubs remain commented out.
   fails at startup.
 - **Fallbacks** — `router_settings.fallbacks` is a list of `{model_name: [fallback, …]}`.
 
+## Consuming the stack from a workstation (opencode)
+
+Any OpenAI-compatible client can drive the self-hosted models through the gateway — internal route
+`https://litellm.${SECRET_INTERNAL_DOMAIN}/v1`, models `self-hosted` and `self-hosted-uncensored`.
+[opencode](https://opencode.ai) is wired this way as a custom provider:
+
+- **Provider** — `@ai-sdk/openai-compatible`, `baseURL: https://litellm.${SECRET_INTERNAL_DOMAIN}/v1`.
+  Put the LiteLLM key in the client's own credential store (opencode: `opencode auth login` →
+  `~/.local/share/opencode/auth.json`), **never** as a literal in a shared or committed config.
+- **MCP tools** — point a remote MCP server at LiteLLM's MCP gateway,
+  `https://litellm.${SECRET_INTERNAL_DOMAIN}/mcp/` (the `litellm-mcp-server`), with the LiteLLM key
+  as `Authorization: Bearer …`. Curate the server set with the `x-mcp-servers` header (e.g.
+  `kubectl,flux,talos,searxng`) — requesting **all** servers times out, and the full tool list
+  bloats every request (heavy on the small-context local models, so prefer a frontier model for
+  tool-heavy work).
+- **Gotchas** — the self-hosted models are Qwen3 *thinking* models (send `think: false` for
+  non-reasoning output); the uncensored model runs at `num_ctx 8192`; switching between the two
+  local models forces a ~17Gi VRAM model-swap (seconds, longer on a cold replica).
+
+Prefer a **scoped LiteLLM virtual key** (`/key/generate`, limited to the `self-hosted*` models) over
+the master key for any workstation client — it's revocable on its own.
+
 ## MCP tools (ToolHive)
 
 Layer 2 runs the [StackLok ToolHive](https://github.com/stacklok/toolhive) operator (`0.29.3`,
