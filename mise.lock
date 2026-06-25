@@ -396,6 +396,25 @@ checksum = "sha256:b7c62c9339a263ddbf5ac0499509e4414576c8bc1eb76dcdd508c2a238dd1
 url = "https://github.com/home-operations/flate/releases/download/0.1.38/flate_0.1.38_darwin_arm64.tar.gz"
 url_api = "https://api.github.com/repos/home-operations/flate/releases/assets/435788811"
 
+[[tools."github:home-operations/yayamlls"]]
+version = "0.1.10"
+backend = "github:home-operations/yayamlls"
+
+[tools."github:home-operations/yayamlls"."platforms.linux-arm64"]
+checksum = "sha256:f67c9a2b51cc6872fa307809f6ee83293594a11cb048e5e9da4aab07130ed444"
+url = "https://github.com/home-operations/yayamlls/releases/download/0.1.10/yayamlls_0.1.10_linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/home-operations/yayamlls/releases/assets/453891485"
+
+[tools."github:home-operations/yayamlls"."platforms.linux-x64"]
+checksum = "sha256:9078ea741ed739862e60f7cb3c1bcc8d2d6355434961e2a785979df4818dd467"
+url = "https://github.com/home-operations/yayamlls/releases/download/0.1.10/yayamlls_0.1.10_linux_amd64.tar.gz"
+url_api = "https://api.github.com/repos/home-operations/yayamlls/releases/assets/453891484"
+
+[tools."github:home-operations/yayamlls"."platforms.macos-arm64"]
+checksum = "sha256:2c22be8185088bcb5c54f46e837aa6ef5491d9c956e9a240ad124a6deaa6b738"
+url = "https://github.com/home-operations/yayamlls/releases/download/0.1.10/yayamlls_0.1.10_darwin_arm64.tar.gz"
+url_api = "https://api.github.com/repos/home-operations/yayamlls/releases/assets/453891482"
+
 [[tools.node]]
 version = "24.14.0"
 backend = "core:node"
@@ -413,7 +432,7 @@ checksum = "sha256:a1a54f46a750d2523d628d924aab61758a51c9dad3e0238beb14141be9615
 url = "https://nodejs.org/dist/v24.14.0/node-v24.14.0-darwin-arm64.tar.gz"
 
 [[tools."npm:markdownlint-cli"]]
-version = "0.48.0"
+version = "0.49.0"
 backend = "npm:markdownlint-cli"
 
 [[tools."npm:prettier"]]
