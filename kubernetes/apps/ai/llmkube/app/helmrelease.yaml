@@ -6,13 +6,9 @@ metadata:
   name: llmkube
 spec:
   interval: 1h
-  chart:
-    spec:
-      chart: llmkube
-      version: 0.8.11
-      sourceRef:
-        kind: HelmRepository
-        name: llmkube
+  chartRef:
+    kind: OCIRepository
+    name: llmkube
   install:
     remediation:
       retries: 3
@@ -21,11 +17,12 @@ spec:
     remediation:
       retries: 3
   values:
-    # No https model sources are served yet, so the shared download cache stays
-    # off. Enable it (and provide an RWX cache PVC) before adding a Model with an
-    # https:// source — see docs/docs/architecture/ai-llm-stack.md "Layer 4".
     modelCache:
-      enabled: false
+      enabled: true
+      mode: shared
+      accessMode: ReadWriteMany
+      storageClass: ceph-filesystem
+      size: 80Gi
     prometheus:
       inferencePodMonitor:
         enabled: false
