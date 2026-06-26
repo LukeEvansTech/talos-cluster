@@ -6,3 +6,4 @@ resources:
   - ./priorityclass.yaml
   - ./servicemonitor.yaml
   - ./qwen3.6-35b-a3b.yaml
+  - ./qwen3-30b-abliterated.yaml

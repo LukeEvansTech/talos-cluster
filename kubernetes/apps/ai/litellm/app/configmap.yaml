@@ -27,20 +27,20 @@ data:
           order: 1
 
       # Uncensored Qwen3 MoE (mlabonne Qwen3-30B-A3B abliterated, mradermacher
-      # imatrix Q4_K_S), provisioned on Ollama as qwen3-30b-a3b-abliterated. Pick
-      # it explicitly. Deliberately NOT in router_settings.fallbacks: a cloud
-      # fallback would reintroduce refusals and defeat the point. Shares the
-      # Ollama backend, so traffic alternating with `self-hosted` incurs a model
-      # swap (~seconds).
+      # imatrix Q4_K_S), served by the llmkube llama-uncensored InferenceService
+      # (dedicated GPU, anti-affinity to llama-nvidia). Pick it explicitly.
+      # Deliberately NOT in router_settings.fallbacks: a cloud fallback would
+      # reintroduce refusals and defeat the point.
       - model_name: self-hosted-uncensored
         model_info:
           mode: chat
           supports_function_calling: true
           supports_vision: false
         litellm_params:
-          model: ollama_chat/qwen3-30b-a3b-abliterated
-          api_base: ${OLLAMA_BASE_URL}
-          max_parallel_requests: 3
+          model: openai/self-hosted-uncensored
+          api_base: http://llama-uncensored.ai.svc.cluster.local:8080/v1
+          api_key: llama-uncensored
+          max_parallel_requests: 2
 
       # ------------------------------------------------------------------
       # Cloud
