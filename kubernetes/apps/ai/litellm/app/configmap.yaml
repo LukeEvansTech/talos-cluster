@@ -9,28 +9,20 @@ data:
   config.yaml: |-
     model_list:
       # ------------------------------------------------------------------
-      # Local — Ollama (qwen3.6-35b-a3b). Backend centralized via the cluster
-      # vars ${OLLAMA_MODEL}/${OLLAMA_BASE_URL} (components/global-vars).
+      # Local — llama.cpp (llama-nvidia). Served by the llmkube llama-nvidia
+      # StatefulSet in the ai namespace.
       # ------------------------------------------------------------------
 
-      # Backward-compatible alias for any client already pointing at this name.
-      - model_name: ollama/gemma4
-        litellm_params:
-          model: ollama_chat/${OLLAMA_MODEL}
-          api_base: ${OLLAMA_BASE_URL}
-
-      # Stable "self-hosted" group. One backend today (Ollama, order 1). Layer 4
-      # (llama.cpp via llmkube) appends entries with the SAME model_name and a
-      # higher order: LiteLLM then load-balances / fails over across them with no
-      # client change.
+      # Stable "self-hosted" group. One backend today (llama-nvidia, order 1).
       - model_name: self-hosted
         model_info:
           mode: chat
           supports_function_calling: true
           supports_vision: false
         litellm_params:
-          model: ollama_chat/${OLLAMA_MODEL}
-          api_base: ${OLLAMA_BASE_URL}
+          model: openai/self-hosted
+          api_base: http://llama-nvidia.ai.svc.cluster.local:8080/v1
+          api_key: llama-nvidia
           max_parallel_requests: 3
           order: 1
 
@@ -107,7 +99,6 @@ data:
       # If the local model is cooling-down / unhealthy, spill to cloud.
       fallbacks:
         - self-hosted: ["openrouter/auto"]
-        - ollama/gemma4: ["openrouter/auto"]
 
     litellm_settings:
       success_callback: ["prometheus"]
