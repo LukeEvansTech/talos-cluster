@@ -15,7 +15,10 @@ spec:
         # StatefulSet so each replica gets its own RWO model/config PVC
         # (no RWX storage class available) and a stable per-node identity.
         type: statefulset
-        replicas: 3
+        # Transitional during the llama.cpp migration: 1 replica frees 2 of the 3
+        # L4s for the llama.cpp InferenceServices. Ollama is removed entirely by the
+        # decommission PR once contracthound/subspy/loupe are on their OpenAI images.
+        replicas: 1
         annotations:
           reloader.stakater.com/auto: "true"
         statefulset:
@@ -86,6 +89,10 @@ spec:
     defaultPodOptions:
       labels:
         gpu-workload: "true"
+        # Shared GPU-exclusivity label: the llama.cpp InferenceServices' podAntiAffinity
+        # matches llm-gpu-model, so the single Ollama replica and the two models land
+        # on three distinct physical L4s (time-slicing shares VRAM, not isolates it).
+        llm-gpu-model: "true"
       runtimeClassName: nvidia
       affinity:
         nodeAffinity:
