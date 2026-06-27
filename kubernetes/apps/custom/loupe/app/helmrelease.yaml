@@ -27,10 +27,17 @@ spec:
                     key: APP_KEY
               - name: DATABASE_URL
                 value: "sqlite:///./data/loupe.db"
-              - name: OLLAMA_BASE_URL
-                value: ${OLLAMA_BASE_URL}
-              - name: OLLAMA_MODEL
-                value: ${OLLAMA_MODEL}
+              - name: LLM_PROVIDER
+                value: openai
+              - name: OPENAI_API_BASE_URL
+                value: http://litellm.ai.svc.cluster.local:4000/v1
+              - name: OPENAI_MODEL
+                value: self-hosted
+              - name: OPENAI_API_KEY
+                valueFrom:
+                  secretKeyRef:
+                    name: loupe-secret
+                    key: LITELLM_MASTER_KEY
               - name: ADMIN_USERNAME
                 value: admin
               - name: ADMIN_PASSWORD
