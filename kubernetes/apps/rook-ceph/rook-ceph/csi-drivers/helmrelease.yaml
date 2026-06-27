@@ -11,8 +11,8 @@ spec:
     name: ceph-csi-drivers
   values:
     # Rook v1.20 split CSI driver deployment out of the operator chart into the
-    # ceph-csi-operator-managed ceph-csi-drivers chart. We use RBD only
-    # (ceph-block); CephFS/NFS/NVMeoF stay disabled.
+    # ceph-csi-operator-managed ceph-csi-drivers chart. RBD (ceph-block) + CephFS
+    # (ceph-filesystem, backs the llmkube shared model cache). NFS/NVMeoF disabled.
     drivers:
       rbd:
         enabled: true
@@ -29,7 +29,10 @@ spec:
         # it for every *-nfs/-r2 ReplicationSource.
         snapshotPolicy: volumeSnapshot
       cephfs:
-        enabled: false
+        enabled: true
+        # MUST match the ceph-filesystem StorageClass provisioner (rook-prefixed
+        # convention, same as rbd above). Backs the llmkube model cache (RWX).
+        name: rook-ceph.cephfs.csi.ceph.com
       nfs:
         enabled: false
       nvmeof:
