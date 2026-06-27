@@ -7,6 +7,10 @@ spec:
   source: hf://unsloth/Qwen3.6-35B-A3B-GGUF
   files:
     - Qwen3.6-35B-A3B-UD-IQ4_XS.gguf
+  # Vision projector staged from the same HF source and auto-passed to llama.cpp
+  # by the llmkube operator. If the operator does not auto-wire --mmproj, add it
+  # to the InferenceService extraArgs as a live-cluster fallback.
+  mmproj: mmproj-F16.gguf
   format: gguf
   quantization: UD-IQ4_XS
   refreshPolicy: OnChange
