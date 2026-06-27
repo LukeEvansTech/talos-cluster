@@ -1,19 +1,89 @@
 ---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: llama-nvidia-models
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: ceph-block
+  resources:
+    requests:
+      storage: 40Gi # ~18Gi GGUF + ~1.4Gi mmproj + headroom
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: stage-qwen3-6-35b-a3b
+  annotations:
+    # CKV_K8S_21: namespace is applied by the Flux Kustomization targetNamespace,
+    # not the raw manifest. CKV_K8S_40: UID 1000 is the cluster convention and a
+    # host-UID collision is not a concern on single-tenant Talos nodes.
+    checkov.io/skip1: CKV_K8S_21=Namespace injected by Flux targetNamespace
+    checkov.io/skip2: CKV_K8S_40=UID 1000 is the cluster convention on single-tenant Talos
+spec:
+  backoffLimit: 6
+  template:
+    spec:
+      restartPolicy: OnFailure
+      automountServiceAccountToken: false
+      # Non-root, drop-ALL, read-only rootfs (cluster security defaults). curl
+      # streams the public GGUFs straight to the RWO PVC; fsGroup makes the
+      # ceph-block volume group-writable. Idempotent ([ -s ] guard) so a re-run
+      # after a fresh PVC re-downloads only what's missing.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: fetch
+          image: docker.io/curlimages/curl:8.11.1@sha256:c1fe1679c34d9784c1b0d1e5f62ac0a79fca01fb6377cdd33e90473c6f9f9a69
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - "ALL"
+          command:
+            - /bin/sh
+            - -ec
+          args:
+            - |
+              cd /models
+              base=https://huggingface.co/unsloth/Qwen3.6-35B-A3B-GGUF/resolve/main
+              for f in Qwen3.6-35B-A3B-UD-IQ4_XS.gguf mmproj-F16.gguf; do
+                [ -s "$f" ] || curl -fSL --retry 5 --retry-delay 10 -o "$f" "$base/$f"
+              done
+          resources:
+            requests:
+              cpu: "500m"
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          volumeMounts:
+            - name: models
+              mountPath: /models
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: llama-nvidia-models
+---
+# Model: pvc:// source (no download by the operator; staged by the Job above).
+# NOTE: the operator mounts the PVC claim at /model-source/ — verify this path
+# on first deploy if --mmproj fails to resolve.
 apiVersion: inference.llmkube.dev/v1alpha1
 kind: Model
 metadata:
   name: qwen3.6-35b-a3b
 spec:
-  source: hf://unsloth/Qwen3.6-35B-A3B-GGUF
-  files:
-    - Qwen3.6-35B-A3B-UD-IQ4_XS.gguf
-  # Vision projector staged from the same HF source and auto-passed to llama.cpp
-  # by the llmkube operator. If the operator does not auto-wire --mmproj, add it
-  # to the InferenceService extraArgs as a live-cluster fallback.
-  mmproj: mmproj-F16.gguf
+  source: pvc://llama-nvidia-models/Qwen3.6-35B-A3B-UD-IQ4_XS.gguf
   format: gguf
   quantization: UD-IQ4_XS
-  refreshPolicy: OnChange
   hardware:
     accelerator: cuda
     gpu:
@@ -75,6 +145,9 @@ spec:
   extraArgs:
     - --alias
     - self-hosted
+    - --mmproj
+    - /model-source/mmproj-F16.gguf
+    - --no-mmap
     - --temp
     - "0.6"
     - --top-p
