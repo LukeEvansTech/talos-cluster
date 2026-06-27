@@ -15,11 +15,18 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: stage-qwen3-30b-abliterated
+  annotations:
+    # CKV_K8S_21: namespace is applied by the Flux Kustomization targetNamespace,
+    # not the raw manifest. CKV_K8S_40: UID 1000 is the cluster convention and a
+    # host-UID collision is not a concern on single-tenant Talos nodes.
+    checkov.io/skip1: CKV_K8S_21=Namespace injected by Flux targetNamespace
+    checkov.io/skip2: CKV_K8S_40=UID 1000 is the cluster convention on single-tenant Talos
 spec:
   backoffLimit: 6
   template:
     spec:
       restartPolicy: OnFailure
+      automountServiceAccountToken: false
       # Non-root, drop-ALL, read-only rootfs (cluster security defaults).
       securityContext:
         runAsNonRoot: true
@@ -52,6 +59,7 @@ spec:
               cpu: "500m"
               memory: 256Mi
             limits:
+              cpu: "1"
               memory: 512Mi
           volumeMounts:
             - name: models
