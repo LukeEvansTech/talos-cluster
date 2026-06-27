@@ -11,13 +11,9 @@ metadata:
   annotations:
     # Namespace is provided by Kustomize component usage
     checkov.io/skip1: CKV_K8S_21=Namespace provided by kustomization overlay
-data:
-  # The local LLM that in-cluster apps target via ollama. Flip this one line to
-  # move every consumer (contracthound, subspy, loupe, litellm, …) at once.
-  OLLAMA_MODEL: qwen3.6-35b-a3b
-  OLLAMA_BASE_URL: http://ollama.ai.svc.cluster.local:11434
-  # Network device addresses (ONYX_ADDR, MIKROTIK_POE_ADDR, MIKROTIK_NONPOE_ADDR)
-  # live in the cluster-secrets 1Password item, not here — they are internal
-  # hostnames and this is a public repo. Flux still substitutes ${...} from
-  # cluster-secrets, so consumers are unchanged. To change one, edit the field in
-  # the cluster-secrets item (vault Talos) and force-sync the ExternalSecret.
+# Network device addresses (ONYX_ADDR, MIKROTIK_POE_ADDR, MIKROTIK_NONPOE_ADDR)
+# live in the cluster-secrets 1Password item, not here — they are internal
+# hostnames and this is a public repo. Flux still substitutes ${...} from
+# cluster-secrets, so consumers are unchanged. To change one, edit the field in
+# the cluster-secrets item (vault Talos) and force-sync the ExternalSecret.
+data: {}
