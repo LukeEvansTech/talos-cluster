@@ -17,12 +17,11 @@ spec:
     remediation:
       retries: 3
   values:
+    # Model weights now come from per-model RWO ceph-block PVCs (pvc:// sources),
+    # staged by one-off hf-download Jobs. Talos has no ceph kernel module and
+    # cannot mount CephFS, so the shared modelCache is disabled.
     modelCache:
-      enabled: true
-      mode: shared
-      accessMode: ReadWriteMany
-      storageClass: ceph-filesystem
-      size: 80Gi
+      enabled: false
     prometheus:
       inferencePodMonitor:
         enabled: false
