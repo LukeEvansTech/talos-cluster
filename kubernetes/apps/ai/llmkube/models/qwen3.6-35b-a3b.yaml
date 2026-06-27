@@ -1,19 +1,68 @@
 ---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: llama-nvidia-models
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: ceph-block
+  resources:
+    requests:
+      storage: 40Gi # ~18Gi GGUF + ~1.4Gi mmproj + headroom
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: stage-qwen3-6-35b-a3b
+spec:
+  backoffLimit: 6
+  template:
+    spec:
+      restartPolicy: OnFailure
+      securityContext:
+        runAsUser: 0
+        fsGroup: 0
+      containers:
+        - name: hf
+          image: python:3.14-slim
+          command:
+            - /bin/sh
+            - -ec
+          args:
+            - |
+              pip install --no-cache-dir "huggingface_hub[hf_transfer]"
+              hf download unsloth/Qwen3.6-35B-A3B-GGUF \
+                Qwen3.6-35B-A3B-UD-IQ4_XS.gguf mmproj-F16.gguf \
+                --local-dir /models
+          env:
+            - name: HF_HUB_ENABLE_HF_TRANSFER
+              value: "1"
+          resources:
+            requests:
+              cpu: "1"
+              memory: 2Gi
+            limits:
+              memory: 8Gi
+          volumeMounts:
+            - name: models
+              mountPath: /models
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: llama-nvidia-models
+---
+# Model: pvc:// source (no download by the operator; staged by the Job above).
+# NOTE: the operator mounts the PVC claim at /model-source/ — verify this path
+# on first deploy if --mmproj fails to resolve.
 apiVersion: inference.llmkube.dev/v1alpha1
 kind: Model
 metadata:
   name: qwen3.6-35b-a3b
 spec:
-  source: hf://unsloth/Qwen3.6-35B-A3B-GGUF
-  files:
-    - Qwen3.6-35B-A3B-UD-IQ4_XS.gguf
-  # Vision projector staged from the same HF source and auto-passed to llama.cpp
-  # by the llmkube operator. If the operator does not auto-wire --mmproj, add it
-  # to the InferenceService extraArgs as a live-cluster fallback.
-  mmproj: mmproj-F16.gguf
+  source: pvc://llama-nvidia-models/Qwen3.6-35B-A3B-UD-IQ4_XS.gguf
   format: gguf
   quantization: UD-IQ4_XS
-  refreshPolicy: OnChange
   hardware:
     accelerator: cuda
     gpu:
@@ -75,6 +124,9 @@ spec:
   extraArgs:
     - --alias
     - self-hosted
+    - --mmproj
+    - /model-source/mmproj-F16.gguf
+    - --no-mmap
     - --temp
     - "0.6"
     - --top-p

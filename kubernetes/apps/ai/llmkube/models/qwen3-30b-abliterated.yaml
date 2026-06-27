@@ -1,15 +1,66 @@
 ---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: llama-uncensored-models
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: ceph-block
+  resources:
+    requests:
+      storage: 30Gi # ~17Gi GGUF + headroom
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: stage-qwen3-30b-abliterated
+spec:
+  backoffLimit: 6
+  template:
+    spec:
+      restartPolicy: OnFailure
+      securityContext:
+        runAsUser: 0
+        fsGroup: 0
+      containers:
+        - name: hf
+          image: python:3.14-slim
+          command:
+            - /bin/sh
+            - -ec
+          args:
+            - |
+              pip install --no-cache-dir "huggingface_hub[hf_transfer]"
+              hf download mradermacher/Qwen3-30B-A3B-abliterated-i1-GGUF \
+                Qwen3-30B-A3B-abliterated.i1-Q4_K_S.gguf \
+                --local-dir /models
+          env:
+            - name: HF_HUB_ENABLE_HF_TRANSFER
+              value: "1"
+          resources:
+            requests:
+              cpu: "1"
+              memory: 2Gi
+            limits:
+              memory: 8Gi
+          volumeMounts:
+            - name: models
+              mountPath: /models
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: llama-uncensored-models
+---
+# Model: pvc:// source (no download by the operator; staged by the Job above).
 apiVersion: inference.llmkube.dev/v1alpha1
 kind: Model
 metadata:
   name: qwen3-30b-a3b-abliterated
 spec:
-  source: hf://mradermacher/Qwen3-30B-A3B-abliterated-i1-GGUF
-  files:
-    - Qwen3-30B-A3B-abliterated.i1-Q4_K_S.gguf
+  source: pvc://llama-uncensored-models/Qwen3-30B-A3B-abliterated.i1-Q4_K_S.gguf
   format: gguf
   quantization: i1-Q4_K_S
-  refreshPolicy: OnChange
   hardware:
     accelerator: cuda
     gpu:
@@ -71,6 +122,7 @@ spec:
   extraArgs:
     - --alias
     - self-hosted-uncensored
+    - --no-mmap
     - --temp
     - "0.6"
     - --top-p
