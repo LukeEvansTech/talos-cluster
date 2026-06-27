@@ -20,30 +20,43 @@ spec:
   template:
     spec:
       restartPolicy: OnFailure
+      # Non-root, drop-ALL, read-only rootfs (cluster security defaults). curl
+      # streams the public GGUFs straight to the RWO PVC; fsGroup makes the
+      # ceph-block volume group-writable. Idempotent ([ -s ] guard) so a re-run
+      # after a fresh PVC re-downloads only what's missing.
       securityContext:
-        runAsUser: 0
-        fsGroup: 0
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
       containers:
-        - name: hf
-          image: python:3.14-slim
+        - name: fetch
+          image: docker.io/curlimages/curl:8.11.1@sha256:c1fe1679c34d9784c1b0d1e5f62ac0a79fca01fb6377cdd33e90473c6f9f9a69
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - "ALL"
           command:
             - /bin/sh
             - -ec
           args:
             - |
-              pip install --no-cache-dir "huggingface_hub[hf_transfer]"
-              hf download unsloth/Qwen3.6-35B-A3B-GGUF \
-                Qwen3.6-35B-A3B-UD-IQ4_XS.gguf mmproj-F16.gguf \
-                --local-dir /models
-          env:
-            - name: HF_HUB_ENABLE_HF_TRANSFER
-              value: "1"
+              cd /models
+              base=https://huggingface.co/unsloth/Qwen3.6-35B-A3B-GGUF/resolve/main
+              for f in Qwen3.6-35B-A3B-UD-IQ4_XS.gguf mmproj-F16.gguf; do
+                [ -s "$f" ] || curl -fSL --retry 5 --retry-delay 10 -o "$f" "$base/$f"
+              done
           resources:
             requests:
-              cpu: "1"
-              memory: 2Gi
+              cpu: "500m"
+              memory: 256Mi
             limits:
-              memory: 8Gi
+              memory: 512Mi
           volumeMounts:
             - name: models
               mountPath: /models
