@@ -26,7 +26,8 @@ spec:
               tag: 5.2.2@sha256:53f4f1a0f3df1b788b496fff41bb0288b66e590bcbe86f32c132287ab302b942
             env:
               QBT_WEBUI_PORT: &port 80
-              QBT_TORRENTING_PORT: &BT-port 51749
+              # Must equal the AirVPN reserved forwarded port (FIREWALL_VPN_INPUT_PORTS below).
+              QBT_TORRENTING_PORT: &BT-port 28812
               # Require WebUI auth even on localhost so the metrics sidecar must present
               # real credentials (from the ExternalSecret) instead of riding an
               # unauthenticated localhost bypass.
@@ -174,6 +175,10 @@ spec:
               FIREWALL: true
               FIREWALL_DEBUG: on
               FIREWALL_INPUT_PORTS: 80,3000,9710,9999
+              # AirVPN static forwarded port (reserved at airvpn.org/ports). Opens
+              # the tunnel for inbound peers so qBittorrent (QBT_TORRENTING_PORT) can
+              # seed. AirVPN ports are account-wide, so no port-forward sync sidecar.
+              FIREWALL_VPN_INPUT_PORTS: 28812
               FIREWALL_OUTBOUND_SUBNETS: '"${CLUSTER_PODS_CIDR},${CLUSTER_SVCS_CIDR},${CR_LAN_CIDR},${GH_LAN_CIDR}"'
               HEALTH_SERVER_ADDRESS: ":9999"
               HEALTH_SERVER_DISABLE_LOOP: on
