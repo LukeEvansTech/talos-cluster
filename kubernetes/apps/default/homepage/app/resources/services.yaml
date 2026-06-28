@@ -86,11 +86,6 @@
         href: https://sabnzbd.${SECRET_DOMAIN}
         siteMonitor: https://sabnzbd.${SECRET_DOMAIN}
         description: Usenet downloader
-    - NZBGet:
-        icon: nzbget.svg
-        href: https://nzbget.${SECRET_DOMAIN}
-        siteMonitor: https://nzbget.${SECRET_DOMAIN}
-        description: Usenet downloader
     - qBittorrent:
         icon: qbittorrent.svg
         href: https://qbittorrent.${SECRET_DOMAIN}
