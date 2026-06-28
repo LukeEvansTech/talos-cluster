@@ -35,8 +35,8 @@ spec:
               LLM_PROVIDER: openai_compatible
               LLM_BASE_URL: http://litellm.ai.svc.cluster.local:4000/v1
               MODEL: self-hosted
-              # CV generation via the hosted Reactive Resume (no self-hosted instance).
-              RXRESUME_URL: https://rxresu.me
+              # CV generation via the self-hosted Reactive Resume (internal).
+              RXRESUME_URL: https://reactiveresume.${SECRET_DOMAIN}
             envFrom:
               - secretRef:
                   name: job-ops-secret
