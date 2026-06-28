@@ -86,6 +86,11 @@ spec:
               HEALTH_SERVER_DISABLE_LOOP: on
               HEALTH_VPN_DURATION_INITIAL: 60s
               LOG_LEVEL: info
+              # Public IP check provider. gluetun only accepts "ipinfo" or
+              # "ip2location"; ipinfo rate-limits (HTTP 429) on its free monthly
+              # tier, so use ip2location for the (cosmetic) public-IP display.
+              # https://github.com/qdm12/gluetun-wiki/blob/main/setup/options/others.md
+              PUBLICIP_API: ip2location
               TZ: ${TIMEZONE}
               UPDATER_PERIOD: 12h
               VERSION_INFORMATION: off
