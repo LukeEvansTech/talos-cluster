@@ -3,7 +3,7 @@
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
-  name: &app job-ops
+  name: &app jobops
   namespace: &namespace default
 spec:
   commonMetadata:
@@ -17,7 +17,7 @@ spec:
     - name: rook-ceph-cluster
       namespace: rook-ceph
   interval: 1h
-  path: ./kubernetes/apps/default/job-ops/app
+  path: ./kubernetes/apps/default/jobops/app
   postBuild:
     substitute:
       APP: *app
