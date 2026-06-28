@@ -3,7 +3,7 @@
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
-  name: &app reactive-resume
+  name: &app reactiveresume
   namespace: &namespace default
 spec:
   commonMetadata:
@@ -19,7 +19,7 @@ spec:
     - name: garage
       namespace: storage
   interval: 1h
-  path: ./kubernetes/apps/default/reactive-resume/app
+  path: ./kubernetes/apps/default/reactiveresume/app
   postBuild:
     substitute:
       APP: *app
