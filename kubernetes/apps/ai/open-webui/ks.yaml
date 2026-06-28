@@ -14,7 +14,7 @@ spec:
   dependsOn:
     - name: volsync
       namespace: volsync-system
-    - name: ollama
+    - name: litellm
   interval: 1h
   path: ./kubernetes/apps/ai/open-webui/app
   postBuild:

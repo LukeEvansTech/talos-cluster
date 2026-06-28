@@ -18,14 +18,14 @@ spec:
           app:
             image:
               repository: ghcr.io/lukeevanstech/subspy
-              tag: 1.5.1
+              tag: 1.6.0
               digest: sha256:01f6a82f1d94ccbb66c53c2666ee39aa6c12e60f38f140546b2bad4ce0f4503c
             env:
               TZ: ${TIMEZONE}
               DATABASE_URL: sqlite:///./data/subspy.db
-              OLLAMA_ENABLED: "true"
-              OLLAMA_BASE_URL: ${OLLAMA_BASE_URL}
-              OLLAMA_MODEL: ${OLLAMA_MODEL}
+              LLM_PROVIDER: openai
+              OPENAI_API_BASE_URL: http://litellm.ai.svc.cluster.local:4000/v1
+              OPENAI_MODEL: self-hosted
             envFrom:
               - secretRef:
                   name: subspy-secret
