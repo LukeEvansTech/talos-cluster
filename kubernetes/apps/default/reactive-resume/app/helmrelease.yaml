@@ -34,6 +34,14 @@ spec:
               PORT: &port 3000
               SERVER_PORT: "3001"
               APP_URL: "https://{{ .Release.Name }}.${SECRET_DOMAIN}"
+              # RR v5 bundles pg-connection-string v2, which forces sslmode=require
+              # to verify-full and ignores the URL's ssl params. CNPG's server cert
+              # is signed by the in-cluster cert-manager CA that Node doesn't trust,
+              # so DB TLS fails with DEPTH_ZERO_SELF_SIGNED_CERT. The CA isn't
+              # reachable from this namespace, so skip Node TLS verification. The DB
+              # hop stays TLS-encrypted (just unverified) and is in-cluster only;
+              # S3 (Garage) and Redis (Dragonfly) are non-TLS.
+              NODE_TLS_REJECT_UNAUTHORIZED: "0"
               # Object storage: in-cluster Garage (S3). Keys come from the Secret.
               S3_ENDPOINT: http://garage.storage.svc.cluster.local:3900
               S3_REGION: us-east-1
