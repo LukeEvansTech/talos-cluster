@@ -22,7 +22,7 @@ env:
   # directly above the value below so Renovate targets FLATE_VERSION, not this
   # comment.
   # renovate: datasource=github-releases depName=home-operations/flate
-  FLATE_VERSION: "v0.4.8"
+  FLATE_VERSION: "v0.4.10"
 
 jobs:
   filter:
