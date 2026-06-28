@@ -16,6 +16,10 @@ kind: Job
 metadata:
   name: stage-qwen3-30b-abliterated
   annotations:
+    # One-shot staging Job (downloads the GGUF to the RWO PVC once). Flux must not
+    # re-apply it: a Job's spec.template is immutable, so Renovate bumping the curl
+    # image would fail the Kustomization. Created once, then left alone.
+    kustomize.toolkit.fluxcd.io/reconcile: disabled
     # CKV_K8S_21: namespace is applied by the Flux Kustomization targetNamespace,
     # not the raw manifest. CKV_K8S_40: UID 1000 is the cluster convention and a
     # host-UID collision is not a concern on single-tenant Talos nodes.
