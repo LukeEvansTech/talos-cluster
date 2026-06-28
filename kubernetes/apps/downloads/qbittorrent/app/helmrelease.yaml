@@ -32,6 +32,12 @@ spec:
               # real credentials (from the ExternalSecret) instead of riding an
               # unauthenticated localhost bypass.
               QBT_Preferences__WebUI__LocalHostAuth: true
+              # libtorrent-v1 auto-sizes its disk cache from *detected* host RAM,
+              # which inside a container is the whole node — so the cache (and RSS)
+              # balloon until the cgroup OOMKills it mid-download. Pin the cache to
+              # 256 MiB to keep memory flat (~330Mi steady-state). Set as a QBT_ env
+              # (GitOps) so it survives a PVC recreate, not just the live PVC config.
+              QBT_BitTorrent__Session__DiskCacheSize: 256
             probes:
               liveness:
                 enabled: true
@@ -73,9 +79,10 @@ spec:
                 cpu: 10m
                 memory: 512Mi
               limits:
-                # qBittorrent (libtorrent v1) spikes well past 256Mi while loading
-                # and rechecking a large torrent session on startup, OOMKilling the
-                # container into a CrashLoop. 2Gi gives headroom for the full library.
+                # Disk cache is pinned to 256 MiB (QBT_BitTorrent__Session__DiskCacheSize
+                # above), so RSS stays ~330Mi and 2Gi is ample headroom. (onedr0p runs
+                # this same image at a 32Gi limit only because they leave the cache
+                # uncapped and let it size off host RAM.)
                 memory: 2Gi
           metrics:
             dependsOn: app
