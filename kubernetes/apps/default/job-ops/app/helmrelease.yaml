@@ -24,7 +24,9 @@ spec:
               tag: v0.10.0@sha256:fc1be33cce4bf0539164ed244dcc868a943deabf6e2a5eb2365868e24cf98554
             env:
               TZ: ${TIMEZONE}
-              PORT: &port "3001"
+              # Unquoted int so the *port anchor is valid in httpGet/service ports
+              # (a quoted "3001" fails K8s probe validation: "must contain a letter").
+              PORT: &port 3001
               # Self-hosted (not the multi-tenant "hosted" SaaS) mode.
               JOBOPS_APP_MODE: local
               JOBOPS_PUBLIC_BASE_URL: "https://{{ .Release.Name }}.${SECRET_DOMAIN}"
