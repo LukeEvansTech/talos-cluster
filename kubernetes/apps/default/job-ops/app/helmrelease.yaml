@@ -1,0 +1,113 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: job-ops
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: job-ops
+  values:
+    controllers:
+      job-ops:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        # RWO ceph-block PVC: single replica, recreate on rollout to avoid a
+        # multi-attach deadlock (the new pod can't mount until the old releases).
+        strategy: Recreate
+        containers:
+          app:
+            image:
+              repository: ghcr.io/dakheera47/job-ops
+              tag: v0.10.0@sha256:fc1be33cce4bf0539164ed244dcc868a943deabf6e2a5eb2365868e24cf98554
+            env:
+              TZ: ${TIMEZONE}
+              PORT: &port "3001"
+              # Self-hosted (not the multi-tenant "hosted" SaaS) mode.
+              JOBOPS_APP_MODE: local
+              JOBOPS_PUBLIC_BASE_URL: "https://{{ .Release.Name }}.${SECRET_DOMAIN}"
+              # LLM: OpenAI-compatible endpoint -> in-cluster LiteLLM gateway.
+              # MODEL "self-hosted" routes to llama.cpp (llmkube) with an
+              # automatic openrouter/auto cloud fallback configured in LiteLLM.
+              # Provider/base-URL/model/key are also overridable in the app UI.
+              LLM_PROVIDER: openai_compatible
+              LLM_BASE_URL: http://litellm.ai.svc.cluster.local:4000/v1
+              MODEL: self-hosted
+              # CV generation via the hosted Reactive Resume (no self-hosted instance).
+              RXRESUME_URL: https://rxresu.me
+            envFrom:
+              - secretRef:
+                  name: job-ops-secret
+            probes:
+              liveness:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /health
+                    port: *port
+                  initialDelaySeconds: 60
+                  periodSeconds: 30
+                  failureThreshold: 5
+              readiness:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /health
+                    port: *port
+                  initialDelaySeconds: 15
+                  periodSeconds: 15
+                  failureThreshold: 6
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+              capabilities:
+                drop:
+                  - ALL
+            resources:
+              requests:
+                cpu: 50m
+                memory: 256Mi
+              limits:
+                memory: 2Gi
+
+    defaultPodOptions:
+      # Upstream image ships no USER and runs as root; Playwright/Camoufox write
+      # to /root/.cache, /ms-playwright and /tmp on the (writable) rootfs.
+      securityContext:
+        runAsNonRoot: false
+        runAsUser: 0
+        runAsGroup: 0
+        fsGroup: 0
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+
+    service:
+      app:
+        controller: job-ops
+        ports:
+          http:
+            port: *port
+
+    route:
+      app:
+        hostnames:
+          - "{{ .Release.Name }}.${SECRET_DOMAIN}"
+        parentRefs:
+          - name: envoy-internal
+            namespace: network
+
+    persistence:
+      data:
+        existingClaim: "{{ .Release.Name }}"
+        globalMounts:
+          # SQLite DB, generated PDFs, cloudflare-cookies.
+          - path: /app/data
+            subPath: data
+          # LLM auth / session tokens (codex/gemini-cli).
+          - path: /app/codex-home
+            subPath: codex-home
