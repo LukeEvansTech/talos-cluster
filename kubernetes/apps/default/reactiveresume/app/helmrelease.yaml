@@ -47,8 +47,8 @@ spec:
               S3_REGION: us-east-1
               S3_BUCKET: reactive-resume
               S3_FORCE_PATH_STYLE: "true"
-              # Flip to "true" once the first account is registered.
-              FLAG_DISABLE_SIGNUPS: "false"
+              # Account registered; signups locked down.
+              FLAG_DISABLE_SIGNUPS: "true"
               FLAG_DISABLE_EMAIL_AUTH: "false"
             envFrom:
               - secretRef:
