@@ -1,4 +1,0 @@
-# Ollama library models pulled on every replica (one ref per line; blank lines
-# and # comments ignored). Modelfile-based models live alongside as
-# *.Modelfile and are `ollama create`d by resources/reconcile.sh.
-qwen3.6:27b

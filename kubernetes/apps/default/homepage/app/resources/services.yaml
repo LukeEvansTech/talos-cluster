@@ -243,11 +243,6 @@
         href: https://open-webui.${SECRET_DOMAIN}
         siteMonitor: https://open-webui.${SECRET_DOMAIN}
         description: AI chat interface
-    - Ollama:
-        icon: ollama.svg
-        href: https://ollama.${SECRET_DOMAIN}
-        siteMonitor: https://ollama.${SECRET_DOMAIN}
-        description: Local LLMs
 
 - Git:
     - Forgejo:

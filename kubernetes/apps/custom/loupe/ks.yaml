@@ -12,7 +12,7 @@ spec:
   components:
     - ../../../../components/volsync
   dependsOn:
-    - name: ollama
+    - name: litellm
       namespace: ai
     - name: volsync
       namespace: volsync-system
