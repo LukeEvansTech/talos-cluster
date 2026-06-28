@@ -3,7 +3,7 @@
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
-  name: &app shelly-exporter
+  name: &app shelly-prometheus-exporter
   labels:
     app.kubernetes.io/name: *app
 spec:

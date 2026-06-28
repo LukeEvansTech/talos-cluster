@@ -5,7 +5,7 @@
 # (shelly_device_online / _in_sync / _update_available), scraped via the
 # operator's already-enabled ServiceMonitor. These metrics ship in operator
 # v0.3.x; before that they are absent and the rules simply never fire.
-# Power/temperature alerts live in the shelly-exporter PrometheusRule -- not
+# Power/temperature alerts live in the shelly-prometheus-exporter PrometheusRule -- not
 # duplicated here.
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
