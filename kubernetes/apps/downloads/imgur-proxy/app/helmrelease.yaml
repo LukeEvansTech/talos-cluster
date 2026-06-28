@@ -97,10 +97,10 @@ spec:
               VPN_INTERFACE: wg0
               VPN_IPV6_SERVER: off
               VPN_TYPE: wireguard
-            # WIREGUARD_* + VPN_SERVICE_PROVIDER come from the shared
-            # `gluetun` 1Password item; SERVER_COUNTRIES comes from the
-            # per-app `imgur-proxy` item — both merged into imgur-proxy-secret
-            # by the ExternalSecret.
+            # WireGuard creds + exit location come from the per-app
+            # `gluetun-imgur-proxy` 1Password item (its own AirVPN device key /
+            # internal IP, SERVER_COUNTRIES=Netherlands), merged into
+            # imgur-proxy-secret by the ExternalSecret.
             envFrom:
               - secretRef:
                   name: imgur-proxy-secret

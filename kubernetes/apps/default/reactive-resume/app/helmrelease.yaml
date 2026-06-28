@@ -1,0 +1,116 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: reactive-resume
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: reactive-resume
+  values:
+    controllers:
+      reactive-resume:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        # RWO data PVC: avoid multi-attach deadlock on rollout.
+        strategy: Recreate
+        initContainers:
+          init-db:
+            image:
+              repository: ghcr.io/home-operations/postgres-init
+              tag: "18@sha256:5086f94abc783f1147d7c2a32c01db00ab594820026e4f6a82ac2af3dbde7fc7"
+            envFrom:
+              - secretRef:
+                  name: reactive-resume-secret
+        containers:
+          app:
+            image:
+              repository: ghcr.io/amruthpillai/reactive-resume
+              tag: v5.1.9@sha256:5ca66890dc8c2f71026b3efe24b3a87b2ad4dcccad7d4eefb5de9052d07094cd
+            env:
+              TZ: ${TIMEZONE}
+              PORT: &port 3000
+              SERVER_PORT: "3001"
+              APP_URL: "https://{{ .Release.Name }}.${SECRET_DOMAIN}"
+              # Object storage: in-cluster Garage (S3). Keys come from the Secret.
+              S3_ENDPOINT: http://garage.storage.svc.cluster.local:3900
+              S3_REGION: us-east-1
+              S3_BUCKET: reactive-resume
+              S3_FORCE_PATH_STYLE: "true"
+              # Flip to "true" once the first account is registered.
+              FLAG_DISABLE_SIGNUPS: "false"
+              FLAG_DISABLE_EMAIL_AUTH: "false"
+            envFrom:
+              - secretRef:
+                  name: reactive-resume-secret
+            probes:
+              liveness:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /api/health
+                    port: *port
+                  initialDelaySeconds: 60
+                  periodSeconds: 30
+                  timeoutSeconds: 5
+                  failureThreshold: 5
+              readiness:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /api/health
+                    port: *port
+                  initialDelaySeconds: 15
+                  periodSeconds: 15
+                  timeoutSeconds: 5
+                  failureThreshold: 6
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+              capabilities:
+                drop:
+                  - ALL
+            resources:
+              requests:
+                cpu: 100m
+                memory: 512Mi
+              limits:
+                memory: 2Gi
+    defaultPodOptions:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+    service:
+      app:
+        controller: reactive-resume
+        ports:
+          http:
+            port: *port
+    route:
+      app:
+        hostnames:
+          - "{{ .Release.Name }}.${SECRET_DOMAIN}"
+        parentRefs:
+          - name: envoy-internal
+            namespace: network
+    persistence:
+      data:
+        existingClaim: "{{ .Release.Name }}"
+        globalMounts:
+          - path: /app/data
+      # Headless-Chrome PDF rendering needs more than the default 64Mi /dev/shm.
+      dshm:
+        type: emptyDir
+        medium: Memory
+        sizeLimit: 256Mi
+        globalMounts:
+          - path: /dev/shm
