@@ -16,7 +16,7 @@ resources:
   - ./homebridge/ks.yaml
   - ./mosquitto/ks.yaml
   - ./node-red/ks.yaml
-  - ./shelly-exporter/ks.yaml
+  - ./shelly-prometheus-exporter/ks.yaml
   - ./shelly-fleet/ks.yaml
   - ./shelly-operator/ks.yaml
   - ./zigbee2mqtt/ks.yaml
