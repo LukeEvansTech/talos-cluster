@@ -3,7 +3,7 @@
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
-  name: &app shelly-exporter
+  name: &app shelly-prometheus-exporter
 spec:
   interval: 1h
   chartRef:
@@ -11,7 +11,7 @@ spec:
     name: app-template
   values:
     controllers:
-      shelly-exporter:
+      shelly-prometheus-exporter:
         annotations:
           reloader.stakater.com/auto: "true"
         containers:
@@ -97,7 +97,7 @@ spec:
         # Rendered by shelly-operator's exporter feed (replaces the old
         # 1Password "Shelly Exporter" inventory ExternalSecret).
         type: configMap
-        name: shelly-exporter-config
+        name: shelly-prometheus-exporter-config
         globalMounts:
           - path: /config/config.yaml
             subPath: config.yaml

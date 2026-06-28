@@ -29,7 +29,7 @@ spec:
         - "${IOT_TRUSTED_NETWORK_CIDR}"
     deviceNamespace: home
     nameMap: shelly-names
-    exporterConfigMap: shelly-exporter-config
+    exporterConfigMap: shelly-prometheus-exporter-config
     dashboard:
       enabled: true
     metrics:
