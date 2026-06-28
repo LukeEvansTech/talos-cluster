@@ -106,6 +106,49 @@ vault). Apps with an ExternalSecret should `dependsOn` `onepassword-connect` in
   snippets) must be escaped as `$${VAR}`.
 - GPU workloads use `runtimeClassName: nvidia`.
 
+## Provisioning a new app
+
+The `.agents/skills/add-app` skill scaffolds the four manifests; the cluster-specific work is the
+out-of-band prerequisites and the validation the skill cannot do.
+
+- **Secrets and external stores are provisioned outside Git, then referenced by an ExternalSecret.**
+  Create the item in the `Talos` 1Password vault first
+  (`op item create --vault Talos --category "API Credential" --title <app> "FIELD[password]=…"`);
+  the app's `externalsecret.yaml` then `extract`s it. Generate values with `openssl rand -hex 32` and
+  never echo them.
+- **Each shared data service needs its own step:**
+  - **CNPG Postgres** — add a `ghcr.io/home-operations/postgres-init` initContainer (`envFrom` the
+    app secret, `INIT_POSTGRES_*`) to create the database and role; mirror `paperless`. Connect with
+    `sslmode=require`. Node / `pg` apps additionally need `NODE_TLS_REJECT_UNAUTHORIZED=0` — the
+    bundled driver verifies the cert-manager CA it cannot reach from the app namespace.
+  - **Dragonfly (Redis)** — authenticated; template
+    `redis://default:{{ .DRAGONFLY_PASSWORD }}@dragonfly.database.svc.cluster.local:6379` from the
+    `dragonfly` item. A client without the password fails silently at runtime.
+  - **Garage (S3)** — provision a bucket and access key with the `/garage` CLI inside `garage-0`
+    (`storage` namespace), store the key in the `garage` item, and point the app at
+    `http://garage.storage.svc.cluster.local:3900` (region `us-east-1`, path-style).
+- **Anchored ports are unquoted integers** (`PORT: &port 3000`). A quoted `"3000"` reused for a
+  probe `httpGet.port` is rejected at apply time ("must contain at least one letter").
+- **Validate** with `kustomize build <appDir>` and flate, but note they check the HelmRelease and
+  Kustomization, not the rendered Deployment — API-level errors surface only when Flux applies. If a
+  first deploy fails, read the HelmRelease `status` for the apply error.
+- Provisioning uses biometric `op` and `kubectl` / `/garage` with the sandbox disabled.
+
+## Archiving an app
+
+Both methods rely on `prune: true`: removing an app from the namespace `kustomization.yaml` makes
+Flux delete its live HelmRelease, PVC, and everything else it owns.
+
+- **Archive (permanent):** `git mv kubernetes/apps/<ns>/<app> .archive/kubernetes/apps/<ns>/<app>`
+  and delete its `./<app>/ks.yaml` line from the namespace `kustomization.yaml`. `.archive/` is a
+  top-level directory outside the Flux-watched `kubernetes/` tree, so the manifests are kept for
+  reference but never reconciled. Also drop any homepage tile and `dependsOn` references.
+- **Disable in place (temporary):** comment out the `# - ./<app>/ks.yaml` line with a reason
+  (`# Disabled — using X instead`). Quick to re-enable, and Flux still prunes the live resources.
+
+Either way Flux **prunes the PVC** — take a VolSync snapshot or copy the data out
+(`just kube browse-pvc`) first if it matters.
+
 ## Validation
 
 CI validates PRs with [flate](https://github.com/home-operations/flate) (HelmRelease + Kustomization
