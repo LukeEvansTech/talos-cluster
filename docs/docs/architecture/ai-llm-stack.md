@@ -2,76 +2,85 @@
 
 Self-hosted LLM stack in the `ai` namespace, fronted by **LiteLLM**. Patterns adapted from
 [joryirving/home-ops](https://github.com/joryirving/home-ops/tree/main/kubernetes/apps/base/llm),
-re-targeted to this cluster — **NVIDIA L4 GPUs + Ollama** instead of his AMD/Mac/llama.cpp gear.
+re-targeted to this cluster — **NVIDIA L4 GPUs + llama.cpp (llmkube)**.
 
 ## Components
 
-| App          | Role                                                               | Status        |
-| ------------ | ------------------------------------------------------------------ | ------------- |
-| `litellm`    | OpenAI-compatible gateway: routing, fallbacks, cache, metrics, MCP | live          |
-| `ollama`     | local inference (3× L4, one per node); embeddings + general chat   | live          |
-| `open-webui` | chat UI                                                            | live          |
-| `toolhive`   | MCP servers (kubectl/flux/talos/searxng) wired into LiteLLM        | live          |
-| `memini`     | agent long-term memory (SQLite + CPU embed/rerank)                 | live          |
-| `llmkube`    | llama.cpp model-serving operator (CUDA); model template staged     | operator live |
+| App          | Role                                                               | Status |
+| ------------ | ------------------------------------------------------------------ | ------ |
+| `litellm`    | OpenAI-compatible gateway: routing, fallbacks, cache, metrics, MCP | live   |
+| `llmkube`    | llama.cpp model-serving operator (CUDA); 2 models active           | live   |
+| `open-webui` | chat UI                                                            | live   |
+| `toolhive`   | MCP servers (kubectl/flux/talos/searxng) wired into LiteLLM        | live   |
+| `memini`     | agent long-term memory (SQLite + CPU embed/rerank)                 | live   |
 
 LiteLLM persists to CNPG `postgres18` (`litellm` db) and caches in Dragonfly. Internal-only route
 (`litellm.${SECRET_INTERNAL_DOMAIN}`, envoy-internal).
 
-## Ollama vs llama.cpp
+## Model serving (llmkube)
 
-Not either/or — **pick per model, LiteLLM fronts both**:
+[llmkube](https://github.com/defilantech/LLMKube) is the sole GPU inference tier. Each model is
+declared as a `Model` CR (weights source + hardware) plus an `InferenceService` CR (the serving
+pod), one file per model under `kubernetes/apps/ai/llmkube/models/`.
 
-- **Ollama** = the "it just works" tier: embeddings, zero-fuss model pulls, auto model-swap,
-  keep-alive. Already running on 3 nodes. Default backend for `self-hosted` and embeddings.
-- **llama.cpp** (Layer 4, via llmkube) = the tuned tier for the 1–2 hot models where the knobs pay
-  off on a 24 GB L4: KV-cache quant (`q8_0` ≈ 2× context), speculative decoding, flash-attn,
-  reasoning budgets, per-model `llamacpp_*` metrics. Cost: you own GGUF staging + one model/server.
+**Active models:**
 
-LiteLLM model-**groups** make this transparent: several backends share one client-facing
-`model_name` with an `order:`, and LiteLLM load-balances / fails over across them. So Layer 4 adds
-llama.cpp backends to the existing `self-hosted` group with no client change.
+| LiteLLM model name        | InferenceService  | Notes                                    |
+| ------------------------- | ----------------- | ---------------------------------------- |
+| `self-hosted`             | `llama-nvidia`    | Default; vision-capable via mmproj       |
+| `self-hosted-uncensored`  | `llama-uncensored`| Abliterated variant; no cloud fallback   |
 
-## Ollama model provisioning
+Weight files are declared as `hf://` URIs pointing to single-file public GGUFs on Hugging Face.
+llmkube downloads and caches them on the shared CephFS RWX `modelCache` PVC (`ceph-filesystem`
+storage class), so a cold start auto-heals without manual staging.
 
-Models are **provisioned declaratively** by a GPU-less `provisioner` sidecar in the Ollama
-StatefulSet — the ollama image used as a CLI client against the server in the same pod. It
-reconciles the declared set (`kubernetes/apps/ai/ollama/app/resources/`: `models.list` plus
-`*.Modelfile`, bundled into the `ollama-models` ConfigMap) onto **each** replica's RWO
-`/models` PVC, so the set is identical across the fleet and a fresh PVC self-heals. The loop is
-idempotent and never exits — a crash would flip the pod NotReady and drop the server from the
-Service.
+Anti-affinity (`podAntiAffinity`) keeps one resident model per L4 — the cluster has 3 cards but
+runs 2 models, preserving one card for other GPU workloads (Plex/Jellyfin transcodes, Whisper).
+No model swapping occurs during normal operation. The `gpu-preemptible` PriorityClass is set on
+all llmkube pods so higher-priority workloads can evict them if needed.
 
-Declared today: `qwen3.6:27b`, `qwen3.6-35b-a3b` (the default, `OLLAMA_MODEL` → `self-hosted`),
-and `qwen3-30b-a3b-abliterated` — mradermacher's imatrix GGUF of mlabonne's Qwen3-30B-A3B
-abliterated (Q4_K_S ≈ 17.5Gi), exposed via LiteLLM as `self-hosted-uncensored` with **no** cloud
-fallback (a cloud model would reintroduce refusals). Two ~17Gi models can't co-reside on one 24Gi
-card, so alternating between the default and the uncensored model triggers a model swap
-(~seconds) — fine for ad-hoc use. (The exact huihui-ai 3.6-35B-A3B abliterated GGUF is avoided —
-its bare `Q3_K`/`Q4_K` file tags aren't valid Ollama quant schemes.) The abliterated model sets
-`PARAMETER num_ctx 8192` (2× Ollama's 4096 default) so it's usable from opencode/agents; it loads
-~20Gi 100% on-GPU, preserving headroom for the time-sliced Plex/Jellyfin transcodes on the same
-L4. The reconciler **always** re-runs `ollama create` for Modelfiles so such `PARAMETER` changes
-converge (the change applies on the next model load — keep-alive expiry, eviction, or
-`ollama stop`).
+`self-hosted` is vision-enabled: the `InferenceService` mounts a `mmproj-F16.gguf` multimodal
+projector alongside the main GGUF. This is the model that `loupe` (image analysis) consumes via
+LiteLLM.
 
-To add a model: drop a `<name>.Modelfile` (or a `models.list` line) under `app/resources/`, add
-it to the `configMapGenerator` in `app/kustomization.yaml`, and commit — Reloader restarts the
-pods and the reconciler pulls/creates it. `kubectl -n ai rollout restart statefulset/ollama`
-applies it immediately. The generator sets `kustomize.toolkit.fluxcd.io/substitute: disabled` so
-Flux postBuild doesn't empty the `${...}` shell vars in `reconcile.sh`.
+To add a model: drop a `Model` + `InferenceService` manifest under `llmkube/models/`, add a
+`model_list` entry to `litellm/app/configmap.yaml`, and commit — Flux reconciles both.
+
+### Model groups
+
+LiteLLM `model_name` groups make the serving tier transparent to clients:
+
+- **`self-hosted`** — `llama-nvidia` (order 1); any future second backend adds as `order: 2`.
+- **`self-hosted-uncensored`** — `llama-uncensored` (order 1); no cloud fallback by design
+  (a cloud model would reintroduce refusals).
+
+## In-cluster consumers
+
+Three in-cluster apps route through LiteLLM using the standardized OpenAI env contract:
+
+| App             | Namespace | LiteLLM model    |
+| --------------- | --------- | ---------------- |
+| `contracthound` | `default` | `self-hosted`    |
+| `subspy`        | `default` | `self-hosted`    |
+| `loupe`         | `custom`  | `self-hosted`    |
+
+All three consume:
+
+- `LLM_PROVIDER=openai`
+- `OPENAI_API_BASE_URL=http://litellm.ai.svc.cluster.local:4000/v1`
+- `OPENAI_MODEL=self-hosted`
+- `OPENAI_API_KEY` from the `litellm` 1Password item via ExternalSecret
 
 ## Rollout (staged)
 
 1. **LiteLLM uplift** — model-groups + router fallbacks + commented hooks for MCP / embeddings /
    cloud providers.
 2. **ToolHive + MCP** — operator + curated MCP servers (kubectl, flux, talos, searxng) wired into
-   LiteLLM `mcp_servers`. (VirtualMCPServer aggregate + semantic filter deferred — see below.)
+   LiteLLM `mcp_servers`.
 3. **memini** — agent memory; embeddings + rerank via tiny CPU llama.cpp servers, consolidation via
    LiteLLM.
-4. **llmkube** — operator installed; a CUDA `Model` + `InferenceService` template is documented
-   below (running it needs GPU headroom from Ollama + model storage). ComfyUI image gen skipped
-   (also GPU-bound, AMD-only upstream).
+4. **llmkube** — operator + CephFS modelCache; 2 active models (`self-hosted`, `self-hosted-uncensored`).
+5. **Ollama decommission** — Ollama removed; contracthound/subspy/loupe repointed to LiteLLM.
 
 Each layer is a separate commit on one branch (one PR). `mcp_servers` and
 `mcp_semantic_tool_filter` are now fully active in `litellm/app/configmap.yaml`; only the optional
@@ -199,83 +208,16 @@ memory, plus two tiny CPU `llama.cpp` model servers in `ai`:
 - `llama-embed` — all-MiniLM-L6-v2 (384-dim), `--embeddings`, OpenAI `/v1`.
 - `llama-rerank` — Qwen3-Reranker-0.6B, `--rerank`.
 
-Both are the same models Jory serves, but run on **CPU** (`ghcr.io/ggml-org/llama.cpp:server`,
-GPU/Vulkan bits stripped) — the L4s are spoken for by Ollama and these models are small (~30 MB /
-~600 MB). memini's consolidation LLM is LiteLLM's `self-hosted` group (→ Ollama).
+Both run on **CPU** (`ghcr.io/ggml-org/llama.cpp:server`, GPU/Vulkan bits stripped) — the L4s are
+spoken for by llmkube and these models are small (~30 MB / ~600 MB). memini's consolidation LLM is
+LiteLLM's `self-hosted` group.
 
 Secrets: a generated `MEMINI_API_KEY` (Talos vault item `memini`) + `LITELLM_MASTER_KEY` (reused
 from the `litellm` item). Data PVC via the volsync component (10Gi). Route:
 `memini.${SECRET_INTERNAL_DOMAIN}` (internal).
 
 To move embeddings onto the GPU later, swap `llama-embed`/`llama-rerank` for llmkube
-`InferenceService`s (Layer 4) and repoint `MEMINI_EMBED_BASE_URL` / `MEMINI_RERANK`.
-
-## Layer 4 — llama.cpp serving (llmkube)
-
-The [llmkube](https://github.com/defilantech/LLMKube) operator (`0.8.7`) is installed in `ai`. It
-serves llama.cpp models declaratively: a `Model` CR (weights source + hardware) plus an
-`InferenceService` CR (the serving pod). **No model runs by default** — two prerequisites must be
-met first:
-
-1. **GPU memory.** Each L4 (24 GB) is already ~17 GB into Ollama. A 27B llama.cpp model needs
-   another ~17 GB, which won't fit alongside Ollama on the same card (time-slicing shares compute,
-   not memory). To run one, scale Ollama down (fewer replicas / smaller model / lower
-   `OLLAMA_NUM_PARALLEL`) or choose a small model that fits the ~5–6 GB headroom.
-2. **Model storage.** This cluster has only RWO `ceph-block`; llmkube's shared download cache and
-   `pvc://` staging assume RWX (`ceph-filesystem`). A single `InferenceService` works on an RWO
-   `ceph-block` PVC (one pod); for an `https://` source set `modelCache.enabled: true` in the
-   operator HR and give it a cache PVC.
-
-### A CUDA model template
-
-Drop this under `llmkube/models/` (its own Flux Kustomization, `dependsOn: llmkube`) and add the
-path to `ai/kustomization.yaml`. `replicas: 0` keeps it staged until you scale it up:
-
-```yaml
----
-apiVersion: inference.llmkube.dev/v1alpha1
-kind: Model
-metadata:
-    name: qwen3.6-27b
-spec:
-    source: https://huggingface.co/<org>/<repo>-GGUF/resolve/main/<file>.gguf # direct GGUF URL
-    format: gguf
-    quantization: UD-Q4_K_XL
-    hardware:
-        accelerator: cuda
-        gpu: { enabled: true, vendor: nvidia, count: 1, layers: 99 }
----
-apiVersion: inference.llmkube.dev/v1alpha1
-kind: InferenceService
-metadata:
-    name: llama-nvidia
-spec:
-    modelRef: qwen3.6-27b
-    runtime: llamacpp
-    image: ghcr.io/ggml-org/llama.cpp:server-cuda
-    replicas: 0 # scale to 1 once GPU headroom exists
-    runtimeClassName: nvidia
-    contextSize: 131072
-    flashAttention: true
-    cacheTypeK: q8_0
-    cacheTypeV: q8_0
-    resources: { gpu: 1, cpu: "500m", memory: 16Gi }
-    endpoint: { port: 8080, type: ClusterIP }
-```
-
-Then add it to LiteLLM's `self-hosted` group (in `litellm/app/configmap.yaml`) as `order: 2`:
-
-```yaml
-- model_name: self-hosted
-  litellm_params:
-      model: openai/llama-nvidia
-      api_base: http://llama-nvidia.ai.svc.cluster.local:8080/v1
-      api_key: llama-nvidia
-      order: 2
-```
-
-LiteLLM then load-balances `self-hosted` across Ollama (order 1) and llama.cpp (order 2), failing
-over automatically — no client change.
+`InferenceService`s and repoint `MEMINI_EMBED_BASE_URL` / `MEMINI_RERANK`.
 
 ## Gotchas
 
@@ -283,9 +225,14 @@ over automatically — no client change.
   and `${SECRET_*}` placeholders are fine.
 - **Metrics** — `require_auth_for_metrics_endpoint: false` **and** ServiceMonitor path `/metrics/`
   (trailing slash, no redirect-follow) are both required for in-cluster Prometheus scraping.
-- **Ollama embeddings** — the StatefulSet has 3 separate RWO PVCs, so an embedding model must be
-  pulled on **every** replica or requests routed to a replica that lacks it fail. The model
-  reconciler (see "Ollama model provisioning") handles this for anything declared in
-  `app/resources/`; an ad-hoc `ollama pull` still has to be repeated per replica.
+- **CephFS dependency** — llmkube's shared `modelCache` PVC requires `ceph-filesystem` (RWX).
+  Without it, multi-replica `InferenceService` pods fail to schedule (only one pod can hold an RWO
+  volume at a time). The `ceph-filesystem` storage class is provisioned by Rook-Ceph.
 - **ConfigMap reloads** — the `litellm` controller is annotated `reloader.stakater.com/auto`, so
   Stakater Reloader restarts it automatically when the configmap changes.
+- **Cross-namespace netpol** — `kubernetes/apps/ai/netpol.yaml` allows ingress to the `ai`
+  namespace only from the `network` namespace (gateway). Apps in `default` and `custom` that call
+  `litellm.ai.svc.cluster.local:4000` need a policy allowing ingress from those namespaces. If
+  Cilium is in `default` enforcement mode and the policy is active on all `ai` pods, add an
+  additional `fromEndpoints` rule for `io.kubernetes.pod.namespace: default` and
+  `io.kubernetes.pod.namespace: custom` before merging this change.
