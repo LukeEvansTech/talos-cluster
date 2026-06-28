@@ -19,8 +19,11 @@ spec:
           app:
             nameOverride: qbittorrent
             image:
-              repository: ghcr.io/home-operations/qbittorrent
-              tag: 5.2.2@sha256:58e7ef6ed77f369c484b3066652c9e2e3d2c87bd44fce9883455565145fbd8eb
+              # libtorrent v1.2.x build (vs the default libtorrent v2) — better
+              # private-tracker compatibility and fewer libtorrent-v2 disk/memory
+              # quirks; matches the onedr0p/home-ops reference.
+              repository: ghcr.io/home-operations/qbittorrent-libtorrentv1
+              tag: 5.2.2@sha256:53f4f1a0f3df1b788b496fff41bb0288b66e590bcbe86f32c132287ab302b942
             env:
               QBT_WEBUI_PORT: &port 80
               QBT_TORRENTING_PORT: &BT-port 51749
