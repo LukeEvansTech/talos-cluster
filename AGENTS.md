@@ -80,6 +80,13 @@ Inside `app/`:
 - **Routing** is usually an inline `route:` in HR values on the `envoy-internal` / `envoy-external`
   listeners (namespace `network`); a standalone `httproute.yaml` is the rarer case. Hosts are
   `${APP}.${SECRET_DOMAIN}` (and `${SECRET_INTERNAL_DOMAIN}` for internal).
+- **App names avoid hyphens so the host stays clean.** The route host follows
+  `{{ .Release.Name }}.${SECRET_DOMAIN}`, so a hyphen in the app name leaks into the URL. Name new
+  apps hyphen-free end-to-end (directory, `ks.yaml` `&app`, HelmRelease, controller, PVC) — e.g.
+  `reactiveresume`, not `reactive-resume` — and keep the standard `{{ .Release.Name }}` host instead
+  of hardcoding a stripped literal. External identifiers a rename would churn (the 1Password item,
+  the database name, S3 bucket) can stay as-is. Existing hyphenated apps predate this and are left
+  alone.
 
 ### Secrets
 
