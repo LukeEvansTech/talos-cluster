@@ -11,8 +11,9 @@ spec:
     name: ceph-csi-drivers
   values:
     # Rook v1.20 split CSI driver deployment out of the operator chart into the
-    # ceph-csi-operator-managed ceph-csi-drivers chart. RBD (ceph-block) + CephFS
-    # (ceph-filesystem, backs the llmkube shared model cache). NFS/NVMeoF disabled.
+    # ceph-csi-operator-managed ceph-csi-drivers chart. RBD (ceph-block) only;
+    # CephFS/NFS/NVMeoF disabled (Talos has no `ceph` kernel module, so CephFS
+    # can't be kernel-mounted — llmkube uses RWO ceph-block instead).
     drivers:
       rbd:
         enabled: true
@@ -29,10 +30,7 @@ spec:
         # it for every *-nfs/-r2 ReplicationSource.
         snapshotPolicy: volumeSnapshot
       cephfs:
-        enabled: true
-        # MUST match the ceph-filesystem StorageClass provisioner (rook-prefixed
-        # convention, same as rbd above). Backs the llmkube model cache (RWX).
-        name: rook-ceph.cephfs.csi.ceph.com
+        enabled: false
       nfs:
         enabled: false
       nvmeof:
