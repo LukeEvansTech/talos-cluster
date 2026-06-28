@@ -9,6 +9,7 @@ components:
 resources:
   - ./namespace.yaml
   - ./netpol.yaml
+  - ./autobrr/ks.yaml
   - ./qbittorrent/ks.yaml
   - ./qui/ks.yaml
   - ./prowlarr/ks.yaml
