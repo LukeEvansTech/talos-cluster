@@ -71,9 +71,12 @@ spec:
             resources:
               requests:
                 cpu: 10m
-                memory: 64Mi
+                memory: 512Mi
               limits:
-                memory: 256Mi
+                # qBittorrent (libtorrent v1) spikes well past 256Mi while loading
+                # and rechecking a large torrent session on startup, OOMKilling the
+                # container into a CrashLoop. 2Gi gives headroom for the full library.
+                memory: 2Gi
           metrics:
             dependsOn: app
             image:
