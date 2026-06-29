@@ -91,20 +91,8 @@ checksum = "sha256:f6d4c439c6c782b83264951d327989ce5e23373acc5942b872411601fedb0
 url = "https://github.com/cloudflare/cloudflared/releases/download/2026.6.1/cloudflared-darwin-arm64.tgz"
 
 [[tools."aqua:cue-lang/cue"]]
-version = "0.16.1"
+version = "0.17.0"
 backend = "aqua:cue-lang/cue"
-
-[tools."aqua:cue-lang/cue"."platforms.linux-arm64"]
-checksum = "sha256:3cc715a9e969f87b93c4fa34cfaef5388b93e96efa20b248e8ad6826abd25a83"
-url = "https://github.com/cue-lang/cue/releases/download/v0.16.1/cue_v0.16.1_linux_arm64.tar.gz"
-
-[tools."aqua:cue-lang/cue"."platforms.linux-x64"]
-checksum = "sha256:5d644c1305a2b86504c8dcd2ec829cf5b4999efc2cf51ee375624e0455f774ae"
-url = "https://github.com/cue-lang/cue/releases/download/v0.16.1/cue_v0.16.1_linux_amd64.tar.gz"
-
-[tools."aqua:cue-lang/cue"."platforms.macos-arm64"]
-checksum = "sha256:a72b0cddb377c52d1b003bed9a335d893b70cd75a182cd5e3fee8bae30ddb6d6"
-url = "https://github.com/cue-lang/cue/releases/download/v0.16.1/cue_v0.16.1_darwin_arm64.tar.gz"
 
 [[tools."aqua:editorconfig-checker/editorconfig-checker"]]
 version = "3.8.0"

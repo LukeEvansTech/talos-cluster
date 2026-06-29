@@ -24,7 +24,7 @@ run = "uv pip install -r requirements.txt"
 "aqua:charmbracelet/gum" = "latest"
 "aqua:cli/cli" = "2.95.0"
 "aqua:cloudflare/cloudflared" = "2026.6.1"
-"aqua:cue-lang/cue" = "0.16.1"
+"aqua:cue-lang/cue" = "0.17.0"
 # editorconfig-checker / yamllint / codespell / markdownlint-cli mirror the
 # linters super-linter v8 bundles, so lefthook catches their findings locally
 # before CI. Versions pinned to match super-linter@9e863354 (v8): bumping
