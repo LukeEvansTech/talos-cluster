@@ -104,11 +104,14 @@ spec:
   runtimeClassName: nvidia
   priorityClassName: gpu-preemptible
   # opencode's agent baseline is ~41k tokens (system prompt + tool schemas),
-  # larger than Qwen3-30B-A3B's 32k native context. Serve it at 64k via YaRN
-  # (factor 2.0) so the agent fits with working headroom. Single slot: 64k of
-  # KV (q8_0 K/V ~3.3Gi) fits the L4's ~5.5Gi free after the ~17Gi Q4_K_S
-  # weights; 2 slots would halve the window back to 32k. Static YaRN softens
-  # short-prompt quality slightly, so factor 2 is the smallest that covers opencode.
+  # just over this GGUF's 40960 native train context. Serve it at 64k via YaRN
+  # so the agent fits with working headroom. NOTE: the pinned llama.cpp server
+  # hard-caps a slot to n_ctx_train (40960) even with correct YaRN args, so the
+  # --override-kv in extraArgs below raises the reported context_length to 65536
+  # to defeat that cap; the rope interpolation still comes from ropeScaling.
+  # Single slot: 64k of KV (q8_0 K/V ~3.3Gi) fits the L4's ~5.5Gi free after the
+  # ~17Gi Q4_K_S weights; 2 slots would halve the window. Static YaRN softens
+  # short prompts slightly, so factor 2 is the smallest that covers opencode.
   contextSize: 65536
   parallelSlots: 1
   ropeScaling:
@@ -153,6 +156,11 @@ spec:
   extraArgs:
     - --alias
     - self-hosted-uncensored
+    # Defeat the llama.cpp server's hard cap of n_ctx to the model's trained
+    # length (40960): raise the reported context_length so the YaRN-extended 64k
+    # window is actually served. Arch key is qwen3moe (Qwen3-30B-A3B is MoE).
+    - --override-kv
+    - qwen3moe.context_length=int:65536
     - --no-mmap
     - --temp
     - "0.6"
