@@ -114,12 +114,31 @@ Any OpenAI-compatible client can drive the self-hosted models through the gatewa
   `kubectl,flux,talos,searxng`) — requesting **all** servers times out, and the full tool list
   bloats every request (heavy on the small-context local models, so prefer a frontier model for
   tool-heavy work).
-- **Gotchas** — the self-hosted models are Qwen3 *thinking* models (send `think: false` for
-  non-reasoning output); the uncensored model runs at `num_ctx 8192`; switching between the two
-  local models forces a ~17Gi VRAM model-swap (seconds, longer on a cold replica).
+- **Gotchas** — the self-hosted models are Qwen3 *thinking* models (send `think: false`, or
+  `/no_think` in the prompt, for non-reasoning output); switching between the two local models
+  forces a ~17Gi VRAM model-swap (seconds, longer on a cold replica). See the context-budget note
+  below for opencode's window requirements.
 
 Prefer a **scoped LiteLLM virtual key** (`/key/generate`, limited to the `self-hosted*` models) over
 the master key for any workstation client — it's revocable on its own.
+
+### opencode and the context budget
+
+opencode's agent sends **~41k tokens before any user input** — its system prompt plus built-in tool
+schemas (measured; LiteLLM is not injecting MCP tools, a plain request is ~18 tokens and one with a
+tool is ~130). That exceeds Qwen3-30B-A3B's native context, so `self-hosted-uncensored` is served at
+**64k via YaRN** specifically to host opencode. `self-hosted` is only ~10.9k usable
+(`contextSize 32768 ÷ 3 slots`), too small for the tool-heavy agent — use the uncensored group for
+opencode. The serving knobs live in `llmkube/models/qwen3-30b-abliterated.yaml`: `contextSize 65536`,
+`parallelSlots 1`, `ropeScaling {yarn, factor 2.0, originalContext 32768}`.
+
+**llama.cpp cap gotcha:** the pinned `server-cuda` build hard-caps each slot to the model's trained
+context (this GGUF reports 40960) **even with correct YaRN args**, so the served window silently caps
+at 40960 ([llama.cpp#22140](https://github.com/ggml-org/llama.cpp/issues/22140)). The fix is the
+extra arg `--override-kv qwen3moe.context_length=int:65536`, which raises the value the server caps
+against (rope interpolation still comes from `ropeScaling`). A `Ready` phase and a clean
+`kustomize build` do **not** prove the served window — confirm with `/props`
+(`.default_generation_settings.n_ctx == 65536`) and the absence of a `capping` log line.
 
 ## MCP tools (ToolHive)
 
