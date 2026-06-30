@@ -22,7 +22,7 @@ spec:
   postBuild:
     substitute:
       APP: *app
-      VOLSYNC_CAPACITY: 200Gi
+      VOLSYNC_CAPACITY: 300Gi
       VOLSYNC_CACHE_CAPACITY: 100Gi
       HOMEPAGE_NAME: Plex
       HOMEPAGE_GROUP: Media
