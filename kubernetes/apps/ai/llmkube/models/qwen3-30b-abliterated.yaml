@@ -103,8 +103,18 @@ spec:
   replicas: 1
   runtimeClassName: nvidia
   priorityClassName: gpu-preemptible
-  contextSize: 8192
-  parallelSlots: 2
+  # opencode's agent baseline is ~41k tokens (system prompt + tool schemas),
+  # larger than Qwen3-30B-A3B's 32k native context. Serve it at 64k via YaRN
+  # (factor 2.0) so the agent fits with working headroom. Single slot: 64k of
+  # KV (q8_0 K/V ~3.3Gi) fits the L4's ~5.5Gi free after the ~17Gi Q4_K_S
+  # weights; 2 slots would halve the window back to 32k. Static YaRN softens
+  # short-prompt quality slightly, so factor 2 is the smallest that covers opencode.
+  contextSize: 65536
+  parallelSlots: 1
+  ropeScaling:
+    type: yarn
+    factor: "2.0"
+    originalContext: 32768
   flashAttention: true
   jinja: true
   cacheTypeK: q8_0
