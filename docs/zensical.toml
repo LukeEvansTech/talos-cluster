@@ -57,6 +57,7 @@ nav = [
     { "Autopulse" = "apps/autopulse.md" },
     { "Reclaimerr" = "apps/reclaimerr.md" },
     { "iSponsorBlockTV" = "apps/isponsorblocktv.md" },
+    { "changedetection.io" = "apps/changedetection.md" },
   ] },
   { "Troubleshooting" = [
     { "Symptom ladder" = "troubleshooting/index.md" },
