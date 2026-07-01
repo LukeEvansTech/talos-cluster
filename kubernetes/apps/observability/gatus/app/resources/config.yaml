@@ -44,4 +44,5 @@ ui:
       link: https://github.com/LukeEvansTech/talos-cluster
 
 web:
-  port: ${WEB_PORT}
+  # GATUS_WEB_PORT is exported by the gatus-sidecar chart from gatus.port.
+  port: ${GATUS_WEB_PORT}
