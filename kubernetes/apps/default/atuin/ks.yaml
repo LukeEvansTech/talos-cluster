@@ -10,7 +10,9 @@ spec:
     labels:
       app.kubernetes.io/name: *app
   components:
-    - ../../../../components/kopiur
+    # kopiur trial paused — the operator uninstall removes the CRDs, so the
+    # component's SnapshotPolicy/Schedule would fail this Kustomization's apply.
+    # - ../../../../components/kopiur
     - ../../../../components/volsync
   interval: 1h
   path: ./kubernetes/apps/default/atuin/app
