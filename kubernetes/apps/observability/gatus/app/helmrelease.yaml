@@ -1,6 +1,10 @@
 ---
-# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
-# Gatus - Health monitoring and alerting
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/helm.toolkit.fluxcd.io/helmrelease_v2.json
+# Gatus - Health monitoring and alerting. The gatus-sidecar chart bundles
+# gatus + the endpoint-discovery sidecar (and their RBAC), replacing the
+# app-template + initContainer wiring (upstream home-ops #11077). Images are
+# chart-managed: the sidecar is digest-pinned per chart release, gatus is
+# tag-pinned as the chart appVersion.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
@@ -11,104 +15,49 @@ spec:
     kind: OCIRepository
     name: gatus
   values:
-    controllers:
-      gatus:
-        type: statefulset
-        annotations:
-          reloader.stakater.com/auto: "true"
-        statefulset:
-          volumeClaimTemplates:
-            - name: config
-              storageClass: ceph-block
-              accessMode: ReadWriteOnce
-              size: 5Gi
-        initContainers:
-          gatus-sidecar:
-            image:
-              repository: ghcr.io/home-operations/gatus-sidecar
-              tag: 0.3.2@sha256:c6550b40f444337d953e622b3ad6dd9b28e80a664dfcd59d0f8551997e870b8e
-            args:
-              - --auto-httproute
-              - --enable-httproute
-              - --enable-service
-            restartPolicy: Always
-            resources:
-              requests:
-                cpu: 10m
-              limits:
-                memory: 64Mi
-        containers:
-          app:
-            image:
-              repository: ghcr.io/twin/gatus
-              tag: v5.36.0@sha256:c5f210d095fa78e6efaa20ffeb14803f2ba4f10615e16a6d12087697149617f0
-            env:
-              TZ: ${TIMEZONE}
-              GATUS_CONFIG_PATH: /config
-              GATUS_DELAY_START_SECONDS: 5
-              WEB_PORT: &port 80
-              SECRET_DOMAIN: ${SECRET_DOMAIN}
-            probes:
-              liveness: &probes
-                enabled: true
-                custom: true
-                spec:
-                  httpGet:
-                    path: /health
-                    port: *port
-                  initialDelaySeconds: 0
-                  periodSeconds: 10
-                  timeoutSeconds: 1
-                  failureThreshold: 3
-              readiness: *probes
-            securityContext:
-              allowPrivilegeEscalation: false
-              readOnlyRootFilesystem: true
-              capabilities:
-                drop:
-                  - "ALL"
-            resources:
-              requests:
-                cpu: 100m
-              limits:
-                memory: 256Mi
-        serviceAccount:
-          identifier: gatus
-    defaultPodOptions:
-      automountServiceAccountToken: true
-      securityContext:
-        runAsNonRoot: true
-        runAsUser: 1000
-        runAsGroup: 1000
-        fsGroup: 1000
-        fsGroupChangePolicy: OnRootMismatch
-    service:
-      app:
-        controller: gatus
-        ports:
-          http:
-            port: *port
-    serviceMonitor:
-      app:
-        serviceName: gatus
-        endpoints:
-          - port: http
-    route:
-      app:
-        annotations:
-          gatus.home-operations.com/enabled: "false"
-        hostnames:
-          - status.${SECRET_DOMAIN}
-        parentRefs:
-          - name: envoy-external
-            namespace: network
-    serviceAccount:
-      gatus: {}
+    # Release "gatus" + chart "gatus-sidecar" would otherwise render resource
+    # names as gatus-gatus-sidecar (helper only collapses when the release
+    # name CONTAINS the chart name).
+    fullnameOverride: gatus
+    deploymentAnnotations:
+      reloader.stakater.com/auto: "true"
+    gatus:
+      delayStartSeconds: "5"
+      env:
+        TZ: ${TIMEZONE}
+    sidecar:
+      kinds:
+        httproute:
+          enable: true
+          auto: true
+        service:
+          enable: true
+    config:
+      existingConfigMap: gatus-configmap
+      items:
+        - key: config.yaml
+          path: config.yaml
+    httpRoute:
+      enabled: true
+      annotations:
+        gatus.home-operations.com/enabled: "false"
+      hostnames:
+        - status.${SECRET_DOMAIN}
+      parentRefs:
+        - name: envoy-external
+          namespace: network
+    monitoring:
+      serviceMonitor:
+        enabled: true
     persistence:
-      config-file:
-        type: configMap
-        name: gatus-configmap
-        globalMounts:
-          - path: /config/config.yaml
-            subPath: config.yaml
-            readOnly: true
+      enabled: true
+      storageClass: ceph-block
+      accessMode: ReadWriteOnce
+      size: 5Gi
+    resources:
+      # Pod-level budget shared by gatus + sidecar (needs k8s ≥1.34; the
+      # chart's kubeVersion enforces it).
+      requests:
+        cpu: 100m
+      limits:
+        memory: 512Mi
