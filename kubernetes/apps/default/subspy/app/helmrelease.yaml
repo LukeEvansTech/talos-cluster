@@ -78,12 +78,28 @@ spec:
     service:
       app:
         controller: subspy
+        annotations:
+          # Gatus checks the app's health endpoint (returns 200), not the
+          # homepage `/`. Route auto-discovery is disabled below so this is the
+          # single source of truth for subspy's status.
+          gatus.home-operations.com/enabled: "true"
+          gatus.home-operations.com/endpoint: |
+            name: subspy
+            group: internal
+            url: http://subspy.default.svc.cluster.local:8080/api/health
+            interval: 1m
+            conditions:
+              - "[STATUS] == 200"
         ports:
           http:
             port: *port
 
     route:
       app:
+        annotations:
+          # Auto-discovered check would probe `/`; the explicit service check
+          # above owns subspy's status instead.
+          gatus.home-operations.com/enabled: "false"
         hostnames:
           - "subspy.${SECRET_DOMAIN}"
         parentRefs:
