@@ -22,8 +22,12 @@ spec:
         enabled: true
       prometheusRule:
         enabled: true
-    secretProjection:
-      enabled: true
+    # Chart ≥0.4.10 renamed secretProjection → features.credentialProjection;
+    # the old key is silently ignored, dropping the operator's secrets
+    # create/patch RBAC that every credentialProjection consumer relies on.
+    features:
+      credentialProjection:
+        enabled: true
     webhook:
       tls:
         mode: self

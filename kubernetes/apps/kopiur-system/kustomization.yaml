@@ -8,4 +8,9 @@ components:
   - ../../components/alerts
 resources:
   - ./namespace.yaml
-  - ./kopiur/ks.yaml
+  # Trial paused (mirrors upstream home-ops ea1c153) pending the volsync →
+  # kopiur migration decision. NOTE: pruning the HelmRelease helm-uninstalls
+  # the templated CRDs (installCRDs trade-off), cascading every kopiur CR;
+  # Snapshot finalizers need manual cleanup once the operator is gone. The
+  # NAS repo data is untouched — re-enabling reconnects to the same repo.
+  # - ./kopiur/ks.yaml
