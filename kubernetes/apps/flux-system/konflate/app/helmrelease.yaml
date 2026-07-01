@@ -18,15 +18,17 @@ spec:
       refreshInterval: 15m
       logFormat: json
       # Post the native `Konflate` commit status + PR summary comment per
-      # render (replaces the flate.yaml/konflate.yaml CI gate). statusCheckName
-      # left unset → defaults to "Konflate" (the required branch-protection check).
+      # render (replaced the deleted flate.yaml/konflate.yaml CI workflows —
+      # PR validation now happens entirely in-cluster). statusCheckName left
+      # unset → defaults to "Konflate".
       statusChecks: true
       prComments: true
       publicUrl: "https://konflate.${SECRET_DOMAIN}"
     secret:
-      # KONFLATE_PUSH_TOKEN — lets the Konflate PR workflow force a re-render of
-      # the PR's new head (POST /api/prs/{n}/refresh) instead of waiting out the
-      # 15m poll, so the posted summary is never stale.
+      # KONFLATE_PUSH_TOKEN — bearer for POST /api/prs/{n}/refresh, forcing a
+      # re-render of a PR's new head ahead of the 15m poll. With the CI
+      # workflows gone the webhook is the primary trigger; the token remains
+      # for manual/scripted refreshes.
       existingSecret: konflate-secret
     httpRoute:
       enabled: true
