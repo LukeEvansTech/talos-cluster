@@ -9,8 +9,13 @@ spec:
     - name: gatus.rules
       rules:
         - alert: GatusEndpointDown
+          # Denylist, not allowlist: page on any group EXCEPT `connectivity`
+          # (public-DNS ICMP pings, which flap on a single blip). An allowlist
+          # silently drops new groups — `security` (anubis) and `default`
+          # (shlink) were auto-discovered into their own groups and went
+          # unpaged until this was widened.
           expr: |
-            gatus_results_endpoint_success{group=~"internal|external"} == 0
+            gatus_results_endpoint_success{group!="connectivity"} == 0
           for: 5m
           annotations:
             summary: >-
