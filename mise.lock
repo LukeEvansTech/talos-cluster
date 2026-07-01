@@ -24,20 +24,20 @@ version = "3.1.12"
 backend = "aqua:budimanjojo/talhelper"
 
 [[tools."aqua:casey/just"]]
-version = "1.47.1"
+version = "1.55.1"
 backend = "aqua:casey/just"
 
 [tools."aqua:casey/just"."platforms.linux-arm64"]
-checksum = "sha256:e6321ac6d0499bfe849cf28869e34bffbee246b8d450ffbb9a6792aea3084f72"
-url = "https://github.com/casey/just/releases/download/1.47.1/just-1.47.1-aarch64-unknown-linux-musl.tar.gz"
+checksum = "sha256:b0ee814c9656427408e339893541e30d9027828686839499b2a2a34dd61ad173"
+url = "https://github.com/casey/just/releases/download/1.55.1/just-1.55.1-aarch64-unknown-linux-musl.tar.gz"
 
 [tools."aqua:casey/just"."platforms.linux-x64"]
-checksum = "sha256:3cb931ae25860f261ee373f32ede3b772ac91f14f588e4071576d3ffcf1a16fd"
-url = "https://github.com/casey/just/releases/download/1.47.1/just-1.47.1-x86_64-unknown-linux-musl.tar.gz"
+checksum = "sha256:b0ef600f0df20d5ae91ae931627c499fc52b477ffe5f5ea7b7b3ec616b16c778"
+url = "https://github.com/casey/just/releases/download/1.55.1/just-1.55.1-x86_64-unknown-linux-musl.tar.gz"
 
 [tools."aqua:casey/just"."platforms.macos-arm64"]
-checksum = "sha256:630390f3cfe131f5153c336cb5d5e9714c49ff27bee38d090da0a5901fd660e5"
-url = "https://github.com/casey/just/releases/download/1.47.1/just-1.47.1-aarch64-apple-darwin.tar.gz"
+checksum = "sha256:0225e3899b1b555bc3f4122d0402ba931a6ee697d188c68e4d971468064c78f4"
+url = "https://github.com/casey/just/releases/download/1.55.1/just-1.55.1-aarch64-apple-darwin.tar.gz"
 
 [[tools."aqua:charmbracelet/gum"]]
 version = "0.17.0"
