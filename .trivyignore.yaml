@@ -68,3 +68,13 @@ misconfigurations:
       applies to non-core API groups only (Secret objects live in the core
       "" group, which is listed explicitly with `secrets` omitted). The
       breadth lets the MCP inspect any CRD; no write or management verbs.
+
+  - id: KSV-0108
+    paths:
+      - "kubernetes/apps/observability/seedbox/app/egress.yaml"
+    statement: |-
+      Intentional ExternalName Service: this is the tailscale-operator egress
+      pattern. The operator replaces `externalName: placeholder` with its own
+      tailnet proxy so cluster workloads (Prometheus) can reach the seedbox's
+      tailnet IP. No user traffic is routed to an attacker-controllable
+      external name; the operator manages the value.
