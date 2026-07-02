@@ -1,0 +1,14 @@
+---
+# Tailscale-operator egress: the operator replaces `externalName` with a proxy
+# pod that joins the tailnet, giving cluster workloads a route to the seedbox
+# (100.124.103.50 — pods cannot reach tailnet IPs directly). One Service covers
+# every seedbox port. First use of this operator feature in the cluster.
+apiVersion: v1
+kind: Service
+metadata:
+  name: seedbox
+  annotations:
+    tailscale.com/tailnet-ip: ${SEEDBOX_TAILNET_ADDR}
+spec:
+  type: ExternalName
+  externalName: placeholder
