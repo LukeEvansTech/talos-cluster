@@ -1,0 +1,55 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: &app seedbox-qbittorrent-exporter
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: app-template
+  values:
+    controllers:
+      seedbox-qbittorrent-exporter:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        containers:
+          app:
+            image:
+              repository: ghcr.io/martabal/qbittorrent-exporter
+              tag: v2.0.1@sha256:ddf2bff9b357e50be4ddb699b6489ac5a49e4fac8c7dc5d4ca2abe1e5855f4dd
+            env:
+              # Seedbox qBittorrent WebUI via the tailscale egress Service (Task 4).
+              QBITTORRENT_BASE_URL: http://seedbox.observability.svc.cluster.local:8080
+              QBITTORRENT_COOKIE_NAME: QBT_SID_8080
+              EXPORTER_PORT: &port 9710
+              ENABLE_HIGH_CARDINALITY: "true"
+            envFrom:
+              - secretRef:
+                  name: seedbox-qbittorrent-exporter-secret
+            resources:
+              requests:
+                cpu: 10m
+                memory: 64Mi
+              limits:
+                memory: 128Mi
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop:
+                  - ALL
+    defaultPodOptions:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+        seccompProfile: { type: RuntimeDefault }
+    service:
+      app:
+        controller: *app
+        ports:
+          metrics:
+            port: *port
+            protocol: TCP
