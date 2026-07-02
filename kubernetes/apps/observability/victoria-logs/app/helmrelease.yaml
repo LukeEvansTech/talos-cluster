@@ -22,6 +22,12 @@ spec:
         enabled: true
         storageClass: ceph-block
         size: 100Gi
+      service:
+        annotations:
+          # tailscale-operator publishes this Service as a tailnet device so the
+          # seedbox's Vector can push logs (pods/LAN unaffected; ClusterIP stays).
+          tailscale.com/expose: "true"
+          tailscale.com/hostname: victoria-logs
       retentionPeriod: 28d
       route:
         enabled: true
