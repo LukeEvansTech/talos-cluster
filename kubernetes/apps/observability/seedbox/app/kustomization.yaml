@@ -5,7 +5,19 @@ kind: Kustomization
 resources:
   - ./egress.yaml
   - ./externalsecret.yaml
+  - ./grafanadashboard.yaml
   - ./helmrelease.yaml
   - ./ocirepository.yaml
+  - ./prometheusrule.yaml
   - ./scrapeconfig.yaml
   - ./servicemonitor.yaml
+configMapGenerator:
+  - name: seedbox-dashboard
+    files:
+      - seedbox.json=./dashboards/seedbox.json
+generatorOptions:
+  disableNameSuffixHash: true
+  annotations:
+    # Dashboard JSON uses Grafana ${DS_PROMETHEUS}/$__rate_interval macros;
+    # disable Flux postBuild substitution so they are not clobbered to empty.
+    kustomize.toolkit.fluxcd.io/substitute: disabled
