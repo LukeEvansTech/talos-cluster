@@ -49,6 +49,9 @@ spec:
               # Cap gunicorn workers — defaults to (CPU*2+1) which on a
               # 24-core node was 49 workers * ~80MB each = 4GB just for api.
               DJANGO_WORKERS: "4"
+              # Same story for Celery's prefork pool — defaults to
+              # os.cpu_count() (24 here), and 24 Django children idle at ~4GB.
+              DJANGO_CELERY_WORKER_CONCURRENCY: "4"
             envFrom: *envFrom
             probes:
               # Django enforces ALLOWED_HOSTS on every request. The kubelet
@@ -83,15 +86,29 @@ spec:
                 memory: 2Gi
           worker:
             image: *image
-            # Override the image's hardcoded ENTRYPOINT
-            # `["../docker-entrypoint.sh", "prod"]`. Without `command`,
-            # `args: [worker]` is APPENDED ("prod worker") and the script
-            # still runs in `prod` mode (migrate + gunicorn), causing
-            # port 8080 collision with the api container.
+            # Invoke celery directly instead of `../docker-entrypoint.sh worker`
+            # (which both defaults to `prod` mode without an explicit command
+            # AND hardcodes its flags): Celery 5.6's mingle/gossip startup
+            # steps kill the worker instantly + silently (exit 1, no
+            # traceback) against Dragonfly's pub/sub fanout, and the
+            # entrypoint can't pass `--without-mingle --without-gossip`
+            # through. Both are multi-worker coordination features; this is a
+            # single worker, so dropping them loses nothing. Command otherwise
+            # mirrors the entrypoint's start_worker() (queues, -E,
+            # --max-tasks-per-child); DJANGO_APP_COMPONENT tags pg
+            # application_name as the entrypoint would.
             command:
-              - "../docker-entrypoint.sh"
+              - "/bin/sh"
+              - "-c"
             args:
-              - "worker"
+              - >-
+                DJANGO_APP_COMPONENT=worker exec uv run python -m celery
+                -A config.celery worker
+                -n "worker@$(hostname)"
+                -l "$${DJANGO_LOGGING_LEVEL:-info}"
+                -Q celery,scans,scan-reports,deletion,backfill,overview,integrations,compliance,attack-paths-scans
+                -E --max-tasks-per-child 1
+                --without-mingle --without-gossip
             env: *commonEnv
             envFrom: *envFrom
             securityContext:
