@@ -9,6 +9,8 @@ metadata:
   name: seedbox
   annotations:
     tailscale.com/tailnet-ip: ${SEEDBOX_TAILNET_ADDR}
+    # Namespace comes from the Flux Kustomization targetNamespace (observability)
+    checkov.io/skip1: CKV_K8S_21=Namespace provided by Flux Kustomization targetNamespace
 spec:
   type: ExternalName
   externalName: placeholder
