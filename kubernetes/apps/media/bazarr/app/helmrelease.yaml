@@ -42,7 +42,7 @@ spec:
             securityContext: &securityContext
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: true
-              capabilities: {drop: [ALL]}
+              capabilities: { drop: [ALL] }
             resources:
               requests:
                 cpu: 500m
@@ -85,7 +85,7 @@ spec:
             securityContext:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: true
-              capabilities: {drop: ["ALL"]}
+              capabilities: { drop: ["ALL"] }
             resources:
               requests:
                 cpu: 10m
@@ -102,7 +102,7 @@ spec:
         supplementalGroups:
           - 44
           - 10000
-        seccompProfile: {type: RuntimeDefault}
+        seccompProfile: { type: RuntimeDefault }
     service:
       app:
         controller: bazarr
