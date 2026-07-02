@@ -29,6 +29,7 @@ resources:
   - ./sabnzbd-dashboard/ks.yaml
   - ./scrutiny/ks.yaml
   - ./scrutiny-collector/ks.yaml
+  - ./seedbox/ks.yaml
   - ./silence-operator/ks.yaml
   - ./smartctl-exporter/ks.yaml
   - ./snmp-exporter/ks.yaml
