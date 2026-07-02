@@ -1,0 +1,26 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/servicemonitor_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: &app seedbox-qbittorrent-exporter
+  labels:
+    app.kubernetes.io/name: *app
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: *app
+  endpoints:
+    - port: metrics
+      scheme: http
+      path: /metrics
+      interval: 60s
+      scrapeTimeout: 30s
+      relabelings:
+        # Disambiguate from the cluster qBittorrent's sidecar exporter.
+        - action: replace
+          targetLabel: job
+          replacement: seedbox-qbittorrent
+        - action: replace
+          targetLabel: instance
+          replacement: seedbox
