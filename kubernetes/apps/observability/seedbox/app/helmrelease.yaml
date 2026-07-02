@@ -20,7 +20,7 @@ spec:
               repository: ghcr.io/martabal/qbittorrent-exporter
               tag: v2.0.1@sha256:ddf2bff9b357e50be4ddb699b6489ac5a49e4fac8c7dc5d4ca2abe1e5855f4dd
             env:
-              # Seedbox qBittorrent WebUI via the tailscale egress Service (Task 4).
+              # Seedbox qBittorrent WebUI via the tailscale egress Service (see ./egress.yaml).
               QBITTORRENT_BASE_URL: http://seedbox.observability.svc.cluster.local:8080
               QBITTORRENT_COOKIE_NAME: QBT_SID_8080
               EXPORTER_PORT: &port 9710
@@ -28,6 +28,11 @@ spec:
             envFrom:
               - secretRef:
                   name: seedbox-qbittorrent-exporter-secret
+            probes:
+              liveness:
+                enabled: true
+              readiness:
+                enabled: true
             resources:
               requests:
                 cpu: 10m

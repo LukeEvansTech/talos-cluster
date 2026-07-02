@@ -1,0 +1,20 @@
+---
+# Hand-built: no public dashboard matches this mixed node/qbittorrent/seedbox
+# schema. DS_PROMETHEUS mapped via spec.datasources (house pattern).
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/grafana.integreatly.org/grafanadashboard_v1beta1.json
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  name: seedbox
+spec:
+  allowCrossNamespaceImport: true
+  instanceSelector:
+    matchLabels:
+      grafana.internal/instance: grafana
+  datasources:
+    - datasourceName: prometheus
+      inputName: DS_PROMETHEUS
+  resyncPeriod: 1h
+  configMapRef:
+    name: seedbox-dashboard
+    key: seedbox.json

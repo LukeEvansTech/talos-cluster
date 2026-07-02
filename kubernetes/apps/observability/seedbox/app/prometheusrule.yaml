@@ -1,0 +1,84 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: seedbox.rules
+spec:
+  groups:
+    - name: seedbox.rules
+      rules:
+        - alert: SeedboxDown
+          annotations:
+            summary: "Seedbox node-exporter is not being scraped — box or tailnet path down."
+          expr: |-
+            up{job="seedbox-node"} == 0
+          for: 5m
+          labels:
+            severity: critical
+        # The box can be up while the exporter's egress path to the qBittorrent
+        # WebUI is broken; the existing QbittorrentExporterDown alert keys on
+        # instance="qbittorrent" so it does not cover this scrape.
+        - alert: SeedboxQbittorrentExporterDown
+          annotations:
+            summary: "Seedbox qBittorrent exporter scrape is failing — exporter or its egress path to the WebUI is down."
+          expr: |-
+            up{job="seedbox-qbittorrent"} == 0
+          for: 10m
+          labels:
+            severity: warning
+        # Prometheus retention is 14d → a calendar-month sum is not computable.
+        # These are PACE alerts: 7-day in+out volume extrapolated to 30 days.
+        # vnstat on the box is the authoritative calendar-month counter
+        # (docker exec vnstat vnstat -i eno0 -m). Seedhost counts BOTH directions
+        # against the 100 TB/mo cap. 1 TB here = 1e12 bytes (decimal, provider-style).
+        - alert: SeedboxTrafficPaceCritical
+          annotations:
+            summary: "Seedbox on pace for {{ $value | humanize }}B/mo — 100 TB cap at risk."
+          expr: |-
+            (
+              increase(node_network_receive_bytes_total{job="seedbox-node",device="eno0"}[7d])
+              + increase(node_network_transmit_bytes_total{job="seedbox-node",device="eno0"}[7d])
+            ) * 30 / 7 > 95e12
+          for: 6h
+          labels:
+            severity: critical
+        - alert: SeedboxTrafficPaceHigh
+          annotations:
+            summary: "Seedbox on pace for {{ $value | humanize }}B/mo (warn at 80 TB/mo pace)."
+          expr: |-
+            (
+              increase(node_network_receive_bytes_total{job="seedbox-node",device="eno0"}[7d])
+              + increase(node_network_transmit_bytes_total{job="seedbox-node",device="eno0"}[7d])
+            ) * 30 / 7 > 80e12
+          for: 6h
+          labels:
+            severity: warning
+        - alert: SeedboxRAIDDegraded
+          annotations:
+            summary: "Seedbox md4 RAID5 is degraded ({{ $labels.state }} disk count changed)."
+          expr: |-
+            node_md_disks{job="seedbox-node",device="md4",state="failed"} > 0
+            or node_md_disks{job="seedbox-node",device="md4",state="active"} < 4
+          for: 5m
+          labels:
+            severity: critical
+        - alert: SeedboxDiskFillHigh
+          annotations:
+            summary: "Seedbox rootfs above 85% ({{ $value | humanizePercentage }} used)."
+          expr: |-
+            1 - (
+              node_filesystem_avail_bytes{job="seedbox-node",mountpoint="/"}
+              / node_filesystem_size_bytes{job="seedbox-node",mountpoint="/"}
+            ) > 0.85
+          for: 30m
+          labels:
+            severity: warning
+        - alert: SeedboxIOWaitSustained
+          annotations:
+            summary: "Seedbox iowait above 40% for 2h — array saturated."
+          expr: |-
+            avg(rate(node_cpu_seconds_total{job="seedbox-node",mode="iowait"}[10m])) > 0.4
+          for: 2h
+          labels:
+            severity: info
