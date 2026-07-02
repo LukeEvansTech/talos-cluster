@@ -29,6 +29,8 @@ spec:
             severity: warning
         # Prometheus retention is 14d → a calendar-month sum is not computable.
         # These are PACE alerts: 7-day in+out volume extrapolated to 30 days.
+        # Under-reads until the series has 7d of history (and after series
+        # churn); vnstat covers the gap.
         # vnstat on the box is the authoritative calendar-month counter
         # (docker exec vnstat vnstat -i eno0 -m). Seedhost counts BOTH directions
         # against the 100 TB/mo cap. 1 TB here = 1e12 bytes (decimal, provider-style).
@@ -56,7 +58,7 @@ spec:
             severity: warning
         - alert: SeedboxRAIDDegraded
           annotations:
-            summary: "Seedbox md4 RAID5 is degraded ({{ $labels.state }} disk count changed)."
+            summary: "Seedbox md4 RAID5 is degraded ({{ $labels.state }}={{ $value }} disks)."
           expr: |-
             node_md_disks{job="seedbox-node",device="md4",state="failed"} > 0
             or node_md_disks{job="seedbox-node",device="md4",state="active"} < 4
@@ -74,11 +76,15 @@ spec:
           for: 30m
           labels:
             severity: warning
+        # Steady-state seeding is iowait-heavy: the observed live working band
+        # is p50≈0.45 / p90≈0.56 / max≈0.66, and Alertmanager routes every
+        # firing alert to Pushover (info is not a quiet tier), so the threshold
+        # sits above the working band rather than at "textbook" 40%.
         - alert: SeedboxIOWaitSustained
           annotations:
-            summary: "Seedbox iowait above 40% for 2h — array saturated."
+            summary: "Seedbox iowait above 75% for 2h — array saturated."
           expr: |-
-            avg(rate(node_cpu_seconds_total{job="seedbox-node",mode="iowait"}[10m])) > 0.4
+            avg(rate(node_cpu_seconds_total{job="seedbox-node",mode="iowait"}[10m])) > 0.75
           for: 2h
           labels:
             severity: info
