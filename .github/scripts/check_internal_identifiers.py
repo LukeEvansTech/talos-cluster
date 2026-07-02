@@ -35,6 +35,9 @@ SELF_PATH = ".github/scripts/check_internal_identifiers.py"
 # (site-prefixed `cr-*` / `sw-*` hostnames, private IPs, MACs, internal TLDs).
 PATTERNS: dict[str, re.Pattern] = {
     "LAN IP": re.compile(r"(?<![\d.])(?:10\.32|192\.168|172\.(?:1[6-9]|2\d|3[01]))\.\d+\.\d+(?![\d.])"),
+    # Tailscale hands out addresses from the CGNAT range 100.64.0.0/10
+    # (100.64.x.x-100.127.x.x); a literal one maps a tailnet node.
+    "tailnet IP (CGNAT)": re.compile(r"(?<![\d.])100\.(?:6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.\d+\.\d+(?![\d.])"),
     "node name": re.compile(r"cr-talos-\d+"),
     # site-prefixed device hostnames, kept as two single-line patterns so black and
     # ruff agree; both exclude cr-talos-* and "ghcr-auth"-style substrings.
@@ -50,6 +53,9 @@ BENIGN = (
     re.compile(r"^10\.4[23]\."),  # Cilium pod/service CIDRs (10.42/10.43)
     re.compile(r"^grafana\.internal$"),  # k8s label key, not a hostname
     re.compile(r"^02:00:00:00:00"),  # locally-administered example MAC
+    # Guaranteed-dead top of the CGNAT range: the cluster-secrets CI placeholder
+    # for SEEDBOX_TAILNET_ADDR (real value comes from the ExternalSecret).
+    re.compile(r"^100\.127\.255\.254$"),
 )
 
 # Accepted functional configs (glob -> short reason). These are unavoidable values
