@@ -5,6 +5,7 @@ kind: ScrapeConfig
 metadata:
   name: &name seedbox-node
 spec:
+  # node-exporter on the seedbox host (:9100) — CPU/memory/disk/network.
   staticConfigs:
     - targets:
         - seedbox.observability.svc.cluster.local:9100
@@ -24,6 +25,7 @@ kind: ScrapeConfig
 metadata:
   name: &name seedbox-traefik
 spec:
+  # Traefik metrics entrypoint (:8082) — per-router/service request stats.
   staticConfigs:
     - targets:
         - seedbox.observability.svc.cluster.local:8082
@@ -43,6 +45,7 @@ kind: ScrapeConfig
 metadata:
   name: &name seedbox-autobrr
 spec:
+  # autobrr built-in metrics endpoint (:9074) — IRC/filter/push activity.
   staticConfigs:
     - targets:
         - seedbox.observability.svc.cluster.local:9074
@@ -62,6 +65,7 @@ kind: ScrapeConfig
 metadata:
   name: &name seedbox-doco-cd
 spec:
+  # doco-cd native metrics (:9120) — GitOps deploy/poll status on the seedbox.
   staticConfigs:
     - targets:
         - seedbox.observability.svc.cluster.local:9120
