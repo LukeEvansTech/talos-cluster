@@ -22,12 +22,6 @@ spec:
         enabled: true
         storageClass: ceph-block
         size: 100Gi
-      service:
-        annotations:
-          # tailscale-operator publishes this Service as a tailnet device so the
-          # seedbox's Vector can push logs (pods/LAN unaffected; ClusterIP stays).
-          tailscale.com/expose: "true"
-          tailscale.com/hostname: victoria-logs
       retentionPeriod: 28d
       route:
         enabled: true
@@ -53,3 +47,28 @@ spec:
       enabled: true
     dashboards:
       enabled: true
+    extraObjects:
+      # Dedicated ClusterIP Service for the tailscale-operator: the chart's own
+      # victoria-logs-server Service is headless (clusterIP: None, StatefulSet
+      # default) which the operator rejects ("headless Services are not
+      # supported"), and clusterIP is immutable so the existing Service can't be
+      # converted in place. The operator publishes this Service as a tailnet
+      # device so the seedbox's Vector can push logs (pods/LAN unaffected).
+      - apiVersion: v1
+        kind: Service
+        metadata:
+          name: victoria-logs-tailnet
+          annotations:
+            tailscale.com/expose: "true"
+            tailscale.com/hostname: victoria-logs
+        spec:
+          type: ClusterIP
+          selector:
+            app: server
+            app.kubernetes.io/instance: victoria-logs
+            app.kubernetes.io/name: victoria-logs-single
+          ports:
+            - name: http
+              port: 9428
+              protocol: TCP
+              targetPort: http
