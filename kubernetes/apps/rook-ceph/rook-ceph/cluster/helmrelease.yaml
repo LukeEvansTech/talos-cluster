@@ -21,6 +21,15 @@ spec:
       enabled: true
     cephClusterSpec:
       resources:
+        # NOTE: mgr resources must live here (spec.resources.mgr) — the CephCluster
+        # CRD has no spec.mgr.resources field, so a block there is silently pruned
+        # and the chart default (1Gi limit) applies instead.
+        mgr:
+          requests:
+            cpu: 100m
+            memory: 1Gi
+          limits:
+            memory: 2Gi
         mon:
           requests:
             cpu: 100m
@@ -44,12 +53,6 @@ spec:
         ssl: false
         prometheusEndpoint: http://prometheus-operated.observability.svc.cluster.local:9090
       mgr:
-        resources:
-          requests:
-            cpu: 100m
-            memory: 1Gi
-          limits:
-            memory: 2Gi
         modules:
           - name: diskprediction_local
             enabled: true
