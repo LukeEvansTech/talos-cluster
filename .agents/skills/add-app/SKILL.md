@@ -39,7 +39,7 @@ Use the **AskUserQuestion** tool to gather:
 7. Whether the app needs an `ExternalSecret`
 8. Whether the app needs persistence (PVC `existingClaim`, `emptyDir`, NFS, …)
 9. Whether the app needs a route, and if so internal-only (`envoy-internal`) or external (`envoy-external`)
-10. Any Flux `dependsOn` entries, and whether it uses components (`gatus/guarded`, `volsync`, `alerts`, `homepage`)
+10. Any Flux `dependsOn` entries, and whether it uses components (`volsync`, `alerts`, `homepage`, `kopiur`)
 
 Always confirm before writing files.
 
@@ -96,12 +96,11 @@ If the app uses an `ExternalSecret`, add a `dependsOn` (alphabetically, after `c
       namespace: external-secrets
 ```
 
-If the app uses components (gatus/volsync/etc.), add `spec.components` and replace `postBuild: {}`
+If the app uses components (volsync/alerts/etc.), add `spec.components` and replace `postBuild: {}`
 with the matching substitutes. Component paths are `../../../../components/...` relative to the app:
 
 ```text
   components:
-    - ../../../../components/gatus/guarded
     - ../../../../components/volsync
   postBuild:
     substitute:
@@ -215,6 +214,9 @@ If the app needs a route, add (internal-only default — both hostnames resolve 
 For **external** exposure, use `name: envoy-external` instead (and confirm the intent — this repository is
 public). For GPU workloads, set `runtimeClassName: nvidia` under the controller's `pod`.
 
+The route is auto-monitored by the gatus-sidecar (no component needed). To opt out, annotate the
+route: `route.app.annotations` → `gatus.home-operations.com/enabled: "false"`.
+
 ### Step 8: Generate `app/externalsecret.yaml` (only if needed)
 
 ```text
@@ -251,11 +253,11 @@ list alphabetical. Match the exact reference style used by neighbours (e.g. `./<
 2. The namespace `kustomization.yaml` references the new app.
 3. The HelmRelease `chartRef` points at the per-app `OCIRepository`, not a shared `app-template`.
 4. No plain-text secrets, LAN IPs, or internal hostnames were introduced.
-5. Render and validate with flate:
+5. Render and validate with flate (just wrappers add `--allow-missing-secrets`):
 
    ```bash
-   flate build hr <app> -n <namespace> --path kubernetes/flux/cluster
-   flate test all --path kubernetes/flux/cluster --allow-missing-secrets
+   just kube flate-build-hr <namespace> <app>
+   just kube flate-test
    ```
 
 ## Notes
