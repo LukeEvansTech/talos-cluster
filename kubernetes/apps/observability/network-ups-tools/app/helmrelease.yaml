@@ -20,6 +20,14 @@ spec:
             image:
               repository: instantlinux/nut-upsd
               tag: 2.8.3-r3@sha256:edadf0d18b7e240fba0e4073dfcc13f19f93839de0656f4b39752c0cad880cd5
+            # upsdrvctl aborts with "Duplicate driver instance detected (PID file exists)"
+            # when a prior container left stale driver PID files in /run/nut (the image
+            # entrypoint runs `upsdrvctl start` once and never cleans them). Wipe stale
+            # PIDs before starting, then exec the image entrypoint unchanged.
+            command:
+              - /bin/sh
+              - -c
+              - rm -f /run/nut/*.pid /var/run/nut/*.pid 2>/dev/null; exec /usr/local/bin/entrypoint.sh
             env:
               TZ: ${TIMEZONE:=UTC}
               NAME: cr-ups-main

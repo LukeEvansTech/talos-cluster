@@ -31,6 +31,17 @@ spec:
           - name: alertname
             value: Watchdog
             matchType: =
+      # UPS emergencies — page at Pushover priority 2 (retry/expire) until acknowledged.
+      # Placed before the generic critical route (first match wins) so only alerts
+      # labelled pushover_priority=emergency escalate; every other critical still routes
+      # to the normal pushover receiver unchanged.
+      - receiver: pushover-emergency
+        groupWait: 0s
+        repeatInterval: 30m
+        matchers:
+          - name: pushover_priority
+            value: emergency
+            matchType: =
       - receiver: pushover
         matchers:
           - name: severity
@@ -81,6 +92,48 @@ spec:
             {{ if eq .Status "firing" }}1{{ else }}0{{ end }}
           sendResolved: true
           sound: gamelan
+          title: >-
+            [{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{ .Alerts.Firing | len }}{{ end }}]
+            {{ .CommonLabels.alertname }}
+          ttl: 86400s
+          token:
+            name: *secret
+            key: ALERTMANAGER_PUSHOVER_TOKEN
+          userKey:
+            name: *secret
+            key: PUSHOVER_USER_KEY
+          urlTitle: View in Alertmanager
+    # Emergency channel for UPS power alerts only (routed via pushover_priority=emergency).
+    # Priority 2 = Pushover emergency: re-alerts every `retry` for up to `expire` until
+    # the notification is acknowledged in the Pushover app. Resolved goes out at priority 0.
+    - name: pushover-emergency
+      pushoverConfigs:
+        - html: true
+          message: |-
+            {{- range .Alerts }}
+              {{- if ne .Annotations.description "" }}
+                {{ .Annotations.description }}
+              {{- else if ne .Annotations.summary "" }}
+                {{ .Annotations.summary }}
+              {{- else if ne .Annotations.message "" }}
+                {{ .Annotations.message }}
+              {{- else }}
+                Alert description not available
+              {{- end }}
+              {{- if gt (len .Labels.SortedPairs) 0 }}
+                <small>
+                  {{- range .Labels.SortedPairs }}
+                    <b>{{ .Name }}:</b> {{ .Value }}
+                  {{- end }}
+                </small>
+              {{- end }}
+            {{- end }}
+          priority: |-
+            {{ if eq .Status "firing" }}2{{ else }}0{{ end }}
+          retry: 1m
+          expire: 1h
+          sendResolved: true
+          sound: siren
           title: >-
             [{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{ .Alerts.Firing | len }}{{ end }}]
             {{ .CommonLabels.alertname }}
