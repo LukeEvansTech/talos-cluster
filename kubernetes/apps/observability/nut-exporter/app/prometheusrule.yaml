@@ -8,30 +8,49 @@ spec:
   groups:
     - name: nut-exporter
       rules:
-        - alert: NutExporterAbsent
+        # UPS monitoring is blind — nut-exporter returns no metrics for >3m.
+        # When the NUT server (network-ups-tools) is down/unreachable the exporter
+        # fails its whole scrape, so up == 0 (verified); `absent()` covers the target
+        # vanishing entirely. 3m (not the 15m built-in TargetDown) because the main
+        # UPS battery only lasts ~30m.
+        - alert: UPSUnreachable
           annotations:
-            description: NUT Exporter has disappeared from Prometheus target discovery.
-            summary: NUT Exporter is down.
-          expr: absent(up{job=~".*nut-exporter.*"} == 1)
-          for: 5m
+            description: >-
+              nut-exporter has had no successful scrape for over 3 minutes (up == 0 or
+              target absent). The NUT server (network-ups-tools) is likely down or
+              unreachable, so UPS state is invisible during a power event.
+            summary: UPS monitoring is blind — nut-exporter is not returning UPS metrics.
+          expr: up{job="nut-exporter"} == 0 or absent(up{job="nut-exporter"})
+          for: 3m
           labels:
             severity: critical
-        - alert: UpsOnBattery
+            pushover_priority: emergency
+        # Mains lost — fires within ~1m. `max by (ups)` collapses the ServiceMonitor's
+        # instance cross-product to one alert per real UPS.
+        - alert: UPSOnBattery
           annotations:
-            description: UPS {{ $labels.ups }} has lost power and is running on battery.
-            summary: UPS is running on battery.
-          expr: nut_ups_status{status="OB"} == 1
-          for: 10s
+            description: >-
+              UPS {{ $labels.ups }} switched to battery (status OB). Mains input is lost
+              and battery runtime is finite — investigate immediately.
+            summary: UPS {{ $labels.ups }} is on battery — mains power lost.
+          expr: max by (ups) (nut_ups_status{status="OB"}) == 1
+          for: 30s
           labels:
             severity: critical
-        - alert: UpsLowRuntime
+            pushover_priority: emergency
+        # On battery AND (runtime < 15m OR charge < 50%). by(ups) aggregation also fixes
+        # the old UpsLowRuntime, whose `status`-labelled `and` operand never matched.
+        - alert: UPSBatteryRuntimeLow
           annotations:
-            description: UPS {{ $labels.ups }} battery runtime is {{ $value | humanizeDuration }} which is below 10 minutes.
-            summary: UPS battery runtime is critically low.
-          expr: nut_ups_status{status="OB"} == 1 and nut_battery_runtime_seconds < 600
-          for: 1m
+            description: >-
+              UPS {{ $labels.ups }} is on battery with under 15 minutes runtime remaining
+              or charge below 50%. Shutdown is imminent.
+            summary: UPS {{ $labels.ups }} battery is nearly exhausted.
+          expr: (max by (ups) (nut_ups_status{status="OB"}) == 1) and ((min by (ups) (nut_battery_runtime_seconds) < 900) or (min by (ups) (nut_battery_charge) < 0.5))
+          for: 30s
           labels:
             severity: critical
+            pushover_priority: emergency
         - alert: UpsLowBattery
           annotations:
             description: UPS {{ $labels.ups }} battery charge is {{ $value | humanizePercentage }} which is below 50%.
