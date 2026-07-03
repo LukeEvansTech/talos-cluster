@@ -51,6 +51,13 @@ spec:
               PAPERLESS_TASK_WORKERS: "2"
               PAPERLESS_WEBSERVER_WORKERS: "2"
               PAPERLESS_URL: "https://paperless.${SECRET_DOMAIN}"
+              # Namespace every broker/cache key (kombu global_keyprefix).
+              # Dragonfly runs cluster_mode=emulated (db 0 only), and prowler's
+              # Celery worker also consumes the default "celery" queue there —
+              # without a prefix it steals paperless tasks (observed as
+              # KeyError: paperless_mail.tasks.process_mail_accounts in the
+              # prowler worker once it finally started consuming).
+              PAPERLESS_REDIS_PREFIX: "paperless:"
               PAPERLESS_DBENGINE: postgresql
               PAPERLESS_APPS: allauth.socialaccount.providers.openid_connect
               PAPERLESS_ACCOUNT_ALLOW_SIGNUPS: "false"
