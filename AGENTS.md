@@ -28,7 +28,7 @@ kubernetes/
 │               ├── externalsecret.yaml  # optional
 │               ├── httproute.yaml       # optional (inline route: in HR values is preferred)
 │               └── kustomization.yaml
-├── components/            # Reusable Kustomize components (global-vars, alerts, volsync, gatus, …)
+├── components/            # Reusable Kustomize components (global-vars, alerts, volsync, homepage, kopiur, …)
 └── flux/                  # Core Flux bootstrap config (cluster/ks.yaml = root Kustomization)
 bootstrap/                 # Cluster bootstrap (just tasks + helmfile)
 talos/                     # Talos OS machine configs (talconfig.yaml + patches)
@@ -65,7 +65,7 @@ HelmRelease install/upgrade/rollback strategy defaults.
 
 Every app follows the same shape. The `ks.yaml` is the Flux entry point and uses YAML anchors
 (`&app`, `&namespace`, `*app`) for DRY references; it sets `targetNamespace: *namespace`, and any
-`components` (`gatus/guarded`, `volsync`, `alerts`) plus their `postBuild.substitute` values
+`components` (`volsync`, `alerts`, `homepage`, `kopiur`) plus their `postBuild.substitute` values
 (`APP: *app`, `VOLSYNC_CAPACITY`) live in `ks.yaml` — never duplicated into `app/kustomization.yaml`.
 
 Inside `app/`:
@@ -104,6 +104,11 @@ vault). Apps with an ExternalSecret should `dependsOn` `onepassword-connect` in
 - Flux `postBuild` replaces `${VAR}` against `cluster-secrets`; **undefined vars become empty
   strings**. Any literal `${VAR}` you want preserved (Grafana dashboards, envsubst templates, shell
   snippets) must be escaped as `$${VAR}`.
+- **Gatus monitoring is automatic** — the gatus-sidecar chart watches HTTPRoutes cluster-wide, so a
+  new app's route gets an uptime check with no per-app config (the old `gatus/guarded` component is
+  gone). Opt a route out with a `gatus.home-operations.com/enabled: "false"` annotation; opt a
+  Service in with `"true"` plus an optional `gatus.home-operations.com/endpoint:` YAML block for
+  name/group overrides.
 - GPU workloads use `runtimeClassName: nvidia`.
 
 ## Provisioning a new app
@@ -151,16 +156,19 @@ Either way Flux **prunes the PVC** — take a VolSync snapshot or copy the data 
 
 ## Validation
 
-CI validates PRs with [flate](https://github.com/home-operations/flate) (HelmRelease + Kustomization
-testing without a live cluster), plus security scans (Checkov/Trivy) and super-linter. Mirror locally
-before pushing:
+PR renders and diffs are posted by the in-cluster **Konflate** as a native `Konflate` commit status
+plus a PR comment — there is no GitHub Actions render workflow. GitHub Actions still run security
+scans (Checkov/Trivy → Code Scanning) and super-linter. Mirror the render locally before pushing
+with [flate](https://github.com/home-operations/flate) (in the mise toolchain), via the just
+wrappers:
 
 ```bash
-# Render a single app's HelmRelease
-flate build hr <app> -n <namespace> --path kubernetes/flux/cluster
+# Render a single app's HelmRelease / Kustomization
+just kube flate-build-hr <namespace> <app>
+just kube flate-build-ks <namespace> <app>
 
-# Test all Kustomizations + HelmReleases
-flate test all --path kubernetes/flux/cluster --allow-missing-secrets
+# Test all Kustomizations + HelmReleases (the full CI-equivalent check)
+just kube flate-test
 ```
 
 ## Agent tooling
