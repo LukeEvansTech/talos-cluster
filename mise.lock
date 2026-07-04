@@ -171,20 +171,8 @@ checksum = "sha256:5410a0dae3d5d91f45653b161260d9301aabc4ae80ae50a6605d66884b6df
 url = "https://get.helm.sh/helm-v4.2.2-darwin-arm64.tar.gz"
 
 [[tools."aqua:helmfile/helmfile"]]
-version = "1.6.0"
+version = "1.7.0"
 backend = "aqua:helmfile/helmfile"
-
-[tools."aqua:helmfile/helmfile"."platforms.linux-arm64"]
-checksum = "sha256:9f29b29ff017af7dc6feca632f9a683a6c8c5a0dc5a96dd1a2df3f1016c14823"
-url = "https://github.com/helmfile/helmfile/releases/download/v1.6.0/helmfile_1.6.0_linux_arm64.tar.gz"
-
-[tools."aqua:helmfile/helmfile"."platforms.linux-x64"]
-checksum = "sha256:44c617bc12b5f7f1ca1da5333ccbd3865b314c132168b4ce1127f47e756008dc"
-url = "https://github.com/helmfile/helmfile/releases/download/v1.6.0/helmfile_1.6.0_linux_amd64.tar.gz"
-
-[tools."aqua:helmfile/helmfile"."platforms.macos-arm64"]
-checksum = "sha256:49bb9f88bf264f0c004213971cd308925676f6e5200bb940498f5acbc06107fc"
-url = "https://github.com/helmfile/helmfile/releases/download/v1.6.0/helmfile_1.6.0_darwin_arm64.tar.gz"
 
 [[tools."aqua:helmfile/vals"]]
 version = "0.44.0"
