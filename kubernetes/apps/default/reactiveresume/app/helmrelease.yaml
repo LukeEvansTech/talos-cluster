@@ -28,7 +28,7 @@ spec:
           app:
             image:
               repository: ghcr.io/amruthpillai/reactive-resume
-              tag: v5.1.9@sha256:5ca66890dc8c2f71026b3efe24b3a87b2ad4dcccad7d4eefb5de9052d07094cd
+              tag: v5.1.9@sha256:a5a3184459dd15339fcbde15df091c3a24414b4c53c4f9ad5938f5235e057829
             env:
               TZ: ${TIMEZONE}
               PORT: &port 3000
