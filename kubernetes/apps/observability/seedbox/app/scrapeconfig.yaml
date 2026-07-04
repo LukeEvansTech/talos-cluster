@@ -18,6 +18,15 @@ spec:
     - action: replace
       targetLabel: instance
       replacement: seedbox
+  # The ceph-mixin node alerts (CephNodeDiskspaceWarning et al) join every
+  # node-exporter target via node_uname_info, so the seedbox's spiky torrent
+  # disk flaps them. Dropping the metric here breaks that join; nothing else
+  # (dashboard, seedbox.rules) reads it.
+  metricRelabelings:
+    - action: drop
+      sourceLabels:
+        - __name__
+      regex: node_uname_info
 ---
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/scrapeconfig_v1alpha1.json
 apiVersion: monitoring.coreos.com/v1alpha1
