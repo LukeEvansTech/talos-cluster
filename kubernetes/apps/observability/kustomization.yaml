@@ -25,6 +25,7 @@ resources:
   - ./oxidized/ks.yaml
   - ./peanut/ks.yaml
   - ./plex-exporter/ks.yaml
+  - ./prometheus-adapter/ks.yaml
   - ./qbittorrent-exporter/ks.yaml
   - ./sabnzbd-dashboard/ks.yaml
   - ./scrutiny/ks.yaml
