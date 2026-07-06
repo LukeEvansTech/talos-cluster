@@ -1,22 +1,8 @@
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: talos-cluster-runner
-  namespace: actions-runner-system
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: talos-cluster-runner
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: cluster-admin
-subjects:
-  - kind: ServiceAccount
-    name: talos-cluster-runner
-    namespace: actions-runner-system
+# No Kubernetes RBAC: the runner pods use the gha-runner-scale-set chart's
+# auto-created `*-gha-rs-no-permission` ServiceAccount, and the only privileged
+# job (image-pull) calls `talosctl image pull` — no kubectl. The Talos os:admin
+# ServiceAccount below is the sole grant, and image-pull now runs post-merge
+# (push, not pull_request) so untrusted PR code never reaches this runner.
 ---
 apiVersion: talos.dev/v1alpha1
 kind: ServiceAccount
