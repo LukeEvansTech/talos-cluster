@@ -35,7 +35,7 @@ Why a forced upgrade won't self-heal it:
   revision renders the real domain identically, so helm computes **no diff** for the route and
   leaves the drifted live object untouched. `flux reconcile hr --force` bumps the release but
   still won't touch the un-diffed route. (helm-controller `driftDetection` is intentionally
-  **off** — enabling it would fight the KEDA HPAs from the `nfs-scaler`/zeroscaler component on
+  **off** — enabling it would fight the zeroscaler HPAs on
   `spec.replicas`.)
 
 This is **not** domain-specific — the domain/route is just the most visible victim of the
@@ -79,7 +79,7 @@ Decided not to fix structurally: the race is rare (a handful of apps in the clus
 only at first render before ESO syncs), well understood, and self-corrects in the HelmRelease
 values — only already-rendered live objects stay drifted, and the delete+recreate one-liner
 clears those. Options considered and declined: global `driftDetection.mode: enabled` (would
-fight the KEDA HPAs), a self-healing CronJob guard, splitting `cluster-secrets` into its own
+fight the zeroscaler HPAs), a self-healing CronJob guard, splitting `cluster-secrets` into its own
 `dependsOn`-gated Kustomization (the only complete fix, too invasive), and hardcoding the domain
 literally (only patches the domain symptom, not the general race).
 

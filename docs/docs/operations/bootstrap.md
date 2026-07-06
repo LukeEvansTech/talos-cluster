@@ -220,7 +220,6 @@ Installs Custom Resource Definitions from Helm charts.
 - `cloudflare-dns` (external-dns chart, `network` namespace)
 - `envoy-gateway` (`network` namespace)
 - `grafana-operator` (`observability` namespace)
-- `keda` (`observability` namespace)
 - `kube-prometheus-stack` (`observability` namespace)
 
 **Example output:**

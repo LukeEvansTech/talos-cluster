@@ -66,34 +66,34 @@ kubectl patch volumeattachment <csi-attachment-name> \
 
 Safe when the originating pod is already gone (the RBD kernel mapping is cleaned up on pod termination; only the API-level record is stale).
 
-### Related cleanup: KEDA `nfs-scaler` flap during the rollout
+### Related cleanup: zeroscaler NFS flap during the rollout
 
-When the `blackbox-exporter-lan` pod gets shuffled by the drain, the fresh pod's blackbox probe to the NFS server on port 2049 returns `probe_success=0` (with `probe_ip_addr_hash 0` — DNS resolve fails inside the pod even though the same lookup works from `kubectl run --image=netshoot` in the same namespace). This trips the `components/nfs-scaler` KEDA `ScaledObject`, which scales NFS-dependent deployments (notably Plex) to `0` even though NFS is genuinely reachable.
+When the `blackbox-exporter-lan` pod gets shuffled by the drain, the fresh pod's blackbox probe to the NFS server on port 2049 can briefly return `probe_success=0` (DNS resolve fails inside the pod even though the same lookup works from `kubectl run --image=netshoot` in the same namespace), driving the `probe_success{job="nfs_probe"}` metric to 0.
 
-Restarting the blackbox-exporter pod usually clears it:
+Historically this immediately tripped a KEDA `ScaledObject` and scaled NFS-dependent deployments (notably Plex) to `0`. Since the migration to the [`zeroscaler`](024-zeroscaler-nfs-hpa.md) HPA + `prometheus-adapter`, the adapter serves the metric as `max_over_time(probe_success[3m])`, so a single transient blip no longer trips scale-to-0 — the probe must fail continuously for ~3 minutes first.
+
+If a blip is slow to clear, restart the blackbox-exporter pod:
 
 ```bash
 kubectl delete pod -n observability -l app.kubernetes.io/name=prometheus-blackbox-exporter
 ```
 
-If KEDA keeps flapping during recovery, pause it on the affected ScaledObject:
+To pin every NFS-gated app up for the duration of a drain (native HPAs have no `paused` annotation), use the recipe — it patches `minReplicas: 1` on every zeroscaler HPA:
 
 ```bash
-kubectl annotate scaledobject -n <ns> <name> \
-  autoscaling.keda.sh/paused=true \
-  autoscaling.keda.sh/paused-replicas=1 \
-  --overwrite
+just kube zeroscaler suspend   # pin all NFS-gated apps up (minReplicas=1)
+just kube zeroscaler resume    # back to metric-driven (minReplicas=0)
 ```
 
-Note: Flux may strip these annotations on the next HelmRelease reconcile if they're not in the chart values — re-apply if KEDA scales the workload back to 0.
+Note: Flux reverts `minReplicas` to the git value (`0`) on the next reconcile, so pause then act promptly (or `flux suspend` the app's Kustomization for a longer hold).
 
 ### Open items
 
 1. The TUPPR Job should not route its post-drain `reboot` call through a cluster-internal Service whose endpoint may have been evicted by the drain. Worth raising upstream or pinning `rebootMode: kexec` to skip the powercycle path.
 2. The `blackbox-exporter-lan` pod's intermittent DNS-resolve failure on target hostnames needs investigation — likely a `dnsPolicy` / resolv.conf issue post-Cilium-identity-shuffle.
-3. KEDA-on-Plex pause annotations get reverted by Flux; it would be cleaner to set them through chart values so they survive reconcile.
+3. zeroscaler pause (`just kube zeroscaler suspend`, which patches HPA `minReplicas: 1`) is reverted by Flux on the next reconcile; for a longer hold during a drain, `flux suspend` the affected app Kustomization instead.
 
 ## References
 
 - TUPPR: <https://github.com/home-operations/tuppr>
-- KEDA `paused-replicas` semantics: <https://keda.sh/docs/latest/concepts/scaling-deployments/#pause-autoscaling>
+- zeroscaler design + pause switch: [024-zeroscaler-nfs-hpa](024-zeroscaler-nfs-hpa.md)
