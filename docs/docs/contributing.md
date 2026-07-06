@@ -25,9 +25,10 @@ Use the `add-app` skill to scaffold, or follow the shape by hand. Every app live
 - **`ks.yaml`** is the Flux entry point:
   - Use YAML anchors (`&app`, `&namespace`, `*app`) for DRY references and set
     `targetNamespace: *namespace`.
-  - Declare any `components` (`gatus/guarded`, `volsync`, `alerts`) here, along with their
+  - Declare any `components` (`volsync`, `alerts`, `homepage`) here, along with their
     `postBuild.substitute` values (`APP: *app`, `VOLSYNC_CAPACITY`). Do not duplicate components into
-    `app/kustomization.yaml`.
+    `app/kustomization.yaml`. (Gatus monitoring is automatic — the gatus-sidecar chart auto-discovers
+    HTTPRoutes, so there is no per-app `gatus/guarded` component anymore.)
   - Add `dependsOn` `onepassword-connect` in `external-secrets` if the app uses an ExternalSecret.
 - **Inside `app/`**:
   - Add a **per-app `ocirepository.yaml`** pointing at `oci://ghcr.io/bjw-s-labs/helm/app-template`;
@@ -54,8 +55,9 @@ Use the `add-app` skill to scaffold, or follow the shape by hand. Every app live
 
 ## Validate before pushing
 
-CI validates pull requests with flate (HelmRelease + Kustomization rendering without a live cluster),
-plus security scans (Checkov/Trivy) and super-linter. Mirror it locally first:
+PR renders and diffs are posted by the in-cluster Konflate as a native commit status plus a PR comment
+(there is no GitHub Actions render workflow). GitHub Actions still run security scans (Checkov/Trivy) and
+super-linter. Mirror the render locally first with flate:
 
 ```bash
 # Render a single app's HelmRelease

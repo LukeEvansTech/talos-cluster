@@ -101,7 +101,7 @@ a top-level `params`):
 
 ```yaml
 - name: <short-name>
-  target: ${SOME_ADDR} # a cluster-settings DNS var
+  target: ${SOME_ADDR} # a cluster-secrets DNS var (1Password, not git)
   module: [if_mib] # or [if_mib, entity_sensor] for sensors
   auth: [public_v2] # or a custom auth defined in configmap-entity-sensor
   interval: 60s
@@ -120,8 +120,10 @@ with the image's bundled `snmp.yml` via the two `--config.file` `extraArgs`.
    `/user group add name=prometheus policy=api,read` then
    `/user add name=mktxp group=prometheus password=<from 1Password>`, and enable
    `api-ssl` restricted to the node source IPs.
-2. Add the host as a `cluster-settings` DNS var and append a `[Section]` to the
-   `mktxp.conf` block in `mktxp/app/externalsecret.yaml`.
+2. Add the host as a `cluster-secrets` DNS var (the 1Password item, **not**
+   git-tracked `cluster-settings` — device hostnames stay out of this public
+   repo) and append a `[Section]` to the `mktxp.conf` block in
+   `mktxp/app/externalsecret.yaml`.
 
 ## Validation
 
