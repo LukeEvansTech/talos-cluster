@@ -2,8 +2,8 @@
 
 ## Purpose
 
-LiteLLM is an OpenAI-compatible LLM gateway in the `ai` namespace. It fronts the local Ollama
-instances and cloud providers behind one API, so in-cluster consumers target a single endpoint and
+LiteLLM is an OpenAI-compatible LLM gateway in the `ai` namespace. It fronts the local llmkube
+(llama.cpp) model-serving tier and cloud providers behind one API, so in-cluster consumers target a single endpoint and
 get virtual keys, per-key budgets, request logging, model-group routing, fallbacks, and an admin UI.
 See the [AI / LLM stack](../architecture/ai-llm-stack.md) page for how it fits the wider stack.
 
