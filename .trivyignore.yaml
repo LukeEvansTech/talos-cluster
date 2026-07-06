@@ -33,32 +33,6 @@ misconfigurations:
       `self.username`, `username`) are variable / parameter names inside
       an embedded Python script, not actual usernames.
 
-  # The cloudflare-runner Role grants the ARC kubernetes-mode container-hook
-  # permissions (manage pods, pods/exec, pods/log, jobs, secrets in
-  # actions-runner-system). Terrateam's action is a container action, so the
-  # runner MUST spawn/exec/clean up its job pod + per-job secret — these verbs
-  # are required, minimal, and namespace-scoped. Not reducible.
-  - id: KSV-0048
-    paths:
-      - "kubernetes/apps/actions-runner-system/actions-runner-controller/runners/cloudflare/rbac.yaml"
-    statement: |-
-      Required ARC kubernetes-mode container-hook RBAC: the runner spawns and
-      deletes the workload pod/job for Terrateam's container action. Scoped to
-      the actions-runner-system namespace.
-  - id: KSV-0053
-    paths:
-      - "kubernetes/apps/actions-runner-system/actions-runner-controller/runners/cloudflare/rbac.yaml"
-    statement: |-
-      Required ARC kubernetes-mode container-hook RBAC: the runner execs into
-      its own job pod to stream the action. Scoped to actions-runner-system.
-  - id: KSV-0113
-    paths:
-      - "kubernetes/apps/actions-runner-system/actions-runner-controller/runners/cloudflare/rbac.yaml"
-    statement: |-
-      Required ARC kubernetes-mode container-hook RBAC: the hook creates and
-      deletes a per-job secret to inject the workflow context. Scoped to
-      actions-runner-system.
-
   - id: KSV-0046
     paths:
       - "kubernetes/apps/ai/toolhive/mcp-servers/kubectl/rbac.yaml"
