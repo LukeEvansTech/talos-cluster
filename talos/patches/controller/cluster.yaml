@@ -7,6 +7,11 @@ cluster:
     extraArgs:
       # https://kubernetes.io/docs/tasks/extend-kubernetes/configure-aggregation-layer/
       enable-aggregator-routing: true
+      # Required here AND under controllerManager below for the zeroscaler HPAs to use
+      # minReplicas=0: the apiserver validates the field (rejects 0 without the gate), the
+      # controller-manager does the scaling. Control-plane change (rolling apiserver restart).
+      # See KB-024.
+      feature-gates: HPAScaleToZero=true
       # Public OIDC issuer so Entra (and other clouds) can federate the cluster's service-account
       # tokens — backs the sentinel-syslog workload identity (no secrets). Served as static OIDC
       # discovery + JWKS by the `network/oidc-talos` app at this exact URL. MUST match byte-for-byte:

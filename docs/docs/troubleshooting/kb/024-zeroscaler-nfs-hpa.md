@@ -28,11 +28,15 @@ The chain is:
 
 ## Gotchas
 
-- **`HPAScaleToZero` feature gate is required.** `minReplicas: 0` is silently clamped to 1 without
-  it. It is enabled on kube-controller-manager in
-  `talos/patches/controller/cluster.yaml`
-  (`cluster.controllerManager.extraArgs.feature-gates: HPAScaleToZero=true`). flate/CI pass either
-  way — this only surfaces as "apps never scale to zero" at runtime.
+- **`HPAScaleToZero` feature gate is required on BOTH the apiserver and the controller-manager.**
+  Set `feature-gates: HPAScaleToZero=true` under **both** `cluster.apiServer.extraArgs` and
+  `cluster.controllerManager.extraArgs` in `talos/patches/controller/cluster.yaml`. The apiserver
+  **validates** `minReplicas` — without the gate there it **rejects** the HPA at apply
+  (`spec.minReplicas: Invalid value: 0: must be greater than or equal to 1`), leaving the app's
+  Flux Kustomization `Ready=False`; the controller-manager does the actual scale-to-0. flate/CI
+  pass either way — it only surfaces when Flux applies the HPA. Changing either arg is a
+  control-plane change (rolling restart); regenerate with `just talos gen-config` and
+  `just talos apply-node` on each control-plane node.
 - **`external.metrics.k8s.io` is a cluster singleton.** Only one APIService can back it. KEDA's
   metrics server and `prometheus-adapter` both claim it, so they **cannot coexist** — this is why
   the migration removed KEDA before adding the adapter.
