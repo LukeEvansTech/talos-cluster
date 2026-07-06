@@ -96,7 +96,6 @@ rules:
       - deuxfleurs.fr
       - discovery.k8s.io
       - dragonflydb.io
-      - eventing.keda.sh
       - events.k8s.io
       - external-secrets.io
       - externaldns.k8s.io
@@ -110,7 +109,6 @@ rules:
       - groupsnapshot.storage.k8s.io
       - helm.toolkit.fluxcd.io
       - k8s.cni.cncf.io
-      - keda.sh
       - kguardian.dev
       - kopiur.home-operations.com
       - kustomize.toolkit.fluxcd.io
