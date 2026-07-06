@@ -40,9 +40,9 @@ L2/L3/workload/application diagrams by continuously scanning the infrastructure.
   credential is then configured in the UI pointing at that file.
 - **Docker-socket scan source dropped.** Talos runs containerd with no Docker socket, so it is
   disabled explicitly with `SCANOPY_ENABLE_LOCAL_DOCKER_SOCKET=false`.
-- **Components** — `gatus/guarded` (DNS check on `${GATUS_SUBDOMAIN}.${SECRET_DOMAIN}`, not an HTTP
-  probe) and `volsync` (`VOLSYNC_CAPACITY: 5Gi`) backing the server `/data` PVC. No PodMonitor:
-  Scanopy exposes no Prometheus metrics.
+- **Components** — `volsync` (`VOLSYNC_CAPACITY: 5Gi`) backing the server `/data` PVC. (Gatus
+  monitoring is automatic via the gatus-sidecar chart, which auto-discovers the HTTPRoute; the old
+  `gatus/guarded` DNS-check component is gone.) No PodMonitor: Scanopy exposes no Prometheus metrics.
 
 ## Deploy gotchas
 
