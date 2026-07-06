@@ -11,11 +11,13 @@ spec:
       app.kubernetes.io/name: *app
   components:
     - ../../../../components/homepage
+    - ../../../../components/volsync
   interval: 1h
   path: ./kubernetes/apps/default/shlink/app
   postBuild:
     substitute:
       APP: *app
+      VOLSYNC_CAPACITY: 1Gi
       HOMEPAGE_NAME: Shlink
       HOMEPAGE_GROUP: Tools
       HOMEPAGE_ICON: shlink.svg
