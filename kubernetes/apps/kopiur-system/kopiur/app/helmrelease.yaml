@@ -11,25 +11,45 @@ spec:
     name: kopiur
   values:
     installScope: cluster
-    grafanaDashboard:
-      enabled: true
-      grafanaOperator:
-        enabled: true
-        matchLabels:
-          grafana.internal/instance: grafana
-    metrics:
+    # 0.6.0 folded metrics.serviceMonitor / metrics.prometheusRule /
+    # grafanaDashboard.* under a single `monitoring:` umbrella — the ONLY
+    # breaking values change in the 0.4.8 -> 0.6.0 bump.
+    monitoring:
       serviceMonitor:
         enabled: true
       prometheusRule:
         enabled: true
-    # Chart ≥0.4.10 renamed secretProjection → features.credentialProjection;
-    # the old key is silently ignored, dropping the operator's secrets
-    # create/patch RBAC that every credentialProjection consumer relies on.
-    features:
-      credentialProjection:
+      dashboards:
         enabled: true
-    webhook:
-      tls:
-        mode: self
-      serviceMonitor:
-        enabled: true
+        grafanaOperator:
+          enabled: true
+          matchLabels:
+            grafana.internal/instance: grafana
+    # credentialProjection is intentionally left at its chart default (disabled).
+    # Movers now read KOPIA_PASSWORD from a per-namespace ExternalSecret
+    # (components/kopiur/secret) instead of the operator copying it in — cleaner
+    # RBAC (no unscoped secrets create/patch). Webhook is left at chart defaults
+    # (enabled, self-managed TLS, failurePolicy: Fail) and unmonitored.
+    #
+    # Repo mounted into the controller for in-controller maintenance/verify in
+    # 0.6.0 (movers still get the backend via the ClusterRepository). Same
+    # /kopiur NFS-subdir isolation as the ClusterRepository backend below.
+    extraVolumes:
+      - name: repo
+        nfs:
+          server: ${SECRET_STORAGE_SERVER}
+          path: ${SECRET_STORAGE_SERVER_VOLSYNC_NFS}/kopiur
+    extraVolumeMounts:
+      - name: repo
+        mountPath: /repo
+    podSecurityContext:
+      runAsNonRoot: true
+      runAsUser: 1000
+      runAsGroup: 1000
+      fsGroup: 1000
+      fsGroupChangePolicy: OnRootMismatch
+    resources:
+      requests:
+        cpu: 100m
+      limits:
+        memory: 2Gi
