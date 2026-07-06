@@ -365,6 +365,8 @@ data:
     fi
 kind: ConfigMap
 metadata:
+  annotations:
+    kustomize.toolkit.fluxcd.io/substitute: disabled
   creationTimestamp: null
   name: certwarden-apc-scripts
   namespace: infrastructure
