@@ -116,9 +116,6 @@ spec:
           - path: /scripts/refresh-series.sh
             subPath: refresh-series.sh
             readOnly: true
-          - path: /scripts/tag-codecs.sh
-            subPath: tag-codecs.sh
-            readOnly: true
       tmp:
         type: emptyDir
       media:

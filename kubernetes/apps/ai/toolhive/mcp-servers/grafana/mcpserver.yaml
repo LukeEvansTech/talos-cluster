@@ -5,7 +5,7 @@ kind: MCPServer
 metadata:
   name: grafana
 spec:
-  image: docker.io/grafana/mcp-grafana
+  image: docker.io/grafana/mcp-grafana:0.17.0@sha256:da49d967b72ebb4d08617295ef196b53b3294a9c1d484775dd3315190a166c55
   transport: stdio
   proxyMode: streamable-http
   proxyPort: 8080
