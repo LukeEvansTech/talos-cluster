@@ -5,5 +5,5 @@ kind: Kustomization
 resources:
   - ./ceph-network-packet-drops.yaml
   - ./etcd-alerts.yaml
-  - ./keda-nfs-scaler.yaml
+  - ./zeroscaler-hpa-maxed.yaml
   - ./zfs-storage-memory.yaml
