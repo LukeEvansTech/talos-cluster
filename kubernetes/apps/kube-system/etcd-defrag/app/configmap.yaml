@@ -19,7 +19,7 @@ data:
     echo "etcd Fragmentation Check & Defrag Script"
     echo "=========================================="
     echo "Start time: $(date)"
-    echo "Fragmentation threshold: ${FRAG_THRESHOLD}%"
+    echo "Fragmentation threshold: $${FRAG_THRESHOLD}%"
     echo ""
 
     # Control plane nodes
@@ -121,7 +121,7 @@ data:
         NODE_NAME=$(echo "$NODE_INFO" | cut -d: -f2)
 
         FRAG=$(get_fragmentation "$NODE")
-        echo "$NODE_NAME ($NODE): ${FRAG}% fragmentation"
+        echo "$NODE_NAME ($NODE): $${FRAG}% fragmentation"
 
         if [ "$FRAG" -gt "$MAX_FRAG" ] 2>/dev/null; then
             MAX_FRAG="$FRAG"
@@ -133,8 +133,8 @@ data:
     done
 
     echo ""
-    echo "Maximum fragmentation: ${MAX_FRAG}%"
-    echo "Threshold: ${FRAG_THRESHOLD}%"
+    echo "Maximum fragmentation: $${MAX_FRAG}%"
+    echo "Threshold: $${FRAG_THRESHOLD}%"
     echo ""
 
     if [ "$NEEDS_DEFRAG" = "true" ]; then
