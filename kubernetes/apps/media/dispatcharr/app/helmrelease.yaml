@@ -34,11 +34,13 @@ spec:
               tag: 0.27.0@sha256:3eea6de0ca75784f66be7edc1f90a6d5731600aad82d591ce44b284394318752
             env:
               TZ: ${TIMEZONE}
-              CELERY_BROKER_URL: redis://dragonfly.database.svc.cluster.local:6379/0
               DISPATCHARR_ENV: aio
               DISPATCHARR_LOG_LEVEL: info
               DISPATCHARR_PORT: &port 9191
               REDIS_HOST: dragonfly.database.svc.cluster.local
+            envFrom:
+              - secretRef:
+                  name: dispatcharr-secret
             resources:
               requests:
                 cpu: 50m
