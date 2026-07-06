@@ -20,7 +20,7 @@ install/upgrade/rollback defaults.
 ```text
 kubernetes/
   apps/<namespace>/<app>/      # ks.yaml (Flux entry point) + app/ (HelmRelease, sources, routes)
-  components/                  # reusable Kustomize components (global-vars, alerts, volsync, gatus, …)
+  components/                  # reusable Kustomize components (global-vars, alerts, volsync, homepage, …)
   flux/cluster/                # core Flux bootstrap (root Kustomization with global patches)
 bootstrap/                     # cluster bootstrap (just tasks + helmfile)
 talos/                         # Talos machine config (talconfig.yaml + patches)
@@ -31,8 +31,9 @@ talos/                         # Talos machine config (talconfig.yaml + patches)
 Every app follows the same shape:
 
 - `ks.yaml` is the Flux entry point. It uses YAML anchors (`&app`, `&namespace`, `*app`), sets
-  `targetNamespace`, and lists any `components` (`gatus/guarded`, `volsync`, `alerts`) plus their
-  `postBuild.substitute` values.
+  `targetNamespace`, and lists any `components` (`volsync`, `alerts`, `homepage`) plus their
+  `postBuild.substitute` values. (Gatus monitoring is automatic — the gatus-sidecar chart
+  auto-discovers HTTPRoutes, so there is no per-app `gatus/guarded` component anymore.)
 - Inside `app/`: a per-app chart source (`ocirepository.yaml` pointing at the bjw-s `app-template`
   for most apps), a `helmrelease.yaml`, an optional `externalsecret.yaml`, and usually an inline
   `route:` in the HelmRelease values rather than a standalone `httproute.yaml`.

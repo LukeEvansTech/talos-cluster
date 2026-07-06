@@ -28,8 +28,9 @@ bjw-s `app-template` deployment mirroring sibling apps (maintainerr, pulsarr).
   `CORS_ORIGINS` includes both the external-domain and internal-domain hostnames
   (`${SECRET_DOMAIN}` and `${SECRET_INTERNAL_DOMAIN}`) so the SPA's API calls are accepted
   regardless of which hostname the user browses to.
-- **Components:** `gatus/guarded` (health monitoring), `homepage` (dashboard tile under the
-  `Media` group, `mdi-broom` icon), and `volsync` (PVC backup). `VOLSYNC_CAPACITY: 2Gi` and
+- **Components:** `homepage` (dashboard tile under the
+  `Media` group, `mdi-broom` icon) and `volsync` (PVC backup). (Gatus monitoring is automatic via
+  the gatus-sidecar chart's HTTPRoute auto-discovery — no `gatus/guarded` component.) `VOLSYNC_CAPACITY: 2Gi` and
   `VOLSYNC_CACHE_CAPACITY: 1Gi` are the required substitutes for the volsync component
   (overriding the 5Gi/10Gi defaults).
 - **Deferred (out of scope):** external ingress, pre-seeding `JWT_SECRET`/`ENCRYPTION_KEY` via
