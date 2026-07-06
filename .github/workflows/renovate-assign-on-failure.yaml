@@ -18,7 +18,6 @@ on:
   # flags does not apply.
   workflow_run:
     workflows:
-      - "Flate"
       - "security-scans"
       - "Lint"
     types:
