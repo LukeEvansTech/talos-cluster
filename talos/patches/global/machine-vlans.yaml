@@ -1,0 +1,17 @@
+---
+# Host-side tagged VLAN subinterfaces on the node uplink (wan / enp1s0np0).
+# Each is used as the macvlan `master` for a Multus NAD in
+# kubernetes/apps/kube-system/multus/networks/. Interfaces carry NO host IP —
+# pods get addresses from the NAD's static IPAM. The uplink ports (Eth1/9/1-3)
+# already trunk these VLANs on the core switch (network-ops Gate C).
+#
+# To add a VLAN: append another VLANConfig block below (name: wan.<id>,
+# vlanID: <id>) and add the matching NAD file under multus/networks/.
+#
+# VLAN 68 — IoT-Trusted (10.32.68.0/23): Home Assistant, zigbee2mqtt, mosquitto
+apiVersion: v1alpha1
+kind: VLANConfig
+name: wan.68
+vlanID: 68
+parent: wan
+mtu: 1500
