@@ -1,3 +1,4 @@
+---
 apiVersion: v1
 data:
   certwarden-onyx-deploy.sh: |
@@ -145,6 +146,8 @@ data:
     fi
 kind: ConfigMap
 metadata:
+  annotations:
+    kustomize.toolkit.fluxcd.io/substitute: disabled
   creationTimestamp: null
   name: certwarden-onyx-scripts
   namespace: infrastructure
