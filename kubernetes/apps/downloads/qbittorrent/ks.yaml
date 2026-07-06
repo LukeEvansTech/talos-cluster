@@ -12,6 +12,7 @@ spec:
   components:
     - ../../../../components/homepage
     - ../../../../components/volsync
+    - ../../../../components/zeroscaler
   interval: 1h
   path: ./kubernetes/apps/downloads/qbittorrent/app
   postBuild:
