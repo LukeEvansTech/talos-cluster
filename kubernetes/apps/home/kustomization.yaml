@@ -11,13 +11,13 @@ resources:
   - ./netpol.yaml
   - ./esphome/ks.yaml
   - ./go2rtc/ks.yaml
-  - ./homeassistanttimemachine/ks.yaml
   - ./homeassistant/ks.yaml
+  - ./homeassistanttimemachine/ks.yaml
   - ./homebridge/ks.yaml
   - ./mosquitto/ks.yaml
   - ./node-red/ks.yaml
-  - ./shelly-prometheus-exporter/ks.yaml
   - ./shelly-fleet/ks.yaml
   - ./shelly-operator/ks.yaml
+  - ./shelly-prometheus-exporter/ks.yaml
   - ./zigbee2mqtt/ks.yaml
   - ./zwave/ks.yaml
