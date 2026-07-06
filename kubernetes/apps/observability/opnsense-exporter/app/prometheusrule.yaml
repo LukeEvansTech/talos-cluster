@@ -16,24 +16,27 @@ spec:
           for: 5m
           labels:
             severity: critical
-        # NOTE: confirm the gateway metric name/label encoding against live /metrics.
-        # AthennaMind exposes opnsense_gateways_status with a status label
-        # (e.g. "online"/"down"); adjust the matcher if your version differs.
+        # Gateway RTT monitoring is disabled on this OPNsense, so the loss/RTT
+        # value on opnsense_gateways_monitor_info isn't populated. The reliable
+        # down signal is the no_route label (set from the routing table when a
+        # gateway loses its default route), which is independent of monitoring.
+        # Enable gateway monitoring on the firewall to unlock loss/RTT alerting.
         - alert: OPNsenseGatewayDown
           annotations:
-            summary: "OPNsense gateway {{ $labels.name }} is not online (status {{ $labels.status }})."
+            summary: "OPNsense gateway {{ $labels.name }} has no route (down)."
           expr: |-
-            opnsense_gateways_status{job="opnsense-exporter", status!="online"} == 1
+            opnsense_gateways_monitor_info{job="opnsense-exporter", no_route="true"}
           for: 5m
           labels:
             severity: critical
         # Unbound (the resolver behind opnsense-dns / split-horizon) being down
-        # breaks internal name resolution cluster-wide.
+        # breaks internal name resolution cluster-wide. The exporter has no
+        # unbound-specific metric, so it surfaces via opnsense_services_status.
         - alert: OPNsenseUnboundDown
           annotations:
             summary: "OPNsense Unbound DNS service is not running."
           expr: |-
-            opnsense_unbound_uptime_seconds{job="opnsense-exporter"} == 0
+            opnsense_services_status{job="opnsense-exporter", name="unbound"} == 0
           for: 5m
           labels:
             severity: warning
