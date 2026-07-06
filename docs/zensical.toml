@@ -31,6 +31,7 @@ nav = [
     { "Networking" = "architecture/networking.md" },
     { "Split DNS" = "architecture/split-dns.md" },
     { "Storage" = "architecture/storage.md" },
+    { "Scaling" = "architecture/scaling.md" },
     { "Secrets" = "architecture/secrets.md" },
     { "AI / LLM stack" = "architecture/ai-llm-stack.md" },
   ] },
