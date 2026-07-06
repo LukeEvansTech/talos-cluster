@@ -15,7 +15,7 @@ Secrets never live in Git. They flow:
   app's `postBuild.substituteFrom`. Holds cluster-wide *sensitive* values, including
   `${SECRET_DOMAIN}`, `${SECRET_INTERNAL_DOMAIN}`, and internal device DNS names.
 - **`cluster-settings`** — a git-tracked ConfigMap (`components/global-vars/`) holding cluster-wide
-  *non-sensitive* values (e.g. the default Ollama model).
+  *non-sensitive* `${...}` values (non-secret feature flags and the like; currently empty).
 
 ## Rules for a public repo
 
