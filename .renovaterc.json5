@@ -130,6 +130,9 @@
         "/dcgm/", // dcgm / dcgm-exporter (no nvidia prefix)
         "/envoyproxy/", // Envoy Gateway: gateway-helm chart + envoy image
         "/1password/", // onepassword-connect: connect chart + connect-api + connect-sync
+        "/tuppr/", // drives Talos + Kubernetes node upgrades (system-upgrade)
+        "/volsync/", // backup mover (charts-mirror/volsync-perfectra1n)
+        "/snapshot-controller/", // CSI VolumeSnapshot controller (backup path)
       ],
       automerge: false,
     },
