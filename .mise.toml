@@ -32,7 +32,7 @@ run = "uv pip install -r requirements.txt"
 # before CI. Versions pinned to match super-linter@9e863354 (v8): bumping
 # super-linter may require bumping these in lockstep to avoid local/CI drift.
 "aqua:editorconfig-checker/editorconfig-checker" = "3.8.0"
-"aqua:fluxcd/flux2" = "2.9.0"
+"aqua:fluxcd/flux2" = "2.9.1"
 "aqua:google/yamlfmt" = "0.21.0"
 "aqua:helm/helm" = "4.2.2"
 "aqua:helmfile/helmfile" = "1.7.0"
