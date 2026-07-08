@@ -1,0 +1,29 @@
+---
+# Cosign keyless verification of Sidero-published images (issue #2340).
+#
+# As of 2026-07 Sidero signs ALL of ghcr.io/siderolabs/* and the Image Factory
+# boot path (factory.talos.dev/installer{,-secureboot}/*) with stable Google
+# service accounts (image-factory#417, talos#13178) — verified live with
+# cosign v3.1.1 against kubelet/flannel/extensions/installer and both factory
+# installer paths. Mirrors hack/test/patches/image-verification.yaml upstream.
+#
+# Scope is deliberately Sidero-only: images matching no rule are pulled
+# unverified as before (no deny rules), so this cannot brick pulls of
+# third-party images. Talos-side handling of the newer OCI-referrers signature
+# format is still buggy upstream (talos#13639), so quay.io/cilium etc. stay
+# out of scope until that settles.
+#
+# The subjectRegex for ghcr.io keeps the legacy personal-email identities as a
+# fallback: images published before the releasemgr-svc cutover (including some
+# tags still pinned by v1.13.x) are signed by @siderolabs.com engineers.
+apiVersion: v1alpha1
+kind: ImageVerificationConfig
+rules:
+  - image: "ghcr.io/siderolabs/*"
+    keyless:
+      issuer: "https://accounts.google.com"
+      subjectRegex: '(@siderolabs\.com$|^releasemgr-svc@talos-production\.iam\.gserviceaccount\.com$)'
+  - image: "factory.talos.dev/*"
+    keyless:
+      issuer: "https://accounts.google.com"
+      subject: "image-factory-signing@talos-production.iam.gserviceaccount.com"
