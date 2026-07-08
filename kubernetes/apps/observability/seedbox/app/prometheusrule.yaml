@@ -6,24 +6,46 @@ metadata:
   name: seedbox.rules
 spec:
   groups:
+    # Combined availability reading. seedbox:up:ratio = fraction of the 5 tailnet
+    # scrape sensors currently reachable (0..1). NB all 5 ride the same tailnet
+    # egress, so this measures MONITORING-PATH health, not true box-up — the
+    # independent public-IP blackbox probe (probe_success{job="seedbox-public"})
+    # is the box-up anchor. Dashboards graph both for the overall picture.
+    - name: seedbox.recording
+      rules:
+        - record: seedbox:up:ratio
+          expr: avg(up{instance="seedbox"})
     - name: seedbox.rules
       rules:
-        # This keys on the node-exporter scrape, which traverses the tailnet egress.
-        # That path is DERP-relay-prone and flaps (~12% of the time at baseline,
-        # ~25% during the monthly RAID scrub) while the box is alive and seeding on
-        # its public IP — so up==0 means "not scrapeable over the tailnet", NOT
-        # necessarily "box down". Measured 7d gap distribution: 877 flap-episodes,
-        # 43 exceeded 5m but only 2 exceeded 20m; longest was 36m; none were real
-        # outages. for:20m (paired with scrapeTimeout:30s in scrapeconfig.yaml) rides
-        # out the path blips — a genuine box outage is continuous and still pages in 20m.
+        # TRUE box-down: the blackbox TCP probe to the box's PUBLIC IP (probe.yaml),
+        # which does NOT traverse the tailnet. It stays up through DERP-relay scrape
+        # blips and drops only when the box is genuinely unreachable — so this finally
+        # means "box down", not "scrape path flapped" (the old up{seedbox-node}==0 keyed
+        # on the tailnet scrape and false-paged ~43x/week; that failure mode is now the
+        # SeedboxScrapePathDegraded warning below).
         - alert: SeedboxDown
           annotations:
-            summary: "Seedbox node-exporter unscrapeable for 20m — box down OR tailnet scrape path degraded (check public IP / qBit before assuming the box is down)."
+            summary: "Seedbox unreachable on its public IP for 5m — box is genuinely down (independent of the tailnet scrape path)."
           expr: |-
-            up{job="seedbox-node"} == 0
-          for: 20m
+            probe_success{job="seedbox-public"} == 0
+          for: 5m
           labels:
             severity: critical
+        # Box IS reachable on its public IP, but some/all tailnet metric scrapes are
+        # failing — a monitoring blind spot (DERP-relay flakiness / box I/O starving
+        # tailscaled), NOT an outage. This is what used to page as SeedboxDown; it is a
+        # warning now. `and on()` gates it on the box being up so it does not double-fire
+        # with SeedboxDown during a real outage.
+        - alert: SeedboxScrapePathDegraded
+          annotations:
+            summary: "Seedbox reachable on public IP but only {{ $value | humanizePercentage }} of tailnet scrapes are up for 20m — monitoring path degraded, not an outage."
+          expr: |-
+            (avg(up{instance="seedbox"}) < 1)
+            and on()
+            (probe_success{job="seedbox-public"} == 1)
+          for: 20m
+          labels:
+            severity: warning
         # The box can be up while the exporter's egress path to the qBittorrent
         # WebUI is broken; the existing QbittorrentExporterDown alert keys on
         # instance="qbittorrent" so it does not cover this scrape.
