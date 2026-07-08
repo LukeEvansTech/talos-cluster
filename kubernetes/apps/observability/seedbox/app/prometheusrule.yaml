@@ -27,12 +27,17 @@ spec:
         # The box can be up while the exporter's egress path to the qBittorrent
         # WebUI is broken; the existing QbittorrentExporterDown alert keys on
         # instance="qbittorrent" so it does not cover this scrape.
+        # The in-cluster exporter reaches the box's qBit WebUI over the same tailnet
+        # egress, so up==0 also flaps when qBit's API is slow (RAID-scrub iowait) or the
+        # path blips — not only when the exporter is truly down. for:20m rides that out
+        # (matches SeedboxDown); high-cardinality is off (helmrelease.yaml) so the qBit
+        # query no longer times out.
         - alert: SeedboxQbittorrentExporterDown
           annotations:
-            summary: "Seedbox qBittorrent exporter scrape is failing — exporter or its egress path to the WebUI is down."
+            summary: "Seedbox qBittorrent exporter unscrapeable for 20m — exporter down, qBit API slow, or tailnet path to the WebUI degraded."
           expr: |-
             up{job="seedbox-qbittorrent"} == 0
-          for: 10m
+          for: 20m
           labels:
             severity: warning
         # Prometheus retention is 14d → a calendar-month sum is not computable.
