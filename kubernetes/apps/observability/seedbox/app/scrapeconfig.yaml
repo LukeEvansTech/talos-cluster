@@ -11,6 +11,11 @@ spec:
         - seedbox.observability.svc.cluster.local:9100
   metricsPath: /metrics
   scrapeInterval: 60s
+  # The scrape path is the tailnet egress (DERP-relay-prone): scrapes average
+  # ~3.4s and, with the default 10s timeout, spike to the ceiling under torrent
+  # iowait → false up=0 flaps (~12% baseline, ~25% during the monthly RAID scrub).
+  # 30s (≤ interval) absorbs the slow-but-alive scrapes so they stop reading as down.
+  scrapeTimeout: 30s
   relabelings:
     - action: replace
       targetLabel: job
@@ -40,6 +45,7 @@ spec:
         - seedbox.observability.svc.cluster.local:8082
   metricsPath: /metrics
   scrapeInterval: 60s
+  scrapeTimeout: 30s # tailnet-egress scrapes are slow; 30s stops false up=0 (see node job)
   relabelings:
     - action: replace
       targetLabel: job
@@ -60,6 +66,7 @@ spec:
         - seedbox.observability.svc.cluster.local:9074
   metricsPath: /metrics
   scrapeInterval: 60s
+  scrapeTimeout: 30s # tailnet-egress scrapes are slow; 30s stops false up=0 (see node job)
   relabelings:
     - action: replace
       targetLabel: job
@@ -80,6 +87,7 @@ spec:
         - seedbox.observability.svc.cluster.local:9120
   metricsPath: /metrics
   scrapeInterval: 60s
+  scrapeTimeout: 30s # tailnet-egress scrapes are slow; 30s stops false up=0 (see node job)
   relabelings:
     - action: replace
       targetLabel: job
