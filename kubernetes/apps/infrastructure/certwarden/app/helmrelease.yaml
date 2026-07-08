@@ -55,6 +55,11 @@ spec:
                 memory: 2Gi
               limits:
                 memory: 2Gi
+    defaultPodOptions:
+      # The device cert-deploy post-process scripts run kubectl in-pod (create Secret +
+      # spawn deploy Job) with the certwarden SA's RBAC. app-template disables the token
+      # automount by default, which strands kubectl on localhost:8080 — mount it back.
+      automountServiceAccountToken: true
     service:
       app:
         controller: certwarden
