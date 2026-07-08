@@ -137,6 +137,40 @@ within a minor — v1.13.0 → v1.13.1 — don't need a talhelper update.)
 - Watch for a matching release at <https://github.com/budimanjojo/talhelper/releases>, then return
   to the normal `just talos gen-config` flow.
 
+### Image verification failures
+
+**Symptom:** an upgrade (or any image pull of a Sidero image) fails with:
+
+```text
+image verification failed: no valid signature found
+```
+
+Every node cosign-verifies `ghcr.io/siderolabs/*` and `factory.talos.dev/*` images at pull time —
+see [image verification](../architecture/image-verification.md) for the rules and identities.
+Upgrades pull the factory installer image through this check, so a verification failure blocks the
+upgrade before anything is written to disk.
+
+**Diagnosis order:**
+
+1. Verify the exact image manually and compare the signing identity against the rule:
+
+   ```bash
+   mise exec "aqua:sigstore/cosign@latest" -- cosign verify \
+     --certificate-oidc-issuer=https://accounts.google.com \
+     --certificate-identity=image-factory-signing@talos-production.iam.gserviceaccount.com \
+     "factory.talos.dev/installer-secureboot/<schematic>:<version>"
+   ```
+
+2. If cosign fails too, Sidero likely rotated its signing identity or changed signature format —
+   check recent `siderolabs/talos` and `siderolabs/image-factory` releases, update the identities
+   in `talos/patches/global/machine-image-verification.yaml`, regenerate and re-apply.
+3. If cosign succeeds but the node still rejects, suspect the Talos-side verifier (the
+   OCI-referrers format bug, siderolabs/talos#13639, is the known class of failure).
+
+**Emergency bypass:** drop the `machine-image-verification.yaml` line from the `patches` list in
+`talos/talconfig.yaml`, run `just talos gen-config`, apply to the affected node (no reboot), and
+restore it after the upgrade.
+
 ## Monitoring Upgrade Progress
 
 ```bash
