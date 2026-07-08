@@ -1,0 +1,27 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/probe_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: Probe
+metadata:
+  name: seedbox-public
+spec:
+  # True box-liveness: TCP-connect to the seedbox's PUBLIC datacenter IP, which does
+  # NOT traverse the tailnet egress the metric scrapes use. So probe_success stays up
+  # when only the tailnet path is flaky (DERP-relay blips) and drops only when the box
+  # is genuinely unreachable — letting SeedboxDown mean "box down", not "scrape blip".
+  # Port 22 (SSH) is the target: it is reliably open, load-bearing, and firewalled to
+  # stay so. Public IP comes from cluster-secrets (${SECRET_SEEDBOX_PUBLIC_IP}) — never
+  # a literal in this public repo.
+  jobName: seedbox-public
+  interval: 1m
+  module: tcp_connect
+  prober:
+    url: blackbox-exporter-lan.observability.svc.cluster.local:9115
+  targets:
+    staticConfig:
+      static:
+        - ${SECRET_SEEDBOX_PUBLIC_IP}:22
+  metricRelabelings:
+    - action: replace
+      replacement: seedbox
+      targetLabel: service
