@@ -33,6 +33,7 @@ nav = [
     { "Storage" = "architecture/storage.md" },
     { "Scaling" = "architecture/scaling.md" },
     { "Secrets" = "architecture/secrets.md" },
+    { "Image verification" = "architecture/image-verification.md" },
     { "AI / LLM stack" = "architecture/ai-llm-stack.md" },
   ] },
   { "Operations" = [
