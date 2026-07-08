@@ -78,20 +78,23 @@ url_api = "https://api.github.com/repos/cli/cli/releases/assets/464728562"
 provenance = "github-attestations"
 
 [[tools."aqua:cloudflare/cloudflared"]]
-version = "2026.6.1"
+version = "2026.7.0"
 backend = "aqua:cloudflare/cloudflared"
 
 [tools."aqua:cloudflare/cloudflared"."platforms.linux-arm64"]
-checksum = "sha256:59816ce9b16db71f5bc2a86d59b3632a96c8c3ee934bde2bc8641ee83a6070eb"
-url = "https://github.com/cloudflare/cloudflared/releases/download/2026.6.1/cloudflared-linux-arm64"
+checksum = "sha256:a4c14d1dfb4ea1092da4b64ede05fab7092ba8a424c7df1e7747f5232a4127ff"
+url = "https://github.com/cloudflare/cloudflared/releases/download/2026.7.0/cloudflared-linux-arm64"
+url_api = "https://api.github.com/repos/cloudflare/cloudflared/releases/assets/470277778"
 
 [tools."aqua:cloudflare/cloudflared"."platforms.linux-x64"]
-checksum = "sha256:5861a10a438fe8ddcfebb3b830f83966cbf193edafce0fe2eeb198fbae1f7a22"
-url = "https://github.com/cloudflare/cloudflared/releases/download/2026.6.1/cloudflared-linux-amd64"
+checksum = "sha256:434a04eb237e07d3d4146fc44acdbb411260a94fcb01764f454abe38a09503f3"
+url = "https://github.com/cloudflare/cloudflared/releases/download/2026.7.0/cloudflared-linux-amd64"
+url_api = "https://api.github.com/repos/cloudflare/cloudflared/releases/assets/470277658"
 
 [tools."aqua:cloudflare/cloudflared"."platforms.macos-arm64"]
-checksum = "sha256:f6d4c439c6c782b83264951d327989ce5e23373acc5942b872411601fedb020d"
-url = "https://github.com/cloudflare/cloudflared/releases/download/2026.6.1/cloudflared-darwin-arm64.tgz"
+checksum = "sha256:276f4ae3119c88d1708b0f884a35a1c87d9ae459b0dab6313f2daddbddab2bec"
+url = "https://github.com/cloudflare/cloudflared/releases/download/2026.7.0/cloudflared-darwin-arm64.tgz"
+url_api = "https://api.github.com/repos/cloudflare/cloudflared/releases/assets/470278040"
 
 [[tools."aqua:cue-lang/cue"]]
 version = "0.17.0"
