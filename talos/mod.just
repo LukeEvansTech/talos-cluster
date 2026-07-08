@@ -6,18 +6,24 @@ set quiet := true
 set script-interpreter := ['bash', '-euo', 'pipefail']
 set shell := ['bash', '-euo', 'pipefail', '-c']
 
-[doc('Generate Talos configuration with talhelper')]
+[doc('Generate Talos configuration with talhelper (secrets from 1Password)')]
 gen-config:
     just log info "Generating Talos configuration..." "stage" "{{ recipe_name() }}"
-    talhelper genconfig --config-file "{{ source_directory() }}/talconfig.yaml" --secret-file "{{ source_directory() }}/talsecret.sops.yaml" --out-dir "{{ source_directory() }}/clusterconfig"
+    TALSECRET=$(mktemp)
+    trap 'rm -f "${TALSECRET}"' EXIT
+    op document get talsecret --vault Talos > "${TALSECRET}"
+    talhelper genconfig --config-file "{{ source_directory() }}/talconfig.yaml" --secret-file "${TALSECRET}" --out-dir "{{ source_directory() }}/clusterconfig"
 
-[doc('Generate secret if missing')]
+[doc('Generate secret if missing (stored as the talsecret document in 1Password)')]
 gen-secret:
-    if [ ! -f "{{ source_directory() }}/talsecret.sops.yaml" ]; then
-        just log info "Generating Talos secret..." "stage" "{{ recipe_name() }}"
-        talhelper gensecret | sops --filename-override talos/talsecret.sops.yaml --encrypt - > "{{ source_directory() }}/talsecret.sops.yaml"
+    if op document get talsecret --vault Talos > /dev/null 2>&1; then
+        just log info "Talos secret already exists in 1Password" "stage" "{{ recipe_name() }}"
     else
-        just log info "Talos secret already exists" "stage" "{{ recipe_name() }}"
+        just log info "Generating Talos secret..." "stage" "{{ recipe_name() }}"
+        TALSECRET=$(mktemp)
+        trap 'rm -f "${TALSECRET}"' EXIT
+        talhelper gensecret > "${TALSECRET}"
+        op document create "${TALSECRET}" --vault Talos --title talsecret --file-name talsecret.yaml > /dev/null
     fi
 
 [doc('Apply Talos config to a specific node')]
