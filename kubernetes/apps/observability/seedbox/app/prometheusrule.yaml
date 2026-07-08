@@ -8,12 +8,20 @@ spec:
   groups:
     - name: seedbox.rules
       rules:
+        # This keys on the node-exporter scrape, which traverses the tailnet egress.
+        # That path is DERP-relay-prone and flaps (~12% of the time at baseline,
+        # ~25% during the monthly RAID scrub) while the box is alive and seeding on
+        # its public IP — so up==0 means "not scrapeable over the tailnet", NOT
+        # necessarily "box down". Measured 7d gap distribution: 877 flap-episodes,
+        # 43 exceeded 5m but only 2 exceeded 20m; longest was 36m; none were real
+        # outages. for:20m (paired with scrapeTimeout:30s in scrapeconfig.yaml) rides
+        # out the path blips — a genuine box outage is continuous and still pages in 20m.
         - alert: SeedboxDown
           annotations:
-            summary: "Seedbox node-exporter is not being scraped — box or tailnet path down."
+            summary: "Seedbox node-exporter unscrapeable for 20m — box down OR tailnet scrape path degraded (check public IP / qBit before assuming the box is down)."
           expr: |-
             up{job="seedbox-node"} == 0
-          for: 5m
+          for: 20m
           labels:
             severity: critical
         # The box can be up while the exporter's egress path to the qBittorrent
