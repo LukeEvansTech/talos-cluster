@@ -41,6 +41,7 @@ nav = [
     { "Backups" = "operations/backups.md" },
     { "Device monitoring" = "operations/device-monitoring.md" },
     { "TrueNAS monitoring" = "operations/truenas-monitoring.md" },
+    { "jory home-ops adoption" = "operations/jory-homeops-adoption.md" },
   ] },
   { "Migrations" = [
     { "Envoy Gateway" = "migrations/envoy-gateway.md" },
@@ -85,6 +86,7 @@ nav = [
       { "021: Grafana blank panels (datasource case)" = "troubleshooting/kb/021-grafana-dashboard-panels-blank-datasource-case.md" },
       { "022: s6 image non-root CreateContainerConfigError" = "troubleshooting/kb/022-s6-image-createcontainerconfigerror-non-root.md" },
       { "023: Node conntrack saturation (scanner)" = "troubleshooting/kb/023-node-conntrack-saturation-host-network-scanner.md" },
+      { "024: CephFS modprobe built-in misdiagnosis" = "troubleshooting/kb/024-cephfs-modprobe-builtin-misdiagnosis.md" },
     ] },
   ] },
   { "FAQ" = "faq.md" },
