@@ -28,8 +28,10 @@ spec:
             grafana.internal/instance: grafana
     # credentialProjection is intentionally left at its chart default (disabled).
     # Movers now read KOPIA_PASSWORD from a per-namespace ExternalSecret
-    # (components/kopiur/secret) instead of the operator copying it in — cleaner
-    # RBAC (no unscoped secrets create/patch). Webhook is left at chart defaults
+    # (components/kopiur/secret) instead of the operator copying credentials
+    # into app namespaces. NOTE: the chart still grants cluster-wide secrets
+    # create/update/patch either way (self-managed webhook TLS rotation), so
+    # the ESO win is behavioural, not RBAC. Webhook is left at chart defaults
     # (enabled, self-managed TLS, failurePolicy: Fail) and unmonitored.
     # No controller repo mount: maintenance/verification run in mover pods that
     # get the backend from the ClusterRepository, and coupling controller
