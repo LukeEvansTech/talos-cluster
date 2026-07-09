@@ -12,6 +12,7 @@ spec:
   components:
     - ../../../../components/homepage
     - ../../../../components/volsync
+    - ../../../../components/zeroscaler
   dependsOn:
     - name: rook-ceph-cluster
       namespace: rook-ceph

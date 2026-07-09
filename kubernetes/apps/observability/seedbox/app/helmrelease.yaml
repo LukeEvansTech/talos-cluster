@@ -24,15 +24,43 @@ spec:
               QBITTORRENT_BASE_URL: http://seedbox.observability.svc.cluster.local:8080
               QBITTORRENT_COOKIE_NAME: QBT_SID_8080
               EXPORTER_PORT: &port 9710
-              ENABLE_HIGH_CARDINALITY: "true"
+              # 2026-07-08: the exporter did a PER-TORRENT tracker fetch (~500 qBit API calls,
+              # one per torrent). Under RAID-scrub iowait qBit is too slow to serve that, so the
+              # exporter blocked BEFORE opening :9710 → the (1s) liveness probe saw connection
+              # refused and killed it → crashloop, up=0, SeedboxQbittorrentExporterDown. Disabling
+              # the tracker features (no dashboard uses tracker metrics/labels) leaves one cheap
+              # bulk torrents/info call, so it binds and serves fast even while the box is busy.
+              ENABLE_TRACKER: "false"
+              ENABLE_LABEL_WITH_TRACKER: "false"
+              # high-cardinality (qbittorrent_torrent_info + qbittorrent_tracker_info) also unused.
+              ENABLE_HIGH_CARDINALITY: "false"
             envFrom:
               - secretRef:
                   name: seedbox-qbittorrent-exporter-secret
+            # Default app-template probe (tcp :9710, timeout 1s, no delay, 3 failures) is too
+            # tight for this box: the exporter's startup qBit fetch can lag under torrent iowait,
+            # tripping liveness before it binds. Give it startup room so it isn't killed mid-fetch.
             probes:
               liveness:
                 enabled: true
+                custom: true
+                spec:
+                  tcpSocket:
+                    port: *port
+                  initialDelaySeconds: 30
+                  periodSeconds: 20
+                  timeoutSeconds: 5
+                  failureThreshold: 5
               readiness:
                 enabled: true
+                custom: true
+                spec:
+                  tcpSocket:
+                    port: *port
+                  initialDelaySeconds: 15
+                  periodSeconds: 20
+                  timeoutSeconds: 5
+                  failureThreshold: 5
             resources:
               requests:
                 cpu: 10m

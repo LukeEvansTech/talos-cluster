@@ -18,21 +18,20 @@ description = "Install Python dependencies"
 run = "uv pip install -r requirements.txt"
 
 [tools]
-"aqua:FiloSottile/age" = "1.3.1"
 "aqua:budimanjojo/talhelper" = "3.1.12"
 # ≥1.52 required by the justfiles (default-list/default-script settings;
 # recipe_name() needs 1.53). Explicit pin so Renovate manages bumps.
 "aqua:casey/just" = "1.55.1"
 "aqua:charmbracelet/gum" = "latest"
 "aqua:cli/cli" = "2.96.0"
-"aqua:cloudflare/cloudflared" = "2026.6.1"
+"aqua:cloudflare/cloudflared" = "2026.7.0"
 "aqua:cue-lang/cue" = "0.17.0"
 # editorconfig-checker / yamllint / codespell / markdownlint-cli mirror the
 # linters super-linter v8 bundles, so lefthook catches their findings locally
 # before CI. Versions pinned to match super-linter@9e863354 (v8): bumping
 # super-linter may require bumping these in lockstep to avoid local/CI drift.
 "aqua:editorconfig-checker/editorconfig-checker" = "3.8.0"
-"aqua:fluxcd/flux2" = "2.9.0"
+"aqua:fluxcd/flux2" = "2.9.1"
 "aqua:google/yamlfmt" = "0.21.0"
 "aqua:helm/helm" = "4.2.2"
 "aqua:helmfile/helmfile" = "1.7.0"
@@ -50,7 +49,7 @@ run = "uv pip install -r requirements.txt"
 "github:home-operations/flate" = "latest"
 "github:home-operations/yayamlls" = "latest"
 python = "3.14.6"
-uv = "0.11.26"
+uv = "0.11.28"
 node = "24"
 "npm:markdownlint-cli" = "0.49.0"
 "npm:prettier" = "3"

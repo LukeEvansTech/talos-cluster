@@ -47,10 +47,10 @@ snapshot:
         kubectl -n "$ns" patch replicationsources "$name" --type merge -p '{"spec":{"trigger":{"manual":"$(date +%s)"}}}'
     done
 
-[doc('Suspend or resume Keda ScaledObjects')]
-keda state:
-    kubectl get scaledobjects --no-headers -A | while read -r ns name _; do
-        kubectl -n "$ns" annotate --field-manager flux-client-side-apply --overwrite so "$name" autoscaling.keda.sh/paused{{ if state != "suspend" { "-" } else { "=true" } }}
+[doc('Pin (suspend) or release (resume) zeroscaler HPAs during node drains')]
+zeroscaler state:
+    kubectl get hpa -A -l app.kubernetes.io/part-of=zeroscaler --no-headers | while read -r ns name _; do
+        kubectl -n "$ns" patch hpa "$name" --type merge -p '{"spec":{"minReplicas":{{ if state == "suspend" { "1" } else { "0" } }}}}'
     done
 
 [doc('Suspend or resume VolSync')]
