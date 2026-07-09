@@ -24,22 +24,30 @@ spec:
       key: KOPIA_PASSWORD
   create:
     enabled: true
-  credentialProjection:
-    # Owner-side grant matching the components' credentialProjection.enabled —
-    # lets mover Jobs in allowed namespaces receive the repository credentials.
-    allowed: true
+  # credentialProjection dropped (0.6.0 still supports it): movers now read
+  # KOPIA_PASSWORD from a per-namespace ExternalSecret (components/kopiur/secret)
+  # dropped into each backup namespace, rather than the operator copying it in.
   allowedNamespaces:
     # Trial scope: the namespace holding the trial apps (apprise, atuin) PLUS
     # the operator's own namespace — the managed Maintenance CR is created in
-    # kopiur-system and is webhook-gated by this same list (onedr0p hit the
-    # identical issue, home-ops 90232c18). Widen after the evaluation period.
+    # kopiur-system and is webhook-gated by this same list. Widen after the
+    # evaluation period.
     list:
       - default
       - kopiur-system
   identityDefaults:
+    # Unchanged from the 0.4.x trial so existing snapshots stay addressable
+    # under the same kopia identity across the bump.
     hostnameExpr: namespace
     usernameExpr: namespace + '-' + policyName
+  scheduleDefaults:
+    # Timezone now lives here (DRY) instead of per SnapshotSchedule.
+    timezone: Europe/London
   moverDefaults:
+    # cache/scratch left unset on purpose: both fall back to an emptyDir,
+    # which fits the tiny trial apps. Size real PVCs only when bigger apps
+    # join (cache CRD example: 10Gi; deep-verify scratch must hold a FULL
+    # restore) — token values like 1Mi would ENOSPC immediately.
     securityContext:
       runAsUser: 1000
       runAsGroup: 1000
