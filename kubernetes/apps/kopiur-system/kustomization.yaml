@@ -8,9 +8,9 @@ components:
   - ../../components/alerts
 resources:
   - ./namespace.yaml
-  # Trial paused (mirrors upstream home-ops ea1c153) pending the volsync →
-  # kopiur migration decision. NOTE: pruning the HelmRelease helm-uninstalls
-  # the templated CRDs (installCRDs trade-off), cascading every kopiur CR;
-  # Snapshot finalizers need manual cleanup once the operator is gone. The
-  # NAS repo data is untouched — re-enabling reconnects to the same repo.
-  # - ./kopiur/ks.yaml
+  # Trial resumed on 0.7.0 (fresh install — the pause fully removed the
+  # operator, CRDs, and CRs, so the 0.5.x→0.6.0 CRD keep-annotation migration
+  # does not apply; 0.7.0's crds/ directory installs cleanly). The NAS repo
+  # data survived the pause — the ClusterRepository reconnects to the same
+  # /kopiur kopia repo under the unchanged identityDefaults.
+  - ./kopiur/ks.yaml
