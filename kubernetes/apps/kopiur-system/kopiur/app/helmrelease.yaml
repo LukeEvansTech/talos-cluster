@@ -12,8 +12,9 @@ spec:
   values:
     installScope: cluster
     # 0.6.0 folded metrics.serviceMonitor / metrics.prometheusRule /
-    # grafanaDashboard.* under a single `monitoring:` umbrella — the ONLY
-    # breaking values change in the 0.4.8 -> 0.6.0 bump.
+    # grafanaDashboard.* under a single `monitoring:` umbrella — the only
+    # breaking values change in the 0.4.8 -> 0.7.0 jump (0.7.0's breaks are
+    # Rust-dep churn + replication-mover credentials, neither used here).
     monitoring:
       serviceMonitor:
         enabled: true
@@ -30,18 +31,10 @@ spec:
     # (components/kopiur/secret) instead of the operator copying it in — cleaner
     # RBAC (no unscoped secrets create/patch). Webhook is left at chart defaults
     # (enabled, self-managed TLS, failurePolicy: Fail) and unmonitored.
-    #
-    # Repo mounted into the controller for in-controller maintenance/verify in
-    # 0.6.0 (movers still get the backend via the ClusterRepository). Same
-    # /kopiur NFS-subdir isolation as the ClusterRepository backend below.
-    extraVolumes:
-      - name: repo
-        nfs:
-          server: ${SECRET_STORAGE_SERVER}
-          path: ${SECRET_STORAGE_SERVER_VOLSYNC_NFS}/kopiur
-    extraVolumeMounts:
-      - name: repo
-        mountPath: /repo
+    # No controller repo mount: maintenance/verification run in mover pods that
+    # get the backend from the ClusterRepository, and coupling controller
+    # liveness to NFS would be a self-inflicted outage mode (upstream home-ops
+    # runs 0.7.0 without one).
     podSecurityContext:
       runAsNonRoot: true
       runAsUser: 1000

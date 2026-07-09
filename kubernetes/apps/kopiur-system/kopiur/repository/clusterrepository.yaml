@@ -44,15 +44,10 @@ spec:
     # Timezone now lives here (DRY) instead of per SnapshotSchedule.
     timezone: Europe/London
   moverDefaults:
-    # Tiny ephemeral cache/scratch on node-local storage — kopia needs a cache
-    # dir but the repo is remote (NFS), so movers don't need real PVCs.
-    cache:
-      capacity: 1Mi
-      mode: Ephemeral
-      storageClassName: openebs-hostpath
-    scratch:
-      capacity: 1Mi
-      storageClassName: openebs-hostpath
+    # cache/scratch left unset on purpose: both fall back to an emptyDir,
+    # which fits the tiny trial apps. Size real PVCs only when bigger apps
+    # join (cache CRD example: 10Gi; deep-verify scratch must hold a FULL
+    # restore) — token values like 1Mi would ENOSPC immediately.
     securityContext:
       runAsUser: 1000
       runAsGroup: 1000

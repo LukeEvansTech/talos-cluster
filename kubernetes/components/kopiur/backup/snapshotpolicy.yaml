@@ -5,7 +5,7 @@ kind: SnapshotPolicy
 metadata:
   name: ${APP}
   annotations:
-    # Permit re-identifying pre-existing (0.4.x trial) snapshots on the 0.6.0
+    # Permit re-identifying pre-existing (0.4.x trial) snapshots on the 0.7.0
     # bump without the controller erroring, should the default identity
     # computation differ. No-op while identityDefaults stays unchanged.
     kopiur.home-operations.com/allow-identity-change: "true"
