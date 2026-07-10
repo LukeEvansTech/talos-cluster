@@ -1,0 +1,98 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/batch/cronjob_v1.json
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: sabnzbd-complete-cleanup
+  namespace: downloads
+spec:
+  schedule: "30 4 * * 0"
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      ttlSecondsAfterFinished: 86400
+      activeDeadlineSeconds: 1800
+      template:
+        metadata:
+          labels:
+            app: sabnzbd-complete-cleanup
+        spec:
+          restartPolicy: OnFailure
+          automountServiceAccountToken: false
+          containers:
+            - name: cleanup
+              image: docker.io/python:3.14-alpine@sha256:26730869004e2b9c4b9ad09cab8625e81d256d1ce97e72df5520e806b1709f92
+              command:
+                - "python3"
+                - "-c"
+              args:
+                - |
+                  import os, shutil, sys, time
+
+                  # Job folders that survive this long in complete/ were never
+                  # imported by an arr (blocked import, queue item removed
+                  # without client cleanup, ...) and are dead weight — SAB's own
+                  # history retention is 7d, so nothing this old is in flight.
+                  ROOT = "/complete"
+                  CUTOFF = time.time() - 7 * 86400
+
+                  removed = kept = failed = 0
+                  freed = 0
+                  for cat in sorted(os.listdir(ROOT)):
+                      catdir = os.path.join(ROOT, cat)
+                      if not os.path.isdir(catdir):
+                          continue
+                      for entry in sorted(os.scandir(catdir), key=lambda e: e.name):
+                          if not entry.is_dir(follow_symlinks=False):
+                              continue
+                          if entry.stat(follow_symlinks=False).st_mtime >= CUTOFF:
+                              kept += 1
+                              continue
+                          size = 0
+                          for dirpath, _, files in os.walk(entry.path):
+                              for f in files:
+                                  try:
+                                      size += os.lstat(os.path.join(dirpath, f)).st_size
+                                  except OSError:
+                                      pass
+                          try:
+                              shutil.rmtree(entry.path)
+                              removed += 1
+                              freed += size
+                              print(f"removed {cat}/{entry.name}", flush=True)
+                          except OSError as e:
+                              failed += 1
+                              print(f"FAILED {cat}/{entry.name}: {e}", file=sys.stderr, flush=True)
+
+                  print(f"done: removed={removed} kept={kept} failed={failed} freed={freed / 2**30:.1f}GiB", flush=True)
+                  sys.exit(1 if failed else 0)
+              volumeMounts:
+                - name: complete
+                  mountPath: /complete
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 32Mi
+                limits:
+                  cpu: 100m
+                  memory: 128Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                # Matches the sabnzbd pod so it can delete 1000:1000-owned job dirs
+                runAsUser: 1000
+                runAsGroup: 1000
+                capabilities:
+                  drop:
+                    - "ALL"
+          securityContext:
+            seccompProfile:
+              type: RuntimeDefault
+          volumes:
+            - name: complete
+              nfs:
+                server: ${SECRET_STORAGE_SERVER:-localhost}
+                path: /mnt/pool/media/downloads/usenet/sabnzbd/complete
