@@ -14,6 +14,7 @@ resources:
   - ./homeassistant/ks.yaml
   - ./homeassistanttimemachine/ks.yaml
   - ./homebridge/ks.yaml
+  - ./matter-server/ks.yaml
   - ./mosquitto/ks.yaml
   - ./node-red/ks.yaml
   - ./shelly-fleet/ks.yaml
