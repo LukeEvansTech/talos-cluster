@@ -9,6 +9,7 @@ components:
 resources:
   - ./namespace.yaml
   - ./netpol.yaml
+  - ./hermes/ks.yaml
   - ./litellm/ks.yaml
   - ./llmkube/ks.yaml
   - ./memini/ks.yaml
