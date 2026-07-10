@@ -436,6 +436,16 @@
       pinDigests: false,
     },
     {
+      // ImageVerificationConfig `image:` fields are GLOB PATTERNS matched by
+      // Talos against the registry+repository portion of a pulled ref (never
+      // the tag or digest). Appending `@sha256:...` produces a pattern no
+      // image context can ever match, silently disabling cosign verification
+      // for factory installer images (see PR #3465).
+      description: "Don't pin digests on ImageVerificationConfig glob patterns",
+      matchFileNames: ["talos/patches/global/machine-image-verification.yaml"],
+      pinDigests: false,
+    },
+    {
       // pulsarr upstream (github.com/jamcalli/Pulsarr) is still on 0.15.x.
       // Stray 1.x tags appeared on Docker Hub (1.1.5, 1.1.6) and were pulled.
       // Block the whole 1.x major until upstream legitimately ships a 1.0 release.
