@@ -1,7 +1,13 @@
 # joryirving/home-ops Adoption Roadmap
 
-**Status:** Planned 2026-07-09 (multi-agent gap analysis + adversarial review, verified against
-the live cluster). Nothing below is implemented yet — this page is the pick-up point.
+**Status:** Largely SHIPPED 2026-07-10. PRs A–E landed as #3480–#3484 (+ follow-up fixes
+#3488 mcp-searxng bind / arr telemetry, #3492 cache-prep securityContext), seerr MCP as #3491,
+and PR G as the staged #3489 (operator 0.9.3) → #3490 (shared cache + abliterated model) →
+#3493 (vision model, first-class mmproj) with both models verified serving from the shared
+CephFS cache (text + vision end-to-end). The CephFS RWX smoke test passed on 2026-07-10.
+Still open: **ha MCP** (awaiting a user-created read-only Home Assistant token in 1Password),
+**PR F** (optional CPU auxiliary model), and **foreman** (parked — re-evaluate now CephFS is
+proven). Planned 2026-07-09 via multi-agent gap analysis + adversarial review.
 
 A survey of [joryirving/home-ops](https://github.com/joryirving/home-ops) (`kubernetes/apps/base/llm`
 and `.agents`) against this cluster. Most of his stack was already ported (open-webui, litellm,
@@ -35,13 +41,13 @@ except where noted.
 
 | PR  | Contents                                                                | Blockers / prerequisites                        |
 | --- | ----------------------------------------------------------------------- | ----------------------------------------------- |
-| A   | LLM observability: litellm PrometheusRule, ToolHive telemetry, llama.cpp serving dashboard | none                         |
-| B   | Config cherry-picks: SearXNG hardening, litellm `context_window_fallbacks`, add-app SKILL.md wording | none               |
-| C   | MCP servers over existing apps: arr + ha (+ optional seerr), with netpol rules | HA token in 1Password; pinnable images   |
-| D   | CephFS enablement + comment corrections + RWX smoke test                 | none                                            |
-| E   | hermes                                                                   | `hermes-agent` 1Password item; decisions below  |
+| A   | ✅ #3480 — LLM observability: litellm PrometheusRule, ToolHive telemetry, llama.cpp serving dashboard | none              |
+| B   | ✅ #3481 — Config cherry-picks: SearXNG hardening, litellm `context_window_fallbacks`, add-app SKILL.md wording | none    |
+| C   | ✅ #3482 arr (+ seerr #3491) — MCP servers over existing apps, with netpol rules; **ha still open** | HA token in 1Password |
+| D   | ✅ #3483 — CephFS enablement + comment corrections; RWX smoke test PASSED 2026-07-10 | none                              |
+| E   | ✅ #3484 — hermes (gateway + dashboard baseline, no chat platforms)      | none — item created, defaults applied           |
 | F   | (optional) CPU-served ~4B auxiliary model                                | none                                            |
-| G   | Model-storage de-workaround (shared CephFS model cache)                  | PR D merged + smoke test green                  |
+| G   | ✅ #3489/#3490/#3493 — model-storage de-workaround (shared CephFS cache); both models cache-served, vision verified | none |
 
 ### PR A — LLM observability
 

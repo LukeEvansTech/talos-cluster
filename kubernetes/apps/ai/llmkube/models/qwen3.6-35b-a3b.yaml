@@ -1,19 +1,4 @@
 ---
-# ROLLBACK ONLY: kept until the shared-cache cutover is proven for this model;
-# revert the Model source to pvc://llama-nvidia-models/… (and restore the
-# --mmproj /model-source/mmproj-F16.gguf extraArg) to serve from this again.
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: llama-nvidia-models
-spec:
-  accessModes:
-    - ReadWriteOnce
-  storageClassName: ceph-block
-  resources:
-    requests:
-      storage: 40Gi # ~18Gi GGUF + ~1.4Gi mmproj + headroom
----
 # Model: operator-managed HF repo source. The operator stages the GGUF and the
 # mmproj projector into the shared llmkube-model-cache PVC (CephFS RWX) and
 # passes the projector to the runtime itself — no staging Job, no hand-rolled
