@@ -24,4 +24,8 @@ spec:
       enabled: false
     prometheus:
       inferencePodMonitor:
-        enabled: true
+        # Deliberately off: the hand-rolled llmkube-models ServiceMonitor (with
+        # targetLabels for per-backend dashboard filtering) is the single scrape
+        # path for the llama.cpp backends. Enabling this too would scrape every
+        # pod twice under a second job label and double llamacpp:* series.
+        enabled: false

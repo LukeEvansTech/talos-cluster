@@ -67,8 +67,8 @@ spec:
     # `self-hosted`. `up` is the per-target scrape health already produced by the
     # llmkube-models ServiceMonitor (service label = the InferenceService's
     # Service name, e.g. llama-nvidia / llama-uncensored). max by (service)
-    # collapses the ServiceMonitor + operator PodMonitor targets so it only fires
-    # when every scrape of a backend is unreachable. A long `for:` absorbs pod
+    # collapses multiple scrape endpoints of a backend so it only fires when
+    # every scrape of that backend is unreachable. A long `for:` absorbs pod
     # restarts and cold GGUF loads (the startup probe allows a lengthy first
     # load); a fully-scaled-to-zero pod drops its endpoint and would go stale
     # rather than up==0, which is out of scope for this cheap check.
