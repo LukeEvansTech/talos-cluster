@@ -1,0 +1,53 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/configmap.json
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hermes-config
+  namespace: ai
+data:
+  # NOTE: `$${VAR}` is intentional. Flux postBuild collapses it to a literal
+  # `${VAR}`, which Hermes' own config loader (_expand_env_vars) then resolves
+  # against the pod environment (populated by envFrom the `hermes` Secret) at
+  # startup. A single `${VAR}` would be consumed — and blanked — by Flux first.
+  config.yaml: |-
+    model:
+      default: self-hosted
+      provider: litellm
+    providers:
+      # LiteLLM's OpenAI-compatible surface. `self-hosted` is the local
+      # llama.cpp model group; LiteLLM handles its own cloud fallback.
+      litellm:
+        base_url: http://litellm.ai.svc.cluster.local:4000/v1
+        api_key: $${LITELLM_MASTER_KEY}
+    terminal:
+      backend: local
+      cwd: /opt/data/workspace
+      timeout: 180
+      persistent_shell: true
+    memory:
+      provider: memini
+    approvals:
+      # manual: every flagged terminal command is queued for approval. Hermes
+      # has a terminal + cluster-adjacent MCP tools, so the Pod is the only
+      # trust boundary — no unattended actions.
+      mode: manual
+    security:
+      redact_secrets: true
+    privacy:
+      redact_pii: true
+    mcp_servers:
+      # Wired directly to each ToolHive MCP proxy Service (same namespace), not
+      # the LiteLLM /mcp aggregate. All read-only.
+      kubectl:
+        url: http://mcp-kubectl.ai.svc.cluster.local:8000/mcp
+      flux:
+        url: http://mcp-flux.ai.svc.cluster.local:8000/mcp
+      talos:
+        url: http://mcp-talos-mcp.ai.svc.cluster.local:8080/mcp
+      searxng:
+        url: http://mcp-searxng.ai.svc.cluster.local:3000/mcp
+      github:
+        url: http://mcp-github-proxy.ai.svc.cluster.local:8080/mcp
+      grafana:
+        url: http://mcp-grafana-proxy.ai.svc.cluster.local:8080/mcp
