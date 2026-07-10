@@ -1,19 +1,4 @@
 ---
-# ROLLBACK ONLY: kept until the shared-cache cutover is proven; revert the Model
-# source to pvc://llama-uncensored-models/… to serve from this again. Remove
-# once the cache-served pod has been healthy for a while.
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: llama-uncensored-models
-spec:
-  accessModes:
-    - ReadWriteOnce
-  storageClassName: ceph-block
-  resources:
-    requests:
-      storage: 30Gi # ~17Gi GGUF + headroom
----
 # Model: operator-managed HF repo source. The operator stages the GGUF into the
 # shared llmkube-model-cache PVC (CephFS RWX) itself — the curl staging Job this
 # file used to carry is gone with it.
