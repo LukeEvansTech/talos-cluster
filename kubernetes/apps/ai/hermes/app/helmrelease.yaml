@@ -118,6 +118,12 @@ spec:
             port: *dashboard_port
     route:
       app:
+        annotations:
+          # The dashboard 302-redirects to its login (basic-auth), so gatus'
+          # default 200 check marks it down. Anything below 400 = route,
+          # Service, and pod are alive.
+          gatus.home-operations.com/endpoint: |-
+            conditions: ["[STATUS] < 400"]
         hostnames:
           - "{{ .Release.Name }}.${SECRET_DOMAIN}"
         parentRefs:
