@@ -17,11 +17,19 @@ spec:
     remediation:
       retries: 3
   values:
-    # Model weights now come from per-model RWO ceph-block PVCs (pvc:// sources),
-    # staged by one-off hf-download Jobs. Talos has no ceph kernel module and
-    # cannot mount CephFS, so the shared modelCache is disabled.
+    # Shared RWX model cache on CephFS: the operator provisions one
+    # llmkube-model-cache PVC and stages remote model sources into it itself,
+    # so any node can serve any model without re-staging. The old per-model RWO
+    # ceph-block PVCs + curl staging Jobs existed only because of the "Talos has
+    # no ceph kernel module" misdiagnosis (KB-025) — CephFS mounts natively.
+    # 100Gi: ~35Gi of GGUFs today + headroom; weights are re-downloadable, so
+    # the cache carries no VolSync.
     modelCache:
-      enabled: false
+      enabled: true
+      mode: shared
+      accessMode: ReadWriteMany
+      storageClass: ceph-filesystem
+      size: 100Gi
     prometheus:
       inferencePodMonitor:
         # Deliberately off: the hand-rolled llmkube-models ServiceMonitor (with
