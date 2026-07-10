@@ -119,11 +119,14 @@ spec:
     route:
       app:
         annotations:
-          # The dashboard 302-redirects to its login (basic-auth), so gatus'
-          # default 200 check marks it down. Anything below 400 = route,
-          # Service, and pod are alive.
+          # Probe /login, not /: upstream's auto-SSO on an unauthenticated /
+          # calls start_login() on the password-only basic provider and 500s
+          # (NousResearch/hermes-agent#55130 et al., open). /login renders the
+          # working form for everyone, so it's also the browser entry URL
+          # until upstream fixes the redirect.
           gatus.home-operations.com/endpoint: |-
-            conditions: ["[STATUS] < 400"]
+            url: https://{{ .Release.Name }}.${SECRET_DOMAIN}/login
+            conditions: ["[STATUS] == 200"]
         hostnames:
           - "{{ .Release.Name }}.${SECRET_DOMAIN}"
         parentRefs:
