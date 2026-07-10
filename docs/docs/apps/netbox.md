@@ -22,11 +22,13 @@ and its `existingSecret` contract are already modelled by the upstream chart.
   bundled cache (`valkey.enabled`) is disabled. Separate logical DB indices for the tasks queue
   (`0`) vs the cache (`1`).
 - **Media** — a local `ceph-block` PVC consumed via `persistence.existingClaim` and backed up by the
-  VolSync component (`VOLSYNC_CAPACITY`). Ceph RGW S3 is available but not used here.
+  VolSync component (`VOLSYNC_CAPACITY`). NetBox uses no object storage; the cluster's S3 tier is
+  Garage (`storage` namespace), not Ceph RGW (which was removed).
 - **Auth / exposure** — superuser-only first pass (pocket-id OIDC is a fast-follow); internal-only
   HTTPRoute on `envoy-internal`, never publicly exposed.
-- Health monitored via the `gatus/guarded` component; `reloader.stakater.com/auto` rolls pods on
-  secret/config change; a ServiceMonitor exposes metrics to kube-prometheus-stack.
+- Health monitored automatically by the gatus-sidecar (it auto-discovers the HTTPRoute);
+  `reloader.stakater.com/auto` rolls pods on secret/config change; a ServiceMonitor exposes metrics
+  to kube-prometheus-stack.
 
 ## Deploy gotchas
 

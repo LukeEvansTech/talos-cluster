@@ -91,7 +91,7 @@ spec:
             namespace: network
     persistence:
       data:
-        type: emptyDir
+        existingClaim: "{{ .Release.Name }}"
         globalMounts:
           - path: /etc/shlink/data
       tmp:

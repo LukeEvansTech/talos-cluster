@@ -73,5 +73,5 @@ shared `postgres18` CloudNativePG cluster.
 - **First-run setup is manual.** Browse to the internal hostname, complete the wizard to create the
   local admin, then add source databases through the UI.
 - **Health checks:** liveness/readiness hit `GET /api/health` (returns `{"status":"ok"}`); Gatus
-  monitors via the `gatus/guarded` component. Confirm metrics with a port-forward to 9191 and look for
-  `jvm_memory_used_bytes` / `metabase_*` series.
+  monitors it automatically (the gatus-sidecar chart auto-discovers the HTTPRoute). Confirm metrics
+  with a port-forward to 9191 and look for `jvm_memory_used_bytes` / `metabase_*` series.

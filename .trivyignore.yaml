@@ -6,6 +6,8 @@ misconfigurations:
     paths:
       - "kubernetes/apps/observability/oxidized/app/configmap.yaml"
       - "kubernetes/apps/infrastructure/certwarden/cert-deployment/apc/scripts-configmap.yaml"
+      - "kubernetes/apps/infrastructure/certwarden/cert-deployment/onyx/scripts-configmap.yaml"
+      - "kubernetes/apps/infrastructure/certwarden/cert-deployment/supermicro/scripts-configmap.yaml"
     statement: |
       False positive. oxidized/configmap.yaml: the YAML schema requires
       top-level 'username' and 'password' keys; the values here are literal
@@ -13,51 +15,29 @@ misconfigurations:
       oxidized-secret (rendered by the ExternalSecret) into a Secret-mounted
       router.db. The 'token=' is a curl --form-string flag in a Pushover
       hook, not a secret value.
-      certwarden/apc/scripts-configmap.yaml: the ConfigMap holds an embedded
-      Python script that reads APC_PASSWORD / APC_USERNAME from env vars
-      (populated via envFrom from an ExternalSecret-rendered Secret); the
-      literal strings Trivy matches (`export APC_PASSWORD`, `self.password`,
+      certwarden/{apc,onyx,supermicro}/scripts-configmap.yaml: each ConfigMap
+      holds an embedded deploy script that reads the device's *_PASSWORD /
+      *_USERNAME (APC_*, ONYX_*, IPMI_*) from a Secret at runtime (via envFrom
+      or `kubectl get secret`); the literal strings Trivy matches
+      (`export APC_PASSWORD`, `export ONYX_PASSWORD`, `self.password`,
       `password`) are variable / parameter NAMES inside the script, not values.
 
   - id: KSV-01010
     paths:
       - "kubernetes/apps/observability/oxidized/app/configmap.yaml"
       - "kubernetes/apps/infrastructure/certwarden/cert-deployment/apc/scripts-configmap.yaml"
+      - "kubernetes/apps/infrastructure/certwarden/cert-deployment/onyx/scripts-configmap.yaml"
+      - "kubernetes/apps/infrastructure/certwarden/cert-deployment/supermicro/scripts-configmap.yaml"
     statement: |-
       False positive. oxidized/configmap.yaml: flagged keys (username, email,
       remote_repo) are config field names, not sensitive content. The git
       commit author email and the public GitHub remote URL for the
       network-configs repo are non-sensitive.
-      certwarden/apc/scripts-configmap.yaml: same pattern as KSV-0109 above
-      — the strings (`echo "APC Username`, `export APC_USERNAME`,
-      `self.username`, `username`) are variable / parameter names inside
-      an embedded Python script, not actual usernames.
-
-  # The cloudflare-runner Role grants the ARC kubernetes-mode container-hook
-  # permissions (manage pods, pods/exec, pods/log, jobs, secrets in
-  # actions-runner-system). Terrateam's action is a container action, so the
-  # runner MUST spawn/exec/clean up its job pod + per-job secret — these verbs
-  # are required, minimal, and namespace-scoped. Not reducible.
-  - id: KSV-0048
-    paths:
-      - "kubernetes/apps/actions-runner-system/actions-runner-controller/runners/cloudflare/rbac.yaml"
-    statement: |-
-      Required ARC kubernetes-mode container-hook RBAC: the runner spawns and
-      deletes the workload pod/job for Terrateam's container action. Scoped to
-      the actions-runner-system namespace.
-  - id: KSV-0053
-    paths:
-      - "kubernetes/apps/actions-runner-system/actions-runner-controller/runners/cloudflare/rbac.yaml"
-    statement: |-
-      Required ARC kubernetes-mode container-hook RBAC: the runner execs into
-      its own job pod to stream the action. Scoped to actions-runner-system.
-  - id: KSV-0113
-    paths:
-      - "kubernetes/apps/actions-runner-system/actions-runner-controller/runners/cloudflare/rbac.yaml"
-    statement: |-
-      Required ARC kubernetes-mode container-hook RBAC: the hook creates and
-      deletes a per-job secret to inject the workflow context. Scoped to
-      actions-runner-system.
+      certwarden/{apc,onyx,supermicro}/scripts-configmap.yaml: same pattern as
+      KSV-0109 above — the strings (`echo "APC Username`, `echo "Onyx Username`,
+      `export APC_USERNAME`, `export ONYX_USERNAME`, `self.username`,
+      `username`) are variable / parameter names inside embedded deploy
+      scripts, not actual usernames.
 
   - id: KSV-0046
     paths:

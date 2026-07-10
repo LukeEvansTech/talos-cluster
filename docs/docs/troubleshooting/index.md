@@ -65,4 +65,5 @@ Work down from what you observe to the most likely entry:
 - [KB-021: Grafana Dashboard Panels All Blank ("Datasource … was not found")](kb/021-grafana-dashboard-panels-blank-datasource-case.md)
 - [KB-022: Container Won't Start as Non-Root (s6 / LinuxServer Image `CreateContainerConfigError`)](kb/022-s6-image-createcontainerconfigerror-non-root.md)
 - [KB-023: Node Conntrack Table Saturates from a Host-Network Scanner](kb/023-node-conntrack-saturation-host-network-scanner.md)
-- [KB-024: CephFS "Module ceph not found" on Talos Is a Built-in, Not a Missing Module](kb/024-cephfs-modprobe-builtin-misdiagnosis.md)
+- [KB-024: zeroscaler — NFS-Availability Scale-to-Zero via Native HPA](kb/024-zeroscaler-nfs-hpa.md)
+- [KB-025: CephFS "Module ceph not found" on Talos Is a Built-in, Not a Missing Module](kb/025-cephfs-modprobe-builtin-misdiagnosis.md)

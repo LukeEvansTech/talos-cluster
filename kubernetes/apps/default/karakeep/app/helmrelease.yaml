@@ -24,6 +24,10 @@ spec:
       karakeep:
         annotations:
           reloader.stakater.com/auto: "true"
+        # app + meilisearch share one pod (and the ReadWriteOnce data PVC) so a
+        # rollout can't strand the RWO volume across nodes; Recreate replaces the
+        # pod atomically. meilisearch is reached over localhost within the pod.
+        strategy: Recreate
         containers:
           app:
             image:
@@ -36,7 +40,7 @@ spec:
               CRAWLER_STORE_SCREENSHOT: true
               DATA_DIR: /data
               DISABLE_SIGNUPS: "false"
-              MEILI_ADDR: http://karakeep-meilisearch.default.svc.cluster.local:7700
+              MEILI_ADDR: http://localhost:7700
               DISABLE_NEW_RELEASE_CHECK: true
               COREPACK_INTEGRITY_KEYS: 0
             envFrom:
@@ -52,6 +56,23 @@ spec:
                 cpu: 100m
               limits:
                 memory: 2Gi
+          meilisearch:
+            image:
+              repository: docker.io/getmeili/meilisearch
+              tag: v1.49.0@sha256:bdc7d7e7939911c40d88d6bcd01f9c72c81f7293135916d48bce241569f721bd
+            args:
+              - /bin/meilisearch
+              - --experimental-dumpless-upgrade
+            env:
+              MEILI_NO_ANALYTICS: true
+            envFrom:
+              - secretRef:
+                  name: karakeep-secret
+            resources:
+              requests:
+                cpu: 10m
+              limits:
+                memory: 4Gi
 
       chrome:
         annotations:
@@ -81,43 +102,6 @@ spec:
               limits:
                 memory: 1Gi
 
-      meilisearch:
-        annotations:
-          reloader.stakater.com/auto: "true"
-        pod:
-          affinity:
-            podAffinity:
-              requiredDuringSchedulingIgnoredDuringExecution:
-                - labelSelector:
-                    matchExpressions:
-                      - key: app.kubernetes.io/instance
-                        operator: In
-                        values:
-                          - karakeep
-                      - key: app.kubernetes.io/controller
-                        operator: In
-                        values:
-                          - karakeep
-                  topologyKey: kubernetes.io/hostname
-        containers:
-          app:
-            image:
-              repository: docker.io/getmeili/meilisearch
-              tag: v1.48.3@sha256:c1a52f17c759c2cd6349eede3d5108b8dac07b97e10665b1d64a2d4961c2fd29
-            args:
-              - /bin/meilisearch
-              - --experimental-dumpless-upgrade
-            env:
-              MEILI_NO_ANALYTICS: true
-            envFrom:
-              - secretRef:
-                  name: karakeep-secret
-            resources:
-              requests:
-                cpu: 10m
-              limits:
-                memory: 4Gi
-
     service:
       app:
         primary: true
@@ -130,11 +114,6 @@ spec:
         ports:
           http:
             port: 9222
-      meilisearch:
-        controller: meilisearch
-        ports:
-          http:
-            port: 7700
 
     route:
       app:
@@ -157,7 +136,6 @@ spec:
             app:
               - path: /data
                 subPath: karakeep
-          meilisearch:
-            app:
+            meilisearch:
               - path: /meili_data
                 subPath: meilisearch

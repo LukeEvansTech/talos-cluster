@@ -13,7 +13,7 @@ that came out of verification, and the plan to unwind workarounds built on a wro
 1. **CephFS was never blocked on this cluster.** The June 2026 "Talos ships no ceph kernel
    module" diagnosis was a modprobe-vs-builtin trap — `CONFIG_CEPH_FS=y` is compiled into the
    Talos v1.13.5 kernel and `/proc/filesystems` registers `ceph` on all three nodes today.
-   See [KB-024](../troubleshooting/kb/024-cephfs-modprobe-builtin-misdiagnosis.md). This
+   See [KB-025](../troubleshooting/kb/025-cephfs-modprobe-builtin-misdiagnosis.md). This
    invalidates the premise behind the RWO model-storage workarounds (PR G below) and un-blocks
    foreman (see below).
 2. **Cross-namespace CiliumNetworkPolicy is the hidden prerequisite for new MCP servers.** The
@@ -100,7 +100,7 @@ Values-only; never touches the in-use `ceph-blockpool` / `ceph-block` StorageCla
 1. `kubernetes/apps/rook-ceph/rook-ceph/csi-drivers/helmrelease.yaml`: `drivers.cephfs.enabled: true`,
    mirror the RBD block's snapshotter settings, and set `kernelMountOptions: ms_mode=prefer-crc`
    — this cluster sets `requireMsgr2: true`, and the kernel client needs `ms_mode` to negotiate
-   msgr2. Rewrite the stale "no ceph kernel module" comment (KB-024).
+   msgr2. Rewrite the stale "no ceph kernel module" comment (KB-025).
 2. `kubernetes/apps/rook-ceph/rook-ceph/cluster/helmrelease.yaml`: replace `cephFileSystems: []`
    with a `ceph-filesystem` entry — distinct metadata + `data0` pools (replicated size 3,
    `failureDomain: host`), MDS `activeCount: 1` + `activeStandby: true` (requests ~100m/1Gi,
@@ -162,7 +162,7 @@ to protect co-tenants.
 ### PR G — model-storage de-workaround (requires PR D)
 
 The RWO pattern in `kubernetes/apps/ai/llmkube/models/` exists **only** because of the wrong
-June diagnosis (KB-024): per-model `ceph-block` PVCs, one-shot curl staging Jobs carrying
+June diagnosis (KB-025): per-model `ceph-block` PVCs, one-shot curl staging Jobs carrying
 `kustomize.toolkit.fluxcd.io/reconcile: disabled` (Job immutability vs Renovate), and
 `modelCache.enabled: false` in the llmkube HelmRelease with the wrong comment. Target state is
 jory's, verbatim from his llmkube HelmRelease:

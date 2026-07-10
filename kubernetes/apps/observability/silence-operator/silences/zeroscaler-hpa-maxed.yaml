@@ -1,0 +1,18 @@
+---
+# Every HorizontalPodAutoscaler in this cluster is a zeroscaler with maxReplicas=1, so it is
+# permanently "maxed" whenever its dependency (NFS) is up. Alertmanager silences match ALERT
+# labels, not the HPA object's labels, and stock KubeHpaMaxedOut carries only
+# alertname/namespace/horizontalpodautoscaler (the HPA name) -- so we cannot scope by the
+# app.kubernetes.io/part-of=zeroscaler label here. Silence the alert cluster-wide.
+# If a genuine non-zeroscaler HPA is ever added, tighten this to an app-name regex on the
+# horizontalpodautoscaler label.
+apiVersion: monitoring.giantswarm.io/v1alpha1
+kind: Silence
+metadata:
+  name: zeroscaler-hpa-maxed
+spec:
+  matchers:
+    - name: alertname
+      value: KubeHpaMaxedOut
+      isRegex: false
+      isEqual: true

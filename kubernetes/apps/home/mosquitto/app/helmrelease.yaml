@@ -43,6 +43,18 @@ spec:
               globalMounts:
                 - path: /mosquitto/data
     defaultPodOptions:
+      annotations:
+        # macvlan on VLAN 68 (IoT-Trusted) so external VLAN-68 clients (Shellys)
+        # reach the broker on-link at 10.32.68.25 (${SVC_MOSQUITTO_ADDR}).
+        # In-cluster clients (HA/z2m) use the ClusterIP/DNS. Matches the
+        # HA (.15) / z2m (.20) macvlan pattern; broker = .25.
+        k8s.v1.cni.cncf.io/networks: |-
+          [{
+            "name": "iot",
+            "namespace": "kube-system",
+            "ips": ["10.32.68.25/23"],
+            "mac": "02:00:00:00:00:03"
+          }]
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
@@ -54,10 +66,10 @@ spec:
     service:
       app:
         controller: mosquitto
-        type: LoadBalancer
-        annotations:
-          lbipam.cilium.io/ips: ${SVC_MOSQUITTO_ADDR}
-        externalTrafficPolicy: Local
+        # ClusterIP for in-cluster clients (mosquitto.home.svc.cluster.local).
+        # External VLAN-68 clients reach the broker via the pod's macvlan IP
+        # (10.32.68.25), configured in defaultPodOptions above.
+        type: ClusterIP
         ports:
           mqtt:
             port: 1883

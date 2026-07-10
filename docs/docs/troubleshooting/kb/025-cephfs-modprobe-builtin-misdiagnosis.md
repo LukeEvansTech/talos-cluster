@@ -1,4 +1,4 @@
-# KB-024: CephFS "Module ceph not found" on Talos Is a Built-in, Not a Missing Module
+# KB-025: CephFS "Module ceph not found" on Talos Is a Built-in, Not a Missing Module
 
 **Status:** Misdiagnosis corrected 2026-07-09. CephFS support **is present** in the Talos kernel;
 the June 2026 "Talos ships no `ceph` kernel module" conclusion (and the comments it left in the

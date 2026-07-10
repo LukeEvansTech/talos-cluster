@@ -11,25 +11,40 @@ spec:
     name: kopiur
   values:
     installScope: cluster
-    grafanaDashboard:
-      enabled: true
-      grafanaOperator:
-        enabled: true
-        matchLabels:
-          grafana.internal/instance: grafana
-    metrics:
+    # 0.6.0 folded metrics.serviceMonitor / metrics.prometheusRule /
+    # grafanaDashboard.* under a single `monitoring:` umbrella — the only
+    # breaking values change in the 0.4.8 -> 0.7.0 jump (0.7.0's breaks are
+    # Rust-dep churn + replication-mover credentials, neither used here).
+    monitoring:
       serviceMonitor:
         enabled: true
       prometheusRule:
         enabled: true
-    # Chart ≥0.4.10 renamed secretProjection → features.credentialProjection;
-    # the old key is silently ignored, dropping the operator's secrets
-    # create/patch RBAC that every credentialProjection consumer relies on.
-    features:
-      credentialProjection:
+      dashboards:
         enabled: true
-    webhook:
-      tls:
-        mode: self
-      serviceMonitor:
-        enabled: true
+        grafanaOperator:
+          enabled: true
+          matchLabels:
+            grafana.internal/instance: grafana
+    # credentialProjection is intentionally left at its chart default (disabled).
+    # Movers now read KOPIA_PASSWORD from a per-namespace ExternalSecret
+    # (components/kopiur/secret) instead of the operator copying credentials
+    # into app namespaces. NOTE: the chart still grants cluster-wide secrets
+    # create/update/patch either way (self-managed webhook TLS rotation), so
+    # the ESO win is behavioural, not RBAC. Webhook is left at chart defaults
+    # (enabled, self-managed TLS, failurePolicy: Fail) and unmonitored.
+    # No controller repo mount: maintenance/verification run in mover pods that
+    # get the backend from the ClusterRepository, and coupling controller
+    # liveness to NFS would be a self-inflicted outage mode (upstream home-ops
+    # runs 0.7.0 without one).
+    podSecurityContext:
+      runAsNonRoot: true
+      runAsUser: 1000
+      runAsGroup: 1000
+      fsGroup: 1000
+      fsGroupChangePolicy: OnRootMismatch
+    resources:
+      requests:
+        cpu: 100m
+      limits:
+        memory: 2Gi

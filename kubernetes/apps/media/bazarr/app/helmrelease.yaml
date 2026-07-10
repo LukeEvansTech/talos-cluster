@@ -47,7 +47,11 @@ spec:
               requests:
                 cpu: 500m
               limits:
-                memory: 2Gi
+                # Baseline sits flat at ~390Mi; a subtitle-sync spike on large
+                # 4K files occasionally blows past the limit and OOM-kills
+                # (~2x/30d, self-heals). 1Gi->2Gi (#3383) cut the rate but a
+                # big-enough spike still breached; 3Gi buys more headroom.
+                memory: 3Gi
           subcleaner:
             image:
               repository: registry.k8s.io/git-sync/git-sync
