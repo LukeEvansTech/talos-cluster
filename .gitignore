@@ -23,3 +23,6 @@ docs/superpowers/
 .DS_Store
 Thumbs.db
 CLAUDE.md
+
+# kubectl cache (kubeconfig lives in-repo, so kubectl drops its cache here)
+.kube/

@@ -16,10 +16,11 @@ data:
       provider: litellm
     providers:
       # LiteLLM's OpenAI-compatible surface. `self-hosted` is the local
-      # llama.cpp model group; LiteLLM handles its own cloud fallback.
+      # llama.cpp model group; LiteLLM handles its own cloud fallback. The key
+      # is a scoped virtual key (see externalsecret.yaml) — NOT the master key.
       litellm:
         base_url: http://litellm.ai.svc.cluster.local:4000/v1
-        api_key: $${LITELLM_MASTER_KEY}
+        api_key: $${HERMES_LITELLM_API_KEY}
     terminal:
       backend: local
       cwd: /opt/data/workspace
