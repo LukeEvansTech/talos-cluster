@@ -24,4 +24,4 @@ spec:
       enabled: false
     prometheus:
       inferencePodMonitor:
-        enabled: false
+        enabled: true
