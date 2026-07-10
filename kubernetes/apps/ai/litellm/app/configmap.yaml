@@ -119,8 +119,8 @@ data:
       drop_params: true
       num_retries: 2
       request_timeout: 600
-      # Surfaces only the top-k relevant MCP tools per request (6 servers, ~110
-      # tools) using the all-minilm embedding model above.
+      # Surfaces only the top-k relevant MCP tools per request (7 servers) using
+      # the all-minilm embedding model above.
       mcp_semantic_tool_filter:
         enabled: true
         embedding_model: all-minilm
@@ -128,8 +128,8 @@ data:
         similarity_threshold: 0.3
 
     # MCP tools proxied to any LiteLLM client (ToolHive-managed endpoints, ai ns).
-    # ~110 tools across 6 servers — the semantic filter above trims each request
-    # to the top-k relevant tools.
+    # 7 servers — the semantic filter above trims each request to the top-k
+    # relevant tools.
     mcp_servers:
       kubectl:
         url: http://mcp-kubectl.ai.svc.cluster.local:8000/mcp
@@ -143,6 +143,10 @@ data:
         url: http://mcp-github-proxy.ai.svc.cluster.local:8080/mcp
       grafana:
         url: http://mcp-grafana-proxy.ai.svc.cluster.local:8080/mcp
+      # Sonarr/Radarr/Prowlarr tools (mcp-arr). stdio server behind ToolHive's
+      # streamable-http proxy, same as github/grafana above.
+      arr:
+        url: http://mcp-arr-proxy.ai.svc.cluster.local:8080/mcp
 
     general_settings:
       health_check_endpoint: /v1/health
