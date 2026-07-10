@@ -28,7 +28,7 @@ Scaffold a new application for this repository's **single-cluster** Flux layout.
 
 ### Step 1: Collect application details
 
-Use the **AskUserQuestion** tool to gather:
+Ask the user for the following (in Claude Code, use the **AskUserQuestion** tool):
 
 1. App name
 2. Namespace (existing dir under `kubernetes/apps/`, e.g. `default`, `media`, `downloads`, `observability`)
