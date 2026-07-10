@@ -1,0 +1,41 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/toolhive.stacklok.dev/mcpserver_v1alpha1.json
+apiVersion: toolhive.stacklok.dev/v1alpha1
+kind: MCPServer
+metadata:
+  name: arr
+spec:
+  # Official multi-arch GHCR image for mcp-arr-server (github.com/aplaceforallmystuff/mcp-arr),
+  # digest-pinned. Runs `node dist/index.js` directly as non-root, so unlike the upstream npx
+  # recipe it needs no writable /tmp, HOME, or NPM_CONFIG_CACHE. Defaults to stdio transport.
+  image: ghcr.io/aplaceforallmystuff/mcp-arr:1.7.2@sha256:46f2356c2161a8561b6f5680429594cf34aaad0712d1a030f8d662b99556c415
+  transport: stdio
+  proxyMode: streamable-http
+  proxyPort: 8080
+  env:
+    # The server auto-detects which *arr services are configured and only exposes their tools.
+    - name: SONARR_URL
+      value: http://sonarr.media.svc.cluster.local
+    - name: RADARR_URL
+      value: http://radarr.media.svc.cluster.local
+    # Prowlarr's API Service is `prowlarr-app` (it runs behind a gluetun sidecar).
+    - name: PROWLARR_URL
+      value: http://prowlarr-app.downloads.svc.cluster.local
+  secrets:
+    - name: toolhive-sonarr
+      key: SONARR_API_KEY
+      targetEnvName: SONARR_API_KEY
+    - name: toolhive-radarr
+      key: RADARR_API_KEY
+      targetEnvName: RADARR_API_KEY
+    - name: toolhive-prowlarr
+      key: PROWLARR_API_KEY
+      targetEnvName: PROWLARR_API_KEY
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+  groupRef:
+    name: mcp-tools
