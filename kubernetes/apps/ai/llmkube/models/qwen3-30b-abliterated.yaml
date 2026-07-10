@@ -86,8 +86,12 @@ spec:
           labelSelector:
             matchLabels:
               llm-gpu-model: "true"
+  # No runAsNonRoot: the operator's model-cache-prep init container must run as
+  # scoped root (drop ALL, add CHOWN+FOWNER only, no privesc, ro rootfs) to
+  # chown the shared cache on fsGroupPolicy:None backends like CephFS — the
+  # upstream-supported compatibility path (docs/MODEL-CACHE.md). Runtime
+  # containers still run as 1000 via runAsUser below.
   podSecurityContext:
-    runAsNonRoot: true
     runAsUser: 1000
     runAsGroup: 1000
     fsGroup: 1000
