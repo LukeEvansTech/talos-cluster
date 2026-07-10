@@ -9,3 +9,4 @@ resources:
   - ./helmrelease.yaml
   - ./servicemonitor.yaml
   - ./cleanup-cronjob.yaml
+  - ./complete-cleanup-cronjob.yaml
