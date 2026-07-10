@@ -1,0 +1,31 @@
+# SearXNG bot-detection / limiter configuration.
+#
+# The limiter middleware itself stays off (server.limiter: false) because it
+# needs a Valkey/Redis backend this instance deliberately does not run. This
+# file ships the intended policy so the limiter is one flag away: pass_ip lets
+# our in-cluster automation callers (mcp-searxng, open-webui RAG) and LAN
+# clients through unthrottled if it is ever enabled.
+
+[real_ip]
+# Number of values to trust from X-Forwarded-For (one hop: Envoy Gateway).
+x_for = 1
+ipv4_prefix = 32
+ipv6_prefix = 48
+
+[botdetection.ip_limit]
+# Link-local networks are never rate-limited.
+filter_link_local = true
+# link_token needs the Valkey backend, so keep it off here.
+link_token = false
+
+[botdetection.ip_lists]
+block_ip = []
+
+# RFC1918 pass list. This cluster's pods, services, and LAN all live inside
+# 10.0.0.0/8, so that single block covers every internal caller. The 172.16/12
+# and 192.168/16 RFC1918 blocks are unused here and are intentionally omitted.
+pass_ip = [
+  '10.0.0.0/8', # RFC1918 private range in use by this cluster
+]
+
+pass_searxng_org = false

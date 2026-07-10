@@ -99,6 +99,11 @@ data:
       # If the local model is cooling-down / unhealthy, spill to cloud.
       fallbacks:
         - self-hosted: ["openrouter/auto"]
+      # Prompts that overflow the 32k self-hosted context spill to the larger
+      # 64k self-hosted-uncensored model (YaRN-extended) instead of erroring.
+      # ContextWindowExceededError only — orthogonal to the health fallback above.
+      context_window_fallbacks:
+        - self-hosted: ["self-hosted-uncensored"]
 
     litellm_settings:
       success_callback: ["prometheus"]
