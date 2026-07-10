@@ -1,0 +1,86 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: litellm
+spec:
+  groups:
+    # LiteLLM router health, built on the litellm_deployment_* counters the
+    # existing ServiceMonitor already scrapes at /metrics/. Thresholds are tuned
+    # down from a busier upstream for this single-replica, single-self-hosted-
+    # backend gateway: with one replica each increase() is the true event count
+    # (no cross-replica summing), so small counts are already meaningful.
+    #
+    # Note on absent(): the *_fallbacks_total series only materialise after the
+    # first fallback event (LiteLLM registers them lazily). increase()>N over an
+    # empty series simply yields nothing, so these alerts stay silent until a
+    # real fallback happens — no absent() liveness guard is added on them, since
+    # their absence is the healthy steady state, not a fault.
+    - name: litellm.rules
+      rules:
+        - alert: LiteLLMFallbackChainExhausted
+          expr: |-
+            sum by (requested_model, exception_status, exception_class) (
+              increase(litellm_deployment_failed_fallbacks_total[15m])
+            ) > 0
+          annotations:
+            summary: >-
+              LiteLLM {{ $labels.requested_model }} fallback chain exhausted — no working deployment
+              ({{ $labels.exception_status }} {{ $labels.exception_class }})
+          labels:
+            severity: critical
+        - alert: LiteLLMModelFailover
+          expr: |-
+            sum by (requested_model, fallback_model, exception_status, exception_class) (
+              increase(litellm_deployment_successful_fallbacks_total[10m])
+            ) > 2
+          for: 5m
+          annotations:
+            summary: >-
+              LiteLLM {{ $labels.requested_model }} failing over to {{ $labels.fallback_model }}
+              ({{ $labels.exception_status }} {{ $labels.exception_class }})
+          labels:
+            severity: warning
+        - alert: LiteLLMDeploymentOutage
+          expr: |-
+            max by (litellm_model_name) (litellm_deployment_state) >= 2
+          for: 10m
+          annotations:
+            summary: >-
+              LiteLLM {{ $labels.litellm_model_name }} out of rotation (deployment_state >= 2)
+          labels:
+            severity: warning
+        - alert: LiteLLMAuthOrQuotaFailures
+          expr: |-
+            sum by (litellm_model_name, exception_status) (
+              increase(litellm_deployment_failure_responses_total{exception_status=~"403|429"}[15m])
+            ) > 3
+          for: 5m
+          annotations:
+            summary: >-
+              LiteLLM {{ $labels.litellm_model_name }} returning {{ $labels.exception_status }}
+              (auth/quota — check the upstream key or plan cap)
+          labels:
+            severity: warning
+    # Direct backend-down signal for the llmkube InferenceServices that back
+    # `self-hosted`. `up` is the per-target scrape health already produced by the
+    # llmkube-models ServiceMonitor (service label = the InferenceService's
+    # Service name, e.g. llama-nvidia / llama-uncensored). max by (service)
+    # collapses multiple scrape endpoints of a backend so it only fires when
+    # every scrape of that backend is unreachable. A long `for:` absorbs pod
+    # restarts and cold GGUF loads (the startup probe allows a lengthy first
+    # load); a fully-scaled-to-zero pod drops its endpoint and would go stale
+    # rather than up==0, which is out of scope for this cheap check.
+    - name: llmkube.rules
+      rules:
+        - alert: InferenceServiceDown
+          expr: |-
+            max by (service) (up{service=~"llama-.+"}) == 0
+          for: 15m
+          annotations:
+            summary: >-
+              llmkube InferenceService {{ $labels.service }} is down — no llama.cpp scrape target
+              reachable (self-hosted routing degrades to the cloud fallback)
+          labels:
+            severity: critical
