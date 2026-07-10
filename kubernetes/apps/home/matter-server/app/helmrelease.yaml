@@ -1,0 +1,104 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: matter-server
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: matter-server
+  values:
+    controllers:
+      matter-server:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        initContainers:
+          # Thread devices are reached via IPv6 routes the OTBR advertises in
+          # RAs (Route Information Options) on the multus interface; the kernel
+          # ignores RIOs unless accept_ra_rt_info_max_plen > 0.
+          sysctl:
+            image:
+              repository: ghcr.io/matter-js/matterjs-server
+              tag: 1.2.2@sha256:9a51306da8fdc42283f5f497873cd2b2647ac3228342be745c676ffce627db80
+            command:
+              - /bin/sh
+              - -ec
+              - |
+                echo 2 > /proc/sys/net/ipv6/conf/net1/accept_ra
+                echo 64 > /proc/sys/net/ipv6/conf/net1/accept_ra_rt_info_max_plen
+            securityContext:
+              runAsNonRoot: false
+              runAsUser: 0
+              runAsGroup: 0
+              capabilities:
+                add:
+                  - NET_ADMIN
+                drop:
+                  - ALL
+        containers:
+          app:
+            image:
+              # Open Home Foundation matter.js server — drop-in replacement for
+              # the archived python-matter-server (same ws API on :5580, same
+              # CLI flags), and what HA's Matter integration targets going
+              # forward.
+              repository: ghcr.io/matter-js/matterjs-server
+              tag: 1.2.2@sha256:9a51306da8fdc42283f5f497873cd2b2647ac3228342be745c676ffce627db80
+            args:
+              - --storage-path
+              - /data
+              - --primary-interface
+              - net1
+              - --log-level
+              - info
+            env:
+              TZ: ${TIMEZONE}
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop:
+                  - ALL
+            resources:
+              requests:
+                cpu: 10m
+                memory: 128Mi
+              limits:
+                memory: 512Mi
+    defaultPodOptions:
+      annotations:
+        # Temporary legacy flat-LAN attachment (L2 adjacency with the
+        # coordinator's on-device OTBR) — move to the `iot` NAD when the
+        # coordinator re-homes to VLAN 68.
+        k8s.v1.cni.cncf.io/networks: |-
+          [{
+            "name": "iot-legacy",
+            "namespace": "kube-system",
+            "ips": ["10.32.8.103/24"],
+            "mac": "02:00:00:00:00:04"
+          }]
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+    service:
+      app:
+        controller: matter-server
+        ports:
+          ws:
+            port: 5580
+    persistence:
+      data:
+        existingClaim: "{{ .Release.Name }}"
+        globalMounts:
+          - path: /data
+      tmp:
+        type: emptyDir
+        globalMounts:
+          - path: /tmp
