@@ -16,7 +16,7 @@ spec:
         # must be group-writable by GID 10000 (not the usual 1000).
         fsGroup: 10000
         fsGroupChangePolicy: OnRootMismatch
-        seccompProfile: {type: RuntimeDefault}
+        seccompProfile: { type: RuntimeDefault }
     controllers:
       hermes:
         annotations:
@@ -99,8 +99,11 @@ spec:
               limits:
                 memory: 1Gi
             ports:
+              # Named `dashboard`, not `http`: container port names must be
+              # unique across every container in a pod, and the app container
+              # already claims `http`.
               - containerPort: &dashboard_port 9119
-                name: http
+                name: dashboard
                 protocol: TCP
     service:
       app:
