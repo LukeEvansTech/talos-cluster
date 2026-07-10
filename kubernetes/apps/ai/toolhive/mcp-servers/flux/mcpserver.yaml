@@ -31,5 +31,7 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
+  telemetryConfigRef:
+    name: prometheus
   groupRef:
     name: mcp-tools

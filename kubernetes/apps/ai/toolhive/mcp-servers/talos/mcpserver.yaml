@@ -8,6 +8,8 @@ spec:
   image: registry.erwanleboucher.dev/eleboucher/talos-mcp:0.0.2
   transport: streamable-http
   mcpPort: 8080
+  telemetryConfigRef:
+    name: prometheus
   groupRef:
     name: mcp-tools
   permissionProfile:

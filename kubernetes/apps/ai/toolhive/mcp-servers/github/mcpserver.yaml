@@ -27,5 +27,7 @@ spec:
       memory: 128Mi
     limits:
       memory: 256Mi
+  telemetryConfigRef:
+    name: prometheus
   groupRef:
     name: mcp-tools

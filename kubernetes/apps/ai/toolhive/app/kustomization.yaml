@@ -6,3 +6,5 @@ resources:
   - ./ocirepository.yaml
   - ./helmrelease.yaml
   - ./mcpgroup.yaml
+  - ./mcptelemetryconfig.yaml
+  - ./podmonitor.yaml

@@ -1,0 +1,26 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/podmonitor_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: mcp-servers
+spec:
+  # Scrapes the ToolHive proxy pods (one Deployment per MCPServer: kubectl, flux,
+  # talos, github, grafana), which expose Prometheus metrics on the proxy port
+  # once the MCPTelemetryConfig above enables them. No `release:
+  # kube-prometheus-stack` label — this cluster's Prometheus selects monitors
+  # without it, so copying that selector would silently drop the target.
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mcpserver
+  namespaceSelector:
+    matchNames:
+      - ai
+  podMetricsEndpoints:
+    # The ToolHive operator names the proxy container port `http` (not `8080`);
+    # prometheus-operator matches podMetricsEndpoints[].port by port NAME, so a
+    # numeric value here would resolve no target. /metrics is served on the same
+    # proxy port once telemetryConfigRef is set on each MCPServer.
+    - port: http
+      path: /metrics
+      interval: 15s
