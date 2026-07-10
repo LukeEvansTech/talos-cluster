@@ -1,3 +1,4 @@
+---
 use_default_settings: true
 general:
   instance_name: "SearXNG"
@@ -8,7 +9,12 @@ general:
   enable_metrics: false
 search:
   safe_search: 0
-  autocomplete: "google"
+  # autocomplete + favicon_resolver each fire one upstream request per keystroke
+  # and per result row. This instance is automation-driven (mcp-searxng,
+  # open-webui RAG), so those calls add no value and drive upstream captcha /
+  # rate-limits. Empty string disables both.
+  autocomplete: ""
+  favicon_resolver: ""
   default_lang: "en"
 server:
   secret_key: "${SEARXNG_SECRET_KEY}"
@@ -20,6 +26,25 @@ ui:
   default_theme: simple
   theme_args:
     simple_style: dark
+enabled_plugins:
+  - Basic Calculator
+  - Hash plugin
+  - Open Access DOI rewrite
+  - Self Informations
+  - Tracker URL remover
+  - Unit converter plugin
+hostnames:
+  # Boost canonical docs / reference sources so they outrank SEO spam.
+  high_priority:
+    - (.*)\/blog\/(.*)
+    - (.*\.)?wikipedia.org$
+    - (.*\.)?github.com$
+    - (.*\.)?reddit.com$
+    - (.*\.)?docker.com$
+    - (.*\.)?archlinux.org$
+    - (.*\.)?stackoverflow.com$
+    - (.*\.)?askubuntu.com$
+    - (.*\.)?superuser.com$
 engines:
   - name: bing
     disabled: true
