@@ -119,7 +119,7 @@ data:
       drop_params: true
       num_retries: 2
       request_timeout: 600
-      # Surfaces only the top-k relevant MCP tools per request (7 servers) using
+      # Surfaces only the top-k relevant MCP tools per request (8 servers) using
       # the all-minilm embedding model above.
       mcp_semantic_tool_filter:
         enabled: true
@@ -128,7 +128,7 @@ data:
         similarity_threshold: 0.3
 
     # MCP tools proxied to any LiteLLM client (ToolHive-managed endpoints, ai ns).
-    # 7 servers — the semantic filter above trims each request to the top-k
+    # 8 servers — the semantic filter above trims each request to the top-k
     # relevant tools.
     mcp_servers:
       kubectl:
@@ -147,6 +147,10 @@ data:
       # streamable-http proxy, same as github/grafana above.
       arr:
         url: http://mcp-arr-proxy.ai.svc.cluster.local:8080/mcp
+      # Seerr request/discovery tools (overseerr-mcp). Native streamable-http
+      # container (no proxy hop), so the Service is mcp-seerr:8085 directly.
+      seerr:
+        url: http://mcp-seerr.ai.svc.cluster.local:8085/mcp
 
     general_settings:
       health_check_endpoint: /v1/health

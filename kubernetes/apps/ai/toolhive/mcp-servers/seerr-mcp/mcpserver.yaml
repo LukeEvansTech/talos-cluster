@@ -1,0 +1,31 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/toolhive.stacklok.dev/mcpserver_v1alpha1.json
+apiVersion: toolhive.stacklok.dev/v1alpha1
+kind: MCPServer
+metadata:
+  name: seerr
+spec:
+  # Official multi-arch GHCR image for overseerr-mcp (github.com/jhomen368/overseerr-mcp),
+  # digest-pinned. The Dockerfile bakes HTTP_MODE=true PORT=8085, so the container runs
+  # native streamable-HTTP (MCP endpoint /mcp, health /health) — no stdio proxy hop. This
+  # is the same project jory runs via npx; our convention pins the container by digest.
+  image: ghcr.io/jhomen368/overseerr-mcp:2.2.0@sha256:71d7c3a008e78a881995855df575f69bf68fb89ac41459544f510fa00012acca
+  transport: streamable-http
+  mcpPort: 8085
+  env:
+    - name: SEERR_URL
+      value: http://seerr.media.svc.cluster.local
+  secrets:
+    - name: toolhive-seerr
+      key: SEERR_API_KEY
+      targetEnvName: SEERR_API_KEY
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+  telemetryConfigRef:
+    name: prometheus
+  groupRef:
+    name: mcp-tools
