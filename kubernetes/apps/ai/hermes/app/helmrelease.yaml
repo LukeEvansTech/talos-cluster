@@ -69,6 +69,20 @@ spec:
               HERMES_HOME: /opt/data
               HOME: /opt/data
               TZ: ${TIMEZONE}
+              # --- OpenAI-compatible API server (consumed by hermeswebui) ---
+              # Off by default upstream; turn it on so `gateway run` serves /v1/*
+              # and /health on :8642 (the containerPort + hermes-app Service below
+              # already exist; the dashboard's GATEWAY_HEALTH_URL probe also starts
+              # succeeding once this is live).
+              API_SERVER_ENABLED: "true"
+              # Bind 0.0.0.0, not the 127.0.0.1 default — the hermes-app ClusterIP
+              # Service cannot reach a loopback-only bind (same trap that bit
+              # mcp-searxng). Auth is still enforced by API_SERVER_KEY.
+              API_SERVER_HOST: 0.0.0.0
+              # Third API_SERVER_* var — the bearer token API_SERVER_KEY (upstream:
+              # required for every deployment) — is injected from the `hermes`
+              # Secret via the envFrom below; the ExternalSecret now maps it from
+              # the hermes-agent item's api_server_key field.
             envFrom:
               - secretRef:
                   name: hermes
