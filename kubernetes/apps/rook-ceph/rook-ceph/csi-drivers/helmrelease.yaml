@@ -11,9 +11,15 @@ spec:
     name: ceph-csi-drivers
   values:
     # Rook v1.20 split CSI driver deployment out of the operator chart into the
-    # ceph-csi-operator-managed ceph-csi-drivers chart. RBD (ceph-block) only;
-    # CephFS/NFS/NVMeoF disabled (Talos has no `ceph` kernel module, so CephFS
-    # can't be kernel-mounted — llmkube uses RWO ceph-block instead).
+    # ceph-csi-operator-managed ceph-csi-drivers chart. RBD (ceph-block) and
+    # CephFS (ceph-filesystem, the cluster's RWX StorageClass) are enabled;
+    # NFS/NVMeoF disabled.
+    # The earlier "Talos has no `ceph` kernel module, so CephFS can't be
+    # kernel-mounted" note was a misdiagnosis — see KB-025
+    # (docs/docs/troubleshooting/kb/025-cephfs-modprobe-builtin-misdiagnosis.md):
+    # CONFIG_CEPH_FS=y is built into the Talos v1.13.5+ kernel, so `modprobe ceph`
+    # reports "module not found" even though the in-kernel CephFS client is
+    # present. It mounts natively — no FUSE mounter or ceph-module image needed.
     drivers:
       rbd:
         enabled: true
@@ -30,7 +36,25 @@ spec:
         # it for every *-nfs/-r2 ReplicationSource.
         snapshotPolicy: volumeSnapshot
       cephfs:
-        enabled: false
+        enabled: true
+        # Same operator-namespace prefix requirement as RBD above: the chart
+        # defaults the CephFS driver to the unprefixed "cephfs.csi.ceph.com",
+        # but the rook-ceph-cluster chart names the ceph-filesystem SC
+        # provisioner {operatorNamespace}.cephfs.csi.ceph.com, so PVCs only bind
+        # if the Driver name matches.
+        name: rook-ceph.cephfs.csi.ceph.com
+        # Mirror the RBD snapshotter: deploy the csi-snapshotter sidecar so the
+        # csi-ceph-filesystem VolumeSnapshotClass and VolSync copyMethod:
+        # Snapshot movers have a working CreateSnapshot path.
+        snapshotPolicy: volumeSnapshot
+        # msgr2-only cluster (cephClusterSpec.network.connections.requireMsgr2:
+        # true). The in-kernel CephFS client must negotiate msgr2 or it falls
+        # back to the v1 wire protocol the mons no longer accept and the mount
+        # hangs. prefer-crc = msgr2 with CRC32c integrity (not full encryption).
+        # NB: kernelMountOptions is a map (csi.ceph.io/v1 Driver spec), not the
+        # "key=value" string the legacy rook operator config used.
+        kernelMountOptions:
+          ms_mode: prefer-crc
       nfs:
         enabled: false
       nvmeof:

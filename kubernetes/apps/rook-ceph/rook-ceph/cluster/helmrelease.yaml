@@ -104,17 +104,69 @@ spec:
       name: csi-ceph-blockpool
       isDefault: false
       deletionPolicy: Delete
-    # NOTE: After disabling the filesystem, the filesystem can be removed with the following commands:
+    # CephFS provides the cluster's RWX StorageClass (ceph-filesystem). The kernel
+    # CephFS client is built into the Talos v1.13.5+ kernel (CONFIG_CEPH_FS=y);
+    # the earlier "Talos ships no `ceph` kernel module" claim was a modprobe-vs-
+    # builtin misdiagnosis — see KB-025
+    # (docs/docs/troubleshooting/kb/025-cephfs-modprobe-builtin-misdiagnosis.md).
+    # The cephfs CSI driver must also be enabled in the ceph-csi-drivers
+    # HelmRelease (msgr2 kernel mount options live there).
+    # To tear the filesystem back down:
     # ceph fs fail ceph-filesystem && ceph fs rm ceph-filesystem --yes-i-really-mean-it
-    # CephFS is unused on this cluster: Talos ships no `ceph` kernel module, so
-    # CephFS can't be kernel-mounted (the llmkube model cache uses RWO ceph-block
-    # instead). Kept empty/disabled. To re-enable you also need the cephfs CSI
-    # driver (csi-drivers helmrelease) + a FUSE mounter or a ceph-module image.
-    cephFileSystems: []
-    # cephFileSystemVolumeSnapshotClass:
-    #   enabled: true
-    #   name: csi-ceph-filesystem
-    #   isDefault: false
-    #   deletionPolicy: Delete
+    cephFileSystems:
+      - name: &cephFilesystemName ceph-filesystem
+        spec:
+          # Distinct metadata + data0 pools, both replicated x3 across hosts.
+          metadataPool:
+            failureDomain: host
+            replicated:
+              size: 3
+          dataPools:
+            - name: data0
+              failureDomain: host
+              replicated:
+                size: 3
+          metadataServer:
+            activeCount: 1
+            activeStandby: true
+            priorityClassName: system-cluster-critical
+            resources:
+              requests:
+                cpu: 100m
+                memory: 1Gi
+              limits:
+                memory: 4Gi
+            # Keep the active + standby MDS on separate nodes so a single node
+            # loss can't take out both.
+            placement:
+              topologySpreadConstraints:
+                - maxSkew: 1
+                  topologyKey: kubernetes.io/hostname
+                  whenUnsatisfiable: DoNotSchedule
+                  labelSelector:
+                    matchLabels:
+                      app.kubernetes.io/name: ceph-mds
+                      app.kubernetes.io/part-of: *cephFilesystemName
+        storageClass:
+          enabled: true
+          name: ceph-filesystem
+          isDefault: false
+          pool: data0
+          reclaimPolicy: Delete
+          allowVolumeExpansion: true
+          volumeBindingMode: Immediate
+          parameters:
+            csi.storage.k8s.io/provisioner-secret-name: rook-csi-cephfs-provisioner
+            csi.storage.k8s.io/provisioner-secret-namespace: "{{ .Release.Namespace }}"
+            csi.storage.k8s.io/controller-expand-secret-name: rook-csi-cephfs-provisioner
+            csi.storage.k8s.io/controller-expand-secret-namespace: "{{ .Release.Namespace }}"
+            csi.storage.k8s.io/node-stage-secret-name: rook-csi-cephfs-node
+            csi.storage.k8s.io/node-stage-secret-namespace: "{{ .Release.Namespace }}"
+            csi.storage.k8s.io/fstype: ext4
+    cephFileSystemVolumeSnapshotClass:
+      enabled: true
+      name: csi-ceph-filesystem
+      isDefault: false
+      deletionPolicy: Delete
     # Object storage (RGW) removed — migrated to Garage (storage/garage).
     cephObjectStores: []
