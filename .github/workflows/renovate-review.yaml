@@ -21,7 +21,9 @@ jobs:
   review:
     name: Breaking Change Analysis
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # Opus full-depth reviews run longer per turn than the old Sonnet tier; a
+    # job timeout mid-review hits the fail-open path (PR passes unreviewed).
+    timeout-minutes: 30
     # Per-job write scopes: post the review, set the gating commit status.
     permissions:
       contents: read
@@ -76,18 +78,20 @@ jobs:
         run: |
           # High-blast-radius components for this cluster: networking, storage,
           # secrets/certs, and the GitOps engine itself. Anything matching these
-          # always gets the deeper Sonnet "full" review regardless of bump size.
+          # always gets the deeper Opus "full" review regardless of bump size.
           blast='cilium|rook|ceph|envoy|cert-manager|external-secrets|volsync|flux|cloudnative-pg|spegel'
 
-          # Haiku for routine patch container bumps; Sonnet for everything else
-          # (minor/major, chart upgrades, github-release, high-blast-radius components).
+          # Sonnet for routine patch container bumps (the light tier decides for
+          # itself whether to escalate to full depth, so it needs real judgment);
+          # Opus for everything else (minor/major, chart upgrades, github-release,
+          # high-blast-radius components).
           if echo "$LABELS" | grep -qw 'type/patch' \
             && echo "$LABELS" | grep -qw 'renovate/container' \
             && ! echo "$TITLE" | grep -qiE "$blast"; then
-            echo "model=claude-haiku-4-5-20251001" >> "$GITHUB_OUTPUT"
+            echo "model=claude-sonnet-5" >> "$GITHUB_OUTPUT"
             echo "depth=light" >> "$GITHUB_OUTPUT"
           else
-            echo "model=claude-sonnet-4-6" >> "$GITHUB_OUTPUT"
+            echo "model=claude-opus-4-8" >> "$GITHUB_OUTPUT"
             echo "depth=full" >> "$GITHUB_OUTPUT"
           fi
 
@@ -279,7 +283,7 @@ jobs:
 
             Your depth for this PR is **${{ steps.model_tier.outputs.depth }}**:
 
-            **light** — routine patch container bump (haiku tier):
+            **light** — routine patch container bump (sonnet tier):
             1. Analyze (step 1 below).
             2. Read the PR body for Renovate-embedded release notes. If present and covering the
               full old→new range, use them. Otherwise fetch the upstream releases for that range
@@ -291,7 +295,7 @@ jobs:
             show breaking changes, deprecations, or security fixes — then escalate to full depth.
             Target: 5–7 turns.
 
-            **full** — minor/major bump, chart upgrade, or high-blast-radius component (sonnet tier):
+            **full** — minor/major bump, chart upgrade, or high-blast-radius component (opus tier):
             Follow the complete Workflow below without shortcuts. Target: 12–18 turns.
 
             ## Workflow
