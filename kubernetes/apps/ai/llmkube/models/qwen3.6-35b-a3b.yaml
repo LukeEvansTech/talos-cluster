@@ -1,4 +1,7 @@
 ---
+# ROLLBACK ONLY: kept until the shared-cache cutover is proven for this model;
+# revert the Model source to pvc://llama-nvidia-models/… (and restore the
+# --mmproj /model-source/mmproj-F16.gguf extraArg) to serve from this again.
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -11,81 +14,19 @@ spec:
     requests:
       storage: 40Gi # ~18Gi GGUF + ~1.4Gi mmproj + headroom
 ---
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: stage-qwen3-6-35b-a3b
-  annotations:
-    # One-shot staging Job (downloads the GGUF to the RWO PVC once). Flux must not
-    # re-apply it: a Job's spec.template is immutable, so Renovate bumping the curl
-    # image would fail the Kustomization. Created once, then left alone.
-    kustomize.toolkit.fluxcd.io/reconcile: disabled
-    # CKV_K8S_21: namespace is applied by the Flux Kustomization targetNamespace,
-    # not the raw manifest. CKV_K8S_40: UID 1000 is the cluster convention and a
-    # host-UID collision is not a concern on single-tenant Talos nodes.
-    checkov.io/skip1: CKV_K8S_21=Namespace injected by Flux targetNamespace
-    checkov.io/skip2: CKV_K8S_40=UID 1000 is the cluster convention on single-tenant Talos
-spec:
-  backoffLimit: 6
-  template:
-    spec:
-      restartPolicy: OnFailure
-      automountServiceAccountToken: false
-      # Non-root, drop-ALL, read-only rootfs (cluster security defaults). curl
-      # streams the public GGUFs straight to the RWO PVC; fsGroup makes the
-      # ceph-block volume group-writable. Idempotent ([ -s ] guard) so a re-run
-      # after a fresh PVC re-downloads only what's missing.
-      securityContext:
-        runAsNonRoot: true
-        runAsUser: 1000
-        runAsGroup: 1000
-        fsGroup: 1000
-        fsGroupChangePolicy: OnRootMismatch
-        seccompProfile:
-          type: RuntimeDefault
-      containers:
-        - name: fetch
-          image: docker.io/curlimages/curl:8.21.0@sha256:7c12af72ceb38b7432ab85e1a265cff6ae58e06f95539d539b654f2cfa64bb13
-          securityContext:
-            allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true
-            capabilities:
-              drop:
-                - "ALL"
-          command:
-            - /bin/sh
-            - -ec
-          args:
-            - |
-              cd /models
-              base=https://huggingface.co/unsloth/Qwen3.6-35B-A3B-GGUF/resolve/main
-              for f in Qwen3.6-35B-A3B-UD-IQ4_XS.gguf mmproj-F16.gguf; do
-                [ -s "$f" ] || curl -fSL --retry 5 --retry-delay 10 -o "$f" "$base/$f"
-              done
-          resources:
-            requests:
-              cpu: "500m"
-              memory: 256Mi
-            limits:
-              cpu: "1"
-              memory: 512Mi
-          volumeMounts:
-            - name: models
-              mountPath: /models
-      volumes:
-        - name: models
-          persistentVolumeClaim:
-            claimName: llama-nvidia-models
----
-# Model: pvc:// source (no download by the operator; staged by the Job above).
-# NOTE: the operator mounts the PVC claim at /model-source/ — verify this path
-# on first deploy if --mmproj fails to resolve.
+# Model: operator-managed HF repo source. The operator stages the GGUF and the
+# mmproj projector into the shared llmkube-model-cache PVC (CephFS RWX) and
+# passes the projector to the runtime itself — no staging Job, no hand-rolled
+# --mmproj path.
 apiVersion: inference.llmkube.dev/v1alpha1
 kind: Model
 metadata:
   name: qwen3.6-35b-a3b
 spec:
-  source: pvc://llama-nvidia-models/Qwen3.6-35B-A3B-UD-IQ4_XS.gguf
+  source: hf://unsloth/Qwen3.6-35B-A3B-GGUF
+  files:
+    - Qwen3.6-35B-A3B-UD-IQ4_XS.gguf
+  mmproj: mmproj-F16.gguf
   format: gguf
   quantization: UD-IQ4_XS
   hardware:
@@ -134,8 +75,12 @@ spec:
           labelSelector:
             matchLabels:
               llm-gpu-model: "true"
+  # No runAsNonRoot: the operator's model-cache-prep init container must run as
+  # scoped root (drop ALL, add CHOWN+FOWNER only, no privesc, ro rootfs) to
+  # chown the shared cache on fsGroupPolicy:None backends like CephFS — the
+  # upstream-supported compatibility path (docs/MODEL-CACHE.md). Runtime
+  # containers still run as 1000 via runAsUser below.
   podSecurityContext:
-    runAsNonRoot: true
     runAsUser: 1000
     runAsGroup: 1000
     fsGroup: 1000
@@ -146,11 +91,11 @@ spec:
   endpoint:
     port: 8080
     type: ClusterIP
+  # NB: no manual --mmproj here — the operator injects the projector argument
+  # from Model.spec.mmproj with the correct cache path.
   extraArgs:
     - --alias
     - self-hosted
-    - --mmproj
-    - /model-source/mmproj-F16.gguf
     - --no-mmap
     - --temp
     - "0.6"
