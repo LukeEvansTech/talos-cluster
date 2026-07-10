@@ -17,6 +17,10 @@ spec:
     matchNames:
       - ai
   podMetricsEndpoints:
-    - port: "8080"
+    # The ToolHive operator names the proxy container port `http` (not `8080`);
+    # prometheus-operator matches podMetricsEndpoints[].port by port NAME, so a
+    # numeric value here would resolve no target. /metrics is served on the same
+    # proxy port once telemetryConfigRef is set on each MCPServer.
+    - port: http
       path: /metrics
       interval: 15s
