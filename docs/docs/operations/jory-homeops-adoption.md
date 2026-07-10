@@ -1,9 +1,9 @@
 # joryirving/home-ops Adoption Roadmap
 
-**Status:** Largely SHIPPED 2026-07-10. PRs A–E landed as #3480–#3484 (+ follow-up fixes
-#3488 mcp-searxng bind / arr telemetry, #3492 cache-prep securityContext), seerr MCP as #3491,
-and PR G as the staged #3489 (operator 0.9.3) → #3490 (shared cache + abliterated model) →
-#3493 (vision model, first-class mmproj) with both models verified serving from the shared
+**Status:** Largely SHIPPED 2026-07-10. PRs A–E landed as #3480–#3484 (+ follow-up
+fixes #3488 mcp-searxng bind / arr telemetry, #3492 cache-prep securityContext), seerr
+MCP as #3491, and PR G as the staged #3489 (operator 0.9.3) → #3490 (shared cache +
+abliterated model) → #3493 (vision, first-class mmproj) with both models verified on the shared
 CephFS cache (text + vision end-to-end). The CephFS RWX smoke test passed on 2026-07-10.
 Still open: **ha MCP** (awaiting a user-created read-only Home Assistant token in 1Password),
 **PR F** (optional CPU auxiliary model), and **foreman** (parked — re-evaluate now CephFS is
