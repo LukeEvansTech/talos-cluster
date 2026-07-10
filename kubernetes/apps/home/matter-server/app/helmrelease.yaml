@@ -32,11 +32,10 @@ spec:
               runAsNonRoot: false
               runAsUser: 0
               runAsGroup: 0
-              capabilities:
-                add:
-                  - NET_ADMIN
-                drop:
-                  - ALL
+              # /proc/sys is mounted read-only for non-privileged containers;
+              # NET_ADMIN alone cannot write sysctls. Privileged here is scoped
+              # to this pod's own netns (the sysctls touch only net1).
+              privileged: true
         containers:
           app:
             image:
