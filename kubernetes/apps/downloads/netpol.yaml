@@ -15,3 +15,23 @@ spec:
             io.kubernetes.pod.namespace: media
     - fromEntities:
         - world
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/cilium.io/ciliumnetworkpolicy_v2.json
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: allow-arr-mcp-from-ai
+spec:
+  # The `arr` ToolHive MCP server (ai namespace) queries Prowlarr over its API.
+  # Additive to the namespace-wide policy above (Cilium unions allows), scoped to
+  # the prowlarr endpoint and to the arr MCP pod as the source. Prowlarr runs
+  # behind a gluetun sidecar whose firewall already admits cluster ingress on :80.
+  description: "Allow the arr MCP server (ai) to reach prowlarr"
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: prowlarr
+  ingress:
+    - fromEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: ai
+            toolhive-name: arr
