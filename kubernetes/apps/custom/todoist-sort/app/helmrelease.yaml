@@ -31,7 +31,7 @@ spec:
           app:
             image: &image
               repository: ghcr.io/lukeevanstech/todoist-sort
-              tag: 0.2.0
+              tag: 0.2.1
             command:
               - "sort-inbox"
               - "--root"
