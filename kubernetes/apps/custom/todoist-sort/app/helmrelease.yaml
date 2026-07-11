@@ -17,9 +17,11 @@ spec:
           schedule: "*/5 7-22 * * *"
           timeZone: &timeZone Europe/London
           concurrencyPolicy: Forbid
-          # Kill a wedged run (hung LLM/socket call) so Forbid doesn't skip
-          # every subsequent */5 window; the next tick recovers.
-          activeDeadlineSeconds: 300
+          # Kill a wedged run so Forbid doesn't skip every subsequent */5
+          # window; the next tick recovers. 660 = 2 x 300s LLM attempts
+          # ([llm] timeout in config.toml) + Todoist I/O headroom; the old
+          # 300 was calibrated to the previously hard-wired 120s timeout.
+          activeDeadlineSeconds: 660
           # The */5 schedule IS the retry loop — don't respawn pods that
           # re-call the LLM while Forbid skips windows.
           backoffLimit: 0
@@ -29,7 +31,7 @@ spec:
           app:
             image: &image
               repository: ghcr.io/lukeevanstech/todoist-sort
-              tag: 0.1.0
+              tag: 0.2.0
             command:
               - "sort-inbox"
               - "--root"
@@ -55,10 +57,15 @@ spec:
           schedule: "0 7 * * *"
           timeZone: *timeZone
           concurrencyPolicy: Forbid
-          activeDeadlineSeconds: 600
-          # Next natural chance is tomorrow 07:00, so allow a couple of
-          # retries — but cap the LLM re-spend.
-          backoffLimit: 2
+          # 660 = 2 x 300s LLM attempts ([llm] timeout in config.toml) +
+          # Todoist I/O headroom; the old 600 was calibrated to the
+          # previously hard-wired 120s timeout.
+          activeDeadlineSeconds: 660
+          # No retries: the promotion budget (max_today) is per-process, so
+          # a retried plan pass could promote up to 5 MORE tasks — the retry
+          # budget breaks the <=max_today invariant. A missed morning
+          # self-heals tomorrow at 07:00.
+          backoffLimit: 0
           successfulJobsHistory: 1
           failedJobsHistory: 1
         containers:

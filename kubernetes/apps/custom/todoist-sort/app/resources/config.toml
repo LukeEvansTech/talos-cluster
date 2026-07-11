@@ -4,11 +4,17 @@ dry_run = true                 # flip to false only after the dry-run week
 needs_review_label = "needs-review"
 active_hours_start = 7         # inclusive, local time (belt; the cron schedule is braces)
 active_hours_end = 23          # exclusive
+# max_per_run caps each tick: bounds the one LLM call; overflow is
+# deferred (visibly) to the next */5 tick — stateless
+max_per_run = 12
 
 [llm]
 base_url = "http://litellm.ai.svc.cluster.local:4000/v1"
 model = "self-hosted"
 extra_body = { max_tokens = 16384 }
+# timeout is seconds per LLM attempt; 2 attempts x 300s must stay under
+# the CronJob activeDeadlineSeconds of 660
+timeout = 300
 # api_key: env ANTHROPIC_API_KEY (cluster) or config.local.toml [llm] api_key (dev)
 
 [todoist]
@@ -18,6 +24,9 @@ base_url = "https://api.todoist.com/api/v1"
 [plan]
 max_today = 5        # max tasks set due-today per plan run
 horizon_days = 7     # never reschedule beyond today+N; harness skips & logs
+# max_candidates caps the one plan LLM call; overdue/today kept first
+# (they're the reschedule targets), truncation is logged
+max_candidates = 25
 
 [paths]
 routing = "routing.md"

@@ -3,7 +3,9 @@
 ## Principles
 
 - Prefer the most specific project that clearly fits. If nothing fits with
-  confidence, flag needs-review — don't force it.
+  confidence, give LOW confidence (below 0.8) so the harness flags it for
+  review — never apply the `needs-review` label yourself; flagging is the
+  harness's job.
 - Never invent projects or labels. Only use ones in the catalog.
 
 ## Priority rules
