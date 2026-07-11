@@ -18,7 +18,7 @@ description = "Install Python dependencies"
 run = "uv pip install -r requirements.txt"
 
 [tools]
-"aqua:budimanjojo/talhelper" = "3.1.12"
+"aqua:budimanjojo/talhelper" = "3.1.13"
 # ≥1.52 required by the justfiles (default-list/default-script settings;
 # recipe_name() needs 1.53). Explicit pin so Renovate manages bumps.
 "aqua:casey/just" = "1.56.0"
