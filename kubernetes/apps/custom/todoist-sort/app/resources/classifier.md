@@ -27,6 +27,8 @@ For EACH inbox item output an object with:
 - project_id / project_name — a Project from CATALOG (`id` must match exactly).
 - confidence — 0.0–1.0. Be honest; when genuinely unsure, score LOW rather than guess.
 - labels — subset of CATALOG labels only. [] if none apply. Never invent labels.
+  An item's existing labels are preserved automatically — propose only labels
+  to ADD.
 - priority — 1, 2, 3 or 4 (1 = P1 most urgent … 4 = P4 least). Default 3 when
   unsure; NEVER default to 1.
 - due_date — "YYYY-MM-DD" or null. Only when the text clearly implies when to do it.
