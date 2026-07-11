@@ -15,4 +15,4 @@ spec:
   grafanaCom:
     # renovate: depName="Mikrotik MKTXP Exporter"
     id: 13679
-    revision: 24
+    revision: 28
