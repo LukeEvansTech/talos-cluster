@@ -17,6 +17,12 @@ spec:
           schedule: "*/5 7-22 * * *"
           timeZone: &timeZone Europe/London
           concurrencyPolicy: Forbid
+          # Kill a wedged run (hung LLM/socket call) so Forbid doesn't skip
+          # every subsequent */5 window; the next tick recovers.
+          activeDeadlineSeconds: 300
+          # The */5 schedule IS the retry loop — don't respawn pods that
+          # re-call the LLM while Forbid skips windows.
+          backoffLimit: 0
           successfulJobsHistory: 1
           failedJobsHistory: 1
         containers:
@@ -49,6 +55,10 @@ spec:
           schedule: "0 7 * * *"
           timeZone: *timeZone
           concurrencyPolicy: Forbid
+          activeDeadlineSeconds: 600
+          # Next natural chance is tomorrow 07:00, so allow a couple of
+          # retries — but cap the LLM re-spend.
+          backoffLimit: 2
           successfulJobsHistory: 1
           failedJobsHistory: 1
         containers:
@@ -80,3 +90,6 @@ spec:
             readOnly: true
       tmp:
         type: emptyDir
+        # CLI flock lives here; root filesystem is read-only
+        globalMounts:
+          - path: /tmp
