@@ -1,0 +1,26 @@
+[sort]
+confidence_threshold = 0.8
+dry_run = true                 # flip to false only after the dry-run week
+needs_review_label = "needs-review"
+active_hours_start = 7         # inclusive, local time (belt; the cron schedule is braces)
+active_hours_end = 23          # exclusive
+
+[llm]
+base_url = "http://litellm.ai.svc.cluster.local:4000/v1"
+model = "self-hosted"
+extra_body = { max_tokens = 16384 }
+# api_key: env ANTHROPIC_API_KEY (cluster) or config.local.toml [llm] api_key (dev)
+
+[todoist]
+base_url = "https://api.todoist.com/api/v1"
+# api_token: env TODOIST_API_TOKEN (cluster) or config.local.toml [todoist] api_token (dev)
+
+[plan]
+max_today = 5        # max tasks set due-today per plan run
+horizon_days = 7     # never reschedule beyond today+N; harness skips & logs
+
+[paths]
+routing = "routing.md"
+classifier_template = "classifier.md"
+planner_template = "planner.md"
+# runs_dir deliberately unset: run log goes to stdout (JSON lines)
