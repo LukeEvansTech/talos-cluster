@@ -77,9 +77,10 @@ jobs:
           LABELS: ${{ steps.gate.outputs.labels }}
         run: |
           # High-blast-radius components for this cluster: networking, storage,
-          # secrets/certs, and the GitOps engine itself. Anything matching these
-          # always gets the deeper Opus "full" review regardless of bump size.
-          blast='cilium|rook|ceph|envoy|cert-manager|external-secrets|volsync|flux|cloudnative-pg|spegel'
+          # secrets/certs, the GitOps engine, and the node OS itself. Anything
+          # matching these always gets the deeper Opus "full" review regardless
+          # of bump size.
+          blast='cilium|rook|ceph|envoy|cert-manager|external-secrets|volsync|flux|cloudnative-pg|spegel|talos|siderolabs'
 
           # Sonnet for routine patch container bumps (the light tier decides for
           # itself whether to escalate to full depth, so it needs real judgment);
