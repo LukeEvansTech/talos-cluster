@@ -209,6 +209,15 @@ spec:
         type: emptyDir
         globalMounts:
           - path: /config/Library/Application Support/Plex Media Server/Logs
+      # Custom client-profile overrides (KB-026: tvOS EAC3 direct-play freeze).
+      # Remove this mount to restore stock client profiles.
+      profiles:
+        type: configMap
+        name: plex-client-profiles
+        advancedMounts:
+          plex:
+            app:
+              - path: /config/Library/Application Support/Plex Media Server/Profiles
       tmp:
         type: emptyDir
       transcode:
