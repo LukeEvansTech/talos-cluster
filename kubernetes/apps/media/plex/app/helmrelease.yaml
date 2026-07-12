@@ -6,6 +6,11 @@ metadata:
   name: plex
 spec:
   interval: 1h
+  # Recreate strategy + terminationGracePeriodSeconds=300 means a rollout can
+  # legitimately spend ~5min waiting for the old pod to exit; Helm's default 5m
+  # timeout then fails the upgrade and Flux rolls back mid-rollout. Same failure
+  # mode and fix as dapperdivers/dapper-cluster.
+  timeout: 15m
   chartRef:
     kind: OCIRepository
     name: plex
