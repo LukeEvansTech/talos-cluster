@@ -33,7 +33,7 @@ spec:
               tag: 1.43.2.10687@sha256:be00a2ad851ea3193cd870636f908eb6425ad89390f23cdb08daa35ab5cceacc
             env:
               TZ: "${TIMEZONE}"
-              ALLOWED_NETWORKS: "${CR_LAN_CIDR:-0.0.0.0/0},${GH_LAN_CIDR:-0.0.0.0/0}"
+              PLEX_NO_AUTH_NETWORKS: "${CR_LAN_CIDR:-0.0.0.0/0},${GH_LAN_CIDR:-0.0.0.0/0}"
               PLEX_ADVERTISE_URL: "http://${SVC_PLEX_ADDR:-127.0.0.1}:32400,https://plex.${SECRET_DOMAIN:-local}:443"
               PLEX_PREFERENCE_1: "AllowMediaDeletion=0"
               PLEX_PREFERENCE_2: "EnableIPv6=0"
@@ -42,7 +42,7 @@ spec:
               # Hardware transcoding
               PLEX_PREFERENCE_5: "HardwareAcceleratedCodecs=1"
               PLEX_PREFERENCE_6: "HardwareAcceleratedEncoders=1"
-              PLEX_PREFERENCE_7: "TranscoderTempDirectory=/transcode"
+              # (7 retired: TranscoderTempDirectory=/transcode is the image entrypoint default)
               # Disable services that don't work in Kubernetes
               PLEX_PREFERENCE_8: "GdmEnabled=0"
               PLEX_PREFERENCE_9: "DlnaEnabled=0"
@@ -52,10 +52,11 @@ spec:
               # Performance tuning
               PLEX_PREFERENCE_12: "ScannerLowPriority=1"
               PLEX_PREFERENCE_13: "logDebug=0"
-              # Limit remote streams to 20 Mbps (forces 4K to transcode)
+              # Limit remote streams to 20 Mbps (forces 4K to transcode; see KB-018)
               PLEX_PREFERENCE_14: "WanPerStreamMaxUploadRate=20000"
-              LD_LIBRARY_PATH: "/usr/local/glibc/usr/lib"
-              HARDWARE_DEVICE_PATH: "/dev/nvidia0"
+              # Total remote-stream budget (~5 concurrent at the per-stream cap). Was
+              # live-only (set via the UI); declared here to remove the git/live drift.
+              PLEX_PREFERENCE_15: "WanTotalMaxUploadRate=100000"
             probes:
               liveness: &probes
                 enabled: true
