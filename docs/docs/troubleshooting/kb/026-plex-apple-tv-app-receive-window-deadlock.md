@@ -1,6 +1,6 @@
 # KB-026: Plex Apple TV App Freezes on One Frame (Client Receive-Window Deadlock)
 
-**Status:** Understood; **server-side clean — this is a Plex-for-Apple-TV client bug**, isolated by an Infuse control (same device/network/server/file plays fine in Infuse). No cluster change fixes it; remediation is client-side (use Infuse, or reinstall/downgrade the Plex tvOS app).
+**Status:** Understood; **server-side clean — this is a Plex-for-Apple-TV client bug**, isolated by an Infuse control (same device/network/server/file plays fine in Infuse). Root cause narrowed same-day to **EAC3 direct play on tvOS 26.5** (see Cause); community-corroborated, no fixed app version as of 2026-07-12. A server-side `Profiles/tvOS.xml` override (transcode EAC3 audio → ac3 for tvOS clients only) is deployed as a workaround — see Fix.
 
 ## Symptom
 
@@ -32,13 +32,29 @@ Read it as: the Apple TV **received ~157 MB of video and still had `viewOffset=0
 
 Why it isn't universal ("wouldn't everyone see this?"): a 24 Mbps 4K HEVC stream is trivial for an A12 — capability is universal, so a hardware limit would be a famous complaint and isn't. A **startup/player bug in one client build on a brand-new tvOS** is version-specific: only users on that Plex-app + tvOS combo hit it; many are on other versions or use Infuse.
 
+### Narrowed root cause: EAC3 direct play on tvOS 26.5
+
+Re-examining the test matrix, the discriminating variable is the **audio codec**, not resolution or HDR format:
+
+| Title | Video | Audio | Plex tvOS app |
+| --- | --- | --- | --- |
+| Silo S3E1/E2 | 4K HEVC DV P8.1 | **EAC3** Atmos 5.1 | freezes |
+| 500 Days of Summer | 4K HEVC HDR10 (no DV) | **EAC3** 5.1 | freezes |
+| Pokémon: The First Movie | 1080p HEVC SDR | **Opus** 2.0 | plays fine |
+| any of the above via Infuse | — | EAC3 | plays fine (own decoder, not the tvOS pipeline) |
+
+Community reports match exactly: video freezes on a frame during **EAC3 direct play on tvOS 26.5**, with the same files fine on **tvOS 26.4** and on other platforms
+(<https://forums.plex.tv/t/eac3-audio-apple-tv-direct-play-broken-video-freezes-audio-continues-tvos-26-5-synology-ds152/938778>). Plex staff engaged but could not
+reproduce universally; no fixed app version identified as of 2026-07-12 (tvOS app releases moved to year-based versions, e.g. 2026.13.0 on 2026-06-30 — no EAC3 fix in
+its notes). Even Plex's bundled `tvOS.xml` profile carries a comment admitting historical tvOS EAC3 quirks ("Since tvOS may have issues direct playing mov/eac3…").
+
 ## Fix
 
-Nothing to change in the cluster. Remediate on the client:
+The bug is in the client, but with the cause narrowed to EAC3 there is a **surgical server-side workaround** plus client-side remediations:
 
-1. **Immediate workaround:** play via **Infuse** (it reads straight from the Plex library and its player doesn't have the bug).
-2. **Plex app:** delete + reinstall the Plex app on the Apple TV (clears player state/cache); update past 8.45 if a newer build exists. tvOS can't easily downgrade an App Store app, so if the newest build is affected, sit it out / file a Plex report.
-3. Optional: toggle the Plex app's Direct Play / Direct Stream and buffering options — a streaming-mode change occasionally sidesteps the stall.
+1. **Server-side workaround (deployed):** a custom `Profiles/tvOS.xml` override — `kubernetes/apps/media/plex/app/resources/tvOS.xml`, shipped as the `plex-client-profiles` ConfigMap and mounted over the config dir's `Profiles/` — mirrors the Apple TV 4K's real capabilities but **removes `eac3` from every audioCodec list**. EAC3 titles then direct-stream with an **ac3 5.1 audio transcode** (surround preserved, Atmos metadata lost, tvOS clients only); video stays a copy (`hevc` is in the HLS transcode target). Delete the file + mount to restore stock behaviour once Plex ships a fix. Caveat: the app's `X-Plex-Client-Profile-Extra` deltas may re-add capabilities client-side — verify with `/status/sessions` (`videoDecision=copy`, `audioDecision=transcode`) and revert if the decision doesn't change.
+2. **Client:** update the Plex app past 8.45 (App Store; year-versioned builds like 2026.13.x are newer) and fully power-cycle the Apple TV. If freezes persist, toggle the app's **updated audio engine** setting — it switches the exact EAC3 path that broke.
+3. **Fallback:** play via **Infuse** — its own decoder pipeline is unaffected and keeps full Atmos.
 
 The server-side TCP levers (lower the `200M` egress cap, force-disable BBR via `allowed-unsafe-sysctls`) are **not** indicated here — the capture shows `retrans:0/1` (no loss) and a receiver-limited window, so the wire and congestion control are not the bottleneck.
 
@@ -77,3 +93,6 @@ The server-side TCP levers (lower the `200M` egress cap, force-disable BBR via `
 
 - Related Plex entries: [KB-002](002-plex-direct-play-buffering-bbr-mtu-probing.md), [KB-003](003-plex-advertises-broken-connection-urls.md), [KB-018](018-plex-remote-4k-transcode-decision-crash.md).
 - Linux TCP zero-window / persist timer: `net/ipv4/tcp_output.c` (`tcp_send_probe0`, exponential `icsk_backoff`).
+- EAC3 / tvOS 26.5 direct-play breakage (matching report): <https://forums.plex.tv/t/eac3-audio-apple-tv-direct-play-broken-video-freezes-audio-continues-tvos-26-5-synology-ds152/938778>
+- Broader tvOS 26 Plex app instability: <https://forums.plex.tv/t/plex-app-crashing-on-all-my-apple-tvs/929051>, <https://forums.plex.tv/t/cannot-play-any-videos-on-apple-tv-plex-app-tvos-26-3-23k620/937417>
+- Custom tvOS client-profile override precedent: <https://gist.github.com/jfeilbach/18b08ea0ed9eaf844d643ab092905973>
