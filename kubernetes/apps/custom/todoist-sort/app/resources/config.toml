@@ -19,8 +19,9 @@ timeout = 300
 
 [todoist]
 base_url = "https://api.todoist.com/api/v1"
-# retry transient 5xx/429/transport; bump if Todoist stays flaky
-max_retries = 2
+# retry transient 5xx/429/transport; bumped 2026-07-12 (2->4) after Todoist
+# served multi-second 503 windows on GET /user that outlasted 2 retries
+max_retries = 4
 # api_token: env TODOIST_API_TOKEN (cluster) or config.local.toml [todoist] api_token (dev)
 
 [plan]
