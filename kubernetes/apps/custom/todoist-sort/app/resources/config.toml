@@ -1,6 +1,6 @@
 [sort]
 confidence_threshold = 0.8
-dry_run = true                 # flip to false only after the dry-run week
+dry_run = false                # LIVE from 2026-07-12: real writes to Todoist
 needs_review_label = "needs-review"
 active_hours_start = 7         # inclusive, local time (belt; the cron schedule is braces)
 active_hours_end = 23          # exclusive
