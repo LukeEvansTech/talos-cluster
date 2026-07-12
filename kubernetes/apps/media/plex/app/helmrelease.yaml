@@ -134,6 +134,38 @@ spec:
         parentRefs:
           - name: envoy-external
             namespace: network
+        rules:
+          # Strip Range on external-subtitle fetches — SRT subtitles break through a
+          # reverse proxy otherwise.
+          # Ref: https://forums.plex.tv/t/external-srt-subtitles-are-not-working-w-reverse-proxy/886540
+          - matches:
+              - path:
+                  type: PathPrefix
+                  value: /library/streams
+            filters:
+              - type: RequestHeaderModifier
+                requestHeaderModifier:
+                  remove: ["Range"]
+            backendRefs:
+              - identifier: app
+                port: *port
+            timeouts:
+              request: 0s
+              backendRequest: 0s
+          # Plex needs long-lived connections beyond Envoy's default route timeout:
+          # transcode decisions can take >15s, streams run for hours, and
+          # /:/eventsource/notifications is an SSE stream held open all session —
+          # Envoy otherwise returns 504 "upstream request timeout". 0s disables it.
+          - matches:
+              - path:
+                  type: PathPrefix
+                  value: /
+            backendRefs:
+              - identifier: app
+                port: *port
+            timeouts:
+              request: 0s
+              backendRequest: 0s
     persistence:
       config:
         existingClaim: "{{ .Release.Name }}"
