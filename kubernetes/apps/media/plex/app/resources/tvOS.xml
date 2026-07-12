@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Client name="tvOS">
+  <!-- Custom server-side override for the Plex tvOS app (see KB-026).
+
+        tvOS 26.5 + Plex for Apple TV breaks EAC3 direct play: the player stalls on
+        the first frame and wedges the app (community reports match; Infuse plays the
+        same files fine). This profile mirrors the Apple TV 4K's real capabilities but
+        removes eac3 from every audioCodec list, so EAC3 titles direct-stream with an
+        ac3 5.1 audio transcode (Atmos metadata lost on this client only) while video
+        is still copied, never transcoded (hevc is in the HLS transcode target).
+
+        Delete this file (and its ConfigMap mount) to restore stock behaviour once
+        Plex ships a fixed tvOS app. -->
+  <Settings>
+    <Setting name="DirectPlayStreamSelection" value="true" />
+    <Setting name="StreamUnselectedIncompatibleAudioStreams" value="true" />
+  </Settings>
+  <TranscodeTargets>
+    <!-- hevc listed so 4K HEVC video direct-streams (copy) instead of transcoding;
+          ac3 first so surround EAC3 falls back to AC3 5.1 rather than stereo aac.
+          eac3 deliberately absent: listing it would let audio "copy" straight back
+          into the broken client path. -->
+    <VideoProfile protocol="hls" container="mpegts" codec="h264,hevc" audioCodec="ac3,aac" subtitleCodec="eia_608_embedded" context="streaming" />
+    <MusicProfile container="mp3" codec="mp3" />
+    <PhotoProfile container="jpeg" />
+  </TranscodeTargets>
+  <DirectPlayProfiles>
+    <!-- Apple TV 4K reality (mkv + hevc + surround), minus eac3 -->
+    <VideoProfile container="mkv,mp4,mov,mpegts" codec="h264,hevc,mpeg4,mpeg2video" audioCodec="aac,ac3,alac,flac,dca,truehd,opus,mp2,mp3,pcm" subtitleCodec="srt,ass,ssa,mov_text,tx3g,ttxt,text,pgs,vobsub,eia_608" />
+    <VideoProfile protocol="hls" container="mpegts" codec="h264" audioCodec="aac,ac3" />
+    <MusicProfile container="mp3" codec="mp3" />
+    <MusicProfile container="mp4,m4a" codec="aac,alac" />
+    <MusicProfile container="flac" codec="flac" />
+    <PhotoProfile container="jpeg,png,gif" />
+  </DirectPlayProfiles>
+</Client>
