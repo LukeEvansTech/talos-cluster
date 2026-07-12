@@ -34,7 +34,10 @@ spec:
             env:
               TZ: "${TIMEZONE}"
               PLEX_NO_AUTH_NETWORKS: "${CR_LAN_CIDR:-0.0.0.0/0},${GH_LAN_CIDR:-0.0.0.0/0}"
-              PLEX_ADVERTISE_URL: "http://${SVC_PLEX_ADDR:-127.0.0.1}:32400,https://plex.${SECRET_DOMAIN:-local}:443"
+              # Note: everything here is published to plex.tv as a candidate connection
+              # (KB-003) — the svc URL is unresolvable off-cluster and skipped fast by
+              # clients, but gives the ~10 in-cluster companions a direct, non-hairpin path.
+              PLEX_ADVERTISE_URL: "http://${SVC_PLEX_ADDR:-127.0.0.1}:32400,https://plex.${SECRET_DOMAIN:-local}:443,http://plex.media.svc.cluster.local:32400"
               PLEX_PREFERENCE_1: "AllowMediaDeletion=0"
               PLEX_PREFERENCE_2: "EnableIPv6=0"
               PLEX_PREFERENCE_3: "FriendlyName=Talos Plex"
@@ -111,6 +114,9 @@ spec:
     defaultPodOptions:
       labels:
         gpu-workload: "true"
+      # Let Plex checkpoint its SQLite DB cleanly on shutdown instead of being
+      # SIGKILLed at the 30s default mid-write.
+      terminationGracePeriodSeconds: 300
       runtimeClassName: nvidia
       affinity:
         nodeAffinity:
