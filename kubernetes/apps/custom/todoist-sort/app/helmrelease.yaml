@@ -14,7 +14,11 @@ spec:
       sort-inbox:
         type: cronjob
         cronjob:
-          schedule: "*/5 7-22 * * *"
+          # Every 15 min during the dry-run week (was */5). Sorting is
+          # log-only for now, so latency is free — fewer runs = fewer chances
+          # to hit a transient Todoist blip and page. Revisit at the flip,
+          # where faster capture-to-file matters.
+          schedule: "*/15 7-22 * * *"
           timeZone: &timeZone Europe/London
           concurrencyPolicy: Forbid
           # Kill a wedged run so Forbid doesn't skip every subsequent */5
