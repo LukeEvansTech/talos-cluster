@@ -22,9 +22,14 @@ spec:
           # ([llm] timeout in config.toml) + Todoist I/O headroom; the old
           # 300 was calibrated to the previously hard-wired 120s timeout.
           activeDeadlineSeconds: 660
-          # The */5 schedule IS the retry loop — don't respawn pods that
-          # re-call the LLM while Forbid skips windows.
-          backoffLimit: 0
+          # One k8s-level retry: a transient Todoist 5xx that outlasts the
+          # in-pod retry (seen 2026-07-12: ~6s of 503 on GET /user) fails the
+          # pod; a single respawn ~10s later usually lands after recovery,
+          # turning a self-healing blip into a silent success instead of a
+          # page. Safe here — the sort pass is idempotent (moved items leave
+          # the Inbox, flagged items carry the skip label) and the common
+          # failure is pre-LLM (GET /user), so a respawn re-spends no LLM.
+          backoffLimit: 1
           successfulJobsHistory: 1
           failedJobsHistory: 1
         containers:
