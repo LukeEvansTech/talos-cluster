@@ -33,6 +33,7 @@ Work down from what you observe to the most likely entry:
     - 4K direct-play freezes for ~60s every ~6 minutes on LAN Apple TVs → [KB-002](kb/002-plex-direct-play-buffering-bbr-mtu-probing.md)
     - "Server unavailable" / connection drops at session start, pod otherwise healthy → [KB-003](kb/003-plex-advertises-broken-connection-urls.md)
     - Remote 4K titles crash with `bad lexical cast`; the same titles work on phone/LAN → [KB-018](kb/018-plex-remote-4k-transcode-decision-crash.md)
+    - Apple TV shows one frame of a 4K title then the Plex app freezes (force-quit to recover); the same file plays fine in Infuse → [KB-026](kb/026-plex-apple-tv-app-receive-window-deadlock.md)
 - **Talos upgrades**
     - TUPPR patch rollout stuck after drain; node cordoned and still on the old version → [KB-004](kb/004-talos-patch-rollout-gotchas-tuppr.md)
 - **CI / validation / local dev**
@@ -67,3 +68,4 @@ Work down from what you observe to the most likely entry:
 - [KB-023: Node Conntrack Table Saturates from a Host-Network Scanner](kb/023-node-conntrack-saturation-host-network-scanner.md)
 - [KB-024: zeroscaler — NFS-Availability Scale-to-Zero via Native HPA](kb/024-zeroscaler-nfs-hpa.md)
 - [KB-025: CephFS "Module ceph not found" on Talos Is a Built-in, Not a Missing Module](kb/025-cephfs-modprobe-builtin-misdiagnosis.md)
+- [KB-026: Plex Apple TV App Freezes on One Frame (Client Receive-Window Deadlock)](kb/026-plex-apple-tv-app-receive-window-deadlock.md)
