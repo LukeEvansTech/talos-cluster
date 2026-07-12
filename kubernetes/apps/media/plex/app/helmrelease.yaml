@@ -87,6 +87,27 @@ spec:
               limits:
                 nvidia.com/gpu: 1
                 memory: 16Gi
+          # Plex only logs to files, never stdout — tail the main log so the
+          # VictoriaLogs collector ships it like every other app. The Logs dir is
+          # an emptyDir (config-logs) already globalMounted into all containers.
+          logs:
+            image:
+              repository: mirror.gcr.io/library/busybox
+              tag: "1.38"
+            command:
+              - /bin/sh
+              - -c
+              - tail -n0 -F "/config/Library/Application Support/Plex Media Server/Logs/Plex Media Server.log"
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities: { drop: ["ALL"] }
+            resources:
+              requests:
+                cpu: 10m
+                memory: 10Mi
+              limits:
+                memory: 64Mi
     defaultPodOptions:
       labels:
         gpu-workload: "true"
