@@ -35,10 +35,13 @@
   // --- Custom datasources (from .renovate/customManagers.json5) ---
   customDatasources: {
     "minecraft-release": {
-      defaultRegistryUrlTemplate: "https://api.papermc.io/v2/projects/paper",
+      // Fill v3 API (api.papermc.io/v2 was sunset 2026-07-01, returns HTTP 410).
+      // v3 nests versions in per-minor-version arrays; `versions.*` flattens them
+      // back to the flat list the v2 endpoint used to return.
+      defaultRegistryUrlTemplate: "https://fill.papermc.io/v3/projects/paper",
       format: "json",
       transformTemplates: [
-        '{"releases": $map($filter(versions, function($v) { $not($contains($v, "-pre")) and $not($contains($v, "-rc")) }), function($v) { {"version": $v} }), "sourceUrl": "https://papermc.io", "homepage": "https://papermc.io"}',
+        '{"releases": $map($filter(versions.*, function($v) { $not($contains($v, "-pre")) and $not($contains($v, "-rc")) }), function($v) { {"version": $v} }), "sourceUrl": "https://papermc.io", "homepage": "https://papermc.io"}',
       ],
     },
   },
@@ -242,7 +245,10 @@
       group: {
         commitMessageTopic: "{{{groupName}}} group",
       },
-      minimumGroupSize: 2,
+      // 1, not 2: a solo pinDigest event can never reach 2 members and parks
+      // forever under "Group Size Not Met" (protected-infra keeps merges manual
+      // regardless; 2+ simultaneous updates still group).
+      minimumGroupSize: 1,
     },
     {
       description: "CoreDNS Group",
@@ -252,7 +258,8 @@
       group: {
         commitMessageTopic: "{{{groupName}}} group",
       },
-      minimumGroupSize: 2,
+      // 1, not 2: same solo-pinDigest parking issue as the Cilium group above.
+      minimumGroupSize: 1,
     },
     {
       description: "Flux Group",
@@ -359,6 +366,20 @@
         commitMessageTopic: "{{{groupName}}} group",
       },
       minimumGroupSize: 2,
+    },
+    {
+      // Operator and CRDs release together but aren't protected infra, so
+      // ungrouped they can auto-merge days apart; the operator running against
+      // stale CRDs is the failure mode (Flux dependsOn checks readiness, not
+      // version parity). Both OCI chart names contain "toolhive-operator".
+      description: "ToolHive Group (operator + crds move in lockstep)",
+      groupName: "ToolHive",
+      matchDatasources: ["docker"],
+      matchPackageNames: ["/toolhive-operator/"],
+      group: {
+        commitMessageTopic: "{{{groupName}}} group",
+      },
+      minimumGroupSize: 1,
     },
 
     // === Labels (from labels.json5) ===
