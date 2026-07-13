@@ -20,7 +20,7 @@ spec:
           app:
             image:
               repository: thijsvanloef/palworld-server-docker
-              tag: v2.4.2@sha256:f0769c2d336d00e46c2b5f74f5bf079628c1a454e176a4b31836f98eaaf4d8c4
+              tag: v2.5.0@sha256:b4ac9ee22483309d444e3872128c1868e87e47bf19fd218928a138d6d79713db
             env:
               TZ: "${TIMEZONE}"
               # User configuration
