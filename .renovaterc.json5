@@ -475,5 +475,19 @@
       matchPackageNames: ["docker.io/lakker/pulsarr"],
       allowedVersions: "<1.0.0",
     },
+    {
+      // Paper lists new Minecraft versions before any STABLE build exists
+      // (e.g. 26.2 shipped ALPHA/BETA only — PR #3533); the itzg image
+      // defaults PAPER_CHANNEL to stable-only, so merging early crash-loops
+      // the server with "No build found for version X with channel 'default'".
+      // The Fill v3 version list carries no per-version channel data (builds
+      // channels are a per-version endpoint; GraphQL is POST-only), so gate PR
+      // creation on a human check instead. Before ticking the dashboard box,
+      // confirm STABLE builds exist:
+      //   curl -s https://fill.papermc.io/v3/projects/paper/versions/<ver>/builds | jq '[.[].channel] | unique'
+      description: "Minecraft (Paper) — dashboard approval; wait for a STABLE Paper build",
+      matchDatasources: ["custom.minecraft-release"],
+      dependencyDashboardApproval: true,
+    },
   ],
 }
