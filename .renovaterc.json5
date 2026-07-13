@@ -93,15 +93,15 @@
     // === Auto-merge (from autoMerge.json5) ===
     // === App auto-merge (denylist model) ===
     // Broad enabler: every container image + Helm chart auto-merges for
-    // minor/patch/digest. The protected-infra guard immediately below
+    // minor/patch/digest and first-time digest pins. The guard immediately below
     // re-disables automerge for cluster-critical components (last-match-wins).
     // `major` is never listed anywhere, so it always stays manual.
     // platformAutomerge:false => Renovate self-gates on CI (flate, security-scans)
     // rather than GitHub-native auto-merge, so no branch-protection ruleset is needed.
     {
-      description: "Auto-merge apps — minor/patch/digest (denylist model; protected guard below)",
+      description: "Auto-merge apps — minor/patch/digest + pins (denylist model; protected guard below)",
       matchDatasources: ["docker", "helm"],
-      matchUpdateTypes: ["minor", "patch", "digest"],
+      matchUpdateTypes: ["minor", "patch", "digest", "pin", "pinDigest"],
       automerge: true,
       automergeType: "pr",
       platformAutomerge: false,
@@ -138,6 +138,19 @@
         "/snapshot-controller/", // CSI VolumeSnapshot controller (backup path)
       ],
       automerge: false,
+    },
+    {
+      // Docs toolchain lives in docs/requirements.txt (zensical). Same CI-gated
+      // pattern as the container/chart rule above: self-merge minor/patch/digest
+      // after the 3-day age gate, gating on CI (docs build + drift check).
+      description: "Auto-merge Python deps — minor/patch/digest, CI-gated",
+      matchDatasources: ["pypi"],
+      matchUpdateTypes: ["minor", "patch", "digest"],
+      automerge: true,
+      automergeType: "pr",
+      platformAutomerge: false,
+      ignoreTests: false,
+      minimumReleaseAge: "3 days",
     },
     {
       description: "Auto-merge GitHub Actions",
