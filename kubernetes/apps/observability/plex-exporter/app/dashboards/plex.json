@@ -70,9 +70,7 @@
         "orientation": "auto",
         "percentChangeColorMode": "standard",
         "reduceOptions": {
-          "calcs": [
-            "last"
-          ],
+          "calcs": ["last"],
           "fields": "",
           "values": false
         },
@@ -182,9 +180,7 @@
         "orientation": "auto",
         "percentChangeColorMode": "standard",
         "reduceOptions": {
-          "calcs": [
-            "mean"
-          ],
+          "calcs": ["mean"],
           "fields": "",
           "values": false
         },
@@ -254,9 +250,7 @@
         "orientation": "auto",
         "percentChangeColorMode": "standard",
         "reduceOptions": {
-          "calcs": [
-            "last"
-          ],
+          "calcs": ["last"],
           "fields": "",
           "values": false
         },
@@ -314,9 +308,7 @@
         "orientation": "auto",
         "percentChangeColorMode": "standard",
         "reduceOptions": {
-          "calcs": [
-            "max"
-          ],
+          "calcs": ["max"],
           "fields": "",
           "values": false
         },
@@ -370,9 +362,7 @@
         "orientation": "auto",
         "percentChangeColorMode": "standard",
         "reduceOptions": {
-          "calcs": [
-            "mean"
-          ],
+          "calcs": ["mean"],
           "fields": "",
           "values": false
         },
@@ -442,9 +432,7 @@
         "orientation": "auto",
         "percentChangeColorMode": "standard",
         "reduceOptions": {
-          "calcs": [
-            "last"
-          ],
+          "calcs": ["last"],
           "fields": "",
           "values": false
         },
@@ -502,9 +490,7 @@
         "orientation": "auto",
         "percentChangeColorMode": "standard",
         "reduceOptions": {
-          "calcs": [
-            "max"
-          ],
+          "calcs": ["max"],
           "fields": "",
           "values": false
         },
@@ -563,9 +549,7 @@
         "orientation": "auto",
         "percentChangeColorMode": "standard",
         "reduceOptions": {
-          "calcs": [
-            "max"
-          ],
+          "calcs": ["max"],
           "fields": "",
           "values": false
         },
@@ -637,9 +621,7 @@
         "orientation": "auto",
         "percentChangeColorMode": "standard",
         "reduceOptions": {
-          "calcs": [
-            "last"
-          ],
+          "calcs": ["last"],
           "fields": "/^TX$/",
           "values": false
         },
@@ -698,9 +680,7 @@
         "orientation": "auto",
         "percentChangeColorMode": "standard",
         "reduceOptions": {
-          "calcs": [
-            "last"
-          ],
+          "calcs": ["last"],
           "fields": "",
           "values": false
         },
@@ -1039,9 +1019,7 @@
         },
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": [
-            "max"
-          ]
+          "calcs": ["max"]
         },
         "showValue": "never",
         "stacking": "normal",
@@ -1074,9 +1052,7 @@
           "id": "reduce",
           "options": {
             "labelsToFields": true,
-            "reducers": [
-              "sum"
-            ]
+            "reducers": ["sum"]
           }
         },
         {
@@ -1149,9 +1125,7 @@
         },
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": [
-            "max"
-          ]
+          "calcs": ["max"]
         },
         "showValue": "auto",
         "stacking": "normal",
@@ -1199,9 +1173,7 @@
           "options": {
             "fields": {
               "Value": {
-                "aggregations": [
-                  "sum"
-                ],
+                "aggregations": ["sum"],
                 "operation": "aggregate"
               },
               "day": {
@@ -1302,9 +1274,7 @@
         },
         "orientation": "horizontal",
         "reduceOptions": {
-          "calcs": [
-            "max"
-          ]
+          "calcs": ["max"]
         },
         "showValue": "never",
         "stacking": "normal",
@@ -1337,9 +1307,7 @@
           "id": "reduce",
           "options": {
             "labelsToFields": true,
-            "reducers": [
-              "sum"
-            ]
+            "reducers": ["sum"]
           }
         },
         {
@@ -1428,9 +1396,7 @@
         },
         "orientation": "horizontal",
         "reduceOptions": {
-          "calcs": [
-            "max"
-          ]
+          "calcs": ["max"]
         },
         "showValue": "never",
         "stacking": "normal",
@@ -1463,9 +1429,7 @@
           "id": "reduce",
           "options": {
             "labelsToFields": true,
-            "reducers": [
-              "sum"
-            ]
+            "reducers": ["sum"]
           }
         },
         {
@@ -1554,9 +1518,7 @@
         },
         "orientation": "horizontal",
         "reduceOptions": {
-          "calcs": [
-            "max"
-          ]
+          "calcs": ["max"]
         },
         "showValue": "never",
         "stacking": "normal",
@@ -1589,9 +1551,7 @@
           "id": "reduce",
           "options": {
             "labelsToFields": true,
-            "reducers": [
-              "sum"
-            ]
+            "reducers": ["sum"]
           }
         },
         {
@@ -1693,9 +1653,7 @@
         },
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": [
-            "max"
-          ]
+          "calcs": ["max"]
         },
         "showValue": "never",
         "stacking": "normal",
@@ -1727,9 +1685,7 @@
           "id": "reduce",
           "options": {
             "labelsToFields": true,
-            "reducers": [
-              "sum"
-            ]
+            "reducers": ["sum"]
           }
         },
         {
@@ -1814,9 +1770,7 @@
         },
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": [
-            "max"
-          ]
+          "calcs": ["max"]
         },
         "showValue": "never",
         "stacking": "normal",
@@ -1848,9 +1802,7 @@
           "id": "reduce",
           "options": {
             "labelsToFields": true,
-            "reducers": [
-              "sum"
-            ]
+            "reducers": ["sum"]
           }
         },
         {
