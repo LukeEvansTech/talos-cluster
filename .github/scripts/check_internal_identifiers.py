@@ -78,6 +78,7 @@ ALLOWLIST: dict[str, str] = {
     "kubernetes/apps/observability/mktxp/app/externalsecret.yaml": "mktxp.conf instance labels",
     "kubernetes/apps/observability/network-ups-tools/app/configmap.yaml": "NUT UPS device names",
     "kubernetes/apps/observability/network-ups-tools/app/helmrelease.yaml": "NUT UPS device + address",
+    "kubernetes/apps/observability/nut-exporter/app/prometheusrule.yaml": "NUT UPS alert selectors",
     "kubernetes/apps/observability/nut-exporter/app/servicemonitor.yaml": "NUT scrape targets",
     "kubernetes/apps/observability/snmp-exporter/app/configmap-entity-sensor.yaml": "SNMP sensor module",
     "kubernetes/apps/observability/snmp-exporter/app/configmap.yaml": "SNMP module config",
