@@ -36,7 +36,7 @@ spec:
               - |
                 cp /etc/nut/local/ups.conf /etc/nut/ups.conf
                 chgrp nut /etc/nut/ups.conf && chmod 640 /etc/nut/ups.conf
-                chown nut:nut /var/run/nut && chmod 2750 /var/run/nut
+                chmod 2750 /var/run/nut && chown nut:nut /var/run/nut
                 exec /usr/lib/nut/snmp-ups -a cr-ups-comms -F -u root
             env: &env
               TZ: ${TIMEZONE:=UTC}
@@ -55,6 +55,10 @@ spec:
                 add:
                   - CHOWN
                   - DAC_OVERRIDE
+                  # FOWNER: chmod on /var/run/nut once it is owned by nut
+                  # (the emptyDir keeps nut ownership across container
+                  # restarts, so the perms commands must stay idempotent)
+                  - FOWNER
                   - SETGID
                   - SETUID
           driver-main:
@@ -65,7 +69,7 @@ spec:
               - |
                 cp /etc/nut/local/ups.conf /etc/nut/ups.conf
                 chgrp nut /etc/nut/ups.conf && chmod 640 /etc/nut/ups.conf
-                chown nut:nut /var/run/nut && chmod 2750 /var/run/nut
+                chmod 2750 /var/run/nut && chown nut:nut /var/run/nut
                 exec /usr/lib/nut/snmp-ups -a cr-ups-main -F -u root
             env: *env
             resources: *driver-resources
@@ -93,7 +97,7 @@ spec:
                 } > /etc/nut/upsd.users
                 chgrp nut /etc/nut/ups.conf /etc/nut/upsd.conf /etc/nut/upsd.users
                 chmod 640 /etc/nut/ups.conf /etc/nut/upsd.conf /etc/nut/upsd.users
-                chown nut:nut /var/run/nut && chmod 2750 /var/run/nut
+                chmod 2750 /var/run/nut && chown nut:nut /var/run/nut
                 exec /usr/sbin/upsd -F -u nut
             env:
               TZ: ${TIMEZONE:=UTC}
