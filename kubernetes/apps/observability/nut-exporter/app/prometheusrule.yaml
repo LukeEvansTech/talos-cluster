@@ -51,6 +51,35 @@ spec:
           labels:
             severity: critical
             pushover_priority: emergency
+        # Since the network-ups-tools driver-isolation change, one snmp-ups
+        # driver can fail independently of upsd: that UPS's metrics vanish
+        # while the other keeps reporting. absent() carries the ups label
+        # from its matcher, so this stays per-UPS.
+        - alert: UPSMetricsMissing
+          annotations:
+            description: >-
+              No nut_ups_status metrics for UPS {{ $labels.ups }} for over 5 minutes.
+              Its snmp-ups driver container is likely crashlooping or the UPS
+              management card is unreachable, so this UPS is unmonitored.
+            summary: UPS {{ $labels.ups }} is not reporting metrics.
+          expr: absent(nut_ups_status{ups="cr-ups-main"}) or absent(nut_ups_status{ups="cr-ups-comms"})
+          for: 5m
+          labels:
+            severity: critical
+        # A UPS can shut its output down during an outage and never restart it
+        # (seen 2026-07-14: mains restored, battery 100%, output 0V, downstream
+        # devices dark) — no other rule covers status OFF.
+        - alert: UPSOutputOff
+          annotations:
+            description: >-
+              UPS {{ $labels.ups }} reports status OFF — its output is switched off
+              and everything downstream is unpowered. It will not restart output by
+              itself; power it back on at the front panel.
+            summary: UPS {{ $labels.ups }} output is OFF — downstream load is dark.
+          expr: max by (ups) (nut_ups_status{status="OFF"}) == 1
+          for: 2m
+          labels:
+            severity: critical
         - alert: UpsLowBattery
           annotations:
             description: UPS {{ $labels.ups }} battery charge is {{ $value | humanizePercentage }} which is below 50%.
