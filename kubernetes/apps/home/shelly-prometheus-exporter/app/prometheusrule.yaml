@@ -16,35 +16,86 @@ spec:
           for: 5m
           labels:
             severity: critical
-        - alert: ShellyHighPowerDraw
+        # Power alerts are expressed as a percentage of each device's OWN
+        # firmware power_limit, not a fixed wattage. The limit differs per
+        # model (2240W on SNSW-001P8EU, 3000W on SNPL-00112UK, 4480W on
+        # SNSW-001P16EU) and the plug cuts its own output when it is reached
+        # -- so the previous fixed thresholds were structurally unreachable:
+        # >3000W could never fire on 46/48 devices (the plug trips first) and
+        # >2500W could never fire on the seven 2240W plugs. A ratio is
+        # model-agnostic, stays correct when a new model joins, and cannot go
+        # silently dead. Peak draw across 30d was 73% (the washing machine, at
+        # 2276W of its 3000W limit), so 90% leaves real headroom -- a fixed
+        # 2500W threshold sat only 224W above that appliance's normal peak and
+        # would have false-fired on a hot wash cycle.
+        #
+        # The name join goes to the operator's shelly_device_online (registry
+        # name/room), NOT the exporter's shelly_device_info.device_name: the
+        # profiles deliberately do not manage the on-device name, so
+        # device_name is empty on 47 of 49 devices and every alert using it
+        # degraded to a bare MAC. label_replace bridges mac -> device_mac; $1
+        # needs no escaping (Flux envsubst ignores non-identifier $1, as in
+        # observability/kromgo).
+        - alert: ShellyPowerNearLimit
           annotations:
-            description: Shelly device {{ if $labels.device_name }}{{ $labels.device_name }}{{ else }}{{ $labels.device_mac }}{{ end }} ({{ $labels.device_mac }}) is drawing {{ $value | printf "%.0f" }}W which exceeds 2500W.
-            summary: Shelly plug high power draw detected.
-          expr: shelly_switch_power * on(device_mac) group_left(device_name) max by(device_mac, device_name) (shelly_device_info) > 2500
+            description: >-
+              {{ $labels.name }}{{ with $labels.room }} in {{ . }}{{ end }}
+              ({{ $labels.device_mac }}) is drawing {{ $value | printf "%.0f" }}%
+              of the power limit its own firmware cuts out at.
+            summary: Shelly plug approaching its power cut-off.
+          expr: >-
+            (100 * shelly_switch_power / on(device_mac, switch_id) shelly_switch_power_limit)
+            * on(device_mac) group_left(name, room)
+            label_replace(max by(mac, name, room) (shelly_device_online), "device_mac", "$1", "mac", "(.*)")
+            > 90
           for: 5m
           labels:
             severity: warning
-        - alert: ShellyHighPowerDrawCritical
+        - alert: ShellyPowerAtLimit
           annotations:
-            description: Shelly device {{ if $labels.device_name }}{{ $labels.device_name }}{{ else }}{{ $labels.device_mac }}{{ end }} ({{ $labels.device_mac }}) is drawing {{ $value | printf "%.0f" }}W which exceeds 3000W.
-            summary: Shelly plug critical power draw detected.
-          expr: shelly_switch_power * on(device_mac) group_left(device_name) max by(device_mac, device_name) (shelly_device_info) > 3000
-          for: 2m
+            description: >-
+              {{ $labels.name }}{{ with $labels.room }} in {{ . }}{{ end }}
+              ({{ $labels.device_mac }}) is drawing {{ $value | printf "%.0f" }}%
+              of its firmware power limit and is about to cut its own output.
+            summary: Shelly plug about to trip on overpower.
+          expr: >-
+            (100 * shelly_switch_power / on(device_mac, switch_id) shelly_switch_power_limit)
+            * on(device_mac) group_left(name, room)
+            label_replace(max by(mac, name, room) (shelly_device_online), "device_mac", "$1", "mac", "(.*)")
+            > 98
+          for: 1m
           labels:
             severity: critical
+        # Temperature thresholds stay absolute (they are a property of the
+        # hardware, not of a configurable limit), but take the same registry
+        # name join as above so the alert names the device instead of a MAC.
         - alert: ShellyHighTemperature
           annotations:
-            description: Shelly device {{ if $labels.device_name }}{{ $labels.device_name }}{{ else }}{{ $labels.device_mac }}{{ end }} ({{ $labels.device_mac }}) temperature is {{ $value | printf "%.1f" }}°C which exceeds 70°C.
+            description: >-
+              {{ $labels.name }}{{ with $labels.room }} in {{ . }}{{ end }}
+              ({{ $labels.device_mac }}) temperature is
+              {{ $value | printf "%.1f" }}°C which exceeds 70°C.
             summary: Shelly plug temperature is high.
-          expr: shelly_switch_temperature{temperature_unit="dC"} * on(device_mac) group_left(device_name) max by(device_mac, device_name) (shelly_device_info) > 70
+          expr: >-
+            shelly_switch_temperature{temperature_unit="dC"}
+            * on(device_mac) group_left(name, room)
+            label_replace(max by(mac, name, room) (shelly_device_online), "device_mac", "$1", "mac", "(.*)")
+            > 70
           for: 5m
           labels:
             severity: warning
         - alert: ShellyHighTemperatureCritical
           annotations:
-            description: Shelly device {{ if $labels.device_name }}{{ $labels.device_name }}{{ else }}{{ $labels.device_mac }}{{ end }} ({{ $labels.device_mac }}) temperature is {{ $value | printf "%.1f" }}°C which exceeds 85°C.
+            description: >-
+              {{ $labels.name }}{{ with $labels.room }} in {{ . }}{{ end }}
+              ({{ $labels.device_mac }}) temperature is
+              {{ $value | printf "%.1f" }}°C which exceeds 85°C.
             summary: Shelly plug temperature is critical.
-          expr: shelly_switch_temperature{temperature_unit="dC"} * on(device_mac) group_left(device_name) max by(device_mac, device_name) (shelly_device_info) > 85
+          expr: >-
+            shelly_switch_temperature{temperature_unit="dC"}
+            * on(device_mac) group_left(name, room)
+            label_replace(max by(mac, name, room) (shelly_device_online), "device_mac", "$1", "mac", "(.*)")
+            > 85
           for: 2m
           labels:
             severity: critical
