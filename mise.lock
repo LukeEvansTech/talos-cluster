@@ -406,7 +406,7 @@ checksum = "sha256:a1a54f46a750d2523d628d924aab61758a51c9dad3e0238beb14141be9615
 url = "https://nodejs.org/dist/v24.14.0/node-v24.14.0-darwin-arm64.tar.gz"
 
 [[tools."npm:markdownlint-cli"]]
-version = "0.49.0"
+version = "0.49.1"
 backend = "npm:markdownlint-cli"
 
 [[tools."npm:prettier"]]
