@@ -34,7 +34,36 @@ nodes:
     talosImageURL: factory.talos.dev/installer-secureboot/44186a005dfca322f81df634a457384455475fbfa518777f3ee58d35f173d73b
     controlPlane: true
     patches:
-      # Encrypt system disk with TPM
+      # Encrypt system disk with TPM.
+      #
+      # slot 1 is a NON-NEGOTIABLE fallback. Talos seals slot 0 to PCR 7, which measures
+      # UEFI Secure Boot state + the PK/KEK/db/dbx certificates. A Supermicro H13SRD-F BIOS
+      # update from the 1.x "buggy line" WIPES those keys (proven on cr-node-02, 2026-07-15 —
+      # PreserveSECBOOTKEY is honoured only by an already-fixed OUTGOING BIOS). PCR 7 then
+      # changes, slot 0 cannot unseal, and with a single slot the node does not boot at all.
+      # All three nodes are control-plane, so a fleet-wide flash would take out etcd quorum.
+      #
+      # Talos does NOT self-heal a failed TPM slot (a PCR mismatch is not ErrTokenInvalid, so
+      # it never re-seals). Upstream declined to add recovery keys (siderolabs/talos#7868), so
+      # we provide our own.
+      #
+      # The passphrase is injected at `talhelper genconfig` time from 1Password
+      # (op://Talos/talos-luks-fallback/password). NEVER commit it — this repo is public.
+      # The rendered configs land in talos/clusterconfig/, which is gitignored.
+      #
+      # CAUTION: syncKeys() REMOVES slots absent from config. Always keep one working key.
+      # See: Scratch/homelab/biosfirmware/runlog/2026-07-15-VERDICT-buggy-line-wipes.md
+      #
+      # NOTE: slot 0 stays bound to PCR 7 — deliberately, after a failed attempt to drop it.
+      # `pcrs: []` on a VolumeConfig document does NOT survive talhelper: the empty list is
+      # dropped during serialisation, rendering as `options: {}`, which Talos then treats as
+      # unset and defaults straight back to PCR 7. Verified live on cr-talos-03 (2026-07-15):
+      # `talosctl get volumestatus STATE` still reported `tpmEncryptionOptions.pcrs: [7]`.
+      # It is a silent no-op, so the migration was reverted rather than left as dead config.
+      #
+      # Consequence, accepted: the BIOS flash wipes the Secure Boot keys -> PCR 7 changes ->
+      # slot 0 breaks. slot 1 keeps the node bootable; the TPM slot is then rotated by hand
+      # (remove tpm key -> apply+reboot -> re-add -> apply+reboot). Talos does not self-heal.
       - |-
         machine:
           systemDiskEncryption:
@@ -43,11 +72,17 @@ nodes:
               keys:
                 - slot: 0
                   tpm: {}
+                - slot: 1
+                  static:
+                    passphrase: ${TALOS_LUKS_FALLBACK}
             ephemeral:
               provider: luks2
               keys:
                 - slot: 0
                   tpm: {}
+                - slot: 1
+                  static:
+                    passphrase: ${TALOS_LUKS_FALLBACK}
       # Watchdog timer configuration
       - |-
         apiVersion: v1alpha1
@@ -80,7 +115,36 @@ nodes:
     talosImageURL: factory.talos.dev/installer-secureboot/44186a005dfca322f81df634a457384455475fbfa518777f3ee58d35f173d73b
     controlPlane: true
     patches:
-      # Encrypt system disk with TPM
+      # Encrypt system disk with TPM.
+      #
+      # slot 1 is a NON-NEGOTIABLE fallback. Talos seals slot 0 to PCR 7, which measures
+      # UEFI Secure Boot state + the PK/KEK/db/dbx certificates. A Supermicro H13SRD-F BIOS
+      # update from the 1.x "buggy line" WIPES those keys (proven on cr-node-02, 2026-07-15 —
+      # PreserveSECBOOTKEY is honoured only by an already-fixed OUTGOING BIOS). PCR 7 then
+      # changes, slot 0 cannot unseal, and with a single slot the node does not boot at all.
+      # All three nodes are control-plane, so a fleet-wide flash would take out etcd quorum.
+      #
+      # Talos does NOT self-heal a failed TPM slot (a PCR mismatch is not ErrTokenInvalid, so
+      # it never re-seals). Upstream declined to add recovery keys (siderolabs/talos#7868), so
+      # we provide our own.
+      #
+      # The passphrase is injected at `talhelper genconfig` time from 1Password
+      # (op://Talos/talos-luks-fallback/password). NEVER commit it — this repo is public.
+      # The rendered configs land in talos/clusterconfig/, which is gitignored.
+      #
+      # CAUTION: syncKeys() REMOVES slots absent from config. Always keep one working key.
+      # See: Scratch/homelab/biosfirmware/runlog/2026-07-15-VERDICT-buggy-line-wipes.md
+      #
+      # NOTE: slot 0 stays bound to PCR 7 — deliberately, after a failed attempt to drop it.
+      # `pcrs: []` on a VolumeConfig document does NOT survive talhelper: the empty list is
+      # dropped during serialisation, rendering as `options: {}`, which Talos then treats as
+      # unset and defaults straight back to PCR 7. Verified live on cr-talos-03 (2026-07-15):
+      # `talosctl get volumestatus STATE` still reported `tpmEncryptionOptions.pcrs: [7]`.
+      # It is a silent no-op, so the migration was reverted rather than left as dead config.
+      #
+      # Consequence, accepted: the BIOS flash wipes the Secure Boot keys -> PCR 7 changes ->
+      # slot 0 breaks. slot 1 keeps the node bootable; the TPM slot is then rotated by hand
+      # (remove tpm key -> apply+reboot -> re-add -> apply+reboot). Talos does not self-heal.
       - |-
         machine:
           systemDiskEncryption:
@@ -89,11 +153,17 @@ nodes:
               keys:
                 - slot: 0
                   tpm: {}
+                - slot: 1
+                  static:
+                    passphrase: ${TALOS_LUKS_FALLBACK}
             ephemeral:
               provider: luks2
               keys:
                 - slot: 0
                   tpm: {}
+                - slot: 1
+                  static:
+                    passphrase: ${TALOS_LUKS_FALLBACK}
       # Watchdog timer configuration
       - |-
         apiVersion: v1alpha1
@@ -126,7 +196,36 @@ nodes:
     talosImageURL: factory.talos.dev/installer-secureboot/44186a005dfca322f81df634a457384455475fbfa518777f3ee58d35f173d73b
     controlPlane: true
     patches:
-      # Encrypt system disk with TPM
+      # Encrypt system disk with TPM.
+      #
+      # slot 1 is a NON-NEGOTIABLE fallback. Talos seals slot 0 to PCR 7, which measures
+      # UEFI Secure Boot state + the PK/KEK/db/dbx certificates. A Supermicro H13SRD-F BIOS
+      # update from the 1.x "buggy line" WIPES those keys (proven on cr-node-02, 2026-07-15 —
+      # PreserveSECBOOTKEY is honoured only by an already-fixed OUTGOING BIOS). PCR 7 then
+      # changes, slot 0 cannot unseal, and with a single slot the node does not boot at all.
+      # All three nodes are control-plane, so a fleet-wide flash would take out etcd quorum.
+      #
+      # Talos does NOT self-heal a failed TPM slot (a PCR mismatch is not ErrTokenInvalid, so
+      # it never re-seals). Upstream declined to add recovery keys (siderolabs/talos#7868), so
+      # we provide our own.
+      #
+      # The passphrase is injected at `talhelper genconfig` time from 1Password
+      # (op://Talos/talos-luks-fallback/password). NEVER commit it — this repo is public.
+      # The rendered configs land in talos/clusterconfig/, which is gitignored.
+      #
+      # CAUTION: syncKeys() REMOVES slots absent from config. Always keep one working key.
+      # See: Scratch/homelab/biosfirmware/runlog/2026-07-15-VERDICT-buggy-line-wipes.md
+      #
+      # NOTE: slot 0 stays bound to PCR 7 — deliberately, after a failed attempt to drop it.
+      # `pcrs: []` on a VolumeConfig document does NOT survive talhelper: the empty list is
+      # dropped during serialisation, rendering as `options: {}`, which Talos then treats as
+      # unset and defaults straight back to PCR 7. Verified live on cr-talos-03 (2026-07-15):
+      # `talosctl get volumestatus STATE` still reported `tpmEncryptionOptions.pcrs: [7]`.
+      # It is a silent no-op, so the migration was reverted rather than left as dead config.
+      #
+      # Consequence, accepted: the BIOS flash wipes the Secure Boot keys -> PCR 7 changes ->
+      # slot 0 breaks. slot 1 keeps the node bootable; the TPM slot is then rotated by hand
+      # (remove tpm key -> apply+reboot -> re-add -> apply+reboot). Talos does not self-heal.
       - |-
         machine:
           systemDiskEncryption:
@@ -135,11 +234,17 @@ nodes:
               keys:
                 - slot: 0
                   tpm: {}
+                - slot: 1
+                  static:
+                    passphrase: ${TALOS_LUKS_FALLBACK}
             ephemeral:
               provider: luks2
               keys:
                 - slot: 0
                   tpm: {}
+                - slot: 1
+                  static:
+                    passphrase: ${TALOS_LUKS_FALLBACK}
       # Watchdog timer configuration
       - |-
         apiVersion: v1alpha1
