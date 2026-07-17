@@ -3,13 +3,280 @@
 apiVersion: grafana.integreatly.org/v1beta1
 kind: GrafanaDashboard
 metadata:
-  name: apc-ups
+  name: onyx-core-switch
 spec:
   allowCrossNamespaceImport: true
   instanceSelector:
     matchLabels:
       grafana.internal/instance: grafana
-  grafanaCom:
-    # renovate: depName="APC UPS (SNMP)"
-    id: 13524
-    revision: 1
+  # Inline dashboard for the snmp-exporter's live target set: the Onyx core
+  # switch, modules if_mib + entity_sensor. entPhySensorValue is raw; real
+  # readings are value / 10^entPhySensorPrecision, joined on entPhysicalIndex.
+  json: |-
+    {
+      "annotations": {"list": []},
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 1,
+      "links": [],
+      "refresh": "1m",
+      "schemaVersion": 39,
+      "tags": ["snmp", "network"],
+      "time": {"from": "now-6h", "to": "now"},
+      "timezone": "browser",
+      "title": "Onyx Core Switch (SNMP)",
+      "uid": "snmp-onyx-core",
+      "templating": {
+        "list": [
+          {
+            "current": {},
+            "datasource": {"type": "prometheus", "uid": "prometheus"},
+            "definition": "label_values(up{job=\"snmp-exporter\"}, instance)",
+            "name": "instance",
+            "label": "Switch",
+            "query": "label_values(up{job=\"snmp-exporter\"}, instance)",
+            "refresh": 2,
+            "sort": 1,
+            "type": "query"
+          },
+          {
+            "allValue": ".*",
+            "current": {"selected": true, "text": "All", "value": "$__all"},
+            "datasource": {"type": "prometheus", "uid": "prometheus"},
+            "definition": "label_values(ifOperStatus{job=\"snmp-exporter\", instance=\"$instance\"}, ifName)",
+            "includeAll": true,
+            "multi": true,
+            "name": "interface",
+            "label": "Interface",
+            "query": "label_values(ifOperStatus{job=\"snmp-exporter\", instance=\"$instance\"}, ifName)",
+            "refresh": 2,
+            "sort": 7,
+            "type": "query"
+          }
+        ]
+      },
+      "panels": [
+        {"collapsed": false, "gridPos": {"h": 1, "w": 24, "x": 0, "y": 0}, "id": 100, "panels": [], "title": "Overview", "type": "row"},
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {
+            "mappings": [{"options": {"0": {"color": "red", "text": "DOWN"}, "1": {"color": "green", "text": "UP"}}, "type": "value"}],
+            "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "green", "value": 1}]}
+          }, "overrides": []},
+          "gridPos": {"h": 4, "w": 4, "x": 0, "y": 1},
+          "id": 1,
+          "options": {"colorMode": "background", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"]}},
+          "targets": [{"expr": "up{job=\"snmp-exporter\", instance=\"$instance\"}", "refId": "A"}],
+          "title": "SNMP target",
+          "type": "stat"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"thresholds": {"mode": "absolute", "steps": [{"color": "blue", "value": null}]}}, "overrides": []},
+          "gridPos": {"h": 4, "w": 4, "x": 4, "y": 1},
+          "id": 2,
+          "options": {"colorMode": "value", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"]}},
+          "targets": [{"expr": "count(ifOperStatus{job=\"snmp-exporter\", instance=\"$instance\"} == 1)", "refId": "A"}],
+          "title": "Ports oper-up",
+          "type": "stat"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {
+            "unit": "celsius",
+            "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "orange", "value": 65}, {"color": "red", "value": 75}]}
+          }, "overrides": []},
+          "gridPos": {"h": 4, "w": 4, "x": 8, "y": 1},
+          "id": 3,
+          "options": {"colorMode": "value", "graphMode": "area", "reduceOptions": {"calcs": ["lastNotNull"]}},
+          "targets": [{"expr": "max((entPhySensorValue{job=\"snmp-exporter\", instance=\"$instance\"} * on (entPhysicalIndex) group_left () (10 ^ -entPhySensorPrecision{job=\"snmp-exporter\", instance=\"$instance\"})) and on (entPhysicalIndex) (entPhySensorType_info{job=\"snmp-exporter\", instance=\"$instance\", entPhySensorType=\"celsius\"} == 1))", "refId": "A"}],
+          "title": "Hottest sensor",
+          "type": "stat"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"unit": "rotrpm", "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}}, "overrides": []},
+          "gridPos": {"h": 4, "w": 4, "x": 12, "y": 1},
+          "id": 4,
+          "options": {"colorMode": "value", "graphMode": "area", "reduceOptions": {"calcs": ["lastNotNull"]}},
+          "targets": [{"expr": "min((entPhySensorValue{job=\"snmp-exporter\", instance=\"$instance\"} * on (entPhysicalIndex) group_left () (10 ^ -entPhySensorPrecision{job=\"snmp-exporter\", instance=\"$instance\"})) and on (entPhysicalIndex) (entPhySensorType_info{job=\"snmp-exporter\", instance=\"$instance\", entPhySensorType=\"rpm\"} == 1))", "refId": "A"}],
+          "title": "Slowest fan",
+          "type": "stat"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"unit": "watt", "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}}, "overrides": []},
+          "gridPos": {"h": 4, "w": 4, "x": 16, "y": 1},
+          "id": 5,
+          "options": {"colorMode": "value", "graphMode": "area", "reduceOptions": {"calcs": ["lastNotNull"]}},
+          "targets": [{"expr": "sum(entPhySensorValue{job=\"snmp-exporter\", instance=\"$instance\", entPhysicalDescr=~\"PS[0-9]+/power-mon/POWER\"} * on (entPhysicalIndex) group_left () (10 ^ -entPhySensorPrecision{job=\"snmp-exporter\", instance=\"$instance\"}))", "refId": "A"}],
+          "title": "PSU input power",
+          "type": "stat"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {
+            "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 1}]}
+          }, "overrides": []},
+          "gridPos": {"h": 4, "w": 4, "x": 20, "y": 1},
+          "id": 6,
+          "options": {"colorMode": "background", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"]}},
+          "targets": [{"expr": "count(entPhySensorOperStatus{job=\"snmp-exporter\", instance=\"$instance\"} > 1) or on () vector(0)", "refId": "A"}],
+          "title": "Faulted sensors",
+          "type": "stat"
+        },
+        {"collapsed": false, "gridPos": {"h": 1, "w": 24, "x": 0, "y": 5}, "id": 101, "panels": [], "title": "Traffic", "type": "row"},
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {
+            "custom": {"fillOpacity": 8, "lineWidth": 1, "showPoints": "never"},
+            "unit": "bps"
+          }, "overrides": []},
+          "gridPos": {"h": 9, "w": 24, "x": 0, "y": 6},
+          "id": 10,
+          "options": {"legend": {"calcs": ["mean", "max"], "displayMode": "table", "placement": "right"}, "tooltip": {"mode": "multi", "sort": "desc"}},
+          "targets": [
+            {"expr": "8 * rate(ifHCInOctets{job=\"snmp-exporter\", instance=\"$instance\", ifName=~\"$interface\"}[$__rate_interval])", "legendFormat": "{{ifName}} in", "refId": "A"},
+            {"expr": "-8 * rate(ifHCOutOctets{job=\"snmp-exporter\", instance=\"$instance\", ifName=~\"$interface\"}[$__rate_interval])", "legendFormat": "{{ifName}} out", "refId": "B"}
+          ],
+          "title": "Interface traffic (in +, out -)",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {
+            "custom": {"fillOpacity": 8, "lineWidth": 1, "showPoints": "never"},
+            "unit": "pps"
+          }, "overrides": []},
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 15},
+          "id": 11,
+          "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi", "sort": "desc"}},
+          "targets": [
+            {"expr": "rate(ifHCInUcastPkts{job=\"snmp-exporter\", instance=\"$instance\", ifName=~\"$interface\"}[$__rate_interval]) + rate(ifHCInMulticastPkts{job=\"snmp-exporter\", instance=\"$instance\", ifName=~\"$interface\"}[$__rate_interval]) + rate(ifHCInBroadcastPkts{job=\"snmp-exporter\", instance=\"$instance\", ifName=~\"$interface\"}[$__rate_interval])", "legendFormat": "{{ifName}} in", "refId": "A"},
+            {"expr": "-(rate(ifHCOutUcastPkts{job=\"snmp-exporter\", instance=\"$instance\", ifName=~\"$interface\"}[$__rate_interval]) + rate(ifHCOutMulticastPkts{job=\"snmp-exporter\", instance=\"$instance\", ifName=~\"$interface\"}[$__rate_interval]) + rate(ifHCOutBroadcastPkts{job=\"snmp-exporter\", instance=\"$instance\", ifName=~\"$interface\"}[$__rate_interval]))", "legendFormat": "{{ifName}} out", "refId": "B"}
+          ],
+          "title": "Packets (in +, out -)",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {
+            "custom": {"fillOpacity": 8, "lineWidth": 1, "showPoints": "never"},
+            "unit": "pps"
+          }, "overrides": []},
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 15},
+          "id": 12,
+          "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi", "sort": "desc"}},
+          "targets": [
+            {"expr": "rate(ifInErrors{job=\"snmp-exporter\", instance=\"$instance\", ifName=~\"$interface\"}[$__rate_interval])", "legendFormat": "{{ifName}} in errors", "refId": "A"},
+            {"expr": "rate(ifOutErrors{job=\"snmp-exporter\", instance=\"$instance\", ifName=~\"$interface\"}[$__rate_interval])", "legendFormat": "{{ifName}} out errors", "refId": "B"},
+            {"expr": "rate(ifInDiscards{job=\"snmp-exporter\", instance=\"$instance\", ifName=~\"$interface\"}[$__rate_interval])", "legendFormat": "{{ifName}} in discards", "refId": "C"},
+            {"expr": "rate(ifOutDiscards{job=\"snmp-exporter\", instance=\"$instance\", ifName=~\"$interface\"}[$__rate_interval])", "legendFormat": "{{ifName}} out discards", "refId": "D"}
+          ],
+          "title": "Errors & discards",
+          "type": "timeseries"
+        },
+        {"collapsed": false, "gridPos": {"h": 1, "w": 24, "x": 0, "y": 23}, "id": 102, "panels": [], "title": "Interface status", "type": "row"},
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {
+            "custom": {"fillOpacity": 70, "lineWidth": 0},
+            "mappings": [{"options": {
+              "1": {"color": "green", "text": "Up"},
+              "2": {"color": "red", "text": "Down"},
+              "3": {"color": "yellow", "text": "Testing"},
+              "4": {"color": "text", "text": "Unknown"},
+              "5": {"color": "blue", "text": "Dormant"},
+              "6": {"color": "text", "text": "Not present"},
+              "7": {"color": "orange", "text": "Lower layer down"}
+            }, "type": "value"}]
+          }, "overrides": []},
+          "gridPos": {"h": 8, "w": 24, "x": 0, "y": 24},
+          "id": 20,
+          "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "single"}},
+          "targets": [{"expr": "ifOperStatus{job=\"snmp-exporter\", instance=\"$instance\", ifName=~\"$interface\"}", "legendFormat": "{{ifName}}", "refId": "A"}],
+          "title": "Oper status",
+          "type": "state-timeline"
+        },
+        {"collapsed": false, "gridPos": {"h": 1, "w": 24, "x": 0, "y": 32}, "id": 103, "panels": [], "title": "Environment", "type": "row"},
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {
+            "custom": {"fillOpacity": 8, "lineWidth": 1, "showPoints": "never"},
+            "unit": "celsius"
+          }, "overrides": []},
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 33},
+          "id": 30,
+          "options": {"legend": {"calcs": ["lastNotNull"], "displayMode": "table", "placement": "right"}, "tooltip": {"mode": "multi", "sort": "desc"}},
+          "targets": [{"expr": "(entPhySensorValue{job=\"snmp-exporter\", instance=\"$instance\"} * on (entPhysicalIndex) group_left () (10 ^ -entPhySensorPrecision{job=\"snmp-exporter\", instance=\"$instance\"})) and on (entPhysicalIndex) (entPhySensorType_info{job=\"snmp-exporter\", instance=\"$instance\", entPhySensorType=\"celsius\"} == 1)", "legendFormat": "{{entPhysicalDescr}}", "refId": "A"}],
+          "title": "Temperatures",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {
+            "custom": {"fillOpacity": 8, "lineWidth": 1, "showPoints": "never"},
+            "unit": "rotrpm"
+          }, "overrides": []},
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 33},
+          "id": 31,
+          "options": {"legend": {"calcs": ["lastNotNull"], "displayMode": "table", "placement": "right"}, "tooltip": {"mode": "multi", "sort": "desc"}},
+          "targets": [{"expr": "(entPhySensorValue{job=\"snmp-exporter\", instance=\"$instance\"} * on (entPhysicalIndex) group_left () (10 ^ -entPhySensorPrecision{job=\"snmp-exporter\", instance=\"$instance\"})) and on (entPhysicalIndex) (entPhySensorType_info{job=\"snmp-exporter\", instance=\"$instance\", entPhySensorType=\"rpm\"} == 1)", "legendFormat": "{{entPhysicalDescr}}", "refId": "A"}],
+          "title": "Fan speeds",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {
+            "custom": {"fillOpacity": 8, "lineWidth": 1, "showPoints": "never"},
+            "unit": "watt"
+          }, "overrides": []},
+          "gridPos": {"h": 7, "w": 8, "x": 0, "y": 41},
+          "id": 32,
+          "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi", "sort": "desc"}},
+          "targets": [{"expr": "entPhySensorValue{job=\"snmp-exporter\", instance=\"$instance\", entPhysicalDescr=~\"PS[0-9]+/power-mon/(POWER|CONSUMER_POWER)\"} * on (entPhysicalIndex) group_left () (10 ^ -entPhySensorPrecision{job=\"snmp-exporter\", instance=\"$instance\"})", "legendFormat": "{{entPhysicalDescr}}", "refId": "A"}],
+          "title": "PSU power",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {
+            "custom": {"fillOpacity": 8, "lineWidth": 1, "showPoints": "never"},
+            "unit": "volt"
+          }, "overrides": []},
+          "gridPos": {"h": 7, "w": 8, "x": 8, "y": 41},
+          "id": 33,
+          "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi", "sort": "desc"}},
+          "targets": [{"expr": "(entPhySensorValue{job=\"snmp-exporter\", instance=\"$instance\"} * on (entPhysicalIndex) group_left () (10 ^ -entPhySensorPrecision{job=\"snmp-exporter\", instance=\"$instance\"})) and on (entPhysicalIndex) (entPhySensorType_info{job=\"snmp-exporter\", instance=\"$instance\", entPhySensorType=~\"voltsAC|voltsDC\"} == 1)", "legendFormat": "{{entPhysicalDescr}}", "refId": "A"}],
+          "title": "PSU voltage",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {
+            "custom": {"fillOpacity": 8, "lineWidth": 1, "showPoints": "never"},
+            "unit": "amp"
+          }, "overrides": []},
+          "gridPos": {"h": 7, "w": 8, "x": 16, "y": 41},
+          "id": 34,
+          "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi", "sort": "desc"}},
+          "targets": [{"expr": "(entPhySensorValue{job=\"snmp-exporter\", instance=\"$instance\"} * on (entPhysicalIndex) group_left () (10 ^ -entPhySensorPrecision{job=\"snmp-exporter\", instance=\"$instance\"})) and on (entPhysicalIndex) (entPhySensorType_info{job=\"snmp-exporter\", instance=\"$instance\", entPhySensorType=\"amperes\"} == 1)", "legendFormat": "{{entPhysicalDescr}}", "refId": "A"}],
+          "title": "PSU current",
+          "type": "timeseries"
+        },
+        {"collapsed": false, "gridPos": {"h": 1, "w": 24, "x": 0, "y": 48}, "id": 104, "panels": [], "title": "Optics", "type": "row"},
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {
+            "custom": {"fillOpacity": 8, "lineWidth": 1, "showPoints": "never"},
+            "unit": "mwatt"
+          }, "overrides": []},
+          "gridPos": {"h": 8, "w": 24, "x": 0, "y": 49},
+          "id": 40,
+          "options": {"legend": {"calcs": ["lastNotNull"], "displayMode": "table", "placement": "right"}, "tooltip": {"mode": "multi", "sort": "desc"}},
+          "targets": [{"expr": "entPhySensorValue{job=\"snmp-exporter\", instance=\"$instance\", entPhysicalDescr=~\".*Port Module Sensor, (Rx|Tx) Power.*\"} * on (entPhysicalIndex) group_left () (10 ^ -entPhySensorPrecision{job=\"snmp-exporter\", instance=\"$instance\"})", "legendFormat": "{{entPhysicalDescr}}", "refId": "A"}],
+          "title": "Optic Rx/Tx power per channel",
+          "type": "timeseries"
+        }
+      ]
+    }
