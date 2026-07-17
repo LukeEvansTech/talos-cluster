@@ -22,7 +22,7 @@ spec:
       kubernetesModeWorkVolumeClaim:
         accessModes:
           - "ReadWriteOnce"
-        storageClassName: openebs-hostpath
+        storageClassName: miroir-local
         resources:
           requests:
             # Remote state + small providers — terraform needs little scratch.
