@@ -65,3 +65,20 @@ spec:
         memory: 64Mi
       limits:
         memory: 128Mi
+  # snmp_exporter only reads its --config.file set at startup, so changes to the
+  # auth Secret / entity-sensor ConfigMap otherwise need a manual rollout restart.
+  # Chart 9.14.1 has no Deployment-level annotations value; patch the annotation
+  # in (same pattern as headlamp).
+  postRenderers:
+    - kustomize:
+        patches:
+          - target:
+              kind: Deployment
+              name: snmp-exporter
+            patch: |-
+              apiVersion: apps/v1
+              kind: Deployment
+              metadata:
+                name: snmp-exporter
+                annotations:
+                  reloader.stakater.com/auto: "true"
