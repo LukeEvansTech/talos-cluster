@@ -114,6 +114,12 @@ spec:
             port: 3900
           admin:
             port: 3903
+    # Garage serves Prometheus metrics on the admin API port; /metrics is
+    # unauthenticated because metrics_token is unset in garage.toml.
+    serviceMonitor:
+      app:
+        endpoints:
+          - port: admin
     route:
       app:
         annotations:
