@@ -10,6 +10,9 @@ metadata:
     # computation differ. No-op while identityDefaults stays unchanged.
     kopiur.home-operations.com/allow-identity-change: "true"
 spec:
+  # zstd trades a little mover CPU for materially smaller repository blobs.
+  compression:
+    compressor: zstd
   repository:
     kind: ClusterRepository
     name: nas
@@ -22,12 +25,8 @@ spec:
   copyMethod: Snapshot
   volumeSnapshotClassName: ${KOPIUR_SNAPSHOTCLASS:=csi-ceph-blockpool}
   retention:
+    keepLatest: 3
     keepDaily: 7
     keepWeekly: 4
-  verification:
-    quick:
-      schedule:
-        cron: H 3 * * *
-    deep:
-      schedule:
-        cron: H 5 1 * *
+    # No verification schedules: repository maintenance (ClusterRepository
+    # maintenance.enabled) already runs kopia's verify pass.

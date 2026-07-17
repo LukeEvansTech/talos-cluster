@@ -22,6 +22,9 @@ spec:
             env:
               TZ: ${TIMEZONE}
               PORT: &port 8091
+            envFrom:
+              - secretRef:
+                  name: zwave-secret
             probes:
               liveness: &probes
                 enabled: true
