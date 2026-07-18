@@ -21,7 +21,7 @@ spec:
     substitute:
       APP: *app
       VOLSYNC_CAPACITY: 5Gi
-      VOLSYNC_CACHE_CAPACITY: 2Gi
+      VOLSYNC_CACHE_CAPACITY: 8Gi
       HOMEPAGE_GROUP: Tools
       HOMEPAGE_ICON: scrutiny.svg
       HOMEPAGE_DESCRIPTION: Disk S.M.A.R.T. health
