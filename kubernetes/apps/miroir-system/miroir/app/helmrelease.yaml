@@ -17,6 +17,13 @@ spec:
       # cannot read the topology CRs at render time.
       loopfileBaseDirs:
         - /var/mnt/extra/miroir
+      # The busiest node (most loopfiles) bursts past the chart's 128Mi default
+      # during the initial agent-volume reconcile sweep — steady state is ~27Mi,
+      # but the sweep OOMKills it into CrashLoopBackOff, so raise the ceiling
+      # (deep-merged over the chart's requests: cpu 10m / memory 32Mi).
+      resources:
+        limits:
+          memory: 512Mi
     monitoring:
       podMonitor:
         enabled: true
