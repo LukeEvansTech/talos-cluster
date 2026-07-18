@@ -441,7 +441,7 @@ version = "3.8.1"
 backend = "npm:prettier"
 
 [[tools."pipx:codespell"]]
-version = "2.4.2"
+version = "2.4.3"
 backend = "pipx:codespell"
 
 [[tools."pipx:yamllint"]]
