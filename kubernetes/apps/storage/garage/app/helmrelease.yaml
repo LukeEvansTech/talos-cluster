@@ -73,13 +73,13 @@ spec:
         statefulset:
           volumeClaimTemplates:
             - name: meta
-              storageClass: openebs-hostpath
+              storageClass: miroir-local
               accessMode: ReadWriteOnce
               size: 5Gi
               globalMounts:
                 - path: /mnt/meta
             - name: data
-              storageClass: openebs-hostpath
+              storageClass: miroir-local
               accessMode: ReadWriteOnce
               size: 100Gi
               globalMounts:
