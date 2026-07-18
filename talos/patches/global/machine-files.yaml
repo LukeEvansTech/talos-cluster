@@ -1,3 +1,4 @@
+---
 machine:
   files:
     - op: create
@@ -6,3 +7,9 @@ machine:
       content: |-
         [plugins."io.containerd.cri.v1.images"]
           discard_unpacked_layers = false
+    - op: create
+      path: /var/mnt/extra/miroir/.keep
+      permissions: 0o644
+      content: |-
+        # Guarantees the miroir loopfile pool baseDir exists on first boot —
+        # the miroir agent does not create it (crash-loops on a missing dir).
