@@ -7,8 +7,8 @@ metadata:
   namespace: volsync-system
 spec:
   dependsOn:
-    - name: openebs
-      namespace: openebs-system
+    - name: miroir
+      namespace: miroir-system
     - name: snapshot-controller
       namespace: kube-system
   interval: 1h
