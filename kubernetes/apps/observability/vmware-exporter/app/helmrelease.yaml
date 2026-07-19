@@ -18,8 +18,7 @@ spec:
           app:
             image:
               repository: docker.io/pryorda/vmware_exporter
-              tag: v0.18.4
-              digest: sha256:79925e63e59ffe962762697da3c9f14bc1c132e0b0ca873f75d0e2cadaff361e
+              tag: v0.18.4@sha256:79925e63e59ffe962762697da3c9f14bc1c132e0b0ca873f75d0e2cadaff361e
             env:
               # The target vCenter is supplied per-scrape via the ServiceMonitor
               # `?vsphere_host=` param (see servicemonitor.yaml); creds come from
