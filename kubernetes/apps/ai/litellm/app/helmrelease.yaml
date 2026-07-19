@@ -80,7 +80,7 @@ spec:
     route:
       app:
         hostnames:
-          - "{{ .Release.Name }}.${SECRET_INTERNAL_DOMAIN}"
+          - "{{ .Release.Name }}.${SECRET_DOMAIN}"
         parentRefs:
           - name: envoy-internal
             namespace: network
