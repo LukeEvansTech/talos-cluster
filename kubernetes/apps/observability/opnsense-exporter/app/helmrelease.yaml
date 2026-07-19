@@ -18,8 +18,7 @@ spec:
           app:
             image:
               repository: ghcr.io/athennamind/opnsense-exporter
-              tag: "0.0.16"
-              digest: sha256:64469206eb955b6c87ec2737cd4884b0bec01b518408cf1ac6d5c153f6c0cf1f
+              tag: 0.0.16@sha256:64469206eb955b6c87ec2737cd4884b0bec01b518408cf1ac6d5c153f6c0cf1f
             env:
               # OPS_API / OPS_API_KEY / OPS_API_SECRET come from the secret (envFrom).
               OPNSENSE_EXPORTER_OPS_PROTOCOL: https

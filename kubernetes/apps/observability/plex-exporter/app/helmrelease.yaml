@@ -18,8 +18,7 @@ spec:
           app:
             image:
               repository: ghcr.io/timothystewart6/prometheus-plex-exporter
-              tag: 3e7a4da
-              digest: sha256:90dc0799601c334f2945a3d5b4b552a06352b208a8ce88a428cf90d6c9aa51cd
+              tag: 3e7a4da@sha256:90dc0799601c334f2945a3d5b4b552a06352b208a8ce88a428cf90d6c9aa51cd
             env:
               # In-cluster Plex service (media namespace). If Plex "Secure
               # connections" is set to Required, switch to the LB IP
