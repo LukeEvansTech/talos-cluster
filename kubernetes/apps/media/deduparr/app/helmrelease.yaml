@@ -19,7 +19,7 @@ spec:
           app:
             image:
               repository: quay.io/kernald/deduparr
-              tag: 1.2.0@sha256:81d935e48458427ca0e2896d00208efea70aba63034383a7368b9e10ad5d8cf0
+              tag: 1.2.1@sha256:3e21ecd8e048cbb1e66e279b6255aa6ee9f76406254ae3f2f90995947f514695
             env:
               # Verified: dry-run found 0 duplicates across all runs; safe to act when one appears.
               DEDUPARR_ACTION: remove
