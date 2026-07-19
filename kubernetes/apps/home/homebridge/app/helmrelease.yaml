@@ -21,12 +21,16 @@ spec:
               tag: "2026-07-15@sha256:8dc6094334437b1adb03f376d87d4c8d26847315c307af99020cf4d08359dac4"
             env:
               TZ: ${TIMEZONE}
-              # ENABLE_AVAHI intentionally NOT set. It started an Avahi daemon
-              # that crash-looped forever on "Failed to create runtime directory
-              # /run/avahi-daemon/" — Avahi chowns that dir to the avahi user and
-              # then verifies ownership, but CAP_CHOWN is dropped below, so the
-              # chown returns EPERM and the check fails. Granting CHOWN clears
-              # that error but only exposes the next one: dbus cannot bind
+              # Must be explicitly "0" — the image bakes in ENV ENABLE_AVAHI=1,
+              # so merely omitting this falls back to the image default and the
+              # daemon still starts. /etc/s6-overlay/s6-rc.d/avahi/run gates on
+              # `[ "$ENABLE_AVAHI" = "1" ]`.
+              #
+              # Avahi crash-looped forever on "Failed to create runtime directory
+              # /run/avahi-daemon/": it chowns that dir to the avahi user then
+              # verifies ownership, but CAP_CHOWN is dropped below, so the chown
+              # returns EPERM and the check fails. Granting CHOWN clears that but
+              # only exposes the next wall: dbus cannot bind
               # /run/dbus/system_bus_socket as root (an unprivileged user can,
               # which points at SELinux rather than capabilities).
               #
@@ -34,6 +38,7 @@ spec:
               # so Avahi was never used for HomeKit advertisement anyway. Note
               # that HAP still cannot work over Cilium pod networking — pairing
               # needs LAN presence (see the Multus attachment used by scrypted).
+              ENABLE_AVAHI: "0"
             probes:
               liveness:
                 enabled: true
