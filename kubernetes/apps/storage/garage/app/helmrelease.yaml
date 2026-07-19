@@ -128,7 +128,6 @@ spec:
             conditions: ["[STATUS] == any(200, 403)"]
         hostnames:
           - "s3.${SECRET_DOMAIN}"
-          - "s3.${SECRET_INTERNAL_DOMAIN}"
         parentRefs:
           - name: envoy-internal
             namespace: network
