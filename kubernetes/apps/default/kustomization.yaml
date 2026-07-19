@@ -25,7 +25,6 @@ resources:
   - ./domainlocker/ks.yaml
   - ./domainpulse/ks.yaml
   - ./domain-watchdog/ks.yaml
-  - ./echo-server/ks.yaml
   - ./erugo/ks.yaml
   - ./feather/ks.yaml
   - ./filebrowser/ks.yaml
