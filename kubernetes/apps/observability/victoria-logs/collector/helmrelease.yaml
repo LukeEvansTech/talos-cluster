@@ -16,6 +16,22 @@ spec:
         registry: quay.io
     podMonitor:
       enabled: true
+    # Mirrors the chart's defaultVolumeMounts, but adds HostToContainer
+    # propagation to /var/lib. The chart mounts all of /var/lib (to follow
+    # container-log symlinks) with the default *private* propagation, which
+    # snapshots the mount tree at pod start. Any CSI staging mount live at that
+    # moment is pinned inside this pod's mount namespace forever: kubelet's
+    # later NodeUnstageVolume never propagates in, the RBD image stays mapped,
+    # and the PVC can never attach on another node (it stalls with "rbd image
+    # ... is still being used"). HostToContainer lets those unmounts through.
+    defaultVolumeMounts:
+      - name: varlog
+        mountPath: /var/log
+        readOnly: true
+      - name: varlib
+        mountPath: /var/lib
+        readOnly: true
+        mountPropagation: HostToContainer
     remoteWrite:
       - url: http://victoria-logs-server.observability.svc.cluster.local:9428
         maxDiskUsagePerURL: 10GB
