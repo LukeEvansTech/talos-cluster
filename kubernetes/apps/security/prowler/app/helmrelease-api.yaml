@@ -42,7 +42,7 @@ spec:
               DJANGO_SETTINGS_MODULE: config.django.production
               DJANGO_BIND_ADDRESS: 0.0.0.0
               DJANGO_PORT: "8080"
-              DJANGO_ALLOWED_HOSTS: "prowler-api,prowler.${SECRET_DOMAIN},prowler.${SECRET_INTERNAL_DOMAIN}"
+              DJANGO_ALLOWED_HOSTS: "prowler-api,prowler.${SECRET_DOMAIN}"
               DJANGO_LOGGING_FORMATTER: ndjson
               DJANGO_LOGGING_LEVEL: INFO
               DJANGO_MANAGE_DB_PARTITIONS: "True"
