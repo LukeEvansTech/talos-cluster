@@ -41,13 +41,13 @@ HOSTNAME_RE = re.compile(r'^\s*-\s*"?([^"]*)\$\{SECRET_INTERNAL_DOMAIN\}"?\s*$')
 
 
 def sibling_re(prefix: str) -> re.Pattern:
+    """Return a regex pattern matching a SECRET_DOMAIN hostname with the given prefix."""
     return re.compile(r'^\s*-\s*"?' + re.escape(prefix) + r'\$\{SECRET_DOMAIN\}"?\s*$')
 
 
 def main() -> int:
-    files = subprocess.check_output(
-        ["grep", "-rl", "SECRET_INTERNAL_DOMAIN", "kubernetes/"], text=True
-    ).split()
+    """Check that all internal-domain hostnames have a primary-domain sibling; exit 0 if OK, 1 if orphans found."""
+    files = subprocess.check_output(["grep", "-rl", "SECRET_INTERNAL_DOMAIN", "kubernetes/"], text=True).split()
     orphans: list[str] = []
     for path in files:
         if path in ALLOWLIST:
