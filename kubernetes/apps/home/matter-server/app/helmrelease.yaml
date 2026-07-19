@@ -21,7 +21,7 @@ spec:
           sysctl:
             image:
               repository: ghcr.io/matter-js/matterjs-server
-              tag: 1.2.2@sha256:9a51306da8fdc42283f5f497873cd2b2647ac3228342be745c676ffce627db80
+              tag: 1.2.7@sha256:3f2b19c26fa21f9a855fd1e31cc8e1b174e8fcece881ab4ac7f56b5d828446a6
             command:
               - /bin/sh
               - -ec
@@ -44,7 +44,7 @@ spec:
               # CLI flags), and what HA's Matter integration targets going
               # forward.
               repository: ghcr.io/matter-js/matterjs-server
-              tag: 1.2.2@sha256:9a51306da8fdc42283f5f497873cd2b2647ac3228342be745c676ffce627db80
+              tag: 1.2.7@sha256:3f2b19c26fa21f9a855fd1e31cc8e1b174e8fcece881ab4ac7f56b5d828446a6
             args:
               - --storage-path
               - /data
