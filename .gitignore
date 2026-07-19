@@ -26,3 +26,7 @@ CLAUDE.md
 
 # kubectl cache (kubeconfig lives in-repo, so kubectl drops its cache here)
 .kube/
+
+# Python bytecode
+__pycache__/
+*.pyc

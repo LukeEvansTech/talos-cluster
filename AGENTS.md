@@ -79,7 +79,11 @@ Inside `app/`:
   Kustomization).
 - **Routing** is usually an inline `route:` in HR values on the `envoy-internal` / `envoy-external`
   listeners (namespace `network`); a standalone `httproute.yaml` is the rarer case. Hosts are
-  `${APP}.${SECRET_DOMAIN}` (and `${SECRET_INTERNAL_DOMAIN}` for internal).
+  `${APP}.${SECRET_DOMAIN}` — one hostname per route, whichever gateway it attaches to. Do not add a
+  `${SECRET_INTERNAL_DOMAIN}` alias: it resolves to the same gateway as the primary domain, so it
+  buys no extra restriction, and each alias costs an OPNsense host-override record. The record count
+  has a hard ceiling (~421) above which external-dns silently stops publishing anything cluster-wide
+  (see `docs/docs/architecture/split-dns.md`).
 - **App names avoid hyphens so the host stays clean.** The route host follows
   `{{ .Release.Name }}.${SECRET_DOMAIN}`, so a hyphen in the app name leaks into the URL. Name new
   apps hyphen-free end-to-end (directory, `ks.yaml` `&app`, HelmRelease, controller, PVC) — e.g.
