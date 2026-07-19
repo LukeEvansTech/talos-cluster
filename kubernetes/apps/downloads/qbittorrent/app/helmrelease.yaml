@@ -124,7 +124,7 @@ spec:
             dependsOn: app
             image:
               repository: docker.io/scuzza/gluetun-webui
-              tag: latest
+              tag: latest@sha256:a7c2b4c77f26bb690debe6879cd7149d69710578b13e0dcdc08f6b9b6c7a7a14
             env:
               GLUETUN_CONTROL_URL: http://localhost:8000
               PORT: &gluetun-webui-port 3000

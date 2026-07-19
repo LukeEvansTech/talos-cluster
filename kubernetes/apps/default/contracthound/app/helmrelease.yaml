@@ -18,7 +18,7 @@ spec:
           app:
             image:
               repository: ghcr.io/lukeevanstech/contracthound
-              tag: 1.7.1
+              tag: 1.7.1@sha256:d0c117c5810b4c69b1a2097915c890b163cd4d0051f5afba1d61944064f8377a
             env:
               TZ: ${TIMEZONE}
               DATABASE_URL: sqlite:///./data/contracthound.db
