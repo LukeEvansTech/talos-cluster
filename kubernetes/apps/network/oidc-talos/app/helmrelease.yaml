@@ -115,7 +115,7 @@ spec:
           app:
             image:
               repository: docker.io/nginxinc/nginx-unprivileged
-              tag: 1.31-alpine@sha256:054e14f543eb688809d59ec2ad1644d1a61678e247c87a318ad605977eb37eaf
+              tag: 1.31-alpine@sha256:a718212f9cf21e241f14067333000a3f0930292f5354fe0db269e9a2a2596b9e
             env:
               TZ: ${TIMEZONE}
             probes:
