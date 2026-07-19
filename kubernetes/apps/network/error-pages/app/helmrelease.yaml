@@ -20,7 +20,7 @@ spec:
           app:
             image:
               repository: ghcr.io/tarampampam/error-pages
-              tag: 4.2.2@sha256:e37911e46346614cbd8d9d85d4eaae2819a87c8638ebd91f375a24e30ead306d
+              tag: 4.2.4@sha256:4c5b7025ebb4c3ba4f41e465088db669871cd654976e5dfb10d12e51c644ad3b
             env:
               TEMPLATE_NAME: ghost
             resources:
