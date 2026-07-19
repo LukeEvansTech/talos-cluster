@@ -1,0 +1,105 @@
+---
+# Prevents the two Renovate backlog failure modes cleaned up on 2026-07-19:
+#
+# 1. Fast releasers reset the 3-day minimumReleaseAge clock indefinitely
+#    (Renovate targets the newest release; near-daily publishers never have one
+#    older than 3 days), so updates park in the dashboard's "Pending Status
+#    Checks" section forever. Ticking a box force-creates the PR, which then
+#    goes through full CI + automerge gating as normal — so this turns the age
+#    gate into "3 days OR at most a week", never an unbounded wait.
+#
+# 2. A transient bad state on main used to fail the merge-ref Internal
+#    Identifier Scan on every open PR, and rebaseWhen:conflicted means no new
+#    SHA ever replaces the stale FAILURE — Renovate then refuses to self-merge
+#    a PR that is green everywhere else. Re-running the failed run heals it
+#    (the scan is PR-scoped since the same change that added this workflow, so
+#    re-runs judge only the PR's own files and are deterministic).
+name: renovate-dashboard-groomer
+
+on:
+  schedule:
+    - cron: "0 6 * * 0" # Sundays 06:00 UTC
+  workflow_dispatch:
+
+# Top-level: read-only. The job widens only what it needs.
+permissions:
+  contents: read
+
+jobs:
+  groom:
+    name: Groom dashboard + heal stale checks
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write # tick dashboard checkboxes (issue body edit)
+      actions: write # re-run failed workflow runs
+    steps:
+      - name: Tick parked Pending Status Checks boxes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          python3 - <<'PYEOF'
+          import json
+          import os
+          import re
+          import subprocess
+          import tempfile
+
+          repo = os.environ["REPO"]
+          issue = subprocess.run(
+              ["gh", "api", f"repos/{repo}/issues/1"],
+              check=True, capture_output=True, text=True,
+          )
+          data = json.loads(issue.stdout)
+          if "Renovate Dashboard" not in data["title"]:
+              raise SystemExit(f"issue #1 is not the dashboard: {data['title']!r}")
+          body = data["body"]
+
+          # Only the "Pending Status Checks" section, only approvePr boxes.
+          # Other sections (Errored retries, Pending Approval, rebase-all) stay
+          # human-driven on purpose.
+          section = re.search(
+              r"## Pending Status Checks\n.*?(?=\n## |\Z)", body, re.DOTALL
+          )
+          if not section:
+              print("no Pending Status Checks section - nothing to do")
+              raise SystemExit(0)
+
+          ticked = re.subn(
+              r"- \[ \] (<!-- approvePr-branch=)",
+              r"- [x] \1",
+              section.group(0),
+          )
+          if ticked[1] == 0:
+              print("no unticked boxes - nothing to do")
+              raise SystemExit(0)
+
+          body = body[: section.start()] + ticked[0] + body[section.end():]
+          with tempfile.NamedTemporaryFile("w", suffix=".md", delete=False) as f:
+              f.write(body)
+              path = f.name
+          subprocess.run(
+              ["gh", "api", "-X", "PATCH", f"repos/{repo}/issues/1",
+               "-F", f"body=@{path}", "-q", ".updated_at"],
+              check=True,
+          )
+          print(f"ticked {ticked[1]} parked update(s)")
+          PYEOF
+
+      - name: Re-run failed security-scans on open Renovate PRs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |-
+          gh pr list --repo "$REPO" --limit 100 --json headRefName,author \
+            --jq '.[] | select(.author.login | test("renovate")) | .headRefName' |
+            while read -r branch; do
+              gh run list --repo "$REPO" --branch "$branch" \
+                --workflow security-scans.yaml --status failure --limit 3 \
+                --json databaseId --jq '.[].databaseId' |
+                while read -r run_id; do
+                  echo "re-running failed run ${run_id} on ${branch}"
+                  gh run rerun "$run_id" --failed --repo "$REPO" || true
+                done
+            done
