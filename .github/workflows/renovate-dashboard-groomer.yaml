@@ -79,11 +79,9 @@ jobs:
           with tempfile.NamedTemporaryFile("w", suffix=".md", delete=False) as f:
               f.write(body)
               path = f.name
-          subprocess.run(
-              ["gh", "api", "-X", "PATCH", f"repos/{repo}/issues/1",
-               "-F", f"body=@{path}", "-q", ".updated_at"],
-              check=True,
-          )
+          cmd = ["gh", "api", "-X", "PATCH", f"repos/{repo}/issues/1"]
+          cmd += ["-F", f"body=@{path}", "-q", ".updated_at"]
+          subprocess.run(cmd, check=True)
           print(f"ticked {ticked[1]} parked update(s)")
           PYEOF
 

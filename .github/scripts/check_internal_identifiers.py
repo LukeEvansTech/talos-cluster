@@ -44,24 +44,16 @@ SELF_PATH = ".github/scripts/check_internal_identifiers.py"
 # what it is meant to keep out of git). It catches the structural naming scheme
 # (site-prefixed `cr-*` / `sw-*` hostnames, private IPs, MACs, internal TLDs).
 PATTERNS: dict[str, re.Pattern] = {
-    "LAN IP": re.compile(
-        r"(?<![\d.])(?:10\.32|192\.168|172\.(?:1[6-9]|2\d|3[01]))\.\d+\.\d+(?![\d.])"
-    ),
+    "LAN IP": re.compile(r"(?<![\d.])(?:10\.32|192\.168|172\.(?:1[6-9]|2\d|3[01]))\.\d+\.\d+(?![\d.])"),
     # Tailscale hands out addresses from the CGNAT range 100.64.0.0/10
     # (100.64.x.x-100.127.x.x); a literal one maps a tailnet node.
-    "tailnet IP (CGNAT)": re.compile(
-        r"(?<![\d.])100\.(?:6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.\d+\.\d+(?![\d.])"
-    ),
+    "tailnet IP (CGNAT)": re.compile(r"(?<![\d.])100\.(?:6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.\d+\.\d+(?![\d.])"),
     "node name": re.compile(r"cr-talos-\d+"),
     # site-prefixed device hostnames, kept as two single-line patterns so black and
     # ruff agree; both exclude cr-talos-* and "ghcr-auth"-style substrings.
-    "device hostname (cr)": re.compile(
-        r"(?<![a-z0-9])cr-(?!talos(?:-|\b))[a-z][a-z0-9]*(?:-[a-z0-9]+)+"
-    ),
+    "device hostname (cr)": re.compile(r"(?<![a-z0-9])cr-(?!talos(?:-|\b))[a-z][a-z0-9]*(?:-[a-z0-9]+)+"),
     "device hostname (sw)": re.compile(r"(?<![a-z0-9])sw-(?:main|comms)-[a-z0-9]+"),
-    "MAC address": re.compile(
-        r"(?<![0-9a-fA-F:])(?:[0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}(?![0-9a-fA-F:])"
-    ),
+    "MAC address": re.compile(r"(?<![0-9a-fA-F:])(?:[0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}(?![0-9a-fA-F:])"),
     "internal hostname": re.compile(r"\b[a-z0-9_-]+\.(?:lan|internal)\b"),
 }
 
@@ -107,9 +99,7 @@ ALLOWLIST: dict[str, str] = {
 
 def allowlisted(path: str) -> bool:
     """Return True if the path matches an accepted-functional-config glob."""
-    return any(
-        fnmatch(path, glob) or path.startswith(glob.rstrip("*")) for glob in ALLOWLIST
-    )
+    return any(fnmatch(path, glob) or path.startswith(glob.rstrip("*")) for glob in ALLOWLIST)
 
 
 def tracked_files() -> list[str]:
@@ -120,9 +110,7 @@ def tracked_files() -> list[str]:
 
 def changed_files(base: str) -> list[str]:
     """List tracked files changed between *base* and HEAD (deletions excluded)."""
-    out = subprocess.check_output(
-        ["git", "diff", "--name-only", "--diff-filter=d", base, "HEAD"], text=True
-    )
+    out = subprocess.check_output(["git", "diff", "--name-only", "--diff-filter=d", base, "HEAD"], text=True)
     tracked = set(tracked_files())
     return [f for f in out.splitlines() if f in tracked]
 
