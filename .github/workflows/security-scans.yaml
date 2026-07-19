@@ -39,3 +39,8 @@ jobs:
       # accepted-functional allowlist. See the script for the allowlist + rationale.
       - name: Scan tracked files for internal infrastructure identifiers
         run: python3 .github/scripts/check_internal_identifiers.py
+      # Deleting a ${SECRET_INTERNAL_DOMAIN} route hostname is only safe when the
+      # same route also publishes ${SECRET_DOMAIN} -- catches an app going fully
+      # offline before it merges. See the script for the allowlist + rationale.
+      - name: Route hostname pair check
+        run: python3 .github/scripts/check_route_hostname_pairs.py
