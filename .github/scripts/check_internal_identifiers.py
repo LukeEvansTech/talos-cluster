@@ -69,6 +69,7 @@ ALLOWLIST: dict[str, str] = {
     "kubernetes/apps/home/homeassistant/app/helmrelease.yaml": "trusted-proxy IP + multus MAC",
     "kubernetes/apps/home/matter-server/app/helmrelease.yaml": "multus static IP + MAC",
     "kubernetes/apps/home/mosquitto/app/helmrelease.yaml": "multus static IP + MAC",
+    "kubernetes/apps/home/scrypted/app/helmrelease.yaml": "multus static IP + MAC",
     "kubernetes/apps/home/zigbee2mqtt/app/helmrelease.yaml": "multus static IP + MAC",
     "kubernetes/apps/kube-system/cilium/app/networks.yaml": "LB IP pool / API host",
     "kubernetes/apps/kube-system/etcd-defrag/app/configmap.yaml": "etcd-defrag node targets",

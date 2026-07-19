@@ -1,0 +1,138 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: scrypted
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: scrypted
+  values:
+    controllers:
+      scrypted:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        # Recreate, not RollingUpdate: the pod owns a fixed macvlan IP/MAC
+        # (see defaultPodOptions) and a ReadWriteOnce PVC. Two pods alive at
+        # once would duplicate the L2 address and deadlock on the volume.
+        strategy: Recreate
+        containers:
+          app:
+            image:
+              repository: ghcr.io/koush/scrypted
+              # `-noble-full` is the variant upstream ships as :latest (identical
+              # digest). Renovate's docker versioning pins updates to the same
+              # suffix family, so this tracks v0.144.x-noble-full only.
+              tag: v0.144.1-noble-full@sha256:25440767192b0d4a0709f50388d14cdf365ba6bff59d04e40a41ca2b7b9a6b70
+            env:
+              TZ: ${TIMEZONE}
+              # Scrypted serves the SAME app over HTTPS (10443, self-signed) and
+              # plain HTTP (11080). We route the gateway at 11080 so no
+              # BackendTLSPolicy is needed — the repo has no such pattern today.
+              SCRYPTED_INSECURE_PORT: &port 11080
+              SCRYPTED_SECURE_PORT: 10443
+              # Deliberately NOT setting SCRYPTED_DOCKER_AVAHI. The pod has a
+              # real LAN presence via macvlan, so Scrypted's built-in mDNS
+              # advertiser reaches the HomeKit hubs directly. Homebridge's
+              # bundled Avahi crash-loops in this cluster ("Failed to create
+              # runtime directory /run/avahi-daemon/") — don't repeat it.
+            probes:
+              liveness: &probes
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /
+                    port: *port
+                  initialDelaySeconds: 30
+                  periodSeconds: 30
+                  timeoutSeconds: 5
+                  failureThreshold: 5
+              readiness: *probes
+              startup:
+                enabled: false
+            securityContext:
+              allowPrivilegeEscalation: false
+              # Scrypted installs plugins via npm into /server/volume at runtime
+              # and unpacks helpers to the image filesystem.
+              readOnlyRootFilesystem: false
+              capabilities:
+                drop:
+                  - ALL
+            resources:
+              requests:
+                cpu: 100m
+                memory: 512Mi
+              limits:
+                # Generous headroom: HKSV transcoding spikes hard when several
+                # cameras record at once.
+                memory: 4Gi
+
+    # KEY CONFIGURATION: Multus network attachment.
+    #
+    # HomeKit pairing (HAP) needs L2 adjacency with the HomeKit hubs, which an
+    # mDNS probe placed on the untagged legacy LAN — both Apple TVs answered
+    # there, and VLAN 68 returned zero services (no reflector). So Scrypted
+    # attaches to `iot-legacy`, matching matter-server, NOT the `iot` NAD that
+    # Home Assistant / zigbee2mqtt / mosquitto use.
+    #
+    # The address below was verified unused before assignment (the two preceding
+    # candidates both answered ping). Confirm it sits outside the OPNsense DHCP
+    # pool. MAC continues the 02:00:00:00:00:0X series (:01 HA, :02 z2m,
+    # :03 mosquitto, :04 matter-server).
+    defaultPodOptions:
+      annotations:
+        k8s.v1.cni.cncf.io/networks: |-
+          [{
+            "name": "iot-legacy",
+            "namespace": "kube-system",
+            "ips": ["10.32.8.106/24"],
+            "mac": "02:00:00:00:00:05"
+          }]
+      # Scrypted's official image runs as root: its entrypoint manages the
+      # plugin runtime and npm-installs into /server/volume. Same documented
+      # exception as homebridge; most apps here run as UID 1000.
+      securityContext:
+        runAsNonRoot: false
+        runAsUser: 0
+        runAsGroup: 0
+        fsGroup: 0
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+
+    service:
+      app:
+        controller: scrypted
+        ports:
+          http:
+            port: *port
+
+    route:
+      app:
+        hostnames:
+          - "{{ .Release.Name }}.${SECRET_DOMAIN}"
+          - "{{ .Release.Name }}.${SECRET_INTERNAL_DOMAIN}"
+        parentRefs:
+          - name: envoy-internal
+            namespace: network
+
+    # HKSV clips go to iCloud, so no local NVR volume is provisioned for Phase 0.
+    # When the Reolink NVR plugin lands, add a TrueNAS NFS volume alongside
+    # `config` below and set SCRYPTED_NVR_VOLUME=/nvr on the container:
+    #
+    #   nvr:
+    #     type: nfs
+    #     server: "${NAS_ADDR}"
+    #     path: /mnt/pool/scrypted
+    #     globalMounts:
+    #       - path: /nvr
+    persistence:
+      # Scrypted state: plugin installs, device DB, HomeKit pairing keys.
+      # Losing this unpairs every accessory, so it is volsync-backed.
+      config:
+        existingClaim: "{{ .Release.Name }}"
+        globalMounts:
+          - path: /server/volume
