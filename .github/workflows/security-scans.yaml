@@ -34,11 +34,22 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
+          # PR runs diff against the merge ref's first parent (main at merge
+          # time), so both parents of the merge commit must be present.
+          fetch-depth: 2
       # This repo is PUBLIC. Fail the build if a tracked file introduces a LAN IP,
       # node/device hostname, MAC, internal hostname, or device model outside the
       # accepted-functional allowlist. See the script for the allowlist + rationale.
+      #
+      # PR runs scan ONLY the files the PR changes (--diff-base HEAD^1): the
+      # merge ref includes all of main, and a full scan there let a transient
+      # bad state on main fail every open PR — the stale FAILURE check-run then
+      # blocked Renovate self-merge forever (rebaseWhen:conflicted never makes
+      # a new SHA). Push-to-main + nightly runs still scan everything.
       - name: Scan tracked files for internal infrastructure identifiers
-        run: python3 .github/scripts/check_internal_identifiers.py
+        env:
+          DIFF_BASE: ${{ github.event_name == 'pull_request' && 'HEAD^1' || '' }}
+        run: python3 .github/scripts/check_internal_identifiers.py ${DIFF_BASE:+--diff-base "$DIFF_BASE"}
       # Deleting a ${SECRET_INTERNAL_DOMAIN} route hostname is only safe when the
       # same route also publishes ${SECRET_DOMAIN} -- catches an app going fully
       # offline before it merges. See the script for the allowlist + rationale.
