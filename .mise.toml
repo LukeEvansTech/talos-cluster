@@ -50,8 +50,13 @@ run = "uv pip install -r requirements.txt"
 "github:home-operations/yayamlls" = "latest"
 python = "3.14.6"
 uv = "0.11.29"
-node = "24"
+# Exact pins (not ranges): an in-range update is LOCKFILE-ONLY for Renovate,
+# and that artifact path fails on Mend hosted — the node/prettier
+# "-lockfile" branches errored on every dashboard tick while ordinary
+# bump-toml+lock updates (e.g. just 1.57.0, #3601) work fine. Every other
+# tool here is exact-pinned already; keep it that way.
+node = "24.14.0"
 "npm:markdownlint-cli" = "0.49.1"
-"npm:prettier" = "3"
+"npm:prettier" = "3.8.1"
 "pipx:codespell" = "2.4.3"
 "pipx:yamllint" = "1.38.0"
