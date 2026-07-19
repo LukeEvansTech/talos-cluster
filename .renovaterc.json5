@@ -496,6 +496,44 @@
       pinDigests: false,
     },
     {
+      // Renovate's helmfile manager has no digest field in its schema, so a
+      // first-time pinDigest can never satisfy doAutoReplace's re-extract
+      // check → WORKER_FILE_UPDATE_FAILED aborts the ENTIRE combined
+      // renovate/pin-dependencies branch ("Error updating branch: update
+      // failure"; renovatebot/renovate#24942). The same charts' runtime twins
+      // in kubernetes/**/ocirepository.yaml are already exempt via the flux
+      // rule above — bootstrap/helmfile.d/ is only the cold-start path.
+      description: "Don't pin digests on Helmfile OCI chart releases (no digest field; crashes the pin branch)",
+      matchManagers: ["helmfile"],
+      pinDigests: false,
+    },
+    {
+      // The home-operations 'annotated' custom manager (# renovate: comments
+      // in talconfig.yaml / talenv.yaml / tuppr upgrades) captures no
+      // currentDigest group, so first-time digest pins hit the same
+      // renovatebot/renovate#24942 crash — installer took down the
+      // renovate/talos branch, kubelet the pin-dependencies branch.
+      description: "Don't pin digests on annotated Talos installer/kubelet deps (no currentDigest capture; crashes the pin branch)",
+      matchDatasources: ["docker"],
+      matchPackageNames: [
+        "ghcr.io/siderolabs/installer",
+        "ghcr.io/siderolabs/kubelet",
+      ],
+      pinDigests: false,
+    },
+    {
+      // registry.erwanleboucher.dev answers /v2/ token requests with a
+      // plaintext non-JSON body when no scope is given, which breaks
+      // Renovate's auth negotiation ("Failed to look up docker package …
+      // talos-mcp: no-result") — third-party registry defect, nothing to fix
+      // here. Skip digest pinning so the dep can't wedge a combined pin
+      // branch; version updates still apply when the lookup succeeds.
+      description: "Don't pin digests on talos-mcp (registry auth endpoint violates the token spec)",
+      matchDatasources: ["docker"],
+      matchPackageNames: ["registry.erwanleboucher.dev/eleboucher/talos-mcp"],
+      pinDigests: false,
+    },
+    {
       // pulsarr upstream (github.com/jamcalli/Pulsarr) is still on 0.15.x.
       // Stray 1.x tags appeared on Docker Hub (1.1.5, 1.1.6) and were pulled.
       // Block the whole 1.x major until upstream legitimately ships a 1.0 release.
