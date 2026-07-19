@@ -298,7 +298,11 @@
       group: {
         commitMessageTopic: "{{{groupName}}} group",
       },
-      minimumGroupSize: 2,
+      // 1, not 2: same solo-pinDigest parking issue as the Cilium/CoreDNS
+      // groups above — a lone flux-operator-manifests digest pin sat under
+      // "Group Size Not Met" forever (protected-infra keeps merges manual
+      // regardless; 2+ simultaneous updates still group).
+      minimumGroupSize: 1,
     },
     {
       description: "Profilarr Group (app + parser move in lockstep)",
