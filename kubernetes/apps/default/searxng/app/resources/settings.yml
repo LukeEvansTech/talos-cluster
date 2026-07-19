@@ -17,7 +17,7 @@ search:
   favicon_resolver: ""
   default_lang: "en"
 server:
-  secret_key: "${SEARXNG_SECRET_KEY}"
+  secret_key: "$${SEARXNG_SECRET_KEY}"
   limiter: false
   image_proxy: true
   method: "GET"

@@ -192,8 +192,8 @@ spec:
                 # dcr_stream_name). No managed_identity/client_app_* option — with none set, the
                 # plugin uses Azure DefaultAzureCredential, which auto-detects the federated
                 # workload identity from the AZURE_* env + projected token (no secret).
-                # $$ escapes Flux postBuild substitution so these reach Logstash as ${DCE_URI} /
-                # ${DCR_IMMUTABLE_ID}, which Logstash resolves from the container env (cluster-secrets).
+                # $$ escapes Flux postBuild substitution so these reach Logstash as $${DCE_URI} /
+                # $${DCR_IMMUTABLE_ID}, which Logstash resolves from the container env (cluster-secrets).
                 data_collection_endpoint => "$${DCE_URI}"
                 dcr_id                   => "$${DCR_IMMUTABLE_ID}"
                 stream_name              => "Custom-SyslogStream"
