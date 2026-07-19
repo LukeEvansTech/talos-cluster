@@ -17,4 +17,4 @@ spec:
   url: oci://ghcr.io/home-operations/charts-mirror/nvidia-gpu-operator
   ref:
     # renovate: datasource=docker
-    tag: 26.3.2
+    tag: 26.3.3
