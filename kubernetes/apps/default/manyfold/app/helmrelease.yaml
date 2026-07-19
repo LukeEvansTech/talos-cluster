@@ -39,7 +39,7 @@ spec:
           app:
             image:
               repository: ghcr.io/bjw-s-labs/manyfold
-              tag: 0.144.1@sha256:a6845dcc78b8ef6dba37e7c7e46d2ea3e433f565ae008b77a069cee3fffddb13
+              tag: 0.146.0@sha256:8e4b197141d673440cb81b6884ff4f53cbd98990f4296302d9a54606db5478b7
             env:
               TZ: ${TIMEZONE}
               DATABASE_URL: sqlite3:/data/database/manyfold.sqlite3
