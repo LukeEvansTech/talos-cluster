@@ -6,7 +6,7 @@ metadata:
   namespace: database
   annotations:
     io.cilium/lb-ipam-ips: ${SVC_POSTGRES_ADDR}
-    external-dns.alpha.kubernetes.io/hostname: postgres18.${SECRET_INTERNAL_DOMAIN}
+    external-dns.alpha.kubernetes.io/hostname: postgres18.${SECRET_DOMAIN}
 spec:
   type: LoadBalancer
   ports:

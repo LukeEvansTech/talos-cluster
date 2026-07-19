@@ -1,6 +1,6 @@
 ---
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/v1/configmap.json
-# garage.toml (non-secret). Flux postBuild substitutes ${SECRET_INTERNAL_DOMAIN}.
+# garage.toml (non-secret). Flux postBuild substitutes ${SECRET_DOMAIN}.
 # rpc_secret / admin_token are NOT here — they are injected as env (GARAGE_RPC_SECRET,
 # GARAGE_ADMIN_TOKEN) from the garage-secret Secret, so no secrets live in this ConfigMap.
 apiVersion: v1
@@ -9,7 +9,7 @@ metadata:
   name: garage-config
   namespace: storage
 data:
-  garage.toml: |
+  garage.toml: |-
     metadata_dir = "/mnt/meta"
     data_dir = "/mnt/data"
     db_engine = "lmdb"
@@ -27,11 +27,11 @@ data:
     [s3_api]
     s3_region = "us-east-1"
     api_bind_addr = "[::]:3900"
-    root_domain = ".s3.${SECRET_INTERNAL_DOMAIN}"
+    root_domain = ".s3.${SECRET_DOMAIN}"
 
     [s3_web]
     bind_addr = "[::]:3902"
-    root_domain = ".web.${SECRET_INTERNAL_DOMAIN}"
+    root_domain = ".web.${SECRET_DOMAIN}"
     index = "index.html"
 
     [admin]

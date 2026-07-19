@@ -40,7 +40,8 @@ spec:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: true
               capabilities:
-                drop: ["ALL"]
+                drop:
+                  - "ALL"
             probes:
               liveness:
                 enabled: true
@@ -85,7 +86,6 @@ spec:
       app:
         hostnames:
           - "garage.${SECRET_DOMAIN}"
-          - "garage.${SECRET_INTERNAL_DOMAIN}"
         parentRefs:
           - name: envoy-internal
             namespace: network
