@@ -25,6 +25,14 @@ spec:
               # scrutiny-collector DaemonSet, keeping this server unprivileged.
               COLLECTOR_RUN_STARTUP: "false"
               COLLECTOR_CRON_SCHEDULE: "0 0 30 2 *" # 30 February — never fires
+              # v1.67.0 migrates the embedded InfluxDB 2.2 → 2.9.1 and refuses
+              # to start on existing data without this acknowledgement
+              # (Starosdev/scrutiny#662). Pre-migration VolSync snapshots taken
+              # 2026-07-19 (manual trigger pre-influx29-*, NFS + R2 both
+              # Successful). One-time gate: the image writes a persistent
+              # preflight marker after the first confirmed boot, so this can be
+              # dropped once 1.67.x is up and healthy.
+              SCRUTINY_INFLUXDB_29_BACKUP_CONFIRMED: "true"
             probes:
               liveness:
                 enabled: true
