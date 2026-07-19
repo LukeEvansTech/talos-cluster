@@ -538,6 +538,21 @@
       pinDigests: false,
     },
     {
+      // The preset's `oci` custom manager (managers/oci.json5) matches inline
+      // `oci://repo:tag` strings — here the FluxInstance distribution.artifact —
+      // with `(?<currentValue>\S+)` and NO currentDigest group: a first-time
+      // digest pin can't be appended (renovate#24942 crash, same as the
+      // annotated installer/kubelet case), and seeding a digest by hand would
+      // make \S+ swallow `tag@sha256:...` into currentValue and break version
+      // updates entirely. Version bumps keep flowing through the Flux group.
+      description: "Don't pin digests on flux-operator-manifests (inline oci:// manager has no digest support)",
+      matchDatasources: ["docker"],
+      matchPackageNames: [
+        "ghcr.io/controlplaneio-fluxcd/flux-operator-manifests",
+      ],
+      pinDigests: false,
+    },
+    {
       // The home-operations preset forces regex versioning
       // (^server-<variant>-b<build>$) on every llama.cpp reference repo-wide,
       // but memini's model init containers use the bare legacy `server` tag,
