@@ -7,7 +7,6 @@ metadata:
 spec:
   hostnames:
     - coder.${SECRET_DOMAIN}
-    - coder.${SECRET_INTERNAL_DOMAIN}
   parentRefs:
     - name: envoy-internal
       namespace: network
