@@ -16,16 +16,28 @@ spec:
           for: 5m
           labels:
             severity: critical
-        # mktxp drops a router's series when it can't reach it. Confirm the exact
-        # uptime metric/label against live /metrics before relying on this.
-        # mktxp drops a router's series when it can't reach it. Both
-        # switches should report mktxp_system_uptime; fewer than 2 means one is
-        # unreachable. (Adjust the threshold if the switch count changes.)
+        # When mktxp cannot reach ANY router the scrape still returns HTTP 200
+        # with an empty body, so up==1 and count(mktxp_system_uptime) yields an
+        # empty vector — a `< N` comparison can never fire. absent() is the only
+        # expression that catches total blindness (verified: both switches were
+        # unreachable 8 days with zero alerts). mktxp_system_uptime is confirmed
+        # against historical data as the per-router presence series.
+        - alert: MktxpNoRouterData
+          annotations:
+            summary: "mktxp is up but collecting from zero RouterOS devices — every switch is unreachable."
+          expr: |-
+            absent(mktxp_system_uptime)
+          for: 10m
+          labels:
+            severity: critical
+        # Partial loss: at least one router reports but not all. count()<2 only
+        # fires when count==1 (never when 0 — see absent() alert above). 15m
+        # tolerates a flapping switch dropping its series briefly between scrapes.
         - alert: MktxpRouterUnreachable
           annotations:
             summary: "mktxp is collecting from fewer than 2 RouterOS devices — a switch is unreachable."
           expr: |-
             count(mktxp_system_uptime) < 2
-          for: 10m
+          for: 15m
           labels:
             severity: warning
