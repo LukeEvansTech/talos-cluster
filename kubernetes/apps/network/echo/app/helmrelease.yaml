@@ -10,20 +10,28 @@ spec:
     kind: OCIRepository
     name: echo
   values:
-    replicaCount: 1
+    replicaCount: 2
     config:
-      kubernetes: true
+      # Upstream ships this on, but echo is public here and the block reports
+      # pod/node/namespace to any caller. This cluster is long past the
+      # fresh-bootstrap check the block serves, so keep it off.
+      kubernetes: false
       # Trust the in-cluster Envoy Gateway proxy so echo reports the real client IP
       trustedProxies:
         - ${CLUSTER_PODS_CIDR}
+    # External-only, matching the cluster-template: echo is the canary that
+    # proves the public chain (external-dns -> DNS -> envoy-external -> wildcard
+    # cert -> pod), so an internal route would not exercise anything.
     httpRoute:
       enabled: true
       hostnames:
         - "{{ .Release.Name }}.${SECRET_DOMAIN}"
-        - "{{ .Release.Name }}.${SECRET_INTERNAL_DOMAIN}"
       parentRefs:
-        - name: envoy-internal
+        - name: envoy-external
           namespace: network
+    monitoring:
+      serviceMonitor:
+        enabled: true
     resources:
       requests:
         cpu: 10m
