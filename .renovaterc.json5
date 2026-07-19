@@ -501,7 +501,7 @@
       // check → WORKER_FILE_UPDATE_FAILED aborts the ENTIRE combined
       // renovate/pin-dependencies branch ("Error updating branch: update
       // failure"; renovatebot/renovate#24942). The same charts' runtime twins
-      // in kubernetes/**/ocirepository.yaml are already exempt via the flux
+      // in the per-app kubernetes ocirepository.yaml files are already exempt via the flux
       // rule above — bootstrap/helmfile.d/ is only the cold-start path.
       description: "Don't pin digests on Helmfile OCI chart releases (no digest field; crashes the pin branch)",
       matchManagers: ["helmfile"],
