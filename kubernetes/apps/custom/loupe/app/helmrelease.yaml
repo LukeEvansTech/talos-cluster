@@ -18,7 +18,7 @@ spec:
           app:
             image:
               repository: ghcr.io/lukeevanstech/loupe
-              tag: 0.5.0
+              tag: 0.5.0@sha256:1857a8dafac5fea502796456f1e47678df3edfde21b0ea2d0ef2a8915b6d8d68
             env:
               - name: APP_SECRET_KEY
                 valueFrom:
