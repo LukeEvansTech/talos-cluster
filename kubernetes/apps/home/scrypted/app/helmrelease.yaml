@@ -38,18 +38,32 @@ spec:
               # advertiser reaches the HomeKit hubs directly. Homebridge's
               # bundled Avahi crash-loops in this cluster ("Failed to create
               # runtime directory /run/avahi-daemon/") — don't repeat it.
+            # exec, NOT httpGet. The macvlan interface cannot reach its own
+            # parent host (verified: EHOSTUNREACH to the node's LAN address), and
+            # this NAD puts the pod on the same subnet as the nodes. A kubelet
+            # httpGet arrives via eth0 but the reply routes out net1 and is
+            # blackholed, so the probe always times out even though the app is
+            # healthy. An exec probe goes through containerd, not the network.
+            # (This is why the other Multus apps here define no probes at all.)
             probes:
               liveness: &probes
                 enabled: true
                 custom: true
                 spec:
-                  httpGet:
-                    path: /
-                    port: *port
-                  initialDelaySeconds: 30
+                  exec:
+                    command:
+                      - curl
+                      - --silent
+                      - --fail
+                      - --output
+                      - /dev/null
+                      - --max-time
+                      - "5"
+                      - http://127.0.0.1:11080/
+                  initialDelaySeconds: 60
                   periodSeconds: 30
-                  timeoutSeconds: 5
-                  failureThreshold: 5
+                  timeoutSeconds: 10
+                  failureThreshold: 6
               readiness: *probes
               startup:
                 enabled: false
