@@ -62,7 +62,6 @@ spec:
       app:
         hostnames:
           - "search.${SECRET_DOMAIN}"
-          - "search.${SECRET_INTERNAL_DOMAIN}"
         parentRefs:
           - name: envoy-internal
             namespace: network

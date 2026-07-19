@@ -80,7 +80,6 @@ spec:
       app:
         hostnames:
           - "mailarchiver.${SECRET_DOMAIN}"
-          - "mailarchiver.${SECRET_INTERNAL_DOMAIN}"
         parentRefs:
           - name: envoy-internal
             namespace: network
