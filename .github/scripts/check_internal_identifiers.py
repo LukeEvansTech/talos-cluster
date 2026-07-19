@@ -86,7 +86,6 @@ ALLOWLIST: dict[str, str] = {
     "kubernetes/apps/network/envoy-gateway/app/envoy.yaml": "Envoy LB listener IPs",
     "kubernetes/apps/network/scanopy/app/daemon-helmrelease.yaml": "LAN scan ranges",
     "kubernetes/apps/observability/blackbox-exporter/lan/probes.yaml": "blackbox LAN probe targets",
-    "kubernetes/apps/observability/mktxp/app/externalsecret.yaml": "mktxp.conf instance labels",
     "kubernetes/apps/observability/network-ups-tools/app/configmap.yaml": "NUT UPS device names",
     "kubernetes/apps/observability/network-ups-tools/app/helmrelease.yaml": "NUT UPS device + address",
     "kubernetes/apps/observability/nut-exporter/app/prometheusrule.yaml": "NUT UPS alert selectors",
