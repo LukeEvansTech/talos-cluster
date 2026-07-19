@@ -17,6 +17,7 @@ resources:
   - ./matter-server/ks.yaml
   - ./mosquitto/ks.yaml
   - ./node-red/ks.yaml
+  - ./scrypted/ks.yaml
   - ./shelly-fleet/ks.yaml
   - ./shelly-operator/ks.yaml
   - ./shelly-prometheus-exporter/ks.yaml
