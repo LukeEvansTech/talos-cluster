@@ -237,7 +237,6 @@ spec:
       app:
         hostnames:
           - "{{ .Release.Name }}.${SECRET_DOMAIN}"
-          - "{{ .Release.Name }}.${SECRET_INTERNAL_DOMAIN}"
         parentRefs:
           - name: envoy-internal
             namespace: network
@@ -248,7 +247,6 @@ spec:
       gluetun-webui:
         hostnames:
           - "{{ .Release.Name }}-gluetun.${SECRET_DOMAIN}"
-          - "{{ .Release.Name }}-gluetun.${SECRET_INTERNAL_DOMAIN}"
         parentRefs:
           - name: envoy-internal
             namespace: network
