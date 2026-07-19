@@ -99,14 +99,30 @@
     // platformAutomerge:false => Renovate self-gates on CI (flate, security-scans)
     // rather than GitHub-native auto-merge, so no branch-protection ruleset is needed.
     {
-      description: "Auto-merge apps — minor/patch/digest + pins (denylist model; protected guard below)",
+      description: "Auto-merge apps — minor/patch (denylist model; protected guard below)",
       matchDatasources: ["docker", "helm"],
-      matchUpdateTypes: ["minor", "patch", "digest", "pin", "pinDigest"],
+      matchUpdateTypes: ["minor", "patch"],
       automerge: true,
       automergeType: "pr",
       platformAutomerge: false,
       ignoreTests: false,
       minimumReleaseAge: "3 days",
+    },
+    {
+      // No minimumReleaseAge here: digest bumps track mutable tags that upstream
+      // rebuilds every few days (nginx:1.31-alpine, llama.cpp server-cuda …), so
+      // a 3-day age gate perpetually resets and renovate/stability-days never
+      // clears — 11 digest PRs sat pending up to 19 days. GHCR also often has no
+      // retrievable per-digest timestamp at all, which pends forever too. Digest
+      // bumps of an already-trusted tag stay CI-gated (ignoreTests: false) like
+      // everything else, and the protected-infra guard below still applies.
+      description: "Auto-merge apps — digest + pins, no age gate (denylist model; protected guard below)",
+      matchDatasources: ["docker", "helm"],
+      matchUpdateTypes: ["digest", "pin", "pinDigest"],
+      automerge: true,
+      automergeType: "pr",
+      platformAutomerge: false,
+      ignoreTests: false,
     },
     {
       description: "Protected infra — never auto-merge, manual review only",
