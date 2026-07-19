@@ -61,6 +61,7 @@ nav = [
     { "Reclaimerr" = "apps/reclaimerr.md" },
     { "iSponsorBlockTV" = "apps/isponsorblocktv.md" },
     { "changedetection.io" = "apps/changedetection.md" },
+    { "Scrypted" = "apps/scrypted.md" },
   ] },
   { "Troubleshooting" = [
     { "Symptom ladder" = "troubleshooting/index.md" },
