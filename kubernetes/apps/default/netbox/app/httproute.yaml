@@ -7,7 +7,6 @@ metadata:
 spec:
   hostnames:
     - "netbox.${SECRET_DOMAIN}"
-    - "netbox.${SECRET_INTERNAL_DOMAIN}"
   parentRefs:
     - name: envoy-internal
       namespace: network
