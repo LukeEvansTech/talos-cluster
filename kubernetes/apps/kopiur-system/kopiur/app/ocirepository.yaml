@@ -12,3 +12,8 @@ spec:
   ref:
     tag: 0.7.5
   url: oci://ghcr.io/home-operations/charts/kopiur
+  verify:
+    provider: cosign
+    matchOIDCIdentity:
+      - issuer: ^https://token\.actions\.githubusercontent\.com$
+        subject: ^https://github\.com/home-operations/kopiur/\.github/workflows/release\.yaml@refs/tags/.+$
