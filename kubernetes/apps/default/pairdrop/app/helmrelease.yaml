@@ -61,7 +61,6 @@ spec:
       app:
         hostnames:
           - "drop.${SECRET_DOMAIN}"
-          - "drop.${SECRET_INTERNAL_DOMAIN}"
         parentRefs:
           - name: envoy-internal
             namespace: network
