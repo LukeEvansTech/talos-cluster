@@ -534,6 +534,24 @@
       pinDigests: false,
     },
     {
+      // The home-operations preset forces regex versioning
+      // (^server-<variant>-b<build>$) on every llama.cpp reference repo-wide,
+      // but memini's model init containers use the bare legacy `server` tag,
+      // which that scheme cannot parse — an unparseable currentValue under
+      // strict custom versioning wedges the combined pin-dependencies branch
+      // (same renovatebot/renovate#24942 failure family as PR #3652).
+      // Fall back to plain docker versioning for these two files so the tag
+      // is treated as an ordinary mutable tag and digest-pins normally.
+      description: "memini llama.cpp images use the bare 'server' tag — preset regex versioning can't parse it",
+      matchDatasources: ["docker"],
+      matchPackageNames: ["ghcr.io/ggml-org/llama.cpp"],
+      matchFileNames: [
+        "kubernetes/apps/ai/memini/models/llama-embed.yaml",
+        "kubernetes/apps/ai/memini/models/llama-rerank.yaml",
+      ],
+      versioning: "docker",
+    },
+    {
       // pulsarr upstream (github.com/jamcalli/Pulsarr) is still on 0.15.x.
       // Stray 1.x tags appeared on Docker Hub (1.1.5, 1.1.6) and were pulled.
       // Block the whole 1.x major until upstream legitimately ships a 1.0 release.
