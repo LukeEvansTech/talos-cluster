@@ -5,11 +5,20 @@ This repository is PUBLIC. The house rule (see CLAUDE.md / AGENTS.md) is: never
 commit LAN IPs, node names, internal hostnames, MAC addresses, or vendor device
 models that map the home network. This guard enforces that on every PR.
 
-It scans all *tracked* files (so gitignored paths like docs/superpowers/ are never
+It scans *tracked* files (so gitignored paths like docs/superpowers/ are never
 seen) for the patterns below, skipping a small ALLOWLIST of files where a value is
 an unavoidable, accepted functional config (Talos machine config, device cert
 deployment, monitoring scrape targets, etc.). Anything matching OUTSIDE the
 allowlist fails the build.
+
+By default every tracked file is scanned (push-to-main + nightly runs). With
+--diff-base REV, only files changed between REV and HEAD are scanned: PR runs
+pass --diff-base HEAD^1 so a PR is judged ONLY on the files it touches. (PR
+events run on the merge ref; a full scan there re-scans all of main, so a
+transient bad state on main used to fail every open PR, and with
+rebaseWhen:conflicted the stale FAILURE check-run then blocked Renovate's
+self-merge forever. Main's own state stays covered by the push and schedule
+runs.)
 
 The allowlist is the authoritative list of "accepted functional configs" -- each
 entry says why the identifier has to live there. To template one out of git later,
@@ -21,6 +30,7 @@ Run locally:  python3 .github/scripts/check_internal_identifiers.py
 
 from __future__ import annotations
 
+import argparse
 import re
 import subprocess
 import sys
@@ -98,10 +108,26 @@ def tracked_files() -> list[str]:
     return [f for f in out.splitlines() if not f.startswith(".private/")]
 
 
+def changed_files(base: str) -> list[str]:
+    """List tracked files changed between *base* and HEAD (deletions excluded)."""
+    out = subprocess.check_output(["git", "diff", "--name-only", "--diff-filter=d", base, "HEAD"], text=True)
+    tracked = set(tracked_files())
+    return [f for f in out.splitlines() if f in tracked]
+
+
 def main() -> int:
     """Scan tracked files and fail (exit 1) on any non-allowlisted identifier."""
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--diff-base",
+        metavar="REV",
+        help="scan only files changed between REV and HEAD (PR scope)",
+    )
+    args = parser.parse_args()
+
+    paths = changed_files(args.diff_base) if args.diff_base else tracked_files()
     violations: list[str] = []
-    for path in tracked_files():
+    for path in paths:
         if allowlisted(path) or path == SELF_PATH:
             continue
         try:
@@ -130,7 +156,8 @@ def main() -> int:
         )
         return 1
 
-    print("OK -- no new internal infrastructure identifiers in tracked files.")
+    scope = f"{len(paths)} changed" if args.diff_base else f"all {len(paths)} tracked"
+    print(f"OK -- no new internal infrastructure identifiers ({scope} files).")
     return 0
 
 
