@@ -30,7 +30,7 @@ spec:
             env:
               TZ: ${TIMEZONE}
               BETTER_AUTH_URL: "https://keeper.${SECRET_DOMAIN}"
-              TRUSTED_ORIGINS: "https://keeper.${SECRET_DOMAIN},https://keeper.${SECRET_INTERNAL_DOMAIN}"
+              TRUSTED_ORIGINS: "https://keeper.${SECRET_DOMAIN}"
               WORKER_JOB_QUEUE_ENABLED: "true"
               BLOCK_PRIVATE_RESOLUTION: "false"
             envFrom:

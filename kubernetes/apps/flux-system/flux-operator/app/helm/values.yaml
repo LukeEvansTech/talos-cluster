@@ -18,7 +18,6 @@ web:
     enabled: true
     hostnames:
       - flux.${SECRET_DOMAIN}
-      - flux.${SECRET_INTERNAL_DOMAIN}
     parentRefs:
       - name: envoy-internal
         namespace: network

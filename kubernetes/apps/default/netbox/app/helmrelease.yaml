@@ -29,12 +29,10 @@ spec:
     existingSecret: netbox-secret
     allowedHosts:
       - "netbox.${SECRET_DOMAIN}"
-      - "netbox.${SECRET_INTERNAL_DOMAIN}"
     allowedHostsIncludesPodIP: true
     csrf:
       trustedOrigins:
         - "https://netbox.${SECRET_DOMAIN}"
-        - "https://netbox.${SECRET_INTERNAL_DOMAIN}"
     plugins: []
     persistence:
       enabled: true

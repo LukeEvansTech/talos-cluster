@@ -10,7 +10,6 @@ spec:
       namespace: network
   hostnames:
     - "prowler.${SECRET_DOMAIN}"
-    - "prowler.${SECRET_INTERNAL_DOMAIN}"
   rules:
     # Prowler REST API — longest-prefix wins, so this beats `/` for /api/v1/*.
     - matches:

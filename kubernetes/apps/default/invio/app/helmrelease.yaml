@@ -42,11 +42,11 @@ spec:
             env:
               TZ: ${TIMEZONE}
               DATABASE_PATH: /app/data/invio.db
-              # SvelteKit CSRF: canonical origin for the app. Internal hostname
-              # is the primary access path; the SECRET_DOMAIN alias on the same
-              # internal listener will CSRF-reject if used for state-changing
-              # requests — switch to it here if that becomes the preferred URL.
-              ORIGIN: https://invio.${SECRET_INTERNAL_DOMAIN}
+              # SvelteKit CSRF: must match the route's hostname exactly, or
+              # state-changing requests get CSRF-rejected. The route only
+              # serves ${SECRET_DOMAIN} (the internal-domain alias was
+              # dropped), so ORIGIN follows it.
+              ORIGIN: https://invio.${SECRET_DOMAIN}
               # Envoy terminates TLS upstream; backend pod sees HTTP. Without
               # this, SvelteKit refuses to set login cookies.
               COOKIE_SECURE: "false"

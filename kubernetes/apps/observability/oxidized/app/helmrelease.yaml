@@ -167,7 +167,6 @@ spec:
       app:
         hostnames:
           - oxidized.${SECRET_DOMAIN}
-          - oxidized.${SECRET_INTERNAL_DOMAIN}
         parentRefs:
           - name: envoy-internal
             namespace: network
