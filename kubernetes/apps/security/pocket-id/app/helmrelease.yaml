@@ -113,7 +113,6 @@ spec:
       app:
         hostnames:
           - "id.${SECRET_DOMAIN}"
-          - "id.${SECRET_INTERNAL_DOMAIN}"
         parentRefs:
           - name: envoy-internal
             namespace: network

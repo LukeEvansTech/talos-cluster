@@ -37,7 +37,6 @@ spec:
           namespace: network
       hostnames:
         - "{{ .Release.Name }}.${SECRET_DOMAIN}"
-        - "{{ .Release.Name }}.${SECRET_INTERNAL_DOMAIN}"
     persistence:
       # Ephemeral cache on the node filesystem (chart default). Konflate's
       # source/render/stage caches are millions of tiny files (~1.3M inodes
