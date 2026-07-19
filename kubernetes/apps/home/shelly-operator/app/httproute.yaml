@@ -10,7 +10,6 @@ spec:
       namespace: network
   hostnames:
     - "shelly.${SECRET_DOMAIN}"
-    - "shelly.${SECRET_INTERNAL_DOMAIN}"
   rules:
     - matches:
         - path:
