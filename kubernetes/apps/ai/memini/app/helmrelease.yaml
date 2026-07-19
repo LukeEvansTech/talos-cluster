@@ -90,6 +90,18 @@ spec:
         parentRefs:
           - name: envoy-internal
             namespace: network
+        # Chart v0.7.5 split the web UI onto its own `ui` service port (8081);
+        # `http` (8080) is now API-only and 404s on `/`. This is a custom route
+        # key, so it inherits neither of the chart's `main`/`ui` route defaults
+        # and would otherwise fall back to the primary `http` port.
+        rules:
+          - matches:
+              - path:
+                  type: PathPrefix
+                  value: /
+            backendRefs:
+              - identifier: main
+                port: ui
     serviceMonitor:
       main:
         enabled: true
