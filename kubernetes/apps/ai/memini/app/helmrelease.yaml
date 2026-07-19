@@ -86,7 +86,7 @@ spec:
       internal:
         enabled: true
         hostnames:
-          - "memini.${SECRET_INTERNAL_DOMAIN}"
+          - "memini.${SECRET_DOMAIN}"
         parentRefs:
           - name: envoy-internal
             namespace: network
