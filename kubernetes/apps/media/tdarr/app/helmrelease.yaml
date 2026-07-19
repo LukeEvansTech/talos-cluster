@@ -22,7 +22,7 @@ spec:
           app:
             image:
               repository: ghcr.io/haveagitgat/tdarr
-              tag: 2.78.01@sha256:e5163f305367b47baacee761aa98f420fb4e46a8e5db22b197f23a550f96dd6b
+              tag: 2.84.01@sha256:93dd407f8a28b035b3ebece794bd3f489a9b07a810ca02b804adf72387888355
             env:
               TZ: ${TIMEZONE}
             probes:
@@ -47,7 +47,7 @@ spec:
           node:
             image:
               repository: ghcr.io/haveagitgat/tdarr_node
-              tag: 2.78.01@sha256:1ec96caf6735d3c1bae5e71540cfb686bfa3ad960eff5a2a526cc68e53551779
+              tag: 2.84.01@sha256:9d8d3a24c88cc0ff2121565bb774ddd082694be3b6fb7cc0b5c9391e2c550db9
             env:
               TZ: ${TIMEZONE}
               nodeID:
