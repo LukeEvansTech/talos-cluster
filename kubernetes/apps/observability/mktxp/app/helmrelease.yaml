@@ -21,7 +21,7 @@ spec:
           init-config:
             image:
               repository: ghcr.io/akpw/mktxp
-              tag: v1.2.17
+              tag: 1.2.19@sha256:2c594a5f8b52dcc7e5a8b28042c91ff4d020cd375be93129571ba50e36725a30
               digest: sha256:bd6f22f7db0a79557c4af8a73aa22517f4c32d54fafa19fb0de29e7332440613
             command:
               - "sh"
@@ -46,7 +46,7 @@ spec:
           app:
             image:
               repository: ghcr.io/akpw/mktxp
-              tag: v1.2.17
+              tag: 1.2.19@sha256:2c594a5f8b52dcc7e5a8b28042c91ff4d020cd375be93129571ba50e36725a30
               digest: sha256:bd6f22f7db0a79557c4af8a73aa22517f4c32d54fafa19fb0de29e7332440613
             command:
               - "mktxp"
