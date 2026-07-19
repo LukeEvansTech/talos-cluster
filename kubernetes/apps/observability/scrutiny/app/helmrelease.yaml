@@ -18,7 +18,7 @@ spec:
           app:
             image:
               repository: ghcr.io/starosdev/scrutiny
-              tag: 1.64.0-omnibus@sha256:d027f018648b1d89552d051a10a3603abf1e2bd52357b1517d0fac1086094b15
+              tag: 1.67.0-omnibus@sha256:f52e8b694214c3ac0cc46cafb61004388860f91be5da4f4449c3008308aec5f0
             env:
               TZ: ${TIMEZONE:=UTC}
               # In-pod collector disabled: collection is handled uniformly by the
