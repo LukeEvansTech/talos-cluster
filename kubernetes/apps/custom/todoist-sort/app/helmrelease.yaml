@@ -38,7 +38,12 @@ spec:
           failedJobsHistory: 1
         containers:
           app:
-            image: &image
+            # NOT anchored/aliased into plan-day: Renovate's helm-values
+            # extractor walks the resolved YAML, so an `image: *image` alias
+            # becomes a second identical dep whose digest-pin write corrupts
+            # the first (tag@sha256@sha256), crashing the whole combined
+            # renovate/pin-dependencies branch (renovate#24942 family).
+            image:
               repository: ghcr.io/lukeevanstech/todoist-sort
               tag: 0.2.3
             command:
@@ -79,7 +84,10 @@ spec:
           failedJobsHistory: 1
         containers:
           app:
-            image: *image
+            # Duplicated from sort-inbox on purpose — see the comment there.
+            image:
+              repository: ghcr.io/lukeevanstech/todoist-sort
+              tag: 0.2.3
             command:
               - "plan-day"
               - "--root"
