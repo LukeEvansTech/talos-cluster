@@ -454,6 +454,49 @@ If you recreate the Cloudflare Tunnel:
 
 3. Wait 1-2 minutes for DNS propagation.
 
+## OPNsense Host-Override Record Ceiling
+
+`opnsense-dns` reads and writes every record through OPNsense's `searchHostOverride`
+API endpoint, which has an operational ceiling this cluster has already hit once.
+
+!!! warning "Symptom: new apps get no DNS record, existing apps are unaffected"
+    Once the ceiling trips, `opnsense-dns` fails **every** reconcile with `failed
+    to get records with code 500`, so **no new record can be published anywhere in
+    the cluster** — but records already written to Unbound keep resolving
+    normally. The failure therefore presents narrowly, as "only new apps are
+    broken," rather than as an outage.
+
+- **It is a row-count threshold, not a byte limit.** OPNsense chunks its API
+  response and truncates once the payload exceeds 65,528 bytes. Verified
+  experimentally against a live host-override table: `rowCount=420` returns
+  113,794 bytes cleanly; `rowCount=425` truncates. The trip point sits at roughly
+  421-424 rows — it drifts slightly because row size varies with hostname length,
+  not because there is a fixed byte budget per record.
+- **`opnsense-dns` never deletes records.** It runs `--policy=upsert-only
+  --registry=noop`, so removing a hostname from Git stops new records from being
+  created but never reclaims the old one. Reclaiming a stale record is a manual
+  OPNsense operation (Services → Unbound DNS → Overrides → Host Overrides), not
+  something a Git revert alone fixes.
+- **`upsert-only`/`noop` is a deliberate choice, not a misconfiguration to "fix."**
+  A TXT registry adds roughly one bookkeeping row per managed record
+  (external-dns v0.21.0), which would push this domain filter to roughly 433 rows
+  — back over the ~421 ceiling that already tripped once. `policy: sync` with
+  `registry: noop` is worse: without ownership tracking, a sync policy would
+  delete every hand-made OPNsense host override outside external-dns's view,
+  including device records and unrelated third-party domains hosted on the same
+  OPNsense instance.
+- **`${SECRET_INTERNAL_DOMAIN}` still exists and is still needed.** It was never
+  only an app-hostname alias — it still carries device records that have no
+  `${SECRET_DOMAIN}` equivalent: IPMI probe targets, core switches, the
+  Kubernetes API endpoint, VM management interfaces, the NAS S3 endpoint, and a
+  handful of media-service aliases. Retiring the redundant *app* hostname aliases
+  removed roughly half the record set without touching any of those.
+- **Keep host-override rows well under ~420.** Each app now costs one record
+  instead of two (see "Routing" in `AGENTS.md`), which is most of the headroom
+  this migration bought back. Watch for the `failed to get records with code 500`
+  signature in `opnsense-dns` logs as the early warning before the ceiling trips
+  again.
+
 ## References
 
 - [External DNS Documentation](https://kubernetes-sigs.github.io/external-dns/)
