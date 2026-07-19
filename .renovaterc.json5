@@ -106,7 +106,7 @@
       automergeType: "pr",
       platformAutomerge: false,
       ignoreTests: false,
-      minimumReleaseAge: "3 days",
+      minimumReleaseAge: "2 days",
     },
     {
       // No minimumReleaseAge here: digest bumps track mutable tags that upstream
@@ -158,7 +158,7 @@
     {
       // Docs toolchain lives in docs/requirements.txt (zensical). Same CI-gated
       // pattern as the container/chart rule above: self-merge minor/patch/digest
-      // after the 3-day age gate, gating on CI (docs build + drift check).
+      // after the 2-day age gate, gating on CI (docs build + drift check).
       description: "Auto-merge Python deps — minor/patch/digest, CI-gated",
       matchDatasources: ["pypi"],
       matchUpdateTypes: ["minor", "patch", "digest"],
@@ -166,7 +166,7 @@
       automergeType: "pr",
       platformAutomerge: false,
       ignoreTests: false,
-      minimumReleaseAge: "3 days",
+      minimumReleaseAge: "2 days",
     },
     {
       description: "Auto-merge GitHub Actions",
@@ -174,7 +174,7 @@
       automerge: true,
       automergeType: "branch",
       matchUpdateTypes: ["minor", "patch", "digest"],
-      minimumReleaseAge: "3 days",
+      minimumReleaseAge: "2 days",
       ignoreTests: true,
     },
     {

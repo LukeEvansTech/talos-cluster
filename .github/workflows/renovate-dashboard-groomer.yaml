@@ -1,12 +1,12 @@
 ---
 # Prevents the two Renovate backlog failure modes cleaned up on 2026-07-19:
 #
-# 1. Fast releasers reset the 3-day minimumReleaseAge clock indefinitely
+# 1. Fast releasers reset the minimumReleaseAge clock indefinitely
 #    (Renovate targets the newest release; near-daily publishers never have one
-#    older than 3 days), so updates park in the dashboard's "Pending Status
+#    older than the burn-in window), so updates park in the dashboard's "Pending Status
 #    Checks" section forever. Ticking a box force-creates the PR, which then
 #    goes through full CI + automerge gating as normal — so this turns the age
-#    gate into "3 days OR at most a week", never an unbounded wait.
+#    gate into "the burn-in window OR at most a week", never an unbounded wait.
 #
 # 2. A transient bad state on main used to fail the merge-ref Internal
 #    Identifier Scan on every open PR, and rebaseWhen:conflicted means no new
