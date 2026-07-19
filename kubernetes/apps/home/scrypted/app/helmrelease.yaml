@@ -78,10 +78,10 @@ spec:
     # attaches to `iot-legacy`, matching matter-server, NOT the `iot` NAD that
     # Home Assistant / zigbee2mqtt / mosquitto use.
     #
-    # 10.32.8.106 was verified unused before assignment (.104 and .105 both
-    # answered ping). Confirm it sits outside the OPNsense DHCP pool.
-    # MAC continues the 02:00:00:00:00:0X series (:01 HA, :02 z2m, :03
-    # mosquitto, :04 matter-server).
+    # The address below was verified unused before assignment (the two preceding
+    # candidates both answered ping). Confirm it sits outside the OPNsense DHCP
+    # pool. MAC continues the 02:00:00:00:00:0X series (:01 HA, :02 z2m,
+    # :03 mosquitto, :04 matter-server).
     defaultPodOptions:
       annotations:
         k8s.v1.cni.cncf.io/networks: |-
