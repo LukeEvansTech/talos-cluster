@@ -21,8 +21,9 @@ Where the placeholder comes from — the **first-render substitution race**:
 
 - `kubernetes/components/global-vars/` is a Component included by every namespace. It ships
   **both** a placeholder `cluster-secrets` Secret (fake `SECRET_DOMAIN: "example.com"`, fake
-  CIDRs/paths — needed so flux-local CI can render) **and** the real `cluster-secrets`
-  ExternalSecret (`creationPolicy: Owner`, 1Password).
+  CIDRs/paths — needed for offline rendering, both `flate` locally and Konflate's in-cluster PR
+  renders) **and** the real `cluster-secrets` ExternalSecret (`creationPolicy: Owner`,
+  1Password).
 - The placeholder applies **instantly**; ESO overwrites it seconds later. Any app whose
   Kustomization runs PostBuild substitution **in that window** bakes the *placeholder* value of
   `${SECRET_DOMAIN}` (or any `${VAR}`) into its helm-rendered objects.
