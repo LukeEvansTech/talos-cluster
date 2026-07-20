@@ -69,18 +69,66 @@ jobs:
           } >> "$GITHUB_OUTPUT"
           echo "author=$PR_AUTHOR labels=$labels -> is_renovate=$is_renovate gated=$gated"
 
+      - name: Extract protected-infra blast list
+        id: blast
+        if: steps.gate.outputs.gated == 'true'
+        env:
+          # Must byte-match the `description` of the "protected infra" packageRules
+          # entry in .renovaterc.json5 — the single source of truth for which
+          # components are cluster-critical. Everything below derives from it so
+          # the workflow's blast-radius list can never drift from that config again.
+          RULE_DESCRIPTION: "Protected infra — never auto-merge, manual review only"
+        run: |
+          set -uo pipefail
+          # json5 converts the JSON5 config to plain JSON so jq can read it. Each
+          # matchPackageNames entry is a JS regex literal like "/cilium/" or
+          # "/fluxcd\\//" (escaped slash) — strip the leading/trailing "/"
+          # delimiters and join with "|" into one alternation regex.
+          #
+          # This regex is matched against the Renovate PR *title*, not a raw
+          # package name. Grouped updates (Flux/Talos/Kubernetes/Rook-Ceph/...)
+          # get a title built from the group's human-readable `groupName`
+          # ("update Talos group (...)"), which doesn't always textually
+          # contain its members' matchPackageNames pattern (e.g. groupName
+          # "Talos" vs pattern "siderolabs\/", groupName "Flux" vs pattern
+          # "fluxcd\/"). So also pull in the groupName of every packageRule
+          # that shares a matchPackageNames entry with the protected-infra
+          # rule, or those grouped bumps would silently under-match.
+          npx --yes json5@2 .renovaterc.json5 > /tmp/renovaterc.json
+          blast=$(jq -r --arg desc "$RULE_DESCRIPTION" '
+              (.packageRules[] | select(.description == $desc) | .matchPackageNames) as $protected
+              | (
+                  $protected[],
+                  (.packageRules[]
+                    | select(.groupName != null and (.matchPackageNames // [] | any(. as $p | $protected | index($p) != null)))
+                    | .groupName)
+                )
+            ' /tmp/renovaterc.json 2>/dev/null \
+            | sed -E 's#^/(.*)/$#\1#' \
+            | sort -u \
+            | paste -sd '|' -)
+          if [[ -z "$blast" ]]; then
+            echo "::error::Could not find the protected-infra packageRules entry (description=\"$RULE_DESCRIPTION\") in .renovaterc.json5 — refusing to fall back to an empty blast-radius regex" >&2
+            exit 1
+          fi
+          echo "blast=$blast" >> "$GITHUB_OUTPUT"
+          echo "Derived blast-radius regex ($(echo "$blast" | tr '|' '\n' | wc -l | tr -d ' ') components): $blast"
+
       - name: Select model tier
         id: model_tier
         if: steps.gate.outputs.gated == 'true'
         env:
           TITLE: ${{ github.event.pull_request.title }}
           LABELS: ${{ steps.gate.outputs.labels }}
+          BLAST: ${{ steps.blast.outputs.blast }}
         run: |
           # High-blast-radius components for this cluster: networking, storage,
-          # secrets/certs, the GitOps engine, and the node OS itself. Anything
-          # matching these always gets the deeper Opus "full" review regardless
-          # of bump size.
-          blast='cilium|rook|ceph|envoy|cert-manager|external-secrets|volsync|flux|cloudnative-pg|spegel|talos|siderolabs'
+          # secrets/certs, the GitOps engine, and the node OS itself — the exact
+          # set is the "Protected infra" packageRules entry in .renovaterc.json5,
+          # derived at runtime by the "Extract protected-infra blast list" step
+          # above. Anything matching it always gets the deeper Opus "full" review
+          # regardless of bump size.
+          blast="$BLAST"
 
           # Sonnet for routine patch container bumps (the light tier decides for
           # itself whether to escalate to full depth, so it needs real judgment);
@@ -225,7 +273,8 @@ jobs:
             Talos Linux (3 control-plane nodes, no separate workers). Dependencies are primarily:
             - Container images referenced in Kubernetes manifests, pinned with SHA256 digests
             - Helm chart versions in HelmRelease CRDs (sourced from OCIRepository, not HelmRepository)
-            - Custom dependencies managed via regex in YAML files (see .renovate/customManagers.json5)
+            - Custom dependencies managed via regex in YAML files (see the `customManagers` block in
+              .renovaterc.json5 — the former .renovate/customManagers.json5 was inlined into it)
 
             Architecture details relevant to impact assessment:
             - **App pattern**: most apps use the bjw-s/app-template chart via OCIRepository + a
@@ -239,11 +288,18 @@ jobs:
             - **Secrets**: ExternalSecret CRDs backed by 1Password via a ClusterSecretStore
               (no plaintext secrets in-repo).
 
-            High-blast-radius components that warrant deeper scrutiny:
-            - **Networking**: cilium, envoy-gateway
-            - **Storage**: rook-ceph, volsync (check for data migrations or CRD changes)
-            - **Auth/secrets/certs**: external-secrets, cert-manager (CRD compatibility)
-            - **GitOps engine**: flux-operator / flux (reconciliation + CRD compatibility)
+            High-blast-radius components that warrant deeper scrutiny: the "Protected infra" entry in
+            .renovaterc.json5 is the single source of truth for which components are cluster-critical
+            (networking, storage, secrets/certs, the GitOps engine, and the node OS itself) — the same
+            list this job's "Extract protected-infra blast list" step derives at runtime. As of this
+            run it expands to:
+
+            ${{ steps.blast.outputs.blast }}
+
+            Anything in the diff matching one of those components — or, even if it doesn't match the
+            regex, still clearly touches networking, storage, secrets/certs, the GitOps engine, or the
+            node OS — warrants the deeper review regardless of the assigned depth tier. Check for data
+            migrations, CRD-compatibility breaks, and reconciliation-affecting changes in particular.
 
             ## Pre-check: skip redundant re-reviews
 
