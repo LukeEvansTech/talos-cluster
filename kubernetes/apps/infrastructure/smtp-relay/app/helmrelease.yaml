@@ -77,6 +77,12 @@ spec:
                 targets tcp://{env:SMTP_RELAY_SERVER}:25
                 starttls yes
                 auth off
+                # Present client cert so the M365 inbound connector can match
+                # on the certificate subject name (IP-independent relay auth)
+                tls_client {
+                    cert /certs/tls.crt
+                    key /certs/tls.key
+                }
             }
     persistence:
       cache:
@@ -87,3 +93,9 @@ spec:
         globalMounts:
           - path: /data/maddy.conf
             subPath: maddy.conf
+      certs:
+        type: secret
+        name: tls.smtp-relay
+        globalMounts:
+          - path: /certs
+            readOnly: true
