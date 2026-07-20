@@ -95,4 +95,4 @@ view-secret namespace secret:
 
 [private]
 render-local-ks ns ks:
-    flux-local build ks --namespace "{{ ns }}" --path "{{ source_directory() }}/flux/cluster" "{{ ks }}"
+    flate build ks "{{ ks }}" --namespace "{{ ns }}" --path "{{ source_directory() }}/flux/cluster" --allow-missing-secrets

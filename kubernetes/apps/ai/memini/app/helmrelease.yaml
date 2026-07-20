@@ -33,7 +33,7 @@ spec:
               MEMINI_EMBED_DIMS: "384"
               MEMINI_RERANK: http://llama-rerank.ai.svc.cluster.local:8080/v1
               MEMINI_RERANK_MODEL: qwen3-reranker
-              # Consolidation LLM via LiteLLM's self-hosted group (-> Ollama).
+              # Consolidation LLM via LiteLLM's self-hosted group (-> llmkube/llama.cpp).
               MEMINI_LLM_BASE_URL: http://litellm.ai.svc.cluster.local:4000
               MEMINI_LLM_MODEL: self-hosted
               MEMINI_LLM_API_KEY:

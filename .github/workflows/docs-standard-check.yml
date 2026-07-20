@@ -9,7 +9,7 @@ on:
     paths:
       - "docs/**"
       - ".github/workflows/**"
-      - "renovate.json"
+      - ".renovaterc.json5"
       - ".markdownlint.yml"
 
 permissions:
