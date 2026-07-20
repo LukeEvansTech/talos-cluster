@@ -28,7 +28,7 @@ Kubernetes cluster, with a queryable findings dashboard.
   - `prowler-beat` — the celery beat scheduler.
 - **Co-locating API and worker in one Pod.** The worker writes scan artifacts that
   the API serves. The cluster has no RWX StorageClass (only RWO `ceph-block`,
-  `openebs-hostpath`, and `ceph-bucket` S3), so the two cannot share a PVC across
+  `miroir-local`, and `ceph-bucket` S3), so the two cannot share a PVC across
   separate Deployments. Running both as containers in one Pod with a shared
   `emptyDir` matches the compose volume-sharing semantics and avoids introducing an
   NFS provisioner.

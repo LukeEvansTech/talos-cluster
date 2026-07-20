@@ -135,7 +135,6 @@
         "/controlplaneio-fluxcd/", // flux-operator + flux-instance
         "/rook-ceph/",
         "/rook-ceph-cluster/",
-        "/openebs/", // node-local storage provisioner
         "/kube-apiserver/",
         "/kube-controller-manager/",
         "/kube-proxy/",
