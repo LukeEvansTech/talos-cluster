@@ -46,7 +46,7 @@ talos/                     # Talos OS machine configs (talconfig.yaml + patches)
 | Ingress  | Envoy Gateway (Gateway API)  | L7 routing via `HTTPRoute` (not Ingress)    |
 | DNS      | external-dns + cloudflared   | Internal (OPNsense) + external (Cloudflare) |
 | Secrets  | external-secrets + 1Password | Secret management                           |
-| Storage  | Rook-Ceph + OpenEBS          | Block + node-local volumes                  |
+| Storage  | Rook-Ceph + miroir           | Block + node-local volumes                  |
 | Backups  | VolSync (Kopia) → NFS/remote | PVC snapshots and backups                   |
 | Charts   | bjw-s `app-template`         | The chart most apps use                     |
 
@@ -125,17 +125,17 @@ out-of-band prerequisites and the validation the skill cannot do.
   (`op item create --vault Talos --category "API Credential" --title <app> "FIELD[password]=…"`);
   the app's `externalsecret.yaml` then `extract`s it. Generate values with `openssl rand -hex 32` and
   never echo them.
-- **Each shared data service needs its own step:**
-  - **CNPG Postgres** — add a `ghcr.io/home-operations/postgres-init` initContainer (`envFrom` the
-    app secret, `INIT_POSTGRES_*`) to create the database and role; mirror `paperless`. Connect with
-    `sslmode=require`. Node / `pg` apps additionally need `NODE_TLS_REJECT_UNAUTHORIZED=0` — the
-    bundled driver verifies the cert-manager CA it cannot reach from the app namespace.
-  - **Dragonfly (Redis)** — authenticated; template
-    `redis://default:{{ .DRAGONFLY_PASSWORD }}@dragonfly.database.svc.cluster.local:6379` from the
-    `dragonfly` item. A client without the password fails silently at runtime.
-  - **Garage (S3)** — provision a bucket and access key with the `/garage` CLI inside `garage-0`
-    (`storage` namespace), store the key in the `garage` item, and point the app at
-    `http://garage.storage.svc.cluster.local:3900` (region `us-east-1`, path-style).
+- **Each shared data service needs its own step** — one top-level item per service:
+- **CNPG Postgres** — add a `ghcr.io/home-operations/postgres-init` initContainer (`envFrom` the
+  app secret, `INIT_POSTGRES_*`) to create the database and role; mirror `paperless`. Connect with
+  `sslmode=require`. Node / `pg` apps additionally need `NODE_TLS_REJECT_UNAUTHORIZED=0` — the
+  bundled driver verifies the cert-manager CA it cannot reach from the app namespace.
+- **Dragonfly (Redis)** — authenticated; template
+  `redis://default:{{ .DRAGONFLY_PASSWORD }}@dragonfly.database.svc.cluster.local:6379` from the
+  `dragonfly` item. A client without the password fails silently at runtime.
+- **Garage (S3)** — provision a bucket and access key with the `/garage` CLI inside `garage-0`
+  (`storage` namespace), store the key in the `garage` item, and point the app at
+  `http://garage.storage.svc.cluster.local:3900` (region `us-east-1`, path-style).
 - **Anchored ports are unquoted integers** (`PORT: &port 3000`). A quoted `"3000"` reused for a
   probe `httpGet.port` is rejected at apply time ("must contain at least one letter").
 - **Validate** with `kustomize build <appDir>` and flate, but note they check the HelmRelease and
