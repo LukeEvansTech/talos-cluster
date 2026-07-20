@@ -15,7 +15,6 @@ spec:
           - cert-manager
           - external-secrets
           - rook-ceph
-          - openebs-system
           - volsync-system
           - system-upgrade
   egress:
