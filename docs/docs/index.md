@@ -40,5 +40,5 @@ enforces that on every pull request.
 | CNI | Cilium |
 | Ingress | Envoy Gateway (Gateway API) |
 | Secrets | External Secrets + 1Password |
-| Storage | Rook-Ceph + OpenEBS |
+| Storage | Rook-Ceph + miroir |
 | Backups | VolSync (Kopia) |

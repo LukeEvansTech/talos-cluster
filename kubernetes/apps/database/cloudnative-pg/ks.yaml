@@ -66,8 +66,8 @@ spec:
       namespace: database
     - name: cloudnative-pg-barman-cloud
       namespace: database
-    - name: openebs
-      namespace: openebs-system
+    - name: miroir
+      namespace: miroir-system
     - name: cert-manager
       namespace: cert-manager
   interval: 1h
