@@ -19,6 +19,20 @@ spec:
       type: dind
     template:
       spec:
+        # miroir-local provisions a real ext4 block device, whose root directory
+        # comes up root:root 0755. The openebs-hostpath directory it replaced
+        # (#3583) was already writable, so nothing here needed fsGroup before.
+        # This image runs as uid/gid 1001, so without the chown below the runner
+        # cannot create _work/_tool and every job dies in ~2s with
+        # UnauthorizedAccessException before a single step executes.
+        # miroir's CSIDriver is fsGroupPolicy: ReadWriteOnceWithFSType and this
+        # claim is RWO + ext4, so kubelet honours fsGroup and chowns the volume.
+        # This dind runner is affected too — its live _work is root:root 0755 —
+        # it just fails silently: the kubernetes-mode runners failed visibly
+        # because jobs ran, while this one's only consumer (image-pull) has kept
+        # skipping, so no job has exercised _work/_tool since the flip.
+        securityContext:
+          fsGroup: 1001
         containers:
           - name: runner
             image: ghcr.io/home-operations/actions-runner:2.335.1@sha256:0c6f38e8194f6c3714aa86c6dc8a72574484818ed625dd66074920b25c118508
