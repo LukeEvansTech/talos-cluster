@@ -19,3 +19,31 @@ spec:
         selector:
           dnsZones:
             - "${SECRET_DOMAIN}"
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/cert-manager.io/clusterissuer_v1.json
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: zerossl-production
+spec:
+  acme:
+    # ZeroSSL (Sectigo/USERTrust hierarchy). Added for certs that must be accepted by
+    # validators that choke on Let's Encrypt's 2026 Gen-Y roots / CN-less subjects —
+    # first user: the smtp-relay client cert matched by the M365 inbound connector.
+    server: "https://acme.zerossl.com/v2/DV90"
+    privateKeySecretRef:
+      name: zerossl-production
+    externalAccountBinding:
+      keyID: "${SECRET_ZEROSSL_EAB_KID}"
+      keySecretRef:
+        name: zerossl-eab
+        key: hmac
+    solvers:
+      - dns01:
+          cloudflare:
+            apiTokenSecretRef:
+              name: cert-manager-secret
+              key: api-token
+        selector:
+          dnsZones:
+            - "${SECRET_DOMAIN}"
