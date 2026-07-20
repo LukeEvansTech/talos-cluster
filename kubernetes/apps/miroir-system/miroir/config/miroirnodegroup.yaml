@@ -10,9 +10,9 @@ spec:
       node-role.kubernetes.io/control-plane: ""
   template:
     pools:
-      # Loopfile pool on the system disk's EPHEMERAL filesystem — same disk
-      # OpenEBS hostpath used, so identical capacity and failure domain. The
-      # name leaves room for a future Optane-backed pool.
+      # Loopfile pool on the system disk's EPHEMERAL filesystem — the same disk
+      # the now-retired OpenEBS hostpath provisioner used, so identical capacity
+      # and failure domain. The name leaves room for a future Optane-backed pool.
       - name: system
         loopfile:
           baseDir: /var/mnt/extra/miroir
