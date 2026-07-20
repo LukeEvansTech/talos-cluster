@@ -5,12 +5,9 @@ metadata:
   name: smtp-relay
 spec:
   secretName: tls.smtp-relay
-  # No duration: ZeroSSL ignores requested lifetimes and issues fixed 90-day certs;
-  # cert-manager renews off the actual notAfter.
+  duration: 160h
   issuerRef:
-    # ZeroSSL (Sectigo hierarchy, CN-bearing): the M365 inbound connector failed to
-    # match the Let's Encrypt cert (CN-less subject / Gen-Y roots, 2026 changes).
-    name: zerossl-production
+    name: letsencrypt-production
     kind: ClusterIssuer
   commonName: smtp.${SECRET_DOMAIN}
   dnsNames:
