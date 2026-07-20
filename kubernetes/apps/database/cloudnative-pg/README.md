@@ -38,15 +38,9 @@ cloudnative-pg/
 
 - **Version**: PostgreSQL 18.0 (latest stable)
 - **Instances**: 3 for high availability with automatic failover
-- **Storage**: 20Gi using `openebs-hostpath`
-- **Resources**:
-  - Requests: 500m CPU, 2Gi memory
-  - Limits: 4Gi memory
-- **Tuning**: Optimized for mixed workloads
-  - `max_connections: 300`
-  - `shared_buffers: 512MB`
-  - `effective_cache_size: 1536MB`
-  - Transaction-level checkpoint completion
+- **Storage**: 200Gi using `miroir-local`
+- **Resources**: 500m CPU / 2Gi memory requests, 4Gi memory limit
+- **Tuning**: mixed-workload tuning — `max_connections: 300`, `shared_buffers: 512MB`, `effective_cache_size: 1536MB`, transaction-level checkpoint completion
 
 ### Backup Strategy
 
@@ -129,7 +123,7 @@ Flux will deploy components in this order (via `dependsOn`):
 1. external-secrets-onepassword (pre-existing)
    ↓
 2. cloudnative-pg (operator)
-   ↓ (also depends on openebs)
+   ↓ (also depends on miroir)
 3. cloudnative-pg-cluster (PostgreSQL 18)
    ↓
 4. cloudnative-pg-backup (NFS cronjob)
@@ -456,7 +450,7 @@ This implementation is based on:
 
 ## Notes
 
-- **Storage Class**: Using `openebs-hostpath` - data is local to nodes
+- **Storage Class**: Using `miroir-local` - data is local to nodes (loopfile-backed, size-enforced)
 - **Network Policy**: Not implemented - assume cluster network isolation
 - **TLS**: Not configured - rely on cluster network security (consider adding for production)
 - **Resource Limits**: Conservative - adjust based on workload monitoring
