@@ -41,10 +41,11 @@ and its `existingSecret` contract are already modelled by the upstream chart.
   - `password` and `api_token` (superuser).
   - `db_password` (the value of `externalDatabase.existingSecretKey`).
   - `tasks_password` and `cache_password` (the Dragonfly tasks/caching DB keys).
-- These mismatches do **not** show up in `flate`/`flux-local` render or CI — the manifest is
-    valid. They only fail at runtime as pod `FailedMount` (`references non-existent secret key`) or
-    `CreateContainerConfigError` (`couldn't find key …`). Before wiring the ExternalSecret, render
-    the chart and grep the output for every `secretKeyRef` `key:` and projected-volume `items[].key`:
+- These mismatches do **not** show up in a `flate` (local) or Konflate (in-cluster PR render) —
+    the manifest is valid. They only fail at runtime as pod `FailedMount` (`references
+    non-existent secret key`) or `CreateContainerConfigError` (`couldn't find key …`). Before
+    wiring the ExternalSecret, render the chart and grep the output for every `secretKeyRef`
+    `key:` and projected-volume `items[].key`:
 
     ```bash
     flate build hr netbox -n default --path kubernetes/flux/cluster
