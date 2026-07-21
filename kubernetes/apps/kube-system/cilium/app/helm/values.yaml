@@ -67,9 +67,6 @@ operator:
   podDisruptionBudget:
     enabled: true
     maxUnavailable: 1
-podDisruptionBudget:
-  enabled: true
-  maxUnavailable: 1
 prometheus:
   enabled: true
   serviceMonitor:
@@ -97,4 +94,4 @@ securityContext:
       - NET_ADMIN
       - SYS_ADMIN
       - SYS_RESOURCE
-policyEnforcement: default
+policyEnforcementMode: default
