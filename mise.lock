@@ -319,25 +319,16 @@ url = "https://github.com/rhysd/actionlint/releases/download/v1.7.11/actionlint_
 provenance = "github-attestations"
 
 [[tools."aqua:siderolabs/talos"]]
-version = "1.13.6"
+version = "1.13.7"
 backend = "aqua:siderolabs/talos"
 
 [tools."aqua:siderolabs/talos"."platforms.linux-arm64"]
-checksum = "sha256:59f59e2c0c79504f4666cb7c2307ca32ce2925a53fbebee3e2454ad5ea1f230e"
-url = "https://github.com/siderolabs/talos/releases/download/v1.13.6/talosctl-linux-arm64"
-url_api = "https://api.github.com/repos/siderolabs/talos/releases/assets/471115019"
 provenance = "cosign"
 
 [tools."aqua:siderolabs/talos"."platforms.linux-x64"]
-checksum = "sha256:540c5e7cb0d3fa3a9b2e1c717ced212727b73bcaf0cf9cf9ba2472ec381041d4"
-url = "https://github.com/siderolabs/talos/releases/download/v1.13.6/talosctl-linux-amd64"
-url_api = "https://api.github.com/repos/siderolabs/talos/releases/assets/471115014"
 provenance = "cosign"
 
 [tools."aqua:siderolabs/talos"."platforms.macos-arm64"]
-checksum = "sha256:8badc3f3907776488e9b13b6a521ffadf301dff9a3f097c1551102c363905c9f"
-url = "https://github.com/siderolabs/talos/releases/download/v1.13.6/talosctl-darwin-arm64"
-url_api = "https://api.github.com/repos/siderolabs/talos/releases/assets/471115050"
 provenance = "cosign"
 
 [[tools."aqua:yannh/kubeconform"]]
