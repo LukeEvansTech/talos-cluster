@@ -80,14 +80,25 @@ spec:
               limits:
                 memory: 384Mi
     defaultPodOptions:
-      annotations:
-        k8s.v1.cni.cncf.io/networks: |-
-          [{
-            "name": "iot",
-            "namespace": "kube-system",
-            "ips": ["10.32.68.35/23"],
-            "mac": "02:00:00:00:00:06"
-          }]
+      # NO VLAN 68 macvlan here — deliberate, do not "restore" it to match the
+      # house instance. VLAN 68 is live at L3 but its L2 cutover is incomplete
+      # (network-ops Gate D, the MikroTik trunk, is still pending). A macvlan
+      # only reaches peers that share the same parent NIC on the same node;
+      # anything needing the physical wire — another node, the gateway, or any
+      # wireless client — is unreachable. The garage coordinator is a *Wi-Fi*
+      # client on VLAN 68, so it falls squarely in the broken case.
+      #
+      # Worse, attaching the macvlan installs a link-scope route for the whole
+      # IoT-trusted prefix on net1, which is more specific than the default
+      # route and hijacks coordinator traffic onto that dead L2 path
+      # -> EHOSTUNREACH on :6638.
+      #
+      # Without it the pod routes via eth0 -> OPNsense -> VLAN 68, which is
+      # verified working. z2m only needs outbound TCP to the coordinator; it
+      # has no multicast/mDNS requirement that would justify an L2 presence.
+      # (The house instance survives only because its coordinator is still on
+      # the legacy LAN at 10.32.8.x and is therefore also routed via eth0.)
+      # Once Gate D lands, a macvlan could be reinstated, but isn't required.
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000

@@ -81,7 +81,6 @@ ALLOWLIST: dict[str, str] = {
     "kubernetes/apps/home/mosquitto/app/helmrelease.yaml": "multus static IP + MAC",
     "kubernetes/apps/home/scrypted/app/helmrelease.yaml": "multus static IP + MAC",
     "kubernetes/apps/home/zigbee2mqtt/app/helmrelease.yaml": "multus static IP + MAC",
-    "kubernetes/apps/home/zigbee2mqtt-garage/app/helmrelease.yaml": "multus static IP + MAC",
     "kubernetes/apps/kube-system/cilium/app/networks.yaml": "LB IP pool / API host",
     "kubernetes/apps/kube-system/etcd-defrag/app/configmap.yaml": "etcd-defrag node targets",
     "kubernetes/apps/network/envoy-gateway/app/envoy.yaml": "Envoy LB listener IPs",
