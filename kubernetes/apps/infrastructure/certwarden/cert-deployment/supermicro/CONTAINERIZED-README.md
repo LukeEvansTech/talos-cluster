@@ -6,11 +6,13 @@ This deployment now uses a **pre-built container** for faster and more reliable 
 
 - **Container**: `ghcr.io/lukeevanstech/supermicro-ipmi-cert:latest`
 - **Script**: `certwarden-supermicro-deploy.sh`
-- **Benefits**:
-  - Faster execution (no runtime dependency installation)
-  - Consistent environment across deployments
-  - Reduced job execution time by ~30-60 seconds
-  - Better security (minimal container, no runtime downloads)
+
+**Benefits**:
+
+- Faster execution (no runtime dependency installation)
+- Consistent environment across deployments
+- Reduced job execution time by ~30-60 seconds
+- Better security (minimal container, no runtime downloads)
 
 ## Files
 
