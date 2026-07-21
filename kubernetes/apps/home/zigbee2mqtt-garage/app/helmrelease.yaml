@@ -1,0 +1,120 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: zigbee2mqtt-garage
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: zigbee2mqtt-garage
+  values:
+    controllers:
+      zigbee2mqtt-garage:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        containers:
+          app:
+            image:
+              repository: ghcr.io/koenkk/zigbee2mqtt
+              tag: 2.12.1@sha256:80f7f04f72a99e4c4ef51ef7e98ee736edba6db0ecbb7abc626d0c4b0f1871f1
+            env:
+              TZ: ${TIMEZONE}
+              ZIGBEE2MQTT_DATA: /data
+              ZIGBEE2MQTT_CONFIG_MQTT_SERVER: mqtt://mosquitto.home.svc.cluster.local:1883
+              # Distinct base topic — the house instance owns the default
+              # `zigbee2mqtt`. Sharing it would interleave two networks'
+              # device topics on the same broker.
+              ZIGBEE2MQTT_CONFIG_MQTT_BASE_TOPIC: zigbee2mqtt-garage
+              ZIGBEE2MQTT_CONFIG_HOMEASSISTANT_ENABLED: "true"
+              ZIGBEE2MQTT_CONFIG_SERIAL_ADAPTER: ember
+              Z2M_ONBOARD_NO_SERVER: "1"
+              # Shared discovery topic with the house instance is fine: z2m
+              # derives device unique_ids from each device's IEEE address, and
+              # the bridge device's id from the coordinator IEEE — which differ
+              # between the two coordinators. No entity collisions in HA.
+              ZIGBEE2MQTT_CONFIG_HOMEASSISTANT_DISCOVERY_TOPIC: homeassistant
+              ZIGBEE2MQTT_CONFIG_HOMEASSISTANT_STATUS_TOPIC: homeassistant/status
+              ZIGBEE2MQTT_CONFIG_PERMIT_JOIN: "false"
+              ZIGBEE2MQTT_CONFIG_FRONTEND_ENABLED: "true"
+              ZIGBEE2MQTT_CONFIG_FRONTEND_PORT: &port 80
+              ZIGBEE2MQTT_CONFIG_ADVANCED_LOG_LEVEL: info
+              ZIGBEE2MQTT_CONFIG_ADVANCED_LOG_OUTPUT: '["console"]'
+              ZIGBEE2MQTT_CONFIG_AVAILABILITY_ACTIVE_TIMEOUT: 60
+              ZIGBEE2MQTT_CONFIG_AVAILABILITY_PASSIVE_TIMEOUT: 2000
+              # --- RF plan (garage coordinator) ---------------------------
+              # ch 25: quietest channel in an on-device energy scan taken at
+              # the garage unit's own location (energy 21 vs 42-64 elsewhere),
+              # and a ZLL channel, which z2m recommends for device
+              # compatibility. Clear of WiFi ch 6 — every codelooks SSID sits
+              # there at ~-48dBm, which is what trashes Zigbee ch 14-18 (61-64)
+              # and rules out the usual ch 15 pick. Also 14 channels off the
+              # house Zigbee network (ch 11).
+              ZIGBEE2MQTT_CONFIG_ADVANCED_CHANNEL: 25
+              # Distinct from the house network's PAN (36576) and from z2m's
+              # own default (0x1a62). Mnemonic: VLAN 68, channel 25.
+              ZIGBEE2MQTT_CONFIG_ADVANCED_PAN_ID: 6825
+              # MUST be set. The house instance doesn't set ext_pan_id, so it
+              # runs z2m's default (0xDD x8) — leaving this unset would put two
+              # networks with an identical extended PAN ID in RF range of each
+              # other. Trailing bytes are 0x68 0x25 (VLAN 68, ch 25).
+              ZIGBEE2MQTT_CONFIG_ADVANCED_EXT_PAN_ID: "[221,221,221,221,221,221,104,37]"
+              # network_key is deliberately NOT set here. Setting it to
+              # GENERATE via env would re-evaluate on every pod start and could
+              # re-key the network on each restart, forcing a full re-pair.
+              # z2m generates one on first run and persists it to the PVC.
+            envFrom:
+              - secretRef:
+                  name: zigbee2mqtt-garage-secret
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop:
+                  - ALL
+            resources:
+              requests:
+                cpu: 10m
+                memory: 128Mi
+              limits:
+                memory: 384Mi
+    defaultPodOptions:
+      annotations:
+        k8s.v1.cni.cncf.io/networks: |-
+          [{
+            "name": "iot",
+            "namespace": "kube-system",
+            "ips": ["10.32.68.35/23"],
+            "mac": "02:00:00:00:00:06"
+          }]
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+    service:
+      app:
+        controller: zigbee2mqtt-garage
+        ports:
+          http:
+            port: *port
+    route:
+      app:
+        hostnames:
+          - "{{ .Release.Name }}.${SECRET_DOMAIN}"
+        parentRefs:
+          - name: envoy-internal
+            namespace: network
+    persistence:
+      data:
+        existingClaim: "{{ .Release.Name }}"
+        globalMounts:
+          - path: /data
+      tmp:
+        type: emptyDir
+        globalMounts:
+          - path: /tmp
