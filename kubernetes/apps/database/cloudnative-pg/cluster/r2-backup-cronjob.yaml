@@ -36,25 +36,25 @@ spec:
                 - /bin/sh
                 - -c
                 - |
-                  export RCLONE_CONFIG_MINIO_ACCESS_KEY_ID=$(cat /secrets/AWS_ACCESS_KEY_ID)
-                  export RCLONE_CONFIG_MINIO_SECRET_ACCESS_KEY=$(cat /secrets/AWS_SECRET_ACCESS_KEY)
+                  export RCLONE_CONFIG_GARAGE_ACCESS_KEY_ID=$(cat /secrets/AWS_ACCESS_KEY_ID)
+                  export RCLONE_CONFIG_GARAGE_SECRET_ACCESS_KEY=$(cat /secrets/AWS_SECRET_ACCESS_KEY)
                   export RCLONE_CONFIG_CLOUDFLARE_ACCESS_KEY_ID=$(cat /secrets/R2_ACCESS_KEY_ID)
                   export RCLONE_CONFIG_CLOUDFLARE_SECRET_ACCESS_KEY=$(cat /secrets/R2_SECRET_ACCESS_KEY)
                   export RCLONE_CONFIG_CLOUDFLARE_ENDPOINT=$(cat /secrets/R2_ENDPOINT)
-                  exec rclone copy --verbose --stats-one-line --stats=5m --fast-list minio:cnpg/ cloudflare:cnpg/
+                  exec rclone copy --verbose --stats-one-line --stats=5m --fast-list garage:cnpg/ cloudflare:cnpg/
               env:
                 # Logging
                 - name: RCLONE_VERBOSE
                   value: "1"
 
                 # Garage (source) configuration
-                - name: RCLONE_CONFIG_MINIO_TYPE
+                - name: RCLONE_CONFIG_GARAGE_TYPE
                   value: s3
-                - name: RCLONE_CONFIG_MINIO_PROVIDER
+                - name: RCLONE_CONFIG_GARAGE_PROVIDER
                   value: Other
-                - name: RCLONE_CONFIG_MINIO_ENDPOINT
+                - name: RCLONE_CONFIG_GARAGE_ENDPOINT
                   value: http://garage.storage.svc.cluster.local:3900
-                - name: RCLONE_CONFIG_MINIO_ACL
+                - name: RCLONE_CONFIG_GARAGE_ACL
                   value: private
 
                 # Cloudflare R2 (destination) configuration
