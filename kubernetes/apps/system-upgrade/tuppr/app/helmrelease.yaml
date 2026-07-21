@@ -15,8 +15,11 @@ spec:
       requests:
         cpu: 10m
         memory: 256Mi
+      # 768Mi (not 512Mi): steady state is ~320Mi, but on an apiserver
+      # reconnect all informers re-LIST at once (Secrets/Pods/Nodes) and the
+      # resync spike OOMKilled the follower at 512Mi. This headroom absorbs it.
       limits:
-        memory: 512Mi
+        memory: 768Mi
     monitoring:
       serviceMonitor:
         enabled: true
