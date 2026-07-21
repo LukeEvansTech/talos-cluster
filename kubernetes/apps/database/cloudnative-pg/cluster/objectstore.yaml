@@ -3,7 +3,7 @@
 apiVersion: barmancloud.cnpg.io/v1
 kind: ObjectStore
 metadata:
-  name: postgres18-minio
+  name: postgres18-garage
 spec:
   # Retention policy
   retentionPolicy: 90d
