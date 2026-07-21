@@ -46,14 +46,14 @@ cloudnative-pg/
 
 We implemented a **dual backup approach** for redundancy:
 
-#### 1. Barman Cloud (S3/MinIO) - Primary
+#### 1. Barman Cloud (S3/Garage) - Primary
 
 - **Method**: Continuous WAL archiving via Barman Object Store
 - **Schedule**: Daily scheduled backups via `ScheduledBackup` CR
 - **Retention**: 30 days
 - **Compression**: bzip2 for both WAL and data
 - **Performance**: 8 parallel WAL transfers, 2 parallel data jobs
-- **Location**: `s3://cloudnative-pg/` at `https://${SECRET_STORAGE_SERVER}:9000`
+- **Location**: `s3://cnpg/` at `http://garage.storage.svc.cluster.local:3900` (in-cluster Garage)
 - **Use Case**: Point-in-time recovery (PITR), cluster bootstrap/migration
 
 #### 2. NFS Database Dumps - Secondary
@@ -149,10 +149,11 @@ POSTGRES_SUPER_USER: postgres
 POSTGRES_SUPER_PASS: <generate-strong-password>
 ```
 
-**Note**: MinIO credentials are pulled from the existing `minio` vault item:
+**Note**: S3 credentials are pulled from the existing `garage` vault item and mapped
+onto `AWS_*` keys by the ExternalSecret template:
 
-- `AWS_ACCESS_KEY_ID`
-- `AWS_SECRET_ACCESS_KEY`
+- `CNPG_ACCESS_KEY_ID` → `AWS_ACCESS_KEY_ID`
+- `CNPG_SECRET_ACCESS_KEY` → `AWS_SECRET_ACCESS_KEY`
 
 ### 2. NFS Backup Configuration
 
@@ -171,20 +172,17 @@ backups:
 - Export path must exist and be writable
 - Verify with: `showmount -e <nas-server>`
 
-### 3. MinIO S3 Bucket
+### 3. Garage S3 Bucket
 
-Create the S3 bucket in MinIO:
+Create the S3 bucket in the in-cluster Garage:
 
 ```bash
-# Using mc (MinIO Client)
-mc mb minio/cloudnative-pg
-
-# Or via MinIO UI
-# Navigate to https://${SECRET_STORAGE_SERVER}:9000
-# Create bucket: cloudnative-pg
+# From a garage pod (kubectl -n storage exec deploy/garage -- ...)
+garage bucket create cnpg
+garage bucket allow --read --write cnpg --key cnpg-key
 ```
 
-Verify credentials in the `minio` 1Password vault have access.
+Verify credentials in the `garage` 1Password item have access to the `cnpg` bucket.
 
 ## Post-Deployment Verification
 
