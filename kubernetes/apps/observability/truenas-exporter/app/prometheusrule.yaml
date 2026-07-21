@@ -83,8 +83,8 @@ spec:
           for: 5m
           labels:
             severity: critical
-        # "exited|dead" scoped to the doco-cd-managed fleet so intentionally
-        # stopped containers (e.g. the decommissioned minio app) don't page.
+        # "exited|dead" scoped to the doco-cd-managed fleet so containers outside
+        # that fleet (or intentionally stopped) never page.
         - alert: TrueNASContainerDown
           annotations:
             summary: "TrueNAS container {{ $labels.name }} is not running (state: {{ $labels.status }})."

@@ -29,7 +29,7 @@ spec:
   # keyed by container ID and disappear once a container stops, so they can't).
   # metricRelabelings drop the ~25 noisy container_label_* values (compose/doco-cd
   # shas) but keep cd_doco_metadata_manager so "container down" scopes to the
-  # GitOps-managed fleet (auto-excludes the intentionally-stopped minio app).
+  # GitOps-managed fleet, so non-doco-cd containers never page.
   staticConfigs:
     - targets:
         - ${SECRET_STORAGE_SERVER}:9419
