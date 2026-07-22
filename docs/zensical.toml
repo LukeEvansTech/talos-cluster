@@ -91,6 +91,7 @@ nav = [
       { "023: Node conntrack saturation (scanner)" = "troubleshooting/kb/023-node-conntrack-saturation-host-network-scanner.md" },
       { "024: zeroscaler NFS scale-to-zero via native HPA" = "troubleshooting/kb/024-zeroscaler-nfs-hpa.md" },
       { "025: CephFS modprobe built-in misdiagnosis" = "troubleshooting/kb/025-cephfs-modprobe-builtin-misdiagnosis.md" },
+      { "026: Plex Apple TV receive-window deadlock" = "troubleshooting/kb/026-plex-apple-tv-app-receive-window-deadlock.md" },
       { "027: DNS cleanup scaled NFS apps to zero" = "troubleshooting/kb/027-dns-cleanup-scaled-nfs-apps-to-zero.md" },
     ] },
   ] },
