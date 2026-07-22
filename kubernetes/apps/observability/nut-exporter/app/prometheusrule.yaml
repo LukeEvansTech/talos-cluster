@@ -9,16 +9,19 @@ spec:
     - name: nut-exporter
       rules:
         # UPS monitoring is blind — nut-exporter returns no metrics for >3m.
-        # When the NUT server (network-ups-tools) is down/unreachable the exporter
-        # fails its whole scrape, so up == 0 (verified); `absent()` covers the target
-        # vanishing entirely. 3m (not the 15m built-in TargetDown) because the main
-        # UPS battery only lasts ~30m.
+        # When the NUT server is down/unreachable the exporter fails its whole
+        # scrape, so up == 0 (verified); `absent()` covers the target vanishing
+        # entirely. 3m (not the 15m built-in TargetDown) because the main UPS
+        # battery measures only ~13m at present load — see UPSBatteryRuntimeLow.
+        #
+        # The NUT server is now an appliance OUTSIDE the cluster, so this alert
+        # additionally covers the LAN path to it, not just a pod.
         - alert: UPSUnreachable
           annotations:
             description: >-
               nut-exporter has had no successful scrape for over 3 minutes (up == 0 or
-              target absent). The NUT server (network-ups-tools) is likely down or
-              unreachable, so UPS state is invisible during a power event.
+              target absent). The external NUT appliance is likely down or unreachable,
+              so UPS state is invisible during a power event.
             summary: UPS monitoring is blind — nut-exporter is not returning UPS metrics.
           expr: up{job="nut-exporter"} == 0 or absent(up{job="nut-exporter"})
           for: 3m
@@ -38,23 +41,35 @@ spec:
           labels:
             severity: critical
             pushover_priority: emergency
-        # On battery AND (runtime < 15m OR charge < 50%). by(ups) aggregation also fixes
+        # On battery AND (runtime < 5m OR charge < 50%). by(ups) aggregation also fixes
         # the old UpsLowRuntime, whose `status`-labelled `and` operand never matched.
+        #
+        # Threshold was 900s (15m) and had to come down: the main UPS reports only
+        # ~780s runtime on a FULL battery (2008-vintage cells at ~25% load), so a
+        # 15m test was true the instant it went on battery and this alert was an
+        # exact duplicate of UPSOnBattery rather than an escalation of it. 300s is
+        # below any plausible full-charge runtime for either UPS, so it once again
+        # means what it says: the battery is nearly gone.
         - alert: UPSBatteryRuntimeLow
           annotations:
             description: >-
-              UPS {{ $labels.ups }} is on battery with under 15 minutes runtime remaining
+              UPS {{ $labels.ups }} is on battery with under 5 minutes runtime remaining
               or charge below 50%. Shutdown is imminent.
             summary: UPS {{ $labels.ups }} battery is nearly exhausted.
-          expr: (max by (ups) (nut_ups_status{status="OB"}) == 1) and ((min by (ups) (nut_battery_runtime_seconds) < 900) or (min by (ups) (nut_battery_charge) < 0.5))
+          expr: (max by (ups) (nut_ups_status{status="OB"}) == 1) and ((min by (ups) (nut_battery_runtime_seconds) < 300) or (min by (ups) (nut_battery_charge) < 0.5))
           for: 30s
           labels:
             severity: critical
             pushover_priority: emergency
-        # Since the network-ups-tools driver-isolation change, one snmp-ups
-        # driver can fail independently of upsd: that UPS's metrics vanish
-        # while the other keeps reporting. absent() carries the ups label
-        # from its matcher, so this stays per-UPS.
+        # One snmp-ups driver can fail while upsd and the other driver keep
+        # serving, so that UPS's metrics vanish on their own and UPSUnreachable
+        # (which needs the whole scrape to fail) never fires. absent() carries
+        # the ups label from its matcher, so this stays per-UPS.
+        #
+        # This matters MORE since the move to the appliance, not less: the
+        # retired in-cluster deployment isolated each driver in its own
+        # container, whereas the appliance runs both under one entrypoint. This
+        # is the only rule that catches a single UPS going quiet.
         - alert: UPSMetricsMissing
           annotations:
             description: >-
