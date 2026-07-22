@@ -1,0 +1,121 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: opnsense-config-backup
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: opnsense-config-backup
+  values:
+    controllers:
+      opnsense-config-backup:
+        type: cronjob
+        cronjob:
+          # Daily at 03:30 — pulls the full OPNsense config.xml over the API,
+          # age-encrypts it, and commits the ciphertext to network-configs.
+          # Replaces the plaintext dump Oxidized used to push (removed in
+          # #3775): the raw config.xml carries secrets (ddclient token, cert
+          # private keys, tailscale pre-auth key) that must never land in git
+          # unencrypted.
+          schedule: "30 3 * * *"
+          concurrencyPolicy: Forbid
+          successfulJobsHistory: 3
+          failedJobsHistory: 3
+          backoffLimit: 2
+        containers:
+          app:
+            # alpine/git provides git + openssh + busybox (wget/tar/sha256sum).
+            # age is fetched as a pinned, checksum-verified static binary into
+            # the writable emptyDir at runtime, so the container stays non-root
+            # with a read-only rootfs (no apk, no package installs).
+            image:
+              repository: docker.io/alpine/git
+              tag: 2.49.1@sha256:77418e6e7c7f434c4a98eaff04ef16840cf03649c881c03948e3e213923e3136
+            command:
+              - /bin/sh
+              - -c
+              - |
+                set -eu
+                AGE_VER=v1.2.1
+                AGE_SHA=7df45a6cc87d4da11cc03a539a7470c15b1041ab2b396af088fe9990f7c79d50
+
+                cd /work
+                wget -q -O age.tgz \
+                  "https://github.com/FiloSottile/age/releases/download/${AGE_VER}/age-${AGE_VER}-linux-amd64.tar.gz"
+                echo "${AGE_SHA}  age.tgz" | sha256sum -c -
+                tar xzf age.tgz
+                AGE=/work/age/age
+
+                install -d -m 700 "$HOME/.ssh"
+                install -m 600 /secrets/DEPLOY_KEY "$HOME/.ssh/id_ed25519"
+                install -m 600 /secrets/KNOWN_HOSTS "$HOME/.ssh/known_hosts"
+                export GIT_SSH_COMMAND="ssh -i $HOME/.ssh/id_ed25519 -o IdentitiesOnly=yes -o UserKnownHostsFile=$HOME/.ssh/known_hosts"
+
+                AUTH=$(printf '%s:%s' "$(cat /secrets/OPNSENSE_API_KEY)" "$(cat /secrets/OPNSENSE_API_SECRET)" | base64 | tr -d '\n')
+                wget --no-check-certificate -q -O /work/config.xml \
+                  --header="Authorization: Basic ${AUTH}" \
+                  "https://$(cat /secrets/OPNSENSE_HOST)/api/core/backup/download/this"
+
+                head -c 5 /work/config.xml | grep -q '<?xml' \
+                  || { echo "ERROR: OPNsense API did not return an XML config"; exit 1; }
+
+                "$AGE" -r "${AGE_RECIPIENT}" -o /work/opnsense.xml.age /work/config.xml
+                rm -f /work/config.xml
+
+                git clone --depth 1 "${REPO_URL}" /work/repo
+                cp /work/opnsense.xml.age /work/repo/opnsense.xml.age
+                cd /work/repo
+                git config user.email "opnsense-config-backup@talos.local"
+                git config user.name "opnsense-config-backup"
+                git add opnsense.xml.age
+                if git diff --cached --quiet; then
+                  echo "config unchanged since last backup — nothing to commit"
+                else
+                  git commit -m "opnsense: encrypted config backup"
+                  git push origin HEAD:main
+                  echo "pushed updated encrypted backup"
+                fi
+            env:
+              TZ: UTC
+              HOME: /work
+              REPO_URL: git@github.com:LukeEvansTech/network-configs.git
+              # age public recipient — not a secret; the matching identity
+              # lives only in 1Password (op://Talos/opnsense-config-backup).
+              AGE_RECIPIENT: age1l3w3p2aljz77zmgd54tccg88tryynuu4h54cgxd3w9eux85e6cvs63gzt5
+            resources:
+              requests:
+                cpu: 10m
+                memory: 32Mi
+              limits:
+                memory: 128Mi
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop:
+                  - ALL
+    defaultPodOptions:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+        fsGroup: 65534
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+    persistence:
+      secrets:
+        type: secret
+        name: opnsense-config-backup-secret
+        defaultMode: 0400
+        globalMounts:
+          - path: /secrets
+            readOnly: true
+      work:
+        type: emptyDir
+        globalMounts:
+          - path: /work

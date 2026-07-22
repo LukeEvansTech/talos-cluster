@@ -16,6 +16,7 @@ resources:
   - ./envoy-gateway/ks.yaml
   - ./error-pages/ks.yaml
   - ./oidc-talos/ks.yaml
+  - ./opnsense-config-backup/ks.yaml
   - ./opnsense-dns/ks.yaml
   - ./scanopy/ks.yaml
   - ./tailscale-operator/ks.yaml
