@@ -1,6 +1,11 @@
 ---
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/servicemonitor_v1.json
 apiVersion: monitoring.coreos.com/v1
+# nut-exporter is a PROXY: the scrape target is the exporter's own Service, and
+# the NUT server it reads is passed per-endpoint in `params.target`. That NUT
+# server is now the external appliance (${NUT_SERVER_ADDR}), not the retired
+# in-cluster upsd — the appliance has to outlive the cluster it shuts down.
+# Reading NUT variables is anonymous, so no credential is involved here.
 kind: ServiceMonitor
 metadata:
   name: &app nut-exporter
@@ -16,7 +21,7 @@ spec:
       path: /metrics
       params:
         target:
-          - network-ups-tools.observability.svc.cluster.local:3493
+          - ${NUT_SERVER_ADDR}:3493
         ups:
           - cr-ups-main
       metricRelabelings:
@@ -32,7 +37,7 @@ spec:
       path: /metrics
       params:
         target:
-          - network-ups-tools.observability.svc.cluster.local:3493
+          - ${NUT_SERVER_ADDR}:3493
         ups:
           - cr-ups-comms
       metricRelabelings:
