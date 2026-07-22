@@ -9,8 +9,9 @@ spec:
   commonMetadata:
     labels:
       app.kubernetes.io/name: *app
-  dependsOn:
-    - name: network-ups-tools
+  # The NUT server is now an out-of-cluster appliance, so there is nothing
+  # in-cluster left to depend on.
+  dependsOn: []
   interval: 1h
   path: ./kubernetes/apps/observability/peanut/app
   postBuild:

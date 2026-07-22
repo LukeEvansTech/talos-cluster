@@ -5,7 +5,12 @@ kind: CiliumNetworkPolicy
 metadata:
   name: allow-cross-namespace-ingress
 spec:
-  description: "Allow ingress from gateway and external clients (NUT)"
+  # `fromEntities: world` was added for external NUT clients reaching the
+  # in-cluster upsd LoadBalancer. That LoadBalancer is gone (the NUT server is
+  # now an out-of-cluster appliance), so the stated reason no longer holds —
+  # but tightening this is a blast-radius change for every workload in the
+  # namespace, not a tidy-up to fold into a repoint. Left as-is deliberately.
+  description: "Allow ingress from gateway and from world (see note above)"
   endpointSelector: {}
   ingress:
     - fromEndpoints:
