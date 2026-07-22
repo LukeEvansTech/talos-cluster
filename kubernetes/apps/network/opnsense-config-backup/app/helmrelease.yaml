@@ -37,6 +37,9 @@ spec:
             command:
               - /bin/sh
               - -c
+              # NOTE: shell $${...} / $$VAR are escaped so Flux's strict
+              # envsubst leaves them for the container shell to resolve at
+              # runtime; $(...) command substitutions are not touched by envsubst.
               - |
                 set -eu
                 AGE_VER=v1.2.1
@@ -44,28 +47,28 @@ spec:
 
                 cd /work
                 wget -q -O age.tgz \
-                  "https://github.com/FiloSottile/age/releases/download/${AGE_VER}/age-${AGE_VER}-linux-amd64.tar.gz"
-                echo "${AGE_SHA}  age.tgz" | sha256sum -c -
+                  "https://github.com/FiloSottile/age/releases/download/$${AGE_VER}/age-$${AGE_VER}-linux-amd64.tar.gz"
+                echo "$${AGE_SHA}  age.tgz" | sha256sum -c -
                 tar xzf age.tgz
                 AGE=/work/age/age
 
-                install -d -m 700 "$HOME/.ssh"
-                install -m 600 /secrets/DEPLOY_KEY "$HOME/.ssh/id_ed25519"
-                install -m 600 /secrets/KNOWN_HOSTS "$HOME/.ssh/known_hosts"
-                export GIT_SSH_COMMAND="ssh -i $HOME/.ssh/id_ed25519 -o IdentitiesOnly=yes -o UserKnownHostsFile=$HOME/.ssh/known_hosts"
+                install -d -m 700 "$${HOME}/.ssh"
+                install -m 600 /secrets/DEPLOY_KEY "$${HOME}/.ssh/id_ed25519"
+                install -m 600 /secrets/KNOWN_HOSTS "$${HOME}/.ssh/known_hosts"
+                export GIT_SSH_COMMAND="ssh -i $${HOME}/.ssh/id_ed25519 -o IdentitiesOnly=yes -o UserKnownHostsFile=$${HOME}/.ssh/known_hosts"
 
                 AUTH=$(printf '%s:%s' "$(cat /secrets/OPNSENSE_API_KEY)" "$(cat /secrets/OPNSENSE_API_SECRET)" | base64 | tr -d '\n')
                 wget --no-check-certificate -q -O /work/config.xml \
-                  --header="Authorization: Basic ${AUTH}" \
+                  --header="Authorization: Basic $${AUTH}" \
                   "https://$(cat /secrets/OPNSENSE_HOST)/api/core/backup/download/this"
 
                 head -c 5 /work/config.xml | grep -q '<?xml' \
                   || { echo "ERROR: OPNsense API did not return an XML config"; exit 1; }
 
-                "$AGE" -r "${AGE_RECIPIENT}" -o /work/opnsense.xml.age /work/config.xml
+                "$${AGE}" -r "$${AGE_RECIPIENT}" -o /work/opnsense.xml.age /work/config.xml
                 rm -f /work/config.xml
 
-                git clone --depth 1 "${REPO_URL}" /work/repo
+                git clone --depth 1 "$${REPO_URL}" /work/repo
                 cp /work/opnsense.xml.age /work/repo/opnsense.xml.age
                 cd /work/repo
                 git config user.email "opnsense-config-backup@talos.local"
