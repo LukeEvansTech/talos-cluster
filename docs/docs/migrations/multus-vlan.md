@@ -1,7 +1,7 @@
 # Multus VLAN Migration Guide
 
 !!! note "Completed migration"
-    This page is a record of a migration that is already complete. The steps below are preserved as history; some current-state paths, names, and commands have since drifted. Commands and paths flagged in review are corrected inline — see the Architecture and Operations sections for the present-day setup.
+    This page is a record of a migration that is already complete. The steps below are preserved as history; some current-state paths, names, and commands have since drifted. Commands and paths flagged in review are corrected inline: see the Architecture and Operations sections for the present-day setup.
 
 This guide documents the process of migrating Home Assistant from the management network (<mgmt-net>/24) to a dedicated IoT VLAN for network isolation.
 

@@ -5,8 +5,8 @@ steer a pod* on this cluster.
 
 ## Symptom
 
-Minutes after `kubectl cordon <node>` on a control-plane node — often done to "steer a single
-unrelated pod elsewhere" — a burst of **critical** Ceph alerts fires:
+Minutes after `kubectl cordon <node>` on a control-plane node (often done to "steer a single
+unrelated pod elsewhere"), a burst of **critical** Ceph alerts fires:
 
 - `CephMonDown`
 - `CephMonDownQuorumAtRisk`
@@ -25,7 +25,7 @@ losing one mon's home node drops the cluster below a 2/3 quorum, hence the *crit
 alert.
 
 The same trap applies to a node left cordoned by a **failed Talos upgrade** (see
-[KB-004](004-talos-patch-rollout-gotchas-tuppr.md)) — the Ceph risk persists for as long as the
+[KB-004](004-talos-patch-rollout-gotchas-tuppr.md)). The Ceph risk persists for as long as the
 node stays cordoned.
 
 ## Fix
@@ -38,7 +38,7 @@ Quorum recovers within **~60s**: the mon reschedules onto its home node, all ini
 containers reach `Started` in ~25s, quorum is restored, all OSDs come back up, and Ceph returns
 to `HEALTH_OK`.
 
-**Don't cordon a control-plane node to move a pod here** — the displaced Ceph daemons matter
+**Don't cordon a control-plane node to move a pod here**: the displaced Ceph daemons matter
 more than the pod you're relocating. To move a *non-Ceph* pod off a node:
 
 - `kubectl delete pod` it and let the scheduler re-pick, **or**
@@ -51,7 +51,7 @@ possible.
 
 - The alert storm starts **right after a `cordon`**, and a `kubectl get pod -n rook-ceph -o wide`
   shows a mon/osd `Pending`/`FailedScheduling` whose required node is the one you just tainted.
-- A control-plane node that "can't start containers" is usually a **red herring** — the nodes
+- A control-plane node that "can't start containers" is usually a **red herring**: the nodes
   start containers fine. Earlier "node can't run pods" suspicions traced to helm-remediation
   thrash killing pods mid-create, not a node defect (see
   [KB-015](015-slow-image-pulls-exceed-helmrelease-timeout.md)).

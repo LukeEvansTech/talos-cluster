@@ -13,7 +13,7 @@ The node was left:
 - Drained, so 6 pods (mon-c, osd-X, dragonfly-N, postgres18-N, mosquitto-0, per-volume affinity) sat `Pending` indefinitely.
 - Ceph in `HEALTH_WARN` (1 mon + 2 OSDs down) for as long as the cordon stood.
 
-This blocked TUPPR's own health-check (`status.ceph.health in ['HEALTH_OK']`) from passing, so TUPPR refused to create another upgrade Job — a classic chicken-and-egg.
+This blocked TUPPR's own health-check (`status.ceph.health in ['HEALTH_OK']`) from passing, so TUPPR refused to create another upgrade Job, a classic chicken-and-egg.
 
 ## Cause
 
@@ -26,7 +26,7 @@ The Job pod log shows the install/drain succeed, then:
 console logs for nodes ["<node-ip>"]:
 ```
 
-`<talos-svc-clusterip>:50000` is the `default/talos` Service ClusterIP, which proxies to the per-node Talos API. The Service endpoint is hosted on a pod that was itself evicted during the drain — so by the time TUPPR's wrapper tries to issue the powercycle, the Service has no healthy endpoint, the RPC times out, and the wrapper gives up. The node never gets the reboot command.
+`<talos-svc-clusterip>:50000` is the `default/talos` Service ClusterIP, which proxies to the per-node Talos API. The Service endpoint is hosted on a pod that was itself evicted during the drain, so by the time TUPPR's wrapper tries to issue the powercycle, the Service has no healthy endpoint, the RPC times out, and the wrapper gives up. The node never gets the reboot command.
 
 `bootID` confirms no reboot happened. `kubectl get nodes` shows `LastTransitionTime` weeks-old (no Ready=False transition during the attempt). `kernelVersion` and `osImage` stay on v1.13.0.
 
@@ -34,14 +34,14 @@ console logs for nodes ["<node-ip>"]:
 
 ### Option A: Manual `talosctl reboot --mode=powercycle` (recommended)
 
-The install is already staged — `sd-boot: using Talos-v1.13.X.efi as default entry` is already in the META partition. A direct reboot from the operator's host bypasses the broken in-cluster API path:
+The install is already staged: `sd-boot: using Talos-v1.13.X.efi as default entry` is already in the META partition. A direct reboot from the operator's host bypasses the broken in-cluster API path:
 
 ```bash
 export TALOSCONFIG=./talos/clusterconfig/talosconfig
 talosctl --nodes <node-ip> reboot --mode=powercycle
 ```
 
-`talosctl` talks to the node directly (not through the cluster Service), so it survives the drain that broke the in-cluster path. Node boots into the new version, kubelet re-registers, Pending pods schedule back. Run `kubectl uncordon <node>` afterwards — TUPPR's cordon does not auto-clear when bypassed.
+`talosctl` talks to the node directly (not through the cluster Service), so it survives the drain that broke the in-cluster path. Node boots into the new version, kubelet re-registers, Pending pods schedule back. Run `kubectl uncordon <node>` afterwards. TUPPR's cordon does not auto-clear when bypassed.
 
 ### Option B: Break the deadlock with `kubectl uncordon`, then let TUPPR retry
 
@@ -70,7 +70,7 @@ Safe when the originating pod is already gone (the RBD kernel mapping is cleaned
 
 When the `blackbox-exporter-lan` pod gets shuffled by the drain, the fresh pod's blackbox probe to the NFS server on port 2049 can briefly return `probe_success=0` (DNS resolve fails inside the pod even though the same lookup works from `kubectl run --image=netshoot` in the same namespace), driving the `probe_success{job="nfs_probe"}` metric to 0.
 
-Historically this immediately tripped a KEDA `ScaledObject` and scaled NFS-dependent deployments (notably Plex) to `0`. Since the migration to the [`zeroscaler`](024-zeroscaler-nfs-hpa.md) HPA + `prometheus-adapter`, the adapter serves the metric as `max_over_time(probe_success[3m])`, so a single transient blip no longer trips scale-to-0 — the probe must fail continuously for ~3 minutes first.
+Historically this immediately tripped a KEDA `ScaledObject` and scaled NFS-dependent deployments (notably Plex) to `0`. Since the migration to the [`zeroscaler`](024-zeroscaler-nfs-hpa.md) HPA + `prometheus-adapter`, the adapter serves the metric as `max_over_time(probe_success[3m])`, so a single transient blip no longer trips scale-to-0: the probe must fail continuously for ~3 minutes first.
 
 If a blip is slow to clear, restart the blackbox-exporter pod:
 
@@ -78,7 +78,7 @@ If a blip is slow to clear, restart the blackbox-exporter pod:
 kubectl delete pod -n observability -l app.kubernetes.io/name=prometheus-blackbox-exporter
 ```
 
-To pin every NFS-gated app up for the duration of a drain (native HPAs have no `paused` annotation), use the recipe — it patches `minReplicas: 1` on every zeroscaler HPA:
+To pin every NFS-gated app up for the duration of a drain (native HPAs have no `paused` annotation), use the recipe, which patches `minReplicas: 1` on every zeroscaler HPA:
 
 ```bash
 just kube zeroscaler suspend   # pin all NFS-gated apps up (minReplicas=1)
@@ -90,7 +90,7 @@ Note: Flux reverts `minReplicas` to the git value (`0`) on the next reconcile, s
 ### Open items
 
 1. The TUPPR Job should not route its post-drain `reboot` call through a cluster-internal Service whose endpoint may have been evicted by the drain. Worth raising upstream or pinning `rebootMode: kexec` to skip the powercycle path.
-2. The `blackbox-exporter-lan` pod's intermittent DNS-resolve failure on target hostnames needs investigation — likely a `dnsPolicy` / resolv.conf issue post-Cilium-identity-shuffle.
+2. The `blackbox-exporter-lan` pod's intermittent DNS-resolve failure on target hostnames needs investigation, likely a `dnsPolicy` / resolv.conf issue post-Cilium-identity-shuffle.
 3. zeroscaler pause (`just kube zeroscaler suspend`, which patches HPA `minReplicas: 1`) is reverted by Flux on the next reconcile; for a longer hold during a drain, `flux suspend` the affected app Kustomization instead.
 
 ## References

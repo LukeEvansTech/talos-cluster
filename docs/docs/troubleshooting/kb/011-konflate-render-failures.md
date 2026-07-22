@@ -10,23 +10,23 @@ hit it.
 
 ## Symptom
 
-- **Variant A — `KubePersistentVolumeInodesFillingUp` (critical)** on `konflate-cache` within
+- **Variant A: `KubePersistentVolumeInodesFillingUp` (critical)** on `konflate-cache` within
   ~a day, with plenty of free **bytes** remaining.
-- **Variant B — every open PR's konflate check fails** with `status: error` ("all my CIs are
+- **Variant B: every open PR's konflate check fails** with `status: error` ("all my CIs are
   failing"). Pod logs show the **same** object SHA across all PRs:
   `gitclone: repack mirror: getting object <SHA> failed: object not found`.
 
 ## Cause
 
-### Variant A — inode density, not size
+### Variant A: inode density, not size
 
 konflate's source/render/stage caches are millions of tiny files at only a few GB, so a
 fixed-inode ceph-block RBD volume **exhausts inodes long before bytes**. The chart bounds
 caches by bytes + TTL but never by inode count.
 
-### Variant B — a phantom (dangling) ref in the git mirror
+### Variant B: a phantom (dangling) ref in the git mirror
 
-The failing SHA is a **phantom** — not in the GitHub repo at all (`git cat-file -t <SHA>` =
+The failing SHA is a **phantom**, not in the GitHub repo at all (`git cat-file -t <SHA>` =
 bad object even after fetch). It's a dangling ref in konflate's in-pod mirror, almost
 certainly a commit that Renovate force-pushed away but the mirror still references.
 `repack mirror` chokes on it, which breaks the **whole** mirror, so every render fails
@@ -34,7 +34,7 @@ globally.
 
 ## Fix
 
-### Variant A — use an emptyDir cache, never `kubectl patch` the PVC
+### Variant A: use an emptyDir cache, never `kubectl patch` the PVC
 
 Set `persistence.enabled: false` (the chart default) so the cache mounts an **emptyDir** on the
 node filesystem (Talos `/var` is xfs with dynamic inodes); helm then deletes the
@@ -43,14 +43,14 @@ merged-PR shelf is lost on restart.
 
 > **Hard-won rule: never grow a GitOps-managed PVC with `kubectl patch`.** An imperative
 > `5Gi → 20Gi` grow clears the alert but **diverges the live volume from git's declared size**.
-> The next chart bump re-applies the PVC at the git size and the helm upgrade fails —
+> The next chart bump re-applies the PVC at the git size and the helm upgrade fails:
 > `spec.resources.requests.storage: Forbidden: field can not be less than status.capacity`
-> (PVCs can't shrink) — which then fails the auto-rollback and leaves the HR stuck
+> (PVCs can't shrink), which then fails the auto-rollback and leaves the HR stuck
 > `Ready=False/RollbackFailed`. Always bump `size:` **in git**. ("Out of inodes" with free
-> bytes is an inode-density mismatch, not a sizing problem — prefer emptyDir on xfs for
+> bytes is an inode-density mismatch, not a sizing problem; prefer emptyDir on xfs for
 > many-tiny-file caches.)
 
-### Variant B — restart the pod to wipe the mirror
+### Variant B: restart the pod to wipe the mirror
 
 Persistence is disabled (emptyDir mirror), so a restart wipes the corrupt mirror and
 re-clones cleanly:
@@ -66,12 +66,12 @@ current `main`.
 
 ## konflate status semantics
 
-konflate is a **lenient** gate, kept advisory (not required) — `flate` remains the strict
+konflate is a **lenient** gate, kept advisory (not required); `flate` remains the strict
 gate. Its render-status header maps to:
 
 - `ok` → pass.
 - `failures` → individual resources couldn't render (e.g. a private source). Made advisory
-  (`::warning`, no failure) — expected on most PRs, not a bug.
+  (`::warning`, no failure), expected on most PRs, not a bug.
 - `error` → the whole render failed with no diff → the real gate. The phantom-object failure
   is this one.
 
