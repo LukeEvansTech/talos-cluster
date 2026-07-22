@@ -18,7 +18,7 @@ cross-cutting "what lives where and how to update it" reference.
 | vCenter / ESXi | `pryorda/vmware_exporter`         | `vmware-exporter`                             | `${SECRET_VSPHERE_ENDPOINT}` | `vsphere-monitoring`                   |
 | Firewall       | `AthennaMind/opnsense-exporter`   | `opnsense-exporter`                           | `host` field in item         | `opnsense-exporter`                    |
 | Core switch    | `prometheus/snmp_exporter`        | `snmp-exporter`                               | `${ONYX_ADDR}`               | — (SNMP community `<community>`)       |
-| UPS (NUT)      | `hon95/prometheus-nut-exporter`   | `nut-exporter` (+ `peanut` web UI)            | `${NUT_SERVER_ADDR}`         | — (anonymous NUT protocol read)        |
+| UPS (NUT)      | `hon95/prometheus-nut-exporter`   | `nut-exporter`                                | `${NUT_SERVER_ADDR}`         | — (anonymous NUT protocol read)        |
 
 All of these run on **least-privilege, dedicated read-only accounts**, never an
 admin credential.
@@ -27,9 +27,14 @@ Since PR #3768 (2026-07-21), UPS monitoring follows the same shape as everything
 else in this table: `nut-exporter` scrapes an **external** NUT appliance (a
 dedicated box outside the cluster, so it can keep reporting and sequence the
 cluster's own shutdown through a power event the cluster itself doesn't
-survive) at `${NUT_SERVER_ADDR}`, and `peanut` gives it a web UI. There is no
-in-cluster `upsd` anymore; reading NUT variables is anonymous, so no credential
-is involved.
+survive) at `${NUT_SERVER_ADDR}`. There is no in-cluster `upsd` anymore; reading
+NUT variables is anonymous, so no credential is involved.
+
+The `peanut` web UI moved onto that same appliance in PR #3775 and is no longer
+deployed here. It was the last piece of UPS monitoring still hosted on the
+cluster — which a power event is precisely what shuts down, so the dashboard
+went dark at the one moment it was wanted. `nut-exporter` stays: its value is
+history in Prometheus, which is a cluster concern either way.
 
 !!! warning "The two MikroTik CRS354 switches are currently NOT monitored"
 
