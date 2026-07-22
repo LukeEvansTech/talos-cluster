@@ -31,6 +31,12 @@ template file *args:
 # Run super-linter locally with the same env flags as the shared CI workflow.
 # slim-v8 is amd64-only — `--platform linux/amd64` enables Rosetta emulation
 # on Apple Silicon. RUN_LOCAL=true lints the working tree (skips git-diff logic).
+# FILTER_REGEX_EXCLUDE mirrors the `filter-regex-exclude` input in
+# .github/workflows/lint.yml (the shared workflow maps it to this same env var).
+# Keep the two in sync: without it, local lints the docs/ tree that CI excludes
+# — docs/ is owned by the canonical .markdownlint.yml + docs-standard-check.
+# VALIDATE_ALL_CODEBASE stays true here on purpose: CI defaults it to false
+# (changed files only), but locally we want the whole working tree checked.
 lint *args:
     docker run --rm --platform linux/amd64 \
       -e RUN_LOCAL=true \
@@ -43,6 +49,7 @@ lint *args:
       -e VALIDATE_TRIVY=false \
       -e VALIDATE_GITLEAKS=false \
       -e VALIDATE_JSCPD=false \
+      -e FILTER_REGEX_EXCLUDE='(^|/)(node_modules|\.venv|site)/|(^|/)docs/' \
       -e LOG_LEVEL=NOTICE \
       -v "$PWD":/tmp/lint \
       ghcr.io/super-linter/super-linter:slim-v8 {{ args }}
