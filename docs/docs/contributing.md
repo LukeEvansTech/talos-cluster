@@ -9,13 +9,14 @@ the conventions below.
 Tool-agnostic agent instructions and skills live under `.agents/` so any assistant (Codex, Copilot,
 Cursor, Claude Code) can apply the same conventions:
 
-- `.agents/instructions/sorting.instructions.md` — YAML sorting conventions (alphabetical defaults
+- `.agents/instructions/sorting.instructions.md`: YAML sorting conventions (alphabetical defaults
   plus app-template-specific ordering). Apply this when asked to sort YAML.
-- `.agents/skills/add-app/SKILL.md` — a skill that scaffolds a new app-template application
+- `.agents/skills/add-app/SKILL.md`: a skill that scaffolds a new app-template application
   following the conventions below. Agent tools that read `.agents/skills/` can invoke it directly.
 
-`AGENTS.md` at the repository root is the canonical conventions guide. The local `CLAUDE.md` is a
-standalone file and does not import `AGENTS.md`.
+`AGENTS.md` at the repository root is the canonical, tool-agnostic conventions guide. The local
+`CLAUDE.md` imports it via an `@AGENTS.md` include and adds Claude-Code-specific specifics on top
+(kubeconfig usage, `just` command reference, Flux reconciliation steps).
 
 ## Adding a new app
 
@@ -27,7 +28,7 @@ Use the `add-app` skill to scaffold, or follow the shape by hand. Every app live
     `targetNamespace: *namespace`.
   - Declare any `components` (`volsync`, `alerts`, `homepage`) here, along with their
     `postBuild.substitute` values (`APP: *app`, `VOLSYNC_CAPACITY`). Do not duplicate components into
-    `app/kustomization.yaml`. (Gatus monitoring is automatic — the gatus-sidecar chart auto-discovers
+    `app/kustomization.yaml`. (Gatus monitoring is automatic: the gatus-sidecar chart auto-discovers
     HTTPRoutes, so there is no per-app `gatus/guarded` component anymore.)
   - Add `dependsOn` `onepassword-connect` in `external-secrets` if the app uses an ExternalSecret.
 - **Inside `app/`**:
@@ -45,7 +46,7 @@ Use the `add-app` skill to scaffold, or follow the shape by hand. Every app live
 
 ### House rules to respect
 
-- `ConfigMap` resources must set `metadata.namespace` explicitly — Checkov (CKV_K8S_21) scans raw YAML
+- `ConfigMap` resources must set `metadata.namespace` explicitly. Checkov (CKV_K8S_21) scans raw YAML
   before Flux applies `targetNamespace` and flags `default`.
 - Escape any literal `${VAR}` you want preserved as `$${VAR}`; Flux substitutes unescaped `${VAR}`
   against `cluster-secrets`/`cluster-settings`, and undefined vars become empty strings.
@@ -57,19 +58,36 @@ Use the `add-app` skill to scaffold, or follow the shape by hand. Every app live
 
 PR renders and diffs are posted by the in-cluster Konflate as a native commit status plus a PR comment
 (there is no GitHub Actions render workflow). GitHub Actions still run security scans (Checkov/Trivy) and
-super-linter. Mirror the render locally first with flate:
+super-linter. Mirror the render locally first with flate, preferably via the `just` wrappers defined in
+`kubernetes/mod.just` (the raw `flate` invocations underneath are shown for reference):
 
 ```bash
-# Render a single app's HelmRelease
-flate build hr <app> -n <namespace> --path kubernetes/flux/cluster --allow-missing-secrets
+# Render a single app's HelmRelease / Kustomization
+just kube flate-build-hr <namespace> <app>
+just kube flate-build-ks <namespace> <app>
 
 # Test all Kustomizations + HelmReleases
+just kube flate-test
+```
+
+```bash
+# Underlying flate invocations
+flate build hr <app> -n <namespace> --path kubernetes/flux/cluster --allow-missing-secrets
 flate test all --path kubernetes/flux/cluster --allow-missing-secrets
 ```
+
+### Pre-commit hooks (lefthook)
+
+Lefthook runs automatically on `git commit`. Per `.lefthook.toml`, it formats YAML (`yamlfmt`,
+`prettier`) and JSON/JSON5 (`prettier`), and lints shell scripts (`shellcheck`), GitHub Actions
+workflows (`actionlint`, `zizmor`). It also mirrors several super-linter checks in report-only
+mode (`yamllint`, `codespell`, `markdownlint`, `editorconfig-checker`), scoped to staged files so
+their findings surface at commit time instead of in CI. `.lefthook.toml` is the source of truth for
+the exact command/glob/exclude for each hook.
 
 ## Where AI planning artifacts go
 
 AI planning artifacts (specs, plans, scratch notes from superpowers-style workflows) live in the
-gitignored `docs/superpowers/` directory — they are not committed. Durable knowledge that future
+gitignored `docs/superpowers/` directory. They are not committed. Durable knowledge that future
 maintainers and agents need is promoted into this knowledge base instead, so the published site stays
 the single source of truth.

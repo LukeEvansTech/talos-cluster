@@ -34,7 +34,7 @@ releases:
           - --namespace={{ .Release.Namespace }}
           - --server-side
           - --field-manager=kustomize-controller
-          - --filename=../../kubernetes/apps/{{ .Release.Namespace }}/{{ .Release.Name }}/app/networking.yaml
+          - --filename=../../kubernetes/apps/{{ .Release.Namespace }}/{{ .Release.Name }}/app/networks.yaml
         events:
           - postsync
         showlogs: true
