@@ -1,7 +1,7 @@
 # Device & Infrastructure Monitoring
 
 How the cluster scrapes external infrastructure (storage, hypervisor, firewall,
-switches) into Prometheus, and — the important part — **how to change the
+switches) into Prometheus, and (the important part) **how to change the
 settings later** without hunting through manifests.
 
 For the TrueNAS-specific exporter install steps see
@@ -18,9 +18,18 @@ cross-cutting "what lives where and how to update it" reference.
 | vCenter / ESXi | `pryorda/vmware_exporter`         | `vmware-exporter`                             | `${SECRET_VSPHERE_ENDPOINT}` | `vsphere-monitoring`                   |
 | Firewall       | `AthennaMind/opnsense-exporter`   | `opnsense-exporter`                           | `host` field in item         | `opnsense-exporter`                    |
 | Core switch    | `prometheus/snmp_exporter`        | `snmp-exporter`                               | `${ONYX_ADDR}`               | — (SNMP community `<community>`)       |
+| UPS (NUT)      | `hon95/prometheus-nut-exporter`   | `nut-exporter` (+ `peanut` web UI)            | `${NUT_SERVER_ADDR}`         | — (anonymous NUT protocol read)        |
 
 All of these run on **least-privilege, dedicated read-only accounts**, never an
 admin credential.
+
+Since PR #3768 (2026-07-21), UPS monitoring follows the same shape as everything
+else in this table: `nut-exporter` scrapes an **external** NUT appliance (a
+dedicated box outside the cluster, so it can keep reporting and sequence the
+cluster's own shutdown through a power event the cluster itself doesn't
+survive) at `${NUT_SERVER_ADDR}`, and `peanut` gives it a web UI. There is no
+in-cluster `upsd` anymore; reading NUT variables is anonymous, so no credential
+is involved.
 
 !!! warning "The two MikroTik CRS354 switches are currently NOT monitored"
 
@@ -32,7 +41,7 @@ admin credential.
     (`terraform/mikrotik/hardening.tf`, since 2026-04-02). The exporter only ever
     worked because api-ssl had been enabled by hand in June and never codified; a
     `terraform apply` on 2026-07-06 reconciled that drift and the exporter went
-    blind. Re-enabling it by hand is not durable — the next apply reverts it.
+    blind. Re-enabling it by hand is not durable: the next apply reverts it.
 
     Restoring coverage without touching the hardening posture means **SNMP**:
     add the two switches as `serviceMonitor.params[]` entries on `snmp-exporter`
@@ -44,23 +53,24 @@ admin credential.
 There are four places a setting can live. Knowing which one a value uses is the
 whole game:
 
-1. **DNS names** — switch/host addresses are DNS records, not raw IP addresses.
+1. **DNS names**: switch/host addresses are DNS records, not raw IP addresses.
    Host-overrides are declared in the `network-ops` repository
    (`ansible/vars/dns.yml`, applied by `ansible/playbooks/opnsense-dns.yml`) and
    served by OPNsense Unbound.
    - `<core-switch>.${SECRET_INTERNAL_DOMAIN}` → the core switch
    - `<access-switch>.${SECRET_INTERNAL_DOMAIN}` → the PoE access switch
    - `<mgmt-switch>.${SECRET_INTERNAL_DOMAIN}` → the management switch
-2. **`cluster-settings`** (non-secret, Git-tracked) —
+2. **`cluster-settings`** (non-secret, Git-tracked):
    `kubernetes/components/global-vars/cluster-settings.yaml`. Holds non-sensitive
    `${...}` values the manifests reference (e.g. `OLLAMA_MODEL`).
-3. **`cluster-secrets`** (1Password-backed) — `SECRET_STORAGE_SERVER`,
+3. **`cluster-secrets`** (1Password-backed): `SECRET_STORAGE_SERVER`,
    `SECRET_VSPHERE_ENDPOINT`, and the device DNS names `ONYX_ADDR`,
-   `MIKROTIK_POE_ADDR`, `MIKROTIK_NONPOE_ADDR` (internal hostnames kept out of
-   this public repo). Flux substitutes `${...}` from this Secret the same way; the
-   real values live in the `cluster-secrets` 1Password item (vault `Talos`).
+   `MIKROTIK_POE_ADDR`, `MIKROTIK_NONPOE_ADDR`, `NUT_SERVER_ADDR` (internal
+   hostnames kept out of this public repo). Flux substitutes `${...}` from this
+   Secret the same way; the real values live in the `cluster-secrets` 1Password
+   item (vault `Talos`).
 4. **Per-app 1Password items** (vault `Talos`, read by External Secrets via the
-   `onepassword-connect` ClusterSecretStore) — the device credentials themselves.
+   `onepassword-connect` ClusterSecretStore): the device credentials themselves.
 
 > Device **admin** credentials (used by `network-ops` to manage the devices)
 > live in the **`Home Operations`** vault (separate per-device admin items). The
@@ -75,11 +85,11 @@ Because monitoring references **DNS names**, this is a one-line change:
 1. Edit the `server:` for that host in `network-ops` `ansible/vars/dns.yml`.
 2. Apply: `op run --env-file=.env -- ansible-playbook ansible/playbooks/opnsense-dns.yml`
    (or `mise run opnsense-dns`). Requires the `ansibleguy.opnsense` collection
-   and `httpx` in the Ansible Python — see Gotchas.
+   and `httpx` in the Ansible Python (see Gotchas).
 3. Nothing in this repository changes; the exporters re-resolve the name on the
    next scrape.
 
-For TrueNAS / vCenter the address is a `cluster-secrets` variable instead — edit
+For TrueNAS / vCenter the address is a `cluster-secrets` variable instead: edit
 `SECRET_STORAGE_SERVER` / `SECRET_VSPHERE_ENDPOINT` in the `cluster-secrets`
 1Password item; ExternalSecrets pick it up on the next refresh.
 
@@ -89,8 +99,10 @@ Edit the relevant field (e.g. `ONYX_ADDR`) in the `cluster-secrets` 1Password it
 (vault `Talos`). The `cluster-secrets` ExternalSecret is replicated into every
 namespace; it refreshes within 1h, or force-sync the consuming namespace now, e.g.
 `kubectl annotate externalsecret cluster-secrets -n observability force-sync="$(date +%s)" --overwrite`.
-Flux re-substitutes it into the manifests on the next reconcile. For
-`snmp-exporter` you must then restart the pod (see Gotchas).
+Flux re-substitutes it into the manifests on the next reconcile. `snmp-exporter`
+carries a `reloader.stakater.com/auto: "true"` annotation (see Gotchas), so
+Reloader restarts its pod automatically once the rendered config changes, so
+no manual rollout is needed.
 
 ### Rotate a credential
 
@@ -99,8 +111,8 @@ Flux re-substitutes it into the manifests on the next reconcile. For
    refresh interval):
    `kubectl annotate externalsecret <name> -n observability force-sync="$(date +%s)" --overwrite`
 3. The app's `reloader.stakater.com/auto` annotation restarts the pod when the
-   rendered secret changes. **Exception: `snmp-exporter` has no reloader** —
-   restart it manually (see Gotchas).
+   rendered secret changes. `snmp-exporter` gets this annotation via a
+   `postRenderers` kustomize patch rather than a chart value (see Gotchas).
 
 ### Enable / disable an OPNsense collector
 
@@ -112,8 +124,8 @@ add an env var to `opnsense-exporter/app/helmrelease.yaml`, e.g.
 ### Add a new SNMP device
 
 Add an entry under `serviceMonitor.params` in
-`snmp-exporter/app/helmrelease.yaml` (chart `9.14.0` reads targets there, **not**
-a top-level `params`):
+`snmp-exporter/app/helmrelease.yaml` (the chart's 9.x line reads targets there,
+**not** a top-level `params`; see `app/ocirepository.yaml` for the current pin):
 
 ```yaml
 - name: <short-name>
@@ -133,11 +145,11 @@ with the image's bundled `snmp.yml` via the two `--config.file` `extraArgs`.
 ### Add a RouterOS switch to snmp-exporter
 
 The `mktxp` route is retired (see the warning above). Add RouterOS switches the
-same way as the Onyx core switch — a `serviceMonitor.params[]` entry with module
+same way as the Onyx core switch: a `serviceMonitor.params[]` entry with module
 `if_mib` and the read-only SNMP community. SNMP is enabled and source-ACLed on
 both MikroTiks by the network-ops Terraform (`routeros_snmp_community`), so no
 device-side change is needed. Add the host as a `cluster-secrets` DNS var (the
-1Password item, **not** git-tracked `cluster-settings` — device hostnames stay
+1Password item, **not** git-tracked `cluster-settings`: device hostnames stay
 out of this public repo).
 
 ## Validation
@@ -165,9 +177,15 @@ kubectl exec -n observability deploy/snmp-exporter -- \
 
 ## Gotchas
 
-- **`snmp-exporter` has no reloader.** A ConfigMap, module, or auth change does
-  **not** restart the pod, so the new config is not loaded. After any change run
-  `kubectl rollout restart deploy/snmp-exporter -n observability`.
+- **`snmp-exporter` restarts on config change via Reloader (fixed by #3572,
+  2026-07-17).** It previously needed a manual `kubectl rollout restart` after
+  every ConfigMap/module/auth change, because it only reads its `--config.file`
+  at startup. The chart's `9.x` line has no Deployment-level annotations value,
+  so the fix is a `postRenderers` kustomize patch in
+  `snmp-exporter/app/helmrelease.yaml` that adds
+  `reloader.stakater.com/auto: "true"` directly to the Deployment. Reloader now
+  restarts the pod automatically whenever the rendered ConfigMap/Secret changes,
+  so no manual restart is needed anymore.
 - **Never write a literal `${...}` in a YAML comment** in a manifest. Flux's
   post-build `envsubst` parses it as a variable name and fails the whole
   Kustomization with `unable to parse variable name`.
@@ -177,7 +195,7 @@ kubectl exec -n observability deploy/snmp-exporter -- \
   fire. Pair every such alert with `absent(metric)`. This blind spot hid a total
   mktxp outage for eight days.
 - **`pryorda/vmware_exporter` uses an API protocol, not REST.** Likewise, a `401`
-  when testing the RouterOS REST API is expected — the read-only user
+  when testing the RouterOS REST API is expected: the read-only user
   intentionally lacks the `web` policy.
 - **The `network-ops` Ansible setup needs one-time steps** the repository does not
   automate: `ansible-galaxy collection install -r ansible/requirements.yml`,
