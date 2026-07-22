@@ -37,7 +37,7 @@ urls:
 ```
 
 Per the Helm spec a relative `urls:` entry resolves against the repository base
-URL — i.e. `helm.ngc.nvidia.com/nvidia/charts/gpu-operator-…tgz`. flate instead
+URL, i.e. `helm.ngc.nvidia.com/nvidia/charts/gpu-operator-…tgz`. flate instead
 resolved it against the **host root**, requesting
 `helm.ngc.nvidia.com/charts/gpu-operator-…tgz` → **404**. In-cluster Flux
 source-controller resolved the same `HelmRepository` correctly (so deployments

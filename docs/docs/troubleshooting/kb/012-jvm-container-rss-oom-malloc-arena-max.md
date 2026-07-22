@@ -7,7 +7,7 @@ Java/JRuby/Logstash workload that OOMs on these many-core nodes.
 
 A JVM-based pod (here `sentinel-syslog`, a Logstash → Microsoft Sentinel shipper) is
 **OOMKilled (`exit 137`) on a regular cadence** (e.g. ~every 4h), creeping steadily toward the
-container memory limit — even though the heap is explicitly bounded (`-Xmx512m`) and never near
+container memory limit, even though the heap is explicitly bounded (`-Xmx512m`) and never near
 its cap. Restarting just resets the clock.
 
 ## Cause
@@ -15,9 +15,9 @@ its cap. Restarting just resets the clock.
 The growth is **off-heap / native**, and it scales with the node's core count. Diagnose by
 attributing where RSS actually lives **before** changing anything:
 
-- `kubectl exec ... -- curl -s localhost:9600/_node/stats/jvm` — if **heap and non-heap are
+- `kubectl exec ... -- curl -s localhost:9600/_node/stats/jvm`: if **heap and non-heap are
   both flat** while RSS climbs, the leak is native, not JVM.
-- `/proc/1/smaps` (sum `Rss` per mapping) — the tell here was **six ~64 MB anonymous arenas**
+- `/proc/1/smaps` (sum `Rss` per mapping): the tell here was **six ~64 MB anonymous arenas**
   (~380 MB and growing) on top of the JVM heap.
 
 That pattern is **glibc per-thread malloc arenas**. On a 24-core node glibc spawns up to
@@ -54,7 +54,7 @@ Address the secondary contributors too when relevant: pin `pipeline.workers: 2` 
 - **Attribute where RSS lives *before* fixing.** `/proc/1/smaps` (look for many ~64 MB anon
   arenas) and the JVM stats endpoint (heap vs non-heap flat while RSS climbs = native malloc).
   The first attempt here fixed secondary layers because it skipped this step.
-- **Verify a memory fix by watching the slope flatten** over 30–60 min — not by the low reading
+- **Verify a memory fix by watching the slope flatten** over 30-60 min, not by the low reading
   right after deploy. Distinguish JVM warmup (heap filling toward `-Xmx`, bounded) from a real
   native creep.
 

@@ -1,20 +1,20 @@
 # KB-003: Plex Advertises Broken Connection URLs To plex.tv
 
-**Status:** Fix 1 applied and stable — removes the broken `https://<fqdn>:32400` entry. Zero `location=unknown` / `expected MediaContainer element, found html` / `TranscodeUniversalRequest` errors in `Plex Media Server.log` since the pod rolled. Fix 2 (pod-IP suppression) not applied — still in reserve if Apple TVs ever resume stalling on pod-CIDR `:32400` connection attempts.
+**Status:** Fix 1 applied and stable: removes the broken `https://<fqdn>:32400` entry. Zero `location=unknown` / `expected MediaContainer element, found html` / `TranscodeUniversalRequest` errors in `Plex Media Server.log` since the pod rolled. Fix 2 (pod-IP suppression) not applied: still in reserve if Apple TVs ever resume stalling on pod-CIDR `:32400` connection attempts.
 
 ## Symptom
 
 Intermittent "server unavailable" / mid-stream reconnects on LAN clients (notably Apple TV) even though the Plex pod is healthy (0 restarts, 100% readiness, sub-ms `/identity` probe RTT from another node on the LAN). No pod restarts, no LB or HTTPRoute flaps, no node pressure.
 
-Distinct from the BBR/MTU-probing buffering issue (see KB-002) — this one manifests as connection drops and app-level "unavailable" states, typically at session start or at session re-negotiation boundaries rather than mid-stream 60-second freezes.
+Distinct from the BBR/MTU-probing buffering issue (see KB-002). This one manifests as connection drops and app-level "unavailable" states, typically at session start or at session re-negotiation boundaries rather than mid-stream 60-second freezes.
 
 ## Cause
 
 Captured in parallel during a reported flap:
 
 - LAN-side `curl /identity` probe from a hostNetwork pod on a non-pod-host node: **zero failures**, sub-ms response, for the entire window.
-- `talosctl pcap` on both the pod host and the L2 announcer node showed the Apple TV client opening TCP sockets to **two IPs simultaneously**: the Plex LoadBalancer IP (healthy) **and** the gateway LoadBalancer IP on port 32400 (repeated SYN retransmits, no SYN+ACK — the gateway doesn't listen on 32400, only 443).
-- Apple TV pcap showed `RST` bursts against the _healthy_ Plex socket exactly at the moment the user reported the drop. Not caused by server or network — client-side session teardown.
+- `talosctl pcap` on both the pod host and the L2 announcer node showed the Apple TV client opening TCP sockets to **two IPs simultaneously**: the Plex LoadBalancer IP (healthy) **and** the gateway LoadBalancer IP on port 32400 (repeated SYN retransmits, no SYN+ACK: the gateway doesn't listen on 32400, only 443).
+- Apple TV pcap showed `RST` bursts against the _healthy_ Plex socket exactly at the moment the user reported the drop. Not caused by server or network: client-side session teardown.
 - Plex's own `Plex Media Server.log` at the drop timestamp:
 
     ```text
@@ -23,7 +23,7 @@ Captured in parallel during a reported flap:
     ERROR - [Req#…/Transcode] TranscodeUniversalRequest: unable to get container: ///library/metadata/<id>?…
     ```
 
-    Three tells in that trio: `location … unknown` (the client's request URL didn't match any connection it considered LAN or WAN); HTML body where the transcoder expected XML (an internal fetch hit a gateway error page); and the triple slash `///library/metadata/…` — a classic "empty host in URL-join" bug inside Plex's internal transcoder.
+    Three tells in that trio: `location … unknown` (the client's request URL didn't match any connection it considered LAN or WAN); HTML body where the transcoder expected XML (an internal fetch hit a gateway error page); and the triple slash `///library/metadata/…`, a classic "empty host in URL-join" bug inside Plex's internal transcoder.
 
 - Querying plex.tv for what the server is actually publishing:
 
@@ -66,8 +66,8 @@ After Flux rolls the pod, re-run the `/resources.json` query above and confirm t
 
 If Apple TV stalls still occur after Fix 1, options in order of increasing blast radius:
 
-1. Plex preference `advertiseIp=<LAN-LB-IP>` via an extra `PLEX_PREFERENCE_N` env var — forces Plex to publish only the given IP as its local address and skip interface auto-discovery.
-2. `hostNetwork: true` on the Plex pod — Plex then only sees node IPs rather than the pod-CIDR IP. Has wider consequences (host port binding, LoadBalancer semantics, scheduling) so only reach for this if option 1 doesn't take.
+1. Plex preference `advertiseIp=<LAN-LB-IP>` via an extra `PLEX_PREFERENCE_N` env var: forces Plex to publish only the given IP as its local address and skip interface auto-discovery.
+2. `hostNetwork: true` on the Plex pod: Plex then only sees node IPs rather than the pod-CIDR IP. Has wider consequences (host port binding, LoadBalancer semantics, scheduling) so only reach for this if option 1 doesn't take.
 
 ### Verification
 

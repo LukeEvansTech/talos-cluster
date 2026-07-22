@@ -32,7 +32,7 @@ Rule semantics (Talos v1.13):
 - **The factory boot path is the point.** The nodes boot from
   `factory.talos.dev/installer-secureboot/<schematic>` (the schematic is pinned in
   `talos/talconfig.yaml`). Since Talos v1.14 drops `ghcr.io/siderolabs/installer` from releases
-  entirely, the factory path is the sole installer route — its signing coverage is what makes this
+  entirely, the factory path is the sole installer route: its signing coverage is what makes this
   config worthwhile.
 - **History.** A first attempt (PR #2315/#2337) was rolled back (#2339) in April 2026 because
   Sidero then signed only three images, with rotating personal-email identities, and did not sign
@@ -54,9 +54,9 @@ On-node pull-test matrix (run against any node with `talosctl image pull -n <nod
 
 | Test image | Expected |
 | --- | --- |
-| `ghcr.io/siderolabs/installer:<current-version>` | pulled — signature verifies |
-| `docker.io/library/busybox:<tag>` | pulled — no matching rule, unaffected |
-| `ghcr.io/siderolabs/installer:v1.0.0` | **rejected** — pre-dates signing, proves enforcement |
+| `ghcr.io/siderolabs/installer:<current-version>` | pulled, signature verifies |
+| `docker.io/library/busybox:<tag>` | pulled, no matching rule, unaffected |
+| `ghcr.io/siderolabs/installer:v1.0.0` | **rejected**, pre-dates signing, proves enforcement |
 
 The rejection looks like:
 
@@ -70,7 +70,7 @@ legacy signature tag not found
 - Applying the config is a **no-reboot** machine-config change (`just talos apply-node <ip>`;
   `--dry-run` first shows the document diff and confirms no reboot).
 - If a Talos upgrade or image pull fails with `image verification failed`, see the
-  [upgrade troubleshooting page](../operations/talos-upgrades.md#image-verification-failures) —
+  [upgrade troubleshooting page](../operations/talos-upgrades.md#image-verification-failures):
   diagnose whether Sidero's signing identity changed before suspecting anything else.
 - **Emergency bypass:** remove
   `"@./patches/global/machine-image-verification.yaml"` from the `patches` list in

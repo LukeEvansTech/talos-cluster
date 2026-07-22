@@ -1,6 +1,6 @@
 # KB-002: Plex Direct-Play Buffering on LAN Apple TVs (BBR + MTU Probing)
 
-**Status:** Permanent fix applied via Option 1 (Cilium egress annotation, `kubernetes.io/egress-bandwidth: "200M"`). Plex pod stable since — no restarts, no user-reported flaps, no MSS-collapse signal. Option 2 (pod sysctls via `allowed-unsafe-sysctls`) kept documented as a fallback if Cilium's BandwidthManager is ever disabled.
+**Status:** Permanent fix applied via Option 1 (Cilium egress annotation, `kubernetes.io/egress-bandwidth: "200M"`). Plex pod stable since: no restarts, no user-reported flaps, no MSS-collapse signal. Option 2 (pod sysctls via `allowed-unsafe-sysctls`) kept documented as a fallback if Cilium's BandwidthManager is ever disabled.
 
 ## Symptom
 
@@ -8,17 +8,17 @@
 
 From the player's perspective: playback freezes, the client buffer drains, then playback resumes once a new TCP connection has refilled the client buffer.
 
-Distinct from the connection-URL advertisement issue (see KB-003) — this one manifests as periodic mid-stream freezes rather than app-level "unavailable" states.
+Distinct from the connection-URL advertisement issue (see KB-003). This one manifests as periodic mid-stream freezes rather than app-level "unavailable" states.
 
 ## Cause
 
-Captured via `ss -tni` on the Plex pod, from a privileged `kubectl debug` ephemeral container (netshoot + `netadmin` profile). The investigation ruled out the NFS media read path (sustains 1.5 GB/s), Rook-Ceph (`HEALTH_OK`, pgs clean), the node 25G NIC (no errors), the Cilium data plane (no drops), GPU contention with Ollama, and the switch/LAG path — all clean under load.
+Captured via `ss -tni` on the Plex pod, from a privileged `kubectl debug` ephemeral container (netshoot + `netadmin` profile). The investigation ruled out the NFS media read path (sustains 1.5 GB/s), Rook-Ceph (`HEALTH_OK`, pgs clean), the node 25G NIC (no errors), the Cilium data plane (no drops), GPU contention with Ollama, and the switch/LAG path, all clean under load.
 
 The failure sequence on the long-lived video socket:
 
-1. Every ~6 minutes a new TCP video socket opens (`src=:32400 dst=<node-ip>:49xxx`, `rcvmss:1056` — the HLS 4K-segment signature) and starts direct-playing.
+1. Every ~6 minutes a new TCP video socket opens (`src=:32400 dst=<node-ip>:49xxx`, `rcvmss:1056`, the HLS 4K-segment signature) and starts direct-playing.
 2. The Apple TV Plex client drives its receive window down toward zero (`snd_wnd` from `~130000` to `64` to `32`) and enters **persist mode**.
-3. BBR paces at LAN-speed bandwidth estimates (~1 Gbps `pacing_rate` while actual `delivery_rate` is 6-10 Mbps) — bursts into the tiny window and experiences loss.
+3. BBR paces at LAN-speed bandwidth estimates (~1 Gbps `pacing_rate` while actual `delivery_rate` is 6-10 Mbps). It bursts into the tiny window and experiences loss.
 4. The retransmit/timeout bursts trip `tcp_mtu_probing=1` black-hole detection, which collapses the connection's MSS (`1448 → 758 → 128 → 64`).
 5. Once MSS is tiny and `cwnd:1`, RTO backs off to 100+ seconds and the connection is effectively dead even though `ESTABLISHED`.
 6. Apple TV silently opens a new 49xxx socket → playback resumes → cycle repeats at the 6-minute mark.
@@ -36,13 +36,13 @@ ESTAB 0 3034256 :32400 <node-ip>:49359
   snd_wnd:189248 rcv_wnd:68608
 ```
 
-Parallel control-channel sockets to the same Apple TV IP stayed healthy (`mss:1448`, `cwnd:250-320`, zero retrans) — confirming this is workload-specific to the long-lived high-throughput video socket, not a path-level problem.
+Parallel control-channel sockets to the same Apple TV IP stayed healthy (`mss:1448`, `cwnd:250-320`, zero retrans), confirming this is workload-specific to the long-lived high-throughput video socket, not a path-level problem.
 
 Root cause is a two-part interaction:
 
 1. **Plex explicitly sets BBR per-socket** via `setsockopt(TCP_CONGESTION, "bbr")`, overriding any netns-default congestion control.
 2. **BBR on sub-ms LAN RTT** estimates enormous bandwidth (mrtt ~0.15ms, bw ~1Gbps). When the receiver (tvOS Plex client) closes its receive window down to trickle levels, BBR's next probe after the window re-opens bursts at ~1 Gbps into a receiver that cannot consume it. Losses occur at the Apple TV's receive ring buffer / socket buffer.
-3. **`tcp_mtu_probing=1`** (Talos default) reacts to the burst losses by halving the MSS, then halving again — the classic TCP black-hole detection false-positive. Once MSS < 100, throughput collapses.
+3. **`tcp_mtu_probing=1`** (Talos default) reacts to the burst losses by halving the MSS, then halving again: the classic TCP black-hole detection false-positive. Once MSS < 100, throughput collapses.
 
 ## Fix
 
@@ -66,7 +66,7 @@ Requires Cilium's `bandwidth-manager`, which is already enabled in this cluster 
 
 ### Permanent fix Option 2: Pod-level safeSysctls
 
-Set the two sysctls at pod spec level so they survive restarts. Requires adding these to the kubelet's `allowed-unsafe-sysctls` (Talos machine config `.machine.kubelet.extraArgs`) — more invasive.
+Set the two sysctls at pod spec level so they survive restarts. Requires adding these to the kubelet's `allowed-unsafe-sysctls` (Talos machine config `.machine.kubelet.extraArgs`), more invasive.
 
 ```yaml
 spec:

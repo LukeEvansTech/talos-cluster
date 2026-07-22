@@ -41,15 +41,15 @@ except where noted.
 
 | PR  | Contents                                                                | Blockers / prerequisites                        |
 | --- | ----------------------------------------------------------------------- | ----------------------------------------------- |
-| A   | ✅ #3480 — LLM observability: litellm PrometheusRule, ToolHive telemetry, llama.cpp serving dashboard | none              |
-| B   | ✅ #3481 — Config cherry-picks: SearXNG hardening, litellm `context_window_fallbacks`, add-app SKILL.md wording | none    |
-| C   | ✅ #3482 arr (+ seerr #3491) — MCP servers over existing apps, with netpol rules; **ha still open** | HA token in 1Password |
-| D   | ✅ #3483 — CephFS enablement + comment corrections; RWX smoke test PASSED 2026-07-10 | none                              |
-| E   | ✅ #3484 — hermes (gateway + dashboard; web chat since added via `hermeswebui`) | none — item created, defaults applied    |
+| A   | ✅ #3480: LLM observability, litellm PrometheusRule, ToolHive telemetry, llama.cpp serving dashboard | none              |
+| B   | ✅ #3481: Config cherry-picks, SearXNG hardening, litellm `context_window_fallbacks`, add-app SKILL.md wording | none    |
+| C   | ✅ #3482 arr (+ seerr #3491): MCP servers over existing apps, with netpol rules; **ha still open** | HA token in 1Password |
+| D   | ✅ #3483: CephFS enablement + comment corrections; RWX smoke test PASSED 2026-07-10 | none                              |
+| E   | ✅ #3484: hermes (gateway + dashboard; web chat since added via `hermeswebui`) | none; item created, defaults applied    |
 | F   | (optional) CPU-served ~4B auxiliary model                                | none                                            |
-| G   | ✅ #3489/#3490/#3493 — model-storage de-workaround (shared CephFS cache); both models cache-served, vision verified | none |
+| G   | ✅ #3489/#3490/#3493: model-storage de-workaround (shared CephFS cache); both models cache-served, vision verified | none |
 
-### PR A — LLM observability
+### PR A: LLM observability
 
 - `kubernetes/apps/ai/litellm/app/prometheusrule.yaml`: port jory's four alerts
   (`LiteLLMFallbackChainExhausted` critical, `LiteLLMModelFailover`, `LiteLLMDeploymentOutage`,
@@ -68,7 +68,7 @@ except where noted.
   `prometheus` (KB-021). Optionally set `prometheus.inferencePodMonitor.enabled: true` in the
   llmkube HelmRelease (jory has it on; ours is off).
 
-### PR B — config cherry-picks
+### PR B: config cherry-picks
 
 - SearXNG (`toolhive/mcp-servers/searxng`): disable `autocomplete` and `favicon_resolver`
   (per-keystroke upstream calls trip captcha / rate limits on an automation-driven instance;
@@ -80,7 +80,7 @@ except where noted.
 - `.agents/skills/add-app/SKILL.md`: reword the hardcoded `AskUserQuestion` reference to
   host-neutral phrasing (name it as the Claude Code example). Single line.
 
-### PR C — MCP servers over existing apps
+### PR C: MCP servers over existing apps
 
 - **arr**: a ToolHive `MCPServer` wired to sonarr/radarr (media) and prowlarr (downloads),
   API keys extracted from the existing 1Password items. Requires new ingress
@@ -99,7 +99,7 @@ except where noted.
 - Watch the tool budget: litellm's `mcp_semantic_tool_filter` (top_k 8, threshold 0.3) gets
   more low-similarity tools to rank; may need retuning.
 
-### PR D — CephFS enablement
+### PR D: CephFS enablement
 
 Values-only; never touches the in-use `ceph-blockpool` / `ceph-block` StorageClass. Two files:
 
@@ -119,7 +119,7 @@ No Talos, schematic, or operator changes. Validate with
 pods on different nodes. The June attempt failed at a layer never pinned down, so the smoke
 test is the insurance before anything real depends on CephFS.
 
-### PR E — hermes
+### PR E: hermes
 
 Stand up [NousResearch/hermes-agent](https://github.com/NousResearch/hermes-agent) at
 `kubernetes/apps/ai/hermes/` as a standard app-template app. All dependencies (litellm, memini,
@@ -156,7 +156,7 @@ boundary, so no unattended cluster actions until it has earned trust); reuse
 `LITELLM_MASTER_KEY` (open-webui precedent) with a scoped virtual key as later hardening;
 `MEMINI_NAMESPACE: hermes`.
 
-### PR F — (optional) CPU-served auxiliary model
+### PR F: (optional) CPU-served auxiliary model
 
 A ~4B Q4 model (for example Qwen3-4B-Instruct Q4_K_M) served CPU-only to handle
 summaries / classification / drafts without spending an L4 slice. **Mirror the proven
@@ -167,7 +167,7 @@ Fine for latency-tolerant work, not for interactive chat. Register in litellm as
 model name and consider pointing litellm's auxiliary tasks at it. Set explicit requests/limits
 to protect co-tenants.
 
-### PR G — model-storage de-workaround (requires PR D)
+### PR G: model-storage de-workaround (requires PR D)
 
 The RWO pattern in `kubernetes/apps/ai/llmkube/models/` exists **only** because of the wrong
 June diagnosis (KB-025): per-model `ceph-block` PVCs, one-shot curl staging Jobs carrying
