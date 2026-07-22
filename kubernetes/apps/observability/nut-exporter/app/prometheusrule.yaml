@@ -44,12 +44,18 @@ spec:
         # On battery AND (runtime < 5m OR charge < 50%). by(ups) aggregation also fixes
         # the old UpsLowRuntime, whose `status`-labelled `and` operand never matched.
         #
-        # Threshold was 900s (15m) and had to come down: the main UPS reports only
-        # ~780s runtime on a FULL battery (2008-vintage cells at ~25% load), so a
-        # 15m test was true the instant it went on battery and this alert was an
-        # exact duplicate of UPSOnBattery rather than an escalation of it. 300s is
-        # below any plausible full-charge runtime for either UPS, so it once again
-        # means what it says: the battery is nearly gone.
+        # Threshold was 900s (15m) and had to come down: the main UPS delivers only
+        # ~780s on a FULL battery at ~25% load, so a 15m test was true the instant
+        # it went on battery and this alert was an exact duplicate of UPSOnBattery
+        # rather than an escalation of it. 300s is below any plausible full-charge
+        # runtime for either UPS, so it once again means what it says.
+        #
+        # That 780s is a measured figure, not an estimate — a runtime calibration
+        # discharged the pack 100%->25% in ~10-11min at 27% load. It is roughly 40%
+        # of what this frame should deliver, and the leading theory is a half-seated
+        # battery tray rather than worn cells (the pack is ~17 months old). If that
+        # is found and fixed, runtime roughly doubles and this threshold should be
+        # revisited — 300s would then be too twitchy to be a useful escalation.
         - alert: UPSBatteryRuntimeLow
           annotations:
             description: >-
