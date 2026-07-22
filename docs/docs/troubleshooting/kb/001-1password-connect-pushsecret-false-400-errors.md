@@ -1,6 +1,6 @@
 # KB-001: 1Password Connect PushSecret False 400 Errors
 
-**Status:** Pending upstream fix — monitoring [external-secrets#3631](https://github.com/external-secrets/external-secrets/issues/3631) for resolution from the 1Password Connect team.
+**Status:** Pending upstream fix: monitoring [external-secrets#3631](https://github.com/external-secrets/external-secrets/issues/3631) for resolution from the 1Password Connect team.
 
 ## Symptom
 
@@ -35,7 +35,7 @@ This is a known bug in 1Password Connect starting from version 1.7.3+:
 - The External Secrets Operator correctly reports the PushSecret as `Synced: True`.
 - The errors are cosmetic noise from 1Password Connect itself.
 
-There is no functional impact on cert-manager or PushSecret operations — secrets ARE syncing successfully to 1Password, and the 400 errors are false positives that can be safely ignored.
+There is no functional impact on cert-manager or PushSecret operations. Secrets ARE syncing successfully to 1Password, and the 400 errors are false positives that can be safely ignored.
 
 ## Fix
 

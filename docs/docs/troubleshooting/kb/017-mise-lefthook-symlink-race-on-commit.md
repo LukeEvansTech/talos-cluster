@@ -16,7 +16,7 @@ failed to rebuild runtime symlinks ... ln -sf ... File exists (os error 17)
 ## Cause
 
 lefthook runs the YAML format hooks (`format-yaml` and `format-yaml-prettier`) **in parallel**.
-Both invoke mise, and both try to install the missing tool **concurrently** — mise's runtime
+Both invoke mise, and both try to install the missing tool **concurrently**: mise's runtime
 symlink rebuild isn't concurrency-safe, so the loser errors on the `ln -sf`. It triggers
 exactly **once per tool bump**; after the tool is installed the hooks are fast.
 

@@ -11,10 +11,10 @@ Secrets never live in Git. They flow:
 - A `ClusterSecretStore` named `onepassword-connect` reads the `Talos` 1Password vault.
 - Per-app `externalsecret.yaml` files reference specific 1Password items by title. Apps that use one
   should `dependsOn` `onepassword-connect` in `external-secrets`.
-- **`cluster-secrets`** — a single 1Password item extracted into a Secret and injected into every
+- **`cluster-secrets`**: a single 1Password item extracted into a Secret and injected into every
   app's `postBuild.substituteFrom`. Holds cluster-wide *sensitive* values, including
   `${SECRET_DOMAIN}`, `${SECRET_INTERNAL_DOMAIN}`, and internal device DNS names.
-- **`cluster-settings`** — a git-tracked ConfigMap (`components/global-vars/`) holding cluster-wide
+- **`cluster-settings`**: a git-tracked ConfigMap (`components/global-vars/`) holding cluster-wide
   *non-sensitive* `${...}` values (non-secret feature flags and the like; currently empty).
 
 ## Rules for a public repo
@@ -25,7 +25,7 @@ Secrets never live in Git. They flow:
   shell snippets) must be escaped as `$${VAR}`.
 - **Device address / lookup tables** (e.g. router backup inventories, SNMP/NUT targets) must be
   templated inside an ExternalSecret's `target.template.data` block and mounted from the rendered
-  Secret — never rendered into a ConfigMap in Git. Internal device DNS names live in the
+  Secret, never rendered into a ConfigMap in Git. Internal device DNS names live in the
   `cluster-secrets` 1Password item, not in `cluster-settings`.
 - A CI guard (`.github/scripts/check_internal_identifiers.py`, run by the security-scans workflow)
   fails any pull request that introduces a LAN IP, node name, site-prefixed device hostname
@@ -36,7 +36,7 @@ Secrets never live in Git. They flow:
 ## Talos machine secrets (talsecret)
 
 The talhelper secrets bundle (cluster CA/PKI, etcd certs, bootstrap tokens) follows the same
-"1Password owns it" rule as everything else. There is **no SOPS anywhere in this repository** —
+"1Password owns it" rule as everything else. There is **no SOPS anywhere in this repository**:
 the historical `talos/talsecret.sops.yaml` was removed in PR #3463 (2026-07) after the age key for
 it was lost; the encrypted blob left in git history is dead ciphertext.
 
@@ -55,5 +55,5 @@ it was lost; the encrypted blob left in git history is dead ciphertext.
     -o /tmp/talsecret.yaml --force
   ```
 
-  This was how the bundle was recovered when the age key disappeared — regenerated configs were
+  This was how the bundle was recovered when the age key disappeared: regenerated configs were
   verified byte-identical before the SOPS file was deleted.

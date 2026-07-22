@@ -1,12 +1,12 @@
 # KB-020: App Returns 404 Through the Gateway (HTTPRoute Drifted to Placeholder Hostnames)
 
 **Status:** Rare and self-correcting; fixed per-app with a one-liner. Structural fix
-**deliberately declined** (see end). If it recurs, just remediate — don't re-investigate.
+**deliberately declined** (see end). If it recurs, just remediate. Don't re-investigate.
 
 ## Symptom
 
 An app returns the cluster's custom `error-pages` **404** when reached through the envoy
-gateway at its real `<app>.${SECRET_DOMAIN}` hostname — even though the pod and HelmRelease are
+gateway at its real `<app>.${SECRET_DOMAIN}` hostname, even though the pod and HelmRelease are
 healthy. The app answers **only** on its direct pod/Service IP. Forcing a helm upgrade does
 **not** fix it.
 
@@ -17,11 +17,11 @@ The **live** HTTPRoute's `spec.hostnames` are the placeholder defaults `<app>.ex
 `<app>.${SECRET_DOMAIN}`, so the request falls through to the `*` catch-all route and gets the
 custom 404.
 
-Where the placeholder comes from — the **first-render substitution race**:
+Where the placeholder comes from is the **first-render substitution race**:
 
 - `kubernetes/components/global-vars/` is a Component included by every namespace. It ships
   **both** a placeholder `cluster-secrets` Secret (fake `SECRET_DOMAIN: "example.com"`, fake
-  CIDRs/paths — needed for offline rendering, both `flate` locally and Konflate's in-cluster PR
+  CIDRs/paths, needed for offline rendering, both `flate` locally and Konflate's in-cluster PR
   renders) **and** the real `cluster-secrets` ExternalSecret (`creationPolicy: Owner`,
   1Password).
 - The placeholder applies **instantly**; ESO overwrites it seconds later. Any app whose
@@ -36,15 +36,15 @@ Why a forced upgrade won't self-heal it:
   revision renders the real domain identically, so helm computes **no diff** for the route and
   leaves the drifted live object untouched. `flux reconcile hr --force` bumps the release but
   still won't touch the un-diffed route. (helm-controller `driftDetection` is intentionally
-  **off** — enabling it would fight the zeroscaler HPAs on
+  **off**: enabling it would fight the zeroscaler HPAs on
   `spec.replicas`.)
 
-This is **not** domain-specific — the domain/route is just the most visible victim of the
+This is **not** domain-specific: the domain/route is just the most visible victim of the
 placeholder-then-ESO race; any `${VAR}` rendered in that window can be caught.
 
 ## Fix
 
-Per affected app (no Git change — the HelmRelease is already correct):
+Per affected app (no Git change, the HelmRelease is already correct):
 
 ```sh
 kubectl delete httproute -n <ns> <app>
@@ -65,7 +65,7 @@ kubectl get httproute -A -o json | jq -r '.items[]
 
 ## How to recognise fast
 
-- Verify **end-to-end through the gateway with real SNI** — a bare `Host:` header gives a
+- Verify **end-to-end through the gateway with real SNI**. A bare `Host:` header gives a
   misleading `200` from the catch-all:
 
   ```sh
@@ -78,7 +78,7 @@ kubectl get httproute -A -o json | jq -r '.items[]
 
 Decided not to fix structurally: the race is rare (a handful of apps in the cluster's lifetime,
 only at first render before ESO syncs), well understood, and self-corrects in the HelmRelease
-values — only already-rendered live objects stay drifted, and the delete+recreate one-liner
+values. Only already-rendered live objects stay drifted, and the delete+recreate one-liner
 clears those. Options considered and declined: global `driftDetection.mode: enabled` (would
 fight the zeroscaler HPAs), a self-healing CronJob guard, splitting `cluster-secrets` into its own
 `dependsOn`-gated Kustomization (the only complete fix, too invasive), and hardcoding the domain
