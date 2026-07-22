@@ -15,7 +15,7 @@ Four exporters are configured:
 3. **truenas-graphite-exporter** (ingest 9109 / metrics 9108) - TrueNAS/ZFS-native metrics (ZFS ARC, per-dataset and per-disk I/O, temperatures), bridged from the built-in netdata Graphite output via [`Supporterino/truenas-graphite-to-prometheus`](https://github.com/Supporterino/truenas-graphite-to-prometheus)
 4. **docker-state-exporter** (port 9419) - Per-container state, health, restart count, and OOM-killed status; drives the `truenas-docker.rules` alert group
 
-The first two treat TrueNAS as a generic Linux host. The third surfaces the ZFS internals that node-exporter cannot see — ARC size, hit ratio, and per-disk I/O — which are the highest-value storage signals. The fourth enables container lifecycle alerting by name (the graphite bridge's `cgroup_*` series are keyed by container ID and disappear once a container stops).
+The first two treat TrueNAS as a generic Linux host. The third surfaces the ZFS internals that node-exporter cannot see: ARC size, hit ratio, and per-disk I/O, which are the highest-value storage signals. The fourth enables container lifecycle alerting by name (the graphite bridge's `cgroup_*` series are keyed by container ID and disappear once a container stops).
 
 ## TrueNAS Setup
 
@@ -79,8 +79,8 @@ This exporter bundles `prometheus/graphite_exporter` with a TrueNAS-specific map
 
 1. Repeat the Custom App process. Set the image to `ghcr.io/supporterino/truenas-graphite-to-prometheus:latest`.
 2. Add two port mappings (host network or node ports):
-    - Container `9109` → host `9109` (TCP) — Graphite ingest
-    - Container `9108` → host `9108` (TCP) — Prometheus metrics
+    - Container `9109` → host `9109` (TCP): Graphite ingest
+    - Container `9108` → host `9108` (TCP): Prometheus metrics
 3. Click **Install**.
 
 Then point TrueNAS at it:
@@ -94,7 +94,7 @@ Then point TrueNAS at it:
 > The exporter ships with the mapping config baked into the image, so no mapping file mount is required.
 
 **Preferred (no hand-edited config):** create the Reporting exporter via the REST API instead of the
-GUI — it reconfigures the built-in netdata's exporting engine the supported way, with no
+GUI. It reconfigures the built-in netdata's exporting engine the supported way, with no
 `/etc/netdata/netdata.conf` hand-edit (which TrueNAS middleware manages/overwrites):
 
 ```bash
@@ -141,22 +141,22 @@ the full vanilla-netdata metric set the upstream mapping + dashboards assume. Co
 | CPU temp                 | `cpu_temperature`                                   | ✅                                                                                                                                                              |
 | cgroups / k8s            | `cgroup_*`                                          | ✅ full                                                                                                                                                         |
 | NFS / network / services | `nfs_*`, `interface_*`, `services_*`, `system_load` | ✅                                                                                                                                                              |
-| ZFS ARC                  | `truenas_arcstats{type=...}`                        | raw chart — **not** vanilla `zfs.arc_size`; bridged to `zfs_arc_size` / `zfs_arc_free_bytes` / `zfs_arc_hit_ratio` via recording rules in `prometheusrule.yaml` |
-| ZFS pool state           | **absent**                                          | no `zfs_pool`/scrub metric — rely on TrueNAS native ZFS event detection + alerts                                                                                |
-| Disk temperature         | **absent** from graphite                            | use `smartctl_device_temperature` (smartctl-exporter) — the disk-temp alert is repointed there                                                                  |
+| ZFS ARC                  | `truenas_arcstats{type=...}`                        | raw chart, **not** vanilla `zfs.arc_size`; bridged to `zfs_arc_size` / `zfs_arc_free_bytes` / `zfs_arc_hit_ratio` via recording rules in `prometheusrule.yaml` |
+| ZFS pool state           | **absent**                                          | no `zfs_pool`/scrub metric; rely on TrueNAS native ZFS event detection + alerts                                                                                |
+| Disk temperature         | **absent** from graphite                            | use `smartctl_device_temperature` (smartctl-exporter); the disk-temp alert is repointed there                                                                  |
 | Memory / detailed CPU    | **absent**                                          | `physical_memory`/`memory_*`/`cpu_frequency` not emitted                                                                                                        |
 
 Consequence for the bundled dashboards: **cgroups** is fully populated; **disk_insights**,
 **temperatures**, and the main **truenas_scale** dashboard are partial (empty panels for the absent
-metrics); **applications_k3s** was removed (it targets `k3s_pod_*` — this box runs Talos separately).
+metrics); **applications_k3s** was removed (it targets `k3s_pod_*`; this box runs Talos separately).
 A faithful ZFS dashboard needs either the netdata.conf swap (declined above) or a bespoke dashboard.
 
 ## Kubernetes Configuration
 
 ScrapeConfigs are automatically discovered by kube-prometheus-stack. They are split across two locations:
 
-- `kube-prometheus-stack/app/scrapeconfig.yaml` — the host-level exporters
-- `truenas-exporter/app/scrapeconfig.yaml` — the Graphite exporter (this app also carries its dashboards and alert rules)
+- `kube-prometheus-stack/app/scrapeconfig.yaml`: the host-level exporters
+- `truenas-exporter/app/scrapeconfig.yaml`: the Graphite exporter (this app also carries its dashboards and alert rules)
 
 ### ScrapeConfig Resources
 
@@ -169,18 +169,18 @@ These use the `SECRET_STORAGE_SERVER` variable from cluster secrets to dynamical
 
 ### Dashboards and Alerts (GitOps-managed)
 
-Dashboards and alert rules are reconciled by Flux — no manual import. The `truenas-exporter` app provisions:
+Dashboards and alert rules are reconciled by Flux. No manual import. The `truenas-exporter` app provisions:
 
-- **GrafanaDashboard** CRs (`grafanadashboard.yaml`) — two dashboards:
+- **GrafanaDashboard** CRs (`grafanadashboard.yaml`), two dashboards:
   - `truenas-zfs` (bespoke): sourced from local ConfigMap `truenas-zfs-dashboard` / `truenas-zfs.json`, datasource input `DS_PROMETHEUS`. Primary ZFS/storage dashboard consuming the metrics this box actually emits.
-  - `truenas-scale-cgroups`: fetched from upstream v2.2.1 (`truenas_scale_cgroups.json`), with datasource input `DS_MIMIR` remapped onto the cluster `prometheus` datasource. The dashboards `truenas_scale`, `disk_insights`, `temperatures`, and `applications_k3s` are retired — they render partially or fully blank on TrueNAS SCALE 25.10.
+  - `truenas-scale-cgroups`: fetched from upstream v2.2.1 (`truenas_scale_cgroups.json`), with datasource input `DS_MIMIR` remapped onto the cluster `prometheus` datasource. The dashboards `truenas_scale`, `disk_insights`, `temperatures`, and `applications_k3s` are retired. They render partially or fully blank on TrueNAS SCALE 25.10.
 - A **PrometheusRule** (`prometheusrule.yaml`) with two alert groups:
-  - `truenas-exporter.rules`: exporter-down (`TrueNASGraphiteExporterDown`), disk over-temperature (`TrueNASDiskTemperatureHigh`, sourced from smartctl-exporter), and CPU over-temperature (`TrueNASCPUTemperatureHigh`). No ZFS-pool-unhealthy alert — TrueNAS 25.10 exposes no `zfs_pool`/scrub-state metric via the graphite bridge; pool degradation is handled by TrueNAS's own native ZFS event detection.
+  - `truenas-exporter.rules`: exporter-down (`TrueNASGraphiteExporterDown`), disk over-temperature (`TrueNASDiskTemperatureHigh`, sourced from smartctl-exporter), and CPU over-temperature (`TrueNASCPUTemperatureHigh`). No ZFS-pool-unhealthy alert: TrueNAS 25.10 exposes no `zfs_pool`/scrub-state metric via the graphite bridge; pool degradation is handled by TrueNAS's own native ZFS event detection.
   - `truenas-docker.rules`: six container lifecycle alerts fed by docker-state-exporter (`TrueNASDockerStateExporterDown`, `TrueNASContainerDown`, `TrueNASContainerUnhealthy`, `TrueNASContainerRestarting`, `TrueNASContainerOOMKilled`, `TrueNASContainerFlapping`).
 
 ## Grafana Dashboards
 
-All dashboards are provisioned as `GrafanaDashboard` CRs via grafana-operator — do not import by hand, or changes will be overwritten on reconcile.
+All dashboards are provisioned as `GrafanaDashboard` CRs via grafana-operator. Do not import by hand, or changes will be overwritten on reconcile.
 
 | Dashboard                                                    | Source                   | Provisioned by                                                  |
 | ------------------------------------------------------------ | ------------------------ | --------------------------------------------------------------- |

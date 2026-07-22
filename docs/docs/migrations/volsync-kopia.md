@@ -1,7 +1,7 @@
 # Volsync Kopia Migration Guide
 
 !!! note "Completed migration"
-    This page is a record of a migration that is already complete. The steps below are preserved as history; some current-state paths, names, and commands have since drifted. Commands and paths flagged in review are corrected inline — see the Architecture and Operations sections for the present-day setup.
+    This page is a record of a migration that is already complete. The steps below are preserved as history; some current-state paths, names, and commands have since drifted. Commands and paths flagged in review are corrected inline: see the Architecture and Operations sections for the present-day setup.
 
 ## Overview
 
@@ -24,7 +24,7 @@ This guide documents the migration from restic to kopia as the backup backend fo
 **Changes:**
 
 - Switched from official volsync chart to perfectra1n fork
-- Source is an OCIRepository (not HelmRepository — this was an intermediate step; the current state uses an OCIRepository mirrored via home-operations)
+- Source is an OCIRepository (not HelmRepository: this was an intermediate step; the current state uses an OCIRepository mirrored via home-operations)
 - Updated to version with kopia CRDs (v0.16.13+)
 
 **Before (restic):**
@@ -261,7 +261,7 @@ spec:
         manageCRDs: true
 ```
 
-1. KopiaMaintenance was initially disabled (unstable), then enabled — now live:
+1. KopiaMaintenance was initially disabled (unstable), then enabled, now live:
 
 ```yaml
 # kubernetes/apps/volsync-system/volsync/ks.yaml
