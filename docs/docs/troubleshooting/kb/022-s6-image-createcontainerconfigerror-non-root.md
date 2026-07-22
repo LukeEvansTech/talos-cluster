@@ -34,7 +34,7 @@ securityContext:
   runAsNonRoot: false   # REQUIRED — the chart blocks runAsUser: 0 without it
 ```
 
-Always set `runAsNonRoot: false` when you intentionally run root on this chart — `runAsUser: 0`
+Always set `runAsNonRoot: false` when you intentionally run root on this chart. `runAsUser: 0`
 alone is not enough.
 
 ## How to recognise fast
@@ -44,7 +44,7 @@ alone is not enough.
 - Related NFS-ownership note (so you don't "fix" the wrong thing): the TrueNAS `pool/*` exports
   use `mapall=…(1000)` + `all_squash`, so **every write over NFS lands as `1000:1000`
   regardless of the pod's runtime UID**. Running these images as root therefore still writes
-  `1000:1000` files — "run the app as 1000 for NFS compatibility" is unnecessary here; the
+  `1000:1000` files: "run the app as 1000 for NFS compatibility" is unnecessary here; the
   export already normalizes ownership. Hardcode `path: /mnt/pool/<dataset>` in the helmrelease
   (only `server: ${SECRET_STORAGE_SERVER}` is a variable).
 

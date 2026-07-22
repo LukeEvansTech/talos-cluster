@@ -2,7 +2,7 @@
 
 > A single-tenant **home Kubernetes cluster** built on Talos Linux and managed entirely by GitOps
 > (Flux). This site is the knowledge base for how it works, how to operate it, and the gotchas worth
-> remembering — for the maintainer and for AI agents working in the repo.
+> remembering, for the maintainer and for AI agents working in the repo.
 
 ```mermaid
 flowchart LR
@@ -16,20 +16,20 @@ flowchart LR
 Everything that runs in the cluster is declared in this public repository. Secrets never live in Git:
 they flow from 1Password through External Secrets into Kubernetes `Secret`s, and Flux substitutes
 `${SECRET_DOMAIN}` / `${SECRET_INTERNAL_DOMAIN}` placeholders at apply time. Because the repo is
-public, internal addresses, node and device hostnames, and MACs are kept out of it — a CI guard
+public, internal addresses, node and device hostnames, and MACs are kept out of it. A CI guard
 enforces that on every pull request.
 
 ## Navigate the knowledge base
 
-- **Architecture** — how the pieces fit: the GitOps flow, networking (Cilium + Envoy Gateway),
+- **Architecture**, how the pieces fit: the GitOps flow, networking (Cilium + Envoy Gateway),
   storage, secret management, and the AI/LLM stack.
-- **Operations** — runbooks: bootstrapping, Talos and Kubernetes upgrades, backups, and monitoring
+- **Operations**, runbooks: bootstrapping, Talos and Kubernetes upgrades, backups, and monitoring
   the cluster and the infrastructure around it.
-- **Migrations** — playbooks for the larger changes the cluster has been through.
-- **Apps** — per-application notes: why it is set up the way it is, and the traps hit while deploying
+- **Migrations**: playbooks for the larger changes the cluster has been through.
+- **Apps**, per-application notes: why it is set up the way it is, and the traps hit while deploying
   it.
-- **Troubleshooting** — a symptom ladder and a KB of recurring issues with their fixes.
-- **FAQ** — quick answers to the questions that come up most.
+- **Troubleshooting**: a symptom ladder and a KB of recurring issues with their fixes.
+- **FAQ**: quick answers to the questions that come up most.
 
 ## Tech at a glance
 

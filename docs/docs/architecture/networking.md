@@ -1,12 +1,12 @@
 # Networking
 
-## CNI — Cilium
+## CNI: Cilium
 
 Pod networking is Cilium. Pod and service CIDRs are the standard cluster-internal ranges and are not
 sensitive. Network policy is enforced with `CiliumNetworkPolicy` (mind the gotchas around empty
 rules, `ingressDeny`, and egress-to-world).
 
-## Ingress — Envoy Gateway (Gateway API)
+## Ingress: Envoy Gateway (Gateway API)
 
 Ingress is Envoy Gateway using the Gateway API (`HTTPRoute`), not classic Ingress. Two Gateways
 exist in the `network` namespace, addressed by role rather than by IP here:

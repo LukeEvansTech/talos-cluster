@@ -218,8 +218,8 @@ How it works now (this mirrors onedr0p's UniFi pattern, adapted for the OPNsense
 
 | CRD | Purpose | State |
 | --- | ------- | ----- |
-| `network/cloudflare-tunnel/app/dnsendpoint.yaml` | `external.${SECRET_DOMAIN}` CNAME → `${CLOUDFLARE_TUNNEL_ID}.cfargotunnel.com` — the tunnel target every external CNAME ultimately points at | **active** |
-| `games/minecraft/app/dnsendpoint.yaml` | A record for an L4 (non-HTTP) service exposed via mc-router | **template, commented out** — an RFC1918 A record can't be proxied through Cloudflare, so it needs a public IP/CNAME setup |
+| `network/cloudflare-tunnel/app/dnsendpoint.yaml` | `external.${SECRET_DOMAIN}` CNAME → `${CLOUDFLARE_TUNNEL_ID}.cfargotunnel.com` (the tunnel target every external CNAME ultimately points at) | **active** |
+| `games/minecraft/app/dnsendpoint.yaml` | A record for an L4 (non-HTTP) service exposed via mc-router | **template, commented out** (an RFC1918 A record can't be proxied through Cloudflare, so it needs a public IP/CNAME setup) |
 
 Example of a special-case `DNSEndpoint` (the Cloudflare Tunnel target):
 
