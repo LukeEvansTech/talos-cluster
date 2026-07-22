@@ -9,8 +9,9 @@ spec:
   commonMetadata:
     labels:
       app.kubernetes.io/name: *app
+  # The NUT server it proxies is now an out-of-cluster appliance; only the
+  # monitoring stack that consumes the metrics is still an in-cluster dependency.
   dependsOn:
-    - name: network-ups-tools
     - name: kube-prometheus-stack
   interval: 1h
   path: ./kubernetes/apps/observability/nut-exporter/app
