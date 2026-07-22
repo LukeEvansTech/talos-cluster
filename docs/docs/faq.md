@@ -14,10 +14,10 @@ See [Secret management](architecture/secrets.md) for the full picture. To add on
   - Reference the 1Password item by title, and have the app's `ks.yaml` `dependsOn`
     `onepassword-connect` in `external-secrets`.
 - For a **cluster-wide value**, decide which store it belongs in:
-  - `cluster-secrets` — a 1Password item injected into every app's `postBuild.substituteFrom`. Holds
+  - `cluster-secrets`: a 1Password item injected into every app's `postBuild.substituteFrom`. Holds
     sensitive cluster-wide values such as `${SECRET_DOMAIN}`, `${SECRET_INTERNAL_DOMAIN}`, and
     internal device DNS names.
-  - `cluster-settings` — a git-tracked ConfigMap in `components/global-vars/` for non-sensitive
+  - `cluster-settings`: a git-tracked ConfigMap in `components/global-vars/` for non-sensitive
     cluster-wide values. Anything in here is world-visible. It is currently empty (`data: {}`) but
     stays wired into every app's substitution.
 
@@ -26,7 +26,7 @@ See [Secret management](architecture/secrets.md) for the full picture. To add on
 The root Kustomization patches every child with `postBuild.substituteFrom`, so Flux replaces `${VAR}`
 tokens against `cluster-secrets`/`cluster-settings` at apply time.
 
-- **Undefined variables become the empty string** — a typo silently blanks the value rather than
+- **Undefined variables become the empty string.** A typo silently blanks the value rather than
   erroring.
 - Any literal `${VAR}` you want to survive substitution (Grafana dashboard template variables,
   envsubst templates, shell snippets in ConfigMaps) must be escaped as `$${VAR}` so Flux passes
@@ -37,12 +37,12 @@ tokens against `cluster-secrets`/`cluster-settings` at apply time.
 Both are substituted from `cluster-secrets`, but they are not an external/internal pair for app
 hostnames:
 
-- `${SECRET_DOMAIN}` — the domain every app route uses. All routes follow `${APP}.${SECRET_DOMAIN}`;
+- `${SECRET_DOMAIN}`: the domain every app route uses. All routes follow `${APP}.${SECRET_DOMAIN}`;
   whether an app is LAN-only or publicly reachable is decided by which gateway the route attaches to
   (`envoy-internal` vs `envoy-external`), not by the domain in its hostname.
-- `${SECRET_INTERNAL_DOMAIN}` — kept for non-route uses only: device records such as IPMI probe
+- `${SECRET_INTERNAL_DOMAIN}`: kept for non-route uses only, such as device records for IPMI probe
   targets and the NAS S3 endpoint, plus the opnsense-dns domain filter. Do not add
-  `${SECRET_INTERNAL_DOMAIN}` aliases to app routes — each alias costs an OPNsense host-override
+  `${SECRET_INTERNAL_DOMAIN}` aliases to app routes. Each alias costs an OPNsense host-override
   record, and the record count has a hard ceiling above which publishing silently stops.
 
 "Available under `${SECRET_DOMAIN}`" for a home app therefore means internal DNS on the
@@ -96,5 +96,5 @@ from the rendered Secret:
 
 - Internal device DNS names and addresses live in the `cluster-secrets` 1Password item, not in
   `cluster-settings`.
-- Do not render the table at boot via init + envsubst against a ConfigMap — that puts the template in
+- Do not render the table at boot via init + envsubst against a ConfigMap. That puts the template in
   Git. Template the file content inside the ExternalSecret and mount the rendered key directly.

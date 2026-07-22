@@ -4,8 +4,8 @@
 
 This cluster uses a **split-horizon DNS architecture** with two `external-dns` instances:
 
-1. **cloudflare-dns** — manages public DNS records in Cloudflare (external access through Cloudflare Tunnel, proxied).
-2. **opnsense-dns** — manages internal DNS records in OPNsense Unbound (direct LAN access).
+1. **cloudflare-dns**: manages public DNS records in Cloudflare (external access through Cloudflare Tunnel, proxied).
+2. **opnsense-dns**: manages internal DNS records in OPNsense Unbound (direct LAN access).
 
 Which instance publishes a record is decided by the **gateway** an app's `HTTPRoute` attaches to:
 
@@ -15,7 +15,7 @@ Which instance publishes a record is decided by the **gateway** an app's `HTTPRo
 This means the same name can resolve differently depending on where the query comes from, and internal-only services are never exposed publicly.
 
 !!! note "Records come from HTTPRoutes, not per-app CRDs"
-    Both instances derive their records from `HTTPRoute` resources via external-dns's `gateway-httproute` source. There are **no** per-app `DNSEndpoint` CRDs. An earlier revision of this cluster required a `DNSEndpoint` for every app (~40 `dnsendpoint.yaml` files); that is no longer the case — see [How records are created](#how-records-are-created).
+    Both instances derive their records from `HTTPRoute` resources via external-dns's `gateway-httproute` source. There are **no** per-app `DNSEndpoint` CRDs. An earlier revision of this cluster required a `DNSEndpoint` for every app (~40 `dnsendpoint.yaml` files); that is no longer the case. See [How records are created](#how-records-are-created).
 
 ## Architecture Diagrams
 
@@ -52,7 +52,7 @@ graph TB
     EnvoyInt --> Apps
 ```
 
-> Example IPs only — the gateways' LoadBalancer addresses are static LAN IPs assigned literally in `envoy.yaml` (an allowlisted functional config); `${ENVOY_INTERNAL_IP}` in `cluster-secrets` supplies the internal gateway's external-dns target annotation.
+> Example IPs only. The gateways' LoadBalancer addresses are static LAN IPs assigned literally in `envoy.yaml` (an allowlisted functional config); `${ENVOY_INTERNAL_IP}` in `cluster-secrets` supplies the internal gateway's external-dns target annotation.
 
 ### External DNS Flow (Internet Access)
 
@@ -163,7 +163,7 @@ domainFilters:
 - `external.${SECRET_DOMAIN}` CNAME → `${CLOUDFLARE_TUNNEL_ID}.cfargotunnel.com` (from the one `DNSEndpoint` CRD, `cloudflare-tunnel`)
 - `<app>.${SECRET_DOMAIN}` records for apps whose `HTTPRoute` attaches to `envoy-external` (from the `gateway-httproute` source), proxied through Cloudflare
 
-**Key Design Decision**: `--cloudflare-proxied` is **enabled** — see [Why `--cloudflare-proxied` is enabled](#why-cloudflare-proxied-is-enabled).
+**Key Design Decision**: `--cloudflare-proxied` is **enabled**. See [Why `--cloudflare-proxied` is enabled](#why-cloudflare-proxied-is-enabled).
 
 ### opnsense-dns (Internal)
 
@@ -196,7 +196,7 @@ domainFilters:
 
 **What it manages**:
 
-- `<app>.${SECRET_DOMAIN}` A records → `${ENVOY_INTERNAL_IP}` for apps whose `HTTPRoute` attaches to `envoy-internal` (the bulk of the cluster) — from the `gateway-httproute` source
+- `<app>.${SECRET_DOMAIN}` A records → `${ENVOY_INTERNAL_IP}` for apps whose `HTTPRoute` attaches to `envoy-internal` (the bulk of the cluster), from the `gateway-httproute` source
 - A records for LoadBalancer service IPs (the `service` source)
 - The `crd` source is enabled for special cases but currently matches nothing (the only internal-target `DNSEndpoint`, `games/minecraft`, is commented out of its kustomization)
 
@@ -211,8 +211,8 @@ How it works now (this mirrors onedr0p's UniFi pattern, adapted for the OPNsense
 
 - An app declares an `HTTPRoute` (the app-template `route:` key) with `parentRefs` pointing at `envoy-internal` or `envoy-external`.
 - external-dns reads the route via `gateway-httproute`; the `--gateway-label-filter` on each instance decides which gateway (and therefore which DNS provider) owns the record.
-- **Internal routes** (`envoy-internal`): opnsense-dns creates an **A record** targeting the gateway's LAN IP — the gateway carries `external-dns.alpha.kubernetes.io/record-type: A` and `target: ${ENVOY_INTERNAL_IP}` annotations, and an A record is exactly what the OPNsense webhook accepts. No CNAME, no per-app CRD.
-- **External routes** (`envoy-external`): the gateway instead carries `external-dns.alpha.kubernetes.io/target: external.${SECRET_DOMAIN}` — a hostname, not an IP — so cloudflare-dns creates a **CNAME** `<app>.${SECRET_DOMAIN}` → `external.${SECRET_DOMAIN}`, which the tunnel `DNSEndpoint` below points at Cloudflare's edge.
+- **Internal routes** (`envoy-internal`): opnsense-dns creates an A record targeting the gateway's LAN IP. The gateway carries `external-dns.alpha.kubernetes.io/record-type: A` and `target: ${ENVOY_INTERNAL_IP}` annotations, and an A record is exactly what the OPNsense webhook accepts. No CNAME, no per-app CRD.
+- **External routes** (`envoy-external`): the gateway instead carries `external-dns.alpha.kubernetes.io/target: external.${SECRET_DOMAIN}` (a hostname, not an IP), so cloudflare-dns creates a CNAME `<app>.${SECRET_DOMAIN}` → `external.${SECRET_DOMAIN}`, which the tunnel `DNSEndpoint` below points at Cloudflare's edge.
 
 `DNSEndpoint` CRDs are now reserved for the handful of records an `HTTPRoute` cannot express:
 
@@ -241,15 +241,15 @@ spec:
 
 ### Why `--cloudflare-proxied` is enabled
 
-`--cloudflare-proxied` is enabled, and it is safe **because cloudflare-dns no longer ingests internal records**:
+`--cloudflare-proxied` is enabled, and it is safe because cloudflare-dns no longer ingests internal records:
 
 - It only watches the `type=external` gateway and the single tunnel-CNAME `DNSEndpoint`.
 - None of those are RFC1918 A records, so Cloudflare is never asked to proxy a private IP.
 
 Proxying external apps gives Cloudflare's CDN/WAF/DDoS protection in front of them, in addition to the encryption and access control provided by the Tunnel.
 
-!!! info "Historical note — this used to be the opposite"
-    When every app had a `DNSEndpoint` (including ~35 internal A records pointing at RFC1918 IPs), cloudflare-dns processed all of them. With `--cloudflare-proxied` **on**, Cloudflare rejected the proxied RFC1918 A records and the controller crashed before it could create the external CNAMEs — surfacing as **Cloudflare Error 1016**. The workaround at the time was to *remove* `--cloudflare-proxied`. Moving record creation to the gateway-scoped `gateway-httproute` source removed the internal records from cloudflare-dns entirely, so proxying could be turned back on.
+!!! info "Historical note: this used to be the opposite"
+    When every app had a `DNSEndpoint` (including ~35 internal A records pointing at RFC1918 IPs), cloudflare-dns processed all of them. With `--cloudflare-proxied` **on**, Cloudflare rejected the proxied RFC1918 A records and the controller crashed before it could create the external CNAMEs. The result was **Cloudflare Error 1016**. The workaround at the time was to *remove* `--cloudflare-proxied`. Moving record creation to the gateway-scoped `gateway-httproute` source removed the internal records from cloudflare-dns entirely, so proxying could be turned back on.
 
 ## DNS Record Types by Controller
 
@@ -313,12 +313,12 @@ HTTPRoutes attached to this gateway create **A records in OPNsense Unbound**.
 
 ### Error: "Target 10.0.0.X is not allowed for a proxied record"
 
-With `--cloudflare-proxied` enabled, this error means a **private (RFC1918) A record has leaked into cloudflare-dns** — it should only ever manage the external gateway and the tunnel CNAME. Look for:
+With `--cloudflare-proxied` enabled, this error means a private (RFC1918) A record has leaked into cloudflare-dns; it should only ever manage the external gateway and the tunnel CNAME. Look for:
 
 - a stray `DNSEndpoint` with an RFC1918 target that isn't scoped away from Cloudflare, or
 - an app `HTTPRoute` mistakenly attached to `envoy-external` while targeting an internal IP.
 
-This is the failure mode that historically caused Error 1016. The fix is to keep internal records on opnsense-dns — **not** to disable proxying.
+This is the failure mode that historically caused Error 1016. The fix is to keep internal records on opnsense-dns, **not** to disable proxying.
 
 ### Sites returning "Cloudflare Error 1016: Origin DNS error"
 
@@ -468,7 +468,7 @@ API endpoint, which has an operational ceiling this cluster has already hit once
 !!! warning "Symptom: new apps get no DNS record, existing apps are unaffected"
     Once the ceiling trips, `opnsense-dns` fails **every** reconcile with `failed
     to get records with code 500`, so **no new record can be published anywhere in
-    the cluster** — but records already written to Unbound keep resolving
+    the cluster**, but records already written to Unbound keep resolving
     normally. The failure therefore presents narrowly, as "only new apps are
     broken," rather than as an outage.
 
@@ -476,7 +476,7 @@ API endpoint, which has an operational ceiling this cluster has already hit once
   response and truncates once the payload exceeds 65,528 bytes. Verified
   experimentally against a live host-override table: `rowCount=420` returns
   113,794 bytes cleanly; `rowCount=425` truncates. The trip point sits at roughly
-  421-424 rows — it drifts slightly because row size varies with hostname length,
+  421-424 rows. It drifts slightly because row size varies with hostname length,
   not because there is a fixed byte budget per record.
 - **`opnsense-dns` never deletes records.** It runs `--policy=upsert-only
   --registry=noop`, so removing a hostname from Git stops new records from being
@@ -485,14 +485,14 @@ API endpoint, which has an operational ceiling this cluster has already hit once
   something a Git revert alone fixes.
 - **`upsert-only`/`noop` is a deliberate choice, not a misconfiguration to "fix."**
   A TXT registry adds roughly one bookkeeping row per managed record
-  (external-dns v0.21.0), which would push this domain filter to roughly 433 rows
-  — back over the ~421 ceiling that already tripped once. `policy: sync` with
+  (external-dns v0.21.0), which would push this domain filter to roughly 433 rows,
+  back over the ~421 ceiling that already tripped once. `policy: sync` with
   `registry: noop` is worse: without ownership tracking, a sync policy would
   delete every hand-made OPNsense host override outside external-dns's view,
   including device records and unrelated third-party domains hosted on the same
   OPNsense instance.
 - **`${SECRET_INTERNAL_DOMAIN}` still exists and is still needed.** It was never
-  only an app-hostname alias — it still carries device records that have no
+  only an app-hostname alias; it still carries device records that have no
   `${SECRET_DOMAIN}` equivalent: IPMI probe targets, core switches, the
   Kubernetes API endpoint, VM management interfaces, the NAS S3 endpoint, and a
   handful of media-service aliases. Retiring the redundant *app* hostname aliases

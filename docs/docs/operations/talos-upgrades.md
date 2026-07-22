@@ -120,8 +120,8 @@ field: "talosVersion"
 
 **Cause:** talhelper carries a hardcoded list of supported Talos versions via its
 `github.com/siderolabs/talos/pkg/machinery` dependency. A new Talos **minor** needs a talhelper
-release that bumps that dependency, which typically lags Talos GA by **1–2 days**. (Patch bumps
-within a minor — v1.13.0 → v1.13.1 — don't need a talhelper update.)
+release that bumps that dependency, which typically lags Talos GA by **1-2 days**. (Patch bumps
+within a minor, v1.13.0 → v1.13.1, don't need a talhelper update.)
 
 **Resolution:**
 
@@ -145,8 +145,8 @@ within a minor — v1.13.0 → v1.13.1 — don't need a talhelper update.)
 image verification failed: no valid signature found
 ```
 
-Every node cosign-verifies `ghcr.io/siderolabs/*` and `factory.talos.dev/*` images at pull time —
-see [image verification](../architecture/image-verification.md) for the rules and identities.
+Every node cosign-verifies `ghcr.io/siderolabs/*` and `factory.talos.dev/*` images at pull time.
+See [image verification](../architecture/image-verification.md) for the rules and identities.
 Upgrades pull the factory installer image through this check, so a verification failure blocks the
 upgrade before anything is written to disk.
 
@@ -161,7 +161,7 @@ upgrade before anything is written to disk.
      "factory.talos.dev/installer-secureboot/<schematic>:<version>"
    ```
 
-2. If cosign fails too, Sidero likely rotated its signing identity or changed signature format —
+2. If cosign fails too, Sidero likely rotated its signing identity or changed signature format:
    check recent `siderolabs/talos` and `siderolabs/image-factory` releases, update the identities
    in `talos/patches/global/machine-image-verification.yaml`, regenerate and re-apply.
 3. If cosign succeeds but the node still rejects, suspect the Talos-side verifier (the
@@ -191,8 +191,8 @@ kubectl get nodes -o custom-columns=NAME:.metadata.name,VERSION:.status.nodeInfo
 
 Tuppr's `TalosUpgrade` spec does not have a `force` field. To bypass a blocked upgrade, address the blocking condition directly or use `talosctl` to upgrade a node out-of-band:
 
-1. **Fix the blocking condition** — archive Ceph crash reports, wait for VolSync to finish, or resolve the health check failure.
-2. **Manual per-node upgrade** — bypasses tuppr entirely. Prefer the existing `just talos upgrade-node <node-ip>` recipe (`talos/mod.just`): it derives the correct installer image and version from `talconfig.yaml`/`talenv.yaml` via talhelper, so you don't have to hand-assemble the flags. The raw form it wraps is:
+1. **Fix the blocking condition**: archive Ceph crash reports, wait for VolSync to finish, or resolve the health check failure.
+2. **Manual per-node upgrade**: bypasses tuppr entirely. Prefer the existing `just talos upgrade-node <node-ip>` recipe (`talos/mod.just`): it derives the correct installer image and version from `talconfig.yaml`/`talenv.yaml` via talhelper, so you don't have to hand-assemble the flags. The raw form it wraps is:
 
    ```bash
    talosctl upgrade --nodes <node-ip> --image <talos-installer-image>:<version> --timeout=10m

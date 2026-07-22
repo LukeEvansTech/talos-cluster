@@ -3,7 +3,7 @@
 ## Purpose
 
 [NetBox](https://github.com/netbox-community/netbox) provides DCIM (data centre infrastructure
-management) and IPAM (IP address management) — the source of truth for devices, racks, prefixes, and
+management) and IPAM (IP address management): the source of truth for devices, racks, prefixes, and
 IP allocations. It runs internal-only in the `default` namespace: a web frontend, an RQ background
 worker (webhooks, scripts, reports), and a daily housekeeping CronJob.
 
@@ -15,16 +15,16 @@ official **`netbox-chart`** (`oci://ghcr.io/netbox-community/netbox-chart/netbox
 and its `existingSecret` contract are already modelled by the upstream chart.
 
 - **Namespace** `default`, modelled on the in-repo `paperless` app (its closest twin).
-- **PostgreSQL** — shared CNPG cluster (`postgres18-rw.database.svc.cluster.local`, `sslmode=require`);
+- **PostgreSQL**: shared CNPG cluster (`postgres18-rw.database.svc.cluster.local`, `sslmode=require`);
   bundled Postgres disabled. An `init-db` initContainer (using the `postgres-init` image) creates
   the `netbox` role + database using the CNPG superuser before first boot.
-- **Redis** — external **Dragonfly** (`dragonfly.database.svc.cluster.local:6379`); the chart's
+- **Redis**: external **Dragonfly** (`dragonfly.database.svc.cluster.local:6379`); the chart's
   bundled cache (`valkey.enabled`) is disabled. Separate logical DB indices for the tasks queue
   (`0`) vs the cache (`1`).
-- **Media** — a local `ceph-block` PVC consumed via `persistence.existingClaim` and backed up by the
+- **Media**: a local `ceph-block` PVC consumed via `persistence.existingClaim` and backed up by the
   VolSync component (`VOLSYNC_CAPACITY`). NetBox uses no object storage; the cluster's S3 tier is
   Garage (`storage` namespace), not Ceph RGW (which was removed).
-- **Auth / exposure** — superuser-only first pass (pocket-id OIDC is a fast-follow); internal-only
+- **Auth / exposure**: superuser-only first pass (pocket-id OIDC is a fast-follow); internal-only
   HTTPRoute on `envoy-internal`, never publicly exposed.
 - Health monitored automatically by the gatus-sidecar (it auto-discovers the HTTPRoute);
   `reloader.stakater.com/auto` rolls pods on secret/config change; a ServiceMonitor exposes metrics
@@ -37,11 +37,11 @@ and its `existingSecret` contract are already modelled by the upstream chart.
   `tasksDatabase` / `cachingDatabase` `existingSecretName`) point at the single `netbox-secret`, so
   that Secret must contain every key the chart projects, spelled exactly as the chart expects:
   - `secret_key`, `email_password` (the chart's projected `secrets` volume **requires the key to
-    exist** even when email is unused — set it to an empty string).
+    exist** even when email is unused, so set it to an empty string).
   - `password` and `api_token` (superuser).
   - `db_password` (the value of `externalDatabase.existingSecretKey`).
   - `tasks_password` and `cache_password` (the Dragonfly tasks/caching DB keys).
-- These mismatches do **not** show up in a `flate` (local) or Konflate (in-cluster PR render) —
+- These mismatches do **not** show up in a `flate` (local) or Konflate (in-cluster PR render):
     the manifest is valid. They only fail at runtime as pod `FailedMount` (`references
     non-existent secret key`) or `CreateContainerConfigError` (`couldn't find key …`). Before
     wiring the ExternalSecret, render the chart and grep the output for every `secretKeyRef`
@@ -77,12 +77,12 @@ and its `existingSecret` contract are already modelled by the upstream chart.
   ```
 
 - **Hostname** is `netbox.${SECRET_DOMAIN}` (internal DNS via external-dns). The HTTPRoute's only
-  hostname sits on the `envoy-internal` listener, which is what keeps it internal-only — it does
+  hostname sits on the `envoy-internal` listener, which is what keeps it internal-only. It does
   not expose NetBox publicly.
-- **First-boot check** — confirm the `init-db` initContainer reports the `netbox` role/database
+- **First-boot check**: confirm the `init-db` initContainer reports the `netbox` role/database
   created (or already exists), then log in as the superuser (`admin`).
-- **Backups** — the `media` PVC is snapshotted by VolSync. The `netbox` database lives on the shared
+- **Backups**: the `media` PVC is snapshotted by VolSync. The `netbox` database lives on the shared
   CNPG cluster and is backed up by CNPG's own path, not VolSync.
-- **Teardown** — `prune: true` removes NetBox's Kubernetes resources on revert, but the `netbox`
+- **Teardown**: `prune: true` removes NetBox's Kubernetes resources on revert, but the `netbox`
   database on the shared CNPG cluster and the 1Password item persist and must be dropped manually
   for a clean teardown.

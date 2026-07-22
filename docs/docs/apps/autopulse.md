@@ -10,7 +10,7 @@ web UI on the internal route, no triggers/targets wired yet.
   - Pod becomes `Ready`; web UI reachable at `autopulse.${SECRET_DOMAIN}`,
       served via `envoy-internal` (internal-only).
   - SQLite database persisted on a VolSync-backed PVC (NFS + remote backups).
-  - Triggers/targets intentionally omitted — integrations are added later.
+  - Triggers/targets intentionally omitted. Integrations are added later.
 - Not in scope (for the minimal bring-up): wiring source/target integrations,
   or exposing the app externally.
 
@@ -18,16 +18,16 @@ web UI on the internal route, no triggers/targets wired yet.
 
 - **SQLite, not Postgres.** v2.0.0 changed the default `database_url` from
   PostgreSQL to a SQLite file (`sqlite://data/autopulse.db`, resolving to
-  `/app/data/autopulse.db`). The minimal config embraces this — no database
+  `/app/data/autopulse.db`). The minimal config embraces this: no database
   dependency, just a single file on a small PVC.
 - **Single-file SQLite DB backed up with VolSync.** The whole "database" is one
   file living on a PVC, so the standard VolSync component backs it up exactly
-  like any other app's data dir — no DB-specific dump/restore tooling needed:
+  like any other app's data dir, with no DB-specific dump/restore tooling needed:
   - The `volsync` component (added in `ks.yaml` `spec.components`, never also in
     `app/kustomization.yaml`) auto-creates the PVC `autopulse` (`ceph-block`),
     the NFS + remote `ReplicationSource`s, and the restore `ReplicationDestination`.
   - `VOLSYNC_CAPACITY: 1Gi` because a SQLite DB is tiny (the component default
-    is 5Gi — override it down).
+    is 5Gi, overridden down here).
   - Backup credentials reuse the shared VolSync 1Password items; **no new backup
     secrets** are introduced.
 - **Writable PVC at `/app/data`, root FS stays read-only.** The HelmRelease keeps
@@ -71,27 +71,27 @@ web UI on the internal route, no triggers/targets wired yet.
   and no writable mount at `/app/data`, v2 cannot create the SQLite file. The
   writable `data` PVC (above) is mandatory, not optional.
 - **`existingClaim` must match the VolSync PVC name.** The HelmRelease uses
-  `existingClaim: "{{ .Release.Name }}"`, which resolves to `autopulse` — the
+  `existingClaim: "{{ .Release.Name }}"`, which resolves to `autopulse`, the
   exact name the VolSync component derives from `APP`. PVC name, claim, and
   `ReplicationSource` `sourcePVC` must all agree.
 - **Default credentials must be changed.** v2 ships `admin` / `password`
   defaults. Create the `autopulse` 1Password login item (username `admin` + a
   generated 32-char password) via `op item create` in the operator's signed-in
-  shell — never the UI, never committed. The field labels `username`/`password`
+  shell, never the UI, never committed. The field labels `username`/`password`
   must match the `{{ .username }}` / `{{ .password }}` template vars.
 - **Empty `triggers`/`targets` may be rejected.** The minimal config omits both
   maps (serde should default them to empty). If startup logs complain about
   missing keys, add explicit `triggers: {}` / `targets: {}` to the inline config.
-- **First-deploy restore finds no snapshot.** Standard VolSync bootstrap — the
-  `ReplicationDestination` provisions an empty PVC and the app initializes a
-  fresh DB. No manual action.
+- **First-deploy restore finds no snapshot.** This is standard VolSync
+  bootstrap: the `ReplicationDestination` provisions an empty PVC and the app
+  initializes a fresh DB. No manual action.
 
 ## Operational notes
 
 - **Enable/disable** lives in the namespace `kustomization.yaml`: the app entry
   `- ./autopulse/ks.yaml` is commented out when dormant. Keep it in alphabetical
   position when re-enabling.
-- **Health endpoint** `/health` (port `2875`) is unauthenticated in v2 — handy
+- **Health endpoint** `/health` (port `2875`) is unauthenticated in v2, handy
   for a quick liveness check from inside the pod without credentials.
 - **Verify a healthy deploy** by checking, in order:
   - `Kustomization autopulse` reconciles `Ready=True`.

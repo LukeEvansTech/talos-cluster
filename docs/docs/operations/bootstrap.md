@@ -50,7 +50,7 @@ mise install
 - `talosctl` - Talos Linux CLI
 - `kustomize` - Kubernetes configuration management
 - `yq` - YAML processor
-- `op` - 1Password CLI (for secret injection; install separately, e.g. via Homebrew — not in the mise toolchain)
+- `op` - 1Password CLI (for secret injection; install separately, e.g. via Homebrew, not in the mise toolchain)
 
 **Additional Tools:**
 
@@ -272,14 +272,14 @@ Deploys bootstrap applications via Helmfile.
 ### Full Bootstrap
 
 `just bootstrap` on its own only **lists** the module's recipes (`set default-list`
-in `bootstrap/mod.just`) — it no longer arms a bootstrap by itself. Run the full
+in `bootstrap/mod.just`). It no longer arms a bootstrap by itself. Run the full
 end-to-end flow with the `cluster` recipe:
 
 ```bash
 just bootstrap cluster
 ```
 
-This prompts for confirmation first — `Bootstrap cluster? [y|N]` — before running
+This prompts for confirmation first (`Bootstrap cluster? [y|N]`) before running
 any stage.
 
 This is equivalent to:
@@ -297,7 +297,7 @@ just bootstrap kubeconfig
 ```
 
 The first `kubeconfig node` call points kubectl directly at a control-plane node
-IP — Cilium's LoadBalancer doesn't exist yet at this point in the bootstrap, so
+IP. Cilium's LoadBalancer doesn't exist yet at this point in the bootstrap, so
 there's no LB IP to route through. The final `kubeconfig` call (default `cilium`)
 re-fetches it pointed at the Cilium LB once Cilium is up and running.
 

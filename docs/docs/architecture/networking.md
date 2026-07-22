@@ -15,12 +15,12 @@ exist in the `network` namespace, addressed by role rather than by IP here:
 - **`envoy-external`** (reachable via the Cloudflare tunnel).
 
 Most apps declare an inline `route:` in their HelmRelease values targeting one of the two Gateways.
-Every route uses a single hostname, `${APP}.${SECRET_DOMAIN}`, whichever Gateway it attaches to —
+Every route uses a single hostname, `${APP}.${SECRET_DOMAIN}`, whichever Gateway it attaches to:
 internal-only vs public exposure is decided by the Gateway, not by the domain. Routes do not carry
 `${SECRET_INTERNAL_DOMAIN}` aliases: an alias resolves to the same Gateway as the primary hostname,
 so it buys no extra restriction, and each one costs an OPNsense host-override record against a hard
 ceiling (see [Split DNS](split-dns.md)). "Available under `${SECRET_DOMAIN}`" for a home app
-usually means internal DNS on `envoy-internal` — not public exposure.
+usually means internal DNS on `envoy-internal`, not public exposure.
 
 ## DNS
 

@@ -10,10 +10,10 @@ See the [AI / LLM stack](../architecture/ai-llm-stack.md) page for how it fits t
 ## Design decisions
 
 - Deployed with the bjw-s `app-template` chart via a per-app `OCIRepository`.
-- Single replica with the `Recreate` strategy — avoids rolling-update races against the Prisma
+- Single replica with the `Recreate` strategy: this avoids rolling-update races against the Prisma
   schema migrations that run at startup.
 - State lives in the shared CloudNativePG `postgres18` cluster (its own `litellm` database + role,
-  created idempotently by a `postgres-init` init container) — so the app is PVC-less and needs no
+  created idempotently by a `postgres-init` init container), so the app is PVC-less and needs no
   VolSync.
 - Response cache in the shared Dragonfly over `*.svc.cluster.local`, with a deliberately short TTL so
   usage tracking stays accurate.
@@ -28,15 +28,15 @@ See the [AI / LLM stack](../architecture/ai-llm-stack.md) page for how it fits t
 ## Deploy gotchas
 
 - **Prometheus scrape:** the `/metrics` endpoint needs `require_auth_for_metrics_endpoint: false`,
-  **and** the ServiceMonitor path must be `/metrics/` (trailing slash, with redirect-follow off) —
-  otherwise the scrape silently gets nothing.
+  **and** the ServiceMonitor path must be `/metrics/` (trailing slash, with redirect-follow off).
+  Otherwise the scrape silently gets nothing.
 - The liveness/readiness probe path is `/health/liveliness` (upstream's spelling). `/v1/health`
-  requires auth and runs heavy backend probes — too heavy for kubelet.
-- Never rotate `LITELLM_SALT_KEY` — rotating it makes UI-added provider keys undecipherable
+  requires auth and runs heavy backend probes, too heavy for kubelet.
+- Never rotate `LITELLM_SALT_KEY`: rotating it makes UI-added provider keys undecipherable
   (config-file keys are unaffected). Note this on the 1Password item.
 - Keep provider API keys out of git and out of the rendered ConfigMap by referencing them as
   `os.environ/<NAME>` in `config.yaml`.
-- The Grafana dashboard is fetched from grafana.com via URL in the `GrafanaDashboard` CR — Flux
+- The Grafana dashboard is fetched from grafana.com via URL in the `GrafanaDashboard` CR. Flux
   `postBuild` does not process remotely fetched JSON, so no `$${var}` escaping is needed. If you
   ever vendor the dashboard JSON into a ConfigMap instead, escape Grafana template variables as
   `$${var}` and use `"datasource": null` rather than a hard-coded UID.

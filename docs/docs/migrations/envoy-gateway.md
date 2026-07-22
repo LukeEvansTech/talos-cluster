@@ -1,7 +1,7 @@
 # Envoy Gateway Migration Guide
 
 !!! note "Completed migration"
-    This page is a record of a migration that is already complete. The steps below are preserved as history; some current-state paths, names, and commands have since drifted. Commands and paths flagged in review are corrected inline — see the Architecture and Operations sections for the present-day setup.
+    This page is a record of a migration that is already complete. The steps below are preserved as history; some current-state paths, names, and commands have since drifted. Commands and paths flagged in review are corrected inline. See the Architecture and Operations sections for the present-day setup.
 
 ## Overview
 
@@ -39,7 +39,7 @@ network/
 
 - Wildcard certificate (`*.${SECRET_DOMAIN}`) imported from 1Password
 - Certificate stored in `network` namespace (same as Gateway)
-- No cross-namespace certificate references needed
+- This setup requires no cross-namespace certificate references
 - nginx is now fully decommissioned; `kubernetes/apps/cert-manager/cert-manager/tls/` (a
   `Certificate` + `PushSecret`) is today the live source of the wildcard TLS certificate that the
   `network/certificates` ExternalSecret above pulls in for Envoy Gateway
@@ -129,7 +129,7 @@ spec:
         #     hosts: [...]
 ```
 
-**No kustomization.yaml changes needed** - the app-template chart handles HTTPRoute creation automatically.
+**No kustomization.yaml changes are needed** because the app-template chart handles HTTPRoute creation automatically.
 
 #### For apps NOT using app-template
 
@@ -270,7 +270,7 @@ sources:
 
 - HTTPRoutes attached to `envoy-external` Gateway automatically get DNS records
 - Uses `external-dns.alpha.kubernetes.io/target` annotation from Gateway
-- No additional annotations needed on HTTPRoutes
+- HTTPRoutes require no additional annotations
 
 ## Migration Checklist
 

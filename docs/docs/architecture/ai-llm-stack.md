@@ -2,7 +2,7 @@
 
 Self-hosted LLM stack in the `ai` namespace, fronted by **LiteLLM**. Patterns adapted from
 [joryirving/home-ops](https://github.com/joryirving/home-ops/tree/main/kubernetes/apps/base/llm),
-re-targeted to this cluster — **NVIDIA L4 GPUs + llama.cpp (llmkube)**.
+re-targeted to this cluster: **NVIDIA L4 GPUs + llama.cpp (llmkube)**.
 
 ## Components
 
@@ -36,7 +36,7 @@ Weight files are declared as `hf://` URIs pointing to single-file public GGUFs o
 llmkube downloads and caches them on the shared CephFS RWX `modelCache` PVC (`ceph-filesystem`
 storage class), so a cold start auto-heals without manual staging.
 
-Anti-affinity (`podAntiAffinity`) keeps one resident model per L4 — the cluster has 3 cards but
+Anti-affinity (`podAntiAffinity`) keeps one resident model per L4: the cluster has 3 cards but
 runs 2 models, preserving one card for other GPU workloads (Plex/Jellyfin transcodes, Whisper).
 No model swapping occurs during normal operation. The `gpu-preemptible` PriorityClass is set on
 all llmkube pods so higher-priority workloads can evict them if needed.
@@ -46,15 +46,15 @@ projector alongside the main GGUF. This is the model that `loupe` (image analysi
 LiteLLM.
 
 To add a model: drop a `Model` + `InferenceService` manifest under `llmkube/models/`, add a
-`model_list` entry to `litellm/app/configmap.yaml`, and commit — Flux reconciles both.
+`model_list` entry to `litellm/app/configmap.yaml`, and commit. Flux reconciles both.
 
 ### Model groups
 
 LiteLLM `model_name` groups make the serving tier transparent to clients:
 
-- **`self-hosted`** — `llama-nvidia` (order 1), with a live cloud fallback to `openrouter/auto`
+- **`self-hosted`**: `llama-nvidia` (order 1), with a live cloud fallback to `openrouter/auto`
   via `router_settings.fallbacks` (the OpenRouter key is in the `litellm` ExternalSecret).
-- **`self-hosted-uncensored`** — `llama-uncensored` (order 1); no cloud fallback by design
+- **`self-hosted-uncensored`**: `llama-uncensored` (order 1); no cloud fallback by design
   (a cloud model would reintroduce refusals).
 
 ## In-cluster consumers
@@ -76,14 +76,14 @@ All three consume:
 
 ## Rollout (staged)
 
-1. **LiteLLM uplift** — model-groups + router fallbacks + commented hooks for MCP / embeddings /
+1. **LiteLLM uplift**: model-groups + router fallbacks + commented hooks for MCP / embeddings /
    cloud providers.
-2. **ToolHive + MCP** — operator + curated MCP servers (kubectl, flux, talos, searxng) wired into
+2. **ToolHive + MCP**: operator + curated MCP servers (kubectl, flux, talos, searxng) wired into
    LiteLLM `mcp_servers`.
-3. **memini** — agent memory; embeddings + rerank via tiny CPU llama.cpp servers, consolidation via
+3. **memini**: agent memory; embeddings + rerank via tiny CPU llama.cpp servers, consolidation via
    LiteLLM.
-4. **llmkube** — operator + CephFS modelCache; 2 active models (`self-hosted`, `self-hosted-uncensored`).
-5. **Ollama decommission** — Ollama removed; contracthound/subspy/loupe repointed to LiteLLM.
+4. **llmkube**: operator + CephFS modelCache; 2 active models (`self-hosted`, `self-hosted-uncensored`).
+5. **Ollama decommission**: Ollama removed; contracthound/subspy/loupe repointed to LiteLLM.
 
 Each layer is a separate commit on one branch (one PR). `mcp_servers` and
 `mcp_semantic_tool_filter` are now fully active in `litellm/app/configmap.yaml`, and one cloud
@@ -95,44 +95,44 @@ group's fallback. The remaining cloud-provider stubs are still commented out.
 
 ## How to extend LiteLLM
 
-- **Add a backend to a group** — add a `model_list` entry with an existing `model_name` and the
+- **Add a backend to a group**: add a `model_list` entry with an existing `model_name` and the
   next `order:`. LiteLLM balances / fails over within the group.
-- **Add a cloud provider** — add the key to the `litellm` 1Password item, add a line to
+- **Add a cloud provider**: add the key to the `litellm` 1Password item, add a line to
   `externalsecret.yaml`'s `target.template.data`, then uncomment the matching stub in
-  `configmap.yaml`. Don't reference an `os.environ/KEY` that isn't in the secret — the pod env read
+  `configmap.yaml`. Don't reference an `os.environ/KEY` that isn't in the secret. The pod env read
   fails at startup.
-- **Fallbacks** — `router_settings.fallbacks` is a list of `{model_name: [fallback, …]}`.
+- **Fallbacks**: `router_settings.fallbacks` is a list of `{model_name: [fallback, …]}`.
 
 ## Consuming the stack from a workstation (opencode)
 
-Any OpenAI-compatible client can drive the self-hosted models through the gateway — internal route
+Any OpenAI-compatible client can drive the self-hosted models through the gateway: internal route
 `https://litellm.${SECRET_DOMAIN}/v1`, models `self-hosted` and `self-hosted-uncensored`.
 [opencode](https://opencode.ai) is wired this way as a custom provider:
 
-- **Provider** — `@ai-sdk/openai-compatible`, `baseURL: https://litellm.${SECRET_DOMAIN}/v1`.
+- **Provider**: `@ai-sdk/openai-compatible`, `baseURL: https://litellm.${SECRET_DOMAIN}/v1`.
   Put the LiteLLM key in the client's own credential store (opencode: `opencode auth login` →
   `~/.local/share/opencode/auth.json`), **never** as a literal in a shared or committed config.
-- **MCP tools** — point a remote MCP server at LiteLLM's MCP gateway,
+- **MCP tools**: point a remote MCP server at LiteLLM's MCP gateway,
   `https://litellm.${SECRET_DOMAIN}/mcp/` (the `litellm-mcp-server`), with the LiteLLM key
   as `Authorization: Bearer …`. Curate the server set with the `x-mcp-servers` header (e.g.
-  `kubectl,flux,talos,searxng`) — requesting **all** servers times out, and the full tool list
+  `kubectl,flux,talos,searxng`). Requesting **all** servers times out, and the full tool list
   bloats every request (heavy on the small-context local models, so prefer a frontier model for
   tool-heavy work).
-- **Gotchas** — the self-hosted models are Qwen3 *thinking* models (send `think: false`, or
+- **Gotchas**: the self-hosted models are Qwen3 *thinking* models (send `think: false`, or
   `/no_think` in the prompt, for non-reasoning output); switching between the two local models
   forces a ~17Gi VRAM model-swap (seconds, longer on a cold replica). See the context-budget note
   below for opencode's window requirements.
 
 Prefer a **scoped LiteLLM virtual key** (`/key/generate`, limited to the `self-hosted*` models) over
-the master key for any workstation client — it's revocable on its own.
+the master key for any workstation client: it's revocable on its own.
 
 ### opencode and the context budget
 
-opencode's agent sends **~41k tokens before any user input** — its system prompt plus built-in tool
+opencode's agent sends **~41k tokens before any user input**: its system prompt plus built-in tool
 schemas (measured; LiteLLM is not injecting MCP tools, a plain request is ~18 tokens and one with a
 tool is ~130). That exceeds Qwen3-30B-A3B's native context, so `self-hosted-uncensored` is served at
 **64k via YaRN** specifically to host opencode. `self-hosted` is only ~10.9k usable
-(`contextSize 32768 ÷ 3 slots`), too small for the tool-heavy agent — use the uncensored group for
+(`contextSize 32768 ÷ 3 slots`), too small for the tool-heavy agent. Use the uncensored group for
 opencode. The serving knobs live in `llmkube/models/qwen3-30b-abliterated.yaml`: `contextSize 65536`,
 `parallelSlots 1`, `ropeScaling {yarn, factor 2.0, originalContext 32768}`.
 
@@ -141,13 +141,13 @@ context (this GGUF reports 40960) **even with correct YaRN args**, so the served
 at 40960 ([llama.cpp#22140](https://github.com/ggml-org/llama.cpp/issues/22140)). The fix is the
 extra arg `--override-kv qwen3moe.context_length=int:65536`, which raises the value the server caps
 against (rope interpolation still comes from `ropeScaling`). A `Ready` phase and a clean
-`kustomize build` do **not** prove the served window — confirm with `/props`
+`kustomize build` do **not** prove the served window: confirm with `/props`
 (`.default_generation_settings.n_ctx == 65536`) and the absence of a `capping` log line.
 
 ## MCP tools (ToolHive)
 
 Layer 2 runs the [StackLok ToolHive](https://github.com/stacklok/toolhive) operator (separate
-CRDs + operator charts — see `toolhive/app/ocirepository.yaml` for the current pin) in `ai`, an
+CRDs + operator charts, see `toolhive/app/ocirepository.yaml` for the current pin) in `ai`, an
 `MCPGroup` (`mcp-tools`), and these MCP servers, all wired into LiteLLM's `mcp_servers`:
 
 | Server    | Source                          | Access                                                  |
@@ -162,22 +162,22 @@ CRDs + operator charts — see `toolhive/app/ocirepository.yaml` for the current
 | `seerr`   | overseerr-mcp                   | Overseerr request + discovery tools                     |
 
 kubectl + flux share one read-only `ClusterRole` (`kubectl-mcp-readonly`) built from this cluster's
-API groups with core `secrets` omitted — keep it in sync with `kubectl api-resources` as you add
+API groups with core `secrets` omitted. Keep it in sync with `kubectl api-resources` as you add
 CRDs. The talos MCP mounts a `talos.dev` `ServiceAccount`-minted `os:reader` talosconfig.
 
 The `mcp_semantic_tool_filter` is **on** (top_k 8, embeddings via the `all-minilm` model on the
 CPU `llama-embed` pod): with 8 servers' worth of tools it trims each request to the most
-relevant ones. `github` + `grafana` are read-only — a fine-grained PAT (`toolhive-github`) and a
+relevant ones. `github` + `grafana` are read-only, via a fine-grained PAT (`toolhive-github`) and a
 Grafana Viewer service-account token (`toolhive-grafana`).
 
 Deferred (add later): the `VirtualMCPServer` aggregate + `EmbeddingServer` (a single
-`mcp.<domain>` endpoint for non-LiteLLM clients — it's what pulls in a Dragonfly + embedder).
+`mcp.<domain>` endpoint for non-LiteLLM clients, which is what pulls in a Dragonfly + embedder).
 
 ### Enabling flux-mcp write access
 
-The flux MCP is read-only by default. To let it — and therefore any model behind LiteLLM —
+The flux MCP is read-only by default. To let it (and therefore any model behind LiteLLM)
 reconcile / suspend / resume / apply / delete Flux objects, append to
-`toolhive/mcp-servers/flux/rbac.yaml` (no `kustomization.yaml` change needed — `rbac.yaml` is
+`toolhive/mcp-servers/flux/rbac.yaml` (no `kustomization.yaml` change needed, `rbac.yaml` is
 already listed there):
 
 ```yaml
@@ -211,7 +211,7 @@ subjects:
       namespace: ai
 ```
 
-This grants an LLM mutate access to the cluster's GitOps controller — enable only if you trust the
+This grants an LLM mutate access to the cluster's GitOps controller. Enable only if you trust the
 calling chain.
 
 ### Adding an MCP server
@@ -230,11 +230,11 @@ endpoint to LiteLLM's `mcp_servers`. The service name depends on the transport:
 Layer 3 runs [memini](https://github.com/eleboucher/memini) (SQLite backend) for agent long-term
 memory, plus two tiny CPU `llama.cpp` model servers in `ai`:
 
-- `llama-embed` — all-MiniLM-L6-v2 (384-dim), `--embeddings`, OpenAI `/v1`.
-- `llama-rerank` — Qwen3-Reranker-0.6B, `--rerank`.
+- `llama-embed`: all-MiniLM-L6-v2 (384-dim), `--embeddings`, OpenAI `/v1`.
+- `llama-rerank`: Qwen3-Reranker-0.6B, `--rerank`.
 
-Both run on **CPU** (`ghcr.io/ggml-org/llama.cpp:server`, GPU/Vulkan bits stripped) — the L4s are
-spoken for by llmkube and these models are small (~30 MB / ~600 MB). memini's consolidation LLM is
+Both run on **CPU** (`ghcr.io/ggml-org/llama.cpp:server`, GPU/Vulkan bits stripped). The L4s are
+spoken for by llmkube, and these models are small (~30 MB / ~600 MB). memini's consolidation LLM is
 LiteLLM's `self-hosted` group.
 
 Secrets: a generated `MEMINI_API_KEY` (Talos vault item `memini`) + `LITELLM_MASTER_KEY` (reused
@@ -246,16 +246,16 @@ To move embeddings onto the GPU later, swap `llama-embed`/`llama-rerank` for llm
 
 ## Gotchas
 
-- **Public repository** — no LAN IPs / internal hostnames in Git (see `CLAUDE.md`). Cluster service DNS
+- **Public repository**: no LAN IPs / internal hostnames in Git (see `CLAUDE.md`). Cluster service DNS
   and `${SECRET_*}` placeholders are fine.
-- **Metrics** — `require_auth_for_metrics_endpoint: false` **and** ServiceMonitor path `/metrics/`
+- **Metrics**: `require_auth_for_metrics_endpoint: false` **and** ServiceMonitor path `/metrics/`
   (trailing slash, no redirect-follow) are both required for in-cluster Prometheus scraping.
-- **CephFS dependency** — llmkube's shared `modelCache` PVC requires `ceph-filesystem` (RWX).
+- **CephFS dependency**: llmkube's shared `modelCache` PVC requires `ceph-filesystem` (RWX).
   Without it, multi-replica `InferenceService` pods fail to schedule (only one pod can hold an RWO
   volume at a time). The `ceph-filesystem` storage class is provisioned by Rook-Ceph.
-- **ConfigMap reloads** — the `litellm` controller is annotated `reloader.stakater.com/auto`, so
+- **ConfigMap reloads**: the `litellm` controller is annotated `reloader.stakater.com/auto`, so
   Stakater Reloader restarts it automatically when the configmap changes.
-- **Cross-namespace netpol** — `kubernetes/apps/ai/netpol.yaml` allows ingress to the `ai`
+- **Cross-namespace netpol**: `kubernetes/apps/ai/netpol.yaml` allows ingress to the `ai`
   namespace from the `network` namespace (gateway), plus a second `CiliumNetworkPolicy`
   (`allow-litellm-from-consumers`) that grants the `default` and `custom` namespaces ingress to the
   `litellm` endpoint specifically. A new consumer namespace needs adding to that policy's

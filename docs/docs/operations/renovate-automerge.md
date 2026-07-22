@@ -15,7 +15,7 @@ the policy, in this order:
 2. A second broad **catch-all for digest + pins** enables auto-merge for the same datasources with
    no cooldown.
 3. A **protected-infra guard**, placed immediately after both, sets `automerge: false` again for the
-   cluster-critical components — so it overrides both catch-alls for those packages only.
+   cluster-critical components, so it overrides both catch-alls for those packages only.
 
 `major` updates are never listed in any rule, so they always open a PR and wait for a human.
 
@@ -46,9 +46,9 @@ Application container images and Helm charts auto-merge under **two** rules, spl
 ```
 
 - `automergeType: "pr"` opens a normal PR so CI runs against the change.
-- `ignoreTests: false` together with `platformAutomerge: false` mean **Renovate self-gates on CI** —
+- `ignoreTests: false` together with `platformAutomerge: false` mean **Renovate self-gates on CI**:
   it holds the merge until the PR's checks are green (the `Lint` and `security-scans` GitHub Actions
-  workflows, the Konflate commit status, and the `claude/renovate-review` commit status — see
+  workflows, the Konflate commit status, and the `claude/renovate-review` commit status; see
   [AI review of Renovate PRs](#ai-review-of-renovate-prs) below), rather than relying on GitHub-native
   auto-merge (the repo has no required-status-check rulesets).
 - `minimumReleaseAge: "2 days"` on the **minor/patch** rule is a cooldown: a release must be two days
@@ -56,7 +56,7 @@ Application container images and Helm charts auto-merge under **two** rules, spl
   to surface first.
 - The **digest/pin/pinDigest** rule deliberately has **no** `minimumReleaseAge` (removed by #3608).
   Digest bumps track mutable tags that upstream rebuilds every few days (e.g. `nginx:1.31-alpine`,
-  `llama.cpp` `server-cuda`), so a fixed age gate perpetually resets and never clears — PRs sat
+  `llama.cpp` `server-cuda`), so a fixed age gate perpetually resets and never clears. PRs sat
   pending for up to 19 days before the fix. GHCR also often has no retrievable per-digest timestamp
   at all, which pends forever too. Digest bumps stay CI-gated (`ignoreTests: false`) like everything
   else, and the protected-infra guard still applies to them.
@@ -93,13 +93,13 @@ independent.
 
 ## Safety levers
 
-- **Cooldown** — `minimumReleaseAge: "2 days"` on the minor/patch app rule only; the digest/pin/
+- **Cooldown**: `minimumReleaseAge: "2 days"` on the minor/patch app rule only; the digest/pin/
   pinDigest rule has no cooldown at all (removed by #3608, see [What
   auto-merges](#what-auto-merges) above).
-- **CI gate** — each app merge waits for the `Lint` and `security-scans` GitHub Actions workflows,
+- **CI gate**: each app merge waits for the `Lint` and `security-scans` GitHub Actions workflows,
   the Konflate commit status, and the `claude/renovate-review` commit status to pass before Renovate
   merges it.
-- **Kill switch** — set **both** app catch-all rules' `automerge: false` (the minor/patch rule and the
+- **Kill switch**: set **both** app catch-all rules' `automerge: false` (the minor/patch rule and the
   digest/pin/pinDigest rule) to pause *all* app auto-merge and fall back to hand-merging, without
   touching the protected list. Flipping only one still leaves the other update-type category
   auto-merging.
@@ -108,8 +108,8 @@ independent.
 
 To move a component between auto-merge and manual review:
 
-- **Protect a new component** — add a substring pattern to the guard rule's `matchPackageNames`.
-- **Unprotect** — remove its pattern; it then auto-merges under whichever catch-all rule matches its
+- **Protect a new component**: add a substring pattern to the guard rule's `matchPackageNames`.
+- **Unprotect**: remove its pattern; it then auto-merges under whichever catch-all rule matches its
   update type.
 
 When adding a pattern, confirm it does not accidentally match an unrelated application image (the
@@ -129,9 +129,9 @@ The goal is for Renovate to email **only** the PRs that need a human. The mechan
   which reaches the *Participating* notification stream; clean auto-merge PRs stay unassigned and
   silent.
 - `.github/workflows/renovate-assign-on-failure.yaml` runs on the `security-scans` / `Lint`
-  `workflow_run` (there is no Flate GitHub Actions check anymore — it was deleted in #3375; render
+  `workflow_run` (there is no Flate GitHub Actions check anymore: it was deleted in #3375; render
   validation moved to the in-cluster Konflate, which posts its own commit status). When a check
-  **fails** on a Renovate PR, it assigns the PR — a failed check means Renovate won't merge it (it
+  **fails** on a Renovate PR, it assigns the PR: a failed check means Renovate won't merge it (it
   self-gates on CI), so the PR needs a human.
 
 > **Load-bearing non-git dependency:** the quiet inbox also depends on the repository's GitHub
@@ -147,16 +147,16 @@ signature of getting this wrong is open Renovate PRs piling up dozens of CI re-r
 wall of `github-actions` comments. The cause: with `automerge: true`, an unset `rebaseWhen` inherits
 `behind-base-branch`, so **every merge to `main` re-rebases every open PR and re-runs the full CI
 suite** (N open PRs × M merges/day of wasted runs). `conflicted` rebases only on a genuine textual
-conflict — ~80–95 % fewer runs. It's safe here because `platformAutomerge: false` self-merges via
+conflict: ~80-95 % fewer runs. It's safe here because `platformAutomerge: false` self-merges via
 the Renovate API and there's no branch-protection ruleset requiring up-to-date branches, so a
-behind-base-but-green PR merges fine. (The fix is **not** pruning workflows — the per-PR suite is
+behind-base-but-green PR merges fine. (The fix is **not** pruning workflows: the per-PR suite is
 each justified; the waste was re-run *frequency*.)
 
 ### AI review of Renovate PRs
 
 `.github/workflows/renovate-review.yaml` reviews Renovate PRs with `anthropics/claude-code-action`
 (Claude via OAuth, sidestepping the internal-only LiteLLM). It is gated to `renovate[bot]` PRs,
-skips digest-only and github-action bumps, and tiers the model — a cheaper model for routine patch
+skips digest-only and github-action bumps, and tiers the model: a cheaper model for routine patch
 container bumps, a stronger one for minor/major/chart or high-blast-radius components. It posts a
 `claude/renovate-review` commit status that gates auto-merge via all-checks-green.
 
@@ -174,9 +174,9 @@ so a transient blip doesn't wedge auto-merge.
 ## Why not adoption-based confidence?
 
 Renovate's [Merge Confidence](https://docs.renovatebot.com/merge-confidence/) can gate auto-merge on
-an **Adoption** score — the percentage of a package's Renovate users already on the new release — via
+an **Adoption** score (the percentage of a package's Renovate users already on the new release) via
 `matchConfidence`. It only covers seven language ecosystems (Go, JavaScript, Java, Python, .NET, PHP,
 Ruby), **not Docker images or Helm charts**, which is effectively the entire cluster. So
 `minimumReleaseAge` is the deliberate time-based substitute for versioned (minor/patch) updates:
 "survived two days in the wild" stands in for "widely adopted". Digest/pin updates get no such
-substitute — see [What auto-merges](#what-auto-merges) for why a cooldown doesn't work for them.
+substitute. See [What auto-merges](#what-auto-merges) for why a cooldown doesn't work for them.
