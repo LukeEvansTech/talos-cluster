@@ -45,7 +45,7 @@ except where noted.
 | B   | ✅ #3481 — Config cherry-picks: SearXNG hardening, litellm `context_window_fallbacks`, add-app SKILL.md wording | none    |
 | C   | ✅ #3482 arr (+ seerr #3491) — MCP servers over existing apps, with netpol rules; **ha still open** | HA token in 1Password |
 | D   | ✅ #3483 — CephFS enablement + comment corrections; RWX smoke test PASSED 2026-07-10 | none                              |
-| E   | ✅ #3484 — hermes (gateway + dashboard baseline, no chat platforms)      | none — item created, defaults applied           |
+| E   | ✅ #3484 — hermes (gateway + dashboard; web chat since added via `hermeswebui`) | none — item created, defaults applied    |
 | F   | (optional) CPU-served ~4B auxiliary model                                | none                                            |
 | G   | ✅ #3489/#3490/#3493 — model-storage de-workaround (shared CephFS cache); both models cache-served, vision verified | none |
 
@@ -123,8 +123,10 @@ test is the insurance before anything real depends on CephFS.
 
 Stand up [NousResearch/hermes-agent](https://github.com/NousResearch/hermes-agent) at
 `kubernetes/apps/ai/hermes/` as a standard app-template app. All dependencies (litellm, memini,
-toolhive) are same-namespace — no new netpol. It idles fine with zero chat platforms, so the
-baseline is gateway + dashboard only.
+toolhive) are same-namespace — no new netpol. It idles fine with zero bot-token chat platforms, so
+the initial baseline was gateway + dashboard only — since superseded: `hermeswebui`
+(`kubernetes/apps/ai/hermeswebui/`), a chat web frontend, is now deployed, and hermes sets
+`API_SERVER_ENABLED: "true"` specifically to serve it.
 
 Shape (validated against the open-webui HelmRelease as the structural analog):
 
@@ -220,7 +222,9 @@ repositories, and dispatch needs CNPG + an OIDC story.
 
 ## Decision checklist (pick-up point)
 
-- [ ] hermes: which chat surfaces, if any, to enable first (each needs a bot token in 1Password)?
+- [ ] hermes: the web chat surface is already live via `hermeswebui`; the open question is only
+      which bot-token platforms (Discord/Slack/etc.), if any, to enable next (each needs a bot
+      token in 1Password)
 - [ ] hermes: MCP wiring — direct per-proxy entries (default) or litellm's `/mcp` aggregate?
 - [ ] hermes: keep `approvals.mode: manual` (default) or `smart`?
 - [ ] hermes: image tag to pin (jory runs v2026.7.7; newer exists) + digest.

@@ -18,9 +18,18 @@ cross-cutting "what lives where and how to update it" reference.
 | vCenter / ESXi | `pryorda/vmware_exporter`         | `vmware-exporter`                             | `${SECRET_VSPHERE_ENDPOINT}` | `vsphere-monitoring`                   |
 | Firewall       | `AthennaMind/opnsense-exporter`   | `opnsense-exporter`                           | `host` field in item         | `opnsense-exporter`                    |
 | Core switch    | `prometheus/snmp_exporter`        | `snmp-exporter`                               | `${ONYX_ADDR}`               | — (SNMP community `<community>`)       |
+| UPS (NUT)      | `hon95/prometheus-nut-exporter`   | `nut-exporter` (+ `peanut` web UI)            | `${NUT_SERVER_ADDR}`         | — (anonymous NUT protocol read)        |
 
 All of these run on **least-privilege, dedicated read-only accounts**, never an
 admin credential.
+
+Since PR #3768 (2026-07-21), UPS monitoring follows the same shape as everything
+else in this table: `nut-exporter` scrapes an **external** NUT appliance (a
+dedicated box outside the cluster, so it can keep reporting — and sequencing the
+cluster's own shutdown — through a power event the cluster itself doesn't
+survive) at `${NUT_SERVER_ADDR}`, and `peanut` gives it a web UI. There is no
+in-cluster `upsd` anymore; reading NUT variables is anonymous, so no credential
+is involved.
 
 !!! warning "The two MikroTik CRS354 switches are currently NOT monitored"
 
@@ -56,9 +65,10 @@ whole game:
    `${...}` values the manifests reference (e.g. `OLLAMA_MODEL`).
 3. **`cluster-secrets`** (1Password-backed) — `SECRET_STORAGE_SERVER`,
    `SECRET_VSPHERE_ENDPOINT`, and the device DNS names `ONYX_ADDR`,
-   `MIKROTIK_POE_ADDR`, `MIKROTIK_NONPOE_ADDR` (internal hostnames kept out of
-   this public repo). Flux substitutes `${...}` from this Secret the same way; the
-   real values live in the `cluster-secrets` 1Password item (vault `Talos`).
+   `MIKROTIK_POE_ADDR`, `MIKROTIK_NONPOE_ADDR`, `NUT_SERVER_ADDR` (internal
+   hostnames kept out of this public repo). Flux substitutes `${...}` from this
+   Secret the same way; the real values live in the `cluster-secrets` 1Password
+   item (vault `Talos`).
 4. **Per-app 1Password items** (vault `Talos`, read by External Secrets via the
    `onepassword-connect` ClusterSecretStore) — the device credentials themselves.
 
@@ -89,8 +99,10 @@ Edit the relevant field (e.g. `ONYX_ADDR`) in the `cluster-secrets` 1Password it
 (vault `Talos`). The `cluster-secrets` ExternalSecret is replicated into every
 namespace; it refreshes within 1h, or force-sync the consuming namespace now, e.g.
 `kubectl annotate externalsecret cluster-secrets -n observability force-sync="$(date +%s)" --overwrite`.
-Flux re-substitutes it into the manifests on the next reconcile. For
-`snmp-exporter` you must then restart the pod (see Gotchas).
+Flux re-substitutes it into the manifests on the next reconcile. `snmp-exporter`
+carries a `reloader.stakater.com/auto: "true"` annotation (see Gotchas), so
+Reloader restarts its pod automatically once the rendered config changes — no
+manual rollout needed.
 
 ### Rotate a credential
 
@@ -99,8 +111,8 @@ Flux re-substitutes it into the manifests on the next reconcile. For
    refresh interval):
    `kubectl annotate externalsecret <name> -n observability force-sync="$(date +%s)" --overwrite`
 3. The app's `reloader.stakater.com/auto` annotation restarts the pod when the
-   rendered secret changes. **Exception: `snmp-exporter` has no reloader** —
-   restart it manually (see Gotchas).
+   rendered secret changes. `snmp-exporter` gets this annotation via a
+   `postRenderers` kustomize patch rather than a chart value (see Gotchas).
 
 ### Enable / disable an OPNsense collector
 
@@ -112,7 +124,8 @@ add an env var to `opnsense-exporter/app/helmrelease.yaml`, e.g.
 ### Add a new SNMP device
 
 Add an entry under `serviceMonitor.params` in
-`snmp-exporter/app/helmrelease.yaml` (chart `9.14.0` reads targets there, **not**
+`snmp-exporter/app/helmrelease.yaml` (the chart — 9.x, see
+`app/ocirepository.yaml` for the current pin — reads targets there, **not**
 a top-level `params`):
 
 ```yaml
@@ -165,9 +178,15 @@ kubectl exec -n observability deploy/snmp-exporter -- \
 
 ## Gotchas
 
-- **`snmp-exporter` has no reloader.** A ConfigMap, module, or auth change does
-  **not** restart the pod, so the new config is not loaded. After any change run
-  `kubectl rollout restart deploy/snmp-exporter -n observability`.
+- **`snmp-exporter` restarts on config change via Reloader (fixed by #3572,
+  2026-07-17).** It previously needed a manual `kubectl rollout restart` after
+  every ConfigMap/module/auth change, because it only reads its `--config.file`
+  at startup. The chart's `9.x` line has no Deployment-level annotations value,
+  so the fix is a `postRenderers` kustomize patch in
+  `snmp-exporter/app/helmrelease.yaml` that adds
+  `reloader.stakater.com/auto: "true"` directly to the Deployment — Reloader now
+  restarts the pod automatically whenever the rendered ConfigMap/Secret changes.
+  No manual restart is needed anymore.
 - **Never write a literal `${...}` in a YAML comment** in a manifest. Flux's
   post-build `envsubst` parses it as a variable name and fails the whole
   Kustomization with `unable to parse variable name`.

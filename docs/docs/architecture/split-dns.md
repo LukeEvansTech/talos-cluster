@@ -52,7 +52,7 @@ graph TB
     EnvoyInt --> Apps
 ```
 
-> Example IPs only — the real gateway addresses come from `${ENVOY_EXTERNAL_IP}` / `${ENVOY_INTERNAL_IP}` in `cluster-secrets`.
+> Example IPs only — the gateways' LoadBalancer addresses are static LAN IPs assigned literally in `envoy.yaml` (an allowlisted functional config); `${ENVOY_INTERNAL_IP}` in `cluster-secrets` supplies the internal gateway's external-dns target annotation.
 
 ### External DNS Flow (Internet Access)
 
@@ -210,8 +210,9 @@ domainFilters:
 How it works now (this mirrors onedr0p's UniFi pattern, adapted for the OPNsense webhook):
 
 - An app declares an `HTTPRoute` (the app-template `route:` key) with `parentRefs` pointing at `envoy-internal` or `envoy-external`.
-- external-dns reads the route via `gateway-httproute` and creates a record whose **target is the gateway's LoadBalancer IP**. Because the Cilium load balancer hands out an IP (not a hostname), the record is an **A record** — exactly what the OPNsense webhook accepts. No CNAME, no per-app CRD.
-- The `--gateway-label-filter` on each instance decides which gateway (and therefore which DNS provider) owns the record.
+- external-dns reads the route via `gateway-httproute`; the `--gateway-label-filter` on each instance decides which gateway (and therefore which DNS provider) owns the record.
+- **Internal routes** (`envoy-internal`): opnsense-dns creates an **A record** targeting the gateway's LAN IP — the gateway carries `external-dns.alpha.kubernetes.io/record-type: A` and `target: ${ENVOY_INTERNAL_IP}` annotations, and an A record is exactly what the OPNsense webhook accepts. No CNAME, no per-app CRD.
+- **External routes** (`envoy-external`): the gateway instead carries `external-dns.alpha.kubernetes.io/target: external.${SECRET_DOMAIN}` — a hostname, not an IP — so cloudflare-dns creates a **CNAME** `<app>.${SECRET_DOMAIN}` → `external.${SECRET_DOMAIN}`, which the tunnel `DNSEndpoint` below points at Cloudflare's edge.
 
 `DNSEndpoint` CRDs are now reserved for the handful of records an `HTTPRoute` cannot express:
 
@@ -279,14 +280,16 @@ graph LR
 metadata:
     labels:
         type: external # Matched by cloudflare-dns --gateway-label-filter
+    annotations:
+        external-dns.alpha.kubernetes.io/target: external.${SECRET_DOMAIN}
 
 spec:
     infrastructure:
         annotations:
-            lbipam.cilium.io/ips: ${ENVOY_EXTERNAL_IP}
+            lbipam.cilium.io/ips: <static LAN IP> # literal in envoy.yaml (allowlisted)
 ```
 
-HTTPRoutes attached to this gateway create **proxied records in Cloudflare**.
+HTTPRoutes attached to this gateway create **proxied CNAME records in Cloudflare**.
 
 ### Internal Gateway (`envoy-internal`)
 
@@ -294,11 +297,14 @@ HTTPRoutes attached to this gateway create **proxied records in Cloudflare**.
 metadata:
     labels:
         type: internal # Matched by opnsense-dns --gateway-label-filter
+    annotations:
+        external-dns.alpha.kubernetes.io/record-type: A
+        external-dns.alpha.kubernetes.io/target: ${ENVOY_INTERNAL_IP}
 
 spec:
     infrastructure:
         annotations:
-            lbipam.cilium.io/ips: ${ENVOY_INTERNAL_IP}
+            lbipam.cilium.io/ips: <static LAN IP> # literal in envoy.yaml (allowlisted)
 ```
 
 HTTPRoutes attached to this gateway create **A records in OPNsense Unbound**.

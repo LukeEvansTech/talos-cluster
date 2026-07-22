@@ -11,11 +11,13 @@ re-targeted to this cluster — **NVIDIA L4 GPUs + llama.cpp (llmkube)**.
 | `litellm`    | OpenAI-compatible gateway: routing, fallbacks, cache, metrics, MCP | live   |
 | `llmkube`    | llama.cpp model-serving operator (CUDA); 2 models active           | live   |
 | `open-webui` | chat UI                                                            | live   |
-| `toolhive`   | MCP servers (kubectl/flux/talos/searxng) wired into LiteLLM        | live   |
+| `toolhive`   | MCP servers (8 read-only servers) wired into LiteLLM               | live   |
 | `memini`     | agent long-term memory (SQLite + CPU embed/rerank)                 | live   |
+| `hermes`     | NousResearch hermes-agent gateway + dashboard (memini-backed)      | live   |
+| `hermeswebui`| chat web frontend for hermes (via its API server)                  | live   |
 
 LiteLLM persists to CNPG `postgres18` (`litellm` db) and caches in Dragonfly. Internal-only route
-(`litellm.${SECRET_INTERNAL_DOMAIN}`, envoy-internal).
+(`litellm.${SECRET_DOMAIN}` on envoy-internal).
 
 ## Model serving (llmkube)
 
@@ -50,7 +52,8 @@ To add a model: drop a `Model` + `InferenceService` manifest under `llmkube/mode
 
 LiteLLM `model_name` groups make the serving tier transparent to clients:
 
-- **`self-hosted`** — `llama-nvidia` (order 1); any future second backend adds as `order: 2`.
+- **`self-hosted`** — `llama-nvidia` (order 1), with a live cloud fallback to `openrouter/auto`
+  via `router_settings.fallbacks` (the OpenRouter key is in the `litellm` ExternalSecret).
 - **`self-hosted-uncensored`** — `llama-uncensored` (order 1); no cloud fallback by design
   (a cloud model would reintroduce refusals).
 
@@ -83,11 +86,12 @@ All three consume:
 5. **Ollama decommission** — Ollama removed; contracthound/subspy/loupe repointed to LiteLLM.
 
 Each layer is a separate commit on one branch (one PR). `mcp_servers` and
-`mcp_semantic_tool_filter` are now fully active in `litellm/app/configmap.yaml`; only the optional
-cloud-provider stubs remain commented out.
+`mcp_semantic_tool_filter` are now fully active in `litellm/app/configmap.yaml`, and one cloud
+provider is live: `openrouter/auto` is an active `model_list` entry serving as the `self-hosted`
+group's fallback. The remaining cloud-provider stubs are still commented out.
 
-> Not ported from Jory's repository: `hermes`, `openclaw` (agent runtimes), and `agentmemory` (whose main
-> consumers are hermes/openclaw).
+> Since ported from Jory's repository: `hermes` (plus a `hermeswebui` chat frontend). Still not
+> ported: `openclaw` (agent runtime) and `agentmemory` (memini covers agent memory here).
 
 ## How to extend LiteLLM
 
@@ -102,14 +106,14 @@ cloud-provider stubs remain commented out.
 ## Consuming the stack from a workstation (opencode)
 
 Any OpenAI-compatible client can drive the self-hosted models through the gateway — internal route
-`https://litellm.${SECRET_INTERNAL_DOMAIN}/v1`, models `self-hosted` and `self-hosted-uncensored`.
+`https://litellm.${SECRET_DOMAIN}/v1`, models `self-hosted` and `self-hosted-uncensored`.
 [opencode](https://opencode.ai) is wired this way as a custom provider:
 
-- **Provider** — `@ai-sdk/openai-compatible`, `baseURL: https://litellm.${SECRET_INTERNAL_DOMAIN}/v1`.
+- **Provider** — `@ai-sdk/openai-compatible`, `baseURL: https://litellm.${SECRET_DOMAIN}/v1`.
   Put the LiteLLM key in the client's own credential store (opencode: `opencode auth login` →
   `~/.local/share/opencode/auth.json`), **never** as a literal in a shared or committed config.
 - **MCP tools** — point a remote MCP server at LiteLLM's MCP gateway,
-  `https://litellm.${SECRET_INTERNAL_DOMAIN}/mcp/` (the `litellm-mcp-server`), with the LiteLLM key
+  `https://litellm.${SECRET_DOMAIN}/mcp/` (the `litellm-mcp-server`), with the LiteLLM key
   as `Authorization: Bearer …`. Curate the server set with the `x-mcp-servers` header (e.g.
   `kubectl,flux,talos,searxng`) — requesting **all** servers times out, and the full tool list
   bloats every request (heavy on the small-context local models, so prefer a frontier model for
@@ -142,9 +146,9 @@ against (rope interpolation still comes from `ropeScaling`). A `Ready` phase and
 
 ## MCP tools (ToolHive)
 
-Layer 2 runs the [StackLok ToolHive](https://github.com/stacklok/toolhive) operator (`0.29.3`,
-separate CRDs + operator charts) in `ai`, an `MCPGroup` (`mcp-tools`), and these MCP servers, all
-wired into LiteLLM's `mcp_servers`:
+Layer 2 runs the [StackLok ToolHive](https://github.com/stacklok/toolhive) operator (separate
+CRDs + operator charts — see `toolhive/app/ocirepository.yaml` for the current pin) in `ai`, an
+`MCPGroup` (`mcp-tools`), and these MCP servers, all wired into LiteLLM's `mcp_servers`:
 
 | Server    | Source                          | Access                                                  |
 | --------- | ------------------------------- | ------------------------------------------------------- |
@@ -154,14 +158,16 @@ wired into LiteLLM's `mcp_servers`:
 | `searxng` | mcp-searxng → `searxng.default` | web search                                              |
 | `github`  | github-mcp-server               | GitHub read-only (`GITHUB_READ_ONLY`, fine-grained PAT) |
 | `grafana` | grafana/mcp-grafana             | Grafana Viewer SA token (read-only)                     |
+| `arr`     | mcp-arr                         | Sonarr / Radarr / Prowlarr tools (per-app API keys)     |
+| `seerr`   | overseerr-mcp                   | Overseerr request + discovery tools                     |
 
 kubectl + flux share one read-only `ClusterRole` (`kubectl-mcp-readonly`) built from this cluster's
 API groups with core `secrets` omitted — keep it in sync with `kubectl api-resources` as you add
 CRDs. The talos MCP mounts a `talos.dev` `ServiceAccount`-minted `os:reader` talosconfig.
 
 The `mcp_semantic_tool_filter` is **on** (top_k 8, embeddings via the `all-minilm` model on the
-CPU `llama-embed` pod): with ~110 tools across 6 servers it trims each request to the most
-relevant tools. `github` + `grafana` are read-only — a fine-grained PAT (`toolhive-github`) and a
+CPU `llama-embed` pod): with 8 servers' worth of tools it trims each request to the most
+relevant ones. `github` + `grafana` are read-only — a fine-grained PAT (`toolhive-github`) and a
 Grafana Viewer service-account token (`toolhive-grafana`).
 
 Deferred (add later): the `VirtualMCPServer` aggregate + `EmbeddingServer` (a single
@@ -233,7 +239,7 @@ LiteLLM's `self-hosted` group.
 
 Secrets: a generated `MEMINI_API_KEY` (Talos vault item `memini`) + `LITELLM_MASTER_KEY` (reused
 from the `litellm` item). Data PVC via the volsync component (10Gi). Route:
-`memini.${SECRET_INTERNAL_DOMAIN}` (internal).
+`memini.${SECRET_DOMAIN}` (envoy-internal).
 
 To move embeddings onto the GPU later, swap `llama-embed`/`llama-rerank` for llmkube
 `InferenceService`s and repoint `MEMINI_EMBED_BASE_URL` / `MEMINI_RERANK`.
@@ -250,8 +256,7 @@ To move embeddings onto the GPU later, swap `llama-embed`/`llama-rerank` for llm
 - **ConfigMap reloads** — the `litellm` controller is annotated `reloader.stakater.com/auto`, so
   Stakater Reloader restarts it automatically when the configmap changes.
 - **Cross-namespace netpol** — `kubernetes/apps/ai/netpol.yaml` allows ingress to the `ai`
-  namespace only from the `network` namespace (gateway). Apps in `default` and `custom` that call
-  `litellm.ai.svc.cluster.local:4000` need a policy allowing ingress from those namespaces. If
-  Cilium is in `default` enforcement mode and the policy is active on all `ai` pods, add an
-  additional `fromEndpoints` rule for `io.kubernetes.pod.namespace: default` and
-  `io.kubernetes.pod.namespace: custom` before merging this change.
+  namespace from the `network` namespace (gateway), plus a second `CiliumNetworkPolicy`
+  (`allow-litellm-from-consumers`) that grants the `default` and `custom` namespaces ingress to the
+  `litellm` endpoint specifically. A new consumer namespace needs adding to that policy's
+  `fromEndpoints` list before its calls to `litellm.ai.svc.cluster.local:4000` will connect.

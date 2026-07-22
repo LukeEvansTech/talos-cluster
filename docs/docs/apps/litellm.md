@@ -22,7 +22,7 @@ See the [AI / LLM stack](../architecture/ai-llm-stack.md) page for how it fits t
 - Prometheus success/failure callbacks enabled for metrics.
 - Auth is the built-in master key + UI credentials (no external SSO for an internal-only service).
 - Routing is an internal-only HTTPRoute on the `envoy-internal` listener at
-  `litellm.${SECRET_INTERNAL_DOMAIN}`; the API (`/v1/*`) and admin UI (`/ui`) share one port.
+  `litellm.${SECRET_DOMAIN}`; the API (`/v1/*`) and admin UI (`/ui`) share one port.
 - Secrets come from an ExternalSecret pulling the `litellm` 1Password item (Talos vault).
 
 ## Deploy gotchas
@@ -51,7 +51,7 @@ See the [AI / LLM stack](../architecture/ai-llm-stack.md) page for how it fits t
 - API round-trip test:
 
   ```bash
-  curl -sS https://litellm.${SECRET_INTERNAL_DOMAIN}/v1/chat/completions \
+  curl -sS https://litellm.${SECRET_DOMAIN}/v1/chat/completions \
     -H "Authorization: Bearer $LITELLM_MASTER_KEY" \
     -H "Content-Type: application/json" \
     -d '{"model":"<model-group>","messages":[{"role":"user","content":"ping"}]}'

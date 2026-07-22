@@ -3,6 +3,14 @@
 PVC data is backed up with **VolSync** — the NFS destination uses the **Kopia** mover and the remote
 (R2) destination uses the **Restic** mover. Backups are opt-in per app via the `volsync` component.
 
+## kopiur trial
+
+A parallel backup path is being trialed alongside VolSync: the **kopiur** operator
+(`kubernetes/apps/kopiur-system/kopiur`) takes CSI-snapshot-based, Kopia-native backups directly to a
+dedicated NFS `ClusterRepository`, wired in per-app via the `components/kopiur/backup` component.
+It's currently opted in on two apps — `apprise` and `atuin` — as a trial, running **alongside**, not
+replacing, VolSync for those apps.
+
 ## Enabling backups for an app
 
 - Add the `volsync` component to the app's `ks.yaml` `spec.components` (not also to

@@ -5,7 +5,7 @@
 
 ## Overview
 
-This guide documents the implementation of Envoy Gateway v1.8.1 in the Talos cluster and provides instructions for migrating applications from nginx ingress to Gateway API HTTPRoutes.
+This guide documents the implementation of Envoy Gateway v1.8.x in the Talos cluster and provides instructions for migrating applications from nginx ingress to Gateway API HTTPRoutes.
 
 ## What Was Implemented
 
@@ -13,7 +13,7 @@ This guide documents the implementation of Envoy Gateway v1.8.1 in the Talos clu
 
 **Location:** `kubernetes/apps/network/envoy-gateway/`
 
-- **Chart:** `oci://mirror.gcr.io/envoyproxy/gateway-helm v1.8.1`
+- **Chart:** `oci://mirror.gcr.io/envoyproxy/gateway-helm` v1.8.x (see `app/ocirepository.yaml` for the current pin)
 - **CRDs:** Installed via `just bootstrap crds` for GitOps compatibility
 - **Components:**
   - 1 Envoy Gateway controller pod
@@ -40,7 +40,9 @@ network/
 - Wildcard certificate (`*.${SECRET_DOMAIN}`) imported from 1Password
 - Certificate stored in `network` namespace (same as Gateway)
 - No cross-namespace certificate references needed
-- Existing `cert-manager/tls/` setup remains for nginx compatibility
+- nginx is now fully decommissioned; `kubernetes/apps/cert-manager/cert-manager/tls/` (a
+  `Certificate` + `PushSecret`) is today the live source of the wildcard TLS certificate that the
+  `network/certificates` ExternalSecret above pulls in for Envoy Gateway
 
 ### 3. Gateway Resources
 

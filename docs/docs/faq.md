@@ -18,7 +18,8 @@ See [Secret management](architecture/secrets.md) for the full picture. To add on
     sensitive cluster-wide values such as `${SECRET_DOMAIN}`, `${SECRET_INTERNAL_DOMAIN}`, and
     internal device DNS names.
   - `cluster-settings` — a git-tracked ConfigMap in `components/global-vars/` for non-sensitive
-    cluster-wide values (e.g. the default model name). Anything in here is world-visible.
+    cluster-wide values. Anything in here is world-visible. It is currently empty (`data: {}`) but
+    stays wired into every app's substitution.
 
 ## How does Flux variable substitution work, and why must I escape `$${VAR}`?
 
@@ -33,13 +34,19 @@ tokens against `cluster-secrets`/`cluster-settings` at apply time.
 
 ## What is the difference between `${SECRET_DOMAIN}` and `${SECRET_INTERNAL_DOMAIN}`?
 
-Both are substituted from `cluster-secrets`:
+Both are substituted from `cluster-secrets`, but they are not an external/internal pair for app
+hostnames:
 
-- `${SECRET_DOMAIN}` — the external domain, used for apps reachable through the Cloudflare tunnel.
-- `${SECRET_INTERNAL_DOMAIN}` — the internal domain, used for LAN-only apps on the internal listener.
+- `${SECRET_DOMAIN}` — the domain every app route uses. All routes follow `${APP}.${SECRET_DOMAIN}`;
+  whether an app is LAN-only or publicly reachable is decided by which gateway the route attaches to
+  (`envoy-internal` vs `envoy-external`), not by the domain in its hostname.
+- `${SECRET_INTERNAL_DOMAIN}` — kept for non-route uses only: device records such as IPMI probe
+  targets and the NAS S3 endpoint, plus the opnsense-dns domain filter. Do not add
+  `${SECRET_INTERNAL_DOMAIN}` aliases to app routes — each alias costs an OPNsense host-override
+  record, and the record count has a hard ceiling above which publishing silently stops.
 
-"Available under `${SECRET_DOMAIN}`" for a home app usually means internal DNS on the internal
-listener, not public exposure. See [Networking](architecture/networking.md) and
+"Available under `${SECRET_DOMAIN}`" for a home app therefore means internal DNS on the
+`envoy-internal` gateway, not public exposure. See [Networking](architecture/networking.md) and
 [Split DNS](architecture/split-dns.md).
 
 ## How do I force a reconcile?
@@ -76,8 +83,10 @@ The repository is publicly readable, so anything committed is world-visible. **N
 
 Use the `${SECRET_DOMAIN}` / `${SECRET_INTERNAL_DOMAIN}` placeholders and let Flux substitute the
 real values at apply time. A CI guard (`check_internal_identifiers.py`, run by the security-scans
-workflow) fails any pull request that introduces one of these identifiers outside a small allowlist.
-See [Secret management](architecture/secrets.md).
+workflow) fails any pull request that introduces a LAN IP, node or device hostname, MAC, or
+`.lan`/`.internal` hostname outside a small allowlist. Disk serials and device models are
+deliberately not pattern-matched by the (public) script, so keeping those out is enforced by review
+rather than CI. See [Secret management](architecture/secrets.md).
 
 ## Where do device addresses for monitoring live?
 

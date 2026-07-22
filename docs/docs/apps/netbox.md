@@ -59,9 +59,8 @@ and its `existingSecret` contract are already modelled by the upstream chart.
   `GRANIAN_WORKERS=2` and give the web pod request 512Mi / limit 1.5Gi.
 - **Django host guarding rejects unlisted Host headers, including kubelet probes.** `ALLOWED_HOSTS`
   must include both the route host(s) and the in-cluster service name (the chart's
-  `allowedHostsIncludesPodIP` covers the pod IP), and CSRF trusted origins must list both
-  `https://netbox.${SECRET_DOMAIN}` and `https://netbox.${SECRET_INTERNAL_DOMAIN}`. Miss this and
-  probes (and the UI) get a 400.
+  `allowedHostsIncludesPodIP` covers the pod IP), and CSRF trusted origins must list
+  `https://netbox.${SECRET_DOMAIN}`. Miss this and probes (and the UI) get a 400.
 - **`SECRET_KEY` must be 50+ characters.** Generate it long enough (e.g. `openssl rand -base64 60`)
   or NetBox refuses to start.
 - The 1Password source item lives in the `Talos` vault and is created via the `op` CLI (never the
@@ -77,9 +76,9 @@ and its `existingSecret` contract are already modelled by the upstream chart.
   flux reconcile kustomization netbox -n default
   ```
 
-- **Hostname** is `netbox.${SECRET_INTERNAL_DOMAIN}` (internal DNS via external-dns). Listing the
-  `${SECRET_DOMAIN}` host on the `envoy-internal` listener keeps it internal-only — it does not
-  expose NetBox publicly.
+- **Hostname** is `netbox.${SECRET_DOMAIN}` (internal DNS via external-dns). The HTTPRoute's only
+  hostname sits on the `envoy-internal` listener, which is what keeps it internal-only — it does
+  not expose NetBox publicly.
 - **First-boot check** — confirm the `init-db` initContainer reports the `netbox` role/database
   created (or already exists), then log in as the superuser (`admin`).
 - **Backups** — the `media` PVC is snapshotted by VolSync. The `netbox` database lives on the shared

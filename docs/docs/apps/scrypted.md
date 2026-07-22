@@ -15,8 +15,7 @@ Reolink cameras in a later phase.
   is cloud-relayed through the Ring account — expected at this stage.
 - **Phase 1+:** Reolink cameras (Doorbell PoE/WiFi, Duo/Elite Floodlight, Argus
   4 Pro, E1 Pro) via `@scrypted/reolink`. Nothing here blocks local RTSP/ONVIF.
-- Internal-only: `scrypted.${SECRET_DOMAIN}` and
-  `scrypted.${SECRET_INTERNAL_DOMAIN}` on `envoy-internal`.
+- Internal-only: `scrypted.${SECRET_DOMAIN}` on `envoy-internal`.
 
 ## Division of labour with Homebridge
 
@@ -97,7 +96,7 @@ The admin account for the management UI is likewise created on first launch.
 
 ## First-run checklist
 
-1. Reach the UI at `scrypted.${SECRET_INTERNAL_DOMAIN}` and create the admin
+1. Reach the UI at `scrypted.${SECRET_DOMAIN}` and create the admin
    account.
 2. Install the **Ring** plugin; sign in with the Ring account and complete 2FA.
    Confirm all devices appear under Devices.

@@ -16,6 +16,7 @@ Work down from what you observe to the most likely entry:
     - One node's cross-node pod traffic flips/breaks while its host traffic is fine; its spegel pod goes `0/1` → [KB-008](kb/008-cilium-cross-node-pod-networking-breaks.md)
     - An app 404s through the gateway on its real hostname but works on its pod IP (live HTTPRoute drifted to `*.example.com`) → [KB-020](kb/020-httproute-drifts-to-placeholder-hostnames.md)
     - `NodeHighNumberConntrackEntriesUsed` on every node at once right after deploying a scanner → [KB-023](kb/023-node-conntrack-saturation-host-network-scanner.md)
+    - A dozen Gatus endpoints across `media`/`downloads` go red at once with HTTP 503, DNS still resolves, pods are simply absent (zeroscaler at 0/1) → [KB-027](kb/027-dns-cleanup-scaled-nfs-apps-to-zero.md)
 - **Storage / backups**
     - Backup pod stuck `PodInitializing` (`mount.nfs: Failed to resolve`), or `CreateContainerConfigError` on a subPath → [KB-009](kb/009-nfs-mount-failures-host-dns-readonly-export.md)
     - After a Rook v1.20 upgrade: RBD nodeplugin `FailedCreate`, or ~88 `VolSyncVolumeOutOfSync` alerts → [KB-010](kb/010-rook-ceph-v120-csi-driver-split.md)
@@ -69,3 +70,4 @@ Work down from what you observe to the most likely entry:
 - [KB-024: zeroscaler — NFS-Availability Scale-to-Zero via Native HPA](kb/024-zeroscaler-nfs-hpa.md)
 - [KB-025: CephFS "Module ceph not found" on Talos Is a Built-in, Not a Missing Module](kb/025-cephfs-modprobe-builtin-misdiagnosis.md)
 - [KB-026: Plex Apple TV App Freezes on One Frame (Client Receive-Window Deadlock)](kb/026-plex-apple-tv-app-receive-window-deadlock.md)
+- [KB-027: A DNS Cleanup Scaled Every NFS-Backed App to Zero](kb/027-dns-cleanup-scaled-nfs-apps-to-zero.md)

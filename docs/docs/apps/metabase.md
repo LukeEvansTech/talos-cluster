@@ -18,9 +18,10 @@ shared `postgres18` CloudNativePG cluster.
 - **bjw-s `app-template` chart**, like every other app in the namespace — one Deployment + Service +
   route + `postgres-init` initContainer fits it cleanly. The dedicated `metabase` DB and role are
   bootstrapped idempotently by the `ghcr.io/home-operations/postgres-init` initContainer on first run.
-- **Internal-only ingress.** Inline `route:` on `envoy-internal` for both
-  `metabase.${SECRET_DOMAIN}` and `metabase.${SECRET_INTERNAL_DOMAIN}`. Cloudflare-fronting can be
-  added later by switching the `parentRef` and adding an external hostname.
+- **Internal-only ingress.** Inline `route:` on `envoy-internal` for
+  `metabase.${SECRET_DOMAIN}` — the `envoy-internal` attachment is what keeps it internal-only, not
+  the domain. Cloudflare-fronting can be added later by switching the `parentRef` to
+  `envoy-external`.
 - **Native Prometheus exporter, not a JMX sidecar.** Metabase 0.49+ ships a built-in `/metrics`
   endpoint via `MB_PROMETHEUS_SERVER_PORT` (port 9191 here), scraped by a `PodMonitor`; a community
   Grafana dashboard is imported via a `GrafanaDashboard` CR.

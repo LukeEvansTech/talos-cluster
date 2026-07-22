@@ -8,16 +8,19 @@ rules, `ingressDeny`, and egress-to-world).
 
 ## Ingress — Envoy Gateway (Gateway API)
 
-Ingress is Envoy Gateway using the Gateway API (`HTTPRoute`), not classic Ingress. Two listeners
-exist, addressed by role rather than by IP here:
+Ingress is Envoy Gateway using the Gateway API (`HTTPRoute`), not classic Ingress. Two Gateways
+exist in the `network` namespace, addressed by role rather than by IP here:
 
-- an **internal** listener (LAN-only), and
-- an **external** listener (reachable via the Cloudflare tunnel).
+- **`envoy-internal`** (LAN-only), and
+- **`envoy-external`** (reachable via the Cloudflare tunnel).
 
-Most apps declare an inline `route:` in their HelmRelease values targeting the appropriate listener
-in the `network` namespace. Hosts are `${APP}.${SECRET_DOMAIN}` (external) and
-`${APP}.${SECRET_INTERNAL_DOMAIN}` (internal). "Available under `${SECRET_DOMAIN}`" for a home app
-usually means internal DNS on the internal listener — not public exposure.
+Most apps declare an inline `route:` in their HelmRelease values targeting one of the two Gateways.
+Every route uses a single hostname, `${APP}.${SECRET_DOMAIN}`, whichever Gateway it attaches to —
+internal-only vs public exposure is decided by the Gateway, not by the domain. Routes do not carry
+`${SECRET_INTERNAL_DOMAIN}` aliases: an alias resolves to the same Gateway as the primary hostname,
+so it buys no extra restriction, and each one costs an OPNsense host-override record against a hard
+ceiling (see [Split DNS](split-dns.md)). "Available under `${SECRET_DOMAIN}`" for a home app
+usually means internal DNS on `envoy-internal` — not public exposure.
 
 ## DNS
 
@@ -29,6 +32,7 @@ See [Split DNS](split-dns.md) for how the internal and external views are kept s
 
 ## TLS
 
-cert-manager issues certificates via Let's Encrypt ACME; the external domain's certificates are
-visible in certificate-transparency logs (which is why the external domain itself is not treated as
-secret, while internal hostnames are kept out of Git).
+cert-manager issues a single wildcard certificate (`*.${SECRET_DOMAIN}`) via Let's Encrypt ACME,
+and both Gateways serve it. The wildcard entry is visible in certificate-transparency logs (which is
+why the domain itself is not treated as secret), but individual app subdomains are not enumerated
+there, and internal hostnames are kept out of Git.

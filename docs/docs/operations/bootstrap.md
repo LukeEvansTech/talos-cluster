@@ -271,24 +271,35 @@ Deploys bootstrap applications via Helmfile.
 
 ### Full Bootstrap
 
-Run all stages in sequence:
+`just bootstrap` on its own only **lists** the module's recipes (`set default-list`
+in `bootstrap/mod.just`) — it no longer arms a bootstrap by itself. Run the full
+end-to-end flow with the `cluster` recipe:
 
 ```bash
-just bootstrap
+just bootstrap cluster
 ```
+
+This prompts for confirmation first — `Bootstrap cluster? [y|N]` — before running
+any stage.
 
 This is equivalent to:
 
 ```bash
 just bootstrap talos
 just bootstrap kube
-just bootstrap kubeconfig
+just bootstrap kubeconfig node
 just bootstrap wait
 just bootstrap namespaces
 just bootstrap resources
 just bootstrap crds
 just bootstrap apps
+just bootstrap kubeconfig
 ```
+
+The first `kubeconfig node` call points kubectl directly at a control-plane node
+IP — Cilium's LoadBalancer doesn't exist yet at this point in the bootstrap, so
+there's no LB IP to route through. The final `kubeconfig` call (default `cilium`)
+re-fetches it pointed at the Cilium LB once Cilium is up and running.
 
 ### Partial Bootstrap
 
@@ -337,28 +348,50 @@ graph TD
 
 Certain applications use post-sync hooks to ensure dependent resources are ready:
 
-### Cilium Hook
+### Cilium Hooks
 
-Waits for Cilium CRDs to be available (helmfile `postsync` hook):
+Cilium has two `postsync` hooks in `bootstrap/helmfile.d/01-apps.yaml`:
 
-```bash
-kubectl wait --for=create \
-  crd/ciliumbgpadvertisements.cilium.io \
-  crd/ciliumbgpclusterconfigs.cilium.io \
-  crd/ciliumbgppeerconfigs.cilium.io \
-  crd/ciliumloadbalancerippools.cilium.io \
-  --timeout=2m
-```
+1. Waits for Cilium CRDs to be available:
 
-### OnePassword Connect Hook
+    ```bash
+    kubectl wait --for=create \
+      crd/ciliumbgpadvertisements.cilium.io \
+      crd/ciliumbgpclusterconfigs.cilium.io \
+      crd/ciliumbgppeerconfigs.cilium.io \
+      crd/ciliumloadbalancerippools.cilium.io \
+      --timeout=2m
+    ```
 
-Waits for ClusterSecretStore CRD (helmfile `postsync` hook on `onepassword-connect`):
+2. Server-side applies Cilium's own networking resources, so they exist before Flux
+   takes over management of them:
 
-```bash
-kubectl wait --for=create \
-  crd/clustersecretstores.external-secrets.io \
-  --timeout=2m
-```
+    ```bash
+    kubectl apply --namespace=kube-system --server-side \
+      --field-manager=kustomize-controller \
+      --filename=../../kubernetes/apps/kube-system/cilium/app/networks.yaml
+    ```
+
+### OnePassword Connect Hooks
+
+OnePassword Connect also has two `postsync` hooks:
+
+1. Waits for the ClusterSecretStore CRD to be available:
+
+    ```bash
+    kubectl wait --for=create \
+      crd/clustersecretstores.external-secrets.io \
+      --timeout=2m
+    ```
+
+2. Server-side applies the `ClusterSecretStore` resource itself, so ExternalSecrets
+   can start resolving `onepassword-connect` refs immediately:
+
+    ```bash
+    kubectl apply --server-side \
+      --field-manager=kustomize-controller \
+      --filename=../../kubernetes/apps/external-secrets/onepassword-connect/app/clustersecretstore.yaml
+    ```
 
 ## Values Template (DRY Principle)
 
@@ -367,10 +400,7 @@ The bootstrap uses a Go template to source Helm values from HelmRelease files:
 **File:** `bootstrap/helmfile.d/templates/values.yaml.gotmpl`
 
 ```gotmpl
-{{- $namespace := .Release.Namespace -}}
-{{- $name := .Release.Name -}}
-{{- $path := printf "../../../kubernetes/apps/%s/%s/app/helmrelease.yaml" $namespace $name -}}
-{{ (fromYaml (readFile $path)).spec.values | toYaml }}
+{{ (fromYaml (readFile (printf "../../../kubernetes/apps/%s/%s/app/helmrelease.yaml" .Release.Namespace .Release.Name))).spec.values | toYaml }}
 ```
 
 **How it works:**
@@ -535,7 +565,7 @@ The old bash-based bootstrap system (`scripts/bootstrap-apps.sh`) has been remov
 ### New Command
 
 ```bash
-just bootstrap
+just bootstrap cluster
 ```
 
 ### Key Differences

@@ -14,8 +14,9 @@ Cursor, Claude Code) can apply the same conventions:
 - `.agents/skills/add-app/SKILL.md` — a skill that scaffolds a new app-template application
   following the conventions below. Agent tools that read `.agents/skills/` can invoke it directly.
 
-`AGENTS.md` at the repository root is the canonical conventions guide. The local `CLAUDE.md` is a
-standalone file and does not import `AGENTS.md`.
+`AGENTS.md` at the repository root is the canonical, tool-agnostic conventions guide. The local
+`CLAUDE.md` imports it via an `@AGENTS.md` include and adds Claude-Code-specific specifics on top
+(kubeconfig usage, `just` command reference, Flux reconciliation steps).
 
 ## Adding a new app
 
@@ -57,15 +58,32 @@ Use the `add-app` skill to scaffold, or follow the shape by hand. Every app live
 
 PR renders and diffs are posted by the in-cluster Konflate as a native commit status plus a PR comment
 (there is no GitHub Actions render workflow). GitHub Actions still run security scans (Checkov/Trivy) and
-super-linter. Mirror the render locally first with flate:
+super-linter. Mirror the render locally first with flate, preferably via the `just` wrappers defined in
+`kubernetes/mod.just` (the raw `flate` invocations underneath are shown for reference):
 
 ```bash
-# Render a single app's HelmRelease
-flate build hr <app> -n <namespace> --path kubernetes/flux/cluster --allow-missing-secrets
+# Render a single app's HelmRelease / Kustomization
+just kube flate-build-hr <namespace> <app>
+just kube flate-build-ks <namespace> <app>
 
 # Test all Kustomizations + HelmReleases
+just kube flate-test
+```
+
+```bash
+# Underlying flate invocations
+flate build hr <app> -n <namespace> --path kubernetes/flux/cluster --allow-missing-secrets
 flate test all --path kubernetes/flux/cluster --allow-missing-secrets
 ```
+
+### Pre-commit hooks (lefthook)
+
+Lefthook runs automatically on `git commit`. Per `.lefthook.toml`, it formats YAML (`yamlfmt`,
+`prettier`) and JSON/JSON5 (`prettier`), and lints shell scripts (`shellcheck`), GitHub Actions
+workflows (`actionlint`, `zizmor`). It also mirrors several super-linter checks in report-only
+mode — `yamllint`, `codespell`, `markdownlint`, `editorconfig-checker` — scoped to staged files so
+their findings surface at commit time instead of in CI. `.lefthook.toml` is the source of truth for
+the exact command/glob/exclude for each hook.
 
 ## Where AI planning artifacts go
 

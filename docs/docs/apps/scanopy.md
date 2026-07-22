@@ -11,8 +11,7 @@ L2/L3/workload/application diagrams by continuously scanning the infrastructure.
   - **postgres** — upstream compose bundles its own Postgres; here it uses the shared CNPG cluster.
 - Deployed via two HelmReleases (`scanopy` server, `scanopy-daemon` scanner) that share one
   `app-template` `OCIRepository`, both referencing `chartRef.name: scanopy`.
-- Internal-only app: exposed on `envoy-internal` with dual hostnames
-  `scanopy.${SECRET_DOMAIN}` and `scanopy.${SECRET_INTERNAL_DOMAIN}`.
+- Internal-only app: exposed on `envoy-internal` at `scanopy.${SECRET_DOMAIN}`.
 
 ## Design decisions
 
@@ -68,8 +67,8 @@ L2/L3/workload/application diagrams by continuously scanning the infrastructure.
   reboots (`/var/lib` is writable + persistent).
 - **Privileged is allowed** — the cluster enforces no restricted PodSecurity and the `network`
   namespace has no PSA labels, so the privileged hostNetwork daemon admits cleanly.
-- **Image digests are pinned** for both server and daemon (`v0.16.2`) and the `postgres-init`
-  initContainer; Renovate manages bumps afterward.
+- **Image digests are pinned** for both server and daemon (kept in lockstep by Renovate) and the
+  `postgres-init` initContainer.
 
 ## Operational notes
 

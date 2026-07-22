@@ -192,7 +192,7 @@ kubectl get nodes -o custom-columns=NAME:.metadata.name,VERSION:.status.nodeInfo
 Tuppr's `TalosUpgrade` spec does not have a `force` field. To bypass a blocked upgrade, address the blocking condition directly or use `talosctl` to upgrade a node out-of-band:
 
 1. **Fix the blocking condition** — archive Ceph crash reports, wait for VolSync to finish, or resolve the health check failure.
-2. **Manual per-node upgrade** — bypasses tuppr entirely:
+2. **Manual per-node upgrade** — bypasses tuppr entirely. Prefer the existing `just talos upgrade-node <node-ip>` recipe (`talos/mod.just`): it derives the correct installer image and version from `talconfig.yaml`/`talenv.yaml` via talhelper, so you don't have to hand-assemble the flags. The raw form it wraps is:
 
    ```bash
    talosctl upgrade --nodes <node-ip> --image <talos-installer-image>:<version> --timeout=10m

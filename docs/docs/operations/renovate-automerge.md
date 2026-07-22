@@ -7,38 +7,59 @@ protected set of cluster-critical infrastructure stays on manual review. The who
 
 ## How it works
 
-Renovate evaluates `packageRules` top to bottom, **last match wins per field**. Two rules implement
+Renovate evaluates `packageRules` top to bottom, **last match wins per field**. Three rules implement
 the policy, in this order:
 
-1. A broad **catch-all** enables auto-merge for every container image and Helm chart.
-2. A **protected-infra guard**, placed immediately after, sets `automerge: false` again for the
-   cluster-critical components — so it overrides the catch-all for those packages only.
+1. A broad **catch-all for minor/patch** enables auto-merge for every container image and Helm
+   chart, gated by a cooldown.
+2. A second broad **catch-all for digest + pins** enables auto-merge for the same datasources with
+   no cooldown.
+3. A **protected-infra guard**, placed immediately after both, sets `automerge: false` again for the
+   cluster-critical components — so it overrides both catch-alls for those packages only.
 
-`major` updates are never listed in either rule, so they always open a PR and wait for a human.
+`major` updates are never listed in any rule, so they always open a PR and wait for a human.
 
 ## What auto-merges
 
-Application container images and Helm charts auto-merge for `minor`, `patch`, and `digest` updates:
+Application container images and Helm charts auto-merge under **two** rules, split by update type:
 
 ```json5
 {
-  description: "Auto-merge apps — minor/patch/digest (denylist model; protected guard below)",
+  description: "Auto-merge apps — minor/patch (denylist model; protected guard below)",
   matchDatasources: ["docker", "helm"],
-  matchUpdateTypes: ["minor", "patch", "digest"],
+  matchUpdateTypes: ["minor", "patch"],
   automerge: true,
   automergeType: "pr",
   platformAutomerge: false,
   ignoreTests: false,
-  minimumReleaseAge: "3 days",
+  minimumReleaseAge: "2 days",
+},
+{
+  description: "Auto-merge apps — digest + pins, no age gate (denylist model; protected guard below)",
+  matchDatasources: ["docker", "helm"],
+  matchUpdateTypes: ["digest", "pin", "pinDigest"],
+  automerge: true,
+  automergeType: "pr",
+  platformAutomerge: false,
+  ignoreTests: false,
 }
 ```
 
 - `automergeType: "pr"` opens a normal PR so CI runs against the change.
 - `ignoreTests: false` together with `platformAutomerge: false` mean **Renovate self-gates on CI** —
-  it holds the merge until the branch's checks (flate, security-scans) are green, rather than relying
-  on GitHub-native auto-merge (the repo has no required-status-check rulesets).
-- `minimumReleaseAge: "3 days"` is a cooldown: a release must be three days old before it can merge,
-  giving yanked tags, broken `.0` releases, and runtime regressions a window to surface first.
+  it holds the merge until the PR's checks are green (the `Lint` and `security-scans` GitHub Actions
+  workflows, the Konflate commit status, and the `claude/renovate-review` commit status — see
+  [AI review of Renovate PRs](#ai-review-of-renovate-prs) below), rather than relying on GitHub-native
+  auto-merge (the repo has no required-status-check rulesets).
+- `minimumReleaseAge: "2 days"` on the **minor/patch** rule is a cooldown: a release must be two days
+  old before it can merge, giving yanked tags, broken `.0` releases, and runtime regressions a window
+  to surface first.
+- The **digest/pin/pinDigest** rule deliberately has **no** `minimumReleaseAge` (removed by #3608).
+  Digest bumps track mutable tags that upstream rebuilds every few days (e.g. `nginx:1.31-alpine`,
+  `llama.cpp` `server-cuda`), so a fixed age gate perpetually resets and never clears — PRs sat
+  pending for up to 19 days before the fix. GHCR also often has no retrievable per-digest timestamp
+  at all, which pends forever too. Digest bumps stay CI-gated (`ignoreTests: false`) like everything
+  else, and the protected-infra guard still applies to them.
 
 ## What stays manual
 
@@ -50,6 +71,8 @@ The protected-infra guard keeps these on manual review for all update types (inc
 | Control plane | `kube-apiserver`, `kube-controller-manager`, `kube-proxy`, `kube-scheduler` |
 | CNI | `cilium` |
 | Storage | `rook-ceph`, `rook-ceph-cluster`, `miroir` |
+| Node upgrades | `tuppr` (drives Talos + Kubernetes node upgrades) |
+| Backups | `volsync` (backup mover), `snapshot-controller` (CSI VolumeSnapshot controller) |
 | GitOps | `fluxcd/` (controllers), `controlplaneio-fluxcd` (operator + instance) |
 | Certs / DNS / secrets | `cert-manager`, `coredns`, `external-secrets`, `1password` (onepassword-connect) |
 | Image mirror | `spegel` |
@@ -70,17 +93,24 @@ independent.
 
 ## Safety levers
 
-- **Cooldown** — `minimumReleaseAge: "3 days"` on every app merge.
-- **CI gate** — each app merge waits for flate + security-scans to pass before Renovate merges it.
-- **Kill switch** — set the catch-all rule's `automerge: false` (one line) to pause *all* app
-  auto-merge and fall back to hand-merging, without touching the protected list.
+- **Cooldown** — `minimumReleaseAge: "2 days"` on the minor/patch app rule only; the digest/pin/
+  pinDigest rule has no cooldown at all (removed by #3608, see [What
+  auto-merges](#what-auto-merges) above).
+- **CI gate** — each app merge waits for the `Lint` and `security-scans` GitHub Actions workflows,
+  the Konflate commit status, and the `claude/renovate-review` commit status to pass before Renovate
+  merges it.
+- **Kill switch** — set **both** app catch-all rules' `automerge: false` (the minor/patch rule and the
+  digest/pin/pinDigest rule) to pause *all* app auto-merge and fall back to hand-merging, without
+  touching the protected list. Flipping only one still leaves the other update-type category
+  auto-merging.
 
 ## Maintaining the protected set
 
 To move a component between auto-merge and manual review:
 
 - **Protect a new component** — add a substring pattern to the guard rule's `matchPackageNames`.
-- **Unprotect** — remove its pattern; it then auto-merges under the catch-all.
+- **Unprotect** — remove its pattern; it then auto-merges under whichever catch-all rule matches its
+  update type.
 
 When adding a pattern, confirm it does not accidentally match an unrelated application image (the
 patterns are unanchored substrings).
@@ -98,9 +128,11 @@ The goal is for Renovate to email **only** the PRs that need a human. The mechan
   default, pinned). Manual PRs (the protected-infra guard + any `major`) get assigned at creation,
   which reaches the *Participating* notification stream; clean auto-merge PRs stay unassigned and
   silent.
-- `.github/workflows/renovate-assign-on-failure.yaml` runs on the `Flate` / `security-scans` /
-  `Lint` `workflow_run`. When a check **fails** on a Renovate PR, it assigns the PR — a failed check
-  means Renovate won't merge it (it self-gates on CI), so the PR needs a human.
+- `.github/workflows/renovate-assign-on-failure.yaml` runs on the `security-scans` / `Lint`
+  `workflow_run` (there is no Flate GitHub Actions check anymore — it was deleted in #3375; render
+  validation moved to the in-cluster Konflate, which posts its own commit status). When a check
+  **fails** on a Renovate PR, it assigns the PR — a failed check means Renovate won't merge it (it
+  self-gates on CI), so the PR needs a human.
 
 > **Load-bearing non-git dependency:** the quiet inbox also depends on the repository's GitHub
 > **Watch** level being **"Participating and @mentions"** (not "All Activity"). Assignment reaches
@@ -145,5 +177,6 @@ Renovate's [Merge Confidence](https://docs.renovatebot.com/merge-confidence/) ca
 an **Adoption** score — the percentage of a package's Renovate users already on the new release — via
 `matchConfidence`. It only covers seven language ecosystems (Go, JavaScript, Java, Python, .NET, PHP,
 Ruby), **not Docker images or Helm charts**, which is effectively the entire cluster. So
-`minimumReleaseAge` is the deliberate time-based substitute: "survived three days in the wild" stands
-in for "widely adopted".
+`minimumReleaseAge` is the deliberate time-based substitute for versioned (minor/patch) updates:
+"survived two days in the wild" stands in for "widely adopted". Digest/pin updates get no such
+substitute — see [What auto-merges](#what-auto-merges) for why a cooldown doesn't work for them.

@@ -35,8 +35,8 @@ Kubernetes cluster, with a queryable findings dashboard.
 - **Database bootstrap** uses the `postgres-init` initContainer pattern to create
   the `prowlerdb` database and `prowler` role on the existing CNPG cluster. Prowler's
   `POSTGRES_ADMIN_*` (used for partition management) is pointed at the same app role.
-- **Path-routed HTTPRoute** on `envoy-internal` only, at `prowler.${SECRET_DOMAIN}`
-  and `prowler.${SECRET_INTERNAL_DOMAIN}`. Only `/api/v1` routes to the API backend;
+- **Path-routed HTTPRoute** on `envoy-internal` only, at `prowler.${SECRET_DOMAIN}`.
+  Only `/api/v1` routes to the API backend;
   everything else (including NextAuth's `/api/auth/*` and `/api/health`) goes to the
   UI. Gateway API longest-prefix matching means `/api/v1` wins over `/`.
 - **RBAC** is a ServiceAccount (`prowler`) bound to the built-in read-only `view`
@@ -54,10 +54,16 @@ Kubernetes cluster, with a queryable findings dashboard.
   depending on how the container is launched:
   - no overrides → the default entrypoint (`../docker-entrypoint.sh prod`) runs
     `migrate` + `pgpartition` + gunicorn
-  - `command: ["../docker-entrypoint.sh"], args: ["worker"]` → celery worker across all queues
   - `command: ["../docker-entrypoint.sh"], args: ["beat"]` → celery beat
-  The `command` override is required. Without it, `args: ["worker"]` is appended to
-  the image's hardcoded `["../docker-entrypoint.sh", "prod"]`, yielding `prod worker`,
+  - the worker container skips the entrypoint entirely: `command: ["/bin/sh", "-c"]` invoking
+    `python -m celery -A config.celery worker` directly with an explicit queue list
+    (celery, scans, scan-reports, deletion, backfill, overview, integrations, compliance,
+    attack-paths-scans) and `--without-mingle --without-gossip`. Celery 5.6's mingle/gossip
+    startup steps kill the worker instantly against Dragonfly's pub/sub emulation, and the
+    entrypoint's own `worker` mode can't pass those flags through — direct invocation is the
+    only way to disable them.
+  The `command` override is required in the beat and worker cases. Without it, an appended
+  `args` value is tacked onto the image's hardcoded `["../docker-entrypoint.sh", "prod"]`,
   which still runs gunicorn and causes a port 8080 collision with the API container.
 - **`NEO4J_AUTH` cannot contain a `/`.** The value is `neo4j/<password>` and DozerDB
   parses it by splitting on the first `/`, so a generated password containing `/`
@@ -69,10 +75,11 @@ Kubernetes cluster, with a queryable findings dashboard.
 - **Django `ALLOWED_HOSTS` rejects kubelet probe requests.** Kubelet probes hit the
   Pod by an address that is not in `DJANGO_ALLOWED_HOSTS`, and Django returns
   `400 Bad Request` (`DisallowedHost`), so the probe fails and the Pod never goes
-  ready. The allowed-hosts list must include every host the app is reached by,
-  including the probe host — set `DJANGO_ALLOWED_HOSTS` to cover the service name,
-  both external domains, and the probe address. Expand the list if Django still
-  rejects a `Host` header (e.g. when traffic arrives under the service DNS).
+  ready. `DJANGO_ALLOWED_HOSTS` is `prowler-api,prowler.${SECRET_DOMAIN}` (the
+  service name plus the one route hostname) — it does not need to widen for the
+  probe, because the liveness/readiness probes override the request's `Host` header
+  to `prowler-api` instead. Expand the allowed-hosts list if Django still rejects a
+  `Host` header (e.g. when traffic arrives under a different service DNS).
 - **gunicorn auto-worker count blows memory.** Left to auto-detect, gunicorn spawns a
   worker per CPU core, which on a multi-core node far exceeds the container memory
   limit and OOMKills the API. Pin the worker count explicitly to a small value so

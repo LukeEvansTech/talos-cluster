@@ -22,16 +22,15 @@ bjw-s `app-template` deployment mirroring sibling apps (maintainerr, pulsarr).
   than 1Password management — at the cost that the keys live only in the PVC, so the PVC is the
   source of truth for sessions and encrypted state.
 - **Internal-only ingress.** Inline `route:` on the `envoy-internal` listener (namespace
-  `network`) for both `${SECRET_DOMAIN}` and `${SECRET_INTERNAL_DOMAIN}` hostnames. No
-  Cloudflare/external exposure — consistent with maintainerr.
+  `network`) for the single `${SECRET_DOMAIN}` hostname — the `envoy-internal` attachment is
+  what keeps it internal-only. No Cloudflare/external exposure — consistent with maintainerr.
 - **`COOKIE_SECURE: "true"`** because Envoy terminates TLS in front of it, and
-  `CORS_ORIGINS` includes both the external-domain and internal-domain hostnames
-  (`${SECRET_DOMAIN}` and `${SECRET_INTERNAL_DOMAIN}`) so the SPA's API calls are accepted
-  regardless of which hostname the user browses to.
+  `CORS_ORIGINS` is the single origin `https://reclaimerr.${SECRET_DOMAIN}` so the SPA's API
+  calls are accepted.
 - **Components:** `homepage` (dashboard tile under the
   `Media` group, `mdi-broom` icon) and `volsync` (PVC backup). (Gatus monitoring is automatic via
   the gatus-sidecar chart's HTTPRoute auto-discovery — no `gatus/guarded` component.) `VOLSYNC_CAPACITY: 2Gi` and
-  `VOLSYNC_CACHE_CAPACITY: 1Gi` are the required substitutes for the volsync component
+  `VOLSYNC_CACHE_CAPACITY: 8Gi` are the required substitutes for the volsync component
   (overriding the 5Gi/10Gi defaults).
 - **Deferred (out of scope):** external ingress, pre-seeding `JWT_SECRET`/`ENCRYPTION_KEY` via
   1Password, and a `TMDB_API_KEY` override (the bundled upstream key is fine).

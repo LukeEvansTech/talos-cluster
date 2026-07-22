@@ -39,7 +39,7 @@ SponsorBlock community database. No web UI, no API.
 
 - The Flux Kustomization `dependsOn` `rook-ceph-cluster` (the VolSync config PVC lands on
   `ceph-block`); `wait: false`. VolSync substitutes — `APP`, `VOLSYNC_CAPACITY: 1Gi`,
-  `VOLSYNC_CACHE_CAPACITY: 1Gi` — live in `ks.yaml`, and the `volsync` component goes in
+  `VOLSYNC_CACHE_CAPACITY: 8Gi` — live in `ks.yaml`, and the `volsync` component goes in
   `ks.yaml` `spec.components` only (never also in `app/kustomization.yaml`).
 - The pod `CrashLoopBackOff`s until a valid `config.json` exists — expected on first
   deploy, before any device is paired. It is not a failure; it clears once pairing is

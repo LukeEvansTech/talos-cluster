@@ -13,11 +13,12 @@ GUI/SSH edits) that bypass the IaC.
   versioned, diffable, and recoverable.
 - Detect drift between IaC-declared intent and what's actually running on the hardware.
 - Notify on change and on failure, and surface per-device freshness as metrics.
-- Device roles backed up (described generically — this is a public repo):
-  - the perimeter firewall/router
-  - the core switch
-  - the access/PoE switches
-  - the wireless AP controller
+- Device roles backed up (described generically — this is a public repo): the perimeter
+  firewall/router, and the PoE and non-PoE access-switch pair — exactly three devices, wired
+  individually in the ExternalSecret's `router.db` template.
+- Deliberately not included: a core switch and a wireless AP controller, because Oxidized ships no
+  built-in model for either — adding them would mean authoring and maintaining custom device
+  models, which isn't worth it for two devices.
 - Out of scope: SNMP-only gear (PDUs) with no config dump that fits Oxidized, and cloud services
   already managed by external IaC.
 
@@ -79,7 +80,7 @@ GUI/SSH edits) that bypass the IaC.
   (check `SecretSynced` vs `SecretSyncError`).
 - **`rest: 0.0.0.0:8888` is required.** Without the REST listener the HTTPRoute, the exporter
   (`-U http://localhost:8888`), and the readiness probe (`/nodes.json`) all have nothing to talk to.
-- **Pin image digests and confirm the exporter tag exists.** Pin all four images
+- **Pin image digests and confirm the exporter tag exists.** Pin all three images
   (Oxidized, exporter, and the init base image) to `@sha256:` digests. The exporter's "latest"
   release tag on the registry may lag its GitHub release — pull the digest for a tag that actually
   has a published image, or Renovate can't track it.
