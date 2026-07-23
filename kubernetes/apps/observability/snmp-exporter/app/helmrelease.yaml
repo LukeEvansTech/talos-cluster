@@ -20,11 +20,16 @@ spec:
     extraArgs:
       - --config.file=/etc/snmp_exporter/snmp.yml
       - --config.file=/run/snmp-extra/snmp.yml
+      - --config.file=/run/snmp-printer/snmp.yml
       - --config.file=/run/snmp-auth/snmp.yml
     extraConfigmapMounts:
       - name: entity-sensor
         configMap: snmp-exporter-entity-sensor
         mountPath: /run/snmp-extra
+        readOnly: true
+      - name: brother-printer
+        configMap: snmp-exporter-brother-printer
+        mountPath: /run/snmp-printer
         readOnly: true
     # Credentials only (auths:) — templated by the snmp-exporter ExternalSecret
     # so no community string lives in git (public repo).
@@ -59,6 +64,71 @@ spec:
             - sourceLabels:
                 - __param_target
               targetLabel: instance
+        # Brother printer fleet on PRINT VLAN 72. if_mib gives link/oper status;
+        # brother_printer adds supplies/page-count/printer-status. Each carries a
+        # device_class=printer label so the noisy label printers (which power
+        # themselves off) are excluded from the critical SnmpTargetDown alert and
+        # get supply/fault alerts instead. SNMPv3 authPriv per-device auths.
+        - name: printer-hl
+          target: ${PRINTER_HL_ADDR}
+          module:
+            - if_mib
+            - brother_printer
+          auth:
+            - printer_hl
+          interval: 120s
+          scrapeTimeout: 30s
+          relabelings:
+            - sourceLabels:
+                - __param_target
+              targetLabel: instance
+            - targetLabel: device_class
+              replacement: printer
+        - name: printer-mfc
+          target: ${PRINTER_MFC_ADDR}
+          module:
+            - if_mib
+            - brother_printer
+          auth:
+            - printer_mfc
+          interval: 120s
+          scrapeTimeout: 30s
+          relabelings:
+            - sourceLabels:
+                - __param_target
+              targetLabel: instance
+            - targetLabel: device_class
+              replacement: printer
+        - name: printer-ql
+          target: ${PRINTER_QL_ADDR}
+          module:
+            - if_mib
+            - brother_printer
+          auth:
+            - printer_ql
+          interval: 120s
+          scrapeTimeout: 30s
+          relabelings:
+            - sourceLabels:
+                - __param_target
+              targetLabel: instance
+            - targetLabel: device_class
+              replacement: printer
+        - name: printer-pt
+          target: ${PRINTER_PT_ADDR}
+          module:
+            - if_mib
+            - brother_printer
+          auth:
+            - printer_pt
+          interval: 120s
+          scrapeTimeout: 30s
+          relabelings:
+            - sourceLabels:
+                - __param_target
+              targetLabel: instance
+            - targetLabel: device_class
+              replacement: printer
     resources:
       requests:
         cpu: 10m
