@@ -29,7 +29,7 @@ metadata:
 spec:
   modelRef: qwen3-30b-a3b-abliterated
   runtime: llamacpp
-  image: ghcr.io/ggml-org/llama.cpp:server-cuda@sha256:c1ddeb6d30932ddd9ddff962cb62dbc5450cd99d8e82c8c20de2fd1f99fde85b
+  image: ghcr.io/ggml-org/llama.cpp:server-cuda@sha256:72ca3a0323ec891af9332afc8d501396557a45eca2b1b3712828d5cf57e36743
   replicas: 1
   runtimeClassName: nvidia
   priorityClassName: gpu-preemptible
