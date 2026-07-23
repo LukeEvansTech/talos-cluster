@@ -5,6 +5,7 @@ kind: Kustomization
 resources:
   - ./externalsecret.yaml
   - ./configmap-entity-sensor.yaml
+  - ./configmap-brother-printer.yaml
   - ./ocirepository.yaml
   - ./helmrelease.yaml
   - ./grafanadashboard.yaml
