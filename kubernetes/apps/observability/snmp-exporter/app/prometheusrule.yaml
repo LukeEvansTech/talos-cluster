@@ -8,11 +8,14 @@ spec:
   groups:
     - name: snmp-exporter.rules
       rules:
+        # Printers are excluded here: the label printers (QL/PT) power themselves
+        # off by design, so a blanket down-alert on them is pure noise. Printer
+        # health is covered by PrinterFault + PrinterSupplyLow below instead.
         - alert: SnmpTargetDown
           annotations:
             summary: "SNMP target {{ $labels.instance }} is not being scraped."
           expr: |-
-            up{job="snmp-exporter"} == 0
+            up{job="snmp-exporter", device_class!="printer"} == 0
           for: 5m
           labels:
             severity: critical
@@ -26,5 +29,34 @@ spec:
           expr: |-
             entPhySensorOperStatus{job="snmp-exporter"} > 1
           for: 5m
+          labels:
+            severity: warning
+        # Brother raises hrDeviceStatus to warning(3)/down(5) on low-supply, cover
+        # open, paper jam/out etc. — the reliable numeric fault signal (the
+        # hrPrinterDetectedErrorState bitfield is kept as a label only). idle/
+        # printing/sleep all report running(2), so this does not false-fire.
+        - alert: PrinterFault
+          annotations:
+            summary: "Printer {{ $labels.instance }} needs attention (hrDeviceStatus {{ $value }}: 3=warning, 5=down)."
+          expr: |-
+            hrDeviceStatus{job="snmp-exporter", device_class="printer"} >= 3
+          for: 15m
+          labels:
+            severity: warning
+        # Real supply percentage only exists where MaxCapacity>0 and Level>=0 —
+        # this excludes Brother toners (Level -3, "present, unmeasured") and the
+        # label rolls (Level -2, unknown), leaving drum/belt units which report
+        # true ratios. Fires below 10% remaining.
+        - alert: PrinterSupplyLow
+          annotations:
+            summary: "Printer {{ $labels.instance }} supply '{{ $labels.prtMarkerSuppliesDescription }}' at {{ $value | humanizePercentage }} remaining."
+          expr: |-
+            (
+              prtMarkerSuppliesLevel{job="snmp-exporter", device_class="printer"}
+              / prtMarkerSuppliesMaxCapacity{job="snmp-exporter", device_class="printer"}
+            ) < 0.10
+            and prtMarkerSuppliesMaxCapacity{job="snmp-exporter", device_class="printer"} > 0
+            and prtMarkerSuppliesLevel{job="snmp-exporter", device_class="printer"} >= 0
+          for: 1h
           labels:
             severity: warning
