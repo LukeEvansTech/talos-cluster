@@ -24,12 +24,16 @@ spec:
         # NOTE: mgr resources must live here (spec.resources.mgr) — the CephCluster
         # CRD has no spec.mgr.resources field, so a block there is silently pruned
         # and the chart default (1Gi limit) applies instead.
+        # 3Gi limit: with diskprediction_local/insights/pg_autoscaler/rook modules
+        # plus the prometheus + dashboard endpoints enabled, the active mgr working
+        # set climbs past 2Gi and gets OOMKilled (~twice daily), failing over to the
+        # standby each time. 3Gi holds it with headroom (mon is already 4Gi).
         mgr:
           requests:
             cpu: 100m
             memory: 1Gi
           limits:
-            memory: 2Gi
+            memory: 3Gi
         mon:
           requests:
             cpu: 100m
