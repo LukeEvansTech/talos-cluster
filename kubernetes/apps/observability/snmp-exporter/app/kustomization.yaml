@@ -9,4 +9,5 @@ resources:
   - ./ocirepository.yaml
   - ./helmrelease.yaml
   - ./grafanadashboard.yaml
+  - ./grafanadashboard-printers.yaml
   - ./prometheusrule.yaml
