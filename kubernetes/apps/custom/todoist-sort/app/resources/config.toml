@@ -18,9 +18,19 @@ model = "self-hosted"
 # honours chat_template_kwargs, not reasoning_effort) turns it off; verified
 # 2026-07-22 — golden eval still 12/12, plan output valid. Applies to both passes.
 extra_body = { max_tokens = 16384, chat_template_kwargs = { enable_thinking = false } }
-# timeout is seconds per LLM attempt; 2 attempts x 300s must stay under
-# the CronJob activeDeadlineSeconds of 660
+# timeout is seconds per LLM attempt; 2 attempts x 300s (+retry_backoff)
+# must stay under the CronJob activeDeadlineSeconds of 660
 timeout = 300
+# retry_backoff: seconds to wait before retrying a *transient transport*
+# failure so the retry outlasts the blip instead of firing straight back into
+# it. This is the fix for the 2026-07-24 07:00 plan-day miss — LiteLLM briefly
+# cooled down the single self-hosted backend (cooldown_time=30 in the litellm
+# configmap) and returned a 400, and the old back-to-back retry landed inside
+# the same window. Set >30 to clear that cooldown. In-process, so it never
+# resets the plan's per-process max_today budget (why the CronJob keeps
+# backoffLimit: 0). Content (bad-JSON) retries still fire immediately.
+# Budget: 300 + 35 + 300 = 635 < 660 activeDeadlineSeconds.
+retry_backoff = 35
 # api_key: env ANTHROPIC_API_KEY (cluster) or config.local.toml [llm] api_key (dev)
 
 [todoist]
