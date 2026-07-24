@@ -28,9 +28,9 @@ spec:
                 - "/scripts/sync_exclusions.py"
               env:
                 - name: RADARR_URL
-                  value: "https://radarr.codelooks.com"
+                  value: "https://radarr.${SECRET_DOMAIN}"
                 - name: SONARR_URL
-                  value: "https://sonarr.codelooks.com"
+                  value: "https://sonarr.${SECRET_DOMAIN}"
               volumeMounts:
                 - name: scripts
                   mountPath: /scripts

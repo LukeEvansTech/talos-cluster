@@ -49,6 +49,13 @@ jobs:
       - name: Scan tracked files for internal infrastructure identifiers
         env:
           DIFF_BASE: ${{ github.event_name == 'pull_request' && 'HEAD^1' || '' }}
+          # Internal zone regex supplied out-of-band — see the script docstring.
+          # A dedicated GitHub Environment would gate this behind approval
+          # rules, which is wrong for an always-on lint check that must run
+          # unattended on every PR. The value is a low-sensitivity regex, not
+          # a credential, and it is a secret only so it stays out of a public
+          # file -- see the script docstring.
+          INTERNAL_DOMAIN_RE: ${{ secrets.INTERNAL_DOMAIN_RE }} # zizmor: ignore[secrets-outside-env]
         run: python3 .github/scripts/check_internal_identifiers.py ${DIFF_BASE:+--diff-base "$DIFF_BASE"}
       # Deleting a ${SECRET_INTERNAL_DOMAIN} route hostname is only safe when the
       # same route also publishes ${SECRET_DOMAIN} -- catches an app going fully
