@@ -5,15 +5,16 @@
 # hostnames and topology detail — but that rule reads as "in files", so the one
 # surface nobody linted was prose. A squash merge copies the PR body verbatim
 # into the commit message on main, which is how a LAN IP and the internal zone
-# name became permanent history in #3803. The same script gates PR bodies in
-# CI (.github/workflows/pr-hygiene.yml).
+# name became permanent history in #3803. This reuses the SAME patterns and
+# BENIGN list as the tracked-file scan in security-scans.yaml, so prose and
+# files can never drift apart; pr-hygiene.yml runs it against PR title + body.
 #
 # Deliberate exception: git commit --no-verify
 # ---------------------------------------------------------------------------
 [commit-msg]
 
-[commit-msg.commands.check-no-internals]
-run = "./scripts/check-no-internals.sh --strip-git-comments {1}"
+[commit-msg.commands.check-internal-identifiers]
+run = "python3 .github/scripts/check_internal_identifiers.py --strip-git-comments --text-file {1}"
 
 [pre-commit]
 parallel = true

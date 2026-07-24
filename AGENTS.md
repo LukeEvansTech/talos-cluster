@@ -18,8 +18,9 @@ etc.). Claude Code loads it via an `@AGENTS.md` import in the repository's local
 > Write the *why* without the coordinates: `${SECRET_DOMAIN}` rather than the real name, "the NAS
 > endpoint" rather than its address, "a delegated internal zone" rather than the directory-service
 > rebuild that caused it. Do not append AI session links or co-author trailers.
-> `scripts/check-no-internals.sh` enforces this at `commit-msg` via lefthook and on PR title/body via
-> `.github/workflows/pr-hygiene.yml`.
+> `.github/scripts/check_internal_identifiers.py --text-file` enforces this at `commit-msg` via
+> lefthook and on PR title/body via `.github/workflows/pr-hygiene.yml`, reusing the same patterns as
+> the tracked-file scan so prose and files cannot drift apart.
 
 ## Repository structure
 
