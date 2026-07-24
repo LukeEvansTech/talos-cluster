@@ -28,11 +28,13 @@ metadata:
     krr/ignore: "true"
 spec:
   modelRef: qwen3-30b-a3b-abliterated
-  # The llmkube controller stages the GGUF into the shared llmkube-model-cache
-  # PVC itself and the runtime mounts it read-only, so the per-pod
-  # model-downloader init container is redundant (it just logs "already
-  # cached"). Drop it — this is the operator's own MissingSkipModelInit advice.
-  skipModelInit: true
+  # Do NOT set skipModelInit here. It looks safe — the controller does stage the
+  # GGUF into the shared cache PVC, so the model-downloader init container only
+  # logs "already cached" — but on llmkube 0.9.7 the flag ALSO blanks the
+  # rendered `--model` arg, because the /models/<cacheKey>/ path is derived from
+  # the init-container staging step. llama.cpp then starts in router mode with
+  # zero models: the pod goes 1/1 Ready and every request fails with
+  # "model not found". See #3792 (which set it) and the revert that followed.
   runtime: llamacpp
   image: ghcr.io/ggml-org/llama.cpp:server-cuda@sha256:f96be8dfd1c1eb533e09f42fc4d92311150dc63ecd568284c9199cacae5a9e26
   replicas: 1

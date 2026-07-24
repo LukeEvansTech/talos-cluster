@@ -30,3 +30,7 @@ CLAUDE.md
 # Python bytecode
 __pycache__/
 *.pyc
+
+# Local-only mise config — carries INTERNAL_DOMAIN_RE for the identifier guard.
+# Never commit: the whole point is to keep the internal zone out of git.
+.mise.local.toml
