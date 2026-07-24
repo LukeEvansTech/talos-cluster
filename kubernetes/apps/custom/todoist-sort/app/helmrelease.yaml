@@ -22,9 +22,9 @@ spec:
           timeZone: &timeZone Europe/London
           concurrencyPolicy: Forbid
           # Kill a wedged run so Forbid doesn't skip every subsequent */5
-          # window; the next tick recovers. 660 = 2 x 300s LLM attempts
-          # ([llm] timeout in config.toml) + Todoist I/O headroom; the old
-          # 300 was calibrated to the previously hard-wired 120s timeout.
+          # window; the next tick recovers. 660 covers 2 x 300s LLM attempts
+          # ([llm] timeout in config.toml) + the [llm] retry_backoff between
+          # them (35s) + Todoist I/O headroom: 300+35+300 = 635 < 660.
           activeDeadlineSeconds: 660
           # One k8s-level retry: a transient Todoist 5xx that outlasts the
           # in-pod retry (seen 2026-07-12: ~6s of 503 on GET /user) fails the
@@ -45,7 +45,7 @@ spec:
             # renovate/pin-dependencies branch (renovate#24942 family).
             image:
               repository: ghcr.io/lukeevanstech/todoist-sort
-              tag: 0.2.4@sha256:96269bb4101592440a45a888cb50d3ac6760d77f6d79378cf95a147ecebd2f5e
+              tag: 0.2.5@sha256:a2d635251728d77b9b73dc8026e4b43233e60b761dbec66324306a46f30d9783
             command:
               - "sort-inbox"
               - "--root"
@@ -71,14 +71,17 @@ spec:
           schedule: "0 7 * * *"
           timeZone: *timeZone
           concurrencyPolicy: Forbid
-          # 660 = 2 x 300s LLM attempts ([llm] timeout in config.toml) +
-          # Todoist I/O headroom; the old 600 was calibrated to the
-          # previously hard-wired 120s timeout.
+          # 660 covers 2 x 300s LLM attempts ([llm] timeout in config.toml) +
+          # the [llm] retry_backoff between them (35s) + Todoist I/O headroom:
+          # 300+35+300 = 635 < 660.
           activeDeadlineSeconds: 660
-          # No retries: the promotion budget (max_today) is per-process, so
-          # a retried plan pass could promote up to 5 MORE tasks — the retry
-          # budget breaks the <=max_today invariant. A missed morning
-          # self-heals tomorrow at 07:00.
+          # backoffLimit STAYS 0 — do not raise it. The promotion budget
+          # (max_today) is per-process, so a k8s job retry (a new process)
+          # could promote up to 5 MORE tasks, breaking the <=max_today
+          # invariant. Transient LLM blips (e.g. the 2026-07-24 07:00 miss: a
+          # LiteLLM cooldown 400) are instead absorbed IN-PROCESS by the [llm]
+          # retry_backoff (todoist-sort >=0.2.5), which shares the one budget.
+          # What the in-pod retry can't recover self-heals at 07:00 tomorrow.
           backoffLimit: 0
           successfulJobsHistory: 1
           failedJobsHistory: 1
@@ -87,7 +90,7 @@ spec:
             # Duplicated from sort-inbox on purpose — see the comment there.
             image:
               repository: ghcr.io/lukeevanstech/todoist-sort
-              tag: 0.2.4@sha256:96269bb4101592440a45a888cb50d3ac6760d77f6d79378cf95a147ecebd2f5e
+              tag: 0.2.5@sha256:a2d635251728d77b9b73dc8026e4b43233e60b761dbec66324306a46f30d9783
             command:
               - "plan-day"
               - "--root"
