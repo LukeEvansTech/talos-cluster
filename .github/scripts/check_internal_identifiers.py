@@ -25,7 +25,15 @@ entry says why the identifier has to live there. To template one out of git late
 move its value to the cluster-secrets 1Password item (Flux substitutes ${VAR} the
 same way) and drop the allowlist entry.
 
+With --text-file PATH (or '-' for stdin) it scans PROSE instead of tracked files:
+a commit message or a PR body. Those are the same world-visible surface -- a
+squash merge copies the PR body verbatim into the commit message on main -- but
+nothing linted them, so a LAN IP and an AI session link reached history in #3803.
+Prose has no file path, so the ALLOWLIST does not apply; the BENIGN list still
+does, and the prose-only PROSE_PATTERNS are added.
+
 Run locally:  python3 .github/scripts/check_internal_identifiers.py
+              python3 .github/scripts/check_internal_identifiers.py --text-file -
 """
 
 from __future__ import annotations
@@ -56,6 +64,20 @@ PATTERNS: dict[str, re.Pattern] = {
     "MAC address": re.compile(r"(?<![0-9a-fA-F:])(?:[0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}(?![0-9a-fA-F:])"),
     "internal hostname": re.compile(r"\b[a-z0-9_-]+\.(?:lan|internal)\b"),
 }
+
+# Prose-only patterns (--text-file). These are not identifiers a tracked file
+# would ever carry, but they do belong in commit messages and PR bodies: a
+# session link publicly attributes the work and points at a private session.
+PROSE_PATTERNS: dict[str, re.Pattern] = {
+    "AI session link / co-author trailer": re.compile(
+        r"claude\.ai/code/session|co-authored-by:\s*claude|generated with \[claude",
+        re.IGNORECASE,
+    ),
+}
+
+# A `git commit --verbose` message file carries the whole staged diff below this
+# marker; everything below it is diff content, not the author's prose.
+SCISSORS = re.compile(r"^# *-+ >8 -+")
 
 # Values that match a pattern but are public-safe (cluster-internal CIDRs, k8s
 # label keys, locally-administered placeholder MACs).
@@ -112,6 +134,50 @@ def changed_files(base: str) -> list[str]:
     return [f for f in out.splitlines() if f in tracked]
 
 
+def scan_text(source: str, strip_git_comments: bool) -> int:
+    """Scan a commit message or PR body and fail (exit 1) on any identifier."""
+    if source == "-":
+        raw = sys.stdin.read()
+    else:
+        with open(source, encoding="utf-8", errors="ignore") as handle:
+            raw = handle.read()
+
+    numbered = list(enumerate(raw.splitlines(), 1))
+    if strip_git_comments:
+        kept: list[tuple[int, str]] = []
+        for lineno, line in numbered:
+            if SCISSORS.match(line):
+                break
+            if not line.startswith("#"):
+                kept.append((lineno, line))
+        numbered = kept
+
+    patterns = {**PATTERNS, **PROSE_PATTERNS}
+    violations: list[str] = []
+    for lineno, line in numbered:
+        for kind, pat in patterns.items():
+            for match in pat.finditer(line):
+                if any(b.search(match.group(0)) for b in BENIGN):
+                    continue
+                violations.append(f"  line {lineno}: {kind}\n    {line.strip()[:120]}")
+                break
+
+    if violations:
+        print("Internal identifiers found in commit message / PR body:\n")
+        print("\n".join(violations))
+        print(
+            "\nThis repo is PUBLIC and a squash merge copies a PR body verbatim into"
+            " the commit\nmessage on main, where it is permanent. Write the *why*"
+            " without the coordinates:\nuse ${SECRET_DOMAIN} rather than the real name,"
+            ' "the NAS endpoint" rather than its\naddress, and drop AI session links.'
+            "\nDeliberate exception: git commit --no-verify"
+        )
+        return 1
+
+    print("OK -- no internal identifiers in the supplied text.")
+    return 0
+
+
 def main() -> int:
     """Scan tracked files and fail (exit 1) on any non-allowlisted identifier."""
     parser = argparse.ArgumentParser(description=__doc__)
@@ -120,7 +186,20 @@ def main() -> int:
         metavar="REV",
         help="scan only files changed between REV and HEAD (PR scope)",
     )
+    parser.add_argument(
+        "--text-file",
+        metavar="PATH",
+        help="scan prose (commit message / PR body) instead of tracked files; '-' reads stdin",
+    )
+    parser.add_argument(
+        "--strip-git-comments",
+        action="store_true",
+        help="with --text-file, drop '#' comment lines and the verbose-diff block",
+    )
     args = parser.parse_args()
+
+    if args.text_file:
+        return scan_text(args.text_file, args.strip_git_comments)
 
     paths = changed_files(args.diff_base) if args.diff_base else tracked_files()
     violations: list[str] = []
