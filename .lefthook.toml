@@ -55,6 +55,16 @@ run = "mise x --quiet -- prettier -w --log-level warn {staged_files}"
 glob = ["*.yaml", "*.yml"]
 stage_fixed = true
 
+# Match super-linter's MARKDOWN_PRETTIER rule locally. JSON and YAML were
+# covered but Markdown was not, so emphasis/wrapping normalizations only
+# surfaced in CI. docs/ is excluded for the same reason as lint-markdownlint
+# below: the zensical toolchain owns that tree.
+[pre-commit.commands.format-markdown-prettier]
+run = "mise x --quiet -- prettier -w --log-level warn {staged_files}"
+glob = ["*.md"]
+exclude = ["docs/**"]
+stage_fixed = true
+
 # ---------------------------------------------------------------------------
 # super-linter parity (report-only — these block the commit, they don't fix).
 #

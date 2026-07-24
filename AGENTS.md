@@ -15,7 +15,7 @@ etc.). Claude Code loads it via an `@AGENTS.md` import in the repository's local
 > **This covers prose, not just files.** Commit messages and pull request bodies are equally
 > world-visible, and a squash merge copies the PR body verbatim into the commit message on `main`,
 > where it is permanent — that is how a LAN IP and the internal zone name reached history in #3803.
-> Write the *why* without the coordinates: `${SECRET_DOMAIN}` rather than the real name, "the NAS
+> Write the _why_ without the coordinates: `${SECRET_DOMAIN}` rather than the real name, "the NAS
 > endpoint" rather than its address, "a delegated internal zone" rather than the directory-service
 > rebuild that caused it. Do not append AI session links or co-author trailers.
 > `.github/scripts/check_internal_identifiers.py --text-file` enforces this at `commit-msg` via
