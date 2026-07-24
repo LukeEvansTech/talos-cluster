@@ -1,3 +1,20 @@
+# ---------------------------------------------------------------------------
+# Commit message hygiene.
+#
+# This repository is PUBLIC. AGENTS.md forbids committing LAN IPs, internal
+# hostnames and topology detail — but that rule reads as "in files", so the one
+# surface nobody linted was prose. A squash merge copies the PR body verbatim
+# into the commit message on main, which is how a LAN IP and the internal zone
+# name became permanent history in #3803. The same script gates PR bodies in
+# CI (.github/workflows/pr-hygiene.yml).
+#
+# Deliberate exception: git commit --no-verify
+# ---------------------------------------------------------------------------
+[commit-msg]
+
+[commit-msg.commands.check-no-internals]
+run = "./scripts/check-no-internals.sh --strip-git-comments {1}"
+
 [pre-commit]
 parallel = true
 
