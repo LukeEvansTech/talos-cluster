@@ -14,7 +14,9 @@
 [commit-msg]
 
 [commit-msg.commands.check-internal-identifiers]
-run = "python3 .github/scripts/check_internal_identifiers.py --strip-git-comments --text-file {1}"
+# Via `mise x` so the gitignored .mise.local.toml [env] reaches the script: a
+# git hook does not inherit an activated mise shell.
+run = "mise x -- python3 .github/scripts/check_internal_identifiers.py --strip-git-comments --text-file {1}"
 
 [pre-commit]
 parallel = true

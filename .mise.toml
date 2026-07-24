@@ -2,6 +2,9 @@
 # Pin exact tool versions + checksums + provenance in mise.lock for
 # reproducible, verified installs across machines and CI.
 lockfile = true
+# Required by the [hooks] block below — mise gates hooks behind experimental.
+# Scoped to this config, so it does not change mise behaviour in other repos.
+experimental = true
 
 [env]
 BOOTSTRAP_DIR = "{{config_root}}/bootstrap"
@@ -12,6 +15,14 @@ ROOT_DIR = "{{config_root}}"
 TALOSCONFIG = "{{config_root}}/talos/clusterconfig/talosconfig"
 TALOS_DIR = "{{config_root}}/talos"
 _.python.venv = {path = "{{config_root}}/.venv", create = true}
+
+[hooks]
+# `mise install` fetches the lefthook binary but does NOT materialise
+# .git/hooks — which is how this repo ran for months with an empty hooks dir
+# and none of the documented pre-commit checks firing (see #3804). Wiring the
+# install here closes the fresh-clone gap: one `mise install` and the hooks are
+# live. lefthook install is idempotent, so re-running costs nothing.
+postinstall = "lefthook install"
 
 [tasks.deps]
 description = "Install Python dependencies"

@@ -66,10 +66,10 @@ spec:
                 - name: RCLONE_CONFIG_DST_PROVIDER
                   value: Other
                 - name: RCLONE_CONFIG_DST_ENDPOINT
-                  # NAS Garage is now bridge+Traefik (s3-nas), not the old host :3900.
-                  # Public zone (SECRET_DOMAIN), not the internal one: core.codelooks.com
-                  # became a delegated AD zone in the 2026-07-22 rebuild, so its Traefik
-                  # cert can no longer renew via Cloudflare DNS-01 and is being retired.
+                  # NAS Garage is now reverse-proxied (s3-nas), not the old host :3900.
+                  # Deliberately SECRET_DOMAIN, not SECRET_INTERNAL_DOMAIN: the internal
+                  # zone is delegated to an internal resolver, so its wildcard cert can
+                  # no longer renew via Cloudflare DNS-01 and is being retired.
                   value: https://s3-nas.${SECRET_DOMAIN}
                 - name: RCLONE_CONFIG_DST_REGION
                   value: us-east-1

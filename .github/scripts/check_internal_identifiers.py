@@ -39,6 +39,7 @@ Run locally:  python3 .github/scripts/check_internal_identifiers.py
 from __future__ import annotations
 
 import argparse
+import os
 import re
 import subprocess
 import sys
@@ -116,6 +117,26 @@ ALLOWLIST: dict[str, str] = {
 }
 
 
+def internal_domain_pattern() -> dict[str, re.Pattern]:
+    """Return the optional internal-zone pattern, supplied out-of-band.
+
+    PATTERNS above are deliberately generic because this script is PUBLIC --
+    hardcoding the internal zone here would re-disclose exactly what the guard
+    exists to keep out of git. So the regex arrives at runtime instead, via
+    INTERNAL_DOMAIN_RE: a repository secret in CI, a gitignored .mise.local.toml
+    locally. Unset (any fresh clone), the check simply skips -- every other
+    pattern still applies.
+    """
+    raw = os.environ.get("INTERNAL_DOMAIN_RE", "").strip()
+    if not raw:
+        return {}
+    try:
+        return {"internal domain": re.compile(raw, re.IGNORECASE)}
+    except re.error as exc:
+        print(f"INTERNAL_DOMAIN_RE is not a valid regex: {exc}", file=sys.stderr)
+        raise SystemExit(2) from exc
+
+
 def allowlisted(path: str) -> bool:
     """Return True if the path matches an accepted-functional-config glob."""
     return any(fnmatch(path, glob) or path.startswith(glob.rstrip("*")) for glob in ALLOWLIST)
@@ -132,6 +153,19 @@ def changed_files(base: str) -> list[str]:
     out = subprocess.check_output(["git", "diff", "--name-only", "--diff-filter=d", base, "HEAD"], text=True)
     tracked = set(tracked_files())
     return [f for f in out.splitlines() if f in tracked]
+
+
+def format_violation(kind: str, lineno: int, line: str) -> str:
+    """Render one prose violation, withholding the line for the internal domain.
+
+    Echoing the offending line helps the author find it -- except for the
+    internal domain, where a public repo's CI log would republish the very
+    string the check exists to suppress. Secret masking does not help here: it
+    masks the regex, not the domain that regex matched.
+    """
+    if kind == "internal domain":
+        return f"  line {lineno}: {kind} (content withheld -- it is the leak)"
+    return f"  line {lineno}: {kind}\n    {line.strip()[:120]}"
 
 
 def scan_text(source: str, strip_git_comments: bool) -> int:
@@ -152,14 +186,14 @@ def scan_text(source: str, strip_git_comments: bool) -> int:
                 kept.append((lineno, line))
         numbered = kept
 
-    patterns = {**PATTERNS, **PROSE_PATTERNS}
+    patterns = {**PATTERNS, **PROSE_PATTERNS, **internal_domain_pattern()}
     violations: list[str] = []
     for lineno, line in numbered:
         for kind, pat in patterns.items():
             for match in pat.finditer(line):
                 if any(b.search(match.group(0)) for b in BENIGN):
                     continue
-                violations.append(f"  line {lineno}: {kind}\n    {line.strip()[:120]}")
+                violations.append(format_violation(kind, lineno, line))
                 break
 
     if violations:
@@ -176,6 +210,28 @@ def scan_text(source: str, strip_git_comments: bool) -> int:
 
     print("OK -- no internal identifiers in the supplied text.")
     return 0
+
+
+def scan_files(paths: list[str]) -> list[str]:
+    """Return one 'path:line: kind' string per non-allowlisted identifier found."""
+    patterns = {**PATTERNS, **internal_domain_pattern()}
+    violations: list[str] = []
+    for path in paths:
+        if allowlisted(path) or path == SELF_PATH:
+            continue
+        try:
+            with open(path, encoding="utf-8", errors="ignore") as handle:
+                lines = handle.readlines()
+        except OSError:
+            continue
+        for lineno, line in enumerate(lines, 1):
+            for kind, pat in patterns.items():
+                for match in pat.finditer(line):
+                    if any(b.search(match.group(0)) for b in BENIGN):
+                        continue
+                    violations.append(f"{path}:{lineno}: {kind}")
+                    break
+    return violations
 
 
 def main() -> int:
@@ -202,23 +258,7 @@ def main() -> int:
         return scan_text(args.text_file, args.strip_git_comments)
 
     paths = changed_files(args.diff_base) if args.diff_base else tracked_files()
-    violations: list[str] = []
-    for path in paths:
-        if allowlisted(path) or path == SELF_PATH:
-            continue
-        try:
-            with open(path, encoding="utf-8", errors="ignore") as handle:
-                lines = handle.readlines()
-        except OSError:
-            continue
-        for lineno, line in enumerate(lines, 1):
-            for kind, pat in PATTERNS.items():
-                for match in pat.finditer(line):
-                    val = match.group(0)
-                    if any(b.search(val) for b in BENIGN):
-                        continue
-                    violations.append(f"{path}:{lineno}: {kind}")
-                    break
+    violations = scan_files(paths)
 
     if violations:
         print("Internal infrastructure identifiers found in tracked files:\n")

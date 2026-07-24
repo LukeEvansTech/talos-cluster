@@ -20,7 +20,9 @@ etc.). Claude Code loads it via an `@AGENTS.md` import in the repository's local
 > rebuild that caused it. Do not append AI session links or co-author trailers.
 > `.github/scripts/check_internal_identifiers.py --text-file` enforces this at `commit-msg` via
 > lefthook and on PR title/body via `.github/workflows/pr-hygiene.yml`, reusing the same patterns as
-> the tracked-file scan so prose and files cannot drift apart.
+> the tracked-file scan so prose and files cannot drift apart. The internal-zone regex is fed in
+> at runtime via `INTERNAL_DOMAIN_RE` (a repository secret in CI, a gitignored `.mise.local.toml`
+> locally) rather than hardcoded, since the script itself is public.
 
 ## Repository structure
 
