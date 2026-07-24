@@ -1,0 +1,51 @@
+---
+# The PR body is a leak surface, not just a description: GitHub's squash merge
+# copies it verbatim into the commit message on main, where it is permanent and
+# world-visible. This repository is PUBLIC (see AGENTS.md), so gate the title
+# and body on the same rules the local commit-msg hook enforces.
+#
+# Deliberately a separate workflow from security-scans.yaml even though both
+# call check_internal_identifiers.py: this one needs the `edited` trigger so a
+# reworded body is re-checked, and firing Checkov/Trivy on every body edit
+# would be wasteful.
+name: PR Hygiene
+
+on:
+  pull_request:
+    types:
+      - opened
+      - edited
+      - reopened
+      - synchronize
+
+permissions:
+  contents: read
+
+jobs:
+  scan-pr-text:
+    name: Scan PR title and body
+    runs-on: ubuntu-latest
+    # Renovate bodies are machine-generated upstream release notes — they can
+    # legitimately quote an example IP from a changelog and carry no narrative
+    # about this network. Skip them rather than grow an allowlist forever.
+    if: >-
+      github.event.pull_request.user.login != 'renovate[bot]' &&
+      github.event.pull_request.user.login != 'renovate'
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Scan title and body
+        # PR text is untrusted input: bind it to env and reference it as a shell
+        # variable, never interpolate ${{ }} into the run block
+        # (zizmor template-injection).
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |-
+          printf '%s\n\n%s\n' "$PR_TITLE" "$PR_BODY" \
+            | python3 .github/scripts/check_internal_identifiers.py --text-file -

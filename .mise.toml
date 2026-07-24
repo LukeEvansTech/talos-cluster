@@ -31,6 +31,11 @@ run = "uv pip install -r requirements.txt"
 # before CI. Versions pinned to match super-linter@9e863354 (v8): bumping
 # super-linter may require bumping these in lockstep to avoid local/CI drift.
 "aqua:editorconfig-checker/editorconfig-checker" = "3.8.0"
+# The hook runner itself. It was referenced by .lefthook.toml and the comment
+# above long before it was ever a pinned tool, so `.git/hooks/` sat empty and
+# none of the "pre-commit" checks actually ran locally. Run `lefthook install`
+# once per clone to materialise the hooks.
+"aqua:evilmartians/lefthook" = "2.1.10"
 "aqua:fluxcd/flux2" = "2.9.2"
 "aqua:google/yamlfmt" = "0.21.0"
 "aqua:helm/helm" = "4.2.3"
