@@ -49,6 +49,12 @@ jobs:
           # The internal zone regex is NOT hardcoded in the script: that file is
           # public, so a literal there would re-disclose what the guard exists to
           # hide. Unset, the check skips and every other pattern still applies.
+          # zizmor: ignore[secrets-outside-env]
+          # A dedicated GitHub Environment would gate this behind approval
+          # rules, which is wrong for an always-on lint check that must run
+          # unattended on every PR. The value is a low-sensitivity regex, not
+          # a credential, and it is a secret only so it stays out of a public
+          # file -- see the script docstring.
           INTERNAL_DOMAIN_RE: ${{ secrets.INTERNAL_DOMAIN_RE }}
         run: |-
           printf '%s\n\n%s\n' "$PR_TITLE" "$PR_BODY" \
