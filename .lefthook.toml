@@ -1,3 +1,21 @@
+# ---------------------------------------------------------------------------
+# Commit message hygiene.
+#
+# This repository is PUBLIC. AGENTS.md forbids committing LAN IPs, internal
+# hostnames and topology detail — but that rule reads as "in files", so the one
+# surface nobody linted was prose. A squash merge copies the PR body verbatim
+# into the commit message on main, which is how a LAN IP and the internal zone
+# name became permanent history in #3803. This reuses the SAME patterns and
+# BENIGN list as the tracked-file scan in security-scans.yaml, so prose and
+# files can never drift apart; pr-hygiene.yml runs it against PR title + body.
+#
+# Deliberate exception: git commit --no-verify
+# ---------------------------------------------------------------------------
+[commit-msg]
+
+[commit-msg.commands.check-internal-identifiers]
+run = "python3 .github/scripts/check_internal_identifiers.py --strip-git-comments --text-file {1}"
+
 [pre-commit]
 parallel = true
 
@@ -35,6 +53,16 @@ stage_fixed = true
 [pre-commit.commands.format-yaml-prettier]
 run = "mise x --quiet -- prettier -w --log-level warn {staged_files}"
 glob = ["*.yaml", "*.yml"]
+stage_fixed = true
+
+# Match super-linter's MARKDOWN_PRETTIER rule locally. JSON and YAML were
+# covered but Markdown was not, so emphasis/wrapping normalizations only
+# surfaced in CI. docs/ is excluded for the same reason as lint-markdownlint
+# below: the zensical toolchain owns that tree.
+[pre-commit.commands.format-markdown-prettier]
+run = "mise x --quiet -- prettier -w --log-level warn {staged_files}"
+glob = ["*.md"]
+exclude = ["docs/**"]
 stage_fixed = true
 
 # ---------------------------------------------------------------------------
