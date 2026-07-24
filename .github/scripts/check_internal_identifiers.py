@@ -39,6 +39,7 @@ Run locally:  python3 .github/scripts/check_internal_identifiers.py
 from __future__ import annotations
 
 import argparse
+import os
 import re
 import subprocess
 import sys
@@ -116,6 +117,26 @@ ALLOWLIST: dict[str, str] = {
 }
 
 
+def internal_domain_pattern() -> dict[str, re.Pattern]:
+    """Return the optional internal-zone pattern, supplied out-of-band.
+
+    PATTERNS above are deliberately generic because this script is PUBLIC --
+    hardcoding the internal zone here would re-disclose exactly what the guard
+    exists to keep out of git. So the regex arrives at runtime instead, via
+    INTERNAL_DOMAIN_RE: a repository secret in CI, a gitignored .mise.local.toml
+    locally. Unset (any fresh clone), the check simply skips -- every other
+    pattern still applies.
+    """
+    raw = os.environ.get("INTERNAL_DOMAIN_RE", "").strip()
+    if not raw:
+        return {}
+    try:
+        return {"internal domain": re.compile(raw, re.IGNORECASE)}
+    except re.error as exc:
+        print(f"INTERNAL_DOMAIN_RE is not a valid regex: {exc}", file=sys.stderr)
+        raise SystemExit(2) from exc
+
+
 def allowlisted(path: str) -> bool:
     """Return True if the path matches an accepted-functional-config glob."""
     return any(fnmatch(path, glob) or path.startswith(glob.rstrip("*")) for glob in ALLOWLIST)
@@ -152,7 +173,7 @@ def scan_text(source: str, strip_git_comments: bool) -> int:
                 kept.append((lineno, line))
         numbered = kept
 
-    patterns = {**PATTERNS, **PROSE_PATTERNS}
+    patterns = {**PATTERNS, **PROSE_PATTERNS, **internal_domain_pattern()}
     violations: list[str] = []
     for lineno, line in numbered:
         for kind, pat in patterns.items():
@@ -202,6 +223,7 @@ def main() -> int:
         return scan_text(args.text_file, args.strip_git_comments)
 
     paths = changed_files(args.diff_base) if args.diff_base else tracked_files()
+    file_patterns = {**PATTERNS, **internal_domain_pattern()}
     violations: list[str] = []
     for path in paths:
         if allowlisted(path) or path == SELF_PATH:
@@ -212,7 +234,7 @@ def main() -> int:
         except OSError:
             continue
         for lineno, line in enumerate(lines, 1):
-            for kind, pat in PATTERNS.items():
+            for kind, pat in file_patterns.items():
                 for match in pat.finditer(line):
                     val = match.group(0)
                     if any(b.search(val) for b in BENIGN):

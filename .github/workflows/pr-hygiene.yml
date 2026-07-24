@@ -46,6 +46,10 @@ jobs:
         env:
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_BODY: ${{ github.event.pull_request.body }}
+          # The internal zone regex is NOT hardcoded in the script: that file is
+          # public, so a literal there would re-disclose what the guard exists to
+          # hide. Unset, the check skips and every other pattern still applies.
+          INTERNAL_DOMAIN_RE: ${{ secrets.INTERNAL_DOMAIN_RE }}
         run: |-
           printf '%s\n\n%s\n' "$PR_TITLE" "$PR_BODY" \
             | python3 .github/scripts/check_internal_identifiers.py --text-file -
