@@ -35,7 +35,7 @@ run = "uv pip install -r requirements.txt"
 "aqua:casey/just" = "1.57.0"
 "aqua:charmbracelet/gum" = "latest"
 "aqua:cli/cli" = "2.96.0"
-"aqua:cloudflare/cloudflared" = "2026.7.2"
+"aqua:cloudflare/cloudflared" = "2026.7.3"
 "aqua:cue-lang/cue" = "0.17.1"
 # editorconfig-checker / yamllint / codespell / markdownlint-cli mirror the
 # linters super-linter v8 bundles, so lefthook catches their findings locally
