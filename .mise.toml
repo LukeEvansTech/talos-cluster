@@ -47,7 +47,7 @@ run = "uv pip install -r requirements.txt"
 # none of the "pre-commit" checks actually ran locally. Run `lefthook install`
 # once per clone to materialise the hooks.
 "aqua:evilmartians/lefthook" = "2.1.10"
-"aqua:fluxcd/flux2" = "2.9.2"
+"aqua:fluxcd/flux2" = "2.9.3"
 "aqua:google/yamlfmt" = "0.21.0"
 "aqua:helm/helm" = "4.2.3"
 "aqua:helmfile/helmfile" = "1.7.1"
