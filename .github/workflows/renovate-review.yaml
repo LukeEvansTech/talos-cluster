@@ -179,9 +179,37 @@ jobs:
 
           # A prior verdict must exist for the skip to be safe — the status step
           # re-derives success/failure from it.
+          #
+          # DISMISSED reviews must count here. The baseline-main-protection ruleset
+          # sets dismiss_stale_reviews_on_push:true, so every Renovate push to the
+          # branch erases the APPROVED/CHANGES_REQUESTED state of Claude's earlier
+          # review. The body survives and still carries the "**Verdict**:" line, so
+          # re-derive the verdict from that.
+          #
+          # Without this the gate could never see a prior verdict after a rebase:
+          # skip stayed false, Claude spun up, found its own prior review for an
+          # unchanged diff and — per the prompt's "skip redundant re-reviews" rule —
+          # deliberately posted nothing. The status step then failed the PR with
+          # "Claude finished without posting a verdict". That is a permanent
+          # deadlock: the diff never changes again, so no future run can escape it.
+          # (Observed on 7 PRs across nut-apps/talos-cluster; note the ruleset sets
+          # required_approving_review_count:0, so the dismissal gates nothing — its
+          # only effect was to break this cache.)
+          #
+          # Parsing is scoped to the verdict LINE and tests "Changes required"
+          # before "Safe to merge", so it fails closed: a dismissed change-request
+          # still blocks, an unparsable body yields "" and is not reused.
           prior=$(gh api "repos/$REPO/pulls/$PR/reviews" --paginate \
             --jq '[.[] | select(.user.login=="claude[bot]" or .user.login=="github-actions[bot]")
-                  | select(.state=="APPROVED" or .state=="CHANGES_REQUESTED")] | last | .state // ""' \
+                  | select(.state=="APPROVED" or .state=="CHANGES_REQUESTED" or .state=="DISMISSED")]
+                  | last
+                  | if . == null then ""
+                    elif .state != "DISMISSED" then .state
+                    else ((((.body // "") | capture("Verdict\\*\\*:[ \t]*(?<v>[^\n]*)")? | .v) // "")
+                      | if test("Changes required") then "CHANGES_REQUESTED:dismissed"
+                        elif test("Safe to merge") then "APPROVED:dismissed"
+                        else "" end)
+                    end' \
             2>/dev/null || true)
 
           skip=false
@@ -499,22 +527,42 @@ jobs:
           else
             # Gated version bump - read the latest verdict. Works for fresh runs
             # AND fingerprint-skips (the prior review is still on the PR).
-            review_state=""
+            # Same DISMISSED-aware resolver as the fingerprint gate above — see the
+            # long comment there for why. Emits "<STATE>" for a live review or
+            # "<STATE>:dismissed" when the verdict had to be recovered from the body
+            # of a review that dismiss_stale_reviews_on_push wiped.
+            resolved=""
             for attempt in 1 2 3; do
-              review_state=$(gh api "repos/$REPO/pulls/$PR/reviews" --paginate \
+              resolved=$(gh api "repos/$REPO/pulls/$PR/reviews" --paginate \
                 --jq '[.[] | select(.user.login == "claude[bot]" or .user.login == "github-actions[bot]")
-                      | select(.state=="APPROVED" or .state=="CHANGES_REQUESTED")]
-                      | last | .state // ""' 2>/dev/null || echo "")
-              [[ "$review_state" == "APPROVED" || "$review_state" == "CHANGES_REQUESTED" ]] && break
-              echo "Attempt $attempt: review_state='$review_state' - retrying in 5s..."
+                      | select(.state=="APPROVED" or .state=="CHANGES_REQUESTED" or .state=="DISMISSED")]
+                      | last
+                      | if . == null then ""
+                        elif .state != "DISMISSED" then .state
+                        else ((((.body // "") | capture("Verdict\\*\\*:[ \t]*(?<v>[^\n]*)")? | .v) // "")
+                          | if test("Changes required") then "CHANGES_REQUESTED:dismissed"
+                            elif test("Safe to merge") then "APPROVED:dismissed"
+                            else "" end)
+                        end' 2>/dev/null || echo "")
+              [[ -n "$resolved" ]] && break
+              echo "Attempt $attempt: resolved='' - retrying in 5s..."
               sleep 5
             done
+            review_state="${resolved%%:*}"
+            verdict_origin="${resolved#*:}"
+            [[ "$verdict_origin" == "$resolved" ]] && verdict_origin="live"
+            echo "Resolved verdict: state='$review_state' origin='$verdict_origin'"
 
             if [[ "$review_state" == "APPROVED" ]]; then
               state="success"
-              desc="Claude approved - safe to merge"
+              if [[ "$verdict_origin" == "dismissed" ]]; then
+                desc="Claude approved (verdict recovered from review dismissed on push)"
+              else
+                desc="Claude approved - safe to merge"
+              fi
             elif [[ "$review_state" == "CHANGES_REQUESTED" ]]; then
-              # Genuine verdict: block the merge for manual review.
+              # Genuine verdict: block the merge for manual review. Applies equally
+              # to a dismissed change-request — fail closed.
               state="failure"
               desc="Claude requested changes - manual review required"
             elif [[ "$SKIP" == "true" ]]; then
