@@ -87,68 +87,35 @@
     },
   ],
 
-  // --- Package rules (order preserved from the former extends sequence:
-  //     autoMerge → changelogs → grafanaDashboards → groups → labels → overrides) ---
+  // --- Package rules ---
+  //
+  // There are deliberately NO auto-merge rules here. The shared preset
+  // (github>LukeEvansTech/renovate-config) already auto-merges every
+  // minor/patch/digest on green CI, as a CI-gated PR merge, with the release-age
+  // soak opted out for the docker datasource. This file adds only what is
+  // specific to THIS repository: the protected denylist below, plus custom
+  // datasources, groups and labels.
+  //
+  // DO NOT re-state a setting the preset already sets. packageRules are
+  // last-match-wins and preset rules evaluate FIRST, so a local restatement
+  // silently overrides the shared decision with no error and no visible diff.
+  // Every Renovate incident in this repo came from exactly that:
+  //   - a local minimumReleaseAge:"2 days" reverted the preset's docker opt-out,
+  //     and because GHCR exposes no release timestamp the gate never turned
+  //     green — 38 of 39 open PRs were permanently stuck (#3866);
+  //   - local automergeType:"branch" + ignoreTests:true reverted the preset's
+  //     CI-gated PR merge, so claude/renovate-review landed its verdict 76-93s
+  //     AFTER the commit was already on main and could never gate it (#3871).
+  // To change auto-merge behaviour, change the preset — every repo benefits.
   packageRules: [
-    // === Auto-merge (from autoMerge.json5) ===
-    // === App auto-merge (denylist model) ===
-    // Broad enabler: every container image + Helm chart auto-merges for
-    // minor/patch/digest and first-time digest pins. The guard immediately below
-    // re-disables automerge for cluster-critical components (last-match-wins).
-    // `major` is never listed anywhere, so it always stays manual.
-    // platformAutomerge:false => Renovate self-gates on CI (flate, security-scans)
-    // rather than GitHub-native auto-merge, so no branch-protection ruleset is needed.
-    {
-      description: "Auto-merge apps — minor/patch (denylist model; protected guard below)",
-      matchDatasources: ["docker", "helm"],
-      matchUpdateTypes: ["minor", "patch"],
-      automerge: true,
-      automergeType: "pr",
-      platformAutomerge: false,
-      ignoreTests: false,
-      // No release-age soak, and do not put one back. The shared preset had
-      // already opted the docker datasource out; re-stating minimumReleaseAge
-      // here silently reverted that, because preset rules evaluate first and
-      // last-match-wins.
-      //
-      // GHCR/quay expose no reliable release timestamp, so the gate never turns
-      // green — it is a permanent block, not a two-day soak. Measured
-      // 2026-07-26: 38 of 39 open PRs pending on renovate/stability-days, the
-      // one exception a mirror.gcr.io image; the Talos v1.13.7 PR had sat five
-      // days against a two-day gate. It looked healthy only because the
-      // categories with a working gate (digest bumps, Docker Hub) kept merging.
-      //
-      // Explicitly null rather than merely absent: without it the preset's own
-      // 2-day soak still applies to the helm datasource. That would leave a
-      // separate policy for the two HelmRepository charts here (coder,
-      // netdata) out of ~440 dependencies — not worth the extra rule.
-      //
-      // Trust model is unchanged: images are digest-pinned via
-      // docker:pinDigests, CI still gates the merge (ignoreTests:false), and
-      // the protected denylist below still forces manual review for Talos,
-      // Cilium, Flux and Rook-Ceph.
-      minimumReleaseAge: null,
-    },
-    {
-      // No minimumReleaseAge here: digest bumps track mutable tags that upstream
-      // rebuilds every few days (nginx:1.31-alpine, llama.cpp server-cuda …), so
-      // a 3-day age gate perpetually resets and renovate/stability-days never
-      // clears — 11 digest PRs sat pending up to 19 days. GHCR also often has no
-      // retrievable per-digest timestamp at all, which pends forever too. Digest
-      // bumps of an already-trusted tag stay CI-gated (ignoreTests: false) like
-      // everything else, and the protected-infra guard below still applies.
-      description: "Auto-merge apps — digest + pins, no age gate (denylist model; protected guard below)",
-      matchDatasources: ["docker", "helm"],
-      matchUpdateTypes: ["digest", "pin", "pinDigest"],
-      automerge: true,
-      automergeType: "pr",
-      platformAutomerge: false,
-      ignoreTests: false,
-    },
     {
       description: "Protected infra — never auto-merge, manual review only",
-      matchDatasources: ["docker", "helm"],
+      // The datasource list must cover every datasource the preset auto-merges,
+      // or a tier-0 component tracked through another one slips past the guard
+      // entirely. github-releases was exactly that gap (#3869).
+      matchDatasources: ["docker", "helm", "github-releases"],
       matchPackageNames: [
+        "/gateway-api/", // Envoy Gateway CRDs; envoyproxy itself is protected below
         "/cilium/",
         "/cert-manager/",
         "/coredns/",
@@ -176,59 +143,6 @@
       ],
       automerge: false,
     },
-    {
-      // Docs toolchain lives in docs/requirements.txt (zensical). Same CI-gated
-      // pattern as the container/chart rule above: self-merge minor/patch/digest
-      // after the 2-day age gate, gating on CI (docs build + drift check).
-      description: "Auto-merge Python deps — minor/patch/digest, CI-gated",
-      matchDatasources: ["pypi"],
-      matchUpdateTypes: ["minor", "patch", "digest"],
-      automerge: true,
-      automergeType: "pr",
-      platformAutomerge: false,
-      ignoreTests: false,
-      minimumReleaseAge: "2 days",
-    },
-    {
-      description: "Auto-merge GitHub Actions",
-      matchManagers: ["github-actions"],
-      automerge: true,
-      automergeType: "branch",
-      matchUpdateTypes: ["minor", "patch", "digest"],
-      minimumReleaseAge: "2 days",
-      ignoreTests: true,
-    },
-    {
-      description: "Auto-merge GitHub Releases",
-      matchDatasources: ["github-releases"],
-      automerge: true,
-      automergeType: "branch",
-      matchUpdateTypes: ["minor", "patch"],
-      matchPackageNames: [
-        "/external-dns/",
-        "/gateway-api/",
-        "/prometheus-operator/",
-      ],
-      ignoreTests: true,
-    },
-    {
-      description: "Auto-merge Mise Tools",
-      matchManagers: ["mise"],
-      automerge: true,
-      automergeType: "branch",
-      matchUpdateTypes: ["minor", "patch"],
-      ignoreTests: true,
-    },
-    {
-      description: "Auto-merge trusted GitHub Actions",
-      matchManagers: ["github-actions"],
-      matchPackageNames: ["/^actions\\//", "/^renovatebot\\//"],
-      automerge: true,
-      automergeType: "branch",
-      matchUpdateTypes: ["minor", "patch", "digest"],
-      minimumReleaseAge: "1 day",
-      ignoreTests: true,
-    },
 
     // === Changelogs (from changelogs.json5) ===
     // 1Password Connect + cloudflared changelog URLs come from the preset's
@@ -242,11 +156,15 @@
     // === Grafana dashboards (from grafanaDashboards.json5) ===
     {
       addLabels: ["renovate/grafana-dashboard"],
+      // A dashboard "major" is just a revision bump, not a breaking change, so
+      // this opts them back into auto-merge — the preset leaves majors with no
+      // automerge rule, and separately queues them behind a dashboard checkbox.
+      // automergeType/ignoreTests are deliberately NOT set: Renovate already
+      // defaults to a CI-gated PR merge, and restating them here is what caused
+      // the branch-merge incident (see the note at the top of packageRules).
       automerge: true,
-      automergeType: "branch",
       commitMessageExtra: "({{currentVersion}} → {{newVersion}})",
       commitMessageTopic: "dashboard {{depName}}",
-      ignoreTests: true,
       matchDatasources: ["custom.grafana-dashboards"],
       matchUpdateTypes: ["major"],
       semanticCommitScope: "grafana-dashboards",
