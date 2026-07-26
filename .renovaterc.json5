@@ -106,7 +106,28 @@
       automergeType: "pr",
       platformAutomerge: false,
       ignoreTests: false,
-      minimumReleaseAge: "2 days",
+      // No release-age soak, and do not put one back. The shared preset had
+      // already opted the docker datasource out; re-stating minimumReleaseAge
+      // here silently reverted that, because preset rules evaluate first and
+      // last-match-wins.
+      //
+      // GHCR/quay expose no reliable release timestamp, so the gate never turns
+      // green — it is a permanent block, not a two-day soak. Measured
+      // 2026-07-26: 38 of 39 open PRs pending on renovate/stability-days, the
+      // one exception a mirror.gcr.io image; the Talos v1.13.7 PR had sat five
+      // days against a two-day gate. It looked healthy only because the
+      // categories with a working gate (digest bumps, Docker Hub) kept merging.
+      //
+      // Explicitly null rather than merely absent: without it the preset's own
+      // 2-day soak still applies to the helm datasource. That would leave a
+      // separate policy for the two HelmRepository charts here (coder,
+      // netdata) out of ~440 dependencies — not worth the extra rule.
+      //
+      // Trust model is unchanged: images are digest-pinned via
+      // docker:pinDigests, CI still gates the merge (ignoreTests:false), and
+      // the protected denylist below still forces manual review for Talos,
+      // Cilium, Flux and Rook-Ceph.
+      minimumReleaseAge: null,
     },
     {
       // No minimumReleaseAge here: digest bumps track mutable tags that upstream
