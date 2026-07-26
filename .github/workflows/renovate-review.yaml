@@ -140,7 +140,7 @@ jobs:
             echo "model=claude-sonnet-5" >> "$GITHUB_OUTPUT"
             echo "depth=light" >> "$GITHUB_OUTPUT"
           else
-            echo "model=claude-opus-4-8" >> "$GITHUB_OUTPUT"
+            echo "model=claude-opus-5" >> "$GITHUB_OUTPUT"
             echo "depth=full" >> "$GITHUB_OUTPUT"
           fi
 
