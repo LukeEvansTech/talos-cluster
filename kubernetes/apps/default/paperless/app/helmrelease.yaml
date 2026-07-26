@@ -34,7 +34,7 @@ spec:
           app:
             image:
               repository: docker.io/paperlessngx/paperless-ngx
-              tag: 2.20.15@sha256:6c86cad803970ea782683a8e80e7403444c5bf3cf70de63b4d3c8e87500db92f
+              tag: 3.0.3@sha256:17312f00bac06f8dad09d67c6c8c069fc5c076c0c22313241c673102dfaf8ee9
             env:
               TZ: ${TIMEZONE}
               PAPERLESS_TIME_ZONE: ${TIMEZONE}
@@ -44,7 +44,14 @@ spec:
               PAPERLESS_DATA_DIR: /data/data
               PAPERLESS_EXPORT_DIR: /data/export
               PAPERLESS_MEDIA_ROOT: /data/media
-              PAPERLESS_CONSUMER_POLLING: "360"
+              # v3.0.0 rewrote the consumer around watchfiles and RENAMED this key
+              # (PAPERLESS_CONSUMER_POLLING -> _INTERVAL, upstream #11753).
+              # CONSUMER_POLLING_DELAY / _RETRY_COUNT / CONSUMER_INOTIFY_DELAY are
+              # gone too. Same seconds semantics. Keep polling rather than taking the
+              # v3 default of 0 (native filesystem notifications): /data/consume is a
+              # subPath mount on a PVC, where inotify does not fire reliably, so the
+              # default would silently miss newly dropped files.
+              PAPERLESS_CONSUMER_POLLING_INTERVAL: "360"
               PAPERLESS_CONSUMER_RECURSIVE: "true"
               PAPERLESS_CONSUMER_SUBDIRS_AS_TAGS: "true"
               PAPERLESS_FILENAME_FORMAT: "{correspondent}/{created_year}/{title}"
