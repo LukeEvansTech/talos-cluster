@@ -176,3 +176,34 @@ spec:
                 expr: node_zfs_zpool_state{state!="online"} > 0
                 labels:
                   severity: critical
+  # Teach the chart's generic TargetDown about the label printers.
+  #
+  # The Brother label printers power themselves off by design, so snmp-exporter's
+  # own SnmpTargetDown already excludes device_class="printer" (see
+  # observability/snmp-exporter). But TargetDown aggregates by job, so one
+  # sleeping printer out of five snmp targets is 20% > 10% and fires anyway —
+  # defeating that deliberate exclusion and training us to ignore TargetDown,
+  # which is the alert that would catch a real switch outage.
+  #
+  # Absent labels satisfy a != matcher in PromQL, so this drops only targets
+  # explicitly labelled device_class="printer" — verified live: 173 up series,
+  # 169 kept, exactly the 4 printers excluded. Every other job still alerts.
+  postRenderers:
+    - kustomize:
+        patches:
+          - target:
+              kind: PrometheusRule
+              name: kube-prometheus-stack-general.rules
+            patch: |-
+              # Guard: assert the index still points at TargetDown, so a chart
+              # upgrade that reorders rules fails loudly instead of silently
+              # rewriting a different alert.
+              - op: test
+                path: /spec/groups/0/rules/0/alert
+                value: TargetDown
+              - op: replace
+                path: /spec/groups/0/rules/0/expr
+                value: >-
+                  100 * (count by (cluster, job, namespace, service)
+                  (up{device_class!="printer"} == 0) / count by (cluster, job,
+                  namespace, service) (up{device_class!="printer"})) > 10
