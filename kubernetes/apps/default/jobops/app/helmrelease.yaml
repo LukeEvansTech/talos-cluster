@@ -21,7 +21,7 @@ spec:
           app:
             image:
               repository: ghcr.io/dakheera47/job-ops
-              tag: v0.10.0@sha256:fc1be33cce4bf0539164ed244dcc868a943deabf6e2a5eb2365868e24cf98554
+              tag: v0.11.0@sha256:37b11b43f2e88b034a3b64066cedd530687e7f280d5a980b60af1714434ef43d
             env:
               TZ: ${TIMEZONE}
               # Unquoted int so the *port anchor is valid in httpGet/service ports
