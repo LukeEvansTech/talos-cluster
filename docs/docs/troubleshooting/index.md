@@ -37,7 +37,7 @@ Work down from what you observe to the most likely entry:
     - Apple TV shows one frame of a 4K title then the Plex app freezes (force-quit to recover); the same file plays fine in Infuse → [KB-026](kb/026-plex-apple-tv-app-receive-window-deadlock.md)
 - **Talos upgrades**
     - TUPPR patch rollout stuck after drain; node cordoned and still on the old version → [KB-004](kb/004-talos-patch-rollout-gotchas-tuppr.md)
-    - Upgrade reports success but the node comes back Ready, uncordoned, and still on the old version → [KB-028](kb/028-talos-upgrade-boots-old-version-loaderentrydefault.md)
+    - Upgrade reports success but the node comes back Ready, uncordoned, and still on the old version (after a BIOS flash) → [KB-028](kb/028-talos-upgrade-boots-old-version-loaderentrydefault.md)
 - **CI / validation / local dev**
     - `Flate - Test` fails or skips on the `gpu-operator` namespace → [KB-005](kb/005-flate-misresolves-ngc-helmrepository-chart-urls.md)
     - Checkov CKV_K8S_21 flags a namespaced resource as `default` → [KB-006](kb/006-checkov-ckv-k8s-21-namespaced-resources.md)
@@ -72,4 +72,4 @@ Work down from what you observe to the most likely entry:
 - [KB-025: CephFS "Module ceph not found" on Talos Is a Built-in, Not a Missing Module](kb/025-cephfs-modprobe-builtin-misdiagnosis.md)
 - [KB-026: Plex Apple TV App Freezes on One Frame (Client Receive-Window Deadlock)](kb/026-plex-apple-tv-app-receive-window-deadlock.md)
 - [KB-027: A DNS Cleanup Scaled Every NFS-Backed App to Zero](kb/027-dns-cleanup-scaled-nfs-apps-to-zero.md)
-- [KB-028: Talos Upgrade Installs Successfully but the Node Boots the Old Version (`LoaderEntryDefault`)](kb/028-talos-upgrade-boots-old-version-loaderentrydefault.md)
+- [KB-028: Talos Upgrade Installs Successfully but the Node Boots the Old Version (NVRAM Wipe)](kb/028-talos-upgrade-boots-old-version-loaderentrydefault.md)
