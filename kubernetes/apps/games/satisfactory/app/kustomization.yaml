@@ -6,3 +6,21 @@ resources:
   - ./ocirepository.yaml
   - ./helmrelease.yaml
   - ./pvc.yaml
+  # Backups only — see the note in gatus. The full volsync component would also
+  # declare a PVC named ${APP} ("satisfactory"), which is NOT this app's claim:
+  # the save data lives in ./pvc.yaml as "sf-gamedata". Pulling in the component
+  # would create a second, empty volume and leave the real one unprotected.
+  - ../../../../components/volsync/nfs
+  - ../../../../components/volsync/remote
+patches:
+  # The component templates sourcePVC as ${APP}, which resolves to "satisfactory".
+  # This app's claim is named sf-gamedata, so point both ReplicationSources at the
+  # real volume. Patching locally rather than parameterising the shared component
+  # keeps the blast radius at this app — 40+ other apps depend on that component
+  # and their PVC names already match ${APP}.
+  - target:
+      kind: ReplicationSource
+    patch: |-
+      - op: replace
+        path: /spec/sourcePVC
+        value: sf-gamedata

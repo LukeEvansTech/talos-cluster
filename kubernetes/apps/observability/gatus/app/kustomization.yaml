@@ -6,6 +6,18 @@ resources:
   - ./ocirepository.yaml
   - ./helmrelease.yaml
   - ./prometheusrule.yaml
+  # Backups only — deliberately NOT the ../../../../components/volsync component.
+  # That component also ships pvc.yaml, which declares a PVC named ${APP} with a
+  # dataSourceRef pointing at ${APP}-dst. Here the gatus PVC already exists and is
+  # created by the gatus-sidecar Helm chart (persistence.enabled), so pulling in
+  # the whole component would collide on the same PVC name and try to re-provision
+  # it from a ReplicationDestination that has no snapshot yet. Referencing the two
+  # halves directly gives ReplicationSource + ReplicationDestination + the kopia
+  # repository ExternalSecret, and leaves the live volume untouched.
+  # sourcePVC is ${APP} = "gatus", which is exactly the chart's claim name, so no
+  # patch is needed here (unlike grafana/satisfactory).
+  - ../../../../components/volsync/nfs
+  - ../../../../components/volsync/remote
 configMapGenerator:
   - name: gatus-configmap
     files:
