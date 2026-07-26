@@ -147,8 +147,14 @@
     },
     {
       description: "Protected infra — never auto-merge, manual review only",
-      matchDatasources: ["docker", "helm"],
+      // github-releases is included deliberately: while this guard matched only
+      // docker/helm, a tier-0 component tracked through GitHub releases bypassed
+      // it entirely and the "Auto-merge GitHub Releases" rule below then merged
+      // the bump straight to main with no CI gate. Keeping the datasource list in
+      // step with the automerge rules is what makes the denylist actually total.
+      matchDatasources: ["docker", "helm", "github-releases"],
       matchPackageNames: [
+        "/gateway-api/", // Envoy Gateway CRDs; envoyproxy itself is protected below
         "/cilium/",
         "/cert-manager/",
         "/coredns/",
@@ -199,17 +205,22 @@
       ignoreTests: true,
     },
     {
-      description: "Auto-merge GitHub Releases",
+      // Was automergeType:branch + ignoreTests:true, i.e. CRD bumps for cluster
+      // ingress and monitoring went straight to main with NO CI gate at all.
+      // Branch-merge is also incompatible with the baseline-main-protection
+      // ruleset's pull_request rule ("Unknown error when attempting branch
+      // automerge"), so it bought nothing. Now a CI-gated PR merge like every
+      // other category. gateway-api has moved to the protected-infra guard above:
+      // it ships the Envoy Gateway CRDs and envoyproxy itself is already protected,
+      // so the CRDs should not outrun a manual controller review.
+      description: "Auto-merge GitHub Releases — CI-gated PR merge",
       matchDatasources: ["github-releases"],
       automerge: true,
-      automergeType: "branch",
+      automergeType: "pr",
+      platformAutomerge: false,
       matchUpdateTypes: ["minor", "patch"],
-      matchPackageNames: [
-        "/external-dns/",
-        "/gateway-api/",
-        "/prometheus-operator/",
-      ],
-      ignoreTests: true,
+      matchPackageNames: ["/external-dns/", "/prometheus-operator/"],
+      ignoreTests: false,
     },
     {
       description: "Auto-merge Mise Tools",
