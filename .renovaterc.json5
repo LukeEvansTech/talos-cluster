@@ -196,13 +196,18 @@
       minimumReleaseAge: "2 days",
     },
     {
-      description: "Auto-merge GitHub Actions",
+      description: "Auto-merge GitHub Actions — CI-gated PR merge",
       matchManagers: ["github-actions"],
       automerge: true,
-      automergeType: "branch",
+      // PR-automerge, not branch: branch-merge pushes straight to main and
+      // ignoreTests waived the checks, so claude/renovate-review landed its
+      // verdict 76-93s AFTER the commit was already on main (#3821, #3816,
+      // #3812). The review has to gate the merge, not annotate it.
+      automergeType: "pr",
+      platformAutomerge: false,
       matchUpdateTypes: ["minor", "patch", "digest"],
       minimumReleaseAge: "2 days",
-      ignoreTests: true,
+      ignoreTests: false,
     },
     {
       // Was automergeType:branch + ignoreTests:true, i.e. CRD bumps for cluster
@@ -223,22 +228,32 @@
       ignoreTests: false,
     },
     {
-      description: "Auto-merge Mise Tools",
+      description: "Auto-merge Mise Tools — CI-gated PR merge",
       matchManagers: ["mise"],
       automerge: true,
-      automergeType: "branch",
+      // PR-automerge, not branch: branch-merge pushes straight to main and
+      // ignoreTests waived the checks, so claude/renovate-review landed its
+      // verdict 76-93s AFTER the commit was already on main (#3821, #3816,
+      // #3812). The review has to gate the merge, not annotate it.
+      automergeType: "pr",
+      platformAutomerge: false,
       matchUpdateTypes: ["minor", "patch"],
-      ignoreTests: true,
+      ignoreTests: false,
     },
     {
-      description: "Auto-merge trusted GitHub Actions",
+      description: "Auto-merge trusted GitHub Actions — CI-gated PR merge",
       matchManagers: ["github-actions"],
       matchPackageNames: ["/^actions\\//", "/^renovatebot\\//"],
       automerge: true,
-      automergeType: "branch",
+      // PR-automerge, not branch: branch-merge pushes straight to main and
+      // ignoreTests waived the checks, so claude/renovate-review landed its
+      // verdict 76-93s AFTER the commit was already on main (#3821, #3816,
+      // #3812). The review has to gate the merge, not annotate it.
+      automergeType: "pr",
+      platformAutomerge: false,
       matchUpdateTypes: ["minor", "patch", "digest"],
       minimumReleaseAge: "1 day",
-      ignoreTests: true,
+      ignoreTests: false,
     },
 
     // === Changelogs (from changelogs.json5) ===
@@ -254,10 +269,14 @@
     {
       addLabels: ["renovate/grafana-dashboard"],
       automerge: true,
-      automergeType: "branch",
+      // Was branch + ignoreTests:true — a MAJOR dashboard revision went straight
+      // to main with no CI and no AI review at all. Same reasoning as the rules
+      // above: branch-merge bypasses the PR, so the review cannot gate it.
+      automergeType: "pr",
+      platformAutomerge: false,
       commitMessageExtra: "({{currentVersion}} → {{newVersion}})",
       commitMessageTopic: "dashboard {{depName}}",
-      ignoreTests: true,
+      ignoreTests: false,
       matchDatasources: ["custom.grafana-dashboards"],
       matchUpdateTypes: ["major"],
       semanticCommitScope: "grafana-dashboards",
