@@ -36,7 +36,7 @@ spec:
   # zero models: the pod goes 1/1 Ready and every request fails with
   # "model not found". See #3792 (which set it) and the revert that followed.
   runtime: llamacpp
-  image: ghcr.io/ggml-org/llama.cpp:server-cuda@sha256:c67fe8ed3766b32d3be89cc71a55399733a2060dbc42a2d5659177393079574d
+  image: ghcr.io/ggml-org/llama.cpp:server-cuda@sha256:22e0e3bfe967af4fd1df6a918022abbfd4e72e4d40a4769e616a4176790acbcb
   replicas: 1
   runtimeClassName: nvidia
   priorityClassName: gpu-preemptible
