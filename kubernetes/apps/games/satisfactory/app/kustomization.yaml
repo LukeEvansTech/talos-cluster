@@ -6,18 +6,19 @@ resources:
   - ./ocirepository.yaml
   - ./helmrelease.yaml
   - ./pvc.yaml
-  # Backups only — see the note in gatus. The full volsync component would also
-  # declare a PVC named ${APP} ("satisfactory"), which is NOT this app's claim:
-  # the save data lives in ./pvc.yaml as "sf-gamedata". Pulling in the component
-  # would create a second, empty volume and leave the real one unprotected.
-  - ../../../../components/volsync/nfs
-  - ../../../../components/volsync/remote
 patches:
-  # The component templates sourcePVC as ${APP}, which resolves to "satisfactory".
-  # This app's claim is named sf-gamedata, so point both ReplicationSources at the
-  # real volume. Patching locally rather than parameterising the shared component
-  # keeps the blast radius at this app — 40+ other apps depend on that component
-  # and their PVC names already match ${APP}.
+  # ks.yaml already pulls in ../../../../components/volsync, so the
+  # ReplicationSources exist — but the component templates sourcePVC as ${APP},
+  # which resolves to "satisfactory". That is the empty 5Gi PVC the component
+  # creates, NOT this app's save data: the helmrelease mounts existingClaim
+  # "sf-gamedata" (30Gi, ./pvc.yaml).
+  #
+  # So the backup has been reporting healthy for 345 days while archiving the
+  # wrong volume, and the actual saves were never covered. Repoint both
+  # ReplicationSources at the real claim.
+  #
+  # Patched here rather than parameterising the shared component: 40+ other apps
+  # use it and their PVC names already match ${APP}.
   - target:
       kind: ReplicationSource
     patch: |-
