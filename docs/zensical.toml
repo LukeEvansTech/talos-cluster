@@ -62,6 +62,7 @@ nav = [
     { "iSponsorBlockTV" = "apps/isponsorblocktv.md" },
     { "changedetection.io" = "apps/changedetection.md" },
     { "Scrypted" = "apps/scrypted.md" },
+    { "Nutify" = "apps/nutify.md" },
   ] },
   { "Troubleshooting" = [
     { "Symptom ladder" = "troubleshooting/index.md" },
