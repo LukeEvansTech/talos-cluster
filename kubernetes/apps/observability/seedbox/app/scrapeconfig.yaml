@@ -95,3 +95,29 @@ spec:
     - action: replace
       targetLabel: instance
       replacement: seedbox
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/scrapeconfig_v1alpha1.json
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: ScrapeConfig
+metadata:
+  name: &name seedbox-smartctl
+spec:
+  # smartctl-exporter on the seedbox host (:9633) — per-disk SMART attributes.
+  # netdata's mdstat alarms only catch a disk once it has DROPPED OUT of the
+  # array; this is the upstream signal (reallocated/pending sectors) that
+  # precedes that. See seedbox-apps apps/smartctl-exporter.
+  staticConfigs:
+    - targets:
+        - seedbox.observability.svc.cluster.local:9633
+  metricsPath: /metrics
+  # 300s not 60s: smartctl shells out to all four spinning disks per scrape, and
+  # the attributes move on a timescale of days — a 5x cheaper scrape loses nothing.
+  scrapeInterval: 300s
+  scrapeTimeout: 30s # tailnet-egress scrapes are slow; 30s stops false up=0 (see node job)
+  relabelings:
+    - action: replace
+      targetLabel: job
+      replacement: *name
+    - action: replace
+      targetLabel: instance
+      replacement: seedbox
