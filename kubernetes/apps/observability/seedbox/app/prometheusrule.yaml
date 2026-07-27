@@ -6,8 +6,8 @@ metadata:
   name: seedbox.rules
 spec:
   groups:
-    # Combined availability reading. seedbox:up:ratio = fraction of the 5 tailnet
-    # scrape sensors currently reachable (0..1). NB all 5 ride the same tailnet
+    # Combined availability reading. seedbox:up:ratio = fraction of the 6 tailnet
+    # scrape sensors currently reachable (0..1). NB all 6 ride the same tailnet
     # egress, so this measures MONITORING-PATH health, not true box-up — the
     # independent public-IP blackbox probe (probe_success{job="seedbox-public"})
     # is the box-up anchor. Dashboards graph both for the overall picture.
@@ -60,6 +60,48 @@ spec:
           expr: |-
             up{job="seedbox-qbittorrent"} == 0
           for: 20m
+          labels:
+            severity: warning
+        # ---- disk health -------------------------------------------------------
+        # The shared smartctl-exporter.rules already cover overall SMART status and
+        # temperature for every scraped device (no job selector), so they pick the
+        # seedbox up for free. What they do NOT cover is the SATA attribute pair
+        # that actually predicts a spinning disk dying, so those live here.
+        #
+        # `attribute_value_type="raw"` is load-bearing: the exporter emits the same
+        # attribute_name four times (raw/value/worst/thresh) and the normalised
+        # forms count DOWN from 100, so omitting it both double-counts and inverts.
+        #
+        # Baseline 2026-07-27: sda/sdb/sdd 0 reallocated, sdc (ST8000DM002) 8.
+        # sdc's standing 8 is why this is delta() not `> 0` — the alert is for
+        # GROWTH, otherwise it would fire permanently on a stable count.
+        - alert: SeedboxDiskReallocatedSectorsGrowing
+          annotations:
+            summary: "Seedbox disk {{ $labels.device }} reallocated {{ $value }} more sectors in 24h (drive is consuming spares) — plan a replacement."
+          expr: |-
+            delta(
+              smartctl_device_attribute{
+                job="seedbox-smartctl",
+                attribute_name="Reallocated_Sector_Ct",
+                attribute_value_type="raw"
+              }[24h]
+            ) > 0
+          for: 30m
+          labels:
+            severity: warning
+        # Pending sectors are reads the drive could not complete and has not yet
+        # remapped. Unlike the reallocated count there is no acceptable standing
+        # value, so any non-zero reading is the alert.
+        - alert: SeedboxDiskPendingSectors
+          annotations:
+            summary: "Seedbox disk {{ $labels.device }} has {{ $value }} pending sector(s) — unreadable data awaiting remap; RAID5 rebuild risk."
+          expr: |-
+            smartctl_device_attribute{
+              job="seedbox-smartctl",
+              attribute_name="Current_Pending_Sector",
+              attribute_value_type="raw"
+            } > 0
+          for: 15m
           labels:
             severity: warning
         # Prometheus retention is 14d → a calendar-month sum is not computable.
