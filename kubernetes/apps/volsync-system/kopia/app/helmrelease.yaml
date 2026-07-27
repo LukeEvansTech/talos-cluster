@@ -67,17 +67,6 @@ spec:
         ports:
           http:
             port: *port
-    route:
-      app:
-        parentRefs:
-          - name: envoy-internal
-            namespace: network
-        hostnames:
-          - kopia.${SECRET_DOMAIN}
-        rules:
-          - backendRefs:
-              - name: kopia
-                port: 80
     configMaps:
       config:
         data:

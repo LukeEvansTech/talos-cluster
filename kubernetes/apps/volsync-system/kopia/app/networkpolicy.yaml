@@ -1,0 +1,34 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/cilium.io/ciliumnetworkpolicy_v2.json
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: kopia-default-deny-ingress
+spec:
+  # The kopia web UI runs --without-password, so the ClusterIP :80 is an unauthenticated
+  # read/restore path to every app's volsync backup. volsync-system is deliberately
+  # EXCLUDED (NotIn) from every clusterwide baseline policy (allow-kube-apiserver,
+  # allow-same-namespace, allow-prometheus-scraping), so the pod is otherwise
+  # default-ALLOW to every pod cluster-wide. This app-local policy is the ONLY ingress
+  # policy selecting the pod, so it flips it to default-deny and must re-supply the host
+  # ingress itself: the kubelet liveness/readiness probes are httpGet / :80 from
+  # reserved:host, and Cilium's allow-localhost:auto implicit localhost allow is
+  # suppressed by the host-selecting clusterwide rule — without this the pod
+  # CrashLoopBackOffs (silently, since ks.yaml sets wait: false). Admin access to the
+  # web UI is by `kubectl port-forward` only (the LAN-facing HTTPRoute was removed).
+  description: "Default-deny ingress for kopia; allow only host/kube-apiserver health probes and the observability Gatus monitor"
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: kopia
+  ingress:
+    - fromEntities:
+        - host
+        - remote-node
+        - kube-apiserver
+    - fromEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: observability
+      toPorts:
+        - ports:
+            - port: "80"
+              protocol: TCP

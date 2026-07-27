@@ -221,11 +221,6 @@
         href: https://certwarden.${SECRET_DOMAIN}
         siteMonitor: https://certwarden.${SECRET_DOMAIN}
         description: Certificate management
-    - Kopia:
-        icon: kopia.svg
-        href: https://kopia.${SECRET_DOMAIN}
-        siteMonitor: https://kopia.${SECRET_DOMAIN}
-        description: Backups
     - Backrest:
         icon: mdi-backup-restore
         href: https://backrest.${SECRET_DOMAIN}
