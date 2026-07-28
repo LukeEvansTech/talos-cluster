@@ -48,7 +48,7 @@ spec:
               SCANOPY_PUBLIC_URL: https://scanopy.${SECRET_DOMAIN}
               SCANOPY_WEB_EXTERNAL_PATH: /app/static
               SCANOPY_USE_SECURE_SESSION_COOKIES: "true"
-              SCANOPY_SMTP_RELAY: smtp-relay.infrastructure.svc.cluster.local:25
+              SCANOPY_SMTP_RELAY: smtp2graph.infrastructure.svc.cluster.local:25
               SCANOPY_SMTP_EMAIL: scanopy@${SECRET_DOMAIN}
             envFrom: *envFrom
             probes:

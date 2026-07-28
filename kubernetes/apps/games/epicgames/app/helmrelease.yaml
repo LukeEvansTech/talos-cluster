@@ -29,7 +29,7 @@ spec:
               EMAIL_SENDER_NAME: "Epic Games Captchas"
               RUN_ON_STARTUP: "true"
               SEARCH_STRATEGY: all
-              SMTP_HOST: smtp-relay.infrastructure.svc.cluster.local
+              SMTP_HOST: smtp2graph.infrastructure.svc.cluster.local
               SMTP_PORT: "25"
               SMTP_SECURE: "false"
             envFrom:
