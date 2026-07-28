@@ -1,0 +1,29 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/kustomize.toolkit.fluxcd.io/kustomization_v1.json
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: &app nut-appliance
+  namespace: &namespace observability
+spec:
+  commonMetadata:
+    labels:
+      app.kubernetes.io/name: *app
+  interval: 1h
+  path: ./kubernetes/apps/observability/nut-appliance/app
+  postBuild:
+    substitute:
+      APP: *app
+  prune: true
+  retryInterval: 2m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+    namespace: flux-system
+  targetNamespace: *namespace
+  timeout: 5m
+  # CR-only app — the exporters run on the NUT appliance itself (nut-apps
+  # apps/monitoring), so there is nothing in-cluster to health-check. Same shape
+  # as truenas-exporter, and the reason this is NOT folded into nut-exporter/:
+  # that one deploys an actual workload and waits on it.
+  wait: false
