@@ -18,6 +18,7 @@ resources:
   - ./kromgo/ks.yaml
   - ./kube-prometheus-stack/ks.yaml
   - ./netdata/ks.yaml
+  - ./nut-appliance/ks.yaml
   - ./nut-exporter/ks.yaml
   - ./opnsense-exporter/ks.yaml
   - ./oxidized/ks.yaml
