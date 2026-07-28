@@ -42,6 +42,11 @@ spec:
         fsGroupChangePolicy: OnRootMismatch
     service:
       app:
+        type: LoadBalancer
+        annotations:
+          external-dns.alpha.kubernetes.io/hostname: smtp.${SECRET_DOMAIN}
+          io.cilium/lb-ipam-ips: ${SVC_SMTP_RELAY_ADDR}
+        externalTrafficPolicy: Local
         ports:
           smtp:
             port: 25
