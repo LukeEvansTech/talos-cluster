@@ -18,7 +18,7 @@ spec:
           app:
             image:
               repository: smtp2graph/smtp2graph
-              tag: v1.1.5
+              tag: v1.1.5@sha256:88ef2015f37ad460d7cc06fa80cf82a0318108ae696dac61a2896d5016d9545d
             probes:
               liveness:
                 enabled: true
