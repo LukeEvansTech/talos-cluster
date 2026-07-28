@@ -379,7 +379,8 @@
         }
       ],
       "title": "CPU package power (RAPL)",
-      "type": "timeseries"
+      "type": "timeseries",
+      "interval": "1m"
     },
     {
       "datasource": {
@@ -717,7 +718,8 @@
         }
       ],
       "title": "CPU by mode",
-      "type": "timeseries"
+      "type": "timeseries",
+      "interval": "1m"
     },
     {
       "datasource": {
@@ -929,7 +931,8 @@
         }
       ],
       "title": "eno1 throughput",
-      "type": "timeseries"
+      "type": "timeseries",
+      "interval": "1m"
     }
   ],
   "refresh": "1m",
