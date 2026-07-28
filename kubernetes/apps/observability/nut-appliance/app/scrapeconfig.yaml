@@ -76,3 +76,37 @@ spec:
     - action: replace
       targetLabel: instance
       replacement: nut-appliance
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/scrapeconfig_v1alpha1.json
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: ScrapeConfig
+metadata:
+  name: &name nut-appliance-docker
+spec:
+  # docker_state_exporter on the appliance (:9419) — per-container state, health,
+  # restart count and OOM-kill, keyed by container NAME.
+  #
+  # Closes a real hole: upsd dying is covered by UPSUnreachable / UPSMetricsMissing
+  # and the two host exporters are covered by their own scrapes failing, but
+  # traefik, peanut and doco-cd dying were invisible. A dead doco-cd is the worst
+  # of those — GitOps silently stops and the box drifts from its repo with no
+  # symptom at all.
+  staticConfigs:
+    - targets:
+        - ${NUT_SERVER_ADDR}:9419
+  metricsPath: /metrics
+  scrapeInterval: 60s
+  relabelings:
+    - action: replace
+      targetLabel: job
+      replacement: *name
+    - action: replace
+      targetLabel: instance
+      replacement: nut-appliance
+  metricRelabelings:
+    # Drop the noisy per-container label set (compose/doco-cd digests, image refs,
+    # container ids) but KEEP cd_doco_metadata_manager, so "container down" can be
+    # scoped to the GitOps-managed fleet and a hand-run throwaway never pages.
+    # Same shape as the truenas-docker-exporter job.
+    - action: labelkeep
+      regex: __name__|job|instance|name|status|health_status|container_label_cd_doco_metadata_manager

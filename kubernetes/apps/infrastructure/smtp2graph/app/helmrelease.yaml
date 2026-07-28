@@ -1,0 +1,69 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: smtp2graph
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: smtp2graph
+  values:
+    controllers:
+      smtp2graph:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        containers:
+          app:
+            image:
+              repository: smtp2graph/smtp2graph
+              tag: v1.1.5
+            probes:
+              liveness:
+                enabled: true
+              readiness:
+                enabled: true
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities: { drop: ["ALL"] }
+            resources:
+              requests:
+                cpu: 10m
+              limits:
+                memory: 256Mi
+    defaultPodOptions:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+    service:
+      app:
+        ports:
+          smtp:
+            port: 25
+    persistence:
+      # WORKDIR is /data: config.yml is read from here and the disk queue
+      # (queue/ temp/ failed/) is created alongside it. emptyDir matches the
+      # maddy smtp-relay's queue durability — acceptable at estate volume.
+      data:
+        type: emptyDir
+        globalMounts:
+          - path: /data
+      config:
+        type: secret
+        name: smtp2graph-secret
+        globalMounts:
+          - path: /data/config.yml
+            subPath: config.yml
+            readOnly: true
+          - path: /secrets/client.key
+            subPath: client.key
+            readOnly: true
+      tmp:
+        type: emptyDir
+        globalMounts:
+          - path: /tmp

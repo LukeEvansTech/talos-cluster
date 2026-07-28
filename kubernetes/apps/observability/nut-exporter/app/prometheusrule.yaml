@@ -16,6 +16,20 @@ spec:
         #
         # The NUT server is now an appliance OUTSIDE the cluster, so this alert
         # additionally covers the LAN path to it, not just a pod.
+        #
+        # 3m was checked against real history 2026-07-28 rather than left on trust,
+        # because the appliance runs FCOS with Zincati auto-updates and therefore
+        # reboots itself. Every routine reboot in the 14d retention window measured
+        # 45-120s of up==0 (07-27 60s, 07-26 60s/90s, 07-23 120s, 07-22 105s,
+        # 07-21 105s/45s), so 180s clears them all with ~50% margin and this has
+        # NOT been false-firing on reboots. Raising it to 5m was considered and
+        # rejected: it would buy nothing measurable and cost 2 of the ~13 battery
+        # minutes before anyone learns UPS monitoring has gone blind.
+        # Caveat: no Zincati UPGRADE reboot has occurred since the appliance became
+        # the only NUT server (last upgrade 07-20, Phase C landed 07-22), so that
+        # case is unmeasured. On FCOS the new deployment is staged before reboot,
+        # so it should be comparable — but if this ever does false-fire, measure
+        # the actual window before changing the number.
         - alert: UPSUnreachable
           annotations:
             description: >-

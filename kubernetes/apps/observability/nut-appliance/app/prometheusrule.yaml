@@ -49,19 +49,76 @@ spec:
         #
         # max() collapses nut-exporter's two ServiceMonitor endpoints (one per
         # UPS) to a single scalar so `and on()` has an empty label set to match.
+        #
+        # min() over job=~"nut-appliance-.*" covers ALL THREE appliance scrapes
+        # (node, smartctl, docker) in one rule rather than three near-identical
+        # ones — the operator response is the same for any of them, and every
+        # extra rule is another thing that can page. 15m also rides out the
+        # smartctl job's 300s interval (three missed scrapes).
         - alert: NutApplianceHostMetricsMissing
           annotations:
             description: >-
-              node-exporter on the NUT appliance has not been scraped for 15 minutes,
-              but nut-exporter is still reading upsd on the same host — so the box is
-              up and only its host metrics are blind. Check the monitoring stack
-              (nut-apps apps/monitoring) rather than the box itself.
-            summary: NUT appliance host metrics are missing while the box is still up.
+              At least one appliance exporter (node, smartctl or docker-state) has not
+              been scraped for 15 minutes, but nut-exporter is still reading upsd on the
+              same host — so the box is up and only its metrics are blind. Check the
+              monitoring stack (nut-apps apps/monitoring) rather than the box itself.
+            summary: NUT appliance metrics are missing while the box is still up.
           expr: |-
-            up{job="nut-appliance-node"} == 0
+            min(up{job=~"nut-appliance-.*"}) == 0
             and on()
             (max(up{job="nut-exporter"}) == 1)
           for: 15m
+          labels:
+            severity: warning
+        # ---- container lifecycle (docker_state_exporter) -----------------------
+        # Deliberately THREE rules, not the five truenas-docker.rules carries. This
+        # box runs six containers, and two of the NAS's five are already covered
+        # here by something better: the exporter-down case is the rule above, and
+        # OOM is NutApplianceMemoryLow plus the down/flapping rules below showing
+        # the aftermath. `container_state_oomkilled` is also sticky until the
+        # container is recreated, so it re-pages every repeatInterval — a poor
+        # trade on a box this small.
+        #
+        # Scoped to the doco-cd-managed fleet so a hand-run throwaway container
+        # (exactly what the exporters were tested as) can never page.
+        #
+        # These overlap UPSUnreachable when nut-upsd itself dies. That is wanted,
+        # not redundant: "container nut-upsd exited" is directly actionable where
+        # "UPS monitoring is blind" is a symptom. Different alertnames, so the
+        # critical->warning inhibit rule does not couple them.
+        - alert: NutApplianceContainerDown
+          annotations:
+            description: >-
+              Container {{ $labels.name }} on the NUT appliance is {{ $labels.status }}.
+              If this is doco-cd, GitOps has stopped and the box is drifting from
+              nut-apps with no other symptom.
+            summary: NUT appliance container {{ $labels.name }} is not running.
+          expr: |-
+            container_state_status{job="nut-appliance-docker", status=~"exited|dead", container_label_cd_doco_metadata_manager="doco-cd"} == 1
+          for: 5m
+          labels:
+            severity: warning
+        - alert: NutApplianceContainerUnhealthy
+          annotations:
+            description: >-
+              Container {{ $labels.name }} on the NUT appliance is failing its
+              healthcheck. traefik, doco-cd and nut-upsd all define one.
+            summary: NUT appliance container {{ $labels.name }} is unhealthy.
+          expr: |-
+            container_state_health_status{job="nut-appliance-docker", status="unhealthy"} == 1
+          for: 5m
+          labels:
+            severity: warning
+        - alert: NutApplianceContainerFlapping
+          annotations:
+            description: >-
+              Container {{ $labels.name }} on the NUT appliance restarted {{ $value }}
+              times in the last hour — a crash loop, which `restart: unless-stopped`
+              will hide indefinitely.
+            summary: NUT appliance container {{ $labels.name }} is crash-looping.
+          expr: |-
+            changes(container_restartcount{job="nut-appliance-docker"}[1h]) > 3
+          for: 5m
           labels:
             severity: warning
         # Baseline 3.4% used, so this needs ~202 GB of growth — a runaway-log or
