@@ -1,6 +1,18 @@
 ---
 # Hand-built: no public dashboard matches this mixed node/qbittorrent/seedbox
 # schema. DS_PROMETHEUS mapped via spec.datasources (house pattern).
+#
+# The rate() panels use an explicit [5m] window, NOT $__rate_interval. That macro
+# expands to max($__interval + scrape, 4 * scrape) where `scrape` is the
+# DATASOURCE's scrape-interval setting — 15s by default, regardless of what the
+# job actually uses. Every seedbox job here scrapes at 60s (300s for smartctl),
+# so at short time ranges the macro resolved to a window too narrow to hold two
+# samples and "eno0 throughput", "CPU by mode" and "Disk I/O per device"
+# rendered "No data". Diagnosed on nut-appliance (talos-cluster #3919), where
+# Grafana's Query Inspector showed it sending rate(...[1m15s]) against a 60s job.
+# Setting the panel Min step alone does NOT fix it — it raises $__interval but
+# leaves the `scrape` term at the datasource value. The Min step is still set
+# here, correctly, to stop Grafana asking for finer resolution than the scrape.
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/grafana.integreatly.org/grafanadashboard_v1beta1.json
 apiVersion: grafana.integreatly.org/v1beta1
 kind: GrafanaDashboard
