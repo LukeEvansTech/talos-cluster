@@ -290,7 +290,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "rate(node_network_receive_bytes_total{job=\"seedbox-node\",device=\"eno0\"}[$__rate_interval])",
+          "expr": "rate(node_network_receive_bytes_total{job=\"seedbox-node\",device=\"eno0\"}[5m])",
           "legendFormat": "receive",
           "range": true,
           "refId": "A"
@@ -301,21 +301,22 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "rate(node_network_transmit_bytes_total{job=\"seedbox-node\",device=\"eno0\"}[$__rate_interval])",
+          "expr": "rate(node_network_transmit_bytes_total{job=\"seedbox-node\",device=\"eno0\"}[5m])",
           "legendFormat": "transmit",
           "range": true,
           "refId": "B"
         }
       ],
       "title": "eno0 throughput",
-      "type": "timeseries"
+      "type": "timeseries",
+      "interval": "1m"
     },
     {
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
-      "description": "md4 is the RAID5 data array — healthy is active=4, failed=0, spare=0.",
+      "description": "md4 is the RAID5 data array \u2014 healthy is active=4, failed=0, spare=0.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -556,14 +557,15 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "avg by (mode) (rate(node_cpu_seconds_total{job=\"seedbox-node\",mode!=\"idle\"}[$__rate_interval]))",
+          "expr": "avg by (mode) (rate(node_cpu_seconds_total{job=\"seedbox-node\",mode!=\"idle\"}[5m]))",
           "legendFormat": "{{mode}}",
           "range": true,
           "refId": "A"
         }
       ],
       "title": "CPU by mode",
-      "type": "timeseries"
+      "type": "timeseries",
+      "interval": "1m"
     },
     {
       "datasource": {
@@ -692,7 +694,7 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
-      "description": "Fraction of each second the disk spent doing I/O — 1.0 means saturated.",
+      "description": "Fraction of each second the disk spent doing I/O \u2014 1.0 means saturated.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -772,14 +774,15 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "rate(node_disk_io_time_seconds_total{job=\"seedbox-node\",device=~\"sd[a-z]\"}[$__rate_interval])",
+          "expr": "rate(node_disk_io_time_seconds_total{job=\"seedbox-node\",device=~\"sd[a-z]\"}[5m])",
           "legendFormat": "{{device}}",
           "range": true,
           "refId": "A"
         }
       ],
       "title": "Disk I/O per device",
-      "type": "timeseries"
+      "type": "timeseries",
+      "interval": "1m"
     },
     {
       "datasource": {
@@ -880,7 +883,7 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
-      "description": "Instantaneous transfer speeds reported by qBittorrent (already gauges — no rate()).",
+      "description": "Instantaneous transfer speeds reported by qBittorrent (already gauges \u2014 no rate()).",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1095,7 +1098,7 @@
           "refId": "C"
         }
       ],
-      "title": "Seedbox availability — box vs scrape path vs qBit",
+      "title": "Seedbox availability \u2014 box vs scrape path vs qBit",
       "type": "timeseries"
     }
   ],
