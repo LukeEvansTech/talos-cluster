@@ -44,8 +44,8 @@ spec:
               DB_ENGINE: django.db.backends.postgresql
               DEBUG: "0"
               DEFAULT_FROM_EMAIL: tandoor@${SECRET_DOMAIN}
-              EMAIL_HOST: smtp-relay.network.svc.cluster.local
-              EMAIL_PORT: "2525"
+              EMAIL_HOST: smtp2graph.infrastructure.svc.cluster.local
+              EMAIL_PORT: "25"
               ENABLE_PDF_EXPORT: "1"
               ENABLE_SIGNUP: "0"
               FRACTION_PREF_DEFAULT: "0"
