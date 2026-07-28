@@ -59,8 +59,8 @@ spec:
               # LDAP_ATTRIBUTE_GROUP_NAME: cn
               # LDAP_ATTRIBUTE_ADMIN_GROUP: ID-Admin
               SMTP_FROM: "pocket-id@${SECRET_DOMAIN}"
-              SMTP_HOST: "smtp-relay.infrastructure.svc.cluster.local"
-              SMTP_PORT: "2525"
+              SMTP_HOST: "smtp2graph.infrastructure.svc.cluster.local"
+              SMTP_PORT: "25"
               SESSION_DURATION: "43800"
               TRUST_PROXY: "true"
               UPLOAD_PATH: /app/data/uploads
