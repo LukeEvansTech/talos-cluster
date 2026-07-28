@@ -1,0 +1,133 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: nut-appliance.rules
+spec:
+  groups:
+    # Host-level alerts for the NUT appliance. Deliberately FOUR rules, and all
+    # four are calibrated against values observed on the box on 2026-07-28 rather
+    # than against textbook defaults:
+    #
+    #   load 0.08 across 6 cores | RAM 836 MB of 7796 MB used, NO SWAP
+    #   /var 8.2 GB of 238 GB (3.4%) | coretemp 35-36 C | NVMe 33-35 C
+    #
+    # Every alert here PAGES. Alertmanager's root route sends all severities to
+    # Pushover, so `warning` is not a quiet tier and `info` is not either — the
+    # seedbox learned this the expensive way (an iowait alert calibrated at the
+    # textbook 0.4 "would have paged perpetually"). Hence a small set with wide
+    # margins, not a comprehensive one.
+    #
+    # NOT SHIPPED — a RAPL power-regression alert, despite the power series being
+    # the reason node-exporter runs as root on that box. POWER.md's tuning delta
+    # is 525 mW -> 411 mW package idle, and POWER.md itself records 394 vs 411 mW
+    # as indistinguishable run-to-run noise, so a threshold separating tuned from
+    # untuned sits inside the noise floor. Worse, a fresh 300s sample on
+    # 2026-07-28 read 261 mW — 36% below the figure recorded five days earlier,
+    # with package C-state residency moved from PC8 65% to PC9 85%. The band is
+    # not stable enough to threshold. It is graphed on the dashboard instead;
+    # revisit with a couple of weeks of history and a real working band. Shipping
+    # a number now would be guessing, which is the specific mistake the seedbox
+    # iowait alert exists to warn about.
+    - name: nut-appliance.rules
+      rules:
+        # Deliberately NOT a "box is down" alert. UPSUnreachable already covers
+        # that, at Pushover EMERGENCY priority with a 3m fuse tuned to the main
+        # UPS's ~13 minute battery — a second critical would only double-page.
+        #
+        # What that alert cannot see is host metrics dying while upsd keeps
+        # serving: a crashed exporter, a docker problem, a bad deploy. Gating on
+        # the nut-exporter scrape still succeeding turns this into exactly that
+        # statement — "the appliance is alive, but we have gone blind on it".
+        #
+        # The gate also keeps FCOS auto-updates quiet. Zincati is enabled on this
+        # box, so it reboots itself; a reboot takes upsd down too, so the gate is
+        # false and nothing fires here. 15m additionally clears the reboot itself
+        # (~2-3 min, including the consistent 50s NIC link-up delay this hardware
+        # shows on every boot).
+        #
+        # max() collapses nut-exporter's two ServiceMonitor endpoints (one per
+        # UPS) to a single scalar so `and on()` has an empty label set to match.
+        - alert: NutApplianceHostMetricsMissing
+          annotations:
+            description: >-
+              node-exporter on the NUT appliance has not been scraped for 15 minutes,
+              but nut-exporter is still reading upsd on the same host — so the box is
+              up and only its host metrics are blind. Check the monitoring stack
+              (nut-apps apps/monitoring) rather than the box itself.
+            summary: NUT appliance host metrics are missing while the box is still up.
+          expr: |-
+            up{job="nut-appliance-node"} == 0
+            and on()
+            (max(up{job="nut-exporter"}) == 1)
+          for: 15m
+          labels:
+            severity: warning
+        # Baseline 3.4% used, so this needs ~202 GB of growth — a runaway-log or
+        # runaway-image safety net, not a routine capacity watch.
+        #
+        # mountpoint="/var" is load-bearing. FCOS 44 mounts the same xfs at four
+        # places (/var, /etc, /sysroot, /sysroot/ostree/deploy/...), all reporting
+        # identical numbers, so an unpinned expression would fire four identical
+        # alerts. And "/" must NOT be used: it is a 5 MB composefs overlay that is
+        # permanently 100% full, which is why the textbook rootfs rule would page
+        # from the moment this target came up.
+        #
+        # /boot is deliberately excluded. It is 350 MB at 48%, and 85% of that is
+        # 52 MB free — already past the point where rpm-ostree can stage a kernel,
+        # so this threshold would be useless there. If /boot ever needs watching it
+        # needs its own rule and its own number, not a share of this one.
+        - alert: NutApplianceDiskFillHigh
+          annotations:
+            description: >-
+              /var on the NUT appliance is {{ $value | humanizePercentage }} full.
+              Baseline is 3.4%, so something is growing that should not be — most
+              likely container logs or unpruned images.
+            summary: NUT appliance /var is above 85% full.
+          expr: |-
+            1 - (
+              node_filesystem_avail_bytes{job="nut-appliance-node", mountpoint="/var"}
+              / node_filesystem_size_bytes{job="nut-appliance-node", mountpoint="/var"}
+            ) > 0.85
+          for: 30m
+          labels:
+            severity: warning
+        # Baseline 36 C against a Tjmax of 100 C. 75 C on a box that idles at ~1%
+        # CPU means a dead fan or a blocked intake, not work — this is a rack
+        # hardware alert wearing a temperature threshold. Set ~40 C above the
+        # working band so it cannot false-fire, and 25 C below Tjmax so it still
+        # arrives before thermal throttling rather than after.
+        #
+        # NVMe temperature is NOT covered here: the shared smartctl-exporter.rules
+        # already alert on smartctl_device_temperature > 65 with no job selector,
+        # so this target inherits it.
+        - alert: NutApplianceCPUTemperatureHigh
+          annotations:
+            description: >-
+              Hottest CPU core on the NUT appliance is {{ $value }}°C, against a
+              35-36°C idle baseline. On a box this idle that means cooling, not load —
+              check the fan and the intake.
+            summary: NUT appliance CPU temperature is high.
+          expr: |-
+            max(node_hwmon_temp_celsius{job="nut-appliance-node", chip="platform_coretemp_0"}) > 75
+          for: 15m
+          labels:
+            severity: warning
+        # Baseline 89% available. This box has NO SWAP, so memory exhaustion does
+        # not degrade — the OOM killer picks a victim, and the candidates include
+        # upsd, which is the one process on this box that must not die quietly.
+        # Only a genuine leak can reach 10%.
+        - alert: NutApplianceMemoryLow
+          annotations:
+            description: >-
+              Available memory on the NUT appliance is {{ $value | humanizePercentage }}
+              of total (baseline 89%). There is no swap on this box, so the next step is
+              the OOM killer — and upsd is a candidate.
+            summary: NUT appliance is low on available memory.
+          expr: |-
+            node_memory_MemAvailable_bytes{job="nut-appliance-node"}
+            / node_memory_MemTotal_bytes{job="nut-appliance-node"} < 0.10
+          for: 30m
+          labels:
+            severity: warning

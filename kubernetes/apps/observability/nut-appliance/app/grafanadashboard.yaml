@@ -1,0 +1,26 @@
+---
+# Bespoke dashboard rather than the upstream "Node Exporter Full" (grafana.com
+# 1860). Two reasons: 1860 has no RAPL panel, and RAPL is the reason this box's
+# node-exporter runs as root at all; and its rootfs panels key on mountpoint="/",
+# which on FCOS 44 is a 5 MB composefs overlay reporting a permanent 100% full —
+# so the headline disk panel would be wrong rather than merely empty.
+#
+# Every query here was validated against live data before merge; there are no
+# speculative panels. Same shape as the seedbox and truenas-zfs dashboards.
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/grafana.integreatly.org/grafanadashboard_v1beta1.json
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  name: nut-appliance
+spec:
+  allowCrossNamespaceImport: true
+  instanceSelector:
+    matchLabels:
+      grafana.internal/instance: grafana
+  resyncPeriod: 1h
+  datasources:
+    - datasourceName: prometheus
+      inputName: DS_PROMETHEUS
+  configMapRef:
+    name: nut-appliance-dashboard
+    key: nut-appliance.json
