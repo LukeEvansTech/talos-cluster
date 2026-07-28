@@ -350,7 +350,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "rate(node_rapl_package_joules_total{job=\"nut-appliance-node\"}[$__rate_interval])",
+          "expr": "rate(node_rapl_package_joules_total{job=\"nut-appliance-node\"}[5m])",
           "legendFormat": "package",
           "range": true,
           "refId": "A"
@@ -361,7 +361,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "rate(node_rapl_core_joules_total{job=\"nut-appliance-node\"}[$__rate_interval])",
+          "expr": "rate(node_rapl_core_joules_total{job=\"nut-appliance-node\"}[5m])",
           "legendFormat": "core",
           "range": true,
           "refId": "B"
@@ -372,7 +372,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "rate(node_rapl_dram_joules_total{job=\"nut-appliance-node\"}[$__rate_interval])",
+          "expr": "rate(node_rapl_dram_joules_total{job=\"nut-appliance-node\"}[5m])",
           "legendFormat": "dram",
           "range": true,
           "refId": "C"
@@ -711,7 +711,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "avg by (mode) (rate(node_cpu_seconds_total{job=\"nut-appliance-node\"}[$__rate_interval]))",
+          "expr": "avg by (mode) (rate(node_cpu_seconds_total{job=\"nut-appliance-node\"}[5m]))",
           "legendFormat": "{{mode}}",
           "range": true,
           "refId": "A"
@@ -913,7 +913,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "rate(node_network_receive_bytes_total{job=\"nut-appliance-node\", device=\"eno1\"}[$__rate_interval])",
+          "expr": "rate(node_network_receive_bytes_total{job=\"nut-appliance-node\", device=\"eno1\"}[5m])",
           "legendFormat": "receive",
           "range": true,
           "refId": "A"
@@ -924,7 +924,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "rate(node_network_transmit_bytes_total{job=\"nut-appliance-node\", device=\"eno1\"}[$__rate_interval])",
+          "expr": "rate(node_network_transmit_bytes_total{job=\"nut-appliance-node\", device=\"eno1\"}[5m])",
           "legendFormat": "transmit",
           "range": true,
           "refId": "B"
