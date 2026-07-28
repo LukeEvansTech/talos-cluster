@@ -47,11 +47,10 @@ spec:
         runAsGroup: 1000
     service:
       app:
-        type: LoadBalancer
-        annotations:
-          external-dns.alpha.kubernetes.io/hostname: smtp.${SECRET_DOMAIN}
-          io.cilium/lb-ipam-ips: ${SVC_SMTP_RELAY_ADDR}
-        externalTrafficPolicy: Local
+        # ClusterIP since 2026-07-28: the LB IP (${SVC_SMTP_RELAY_ADDR}) and the
+        # smtp.${SECRET_DOMAIN} hostname moved to smtp2graph, which now fronts all
+        # off-cluster senders. In-cluster consumers still reach maddy by this
+        # Service's DNS name until they migrate.
         ports:
           smtp:
             port: *port
