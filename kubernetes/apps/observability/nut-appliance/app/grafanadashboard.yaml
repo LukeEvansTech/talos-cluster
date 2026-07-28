@@ -7,6 +7,18 @@
 #
 # Every query here was validated against live data before merge; there are no
 # speculative panels. Same shape as the seedbox and truenas-zfs dashboards.
+#
+# The rate() panels use an explicit [5m] window rather than $__rate_interval.
+# That macro is NOT safe for a 60s-scraped job here: it expands to
+# max($__interval + scrape, 4 * scrape) where `scrape` is the DATASOURCE's
+# scrape-interval setting — 15s by default, regardless of what this job actually
+# uses. Grafana was observed sending rate(...[1m15s]) against a 60s scrape, which
+# rarely catches two samples, so all three rate panels rendered "No data" while
+# every other panel was fine. Setting the panel Min step does not fix it: it
+# raises $__interval but leaves the `scrape` term at the datasource value.
+# An explicit window is deterministic and independent of datasource settings.
+# ⚠️ Any other estate dashboard that pairs $__rate_interval with a scrape
+# interval slower than 15s has the same latent problem.
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/grafana.integreatly.org/grafanadashboard_v1beta1.json
 apiVersion: grafana.integreatly.org/v1beta1
 kind: GrafanaDashboard
