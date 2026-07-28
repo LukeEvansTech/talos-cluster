@@ -19,7 +19,6 @@ resources:
   - ./kube-prometheus-stack/ks.yaml
   - ./netdata/ks.yaml
   - ./nut-exporter/ks.yaml
-  - ./nutify/ks.yaml
   - ./opnsense-exporter/ks.yaml
   - ./oxidized/ks.yaml
   - ./plex-exporter/ks.yaml
