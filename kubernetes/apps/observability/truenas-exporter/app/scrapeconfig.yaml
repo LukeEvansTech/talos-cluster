@@ -41,3 +41,77 @@ spec:
   metricRelabelings:
     - action: labelkeep
       regex: __name__|job|instance|name|status|health_status|container_label_cd_doco_metadata_manager
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/scrapeconfig_v1alpha1.json
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: ScrapeConfig
+metadata:
+  name: &name truenas-node
+spec:
+  # node-exporter on the NAS (:9100) — CPU/memory/disk/network for the host
+  # itself. It has been RUNNING since the monitoring stack landed
+  # (truenas-apps apps/monitoring) but was never scraped, so the NAS was the
+  # only Docker box in the estate with no host metrics at all: the seedbox has
+  # seedbox-node and the NUT appliance has nut-appliance-node, and this one had
+  # nothing. The graphite bridge on :9108 carries TrueNAS's own ZFS/pool
+  # reporting, which is a different dataset and not a substitute.
+  staticConfigs:
+    - targets:
+        - ${SECRET_STORAGE_SERVER}:9100
+  metricsPath: /metrics
+  scrapeInterval: 60s
+  relabelings:
+    - action: replace
+      targetLabel: job
+      replacement: *name
+  metricRelabelings:
+    # Load-bearing, not tidying — and it matters MORE here than anywhere else.
+    # Several ceph-mixin alerts ship with NO job selector and so adopt every
+    # node-exporter target in the cluster. CephNodeDiskspaceWarning joins
+    # through node_uname_info, then runs a 5-day predict_linear over every
+    # filesystem it finds. This host exposes 85 of them, so without this drop a
+    # single scrape would hand the ceph rules 85 new ZFS datasets to forecast.
+    # The seedbox and the NUT appliance drop it for the same reason.
+    #
+    # The other two unscoped ceph node alerts were checked against this box
+    # rather than assumed:
+    #   CephNodeRootFilesystemFull — keys on mountpoint="/", which here is a
+    #     17.1 GB filesystem at 0.6% used. Real, unlike FCOS's composefs, but
+    #     nowhere near any threshold.
+    #   CephNodeInconsistentMTU — compares each device against the cluster-wide
+    #     median for that device name.
+    - action: drop
+      sourceLabels:
+        - __name__
+      regex: node_uname_info
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/scrapeconfig_v1alpha1.json
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: ScrapeConfig
+metadata:
+  name: &name truenas-smartctl
+spec:
+  # smartctl-exporter on the NAS (:9633) — per-drive SMART health. Also already
+  # running and never scraped, which is the more serious of the two gaps: this
+  # is the box whose entire job is spinning disks, and it was the only one in
+  # the estate with no drive-health series in Prometheus.
+  #
+  # scrutiny (truenas-apps apps/scrutiny) has its own view of SMART, but it is a
+  # separate UI with its own store and does not feed Prometheus, so it cannot
+  # drive alerts or sit alongside the other boxes on a shared dashboard.
+  #
+  # Needs no rules of its own: the shared smartctl-exporter.rules carry no job
+  # selector, so this inherits smart_status / critical_warning / media_errors /
+  # available_spare / temperature for free — the same way the NUT appliance does.
+  staticConfigs:
+    - targets:
+        - ${SECRET_STORAGE_SERVER}:9633
+  metricsPath: /metrics
+  # 300s, matching the seedbox and the NUT appliance: SMART attributes move on a
+  # timescale of days, so a 5x cheaper scrape loses nothing — and this host has
+  # far more drives than either of them.
+  scrapeInterval: 300s
+  relabelings:
+    - action: replace
+      targetLabel: job
+      replacement: *name
