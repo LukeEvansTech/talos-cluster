@@ -24,7 +24,7 @@ spec:
           app:
             image:
               repository: docker.io/isokoliuk/mcp-searxng
-              tag: 1.12.0@sha256:731664897bd460d4b0fe8a8901cd73aa3a9493ada03567ab442842fe0f8ab0f8
+              tag: 1.12.1@sha256:4b305aaeb8b5d091cd4d4e8471b013b9474d02a6c642e48c4c8d0abb7d5bc853
             env:
               SEARXNG_URL: http://searxng.default.svc.cluster.local:8080
               MCP_HTTP_PORT: &port 3000
