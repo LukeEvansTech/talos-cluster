@@ -86,11 +86,21 @@ spec:
               HEALTH_SERVER_DISABLE_LOOP: on
               HEALTH_VPN_DURATION_INITIAL: 60s
               LOG_LEVEL: info
+              # Run as root (0) rather than gluetun's default 1000. gluetun
+              # chowns the public-IP status file to PUID:PGID after every
+              # write (internal/publicip/fs.go), and this container drops ALL
+              # capabilities, so a 0 -> 1000 chown fails EPERM without
+              # CAP_CHOWN. Chowning to the existing owner is a permitted
+              # no-op, which keeps the drop-ALL context intact. Only the
+              # unused OpenVPN process user is otherwise derived from PUID
+              # (this tunnel is WireGuard), so nothing else is affected.
+              PGID: 0
               # Public IP check provider. gluetun only accepts "ipinfo" or
               # "ip2location"; ipinfo rate-limits (HTTP 429) on its free monthly
               # tier, so use ip2location for the (cosmetic) public-IP display.
               # https://github.com/qdm12/gluetun-wiki/blob/main/setup/options/others.md
               PUBLICIP_API: ip2location
+              PUID: 0 # see PGID above
               TZ: ${TIMEZONE}
               UPDATER_PERIOD: 12h
               VERSION_INFORMATION: off
@@ -263,3 +273,21 @@ spec:
           imgur-proxy:
             gluetun:
               - path: /gluetun
+      # gluetun creates its status directory with os.MkdirAll("/tmp/gluetun",
+      # 0644), a directory with no execute bit, so nothing can traverse into
+      # it without CAP_DAC_OVERRIDE (cmd/gluetun/main.go). The other gluetun
+      # sidecars in this namespace only survive that because they keep root's
+      # default capability set; this one drops ALL, so writing the public-IP
+      # file failed with "clearing public IP data: open /tmp/gluetun/ip:
+      # permission denied" on every tunnel teardown. Pre-creating the path as
+      # an emptyDir (mode 1777) makes gluetun's MkdirAll a no-op and keeps the
+      # mode sane, with no capability grant. Nested under the `tmp` mount
+      # above; the kubelet orders nested mounts by path.
+      gluetun-tmp:
+        type: emptyDir
+        medium: Memory
+        sizeLimit: 1Mi
+        advancedMounts:
+          imgur-proxy:
+            gluetun:
+              - path: /tmp/gluetun
