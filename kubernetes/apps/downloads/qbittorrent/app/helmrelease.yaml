@@ -194,11 +194,19 @@ spec:
               HEALTH_SERVER_DISABLE_LOOP: on
               HEALTH_VPN_DURATION_INITIAL: 60s
               LOG_LEVEL: debug
+              # Run as root (0) rather than gluetun's default 1000: gluetun
+              # chowns its public-IP status file to PUID:PGID after every
+              # write, which needs CAP_CHOWN, and this container drops ALL
+              # capabilities. Chowning to the file's existing owner is a
+              # permitted no-op instead. PUID otherwise only feeds the
+              # OpenVPN process user, unused on a WireGuard tunnel.
+              PGID: 0
               # Public IP check provider. gluetun only accepts "ipinfo" or
               # "ip2location"; ipinfo rate-limits (HTTP 429) on its free monthly
               # tier, so use ip2location for the (cosmetic) public-IP display.
               # https://github.com/qdm12/gluetun-wiki/blob/main/setup/options/others.md
               PUBLICIP_API: ip2location
+              PUID: 0 # see PGID above
               # STORAGE_FILEPATH: "" # prevent memory spike and avoid I/O
               TZ: ${TIMEZONE}
               UPDATER_PERIOD: 12h
@@ -237,6 +245,8 @@ spec:
               capabilities:
                 add:
                   - NET_ADMIN
+                drop:
+                  - ALL
               allowPrivilegeEscalation: false
             resources:
               limits:
@@ -326,3 +336,17 @@ spec:
             #   path: /mnt/speed/snatch
             #   globalMounts:
             #     - path: /speed/snatch
+      # gluetun creates its status directory with os.MkdirAll("/tmp/gluetun",
+      # 0644), a directory with no execute bit, so nothing can traverse into
+      # it without CAP_DAC_OVERRIDE (cmd/gluetun/main.go). Pre-creating the
+      # path as an emptyDir (mode 1777) makes that MkdirAll a no-op and keeps
+      # the mode sane, so the public-IP file stays writable with all
+      # capabilities dropped. Paired with PUID/PGID 0 in the gluetun env.
+      gluetun-tmp:
+        type: emptyDir
+        medium: Memory
+        sizeLimit: 1Mi
+        advancedMounts:
+          qbittorrent:
+            gluetun:
+              - path: /tmp/gluetun
