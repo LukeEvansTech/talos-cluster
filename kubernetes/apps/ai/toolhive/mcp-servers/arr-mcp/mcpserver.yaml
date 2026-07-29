@@ -8,7 +8,7 @@ spec:
   # Official multi-arch GHCR image for mcp-arr-server (github.com/aplaceforallmystuff/mcp-arr),
   # digest-pinned. Runs `node dist/index.js` directly as non-root, so unlike the upstream npx
   # recipe it needs no writable /tmp, HOME, or NPM_CONFIG_CACHE. Defaults to stdio transport.
-  image: ghcr.io/aplaceforallmystuff/mcp-arr:1.7.2@sha256:46f2356c2161a8561b6f5680429594cf34aaad0712d1a030f8d662b99556c415
+  image: ghcr.io/aplaceforallmystuff/mcp-arr:1.7.3@sha256:ace72c56448e8695e1d2d060e7437470e3f883fcc9316f1294e3a7f682e1efa1
   transport: stdio
   proxyMode: streamable-http
   proxyPort: 8080
