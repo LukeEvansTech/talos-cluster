@@ -74,6 +74,15 @@ spec:
               repository: ghcr.io/qdm12/gluetun
               tag: v3.41.1@sha256:1a5bf4b4820a879cdf8d93d7ef0d2d963af56670c9ebff8981860b6804ebc8ab
             env:
+              # gluetun blocks malicious domains at its DNS layer by default.
+              # That is dead weight here and nowhere else: nginx below runs
+              # `resolver 127.0.0.1` and its SNI map drops anything that is
+              # not .imgur.com before a connection is opened, so the only
+              # lookups this resolver ever sees are imgur hostnames. Turning
+              # it off also removes the blocklist download, the likeliest
+              # cause of the startup memory spike that OOMKilled this
+              # container against its (previously 256Mi) limit.
+              BLOCK_MALICIOUS: off
               DOT: "on"
               DOT_CACHING: "on"
               DOT_IPV6: off
@@ -163,7 +172,16 @@ spec:
                 cpu: 25m
                 memory: 64Mi
               limits:
-                memory: 256Mi
+                # Steady state is ~26Mi and the highest figure cAdvisor ever
+                # sampled in 7 days is ~86Mi, but this container still
+                # OOMKilled 240+ times at 256Mi: the spike lands ~2s into
+                # startup and dies inside one scrape interval, so it is
+                # invisible to sampling and cannot be sized from metrics.
+                # BLOCK_MALICIOUS: off above should remove it; this is the
+                # belt to that pair of braces, since the 7MB servers.json
+                # parse is an unmeasured second candidate. The other three
+                # gluetun sidecars set no memory limit at all.
+                memory: 512Mi
                 kernel.org/tun: 1
         pod:
           labels:
