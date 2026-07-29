@@ -33,7 +33,7 @@ L2/L3/workload/application diagrams by continuously scanning the infrastructure.
   is a JVM-only workaround (Java's strict TLS verifier) and does not apply to Scanopy's Rust client.
   Hardening path is `verify-full` with a mounted `ca.crt` + `sslrootcert`; never drop to `disable`.
 - **Auth: built-in password login.** No OIDC/SSO in v1; first run creates the admin in the UI.
-- **SMTP: internal relay** at `smtp-relay.infrastructure.svc.cluster.local:25` (unauthenticated).
+- **SMTP: internal relay** at `smtp2graph.infrastructure.svc.cluster.local:25` (unauthenticated; sends via Graph as its `scanopy@` alias).
 - **SNMP community via ExternalSecret**, mounted read-only at the neutral path
   `/run/secrets/snmp-community`. The community string lives only in 1Password (repo is PUBLIC); the
   credential is then configured in the UI pointing at that file.

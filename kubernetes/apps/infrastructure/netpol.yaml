@@ -5,7 +5,7 @@ kind: CiliumNetworkPolicy
 metadata:
   name: allow-cross-namespace-ingress
 spec:
-  description: "Allow ingress from gateway, cluster workloads (smtp2graph/smtp-relay consumers) and external clients (vlmcsd, off-cluster smtp)"
+  description: "Allow ingress from gateway, cluster workloads (smtp2graph consumers) and external clients (vlmcsd, off-cluster smtp)"
   endpointSelector: {}
   ingress:
     - fromEndpoints:
