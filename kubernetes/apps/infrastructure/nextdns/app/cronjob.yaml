@@ -13,6 +13,9 @@ spec:
   concurrencyPolicy: Forbid
   jobTemplate:
     spec:
+      # Reap finished jobs after 24h so a failed run cannot pin KubeJobFailed
+      # (the alert clears only when the Job object is gone)
+      ttlSecondsAfterFinished: 86400
       template:
         metadata:
           labels:
