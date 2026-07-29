@@ -42,6 +42,20 @@ spec:
         tcp_connect:
           prober: tcp
           timeout: 5s
+        # TLS handshake only — deliberately NOT http_2xx. Several of the probed
+        # endpoints are auth-gated and answer 401/403, which http_2xx scores as
+        # probe_success=0 and would spuriously fire the critical LanProbeFailed
+        # alert below. A bare handshake yields probe_ssl_earliest_cert_expiry
+        # without any HTTP semantics to get wrong, and doubles as a genuine
+        # "is TLS answering" signal. The tcp prober sends the target's hostname
+        # as SNI, which matters because these are Traefik instances serving
+        # several hosts from one listener.
+        tls_connect:
+          prober: tcp
+          timeout: 5s
+          tcp:
+            tls: true
+            preferred_ip_protocol: ip4
     serviceMonitor:
       enabled: true
       selfMonitor:
@@ -58,3 +72,54 @@ spec:
           annotations:
             summary: |-
               The probe targeting {{ $labels.instance }} is currently having connectivity issues
+        # ── Why these exist ──────────────────────────────────────────────────
+        # Added 2026-07-29 after an incident that was invisible for weeks. Two
+        # hand-made Cloudflare DNS-01 tokens carried an IP allowlist that no
+        # longer matched the home WAN address, so ACME renewal was dead on both
+        # the cr-nut and TrueNAS Traefik instances. It only came to light
+        # because a cr-nut rebuild destroyed its acme.json and forced an
+        # immediate re-issue; TrueNAS still held a cached certificate valid for
+        # another six weeks and would have failed silently at its renewal, with
+        # nothing in the estate to say so until a browser threw a warning.
+        #
+        # Nothing anywhere alerted on certificate expiry before this. These two
+        # rules are the safety net that makes the whole class of ACME failure
+        # loud, independent of what caused it.
+        #
+        # Let's Encrypt issues for 90d and renews at 30d remaining, so 21d means
+        # renewal has already been failing for about nine days — early enough to
+        # fix calmly, late enough not to fire on a renewal that is merely due.
+        # Bounded at the bottom by the critical threshold below. There are no
+        # inhibit_rules in this Alertmanager, so an unbounded warning would page
+        # a second time alongside the critical for the same certificate.
+        - alert: CertificateExpiringSoon
+          expr: |-
+            (
+              probe_ssl_earliest_cert_expiry{service="blackbox-exporter-lan"}
+                - time()
+            ) / 86400 < 21
+              and
+            (
+              probe_ssl_earliest_cert_expiry{service="blackbox-exporter-lan"}
+                - time()
+            ) / 86400 >= 7
+          for: 1h
+          labels:
+            severity: warning
+          annotations:
+            summary: >-
+              TLS certificate for {{ $labels.instance }} expires in
+              {{ $value | humanize }} days — ACME renewal is probably failing
+        - alert: CertificateExpiringCritical
+          expr: |-
+            (
+              probe_ssl_earliest_cert_expiry{service="blackbox-exporter-lan"}
+                - time()
+            ) / 86400 < 7
+          for: 1h
+          labels:
+            severity: critical
+          annotations:
+            summary: >-
+              TLS certificate for {{ $labels.instance }} expires in under
+              7 days and ACME renewal has not succeeded

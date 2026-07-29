@@ -45,3 +45,41 @@ spec:
     - action: replace
       replacement: blackbox-exporter-lan
       targetLabel: service
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/probe_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: Probe
+metadata:
+  name: lan-tls-cert
+spec:
+  # Certificate expiry for the two Traefik instances OUTSIDE the cluster, which
+  # issue their own Let's Encrypt certificates over Cloudflare DNS-01 and had no
+  # expiry monitoring of any kind until 2026-07-29. In-cluster certificates are
+  # deliberately not listed: cert-manager owns those and reports on them itself.
+  #
+  # 5m, not 1m — a certificate's expiry does not change minute to minute, and
+  # these are handshakes against boxes whose job is something else.
+  jobName: tls_cert
+  interval: 5m
+  module: tls_connect
+  prober:
+    url: blackbox-exporter-lan.observability.svc.cluster.local:9115
+  targets:
+    staticConfig:
+      static:
+        # cr-nut — the box whose rebuild exposed the broken token.
+        - peanut.${SECRET_DOMAIN}:443
+        # TrueNAS. Every host here is served by the one Traefik from a single
+        # acme.json, so in principle one target would do — they are listed
+        # individually because a per-host issuance failure is exactly the kind
+        # of partial breakage a single sampled target would hide.
+        - traefik-nas.${SECRET_DOMAIN}:443
+        - dozzle.${SECRET_DOMAIN}:443
+        - garage-nas.${SECRET_DOMAIN}:443
+        - s3-nas.${SECRET_DOMAIN}:443
+        - scrutiny-nas.${SECRET_DOMAIN}:443
+        - syncthing.${SECRET_DOMAIN}:443
+  metricRelabelings:
+    - action: replace
+      replacement: blackbox-exporter-lan
+      targetLabel: service
