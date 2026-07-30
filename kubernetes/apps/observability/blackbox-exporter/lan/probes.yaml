@@ -73,7 +73,12 @@ spec:
         # acme.json, so in principle one target would do — they are listed
         # individually because a per-host issuance failure is exactly the kind
         # of partial breakage a single sampled target would hide.
-        - traefik-nas.${SECRET_DOMAIN}:443
+        #
+        # This list is hand-maintained and WILL drift: traefik-nas was removed
+        # on 2026-07-30 after truenas-apps#34 retired that hostname, which left
+        # this probe paging LanProbeFailed against a name external-dns had
+        # already deleted. If a NAS hostname is added or retired there, change
+        # it here too.
         - dozzle.${SECRET_DOMAIN}:443
         - garage-nas.${SECRET_DOMAIN}:443
         - s3-nas.${SECRET_DOMAIN}:443
