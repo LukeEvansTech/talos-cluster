@@ -20,6 +20,17 @@ spec:
       # resync spike OOMKilled the follower at 512Mi. This headroom absorbs it.
       limits:
         memory: 768Mi
+    # Hold Alertmanager silences while an upgrade run is in flight. This only
+    # configures how the operator reaches Alertmanager; which alerts each run
+    # silences is authored per-resource in upgrades/talosupgrade.yaml.
+    #
+    # The silence is a short lease re-extended on every reconcile, so it lapses
+    # on its own if the controller stops driving the run — a crashed operator
+    # un-silences rather than leaving the estate permanently muted.
+    silences:
+      enabled: true
+      alertmanager:
+        address: http://kube-prometheus-stack-alertmanager.observability.svc.cluster.local:9093
     monitoring:
       serviceMonitor:
         enabled: true
