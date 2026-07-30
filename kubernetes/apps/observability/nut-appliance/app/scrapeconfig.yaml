@@ -142,3 +142,26 @@ spec:
     - action: replace
       targetLabel: instance
       replacement: nut-appliance
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/scrapeconfig_v1alpha1.json
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: ScrapeConfig
+metadata:
+  name: &name nut-appliance-traefik
+spec:
+  # Traefik metrics entrypoint (:8082) — per-router/service request stats for
+  # the two dashboards, matching the seedbox-traefik job. The entrypoint landed
+  # with the 2026-07-30 fleet convergence (nut-apps), bound to the LAN address
+  # like the exporters above.
+  staticConfigs:
+    - targets:
+        - ${NUT_SERVER_ADDR}:8082
+  metricsPath: /metrics
+  scrapeInterval: 60s
+  relabelings:
+    - action: replace
+      targetLabel: job
+      replacement: *name
+    - action: replace
+      targetLabel: instance
+      replacement: nut-appliance

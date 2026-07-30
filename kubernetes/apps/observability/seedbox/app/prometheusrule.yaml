@@ -232,3 +232,41 @@ spec:
           for: 2h
           labels:
             severity: info
+    # ---- container lifecycle (docker_state_exporter, seedbox-docker job) ------
+    # Three rules, matching the appliance's lean set rather than the NAS's five:
+    # exporter-down needs no rule of its own here (the job carries
+    # instance=seedbox, so SeedboxDown / SeedboxScrapePathDegraded absorb it),
+    # and OOM-kill is sticky until recreate and re-pages every repeatInterval —
+    # a poor trade on the flappy tailnet scrape path. That flap is also why
+    # `for` is 10m, not the NAS's 5m: container_state_* series simply go absent
+    # when a scrape misses (absence never fires), and 10m rides out a missed
+    # scrape without delaying a real page much.
+    #
+    # Scoped to the doco-cd-managed fleet (cd_doco_metadata_manager) so a
+    # hand-run throwaway container never pages.
+    - name: seedbox-docker.rules
+      rules:
+        - alert: SeedboxContainerDown
+          annotations:
+            summary: "Seedbox container {{ $labels.name }} is not running (state: {{ $labels.status }})."
+          expr: |-
+            container_state_status{job="seedbox-docker", status=~"exited|dead", container_label_cd_doco_metadata_manager="doco-cd"} == 1
+          for: 10m
+          labels:
+            severity: critical
+        - alert: SeedboxContainerUnhealthy
+          annotations:
+            summary: "Seedbox container {{ $labels.name }} healthcheck is failing (unhealthy)."
+          expr: |-
+            container_state_health_status{job="seedbox-docker", health_status="unhealthy"} == 1
+          for: 10m
+          labels:
+            severity: critical
+        - alert: SeedboxContainerFlapping
+          annotations:
+            summary: "Seedbox container {{ $labels.name }} restart count changed {{ $value }} times in the last hour."
+          expr: |-
+            changes(container_restartcount{job="seedbox-docker"}[1h]) > 3
+          for: 10m
+          labels:
+            severity: warning
