@@ -129,7 +129,10 @@ spec:
   # entrypoint to scrape.
   staticConfigs:
     - targets:
-        - ${SECRET_STORAGE_SERVER}:8082
+        # SECRET_STORAGE_INGRESS, not SECRET_STORAGE_SERVER: Traefik and doco-cd
+        # publish on the NAS's dedicated ingress alias address (the bind is the
+        # guard), not the primary address the host-network exporters answer on.
+        - ${SECRET_STORAGE_INGRESS}:8082
   metricsPath: /metrics
   scrapeInterval: 60s
   relabelings:
@@ -158,7 +161,10 @@ spec:
   # NAS's hourly bootstrap cron rather than by doco-cd itself.
   staticConfigs:
     - targets:
-        - ${SECRET_STORAGE_SERVER}:9120
+        # SECRET_STORAGE_INGRESS, not SECRET_STORAGE_SERVER: Traefik and doco-cd
+        # publish on the NAS's dedicated ingress alias address (the bind is the
+        # guard), not the primary address the host-network exporters answer on.
+        - ${SECRET_STORAGE_INGRESS}:9120
   metricsPath: /metrics
   scrapeInterval: 60s
   relabelings:
