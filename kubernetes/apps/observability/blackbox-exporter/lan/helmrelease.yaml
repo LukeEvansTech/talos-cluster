@@ -76,9 +76,9 @@ spec:
         # Added 2026-07-29 after an incident that was invisible for weeks. Two
         # hand-made Cloudflare DNS-01 tokens carried an IP allowlist that no
         # longer matched the home WAN address, so ACME renewal was dead on both
-        # the cr-nut and TrueNAS Traefik instances. It only came to light
-        # because a cr-nut rebuild destroyed its acme.json and forced an
-        # immediate re-issue; TrueNAS still held a cached certificate valid for
+        # non-cluster Traefik instances. It only came to light because a rebuild
+        # of one of them destroyed its acme.json and forced an immediate
+        # re-issue; TrueNAS still held a cached certificate valid for
         # another six weeks and would have failed silently at its renewal, with
         # nothing in the estate to say so until a browser threw a warning.
         #
