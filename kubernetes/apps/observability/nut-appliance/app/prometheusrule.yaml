@@ -50,11 +50,11 @@ spec:
         # max() collapses nut-exporter's two ServiceMonitor endpoints (one per
         # UPS) to a single scalar so `and on()` has an empty label set to match.
         #
-        # min() over job=~"nut-appliance-.*" covers ALL THREE appliance scrapes
-        # (node, smartctl, docker) in one rule rather than three near-identical
-        # ones — the operator response is the same for any of them, and every
-        # extra rule is another thing that can page. 15m also rides out the
-        # smartctl job's 300s interval (three missed scrapes).
+        # min() over job=~"nut-appliance-.*" covers EVERY appliance scrape (node,
+        # smartctl, docker, doco-cd, traefik) in one rule rather than five
+        # near-identical ones — the operator response is the same for any of
+        # them, and every extra rule is another thing that can page. 15m also
+        # rides out the smartctl job's 300s interval (three missed scrapes).
         - alert: NutApplianceHostMetricsMissing
           annotations:
             description: >-
