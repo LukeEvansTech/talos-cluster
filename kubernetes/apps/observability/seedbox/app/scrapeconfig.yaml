@@ -121,3 +121,34 @@ spec:
     - action: replace
       targetLabel: instance
       replacement: seedbox
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/scrapeconfig_v1alpha1.json
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: ScrapeConfig
+metadata:
+  name: &name seedbox-docker
+spec:
+  # docker_state_exporter on the seedbox (:9419) — per-container state, health,
+  # restart count and OOM-kill, keyed by container NAME. Landed with the
+  # 2026-07-30 fleet convergence (seedbox-apps): the seedbox was the one box
+  # without it — netdata sees containers, but the estate's container-lifecycle
+  # alerting keys on container_state_* series only this exposes.
+  staticConfigs:
+    - targets:
+        - seedbox.observability.svc.cluster.local:9419
+  metricsPath: /metrics
+  scrapeInterval: 60s
+  scrapeTimeout: 30s # tailnet-egress scrapes are slow; 30s stops false up=0 (see node job)
+  relabelings:
+    - action: replace
+      targetLabel: job
+      replacement: *name
+    - action: replace
+      targetLabel: instance
+      replacement: seedbox
+  metricRelabelings:
+    # Drop the noisy per-container label set but KEEP cd_doco_metadata_manager,
+    # so "container down" can be scoped to the GitOps-managed fleet and a
+    # hand-run throwaway never pages. Same shape as the truenas and appliance jobs.
+    - action: labelkeep
+      regex: __name__|job|instance|name|status|health_status|container_label_cd_doco_metadata_manager

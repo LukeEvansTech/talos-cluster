@@ -115,3 +115,56 @@ spec:
     - action: replace
       targetLabel: job
       replacement: *name
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/scrapeconfig_v1alpha1.json
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: ScrapeConfig
+metadata:
+  name: &name truenas-traefik
+spec:
+  # Traefik metrics entrypoint (:8082) — per-router/service request stats for
+  # the NAS dashboards and the Garage S3 routes, matching the seedbox-traefik
+  # job. Traefik always had --metrics.prometheus on this box, but until the
+  # 2026-07-30 fleet convergence (truenas-apps) there was no reachable metrics
+  # entrypoint to scrape.
+  staticConfigs:
+    - targets:
+        - ${SECRET_STORAGE_SERVER}:8082
+  metricsPath: /metrics
+  scrapeInterval: 60s
+  relabelings:
+    - action: replace
+      targetLabel: job
+      replacement: *name
+    - action: replace
+      targetLabel: instance
+      replacement: truenas
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/scrapeconfig_v1alpha1.json
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: ScrapeConfig
+metadata:
+  name: &name truenas-doco-cd
+spec:
+  # doco-cd's own metrics (:9120) — GitOps poll and deploy status for the NAS,
+  # matching the seedbox-doco-cd and nut-appliance-doco-cd jobs.
+  #
+  # Strictly better than "the container is running", which the
+  # truenas-docker-exporter job already covers: doco_cd_polls_total is the
+  # signal that the repo is actually being polled. A doco-cd that is up but has
+  # stopped polling deploys nothing, and the box drifts from truenas-apps with
+  # no other symptom. Unlike the appliance, publishing the port IS
+  # GitOps-adjacent here — it lives in bootstrap/compose.yaml, applied by the
+  # NAS's hourly bootstrap cron rather than by doco-cd itself.
+  staticConfigs:
+    - targets:
+        - ${SECRET_STORAGE_SERVER}:9120
+  metricsPath: /metrics
+  scrapeInterval: 60s
+  relabelings:
+    - action: replace
+      targetLabel: job
+      replacement: *name
+    - action: replace
+      targetLabel: instance
+      replacement: truenas
