@@ -18,6 +18,36 @@ spec:
   # this is the "drain-first, one-node-at-a-time" mitigation #2728 identified.
   drain:
     enabled: true
+  # A rolling Talos upgrade reboots each node in turn, and every alert below is
+  # the expected consequence of a node being deliberately absent — not a signal
+  # anyone should be paged for at 1am. Alertmanager's root route sends all
+  # severities to Pushover, so without this each run pages several times per
+  # node. Ceph and node-absence alerts are silenced; anything not listed here
+  # still pages, so a genuine unrelated fault during a run is not masked.
+  #
+  # maxDuration is the safety catch: a run still holding a silence past it
+  # alerts again, so a wedged upgrade re-pages rather than staying quiet. 1h
+  # comfortably covers one node (drain + reboot + Ceph re-converge) while
+  # parallelism is 1, and the budget re-arms once the hold is released.
+  # Every name below was checked against the rules actually loaded in the
+  # cluster — a silence on an alertname that does not exist is a no-op that
+  # looks like it is working.
+  silences:
+    # Ceph: one node down takes its OSDs and a mon with it, degrades PGs and
+    # puts the cluster into HEALTH_WARN until it re-converges. CephHealthError
+    # and the full/near-full alerts are deliberately NOT silenced — those are
+    # not expected consequences of a reboot.
+    - maxDuration: 1h
+      matchers:
+        - name: alertname
+          matchType: =~
+          value: CephMonDown|CephOSDDown|CephOSDHostDown|CephHealthWarning|CephPGsUnclean|CephPGsInactive|CephFilesystemDegraded
+    # Node/kubelet absence and the scrape failures that follow from it.
+    - maxDuration: 1h
+      matchers:
+        - name: alertname
+          matchType: =~
+          value: KubeNodeUnreachable|KubeNodeNotReady|KubeNodeReadinessFlapping|KubeletDown|TargetDown
   healthChecks:
     - apiVersion: volsync.backube/v1alpha1
       kind: ReplicationSource
