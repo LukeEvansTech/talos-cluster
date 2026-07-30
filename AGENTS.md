@@ -192,18 +192,18 @@ just kube flate-test
 Read by Codex code review, and by any other reviewer that honours this file. A Renovate-facing
 reviewer already runs here: the `claude/renovate-review` commit status is the **gate** on dependency
 PRs (upstream changelog research, breaking-change verdict, required check on `main`). Reviews driven
-by this section are **advisory** — spend them on how the diff wires into _this_ repo rather than on
+by this section are **advisory** — spend them on how the diff wires into _this_ repository rather than on
 re-deriving upstream release notes.
 
 Flag consequential, repository-specific breakage. Prefer silence over style commentary.
 
 ### Always flag
 
-- **Internal coordinates in a public repo.** LAN IPs, `.lan` / `.internal` hostnames, device or node
+- **Internal coordinates in a public repository.** LAN IPs, `.lan` / `.internal` hostnames, device or node
   names, deployment topology, MACs, disk serials — in files, and equally in the PR title and body,
   since a squash merge copies the body into `main` permanently. Safe path: the `${SECRET_DOMAIN}` /
   `${SECRET_INTERNAL_DOMAIN}` placeholders, or a real address templated inside an `ExternalSecret`'s
-  `target.template.data` and mounted from the rendered Secret — never a `ConfigMap` in git.
+  `target.template.data` and mounted from the rendered Secret — never a `ConfigMap` in Git.
 - **Plaintext secrets.** Every secret arrives via 1Password → ExternalSecret. A literal token,
   password, or key in a manifest is a blocker regardless of how narrowly scoped it looks.
 - **A literal `${VAR}` left unescaped.** Flux `postBuild` substitutes `${VAR}` against
@@ -221,7 +221,7 @@ Flag consequential, repository-specific breakage. Prefer silence over style comm
 - A quoted anchored port (`PORT: &port "3000"`) reused as a probe `httpGet.port`. Rejected at apply
   time with "must contain at least one letter"; ports are unquoted integers.
 - A new app whose name contains a hyphen. The route host is `{{ .Release.Name }}.${SECRET_DOMAIN}`,
-  so the hyphen leaks into the URL — name new apps hyphen-free end to end. Existing hyphenated apps
+  so the hyphen leaks into the URL — name new apps hyphen-free end-to-end. Existing hyphenated apps
   predate the rule and are left alone.
 - A second route hostname, or a `${SECRET_INTERNAL_DOMAIN}` alias beside the primary domain. It
   resolves to the same gateway so it buys no extra restriction, and each alias costs an OPNsense
@@ -247,12 +247,25 @@ Flag consequential, repository-specific breakage. Prefer silence over style comm
 - `HTTPRoute` with no `Ingress` anywhere. Routing is Envoy Gateway + Gateway API by design.
 - Schema or kubeconform-style complaints about raw YAML. The source is meaningless until kustomize
   substitutes vars and merges components; real validation is `just kube flate-test`.
-- Secrets referenced but absent from git (the ExternalSecret is the mechanism), and anything under
+- Secrets referenced but absent from Git (the ExternalSecret is the mechanism), and anything under
   `.archive/` (kept for reference, never reconciled).
 - Missing PDBs, extra replicas, or other production-grade HA asks. This is one homelab cluster of
   three control-plane nodes with no separate workers.
 - HelmRelease `spec` key order, formatting, and line width — super-linter, prettier, and yamlfmt own
   those.
+- In-cluster service DNS names (`<svc>.<ns>.svc.cluster.local`). These are published by
+  construction: the app's whole directory is in this repository, so the name is derivable from the
+  tree and this file documents several of them itself. The public-repository rule targets LAN
+  addresses, `.lan` / `.internal` hostnames, and device names — not names that only resolve inside
+  the cluster.
+- Scale and count details ("about N sources share one repository", request rates, retention
+  counts). Operational magnitude is not deployment topology; what the rule prohibits is
+  coordinates — an address, a hostname, a device name — not how much of something there is.
+- A hyphen in the name of a **CR-only** app: one whose `app/` holds custom resources with no
+  HelmRelease, controller, or route. The hyphen-free rule exists so the route host
+  (`{{ .Release.Name }}.${SECRET_DOMAIN}`) stays clean, and an app with no Helm release has no such
+  host. `truenas-exporter` and `nut-appliance` are the shape to compare against, and most of the
+  `observability` namespace follows them.
 
 ## Agent tooling
 
