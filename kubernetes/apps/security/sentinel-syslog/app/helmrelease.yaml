@@ -143,7 +143,7 @@ spec:
             }
 
             filter {
-              # OPNsense (cr-fw) keeps its clock in UTC and sends RFC3164 timestamps with no zone.
+              # OPNsense keeps its clock in UTC and sends RFC3164 timestamps with no zone.
               # The syslog input otherwise reads them in the container's local zone (Europe/London
               # => BST in summer), shifting TimeGenerated ~1h behind ingestion. Re-parse as UTC so
               # TimeGenerated (= the plugin's ls_timestamp = @timestamp) is correct.

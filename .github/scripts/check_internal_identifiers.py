@@ -60,7 +60,13 @@ PATTERNS: dict[str, re.Pattern] = {
     "node name": re.compile(r"cr-talos-\d+"),
     # site-prefixed device hostnames, kept as two single-line patterns so black and
     # ruff agree; both exclude cr-talos-* and "ghcr-auth"-style substrings.
-    "device hostname (cr)": re.compile(r"(?<![a-z0-9])cr-(?!talos(?:-|\b))[a-z][a-z0-9]*(?:-[a-z0-9]+)+"),
+    #
+    # The trailing group is `*`, not `+`: requiring a second hyphenated segment
+    # meant a single-segment device name (cr-<word>) matched nothing, so the
+    # guard passed on both the tracked-file and the prose path and one such name
+    # reached main in a non-allowlisted file. The leading lookbehind still
+    # excludes "ghcr-auth"-style substrings.
+    "device hostname (cr)": re.compile(r"(?<![a-z0-9])cr-(?!talos(?:-|\b))[a-z][a-z0-9]*(?:-[a-z0-9]+)*"),
     "device hostname (sw)": re.compile(r"(?<![a-z0-9])sw-(?:main|comms)-[a-z0-9]+"),
     "MAC address": re.compile(r"(?<![0-9a-fA-F:])(?:[0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}(?![0-9a-fA-F:])"),
     "internal hostname": re.compile(r"\b[a-z0-9_-]+\.(?:lan|internal)\b"),
