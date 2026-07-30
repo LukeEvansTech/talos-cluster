@@ -316,7 +316,7 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
-      "description": "md4 is the RAID5 data array \u2014 healthy is active=4, failed=0, spare=0.",
+      "description": "All mdadm arrays, not just the data array. Healthy is failed=0 and spare=0 everywhere, with active equal to the member count. Arrays are deliberately NOT pinned by name: mdadm renumbered them md4 -> md125/md126/md127 at the 2026-07-20 FCOS rebuild, which is exactly what silently emptied this panel and killed SeedboxRAIDDegraded. md125 = 23.8 TB RAID5 data array, md126 = /boot, md127 = OS.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -337,8 +337,8 @@
         "overrides": [
           {
             "matcher": {
-              "id": "byName",
-              "options": "failed"
+              "id": "byRegexp",
+              "options": "/ (failed|spare)$/"
             },
             "properties": [
               {
@@ -391,13 +391,13 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "node_md_disks{job=\"seedbox-node\",device=\"md4\"}",
-          "legendFormat": "{{state}}",
+          "expr": "node_md_disks{job=\"seedbox-node\"}",
+          "legendFormat": "{{device}} {{state}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "RAID md4 disks by state",
+      "title": "RAID disks by state",
       "type": "stat"
     },
     {
@@ -405,7 +405,7 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
-      "description": "",
+      "description": "The old query keyed on mountpoint=\"/\", which FCOS never reports (/ is a composefs overlay node-exporter does not surface), so this panel was permanently empty and SeedboxDiskFillHigh could never fire. /var and /var/mnt/seedbox are the real filesystems. /boot is excluded: at 367 MB the same percentage threshold is meaningless. md127 is mounted at four paths reporting identical numbers, so mountpoints are pinned rather than matched loosely.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -463,13 +463,13 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "1 - (node_filesystem_avail_bytes{job=\"seedbox-node\",mountpoint=\"/\"} / node_filesystem_size_bytes{job=\"seedbox-node\",mountpoint=\"/\"})",
-          "legendFormat": "rootfs used",
+          "expr": "1 - (node_filesystem_avail_bytes{job=\"seedbox-node\",mountpoint=~\"/var|/var/mnt/seedbox\"} / node_filesystem_size_bytes{job=\"seedbox-node\",mountpoint=~\"/var|/var/mnt/seedbox\"})",
+          "legendFormat": "{{mountpoint}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Rootfs usage",
+      "title": "Filesystem usage",
       "type": "gauge"
     },
     {
