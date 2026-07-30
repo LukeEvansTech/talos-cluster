@@ -14,12 +14,29 @@ spec:
       open-webui:
         annotations:
           reloader.stakater.com/auto: "true"
+        # State is SQLite on a ReadWriteOnce ceph-block PVC, and upstream does
+        # not support rolling updates across a schema migration. The chart
+        # default (RollingUpdate) starts the new pod before the old one exits:
+        # same node, both mount the RWO volume and two processes migrate one
+        # webui.db; different node, the RBD attach is refused and the rollout
+        # stalls. Recreate replaces the pod atomically instead.
+        strategy: Recreate
         containers:
           app:
             image:
               repository: ghcr.io/open-webui/open-webui
-              tag: v0.10.2@sha256:9fcea9c6e32ab60b0498f3986c6cdf651ddbe61db48d2213a3d28048ddd673d4
+              tag: v0.11.0@sha256:72c0ba641ba75e7aa52655cb242570906ececd09b1140fb736483038a22b3228
             env:
+              # v0.11.0 starts the scheduler loop unconditionally and polls for
+              # due timers before checking whether automations are enabled. The
+              # query filters on three JSON_EXTRACT predicates over chat.meta
+              # that no index can serve, so SQLite full-scans the chat table
+              # every second even though timers are unused here. Cost grows
+              # with chat history, not timer count. 30s is a straight trade of
+              # timer latency for CPU; drop back to the default of 1 once the
+              # upstream fix (open-webui#27663, unreleased) ships.
+              - name: TIMER_POLL_INTERVAL
+                value: "30"
               - name: ENABLE_OLLAMA_API
                 value: "false"
               - name: OPENAI_API_BASE_URL
