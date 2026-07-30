@@ -8,6 +8,24 @@ metadata:
 spec:
   enabled: true
   trigger:
-    schedule: 30 */4 * * *
+    # Hourly, not every 4h: ~100 kopia ReplicationSources share this one
+    # filesystem repository and each snapshots every 4h, so index blobs are
+    # created faster than epoch compaction reclaims them. Measured on
+    # 2026-07-30 at the 4h cadence: 2803 -> 3112 -> 3424 across three
+    # consecutive runs, roughly +310 per run and monotonic, with kopia
+    # warning "too many index blobs" on every operation.
+    #
+    # Maintenance was already running and succeeding — the problem was rate,
+    # not failure — and each run compacts only a bounded number of epochs, so
+    # more runs is the lever that does not touch backup retention. Runs take
+    # 125-456s, so they fit inside an hourly window with wide margin
+    # (activeDeadlineSeconds is 10800).
+    #
+    # Kept at :30 so maintenance never starts alongside the sources, which
+    # trigger on the hour.
+    #
+    # If the count still climbs after a day or two, the next lever is
+    # retention (hourly: 168 in components/volsync/nfs) rather than frequency.
+    schedule: 30 * * * *
   repository:
     repository: volsync-maintenance-secret
