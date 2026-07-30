@@ -14,6 +14,13 @@ spec:
       open-webui:
         annotations:
           reloader.stakater.com/auto: "true"
+        # State is SQLite on a ReadWriteOnce ceph-block PVC, and upstream does
+        # not support rolling updates across a schema migration. The chart
+        # default (RollingUpdate) starts the new pod before the old one exits:
+        # same node, both mount the RWO volume and two processes migrate one
+        # webui.db; different node, the RBD attach is refused and the rollout
+        # stalls. Recreate replaces the pod atomically instead.
+        strategy: Recreate
         containers:
           app:
             image:
