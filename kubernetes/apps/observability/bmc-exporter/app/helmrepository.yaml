@@ -1,0 +1,11 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/source.toolkit.fluxcd.io/helmrepository_v1.json
+# HelmRepository rather than the house-preferred OCIRepository: this chart is
+# only published as tarballs on GitHub Pages, with no OCI artifact anywhere.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: idrac-exporter
+spec:
+  interval: 1h
+  url: https://mrlhansen.github.io/idrac_exporter

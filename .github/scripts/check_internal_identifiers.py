@@ -115,6 +115,7 @@ ALLOWLIST: dict[str, str] = {
     "kubernetes/apps/network/envoy-gateway/app/envoy.yaml": "Envoy LB listener IPs",
     "kubernetes/apps/network/scanopy/app/daemon-helmrelease.yaml": "LAN scan ranges",
     "kubernetes/apps/observability/blackbox-exporter/lan/probes.yaml": "blackbox LAN probe targets",
+    "kubernetes/apps/observability/bmc-exporter/app/externalsecret.yaml": "BMC Redfish hosts (as blackbox probe)",
     "kubernetes/apps/observability/nut-exporter/app/prometheusrule.yaml": "NUT UPS alert selectors",
     "kubernetes/apps/observability/nut-exporter/app/servicemonitor.yaml": "NUT scrape targets",
     "kubernetes/apps/observability/snmp-exporter/app/configmap-entity-sensor.yaml": "SNMP sensor module",
