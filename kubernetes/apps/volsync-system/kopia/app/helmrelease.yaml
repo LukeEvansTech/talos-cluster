@@ -96,6 +96,14 @@ spec:
                   n=$$(find /repository/x$$1[0-9] -type f 2>/dev/null | wc -l)
                   echo "$$M{kind=\"$$2\"} $$n"
                 }
+                # Served as .txt, not .prom, and that extension is load-bearing:
+                # busybox httpd sets Content-Type from a built-in table that
+                # knows .txt (text/plain) but not .prom, and Prometheus 3
+                # refuses a target "sending blank Content-Type" unless a
+                # fallback_scrape_protocol is set — which this operator's
+                # ServiceMonitor CRD does not expose. Renaming to .prom marks
+                # the target down.
+                #
                 # Write atomically so a scrape never reads a half-built file.
                 collect() {
                   {
@@ -104,8 +112,8 @@ spec:
                     emit n uncompacted
                     emit s single_epoch
                     emit r range
-                  } > /metrics/.index.prom
-                  mv /metrics/.index.prom /metrics/index.prom
+                  } > /metrics/.metrics.txt
+                  mv /metrics/.metrics.txt /metrics/metrics.txt
                 }
                 collect
                 while true; do sleep 900; collect; done &
@@ -116,7 +124,7 @@ spec:
                 custom: true
                 spec:
                   httpGet:
-                    path: /index.prom
+                    path: /metrics.txt
                     port: 9101
                   initialDelaySeconds: 15
                   periodSeconds: 60
