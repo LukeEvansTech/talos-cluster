@@ -256,11 +256,20 @@ kubectl exec -n observability deploy/snmp-exporter -- \
 - **Supermicro exposes no storage metrics over Redfish** on either board
   generation here — the tree exists but is not populated. Drive health stays
   with `smartctl-exporter`; do not expect `idrac_storage_*` to appear.
-- **Do not read `idrac_power_supply_output_watts` as consumption.** On these
-  boards it disagrees with the system-level reading by an order of magnitude (a
-  node drawing 95W at `idrac_power_control_consumed_watts` reports ~450W per
-  PSU). Dashboards use the system-level metric for draw; the PSU figure is shown
-  separately and labelled as reported.
+- **Do not read `idrac_power_supply_output_watts` as consumption.** Measured
+  across the fleet, the PSU figure sums to ~7000W against ~1100W of
+  `idrac_power_control_consumed_watts` — roughly 6x. It is not capacity being
+  mislabelled either, since `idrac_power_supply_capacity_watts` is a separate
+  series reporting the real ~2kW rating. Dashboards use the system-level metric
+  for draw; the PSU figure is shown separately and labelled as reported.
+- **Temperature thresholds must be split by sensor class.** CPU packages run far
+  hotter than anything else here — `max by (name)` over the running fleet gives
+  CPU Temp 77C against 68C for the hottest NIC and =<53C for every other rail.
+  One blanket threshold either sits a few degrees off a perfectly normal CPU or
+  lets a NIC cook unnoticed, so the rules band CPUs at 90/95C and everything
+  else at 80/90C. Do not set these from a single sampled host: the first pass at
+  this used one node reading 59C and picked 80C, which would have left 3C of
+  headroom on the busiest CPUs.
 - **`idrac_*_health` metrics are an enum, not a boolean**: 0=OK, 1=Warning,
   2=Critical. Alert on `> 0`, never `== 1`, or a jump straight to Critical is
   missed.
