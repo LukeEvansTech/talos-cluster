@@ -1,0 +1,43 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: &app kopia
+  labels:
+    app.kubernetes.io/name: *app
+spec:
+  groups:
+    - name: kopia.repository
+      rules:
+        # One alert, on an absolute ceiling, because every severity here pages.
+        #
+        # Kopia warns "too many index blobs" and degrades every repository
+        # operation once these accumulate, and maintenance compacts only a
+        # bounded number of epochs per run. About 100 ReplicationSources share
+        # this repository, so creation can outpace compaction — which is exactly
+        # what happened on 2026-07-30 (2803 -> 4048 over 16h at a 4h cadence,
+        # fixed by moving maintenance to hourly).
+        #
+        # 10000 is roughly 2.5x the level that trend reached, so it fires only
+        # if hourly maintenance is clearly losing rather than merely lagging.
+        # Deliberately NOT a growth-rate alert: the per-run deltas are lumpy
+        # (+6 one run, +618 the next), so a rate threshold would page on noise.
+        #
+        # `for: 2h` means at least two maintenance runs have failed to bring it
+        # back under, so a single slow run does not page.
+        - alert: KopiaIndexBlobsHigh
+          expr: sum(kopia_repo_index_blobs) > 10000
+          for: 2h
+          labels:
+            severity: warning
+          annotations:
+            summary: Kopia index blobs above 10000 for 2h
+            description: >-
+              The kopia repository holds {{ $value | humanize }} index blobs.
+              Maintenance runs hourly and compacts a bounded number of epochs
+              per run, so this means compaction is losing to snapshot creation.
+              Break it down by kind with
+              kopia_repo_index_blobs — a high "uncompacted" share confirms it.
+              Next lever is backup retention (hourly: 168 in
+              components/volsync/nfs), not maintenance frequency.

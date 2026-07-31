@@ -7,3 +7,5 @@ resources:
   - ./gatus.yaml
   - ./helmrelease.yaml
   - ./ocirepository.yaml
+  - ./prometheusrule.yaml
+  - ./servicemonitor.yaml
