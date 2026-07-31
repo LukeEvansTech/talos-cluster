@@ -5,9 +5,11 @@
 # 2=Critical. Hence `> 0` throughout rather than `== 1`, so a jump straight to
 # Critical is never missed.
 #
-# Thresholds below were set against readings taken from the live fleet under
-# normal load: CPU 59C, System 43C, VRM 42C, DIMM 40C, NVMe 38C, NIC 57C. The
-# 80C warning therefore sits ~20C above the hottest sensor in routine service.
+# Temperature thresholds are split by sensor class, from `max by (name)` across
+# the whole running fleet rather than one sampled host: CPU Temp 77C, AOC_NIC1
+# 68C, MLP_NIC 66C, GPU0 63C, M2_SSD 53C, and every remaining rail at or below
+# 49C. A single fleet-wide threshold cannot fit that spread — 80C would sit 3C
+# off a normal CPU while letting a NIC reach 79C unnoticed.
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
@@ -86,12 +88,39 @@ spec:
           for: 10m
           labels:
             severity: critical
+        # CPU packages get their own band. Measured across the running fleet,
+        # CPU Temp peaks at 77C while the next hottest sensor of any kind is a
+        # NIC at 68C and everything else sits at or below 53C — so one blanket
+        # threshold cannot serve both. The matcher is `CPU[0-9]* Temp` rather
+        # than a `CPU` prefix so it covers a second socket ("CPU1 Temp") without
+        # catching the much cooler "CPU_VRM0 Temp" / "SOC_VRM Temp" rails.
+        - alert: BmcCpuTemperatureHigh
+          annotations:
+            summary: "{{ $labels.name }} on {{ $labels.instance }} is at {{ $value }}C."
+          expr: |-
+            idrac_sensors_temperature{job="bmc-exporter", name=~"CPU[0-9]* Temp"} > 90
+            and idrac_sensors_temperature{job="bmc-exporter", name=~"CPU[0-9]* Temp"} <= 95
+          for: 15m
+          labels:
+            severity: warning
+        - alert: BmcCpuTemperatureCritical
+          annotations:
+            summary: "{{ $labels.name }} on {{ $labels.instance }} is at {{ $value }}C — thermal shutdown territory."
+          expr: |-
+            idrac_sensors_temperature{job="bmc-exporter", name=~"CPU[0-9]* Temp"} > 95
+          for: 5m
+          labels:
+            severity: critical
+        # Everything that is not a CPU package: NICs, GPUs, VRMs, DIMMs, SSDs,
+        # inlet and board sensors. The hottest of these runs at 68C, so 80C is
+        # ~12C of headroom rather than the ~3C a single fleet-wide threshold
+        # would have left on the CPUs.
         - alert: BmcTemperatureHigh
           annotations:
             summary: "{{ $labels.name }} on {{ $labels.instance }} is at {{ $value }}C."
           expr: |-
-            idrac_sensors_temperature{job="bmc-exporter"} > 80
-            and idrac_sensors_temperature{job="bmc-exporter"} <= 90
+            idrac_sensors_temperature{job="bmc-exporter", name!~"CPU[0-9]* Temp"} > 80
+            and idrac_sensors_temperature{job="bmc-exporter", name!~"CPU[0-9]* Temp"} <= 90
           for: 15m
           labels:
             severity: warning
@@ -102,7 +131,7 @@ spec:
           annotations:
             summary: "{{ $labels.name }} on {{ $labels.instance }} is at {{ $value }}C — thermal shutdown territory."
           expr: |-
-            idrac_sensors_temperature{job="bmc-exporter"} > 90
+            idrac_sensors_temperature{job="bmc-exporter", name!~"CPU[0-9]* Temp"} > 90
           for: 5m
           labels:
             severity: critical
