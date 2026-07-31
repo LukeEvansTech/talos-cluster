@@ -19,6 +19,7 @@ cross-cutting "what lives where and how to update it" reference.
 | Firewall       | `AthennaMind/opnsense-exporter`   | `opnsense-exporter`                           | `host` field in item         | `opnsense-exporter`                    |
 | Core switch    | `prometheus/snmp_exporter`        | `snmp-exporter`                               | `${ONYX_ADDR}`               | — (SNMP community `<community>`)       |
 | UPS (NUT)      | `hon95/prometheus-nut-exporter`   | `nut-exporter`                                | `${NUT_SERVER_ADDR}`         | — (anonymous NUT protocol read)        |
+| Server BMCs    | `mrlhansen/idrac_exporter`        | `bmc-exporter`                                | ExternalSecret (`/discover`) | one item per BMC (shared with certwarden) |
 
 All of these run on **least-privilege, dedicated read-only accounts**, never an
 admin credential.
@@ -147,6 +148,38 @@ Add an entry under `serviceMonitor.params` in
 A custom SNMP module or auth goes in `configmap-entity-sensor.yaml`; it is merged
 with the image's bundled `snmp.yml` via the two `--config.file` `extraArgs`.
 
+### Add a BMC to Redfish monitoring
+
+`bmc-exporter` is a multi-target Redfish exporter for the Supermicro BMC fleet,
+added by PR #4022. Everything about a BMC — hostname, username, password — lives
+in `app/externalsecret.yaml`, which templates the exporter's whole `idrac.yml`
+and mounts it via the chart's `existingSecret`. There is no second target list:
+Prometheus discovers targets from the exporter's own `/discover` endpoint, so
+the ExternalSecret is the single source of truth.
+
+To add one:
+
+1. Create (or reuse) the per-BMC item in the `Talos` vault with `IPMI_USERNAME`
+   and `IPMI_PASSWORD`. The fleet already has one item per BMC because
+   certwarden uses the same items to deploy certificates to these boards.
+2. Add a `data:` pair pointing at that item, and a matching entry under `hosts:`
+   in the templated `idrac.yml`.
+3. Add the same host to the `lan-icmp` Probe in
+   `blackbox-exporter/lan/probes.yaml` if it is not already there — see below
+   for why both exist.
+
+Credentials are **not** uniform across the fleet: it shares one username but
+every board has its own password, so `hosts.default` cannot be used and each BMC
+needs its own entry.
+
+### Why ICMP probes and Redfish both cover the BMCs
+
+They answer different questions and the overlap is deliberate. A Redfish scrape
+needs reachability, TLS and a valid login all at once, so a failure is
+ambiguous. The ICMP result is what separates a dead BMC from a broken
+credential: down in both means network or BMC, up in ICMP but down in Redfish
+means credentials, TLS or firmware.
+
 ### Add a RouterOS switch to snmp-exporter
 
 The `mktxp` route is retired (see the warning above). Add RouterOS switches the
@@ -209,3 +242,25 @@ kubectl exec -n observability deploy/snmp-exporter -- \
 - **TrueNAS ZFS metrics** require the graphite Custom App to be installed on
   TrueNAS itself (see `truenas-monitoring.md`); until then
   `truenas-graphite-exporter` shows `up=0`.
+- **A Redfish scrape is slow, and the exporter's default timeout is too short
+  for these boards.** Measured on the live fleet: ~7.5s warm on the newer
+  boards, ~13s on the older one, ~23s cold after a BMC restart. The exporter
+  defaults to a 10s Redfish timeout, which aborts collection mid-flight and
+  yields a partial scrape rather than an obvious error, so `bmc-exporter` sets
+  `timeout: 45` against a 60s interval and 55s scrape timeout.
+- **A powered-off host drops every sensor series.** Only `idrac_system_power_on
+  0` remains — no temperatures, no fans, no PSU readings. Any alert on those
+  sensors therefore cannot fire for a machine that is off, which is why
+  `BmcFanStopped` is guarded on `idrac_system_power_on == 1` rather than relying
+  on the series being absent.
+- **Supermicro exposes no storage metrics over Redfish** on either board
+  generation here — the tree exists but is not populated. Drive health stays
+  with `smartctl-exporter`; do not expect `idrac_storage_*` to appear.
+- **Do not read `idrac_power_supply_output_watts` as consumption.** On these
+  boards it disagrees with the system-level reading by an order of magnitude (a
+  node drawing 95W at `idrac_power_control_consumed_watts` reports ~450W per
+  PSU). Dashboards use the system-level metric for draw; the PSU figure is shown
+  separately and labelled as reported.
+- **`idrac_*_health` metrics are an enum, not a boolean**: 0=OK, 1=Warning,
+  2=Critical. Alert on `> 0`, never `== 1`, or a jump straight to Critical is
+  missed.
