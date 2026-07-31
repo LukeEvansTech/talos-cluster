@@ -21,6 +21,10 @@ spec:
         - cr-node-06-ipmi.${SECRET_INTERNAL_DOMAIN}
         - cr-node-07-ipmi.${SECRET_INTERNAL_DOMAIN}
         - cr-node-08-ipmi.${SECRET_INTERNAL_DOMAIN}
+        # Storage BMC. The eight above are compute nodes; this one was simply
+        # never added, so the box holding the bulk data had no out-of-band
+        # liveness signal at all.
+        - cr-storage-ipmi.${SECRET_INTERNAL_DOMAIN}
   metricRelabelings:
     - action: replace
       replacement: blackbox-exporter-lan
