@@ -20,6 +20,7 @@ cross-cutting "what lives where and how to update it" reference.
 | Core switch    | `prometheus/snmp_exporter`        | `snmp-exporter`                               | `${ONYX_ADDR}`               | — (SNMP community `<community>`)       |
 | UPS (NUT)      | `hon95/prometheus-nut-exporter`   | `nut-exporter`                                | `${NUT_SERVER_ADDR}`         | — (anonymous NUT protocol read)        |
 | Server BMCs    | `mrlhansen/idrac_exporter`        | `bmc-exporter`                                | ExternalSecret (`/discover`) | one item per BMC (shared with certwarden) |
+| Workstation BMC | `mrlhansen/idrac_exporter`       | `bmc-exporter-workstation`                    | ExternalSecret (`/discover`) | `workstation-ipmi`                     |
 
 All of these run on **least-privilege, dedicated read-only accounts**, never an
 admin credential.
@@ -172,6 +173,43 @@ Credentials are **not** uniform across the fleet: it shares one username but
 every board has its own password, so `hosts.default` cannot be used and each BMC
 needs its own entry.
 
+**A BMC with no DNS record** is keyed by an address held in its 1Password item
+(`IPMI_ADDR`) and templated into the rendered Secret, so the address never
+reaches git. Two hosts use this today. Prefer a DNS name where one exists — the
+address form exists because `network-ops` owns internal DNS and adding a record
+there is a separate change against the firewall. If a record is created later,
+switch the host to its name and drop `IPMI_ADDR`.
+
+### Finding BMCs that are not yet monitored
+
+Sweep the management VLAN for the IPMI port rather than trusting any inventory:
+
+```bash
+nmap -Pn -p 623,443 --open -oG - <mgmt-vlan>/24 | awk '/623\/open/ {print $2}'
+```
+
+Then check each hit for Redfish with `curl -sk https://<addr>/redfish/v1/` — the
+unauthenticated root returns the vendor and Redfish version, which is enough to
+tell a real Redfish BMC from something else listening on 623. Recorded addresses
+drift: one BMC's 1Password URL pointed at an address that was firewalled off,
+while the board itself answered elsewhere on the VLAN.
+
+### Why the workstation has its own exporter deployment
+
+`bmc-exporter-workstation` is a second single-target instance of the same chart,
+and it exists purely to give that BMC a distinct `job` label. The workstation is
+a desk machine that is powered off most of the time, so it must be exempt from
+`BmcHostPoweredOff` while staying covered by every other rule — and excluding one
+host from one rule needs something in the PromQL to match on. Nothing else works
+here: `instance` is the raw address and would leak into this public repository,
+the `model` label does not discriminate (that board and the storage node both
+report the generic `Super Server`), and synthesising a label via relabeling would
+have to match the address too.
+
+So the rules use `job=~"bmc-exporter.*"` throughout, and `BmcHostPoweredOff`
+alone pins `job="bmc-exporter"` exactly. If you add a rule, use the wide matcher
+unless you specifically mean to exclude the workstation.
+
 ### Why ICMP probes and Redfish both cover the BMCs
 
 They answer different questions and the overlap is deliberate. A Redfish scrape
@@ -273,3 +311,16 @@ kubectl exec -n observability deploy/snmp-exporter -- \
 - **`idrac_*_health` metrics are an enum, not a boolean**: 0=OK, 1=Warning,
   2=Critical. Alert on `> 0`, never `== 1`, or a jump straight to Critical is
   missed.
+- **A `Critical` health rollup is often chassis intrusion, not a failing part.**
+  Check `/redfish/v1/Chassis/1/Sensors/ChassisIntru` before hunting hardware: if
+  `Reading` is 1 the switch is asserted right now, meaning the case is open or
+  the switch has failed, while CPU and memory can both still report OK. It is
+  also worth distinguishing from a stale latch — a SEL entry from months ago is
+  history, a sensor reading 1 is current. These boards expose no intrusion-reset
+  action over Redfish, so clearing it is a physical job.
+- **Certwarden's cert-deploy Secrets are adopted by their Job after creation,
+  not at creation.** They hold the certificate private key, and the ownerReference
+  cannot be set up front because the owning Job does not exist yet. This was
+  missing until 2026-07-31 and had leaked 40 Secrets since 2025-11; if orphans
+  reappear, check that the `patch` verb on secrets is still in the certwarden
+  Role, since the adoption silently warns rather than failing the deployment.
