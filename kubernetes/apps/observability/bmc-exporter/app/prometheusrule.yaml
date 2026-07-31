@@ -10,6 +10,10 @@
 # 68C, MLP_NIC 66C, GPU0 63C, M2_SSD 53C, and every remaining rail at or below
 # 49C. A single fleet-wide threshold cannot fit that spread — 80C would sit 3C
 # off a normal CPU while letting a NIC reach 79C unnoticed.
+#
+# Job matchers: `job=~"bmc-exporter.*"` covers both exporter deployments and is
+# the default here. Only BmcHostPoweredOff pins job="bmc-exporter" exactly, to
+# exclude the workstation — see the comment on that rule.
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
@@ -27,12 +31,19 @@ spec:
           annotations:
             summary: "Redfish scrape of {{ $labels.instance }} is failing — check the ICMP probe for the same host to tell a dead BMC from a broken login."
           expr: |-
-            up{job="bmc-exporter"} == 0
+            up{job=~"bmc-exporter.*"} == 0
           for: 15m
           labels:
             severity: critical
         # The gap this whole exporter exists to close: a BMC answers ICMP
         # identically whether its host is running or powered off.
+        #
+        # This is the one rule pinned to job="bmc-exporter" exactly rather than
+        # the job=~"bmc-exporter.*" used everywhere else. The workstation is
+        # scraped by its own deployment under job="bmc-exporter-workstation"
+        # solely so this exact-match excludes it: a desk machine is off most of
+        # the time and would otherwise page on every shutdown. It stays covered
+        # by every other rule here. See helmrelease-workstation.yaml.
         - alert: BmcHostPoweredOff
           annotations:
             summary: "Host behind {{ $labels.instance }} is powered off."
@@ -45,7 +56,7 @@ spec:
           annotations:
             summary: "{{ $labels.instance }} reports system health {{ $labels.status }} — check the BMC event log."
           expr: |-
-            idrac_system_health{job="bmc-exporter"} > 0
+            idrac_system_health{job=~"bmc-exporter.*"} > 0
           for: 15m
           labels:
             severity: warning
@@ -53,7 +64,7 @@ spec:
           annotations:
             summary: "PSU {{ $labels.id }} on {{ $labels.instance }} reports {{ $labels.status }}."
           expr: |-
-            idrac_power_supply_health{job="bmc-exporter"} > 0
+            idrac_power_supply_health{job=~"bmc-exporter.*"} > 0
           for: 15m
           labels:
             severity: warning
@@ -64,7 +75,7 @@ spec:
           annotations:
             summary: "PSU {{ $labels.id }} on {{ $labels.instance }} has lost input voltage — the host is running unprotected on its remaining supply."
           expr: |-
-            idrac_power_supply_input_voltage{job="bmc-exporter"} == 0
+            idrac_power_supply_input_voltage{job=~"bmc-exporter.*"} == 0
           for: 5m
           labels:
             severity: critical
@@ -72,7 +83,7 @@ spec:
           annotations:
             summary: "Fan {{ $labels.name }} on {{ $labels.instance }} reports {{ $labels.status }}."
           expr: |-
-            idrac_sensors_fan_health{job="bmc-exporter"} > 0
+            idrac_sensors_fan_health{job=~"bmc-exporter.*"} > 0
           for: 10m
           labels:
             severity: warning
@@ -83,8 +94,8 @@ spec:
           annotations:
             summary: "Fan {{ $labels.name }} on {{ $labels.instance }} has stopped while the host is running."
           expr: |-
-            idrac_sensors_fan_speed{job="bmc-exporter"} == 0
-            and on (instance) idrac_system_power_on{job="bmc-exporter"} == 1
+            idrac_sensors_fan_speed{job=~"bmc-exporter.*"} == 0
+            and on (instance) idrac_system_power_on{job=~"bmc-exporter.*"} == 1
           for: 10m
           labels:
             severity: critical
@@ -98,8 +109,8 @@ spec:
           annotations:
             summary: "{{ $labels.name }} on {{ $labels.instance }} is at {{ $value }}C."
           expr: |-
-            idrac_sensors_temperature{job="bmc-exporter", name=~"CPU[0-9]* Temp"} > 90
-            and idrac_sensors_temperature{job="bmc-exporter", name=~"CPU[0-9]* Temp"} <= 95
+            idrac_sensors_temperature{job=~"bmc-exporter.*", name=~"CPU[0-9]* Temp"} > 90
+            and idrac_sensors_temperature{job=~"bmc-exporter.*", name=~"CPU[0-9]* Temp"} <= 95
           for: 15m
           labels:
             severity: warning
@@ -107,7 +118,7 @@ spec:
           annotations:
             summary: "{{ $labels.name }} on {{ $labels.instance }} is at {{ $value }}C — thermal shutdown territory."
           expr: |-
-            idrac_sensors_temperature{job="bmc-exporter", name=~"CPU[0-9]* Temp"} > 95
+            idrac_sensors_temperature{job=~"bmc-exporter.*", name=~"CPU[0-9]* Temp"} > 95
           for: 5m
           labels:
             severity: critical
@@ -119,8 +130,8 @@ spec:
           annotations:
             summary: "{{ $labels.name }} on {{ $labels.instance }} is at {{ $value }}C."
           expr: |-
-            idrac_sensors_temperature{job="bmc-exporter", name!~"CPU[0-9]* Temp"} > 80
-            and idrac_sensors_temperature{job="bmc-exporter", name!~"CPU[0-9]* Temp"} <= 90
+            idrac_sensors_temperature{job=~"bmc-exporter.*", name!~"CPU[0-9]* Temp"} > 80
+            and idrac_sensors_temperature{job=~"bmc-exporter.*", name!~"CPU[0-9]* Temp"} <= 90
           for: 15m
           labels:
             severity: warning
@@ -131,7 +142,7 @@ spec:
           annotations:
             summary: "{{ $labels.name }} on {{ $labels.instance }} is at {{ $value }}C — thermal shutdown territory."
           expr: |-
-            idrac_sensors_temperature{job="bmc-exporter", name!~"CPU[0-9]* Temp"} > 90
+            idrac_sensors_temperature{job=~"bmc-exporter.*", name!~"CPU[0-9]* Temp"} > 90
           for: 5m
           labels:
             severity: critical
@@ -141,7 +152,7 @@ spec:
           annotations:
             summary: "DIMM {{ $labels.id }} on {{ $labels.instance }} reports {{ $labels.status }} — likely ECC errors."
           expr: |-
-            idrac_memory_module_health{job="bmc-exporter"} > 0
+            idrac_memory_module_health{job=~"bmc-exporter.*"} > 0
           for: 15m
           labels:
             severity: warning
@@ -149,7 +160,7 @@ spec:
           annotations:
             summary: "CPU {{ $labels.id }} on {{ $labels.instance }} reports {{ $labels.status }}."
           expr: |-
-            idrac_cpu_health{job="bmc-exporter"} > 0
+            idrac_cpu_health{job=~"bmc-exporter.*"} > 0
           for: 15m
           labels:
             severity: warning
@@ -159,7 +170,7 @@ spec:
           annotations:
             summary: "BMC {{ $labels.instance }} reports its own health as {{ $labels.status }}."
           expr: |-
-            idrac_manager_health{job="bmc-exporter"} > 0
+            idrac_manager_health{job=~"bmc-exporter.*"} > 0
           for: 30m
           labels:
             severity: warning
@@ -170,7 +181,7 @@ spec:
           annotations:
             summary: "{{ $labels.instance }} logged a {{ $labels.severity }} hardware event: {{ $labels.message }}"
           expr: |-
-            idrac_events_log_entry{job="bmc-exporter"} > 0
+            idrac_events_log_entry{job=~"bmc-exporter.*"} > 0
           for: 5m
           labels:
             severity: warning
