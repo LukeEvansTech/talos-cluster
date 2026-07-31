@@ -33,7 +33,9 @@ rules:
     verbs:
       - "get"
       - "list"
-  # Allow managing secrets (for IPMI credentials and temporary cert secrets)
+  # Allow managing secrets (for IPMI credentials and temporary cert secrets).
+  # "patch" is needed to set the ownerReference that binds a temporary cert
+  # Secret to its Job, so the two are garbage-collected together.
   - apiGroups:
       - ""
     resources:
@@ -42,6 +44,7 @@ rules:
       - "create"
       - "get"
       - "list"
+      - "patch"
       - "delete"
 ---
 # RoleBinding to grant Certwarden the ability to create Jobs
