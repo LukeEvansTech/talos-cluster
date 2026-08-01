@@ -100,6 +100,6 @@ spec:
           - target:
               kind: Deployment
               name: headlamp
-            patch: |
+            patch: |-
               - op: remove
                 path: /spec/template/spec/containers/0/args/3
