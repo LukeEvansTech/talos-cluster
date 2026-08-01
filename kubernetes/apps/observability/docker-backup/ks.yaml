@@ -1,0 +1,33 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/kustomize.toolkit.fluxcd.io/kustomization_v1.json
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: &app docker-backup
+  namespace: &namespace observability
+spec:
+  commonMetadata:
+    labels:
+      app.kubernetes.io/name: *app
+  interval: 1h
+  path: ./kubernetes/apps/observability/docker-backup/app
+  postBuild:
+    substitute:
+      APP: *app
+  prune: true
+  retryInterval: 2m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+    namespace: flux-system
+  targetNamespace: *namespace
+  timeout: 5m
+  # CR-only app — the backups run on the Docker boxes themselves and are scraped
+  # through their existing node-exporters, so there is nothing in-cluster to
+  # health-check. Same shape as nut-appliance and truenas-exporter.
+  #
+  # Rules only, no scrapeconfig: the seedbox and TrueNAS node-exporters are
+  # already scraped (kubernetes/apps/observability/seedbox and the
+  # truenas-exporter jobs), so the metrics arrive without new plumbing. This
+  # directory exists solely to own the alerting.
+  wait: false
