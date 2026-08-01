@@ -10,6 +10,7 @@ resources:
   - ./namespace.yaml
   - ./netpol.yaml
   - ./acinfinity-exporter/ks.yaml
+  - ./apc-fleet/ks.yaml
   - ./blackbox-exporter/ks.yaml
   - ./bmc-exporter/ks.yaml
   - ./exportarr/ks.yaml
