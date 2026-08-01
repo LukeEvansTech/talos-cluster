@@ -1,0 +1,124 @@
+---
+# Custom snmp_exporter modules for the APC rack PDU fleet (PowerNet-MIB).
+# Two module generations, verified against the live devices 2026-08-01:
+#   apc_rpdu2 — Rack PDU 2G (AP8659EU3, NMC2 AOS 7.2.x): rPDU2 device +
+#     phase status tables. Power is reported in hundredths of kilowatts
+#     (multiply by 10 for watts), current in tenths of amps, energy in
+#     tenths of kWh. The pdu_name label is looked up from the device's own
+#     rPDU2DeviceStatusName, so no internal hostname lives in this repo.
+#   apc_rpdu — legacy Rack PDU (AP7921B): rPDUIdentDevicePowerWatts is a
+#     plain watts scalar; rPDULoadStatusLoad is tenths of amps.
+# Config drift/compliance for these devices is the apc-fleet exporter's job —
+# these modules carry power telemetry only. Auths (community) live in the
+# snmp-exporter-auth Secret (external-secrets), never here (public repo).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: snmp-exporter-apc-pdu
+  namespace: observability
+data:
+  snmp.yml: |-
+    modules:
+      apc_rpdu2:
+        walk:
+          - 1.3.6.1.2.1.1.3                # sysUpTime
+          - 1.3.6.1.4.1.318.1.1.26.4.3.1   # rPDU2DeviceStatusTable
+          - 1.3.6.1.4.1.318.1.1.26.6.3.1   # rPDU2PhaseStatusTable
+        metrics:
+          - name: sysUpTime
+            oid: 1.3.6.1.2.1.1.3
+            type: gauge
+            help: Time since the SNMP agent was last re-initialized (hundredths of a second)
+          - name: rPDU2DeviceStatusLoadState
+            oid: 1.3.6.1.4.1.318.1.1.26.4.3.1.4
+            type: gauge
+            help: PDU load state (1=lowLoad 2=normal 3=nearOverload 4=overload)
+            indexes:
+              - labelname: rPDU2DeviceStatusIndex
+                type: gauge
+            lookups:
+              - labels: [rPDU2DeviceStatusIndex]
+                labelname: pdu_name
+                oid: 1.3.6.1.4.1.318.1.1.26.4.3.1.3
+                type: DisplayString
+          - name: rPDU2DeviceStatusPower
+            oid: 1.3.6.1.4.1.318.1.1.26.4.3.1.5
+            type: gauge
+            help: PDU load power in hundredths of kilowatts (x10 = watts)
+            indexes:
+              - labelname: rPDU2DeviceStatusIndex
+                type: gauge
+            lookups:
+              - labels: [rPDU2DeviceStatusIndex]
+                labelname: pdu_name
+                oid: 1.3.6.1.4.1.318.1.1.26.4.3.1.3
+                type: DisplayString
+          - name: rPDU2DeviceStatusEnergy
+            oid: 1.3.6.1.4.1.318.1.1.26.4.3.1.9
+            type: gauge
+            help: Lifetime energy through the PDU in tenths of kWh
+            indexes:
+              - labelname: rPDU2DeviceStatusIndex
+                type: gauge
+            lookups:
+              - labels: [rPDU2DeviceStatusIndex]
+                labelname: pdu_name
+                oid: 1.3.6.1.4.1.318.1.1.26.4.3.1.3
+                type: DisplayString
+          - name: rPDU2PhaseStatusLoadState
+            oid: 1.3.6.1.4.1.318.1.1.26.6.3.1.4
+            type: gauge
+            help: Phase load state (1=lowLoad 2=normal 3=nearOverload 4=overload)
+            indexes:
+              - labelname: rPDU2PhaseStatusIndex
+                type: gauge
+          - name: rPDU2PhaseStatusCurrent
+            oid: 1.3.6.1.4.1.318.1.1.26.6.3.1.5
+            type: gauge
+            help: Phase current in tenths of amps
+            indexes:
+              - labelname: rPDU2PhaseStatusIndex
+                type: gauge
+          - name: rPDU2PhaseStatusVoltage
+            oid: 1.3.6.1.4.1.318.1.1.26.6.3.1.6
+            type: gauge
+            help: Phase voltage in volts
+            indexes:
+              - labelname: rPDU2PhaseStatusIndex
+                type: gauge
+          - name: rPDU2PhaseStatusPower
+            oid: 1.3.6.1.4.1.318.1.1.26.6.3.1.7
+            type: gauge
+            help: Phase power in hundredths of kilowatts (x10 = watts)
+            indexes:
+              - labelname: rPDU2PhaseStatusIndex
+                type: gauge
+      apc_rpdu:
+        get:
+          - 1.3.6.1.4.1.318.1.1.12.1.16.0  # rPDUIdentDevicePowerWatts
+        walk:
+          - 1.3.6.1.2.1.1.3                # sysUpTime
+          - 1.3.6.1.4.1.318.1.1.12.2.3.1   # rPDULoadStatusTable
+        metrics:
+          - name: sysUpTime
+            oid: 1.3.6.1.2.1.1.3
+            type: gauge
+            help: Time since the SNMP agent was last re-initialized (hundredths of a second)
+          - name: rPDUIdentDevicePowerWatts
+            oid: 1.3.6.1.4.1.318.1.1.12.1.16
+            type: gauge
+            help: PDU load power in watts
+          - name: rPDULoadStatusLoad
+            oid: 1.3.6.1.4.1.318.1.1.12.2.3.1.1.2
+            type: gauge
+            help: Phase/bank load current in tenths of amps
+            indexes:
+              - labelname: rPDULoadStatusIndex
+                type: gauge
+          - name: rPDULoadState
+            oid: 1.3.6.1.4.1.318.1.1.12.2.3.1.1.3
+            type: gauge
+            help: Phase/bank load state (1=lowLoad 2=normal 3=nearOverload 4=overload)
+            indexes:
+              - labelname: rPDULoadStatusIndex
+                type: gauge
