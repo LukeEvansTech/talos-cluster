@@ -41,14 +41,14 @@ spec:
           app:
             image:
               repository: ghcr.io/scanopy/scanopy/server
-              tag: v0.17.6@sha256:dc66c75a12be2f79939e121a35b296dc71f408e74e593c580e4407b3abf34c24
+              tag: v0.17.7@sha256:43fd6bb7e8f9c2bf9ea1507257cfb5fad67985c0e11c8541498518a3e5558625
             env:
               TZ: ${TIMEZONE}
               SCANOPY_LOG_LEVEL: info
               SCANOPY_PUBLIC_URL: https://scanopy.${SECRET_DOMAIN}
               SCANOPY_WEB_EXTERNAL_PATH: /app/static
               SCANOPY_USE_SECURE_SESSION_COOKIES: "true"
-              SCANOPY_SMTP_RELAY: smtp-relay.infrastructure.svc.cluster.local:25
+              SCANOPY_SMTP_RELAY: smtp2graph.infrastructure.svc.cluster.local:25
               SCANOPY_SMTP_EMAIL: scanopy@${SECRET_DOMAIN}
             envFrom: *envFrom
             probes:

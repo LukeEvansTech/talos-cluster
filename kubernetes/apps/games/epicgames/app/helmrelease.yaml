@@ -19,7 +19,7 @@ spec:
           app:
             image:
               repository: ghcr.io/claabs/epicgames-freegames-node
-              tag: latest@sha256:5d10d5b72d76513faf0d17639c45974e9925e81121456eb902837ffe3745930c
+              tag: latest@sha256:c73dcfeeabd4391d8d7299723f67d6850e617c61903da7998a594e3fd60f39d2
             env:
               TZ: Europe/London
               BASE_URL: https://epicgames.${SECRET_DOMAIN}
@@ -29,7 +29,7 @@ spec:
               EMAIL_SENDER_NAME: "Epic Games Captchas"
               RUN_ON_STARTUP: "true"
               SEARCH_STRATEGY: all
-              SMTP_HOST: smtp-relay.infrastructure.svc.cluster.local
+              SMTP_HOST: smtp2graph.infrastructure.svc.cluster.local
               SMTP_PORT: "25"
               SMTP_SECURE: "false"
             envFrom:

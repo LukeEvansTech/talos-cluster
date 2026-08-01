@@ -42,6 +42,13 @@ spec:
         fsGroupChangePolicy: OnRootMismatch
     service:
       app:
+        type: LoadBalancer
+        annotations:
+          external-dns.alpha.kubernetes.io/hostname: smtp.${SECRET_DOMAIN}
+          io.cilium/lb-ipam-ips: ${SVC_SMTP_RELAY_ADDR}
+        # No externalTrafficPolicy: Local here (unlike maddy): with one replica the
+        # Cilium L2 lease regularly lands on a node without the pod, which drops
+        # every connection. Client source IP is irrelevant on the Graph path.
         ports:
           smtp:
             port: 25

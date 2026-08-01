@@ -1,0 +1,192 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/grafana.integreatly.org/grafanadashboard_v1beta1.json
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  name: bmc-redfish
+spec:
+  allowCrossNamespaceImport: true
+  instanceSelector:
+    matchLabels:
+      grafana.internal/instance: grafana
+  # Grafana template variables are written bare ($instance, not $${instance}):
+  # Flux postBuild only consumes the braced ${VAR} form, verified against the
+  # live onyx-core-switch dashboard which has carried bare $instance unharmed.
+  #
+  # Fleet draw is taken from idrac_power_control_consumed_watts (the system-level
+  # reading) rather than by summing idrac_power_supply_output_watts. On these
+  # H13 boards the two disagree by an order of magnitude — a node drawing 95W at
+  # the system level reports ~450W per PSU — so the PSU figure is shown on its
+  # own panel, labelled as reported, and is not to be read as consumption.
+  json: |-
+    {
+      "annotations": {"list": []},
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 1,
+      "links": [],
+      "refresh": "1m",
+      "schemaVersion": 39,
+      "tags": ["bmc", "redfish", "hardware"],
+      "time": {"from": "now-6h", "to": "now"},
+      "timezone": "browser",
+      "title": "BMC Fleet (Redfish)",
+      "uid": "bmc-redfish",
+      "templating": {
+        "list": [
+          {
+            "allValue": ".*",
+            "current": {"selected": true, "text": "All", "value": "$__all"},
+            "datasource": {"type": "prometheus", "uid": "prometheus"},
+            "definition": "label_values(idrac_system_power_on{job=~\"bmc-exporter.*\"}, instance)",
+            "includeAll": true,
+            "multi": true,
+            "name": "instance",
+            "label": "BMC",
+            "query": "label_values(idrac_system_power_on{job=~\"bmc-exporter.*\"}, instance)",
+            "refresh": 2,
+            "sort": 1,
+            "type": "query"
+          }
+        ]
+      },
+      "panels": [
+        {"collapsed": false, "gridPos": {"h": 1, "w": 24, "x": 0, "y": 0}, "id": 100, "panels": [], "title": "Fleet", "type": "row"},
+        {
+          "id": 1,
+          "type": "stat",
+          "title": "Hosts powered on",
+          "gridPos": {"h": 4, "w": 6, "x": 0, "y": 1},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "targets": [{"expr": "sum(idrac_system_power_on{job=~\"bmc-exporter.*\"})", "refId": "A"}],
+          "options": {"colorMode": "value", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
+          "fieldConfig": {"defaults": {"color": {"mode": "fixed", "fixedColor": "green"}, "unit": "short"}, "overrides": []}
+        },
+        {
+          "id": 2,
+          "type": "stat",
+          "title": "Hosts powered off",
+          "gridPos": {"h": 4, "w": 6, "x": 6, "y": 1},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "targets": [{"expr": "count(idrac_system_power_on{job=~\"bmc-exporter.*\"} == 0) or vector(0)", "refId": "A"}],
+          "options": {"colorMode": "value", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
+          "fieldConfig": {"defaults": {"unit": "short", "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "orange", "value": 1}]}}, "overrides": []}
+        },
+        {
+          "id": 3,
+          "type": "stat",
+          "title": "Fleet power draw",
+          "gridPos": {"h": 4, "w": 6, "x": 12, "y": 1},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "targets": [{"expr": "sum(idrac_power_control_consumed_watts{job=~\"bmc-exporter.*\"})", "refId": "A"}],
+          "options": {"colorMode": "value", "graphMode": "area", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
+          "fieldConfig": {"defaults": {"color": {"mode": "fixed", "fixedColor": "blue"}, "unit": "watt"}, "overrides": []}
+        },
+        {
+          "id": 4,
+          "type": "stat",
+          "title": "Unhealthy components",
+          "gridPos": {"h": 4, "w": 6, "x": 18, "y": 1},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "targets": [{"expr": "count(idrac_system_health{job=~\"bmc-exporter.*\"} > 0) + count(idrac_power_supply_health{job=~\"bmc-exporter.*\"} > 0) + count(idrac_sensors_fan_health{job=~\"bmc-exporter.*\"} > 0) + count(idrac_memory_module_health{job=~\"bmc-exporter.*\"} > 0) + count(idrac_cpu_health{job=~\"bmc-exporter.*\"} > 0) or vector(0)", "refId": "A"}],
+          "options": {"colorMode": "value", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
+          "fieldConfig": {"defaults": {"unit": "short", "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 1}]}}, "overrides": []}
+        },
+        {
+          "id": 5,
+          "type": "stat",
+          "title": "Power state by host",
+          "gridPos": {"h": 6, "w": 12, "x": 0, "y": 5},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "targets": [{"expr": "idrac_system_power_on{job=~\"bmc-exporter.*\"}", "legendFormat": "{{instance}}", "refId": "A"}],
+          "options": {"colorMode": "background", "graphMode": "none", "textMode": "value_and_name", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
+          "fieldConfig": {"defaults": {"mappings": [{"type": "value", "options": {"0": {"text": "OFF", "color": "red", "index": 0}, "1": {"text": "ON", "color": "green", "index": 1}}}]}, "overrides": []}
+        },
+        {
+          "id": 6,
+          "type": "stat",
+          "title": "System health by host",
+          "gridPos": {"h": 6, "w": 12, "x": 12, "y": 5},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "targets": [{"expr": "idrac_system_health{job=~\"bmc-exporter.*\"}", "legendFormat": "{{instance}}", "refId": "A"}],
+          "options": {"colorMode": "background", "graphMode": "none", "textMode": "value_and_name", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
+          "fieldConfig": {"defaults": {"mappings": [{"type": "value", "options": {"0": {"text": "OK", "color": "green", "index": 0}, "1": {"text": "WARNING", "color": "orange", "index": 1}, "2": {"text": "CRITICAL", "color": "red", "index": 2}}}]}, "overrides": []}
+        },
+        {"collapsed": false, "gridPos": {"h": 1, "w": 24, "x": 0, "y": 11}, "id": 101, "panels": [], "title": "Thermal and fans", "type": "row"},
+        {
+          "id": 7,
+          "type": "timeseries",
+          "title": "Temperatures",
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 12},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "targets": [{"expr": "idrac_sensors_temperature{job=~\"bmc-exporter.*\", instance=~\"$instance\"}", "legendFormat": "{{instance}} / {{name}}", "refId": "A"}],
+          "options": {"legend": {"displayMode": "table", "placement": "right", "calcs": ["lastNotNull", "max"]}, "tooltip": {"mode": "multi", "sort": "desc"}},
+          "fieldConfig": {"defaults": {"unit": "celsius", "custom": {"drawStyle": "line", "lineWidth": 1, "fillOpacity": 5, "showPoints": "never"}, "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "orange", "value": 80}, {"color": "red", "value": 90}]}}, "overrides": []}
+        },
+        {
+          "id": 8,
+          "type": "timeseries",
+          "title": "Fan speed",
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 12},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "targets": [{"expr": "idrac_sensors_fan_speed{job=~\"bmc-exporter.*\", instance=~\"$instance\"}", "legendFormat": "{{instance}} / {{name}}", "refId": "A"}],
+          "options": {"legend": {"displayMode": "table", "placement": "right", "calcs": ["lastNotNull", "min"]}, "tooltip": {"mode": "multi", "sort": "desc"}},
+          "fieldConfig": {"defaults": {"unit": "rotrpm", "custom": {"drawStyle": "line", "lineWidth": 1, "fillOpacity": 0, "showPoints": "never"}}, "overrides": []}
+        },
+        {"collapsed": false, "gridPos": {"h": 1, "w": 24, "x": 0, "y": 20}, "id": 102, "panels": [], "title": "Power", "type": "row"},
+        {
+          "id": 9,
+          "type": "timeseries",
+          "title": "System power draw",
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 21},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "targets": [{"expr": "idrac_power_control_consumed_watts{job=~\"bmc-exporter.*\", instance=~\"$instance\"}", "legendFormat": "{{instance}}", "refId": "A"}],
+          "options": {"legend": {"displayMode": "table", "placement": "right", "calcs": ["lastNotNull", "mean", "max"]}, "tooltip": {"mode": "multi", "sort": "desc"}},
+          "fieldConfig": {"defaults": {"unit": "watt", "custom": {"drawStyle": "line", "lineWidth": 1, "fillOpacity": 10, "showPoints": "never"}}, "overrides": []}
+        },
+        {
+          "id": 10,
+          "type": "timeseries",
+          "title": "PSU input voltage (0 V = feed lost)",
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 21},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "targets": [{"expr": "idrac_power_supply_input_voltage{job=~\"bmc-exporter.*\", instance=~\"$instance\"}", "legendFormat": "{{instance}} / PSU {{id}}", "refId": "A"}],
+          "options": {"legend": {"displayMode": "table", "placement": "right", "calcs": ["lastNotNull", "min"]}, "tooltip": {"mode": "multi", "sort": "desc"}},
+          "fieldConfig": {"defaults": {"unit": "volt", "custom": {"drawStyle": "line", "lineWidth": 1, "fillOpacity": 0, "showPoints": "never"}, "min": 0}, "overrides": []}
+        },
+        {"collapsed": false, "gridPos": {"h": 1, "w": 24, "x": 0, "y": 29}, "id": 103, "panels": [], "title": "Component health", "type": "row"},
+        {
+          "id": 11,
+          "type": "stat",
+          "title": "Memory modules (ECC)",
+          "gridPos": {"h": 7, "w": 8, "x": 0, "y": 30},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "targets": [{"expr": "idrac_memory_module_health{job=~\"bmc-exporter.*\", instance=~\"$instance\"}", "legendFormat": "{{instance}} / DIMM {{id}}", "refId": "A"}],
+          "options": {"colorMode": "background", "graphMode": "none", "textMode": "value_and_name", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
+          "fieldConfig": {"defaults": {"mappings": [{"type": "value", "options": {"0": {"text": "OK", "color": "green", "index": 0}, "1": {"text": "WARN", "color": "orange", "index": 1}, "2": {"text": "CRIT", "color": "red", "index": 2}}}]}, "overrides": []}
+        },
+        {
+          "id": 12,
+          "type": "stat",
+          "title": "Power supplies",
+          "gridPos": {"h": 7, "w": 8, "x": 8, "y": 30},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "targets": [{"expr": "idrac_power_supply_health{job=~\"bmc-exporter.*\", instance=~\"$instance\"}", "legendFormat": "{{instance}} / PSU {{id}}", "refId": "A"}],
+          "options": {"colorMode": "background", "graphMode": "none", "textMode": "value_and_name", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
+          "fieldConfig": {"defaults": {"mappings": [{"type": "value", "options": {"0": {"text": "OK", "color": "green", "index": 0}, "1": {"text": "WARN", "color": "orange", "index": 1}, "2": {"text": "CRIT", "color": "red", "index": 2}}}]}, "overrides": []}
+        },
+        {
+          "id": 13,
+          "type": "stat",
+          "title": "Processors and BMC",
+          "gridPos": {"h": 7, "w": 8, "x": 16, "y": 30},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "targets": [
+            {"expr": "idrac_cpu_health{job=~\"bmc-exporter.*\", instance=~\"$instance\"}", "legendFormat": "{{instance}} / CPU {{id}}", "refId": "A"},
+            {"expr": "idrac_manager_health{job=~\"bmc-exporter.*\", instance=~\"$instance\"}", "legendFormat": "{{instance}} / BMC", "refId": "B"}
+          ],
+          "options": {"colorMode": "background", "graphMode": "none", "textMode": "value_and_name", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
+          "fieldConfig": {"defaults": {"mappings": [{"type": "value", "options": {"0": {"text": "OK", "color": "green", "index": 0}, "1": {"text": "WARN", "color": "orange", "index": 1}, "2": {"text": "CRIT", "color": "red", "index": 2}}}]}, "overrides": []}
+        }
+      ]
+    }

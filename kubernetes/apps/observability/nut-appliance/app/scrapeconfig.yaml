@@ -110,3 +110,58 @@ spec:
     # Same shape as the truenas-docker-exporter job.
     - action: labelkeep
       regex: __name__|job|instance|name|status|health_status|container_label_cd_doco_metadata_manager
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/scrapeconfig_v1alpha1.json
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: ScrapeConfig
+metadata:
+  name: &name nut-appliance-doco-cd
+spec:
+  # doco-cd's own metrics (:9120) — GitOps poll and deploy status for the
+  # appliance, matching the seedbox-doco-cd job.
+  #
+  # Strictly better than "the container is running", which docker_state_exporter
+  # already covers: doco_cd_polls_total is the signal that the repo is actually
+  # being polled. A doco-cd that is up but has stopped polling deploys nothing,
+  # and the box drifts from nut-apps with no other symptom.
+  #
+  # The container always served these; they were simply never published. Exposing
+  # them needed a `--publish` on the doco-cd systemd unit, declared in the Butane
+  # config under nut-apps provision/ignition/ — doco-cd deploys compose stacks, it
+  # does not manage its own unit, so that change is NOT GitOps-applied and a live
+  # box needs the unit updated by hand.
+  staticConfigs:
+    - targets:
+        - ${NUT_SERVER_ADDR}:9120
+  metricsPath: /metrics
+  scrapeInterval: 60s
+  relabelings:
+    - action: replace
+      targetLabel: job
+      replacement: *name
+    - action: replace
+      targetLabel: instance
+      replacement: nut-appliance
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/scrapeconfig_v1alpha1.json
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: ScrapeConfig
+metadata:
+  name: &name nut-appliance-traefik
+spec:
+  # Traefik metrics entrypoint (:8082) — per-router/service request stats for
+  # the two dashboards, matching the seedbox-traefik job. The entrypoint landed
+  # with the 2026-07-30 fleet convergence (nut-apps), bound to the LAN address
+  # like the exporters above.
+  staticConfigs:
+    - targets:
+        - ${NUT_SERVER_ADDR}:8082
+  metricsPath: /metrics
+  scrapeInterval: 60s
+  relabelings:
+    - action: replace
+      targetLabel: job
+      replacement: *name
+    - action: replace
+      targetLabel: instance
+      replacement: nut-appliance

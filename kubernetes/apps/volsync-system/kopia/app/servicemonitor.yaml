@@ -1,0 +1,30 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/servicemonitor_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: &app kopia
+  labels:
+    app.kubernetes.io/name: *app
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: *app
+  endpoints:
+    # The sidecar recounts on a 15m loop and serves the cached result, so the
+    # scrape itself is a static file read — the interval here costs nothing and
+    # does not drive NFS load.
+    #
+    # Path is a static file, and the .txt is load-bearing: busybox httpd sets
+    # Content-Type from a built-in table that knows .txt but not .prom, and
+    # Prometheus 3 marks a target down for "sending blank Content-Type" unless
+    # a fallback_scrape_protocol is set, which this operator's ServiceMonitor
+    # CRD does not expose. Keep the extension if this file is ever renamed.
+    - port: metrics
+      scheme: http
+      path: /metrics.txt
+      interval: 5m
+      relabelings:
+        - action: replace
+          targetLabel: instance
+          replacement: *app

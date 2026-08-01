@@ -50,11 +50,11 @@ spec:
         # max() collapses nut-exporter's two ServiceMonitor endpoints (one per
         # UPS) to a single scalar so `and on()` has an empty label set to match.
         #
-        # min() over job=~"nut-appliance-.*" covers ALL THREE appliance scrapes
-        # (node, smartctl, docker) in one rule rather than three near-identical
-        # ones — the operator response is the same for any of them, and every
-        # extra rule is another thing that can page. 15m also rides out the
-        # smartctl job's 300s interval (three missed scrapes).
+        # min() over job=~"nut-appliance-.*" covers EVERY appliance scrape (node,
+        # smartctl, docker, doco-cd, traefik) in one rule rather than five
+        # near-identical ones — the operator response is the same for any of
+        # them, and every extra rule is another thing that can page. 15m also
+        # rides out the smartctl job's 300s interval (three missed scrapes).
         - alert: NutApplianceHostMetricsMissing
           annotations:
             description: >-
@@ -107,6 +107,33 @@ spec:
           expr: |-
             container_state_health_status{job="nut-appliance-docker", status="unhealthy"} == 1
           for: 5m
+          labels:
+            severity: warning
+        # ---- GitOps freshness (doco-cd's own metrics) --------------------------
+        # NutApplianceContainerDown catches doco-cd's container exiting; this
+        # catches the worse case, where the container is up and healthy but has
+        # stopped POLLING. Nothing deploys, the box drifts from nut-apps, and
+        # there is no other symptom — the failure this whole job exists for.
+        #
+        # doco_cd_polls_total only counts SUCCESSFUL polls, so a stalled or
+        # erroring poller shows up as the counter not moving; there is no error
+        # counter to key on instead. Poll interval is 3600s (poll-config.yml), so
+        # a 3h window is three consecutive missed polls before this says anything.
+        #
+        # No absent() arm needed: if the scrape itself dies the job stops
+        # reporting and NutApplianceHostMetricsMissing covers it, because that
+        # rule matches job=~"nut-appliance-.*" and this job is one of them.
+        - alert: NutApplianceGitOpsStalled
+          annotations:
+            description: >-
+              doco-cd on the NUT appliance has not completed a successful poll of
+              {{ $labels.repository }} in 3 hours (it polls hourly). The container may
+              be up and healthy while deploying nothing — the box is drifting from
+              nut-apps with no other symptom.
+            summary: NUT appliance GitOps has stalled — no successful doco-cd poll in 3h.
+          expr: |-
+            increase(doco_cd_polls_total{job="nut-appliance-doco-cd"}[3h]) == 0
+          for: 30m
           labels:
             severity: warning
         - alert: NutApplianceContainerFlapping
