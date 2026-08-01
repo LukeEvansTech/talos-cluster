@@ -13,6 +13,7 @@ resources:
   - ./apc-fleet/ks.yaml
   - ./blackbox-exporter/ks.yaml
   - ./bmc-exporter/ks.yaml
+  - ./docker-backup/ks.yaml
   - ./exportarr/ks.yaml
   - ./gatus/ks.yaml
   - ./grafana/ks.yaml
