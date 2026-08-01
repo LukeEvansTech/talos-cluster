@@ -53,6 +53,22 @@
   customManagers: [
     {
       customType: "regex",
+      // etcd-defrag fetches talosctl with a plain wget inside an inline shell
+      // script, which no built-in manager sees, so the pin silently drifted:
+      // it sat on v1.11.5 while every other Talos pin in the repo had moved to
+      // v1.13.7. Tracking it here keeps the client in step with the nodes it
+      // talks to, and because the package name is siderolabs/talos it joins the
+      // Talos group rather than arriving as its own PR.
+      description: "Track the talosctl binary fetched by etcd-defrag",
+      managerFilePatterns: ["/(^|/)kubernetes/.+\\.ya?ml$/"],
+      matchStrings: [
+        "https://github\\.com/siderolabs/talos/releases/download/(?<currentValue>v[^/]+)/talosctl-",
+      ],
+      datasourceTemplate: "github-releases",
+      depNameTemplate: "siderolabs/talos",
+    },
+    {
+      customType: "regex",
       description: "Track Minecraft release versions",
       managerFilePatterns: ["/(^|/)kubernetes/.+\\.ya?ml$/"],
       matchStrings: [
@@ -289,14 +305,32 @@
       minimumGroupSize: 2,
     },
     {
+      // The Talos version is pinned in four places across three datasources:
+      // talconfig.yaml, talenv.yaml and the tuppr TalosUpgrade all carry a
+      // `datasource=docker depName=ghcr.io/siderolabs/installer` annotation, and
+      // .mise.toml pins the matching talosctl CLI as `aqua:siderolabs/talos`.
+      //
+      // This rule used to set matchDatasources: ["docker"], which grouped the
+      // first three but left the CLI to arrive as its own PR — so every Talos
+      // bump landed as two PRs that had to be reconciled by hand (1.13.6 ➔
+      // 1.13.7 came as #3753 for the CLI and #3754 for the image, the latter
+      // closed as superseded by #3842). Dropping the datasource restriction
+      // lets the regex below catch the aqua package too, since its package name
+      // is `aqua:siderolabs/talos`. Adopted from cluster-template 2026.8.0
+      // (onedr0p/cluster-template#2302), which groups the same three pins.
+      //
+      // Nothing else in the estate matches `siderolabs/`, and kubelet — which
+      // tracks the Kubernetes version, not the Talos one — is excluded below.
       description: "Talos Group",
       groupName: "Talos",
-      matchDatasources: ["docker"],
       // Negated match replaces the deprecated excludePackageNames: ["/kubelet/"]
       matchPackageNames: ["/siderolabs\\//", "!/kubelet/"],
       group: {
         commitMessageTopic: "{{{groupName}}} group",
       },
+      // Kept at 2 rather than upstream's 3: the CLI occasionally releases
+      // without a matching node image, and a 3 would hold the whole group back
+      // until every pin moved.
       minimumGroupSize: 2,
     },
     {
