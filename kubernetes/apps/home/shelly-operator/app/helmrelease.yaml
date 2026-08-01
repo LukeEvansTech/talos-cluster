@@ -31,16 +31,16 @@ spec:
     nameMap: shelly-names
     exporterConfigMap: shelly-prometheus-exporter-config
     # How often the exporter polls EACH device. This is ~98% of all RPC load on
-    # the fleet: the exporter makes ~6 calls per device per cycle, against ~1 per
-    # device per reconcileInterval from the operator itself.
+    # the fleet: the exporter makes ~6 calls per device per cycle, against
+    # ~1 per device per reconcileInterval from the operator itself.
     #
     # 60s deliberately MATCHES the exporter ServiceMonitor scrape interval. The
     # chart default is 30s, which is a 2x oversample: those extra samples are
     # overwritten before Prometheus ever reads them, so they buy no stored
     # resolution and cost double the device traffic. Device firmware 2.0.0
-    # rate-limits and starts answering HTTP 429 under that load, which leaves the
-    # operator unable to read config and reporting InSync=Unknown -- unverified,
-    # which is not the same as healthy.
+    # rate-limits and starts answering HTTP 429 under that load, leaving the
+    # operator unable to read config and reporting InSync=Unknown -- which is
+    # unverified, not the same as healthy.
     #
     # Raise the scrape interval and this together, never one alone.
     exporterDeviceUpdateInterval: 60s
