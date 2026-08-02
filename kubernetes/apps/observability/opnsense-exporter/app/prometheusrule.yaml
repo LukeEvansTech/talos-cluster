@@ -16,16 +16,39 @@ spec:
           for: 5m
           labels:
             severity: critical
-        # Gateway RTT monitoring is disabled on this OPNsense, so the loss/RTT
-        # value on opnsense_gateways_monitor_info isn't populated. The reliable
-        # down signal is the no_route label (set from the routing table when a
-        # gateway loses its default route), which is independent of monitoring.
-        # Enable gateway monitoring on the firewall to unlock loss/RTT alerting.
+        # The no_route signal is set from the routing table when a gateway loses
+        # its default route — independent of dpinger, so it stays as the
+        # belt-and-braces down signal alongside the loss alert below.
         - alert: OPNsenseGatewayDown
           annotations:
             summary: "OPNsense gateway {{ $labels.name }} has no route (down)."
           expr: |-
             opnsense_gateways_monitor_info{job="opnsense-exporter", no_route="true"}
+          for: 5m
+          labels:
+            severity: critical
+        # dpinger was enabled on the v4 WAN gateway 2026-08-02 (monitor 1.1.1.1),
+        # which populated the loss/RTT series for the first time. Sustained loss
+        # is upstream/ISP degradation the routing table can't see.
+        - alert: OPNsenseWanGatewayLossHigh
+          annotations:
+            summary: "WAN gateway packet loss at {{ $value }}% for 10m."
+          expr: |-
+            opnsense_gateways_loss_percentage{job="opnsense-exporter", name="WAN_DHCP"} > 20
+          for: 10m
+          labels:
+            severity: critical
+        # The 2026-08-02 outage signature: both WAN counters froze to exactly
+        # zero for 15 minutes while the link stayed up and no watchdog logged —
+        # dpinger's monitor traffic rides this interface, so a healthy WAN can
+        # never legitimately read zero-in-both-directions for 5 minutes.
+        - alert: OPNsenseWanTrafficFrozen
+          annotations:
+            summary: "WAN has passed zero bytes in BOTH directions for 5m — NIC/modem wedge, likely needs a link bounce."
+          expr: |-
+            rate(opnsense_interfaces_received_bytes_total{job="opnsense-exporter", interface="WAN"}[5m]) == 0
+            and
+            rate(opnsense_interfaces_transmitted_bytes_total{job="opnsense-exporter", interface="WAN"}[5m]) == 0
           for: 5m
           labels:
             severity: critical
