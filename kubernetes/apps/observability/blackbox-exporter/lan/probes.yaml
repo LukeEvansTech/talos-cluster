@@ -88,6 +88,12 @@ spec:
         - s3-nas.${SECRET_DOMAIN}:443
         - scrutiny-nas.${SECRET_DOMAIN}:443
         - syncthing.${SECRET_DOMAIN}:443
+        # Main UPS NMC3 — Certwarden deploys via apc-p15-tool, which embeds
+        # the full chain in the p15, so this device verifies cleanly and
+        # belongs on the strict probe (unlike the BMCs below). First
+        # successful deployment 2026-08-02; the name resolves via an Unbound
+        # host override (network-ops) shadowing a stale public record.
+        - cr-ups-main.${SECRET_DOMAIN}:443
   metricRelabelings:
     - action: replace
       replacement: blackbox-exporter-lan
@@ -108,9 +114,13 @@ spec:
   # before expiry. One BMC served an expired certificate for 3.5 months
   # with nothing anywhere to say so — these targets close that gap.
   #
-  # Separate Probe from lan-tls-cert because these devices serve a chainless
-  # leaf (the deploy paths install only the server certificate), which fails
-  # the verifying tls_connect module — see tls_connect_noverify in the
+  # Separate Probe from lan-tls-cert because these BMCs serve a chainless
+  # leaf, and that is a FIRMWARE constraint, not a deploy-tool choice:
+  # verified live 2026-08-02 on H13 fw 01.05.09, the OEM SmcSSLCert.Upload
+  # rejects any multi-cert PEM and the standard ReplaceCertificate only
+  # pairs with its own GenerateCSR flow (full evidence in the
+  # supermicro-ipmi-cert container source). The verifying tls_connect
+  # module therefore can never pass here — see tls_connect_noverify in the
   # HelmRelease. Same jobName, so dashboards and the expiry alerts treat
   # both probes as one fleet.
   jobName: tls_cert
@@ -131,12 +141,6 @@ spec:
         - cr-node-07-ipmi.${SECRET_INTERNAL_DOMAIN}:443
         - cr-node-08-ipmi.${SECRET_INTERNAL_DOMAIN}:443
         - cr-storage-ipmi.${SECRET_INTERNAL_DOMAIN}:443
-        # Main UPS NMC3 — same Certwarden deploy chain as the BMCs (via
-        # apc-p15-tool over SSH rather than Redfish). First successful
-        # deployment 2026-08-02; the name resolves via an Unbound host
-        # override (network-ops) shadowing a stale public record. Apex zone,
-        # matching the name the certificate is issued for.
-        - cr-ups-main.${SECRET_DOMAIN}:443
   metricRelabelings:
     - action: replace
       replacement: blackbox-exporter-lan
