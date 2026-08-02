@@ -56,6 +56,21 @@ spec:
           tcp:
             tls: true
             preferred_ip_protocol: ip4
+        # Device management endpoints (BMCs, the UPS NMC) serve a chainless
+        # leaf — the Certwarden device deploy paths install only the server
+        # certificate, so Go's verifier has no intermediate to chain with and
+        # a verifying probe scores every device probe_success=0. These probes
+        # exist to harvest expiry, not to validate trust; skip verification
+        # for the device module only, keeping the stricter tls_connect for
+        # the Traefik targets (where a broken chain IS worth failing on).
+        tls_connect_noverify:
+          prober: tcp
+          timeout: 5s
+          tcp:
+            tls: true
+            preferred_ip_protocol: ip4
+            tls_config:
+              insecure_skip_verify: true
     serviceMonitor:
       enabled: true
       selfMonitor:
