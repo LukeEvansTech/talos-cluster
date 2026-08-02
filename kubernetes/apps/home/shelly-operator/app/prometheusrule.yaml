@@ -50,3 +50,23 @@ spec:
           for: 24h
           labels:
             severity: info
+        - alert: ShellyDeviceRestartRequired
+          annotations:
+            summary: Shelly device needs a restart for a setting to take effect.
+            description: >-
+              {{ $labels.name }}{{ with $labels.room }} in {{ . }}{{ end }}
+              ({{ $labels.mac }}) has reported restart_required for over 6h. A
+              setting has been written but is NOT live until the device is
+              rebooted. Note this does not show up as drift: InSync compares the
+              config the device REPORTS, and the value is already written, so
+              such a device reads as fully in sync. Clear it by rebooting the
+              device, or set rebootWhenRequired on its profile if that load
+              tolerates an interruption.
+            # 6h, not 24h: unlike a pending firmware update there is no daily
+            # window that clears this on its own -- it waits for a human
+            # indefinitely. Four devices sat pending before this alert existed,
+            # the oldest for four and a half days.
+          expr: shelly_device_restart_required == 1
+          for: 6h
+          labels:
+            severity: info
