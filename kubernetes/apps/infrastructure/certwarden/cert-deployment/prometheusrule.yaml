@@ -1,0 +1,30 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: certwarden-cert-deploy
+spec:
+  groups:
+    - name: certwarden-cert-deploy
+      rules:
+        # Certwarden post-processing failures were previously invisible: a
+        # deploy Job that failed every retry only left a line in Certwarden's
+        # own log, and one device served an expired certificate for months
+        # before anyone noticed. The Jobs have ttlSecondsAfterFinished: 300,
+        # so kube-state-metrics only exposes a failed Job for ~5 minutes -
+        # "for: 1m" fires within that window while still absorbing a single
+        # odd scrape. The certificate-expiry probes in blackbox-exporter-lan
+        # are the slow-burn backstop; this is the real-time signal.
+        - alert: CertDeployJobFailed
+          expr: |-
+            kube_job_failed{namespace="infrastructure", condition="true", job_name=~"(supermicro|apc)-cert-deploy-.*"} == 1
+          for: 1m
+          labels:
+            severity: warning
+          annotations:
+            summary: >-
+              Certificate deploy Job {{ $labels.job_name }} failed - the device
+              is still serving its previous certificate. Check Certwarden's
+              post-processing log, fix the cause, then retry post processing
+              from the Certwarden UI (the deploy is safe to re-run).
