@@ -52,7 +52,7 @@ data:
     echo "Certificate: ${CERTIFICATE_NAME:-unknown}"
     echo "Target Supermicro: ${SUPERMICRO_HOST}"
     echo "Namespace: ${NAMESPACE}"
-    echo "Container: ghcr.io/lukeevanstech/supermicro-ipmi-cert:0.2.0@sha256:a4de3125d1bd995fa7c479a0e6681c3ad2ed58a60f8c193a92dbd1f0efea33d5"
+    echo "Container: ghcr.io/lukeevanstech/supermicro-ipmi-cert:0.3.0@sha256:ef57ea05e2ff7f4136b4015327f18929d1e9c387fb53f24d9a41fec4a851aaa7"
 
     # Create a unique job name with timestamp
     JOB_NAME="supermicro-cert-deploy-${SUPERMICRO_HOST}-$(date +%s)"
@@ -92,7 +92,7 @@ data:
           restartPolicy: Never
           containers:
             - name: supermicro-deploy
-              image: ghcr.io/lukeevanstech/supermicro-ipmi-cert:0.2.0@sha256:a4de3125d1bd995fa7c479a0e6681c3ad2ed58a60f8c193a92dbd1f0efea33d5
+              image: ghcr.io/lukeevanstech/supermicro-ipmi-cert:0.3.0@sha256:ef57ea05e2ff7f4136b4015327f18929d1e9c387fb53f24d9a41fec4a851aaa7
               command:
                 - sh
                 - -c
