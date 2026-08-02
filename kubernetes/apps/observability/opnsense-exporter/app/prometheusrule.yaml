@@ -52,6 +52,23 @@ spec:
           for: 5m
           labels:
             severity: critical
+        # Backup WAN tiers (2026-08-02): 5G routers on transit VLANs feed the
+        # WAN_FAILOVER gateway group. A dead backup tier is invisible in daily
+        # use — it only matters mid-outage, which is exactly when it must not
+        # be discovered broken. Gated on the tier having been healthy in the
+        # last 24h so a not-yet-cabled or deliberately-parked tier never
+        # alerts; it self-arms on first successful dpinger and stands down a
+        # day after a deliberate decommission.
+        - alert: OPNsenseBackupWanTierDown
+          annotations:
+            summary: "Backup WAN tier {{ $labels.name }} is at 100% loss — the failover path is dead while the primary is fine."
+          expr: |-
+            opnsense_gateways_loss_percentage{job="opnsense-exporter", name=~"WAN[23]_5G_.+"} == 100
+            and
+            min_over_time(opnsense_gateways_loss_percentage{job="opnsense-exporter", name=~"WAN[23]_5G_.+"}[24h]) < 100
+          for: 30m
+          labels:
+            severity: warning
         # Unbound (the resolver behind opnsense-dns / split-horizon) being down
         # breaks internal name resolution cluster-wide. The exporter has no
         # unbound-specific metric, so it surfaces via opnsense_services_status.
