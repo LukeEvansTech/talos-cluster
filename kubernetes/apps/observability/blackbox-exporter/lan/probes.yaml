@@ -88,6 +88,25 @@ spec:
         - s3-nas.${SECRET_DOMAIN}:443
         - scrutiny-nas.${SECRET_DOMAIN}:443
         - syncthing.${SECRET_DOMAIN}:443
+        # Supermicro BMCs. Certwarden renews these certificates and pushes
+        # them to each BMC via a deploy Job — a chain with two failure modes
+        # seen in production: the Job fails outright (CertDeployJobFailed
+        # covers that, but only for ~5 minutes per failure), and the upload
+        # "succeeds" while the BMC keeps serving the old certificate until
+        # reboot. Probing what the socket actually serves catches both, weeks
+        # before expiry. One BMC served an expired certificate for 3.5 months
+        # with nothing anywhere to say so — these targets close that gap.
+        # (The UPS NMC belongs here too once its stale DNS record is fixed
+        # and its first certificate deployment lands.)
+        - cr-node-01-ipmi.${SECRET_INTERNAL_DOMAIN}:443
+        - cr-node-02-ipmi.${SECRET_INTERNAL_DOMAIN}:443
+        - cr-node-03-ipmi.${SECRET_INTERNAL_DOMAIN}:443
+        - cr-node-04-ipmi.${SECRET_INTERNAL_DOMAIN}:443
+        - cr-node-05-ipmi.${SECRET_INTERNAL_DOMAIN}:443
+        - cr-node-06-ipmi.${SECRET_INTERNAL_DOMAIN}:443
+        - cr-node-07-ipmi.${SECRET_INTERNAL_DOMAIN}:443
+        - cr-node-08-ipmi.${SECRET_INTERNAL_DOMAIN}:443
+        - cr-storage-ipmi.${SECRET_INTERNAL_DOMAIN}:443
   metricRelabelings:
     - action: replace
       replacement: blackbox-exporter-lan
