@@ -1,0 +1,37 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/scrapeconfig_v1alpha1.json
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: ScrapeConfig
+metadata:
+  name: &name opnsense-node
+spec:
+  # node-exporter (os-node_exporter plugin, :9100) on the firewall — kernel-level
+  # CPU/memory/ZFS/disk/netdev that the API-based opnsense-exporter above cannot
+  # see. Added 2026-08-02: the WAN-wedge outage that day had to be reconstructed
+  # from cluster-side probes because the box exposed no OS-level metrics.
+  #
+  # Plain LAN scrape, no egress Service — the nut-appliance shape, not the
+  # seedbox one (nothing here crosses the tailnet).
+  staticConfigs:
+    - targets:
+        - ${OPNSENSE_ADDR}:9100
+  metricsPath: /metrics
+  scrapeInterval: 60s
+  relabelings:
+    - action: replace
+      targetLabel: job
+      replacement: *name
+    - action: replace
+      targetLabel: instance
+      # Matches OPNSENSE_EXPORTER_INSTANCE_LABEL on the API exporter so both
+      # jobs' series join on the same instance.
+      replacement: opnsense
+  metricRelabelings:
+    # Same load-bearing drop as nut-appliance and the seedbox: ceph-mixin ships
+    # alerts with no job selector that join through node_uname_info
+    # (`* on(cluster, instance) group_left(nodename) node_uname_info`) and would
+    # otherwise adopt this target; dropping the metric breaks that join.
+    - action: drop
+      sourceLabels:
+        - __name__
+      regex: node_uname_info
