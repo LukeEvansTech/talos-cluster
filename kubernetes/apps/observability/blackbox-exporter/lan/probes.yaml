@@ -25,6 +25,9 @@ spec:
         # never added, so the box holding the bulk data had no out-of-band
         # liveness signal at all.
         - cr-storage-ipmi.${SECRET_INTERNAL_DOMAIN}
+        # Firewall BMC (named 2026-08-02 after the WAN outage; the device that
+        # matters most in a recovery previously had no OOB liveness signal).
+        - cr-fw-ipmi.${SECRET_INTERNAL_DOMAIN}
   metricRelabelings:
     - action: replace
       replacement: blackbox-exporter-lan
