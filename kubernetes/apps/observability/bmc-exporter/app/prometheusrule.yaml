@@ -44,11 +44,19 @@ spec:
         # solely so this exact-match excludes it: a desk machine is off most of
         # the time and would otherwise page on every shutdown. It stays covered
         # by every other rule here. See helmrelease-workstation.yaml.
+        # Gated on the host having been ON within the last 24h: an unexpected
+        # power-off pages within 15m and keeps paging for a day, then the host
+        # is treated as deliberately parked and the alert self-silences. This is
+        # what stops the retired-firewall sled and the cold spare — off for good
+        # since the 2026-07-30 migration — from paging forever, without keeping
+        # a hostname list here (this repo is public) that would drift anyway.
         - alert: BmcHostPoweredOff
           annotations:
-            summary: "Host behind {{ $labels.instance }} is powered off."
+            summary: "Host behind {{ $labels.instance }} is powered off (was on within 24h)."
           expr: |-
             idrac_system_power_on{job="bmc-exporter"} == 0
+            and
+            max_over_time(idrac_system_power_on{job="bmc-exporter"}[24h]) == 1
           for: 15m
           labels:
             severity: warning
