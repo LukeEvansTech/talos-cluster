@@ -74,7 +74,7 @@ spec:
             or
             absent(restic_backup_last_success_timestamp_seconds{box="truenas"})
             or
-            absent(restic_backup_last_success_timestamp_seconds{box="cr-nut"})
+            absent(restic_backup_last_success_timestamp_seconds{box="nut"})
           for: 2h
           labels:
             severity: warning
