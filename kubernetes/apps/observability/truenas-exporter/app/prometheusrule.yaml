@@ -85,11 +85,22 @@ spec:
             severity: critical
         # "exited|dead" scoped to the doco-cd-managed fleet so containers outside
         # that fleet (or intentionally stopped) never page.
+        # The declarative restore inits (apps/*/compose.yaml, service
+        # restore-<app>) are one-shots: they run, exit 0 and STAY exited. That
+        # is their steady state, so they are excluded from TrueNASContainerDown
+        # above — without the exclusion every one of them pages forever, which
+        # is exactly what happened when they first landed (13 across the fleet).
+        #
+        # A restore init that FAILS is still caught, just not here. It exits
+        # non-zero, so compose never starts the app it gates, and the app is
+        # left in `created` rather than `exited` — which is why `created` was
+        # added to the status list above. Nothing sits in `created` for
+        # 5m in normal operation; a deploy moves through it in seconds.
         - alert: TrueNASContainerDown
           annotations:
             summary: "TrueNAS container {{ $labels.name }} is not running (state: {{ $labels.status }})."
           expr: |-
-            container_state_status{job="truenas-docker-exporter", status=~"exited|dead", container_label_cd_doco_metadata_manager="doco-cd"} == 1
+            container_state_status{job="truenas-docker-exporter", status=~"exited|dead|created", container_label_cd_doco_metadata_manager="doco-cd", name!~".*-restore-.*-[0-9]+"} == 1
           for: 5m
           labels:
             severity: critical
