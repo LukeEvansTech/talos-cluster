@@ -24,10 +24,9 @@ spec:
     # it is how backup systems actually fail. The observability handoff already
     # records this class of blind spot in Vector's log shipping.
     #
-    # NOT COVERED YET — a third box. Its node-exporter landed 2026-07-28 (#3914)
-    # but its backup stack has not, so adding a box= selector for it here would
-    # fire immediately and permanently. Add it to the absent() rule when nut-apps
-    # apps/backup merges; the other two rules pick it up automatically.
+    # All three Docker boxes now covered. The third one's backup stack landed
+    # 2026-08-03, so its box= selector is in the absent() rule below; the other
+    # two rules match on the series itself and picked it up automatically.
     #
     # NOT SHIPPED — an alert on restic_backup_duration_seconds. There is no
     # history to calibrate against yet, the dataset is ~19 MB so a run takes
@@ -74,6 +73,8 @@ spec:
             absent(restic_backup_last_success_timestamp_seconds{box="seedbox"})
             or
             absent(restic_backup_last_success_timestamp_seconds{box="truenas"})
+            or
+            absent(restic_backup_last_success_timestamp_seconds{box="cr-nut"})
           for: 2h
           labels:
             severity: warning
@@ -85,7 +86,7 @@ spec:
           annotations:
             summary: >-
               Last {{ $labels.tier }} backup run on {{ $labels.box }} exited non-zero —
-              check `docker logs backup` on that box.
+              check `docker logs backrest` on that box.
           expr: |-
             restic_backup_exit_code != 0
           for: 15m
