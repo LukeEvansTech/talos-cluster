@@ -39,7 +39,7 @@ spec:
   # with "model not found". See #3792 (which set it) and the revert that
   # followed.
   runtime: llamacpp
-  image: ghcr.io/ggml-org/llama.cpp:server-cuda@sha256:37dd122824e58af9ec861955242abdeeade5a1dcf0ad768bf2b37f903c2805c6
+  image: ghcr.io/ggml-org/llama.cpp:server-cuda@sha256:48a88af72b29e865d64f464e3dc1e4fbbad4a36c5e2298d72d13b690f9d17dd2
   replicas: 1
   runtimeClassName: nvidia
   priorityClassName: gpu-preemptible
