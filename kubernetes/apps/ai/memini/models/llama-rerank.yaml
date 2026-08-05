@@ -60,7 +60,7 @@ spec:
           app:
             image:
               repository: ghcr.io/ggml-org/llama.cpp
-              tag: server@sha256:14ab06c571008509adcedf635301edfa98071b1b8345269921d31ea4d519ae47
+              tag: server@sha256:bde659bfc300ee7d4d2e558e8a97e06211bc2bf079e31d22b61497f4f2cd85b1
             args:
               - --host
               - 0.0.0.0
