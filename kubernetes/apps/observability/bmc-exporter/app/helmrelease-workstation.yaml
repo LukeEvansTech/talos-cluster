@@ -40,7 +40,7 @@ spec:
     fullnameOverride: *app
     image:
       repository: ghcr.io/mrlhansen/idrac_exporter
-      tag: 2.6.1@sha256:2679bafcc31f87bce9f4dcd4d29df20b76aebd037b4df5f826a0ccc4027b0d59
+      tag: 2.6.2@sha256:1aceff5464db3a1a85e94303fb43e0e231b1f3bef2adfce06938f9886a184b51
     existingSecret: bmc-exporter-workstation-config
     deploymentAnnotations:
       reloader.stakater.com/auto: "true"
