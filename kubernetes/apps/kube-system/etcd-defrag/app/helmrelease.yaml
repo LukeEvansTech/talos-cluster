@@ -32,7 +32,7 @@ spec:
                 # by etcd-defrag" customManager in .renovaterc.json5, so it moves
                 # with the rest of the Talos pins instead of drifting. It had
                 # been left on v1.11.5 while the fleet ran v1.13.7.
-                wget -qO /usr/local/bin/talosctl https://github.com/siderolabs/talos/releases/download/v1.13.7/talosctl-linux-amd64
+                wget -qO /usr/local/bin/talosctl https://github.com/siderolabs/talos/releases/download/v1.13.8/talosctl-linux-amd64
                 chmod +x /usr/local/bin/talosctl
                 # Run defrag script
                 sh /scripts/defrag.sh
