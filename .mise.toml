@@ -32,7 +32,7 @@ run = "uv pip install -r requirements.txt"
 "aqua:budimanjojo/talhelper" = "3.1.15"
 # ≥1.52 required by the justfiles (default-list/default-script settings;
 # recipe_name() needs 1.53). Explicit pin so Renovate manages bumps.
-"aqua:casey/just" = "1.57.0"
+"aqua:casey/just" = "1.58.0"
 "aqua:charmbracelet/gum" = "latest"
 "aqua:cli/cli" = "2.97.0"
 "aqua:cloudflare/cloudflared" = "2026.7.3"
