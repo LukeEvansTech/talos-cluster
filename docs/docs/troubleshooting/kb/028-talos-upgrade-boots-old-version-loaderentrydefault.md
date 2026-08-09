@@ -1,6 +1,6 @@
 # KB-028: Talos Upgrade Installs Successfully but the Node Boots the Old Version (NVRAM Wipe → `LoaderEntryDefault`)
 
-**Status:** Fix proven on two nodes (v1.13.6 → v1.13.7). Trigger identified as the BIOS flash off the buggy line, not a Talos regression. Expect a recurrence on the next upgrade until a Talos boot entry is restored to `BootOrder`.
+**Status:** Fix proven on five nodes across two upgrades (v1.13.6 → v1.13.7, then v1.13.7 → v1.13.8, where all three needed it). The trigger is the BIOS flash off the buggy line, not a Talos regression. `BootOrder` turned out **not** to be the lever — see the section below — so recurrence depends entirely on whether `LoaderEntryDefault` comes back.
 
 ## Symptom
 
@@ -176,15 +176,65 @@ flux reconcile ks tuppr-upgrades -n system-upgrade --with-source=false
 
 If the install happens to leave only new-version UKIs on the ESP, the stale default matches nothing, systemd-boot falls back to newest, and that node boots the new version unaided. One of the three did exactly this. Do not conclude from one healthy node that the fleet is fine — check `bootedentry` on every node.
 
+On the v1.13.7 → v1.13.8 run, **none** of the three self-corrected. Plan for the workaround on every node until the `LoaderEntryDefault`-writer in open item 3 is identified.
+
+### The fix needs two boot cycles, not one
+
+Deleting `LoaderEntryDefault` and rebooting is not enough on its own. On all three nodes the first boot after the deletion **still came up on the old version**, then the node rebooted itself unprompted a few minutes later and came up on the new one.
+
+This matters because the obvious check — reading `bootedentry` as soon as the node is back — reports the old version and looks exactly like the fix having failed. It has not. Wait for the second boot before drawing any conclusion:
+
+```bash
+# Wait for the kubelet to report the target version rather than eyeballing the first boot
+until kubectl get node <node> -o jsonpath='{.status.nodeInfo.osImage}' | grep -q 'v1.13.8'; do sleep 20; done
+talosctl -n <node-ip> get bootedentry -o yaml   # only meaningful once the above returns
+```
+
+Budget roughly 15 minutes per node — two POST cycles on this hardware — rather than one.
+
 ### Do not fix it by repointing the default
 
 Setting `LoaderEntryDefault` to the new version — for example by pressing `d` in the systemd-boot menu over IPMI — boots the node correctly today but leaves a default set, which recreates this trap on the next upgrade. **Deleting** it is what restores correct behaviour.
 
+## `BootOrder` is not the lever it looks like
+
+The original open item 1 read "the real fix is to get a Talos UKI boot entry back into `BootOrder` so the firmware stops falling through to systemd-boot." That was based on a false premise, and the 2026-08-09 run disproved it. Recording the evidence so nobody spends a maintenance window on it.
+
+The entry was never missing. Every node has had it all along — it simply was not referenced by `BootOrder`:
+
+```text
+BootCurrent: 0002
+BootOrder: 0002
+Boot0000* Talos Linux UKI  HD(1,GPT,…)/\EFI\boot\BOOTX64.efi
+Boot0002* UEFI OS          HD(1,GPT,…)/\EFI\BOOT\BOOTX64.EFI
+```
+
+**Both entries point at the same file.** `Boot0000` is named "Talos Linux UKI" but its device path is the removable-media fallback `\EFI\boot\BOOTX64.efi` — systemd-boot — not a versioned UKI under `\EFI\Linux\`. Promoting it therefore changes nothing: the firmware hands control to systemd-boot either way, and systemd-boot picks the entry, so `LoaderEntryDefault` decides the boot no matter what `BootOrder` says.
+
+`BootOrder` was set to `0000,0002` on all three nodes anyway, since that matches what the installer intends when it logs `created Talos Linux UKI boot entry at index 0`, and it costs nothing. **It is not a fix**, and the node still booted via `Boot0002` afterwards. Do not treat it as one.
+
+This can be done in-cluster — no BIOS or IPMI needed. Same privileged-pod trick as the deletion, with `efibootmgr` instead of hand-written bytes:
+
+```yaml
+# containers[0]: image alpine:3.22, securityContext.privileged: true
+command:
+  - /bin/sh
+  - -c
+  - |
+    set -e
+    apk add --no-cache efibootmgr
+    mount -t efivarfs none /sys/firmware/efi/efivars
+    efibootmgr                    # inspect
+    efibootmgr -o 0000,0002       # keep 0002 second as the working fallback
+    umount /sys/firmware/efi/efivars
+```
+
+Because both entries resolve to the same loader, keeping `0002` in the list means the worst case is the behaviour you already had.
+
 ## Open items
 
-1. **The real fix is to get a Talos UKI boot entry back into `BootOrder`** so the firmware stops falling through to systemd-boot. Until then every upgrade needs the workaround. Worth doing from the BIOS boot menu in the next maintenance window.
-2. Because the workaround is applied after the fact, a tuppr-driven upgrade will always fail its first node and stop the batch. Budget for driving the rest by hand.
-3. Identify what writes `LoaderEntryDefault` at boot. It reappeared on one node after deletion and a plain reboot, so deleting it is not necessarily permanent.
+1. **Identify what writes `LoaderEntryDefault`.** This is the whole ballgame — it is the only variable that actually steers the boot here. After the v1.13.8 upgrade the variable is **absent on all three nodes**, which is the good state: with no default set, systemd-boot selects the newest UKI, so the next upgrade should boot correctly unaided. Read it before the next upgrade — if it has reappeared naming v1.13.8, the trap is armed again and the writer needs to be found.
+2. Because the workaround is applied after the fact, a tuppr-driven upgrade will always fail its first node and stop the batch. Budget for driving the rest by hand: fix the node, clear the CR, let tuppr re-plan, repeat. Three nodes took about an hour.
 
 ## References
 
