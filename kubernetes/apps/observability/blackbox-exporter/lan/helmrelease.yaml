@@ -63,13 +63,20 @@ spec:
         # exist to harvest expiry, not to validate trust; skip verification
         # for the device module only, keeping the stricter tls_connect for
         # the Traefik targets (where a broken chain IS worth failing on).
-        # 15s, not 5s: the H12-generation storage BMC holds an RSA-4096 key
+        # 30s, not 5s: the H12-generation storage BMC holds an RSA-4096 key
         # (the H13s carry ECDSA) and its BMC processor takes several seconds
         # for the private-key operation, so its handshake blows a 5s budget.
         # Probes run every 5m; a generous timeout costs nothing.
+        #
+        # This value is only half the setting — blackbox clamps it to the
+        # scrape timeout Prometheus sends in X-Prometheus-Scrape-Timeout-
+        # Seconds, minus a 0.5s offset. Against the 10s default that is 9.5s,
+        # so the 15s set here on 2026-08-02 never applied and the probe kept
+        # the 9.5s budget it was written to escape. The matching scrapeTimeout
+        # lives on the lan-tls-cert-device Probe; raise both or neither.
         tls_connect_noverify:
           prober: tcp
-          timeout: 15s
+          timeout: 30s
           tcp:
             tls: true
             preferred_ip_protocol: ip4
