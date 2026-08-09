@@ -185,11 +185,17 @@ spec:
         # SEL entries at warning or above, within the 7d window set in the
         # exporter config. The metric's value is the entry's creation timestamp,
         # so presence alone is the signal.
+        #
+        # PWR-0020 excluded: the BMC logs "First AC Power on" at Warning, but it
+        # is informational — every rack power-up emits one per node, which then
+        # pages for the whole 7d window. Four fired across the 2026-08-03
+        # maintenance and were still paging six days later. Scoped to the exact
+        # code rather than the PWR- prefix, which also carries real PSU faults.
         - alert: BmcEventLogWarning
           annotations:
             summary: "{{ $labels.instance }} logged a {{ $labels.severity }} hardware event: {{ $labels.message }}"
           expr: |-
-            idrac_events_log_entry{job=~"bmc-exporter.*"} > 0
+            idrac_events_log_entry{job=~"bmc-exporter.*", message!~".*PWR-0020.*"} > 0
           for: 5m
           labels:
             severity: warning
