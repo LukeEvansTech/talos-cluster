@@ -123,9 +123,23 @@ spec:
             envFrom:
               - secretRef:
                   name: imgur-proxy-secret
+            # Both probes are disabled, matching the gluetun sidecars in
+            # qbittorrent / sabnzbd / prowlarr. A kubelet probe on the health
+            # server restarts the *container*, but gluetun keeps the pod's
+            # network namespace across container restarts and re-appends its
+            # firewall rules on every start. One transient tunnel failure
+            # therefore becomes self-sustaining: probe 500 -> restart ->
+            # more accumulated netns state -> slower/failed start -> probe
+            # 500. This container sat in exactly that loop for 4+ days and
+            # 1352 restarts, ending in OOMKills against the limit below, and
+            # only a pod recreation could break it. gluetun's own internal
+            # healthcheck loop already restarts the *tunnel* in-process on
+            # failure, which recovers the same faults without touching the
+            # netns, so the kubelet probe adds a failure mode without adding
+            # a recovery path.
             probes:
               liveness:
-                enabled: true
+                enabled: false
                 custom: true
                 spec:
                   httpGet:
@@ -135,7 +149,7 @@ spec:
                   periodSeconds: 30
                   failureThreshold: 5
               startup:
-                enabled: true
+                enabled: false
                 custom: true
                 spec:
                   httpGet:
