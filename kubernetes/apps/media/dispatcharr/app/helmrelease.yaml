@@ -31,12 +31,17 @@ spec:
           app:
             image:
               repository: ghcr.io/dispatcharr/dispatcharr
-              tag: 0.28.2@sha256:ba0565a7c62019847dbdca1f7037074c25dfaa6d1cbaa7b8661ebd7617b6b6e0
+              tag: 0.29.0@sha256:3ce081119e5a4da3cf2f398719f35d0987bcf4067440454a34e3d36cd0ab3bbb
             env:
               TZ: ${TIMEZONE}
               DISPATCHARR_ENV: aio
               DISPATCHARR_LOG_LEVEL: info
               DISPATCHARR_PORT: &port 9191
+              # 0.29.0's get_client_ip trusts the RFC1918 ranges by default, so
+              # behind envoy every client resolved to the proxy pod IP (shared
+              # login-throttle bucket). Trust only the pod CIDR so the XFF walk
+              # stops at the real LAN client.
+              DISPATCHARR_TRUSTED_PROXIES: ${CLUSTER_PODS_CIDR}
               REDIS_HOST: dragonfly.database.svc.cluster.local
             envFrom:
               - secretRef:
@@ -82,6 +87,18 @@ spec:
         parentRefs:
           - name: envoy-internal
             namespace: network
+        rules:
+          - backendRefs:
+              - identifier: app
+                port: *port
+            # 0.29.0 prefers a client-supplied X-Real-IP over the XFF walk for
+            # throttling/ACLs/audit, and nothing on the uwsgi path strips it —
+            # drop it at the gateway so clients cannot spoof their identity.
+            filters:
+              - type: RequestHeaderModifier
+                requestHeaderModifier:
+                  remove:
+                    - "X-Real-IP"
     persistence:
       config:
         existingClaim: *app
