@@ -41,7 +41,7 @@ run = "uv pip install -r requirements.txt"
 # linters super-linter v8 bundles, so lefthook catches their findings locally
 # before CI. Versions pinned to match super-linter@9e863354 (v8): bumping
 # super-linter may require bumping these in lockstep to avoid local/CI drift.
-"aqua:editorconfig-checker/editorconfig-checker" = "3.10.0"
+"aqua:editorconfig-checker/editorconfig-checker" = "3.11.1"
 # The hook runner itself. It was referenced by .lefthook.toml and the comment
 # above long before it was ever a pinned tool, so `.git/hooks/` sat empty and
 # none of the "pre-commit" checks actually ran locally. Run `lefthook install`
