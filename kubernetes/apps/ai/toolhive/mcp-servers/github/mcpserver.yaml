@@ -5,7 +5,7 @@ kind: MCPServer
 metadata:
   name: github
 spec:
-  image: ghcr.io/github/github-mcp-server:latest@sha256:d5a18c04b92714c309eb46a2305087e91a4dbd80420f6e462656699f95093520
+  image: ghcr.io/github/github-mcp-server:latest@sha256:881b53d6f75f69bdbc1b5b10fc2f1361717c19054143b3a8529fb5c32061a50e
   transport: stdio
   proxyMode: streamable-http
   proxyPort: 8080
