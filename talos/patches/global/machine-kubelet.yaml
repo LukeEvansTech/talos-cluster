@@ -4,6 +4,9 @@ machine:
     extraConfig:
       maxPods: 250
       serializeImagePulls: false
+      maxParallelImagePulls: 3
+      crashLoopBackOff:
+        maxContainerRestartPeriod: 60s
       imageGCHighThresholdPercent: 55
       imageGCLowThresholdPercent: 50
       imageMaximumGCAge: 72h
