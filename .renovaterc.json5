@@ -6,7 +6,18 @@
   // :timezone(Europe/London), Copilot reviewers, suppressNotifications,
   // dependencies/security labels, and vulnerabilityAlerts — single source of
   // truth, so they are no longer duplicated here.
-  extends: ["github>LukeEvansTech/renovate-config"],
+  // Since renovate-presets 6.0.0 the app-specific presets are opt-in under
+  // apps/ (the base keeps only general-purpose rules), so the ones this
+  // cluster runs are extended here directly. phanpy is the only apps/ preset
+  // not deployed here.
+  extends: [
+    "github>LukeEvansTech/renovate-config",
+    "github>home-operations/renovate-presets//apps/cnpg.json5#7.0.0",
+    "github>home-operations/renovate-presets//apps/grafanaDashboards.json5#7.0.0",
+    "github>home-operations/renovate-presets//apps/llamacpp.json5#7.0.0",
+    "github>home-operations/renovate-presets//apps/searxng.json5#7.0.0",
+    "github>home-operations/renovate-presets//apps/talosFactory.json5#7.0.0",
+  ],
   // Assign manual PRs to me so they reach my GitHub "Participating" notifications.
   // assignAutomerge:false (the Renovate default, pinned here for clarity) means
   // auto-merge PRs are NOT assigned — so with the repo Watch set to
@@ -47,9 +58,12 @@
   },
 
   // --- Custom managers (from customManagers.json5 + grafanaDashboards.json5) ---
-  // OCI, CloudNative-PG imageName, and standard "# renovate:" annotated managers
-  // come from home-operations/renovate-presets. Only the managers the preset does
-  // not cover live here (Minecraft, homebridge date tags, GrafanaDashboard CRD).
+  // OCI and "# renovate:" annotated managers come from the renovate-presets
+  // base; CNPG imageName, Grafana download-URL, and Talos factory managers
+  // from the apps/ presets above. Only what no preset covers lives here:
+  // Minecraft, homebridge date tags, and this repo's GrafanaDashboard CRD
+  // layout (the preset's grafanaCom manager needs `id:` directly under
+  // `grafanaCom:`, but our files put the renovate comment between them).
   customManagers: [
     {
       customType: "regex",
@@ -440,12 +454,6 @@
       matchDatasources: ["docker"],
       matchManagers: ["helmfile"],
       overrideDepName: "{{packageName}}",
-    },
-    {
-      description: "Override Talos Installer Package Name",
-      matchDatasources: ["docker"],
-      matchPackageNames: ["/factory\\.talos\\.dev/"],
-      overridePackageName: "ghcr.io/siderolabs/installer",
     },
     {
       description: "Disable helm-values manager for homebridge (handled by custom regex manager with quotes)",
