@@ -64,7 +64,7 @@ run = "uv pip install -r requirements.txt"
 "aqua:zizmorcore/zizmor" = "1.29.0"
 "github:home-operations/flate" = "latest"
 "github:home-operations/yayamlls" = "latest"
-python = "3.14.6"
+python = "3.14.7"
 uv = "0.12.1"
 # Exact pins (not ranges): an in-range update is LOCKFILE-ONLY for Renovate,
 # and that artifact path fails on Mend hosted — the node/prettier
