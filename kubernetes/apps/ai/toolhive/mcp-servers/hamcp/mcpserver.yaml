@@ -1,0 +1,55 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/toolhive.stacklok.dev/mcpserver_v1alpha1.json
+apiVersion: toolhive.stacklok.dev/v1alpha1
+kind: MCPServer
+metadata:
+  name: hamcp
+spec:
+  # ha-mcp (github.com/homeassistant-ai/ha-mcp) run in its `ha-mcp-web` mode —
+  # native FastMCP streamable-http (endpoint /mcp), so LiteLLM talks to the
+  # mcp-hamcp Service directly like seerr, no proxy hop. The image's default
+  # entrypoint is the stdio variant, hence the command override below.
+  image: ghcr.io/homeassistant-ai/ha-mcp:8.0.0@sha256:d65630f6a3fd14d8f536c27432d4d2cf3045e6f6a2d196cba754ee8566491ae4
+  transport: streamable-http
+  mcpPort: 8080
+  env:
+    - name: FASTMCP_CHECK_FOR_UPDATES
+      value: "off"
+    - name: HA_MCP_CONFIG_DIR
+      value: /config
+    - name: HA_MCP_DISABLE_UPDATE_CHECK
+      value: "true"
+    - name: HOMEASSISTANT_URL
+      value: http://homeassistant.home.svc.cluster.local:8123
+    - name: MCP_HEALTHZ
+      value: "true"
+    - name: MCP_HOST
+      value: 0.0.0.0
+    - name: MCP_PORT
+      value: "8080"
+  secrets:
+    - name: toolhive-hamcp
+      key: HOMEASSISTANT_TOKEN
+      targetEnvName: HOMEASSISTANT_TOKEN
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 512Mi
+  telemetryConfigRef:
+    name: prometheus
+  groupRef:
+    name: mcp-tools
+  podTemplateSpec:
+    spec:
+      containers:
+        - name: mcp
+          command:
+            - "ha-mcp-web"
+          volumeMounts:
+            - name: config
+              mountPath: /config
+      volumes:
+        - name: config
+          emptyDir: {}
