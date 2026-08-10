@@ -20,7 +20,7 @@ spec:
           app:
             image:
               repository: ghcr.io/nesquena/hermes-webui
-              tag: 0.52.166@sha256:1969b24121842144103511d81802bceba03289bc58e9de10d9f77e97f0463ddf
+              tag: 0.52.193@sha256:cb032724b08e9744d6104cbbd006773cfbd54e4ddb1cf28c8c30ad2343d8d23e
             env:
               TZ: ${TIMEZONE}
               # Image already bakes 0.0.0.0:8787; kept explicit for clarity.
