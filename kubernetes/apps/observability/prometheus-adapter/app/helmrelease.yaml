@@ -11,6 +11,7 @@ spec:
     name: prometheus-adapter
   values:
     fullnameOverride: *app
+    logLevel: 1
     prometheus:
       url: http://prometheus-operated.observability.svc.cluster.local
       port: 9090
