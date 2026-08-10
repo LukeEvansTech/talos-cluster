@@ -24,6 +24,8 @@ spec:
       resources:
         limits:
           memory: 512Mi
+    groupSnapshots:
+      enabled: true
     monitoring:
       podMonitor:
         enabled: true
