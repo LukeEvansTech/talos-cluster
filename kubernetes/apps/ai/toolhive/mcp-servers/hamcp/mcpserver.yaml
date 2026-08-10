@@ -9,7 +9,7 @@ spec:
   # native FastMCP streamable-http (endpoint /mcp), so LiteLLM talks to the
   # mcp-hamcp Service directly like seerr, no proxy hop. The image's default
   # entrypoint is the stdio variant, hence the command override below.
-  image: ghcr.io/homeassistant-ai/ha-mcp:8.0.0@sha256:d65630f6a3fd14d8f536c27432d4d2cf3045e6f6a2d196cba754ee8566491ae4
+  image: ghcr.io/homeassistant-ai/ha-mcp:8.2.0@sha256:dbcfc0ee8ad02d2190ebde69e5cc6167175c79608bbf1d55cff9034e256face1
   transport: streamable-http
   mcpPort: 8080
   env:
