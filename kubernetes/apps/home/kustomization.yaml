@@ -11,6 +11,7 @@ resources:
   - ./netpol.yaml
   - ./esphome/ks.yaml
   - ./go2rtc/ks.yaml
+  - ./hamcp/ks.yaml
   - ./homeassistant/ks.yaml
   - ./homeassistanttimemachine/ks.yaml
   - ./homebridge/ks.yaml
