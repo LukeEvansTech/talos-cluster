@@ -6,6 +6,9 @@ metadata:
   name: homeassistant
 spec:
   interval: 1h
+  # HA cold-boots in 4-6 minutes and the readiness probe now gates the helm
+  # wait, so the default 5m timeout rolls the upgrade back mid-boot.
+  timeout: 10m
   chartRef:
     kind: OCIRepository
     name: homeassistant
