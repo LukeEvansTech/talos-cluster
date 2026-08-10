@@ -56,6 +56,32 @@ spec:
           tcp:
             tls: true
             preferred_ip_protocol: ip4
+        # Device management endpoints (BMCs, the UPS NMC) serve a chainless
+        # leaf — the Certwarden device deploy paths install only the server
+        # certificate, so Go's verifier has no intermediate to chain with and
+        # a verifying probe scores every device probe_success=0. These probes
+        # exist to harvest expiry, not to validate trust; skip verification
+        # for the device module only, keeping the stricter tls_connect for
+        # the Traefik targets (where a broken chain IS worth failing on).
+        # 30s, not 5s: the H12-generation storage BMC holds an RSA-4096 key
+        # (the H13s carry ECDSA) and its BMC processor takes several seconds
+        # for the private-key operation, so its handshake blows a 5s budget.
+        # Probes run every 5m; a generous timeout costs nothing.
+        #
+        # This value is only half the setting — blackbox clamps it to the
+        # scrape timeout Prometheus sends in X-Prometheus-Scrape-Timeout-
+        # Seconds, minus a 0.5s offset. Against the 10s default that is 9.5s,
+        # so the 15s set here on 2026-08-02 never applied and the probe kept
+        # the 9.5s budget it was written to escape. The matching scrapeTimeout
+        # lives on the lan-tls-cert-device Probe; raise both or neither.
+        tls_connect_noverify:
+          prober: tcp
+          timeout: 30s
+          tcp:
+            tls: true
+            preferred_ip_protocol: ip4
+            tls_config:
+              insecure_skip_verify: true
     serviceMonitor:
       enabled: true
       selfMonitor:
@@ -76,9 +102,9 @@ spec:
         # Added 2026-07-29 after an incident that was invisible for weeks. Two
         # hand-made Cloudflare DNS-01 tokens carried an IP allowlist that no
         # longer matched the home WAN address, so ACME renewal was dead on both
-        # the cr-nut and TrueNAS Traefik instances. It only came to light
-        # because a cr-nut rebuild destroyed its acme.json and forced an
-        # immediate re-issue; TrueNAS still held a cached certificate valid for
+        # non-cluster Traefik instances. It only came to light because a rebuild
+        # of one of them destroyed its acme.json and forced an immediate
+        # re-issue; TrueNAS still held a cached certificate valid for
         # another six weeks and would have failed silently at its renewal, with
         # nothing in the estate to say so until a browser threw a warning.
         #

@@ -26,7 +26,7 @@ spec:
           app:
             image:
               repository: docker.io/privatebin/nginx-fpm-alpine
-              tag: 2.0.5@sha256:91e3adf17da1c9e2715cb57ff22940a6644252a5488d9819a64eebbaf64cc58a
+              tag: 2.0.6@sha256:13290e2f04bfd98cf8fc7e8d216fb76b2b2d12373d4923b859cd41c2d984fde8
               pullPolicy: IfNotPresent
             env:
               TZ: ${TIMEZONE}

@@ -44,7 +44,7 @@ spec:
           app:
             image:
               repository: ghcr.io/gregtwallace/certwarden
-              tag: v0.29.6@sha256:b82b1f6028a2953898282268860d6e9a1e10bbd3bee0605ce157d62e286fecf4
+              tag: v0.29.7@sha256:10e39eb4fa6a849c5f31e7b92f87537fd4e60c47b55383b9232bc90e97497a1d
             env:
               # Add kubectl to PATH for post-processing scripts
               - name: PATH

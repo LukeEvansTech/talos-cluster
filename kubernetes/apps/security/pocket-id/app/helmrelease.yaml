@@ -34,14 +34,33 @@ spec:
           app:
             image:
               repository: ghcr.io/pocket-id/pocket-id
-              tag: v2.11.0@sha256:b7c37ab3044e53fd29b5f7295eebff5fdc0367dc043f36b41bcbe1815fcd965d
+              tag: v2.13.0@sha256:c9c1d7b70006968d673a1073df048a3fdec73ccb54e182320b56bb911340f6f1
             env:
               TZ: ${TIMEZONE}
               ALLOW_USER_SIGNUPS: "withToken" # Can be: disabled, withToken, open
               ANALYTICS_DISABLED: "true"
               APP_URL: "https://id.${SECRET_DOMAIN}"
               DB_PROVIDER: postgres
-              EMAILS_VERIFIED: "true"
+              # Verify email addresses for real rather than asserting them.
+              #
+              # EMAILS_VERIFIED (previously "true") is what a changed or newly
+              # signed-up address is set to, so with it on, a user editing their
+              # own account had any address they typed emitted as
+              # email_verified: true in OIDC claims without ever proving control
+              # of it. AllowOwnAccountEdit defaults to true and we do not
+              # override it, so that path was open to every account.
+              #
+              # EMAIL_VERIFICATION_ENABLED is a SEPARATE setting that also
+              # defaults to false, and it gates the "verify your email" prompt.
+              # Dropping EMAILS_VERIFIED without it would leave new and changed
+              # addresses permanently unverified with no way to verify them.
+              # Both are required; neither is sufficient alone.
+              #
+              # Not a lockout risk: EmailVerified feeds only the OIDC
+              # email_verified claim and is never used to gate login. Existing
+              # rows are untouched — the flag is written only at signup or on an
+              # email change.
+              EMAIL_VERIFICATION_ENABLED: "true"
               KEYS_STORAGE: database
               UI_CONFIG_DISABLED: "true"
               # TODO: Enable LDAP when Active Directory is configured

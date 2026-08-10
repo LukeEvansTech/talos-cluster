@@ -4,7 +4,11 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: database
 resources:
-  - https://raw.githubusercontent.com/cloudnative-pg/plugin-barman-cloud/v0.9.0/config/crd/bases/barmancloud.cnpg.io_objectstores.yaml
+  # Keep this pinned to the plugin version running in helmrelease.yaml. It had
+  # drifted to v0.9.0 while the plugin ran v0.14.0, which left
+  # useDefaultAzureCredentials, lz4 as a data.compression value, and
+  # restoreAdditionalCommandArgs missing from the installed schema.
+  - https://raw.githubusercontent.com/cloudnative-pg/plugin-barman-cloud/v0.14.0/config/crd/bases/barmancloud.cnpg.io_objectstores.yaml
   - issuer.yaml
   - certificate.yaml
   - rbac.yaml

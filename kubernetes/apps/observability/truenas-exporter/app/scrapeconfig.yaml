@@ -41,77 +41,92 @@ spec:
   metricRelabelings:
     - action: labelkeep
       regex: __name__|job|instance|name|status|health_status|container_label_cd_doco_metadata_manager
+# The NAS's node-exporter (:9100) and smartctl-exporter (:9633) are NOT scraped
+# from here. `truenas-node` and `truenas-smartctl` used to live at this point in
+# the file and were removed 2026-08-09: kube-prometheus-stack's own
+# scrapeconfig.yaml had been scraping both of those ports since long before,
+# under the `node-exporter` and `smartctl-exporter` job names, so every series
+# from this host arrived TWICE and every alert on it fired twice.
+#
+# The premise they were added on — "the NAS is the only Docker box in the estate
+# with no host metrics at all" — was simply wrong. It had them; they were just
+# under the cluster's job names rather than a truenas-* one.
+#
+# The duplication was not merely cosmetic. Only the truenas-node copy dropped
+# node_uname_info, so the unfiltered `node-exporter` copy kept publishing it and
+# the unscoped ceph-mixin rules went on adopting this host anyway — the drop
+# protected nothing while both existed. That drop now lives on the surviving
+# `node-exporter` ScrapeConfig, where it actually bites.
+#
+# Kept the cluster job names rather than the estate's `<box>-*` convention,
+# which is the one place this host deliberately differs from the seedbox and the
+# NUT appliance. Two reasons, both checked rather than assumed:
+#   - 22 default node alert rules select job="node-exporter" (filesystem fill,
+#     RAID degraded, bonding degraded, clock skew, systemd unit failed…). This
+#     is the box the whole estate depends on and it has a bond0; dropping all 22
+#     to gain a naming convention is a bad trade. None of them are firing on
+#     this host today, so they are not noisy either.
+#   - This app's OWN prometheusrule.yaml and truenas-zfs.json hardcode
+#     job="smartctl-exporter" in five places. Renaming would have silently
+#     blanked the drive-temperature alert and four dashboard panels.
+# Checked before deleting: nothing anywhere referenced truenas-node or
+# truenas-smartctl.
 ---
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/scrapeconfig_v1alpha1.json
 apiVersion: monitoring.coreos.com/v1alpha1
 kind: ScrapeConfig
 metadata:
-  name: &name truenas-node
+  name: &name truenas-traefik
 spec:
-  # node-exporter on the NAS (:9100) — CPU/memory/disk/network for the host
-  # itself. It has been RUNNING since the monitoring stack landed
-  # (truenas-apps apps/monitoring) but was never scraped, so the NAS was the
-  # only Docker box in the estate with no host metrics at all: the seedbox has
-  # seedbox-node and the NUT appliance has nut-appliance-node, and this one had
-  # nothing. The graphite bridge on :9108 carries TrueNAS's own ZFS/pool
-  # reporting, which is a different dataset and not a substitute.
+  # Traefik metrics entrypoint (:8082) — per-router/service request stats for
+  # the NAS dashboards and the Garage S3 routes, matching the seedbox-traefik
+  # job. Traefik always had --metrics.prometheus on this box, but until the
+  # 2026-07-30 fleet convergence (truenas-apps) there was no reachable metrics
+  # entrypoint to scrape.
   staticConfigs:
     - targets:
-        - ${SECRET_STORAGE_SERVER}:9100
+        # SECRET_STORAGE_INGRESS, not SECRET_STORAGE_SERVER: Traefik and doco-cd
+        # publish on the NAS's dedicated ingress alias address (the bind is the
+        # guard), not the primary address the host-network exporters answer on.
+        - ${SECRET_STORAGE_INGRESS}:8082
   metricsPath: /metrics
   scrapeInterval: 60s
   relabelings:
     - action: replace
       targetLabel: job
       replacement: *name
-  metricRelabelings:
-    # Load-bearing, not tidying — and it matters MORE here than anywhere else.
-    # Several ceph-mixin alerts ship with NO job selector and so adopt every
-    # node-exporter target in the cluster. CephNodeDiskspaceWarning joins
-    # through node_uname_info, then runs a 5-day predict_linear over every
-    # filesystem it finds. This host exposes 85 of them, so without this drop a
-    # single scrape would hand the ceph rules 85 new ZFS datasets to forecast.
-    # The seedbox and the NUT appliance drop it for the same reason.
-    #
-    # The other two unscoped ceph node alerts were checked against this box
-    # rather than assumed:
-    #   CephNodeRootFilesystemFull — keys on mountpoint="/", which here is a
-    #     17.1 GB filesystem at 0.6% used. Real, unlike FCOS's composefs, but
-    #     nowhere near any threshold.
-    #   CephNodeInconsistentMTU — compares each device against the cluster-wide
-    #     median for that device name.
-    - action: drop
-      sourceLabels:
-        - __name__
-      regex: node_uname_info
+    - action: replace
+      targetLabel: instance
+      replacement: truenas
 ---
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/scrapeconfig_v1alpha1.json
 apiVersion: monitoring.coreos.com/v1alpha1
 kind: ScrapeConfig
 metadata:
-  name: &name truenas-smartctl
+  name: &name truenas-doco-cd
 spec:
-  # smartctl-exporter on the NAS (:9633) — per-drive SMART health. Also already
-  # running and never scraped, which is the more serious of the two gaps: this
-  # is the box whose entire job is spinning disks, and it was the only one in
-  # the estate with no drive-health series in Prometheus.
+  # doco-cd's own metrics (:9120) — GitOps poll and deploy status for the NAS,
+  # matching the seedbox-doco-cd and nut-appliance-doco-cd jobs.
   #
-  # scrutiny (truenas-apps apps/scrutiny) has its own view of SMART, but it is a
-  # separate UI with its own store and does not feed Prometheus, so it cannot
-  # drive alerts or sit alongside the other boxes on a shared dashboard.
-  #
-  # Needs no rules of its own: the shared smartctl-exporter.rules carry no job
-  # selector, so this inherits smart_status / critical_warning / media_errors /
-  # available_spare / temperature for free — the same way the NUT appliance does.
+  # Strictly better than "the container is running", which the
+  # truenas-docker-exporter job already covers: doco_cd_polls_total is the
+  # signal that the repo is actually being polled. A doco-cd that is up but has
+  # stopped polling deploys nothing, and the box drifts from truenas-apps with
+  # no other symptom. Unlike the appliance, publishing the port IS
+  # GitOps-adjacent here — it lives in bootstrap/compose.yaml, applied by the
+  # NAS's hourly bootstrap cron rather than by doco-cd itself.
   staticConfigs:
     - targets:
-        - ${SECRET_STORAGE_SERVER}:9633
+        # SECRET_STORAGE_INGRESS, not SECRET_STORAGE_SERVER: Traefik and doco-cd
+        # publish on the NAS's dedicated ingress alias address (the bind is the
+        # guard), not the primary address the host-network exporters answer on.
+        - ${SECRET_STORAGE_INGRESS}:9120
   metricsPath: /metrics
-  # 300s, matching the seedbox and the NUT appliance: SMART attributes move on a
-  # timescale of days, so a 5x cheaper scrape loses nothing — and this host has
-  # far more drives than either of them.
-  scrapeInterval: 300s
+  scrapeInterval: 60s
   relabelings:
     - action: replace
       targetLabel: job
       replacement: *name
+    - action: replace
+      targetLabel: instance
+      replacement: truenas

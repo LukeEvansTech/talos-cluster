@@ -31,7 +31,7 @@ spec:
           model-download:
             image:
               repository: python
-              tag: 3.14-slim@sha256:cea0e6040540fb2b965b6e7fb5ffa00871e632eef63719f0ea54bca189ce14a6
+              tag: 3.14-slim@sha256:a7fb1e634c4a578f9e0bd6327f11a3cde11b7a9395f48e24360c0988bcc5c2bc
             command:
               - /bin/sh
               - -ec
@@ -60,7 +60,7 @@ spec:
           app:
             image:
               repository: ghcr.io/ggml-org/llama.cpp
-              tag: server@sha256:51570a4f93c5ce81ac6f2b1ea16a58771cfded2adb34241df7e75329b24fe76e
+              tag: server@sha256:2a8440d3aa0be70bf1d1824d2721fc5001616d46be4348b1c1b38fa30af4fe1c
             args:
               - --host
               - 0.0.0.0

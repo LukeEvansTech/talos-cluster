@@ -21,6 +21,13 @@ spec:
         - cr-node-06-ipmi.${SECRET_INTERNAL_DOMAIN}
         - cr-node-07-ipmi.${SECRET_INTERNAL_DOMAIN}
         - cr-node-08-ipmi.${SECRET_INTERNAL_DOMAIN}
+        # Storage BMC. The eight above are compute nodes; this one was simply
+        # never added, so the box holding the bulk data had no out-of-band
+        # liveness signal at all.
+        - cr-storage-ipmi.${SECRET_INTERNAL_DOMAIN}
+        # Firewall BMC (named 2026-08-02 after the WAN outage; the device that
+        # matters most in a recovery previously had no OOB liveness signal).
+        - cr-fw-ipmi.${SECRET_INTERNAL_DOMAIN}
   metricRelabelings:
     - action: replace
       replacement: blackbox-exporter-lan
@@ -73,12 +80,77 @@ spec:
         # acme.json, so in principle one target would do — they are listed
         # individually because a per-host issuance failure is exactly the kind
         # of partial breakage a single sampled target would hide.
-        - traefik-nas.${SECRET_DOMAIN}:443
+        #
+        # This list is hand-maintained and WILL drift: traefik-nas was removed
+        # on 2026-07-30 after truenas-apps#34 retired that hostname, which left
+        # this probe paging LanProbeFailed against a name external-dns had
+        # already deleted. If a NAS hostname is added or retired there, change
+        # it here too.
         - dozzle.${SECRET_DOMAIN}:443
         - garage-nas.${SECRET_DOMAIN}:443
         - s3-nas.${SECRET_DOMAIN}:443
         - scrutiny-nas.${SECRET_DOMAIN}:443
         - syncthing.${SECRET_DOMAIN}:443
+        # Main UPS NMC3 — Certwarden deploys via apc-p15-tool, which embeds
+        # the full chain in the p15, so this device verifies cleanly and
+        # belongs on the strict probe (unlike the BMCs below). First
+        # successful deployment 2026-08-02; the name resolves via an Unbound
+        # host override (network-ops) shadowing a stale public record.
+        - cr-ups-main.${SECRET_DOMAIN}:443
+  metricRelabelings:
+    - action: replace
+      replacement: blackbox-exporter-lan
+      targetLabel: service
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/probe_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: Probe
+metadata:
+  name: lan-tls-cert-device
+spec:
+  # Certificate expiry for device management endpoints whose certificates
+  # Certwarden renews and pushes via deploy Jobs — a chain with two failure
+  # modes seen in production: the Job fails outright (CertDeployJobFailed
+  # covers that, but only for ~5 minutes per failure), and the upload
+  # "succeeds" while the device keeps serving the old certificate until
+  # reboot. Probing what the socket actually serves catches both, weeks
+  # before expiry. One BMC served an expired certificate for 3.5 months
+  # with nothing anywhere to say so — these targets close that gap.
+  #
+  # Separate Probe from lan-tls-cert because these BMCs serve a chainless
+  # leaf, and that is a FIRMWARE constraint, not a deploy-tool choice:
+  # verified live 2026-08-02 on H13 fw 01.05.09, the OEM SmcSSLCert.Upload
+  # rejects any multi-cert PEM and the standard ReplaceCertificate only
+  # pairs with its own GenerateCSR flow (full evidence in the
+  # supermicro-ipmi-cert container source). The verifying tls_connect
+  # module therefore can never pass here — see tls_connect_noverify in the
+  # HelmRelease. Same jobName, so dashboards and the expiry alerts treat
+  # both probes as one fleet.
+  jobName: tls_cert
+  interval: 5m
+  # Without this the scrape timeout defaults to 10s, and blackbox clamps its
+  # own module timeout to that minus 0.5s — so the module's 30s became 9.5s
+  # and the storage BMC failed ~83% of scrapes for a week while serving its
+  # certificate perfectly. Measured handshakes on that BMC: 1-3s warm, but
+  # 6.6s, 15s and 20s on the first connection after an idle gap, which is
+  # every scrape at a 5m interval. Keep this above the module timeout.
+  scrapeTimeout: 35s
+  module: tls_connect_noverify
+  prober:
+    url: blackbox-exporter-lan.observability.svc.cluster.local:9115
+  targets:
+    staticConfig:
+      static:
+        # Supermicro BMCs.
+        - cr-node-01-ipmi.${SECRET_INTERNAL_DOMAIN}:443
+        - cr-node-02-ipmi.${SECRET_INTERNAL_DOMAIN}:443
+        - cr-node-03-ipmi.${SECRET_INTERNAL_DOMAIN}:443
+        - cr-node-04-ipmi.${SECRET_INTERNAL_DOMAIN}:443
+        - cr-node-05-ipmi.${SECRET_INTERNAL_DOMAIN}:443
+        - cr-node-06-ipmi.${SECRET_INTERNAL_DOMAIN}:443
+        - cr-node-07-ipmi.${SECRET_INTERNAL_DOMAIN}:443
+        - cr-node-08-ipmi.${SECRET_INTERNAL_DOMAIN}:443
+        - cr-storage-ipmi.${SECRET_INTERNAL_DOMAIN}:443
   metricRelabelings:
     - action: replace
       replacement: blackbox-exporter-lan

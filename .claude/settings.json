@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c '[ \"$CLAUDE_CODE_REMOTE\" = true ] && [ -x /opt/claude-cloud-env/session-start.sh ] && bash /opt/claude-cloud-env/session-start.sh || true'",
+            "timeout": 300
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,7 +1,8 @@
 # KB-020: App Returns 404 Through the Gateway (HTTPRoute Drifted to Placeholder Hostnames)
 
-**Status:** Rare and self-correcting; fixed per-app with a one-liner. Structural fix
-**deliberately declined** (see end). If it recurs, just remediate. Don't re-investigate.
+**Status:** Structurally fixed 2026-08-03: the placeholder Secret now carries
+`kustomize.toolkit.fluxcd.io/ssa: IfNotPresent`, so the race below can no longer recur.
+Objects that drifted *before* the fix stay drifted until remediated per-app (see Fix).
 
 ## Symptom
 
@@ -74,14 +75,31 @@ kubectl get httproute -A -o json | jq -r '.items[]
 
   and confirm the body is **not** `Error 404: Not Found`.
 
-## Why no structural fix
+## Structural fix (shipped 2026-08-03)
 
-Decided not to fix structurally: the race is rare (a handful of apps in the cluster's lifetime,
-only at first render before ESO syncs), well understood, and self-corrects in the HelmRelease
-values. Only already-rendered live objects stay drifted, and the delete+recreate one-liner
-clears those. Options considered and declined: global `driftDetection.mode: enabled` (would
-fight the zeroscaler HPAs), a self-healing CronJob guard, splitting `cluster-secrets` into its own
-`dependsOn`-gated Kustomization (the only complete fix, too invasive), and hardcoding the domain
+The race was originally left in place as "rare, first render only". That aged badly: the
+placeholder was not applied once at first render, it was re-applied on **every**
+kustomize-controller reconcile (managedFields showed kustomize-controller writing the
+placeholder and ESO overwriting it one second later, hourly). Each reconcile reopened the
+window, and on 2026-07-30 the giteamirror route rendered `example.com` mid-reconcile (the
+helm upgrade that wrote it died with "context canceled") and stayed drifted for four days.
+
+The fix is one annotation on the placeholder Secret in
+`kubernetes/components/global-vars/cluster-secrets.yaml`:
+
+```yaml
+kustomize.toolkit.fluxcd.io/ssa: IfNotPresent
+```
+
+kustomize-controller now creates the Secret only when it does not exist (bootstrap), and
+never again overwrites the ESO-managed real values. CI rendering (flate/Konflate) is
+unaffected: both read the git file, not the live object. Trade-off: a key added to the
+placeholder file after bootstrap reaches only CI rendering; the live value must land in
+the `cluster-secrets` 1Password item, which was already the required workflow.
+
+Options considered earlier and declined: global `driftDetection.mode: enabled` (would
+fight the zeroscaler HPAs), a self-healing CronJob guard, splitting `cluster-secrets` into
+its own `dependsOn`-gated Kustomization (complete but invasive), and hardcoding the domain
 literally (only patches the domain symptom, not the general race).
 
 ## References

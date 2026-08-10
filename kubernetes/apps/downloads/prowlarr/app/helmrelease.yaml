@@ -21,7 +21,7 @@ spec:
           gluetun:
             image:
               repository: ghcr.io/qdm12/gluetun
-              tag: v3.41.2@sha256:280809bc6900ed06d6529ad246499103efb31fd80c6327cbfaf90de0b17c3a99
+              tag: v3.41.3@sha256:fa19cc76b2af13d57a8d3dc3066f2ada061b1c761b8aecf989b3877c0486e027
             env:
               # BLOCK_MALICIOUS: off # save 300MB of RAM; https://github.com/qdm12/gluetun/issues/2054
               DOT: "on"
@@ -98,7 +98,7 @@ spec:
           app:
             image:
               repository: ghcr.io/home-operations/prowlarr
-              tag: 2.6.0.5494@sha256:f2db7fc93c2c26476de74695b565bfced0f39255cdba30fedf6d1ec45789f818
+              tag: 2.6.1.5509@sha256:ce5d6bdd5be6529f503df77aa9d2bad20239031d7c660406e8fb1c6d621dd020
             env:
               TZ: ${TIMEZONE}
               PROWLARR__APP__INSTANCENAME: Prowlarr

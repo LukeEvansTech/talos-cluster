@@ -25,7 +25,7 @@ spec:
               # `-noble-full` is the variant upstream ships as :latest (identical
               # digest). Renovate's docker versioning pins updates to the same
               # suffix family, so this tracks v0.144.x-noble-full only.
-              tag: v0.144.1-noble-full@sha256:25440767192b0d4a0709f50388d14cdf365ba6bff59d04e40a41ca2b7b9a6b70
+              tag: v0.144.1-noble-full@sha256:8bb29091d17b141ed6c2ae3d5cfaafbbb91420ff77e5bafd341518e205c91731
             env:
               TZ: ${TIMEZONE}
               # Scrypted serves the SAME app over HTTPS (10443, self-signed) and

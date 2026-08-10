@@ -54,6 +54,95 @@ spec:
                 memory: 1Gi
               limits:
                 memory: 2Gi
+
+          # Counts kopia's index blobs and serves them for Prometheus. It lives
+          # here as a sidecar rather than as its own app purely because this pod
+          # already mounts the repository; it does not talk to the kopia server
+          # process at all, it only walks the filesystem.
+          #
+          # Kopia warns "too many index blobs" and degrades once these pile up,
+          # but exposes no metrics endpoint of its own, so the number existed
+          # only in the maintenance job's log output and nothing could alert on
+          # it. Layout, confirmed against the live repository:
+          #   xn* uncompacted epoch indexes  <- the ones that pile up
+          #   xs* single-epoch compacted
+          #   xr* range-compacted
+          # Split by kind rather than summed because a rising total is only
+          # worth paging on when it is the uncompacted set doing the rising —
+          # that is the signal that compaction is losing to snapshot creation.
+          #
+          # Counted on a slow loop and cached, NOT per scrape: this is a walk
+          # over an NFS export shared with every backup in the estate.
+          index-exporter:
+            image:
+              repository: docker.io/library/busybox
+              tag: 1.38.0@sha256:dc2d74b28e4cf8984fa52af1f39bc7c3d9c73760b41a74d629f5d11b1ab28616
+            command:
+              - /bin/sh
+              - -c
+              - |
+                set -eu
+                # Every shell variable reference in this script is doubled in
+                # the source manifest so Flux postBuild emits a single one.
+                # Left undoubled, envsubst either blanks the expansion or fails
+                # the build on a name it cannot parse. Blanking is the dangerous
+                # case: it would emit an empty kind label and a count of zero
+                # forever, giving a monitor that looks healthy and can never
+                # fire. Check the rendered output, not just the source, after
+                # editing this block.
+                M=kopia_repo_index_blobs
+                # arg 1 = blob prefix under /repository, arg 2 = metric label
+                emit() {
+                  n=$$(find /repository/x$$1[0-9] -type f 2>/dev/null | wc -l)
+                  echo "$$M{kind=\"$$2\"} $$n"
+                }
+                # Served as .txt, not .prom, and that extension is load-bearing:
+                # busybox httpd sets Content-Type from a built-in table that
+                # knows .txt (text/plain) but not .prom, and Prometheus 3
+                # refuses a target "sending blank Content-Type" unless a
+                # fallback_scrape_protocol is set — which this operator's
+                # ServiceMonitor CRD does not expose. Renaming to .prom marks
+                # the target down.
+                #
+                # Write atomically so a scrape never reads a half-built file.
+                collect() {
+                  {
+                    echo "# HELP $$M Index blobs in the kopia repository."
+                    echo "# TYPE $$M gauge"
+                    emit n uncompacted
+                    emit s single_epoch
+                    emit r range
+                  } > /metrics/.metrics.txt
+                  mv /metrics/.metrics.txt /metrics/metrics.txt
+                }
+                collect
+                while true; do sleep 900; collect; done &
+                exec httpd -f -v -p 9101 -h /metrics
+            probes:
+              liveness:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /metrics.txt
+                    port: 9101
+                  initialDelaySeconds: 15
+                  periodSeconds: 60
+                  failureThreshold: 3
+              readiness:
+                enabled: false
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop:
+                  - ALL
+            resources:
+              requests:
+                cpu: 10m
+                memory: 32Mi
+              limits:
+                memory: 64Mi
     defaultPodOptions:
       securityContext:
         runAsNonRoot: true
@@ -67,6 +156,8 @@ spec:
         ports:
           http:
             port: *port
+          metrics:
+            port: &metricsPort 9101
     route:
       app:
         parentRefs:
@@ -105,8 +196,22 @@ spec:
         type: nfs
         server: ${SECRET_STORAGE_SERVER:-localhost}
         path: ${SECRET_STORAGE_SERVER_VOLSYNC_NFS:-/tmp}
-        globalMounts:
-          - path: /repository
+        # advancedMounts rather than globalMounts so the exporter gets the
+        # repository read-only. It only ever counts files, and nothing that
+        # merely observes the backup repository should be able to write to it.
+        advancedMounts:
+          kopia:
+            app:
+              - path: /repository
+            index-exporter:
+              - path: /repository
+                readOnly: true
+      metrics:
+        type: emptyDir
+        advancedMounts:
+          kopia:
+            index-exporter:
+              - path: /metrics
       tmpfs:
         type: emptyDir
         advancedMounts:

@@ -5,14 +5,56 @@ kind: ScrapeConfig
 metadata:
   name: &name node-exporter
 spec:
+  # node-exporter on the NAS (:9100). The cluster's own three nodes come from a
+  # ServiceMonitor under this same job name; this ScrapeConfig adds only the NAS,
+  # which is why it can carry a metricRelabelings block without touching them.
+  #
+  # Keeping the NAS under the cluster's job name rather than a truenas-* one is
+  # deliberate — 22 default node alert rules select job="node-exporter"
+  # (filesystem fill, RAID degraded, bonding degraded, clock skew, systemd unit
+  # failed…) and this is the box everything else depends on. See
+  # truenas-exporter/app/scrapeconfig.yaml for the full reasoning and for what
+  # was removed there.
   staticConfigs:
     - targets:
         - ${SECRET_STORAGE_SERVER}:9100
   metricsPath: /metrics
+  # 60s: host metrics on a box that is not a cluster node do not need the
+  # cluster's default cadence.
+  scrapeInterval: 60s
   relabelings:
     - action: replace
       targetLabel: job
       replacement: *name
+  metricRelabelings:
+    # Load-bearing, not tidying. Several ceph-mixin alerts ship with NO job
+    # selector and so adopt every node-exporter target in the cluster.
+    # CephNodeDiskspaceWarning joins through node_uname_info, then runs a 5-day
+    # predict_linear over every filesystem it finds. This host exposes ~89 of
+    # them, so without this drop a single scrape hands the ceph rules ~89 ZFS
+    # datasets to forecast. The seedbox and the NUT appliance drop it for the
+    # same reason.
+    #
+    # This drop existed on the (now removed) duplicate truenas-node ScrapeConfig
+    # and was completely ineffective there, because THIS job was publishing
+    # node_uname_info for the same host all along. Measured before the fix: the
+    # ceph join returned 178 filesystem series for this host — 89 from each copy.
+    #
+    # Verified that no default node rule needs it: of the 22 alert rules
+    # selecting job="node-exporter", ZERO join through node_uname_info, so the
+    # drop costs this host nothing and starves only the unscoped ceph rules.
+    #
+    # The other two unscoped ceph node alerts were checked against this box
+    # rather than assumed:
+    #   CephNodeRootFilesystemFull — keys on mountpoint="/", which here is a
+    #     17.1 GB filesystem at 0.6% used. Real, unlike FCOS's composefs, but
+    #     nowhere near any threshold.
+    #   CephNodeInconsistentMTU — compares each device against the cluster-wide
+    #     median for that device name.
+    - action: drop
+      sourceLabels:
+        - __name__
+      regex: node_uname_info
 ---
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/scrapeconfig_v1alpha1.json
 apiVersion: monitoring.coreos.com/v1alpha1
@@ -20,10 +62,23 @@ kind: ScrapeConfig
 metadata:
   name: &name smartctl-exporter
 spec:
+  # smartctl-exporter on the NAS (:9633) — per-drive SMART health. As above, the
+  # cluster's own nodes arrive under this job from a ServiceMonitor and this adds
+  # only the NAS.
+  #
+  # This job name is load-bearing: truenas-exporter's prometheusrule.yaml and
+  # truenas-zfs.json hardcode job="smartctl-exporter" in five places, so the
+  # drive-temperature alert and four dashboard panels depend on the NAS's drives
+  # arriving under it. A duplicate truenas-smartctl ScrapeConfig was removed on
+  # 2026-08-09; this is the copy that was always feeding them.
   staticConfigs:
     - targets:
         - ${SECRET_STORAGE_SERVER}:9633
   metricsPath: /metrics
+  # 300s, matching the seedbox and the NUT appliance: SMART attributes move on a
+  # timescale of days, so a 5x cheaper scrape loses nothing — and this host has
+  # far more drives than either of them.
+  scrapeInterval: 300s
   relabelings:
     - action: replace
       targetLabel: job

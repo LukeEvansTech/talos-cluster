@@ -1,0 +1,201 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
+#
+# All idrac_*_health metrics are an enum, not a boolean: 0=OK, 1=Warning,
+# 2=Critical. Hence `> 0` throughout rather than `== 1`, so a jump straight to
+# Critical is never missed.
+#
+# Temperature thresholds are split by sensor class, from `max by (name)` across
+# the whole running fleet rather than one sampled host: CPU Temp 77C, AOC_NIC1
+# 68C, MLP_NIC 66C, GPU0 63C, M2_SSD 53C, and every remaining rail at or below
+# 49C. A single fleet-wide threshold cannot fit that spread — 80C would sit 3C
+# off a normal CPU while letting a NIC reach 79C unnoticed.
+#
+# Job matchers: `job=~"bmc-exporter.*"` covers both exporter deployments and is
+# the default here. Only BmcHostPoweredOff pins job="bmc-exporter" exactly, to
+# exclude the workstation — see the comment on that rule.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: bmc-exporter.rules
+spec:
+  groups:
+    - name: bmc-exporter.rules
+      rules:
+        # Covers both the exporter process dying and a single BMC becoming
+        # unreachable or rejecting the login. It cannot distinguish those, which
+        # is exactly why the ICMP probes in blackbox-exporter were kept: a BMC
+        # that is down there too is a network/BMC fault, one that is up there but
+        # down here is credentials, TLS or firmware.
+        - alert: BmcTargetDown
+          annotations:
+            summary: "Redfish scrape of {{ $labels.instance }} is failing — check the ICMP probe for the same host to tell a dead BMC from a broken login."
+          expr: |-
+            up{job=~"bmc-exporter.*"} == 0
+          for: 15m
+          labels:
+            severity: critical
+        # The gap this whole exporter exists to close: a BMC answers ICMP
+        # identically whether its host is running or powered off.
+        #
+        # This is the one rule pinned to job="bmc-exporter" exactly rather than
+        # the job=~"bmc-exporter.*" used everywhere else. The workstation is
+        # scraped by its own deployment under job="bmc-exporter-workstation"
+        # solely so this exact-match excludes it: a desk machine is off most of
+        # the time and would otherwise page on every shutdown. It stays covered
+        # by every other rule here. See helmrelease-workstation.yaml.
+        # Gated on the host having been ON within the last 24h: an unexpected
+        # power-off pages within 15m and keeps paging for a day, then the host
+        # is treated as deliberately parked and the alert self-silences. This is
+        # what stops the retired-firewall sled and the cold spare — off for good
+        # since the 2026-07-30 migration — from paging forever, without keeping
+        # a hostname list here (this repo is public) that would drift anyway.
+        - alert: BmcHostPoweredOff
+          annotations:
+            summary: "Host behind {{ $labels.instance }} is powered off (was on within 24h)."
+          expr: |-
+            idrac_system_power_on{job="bmc-exporter"} == 0
+            and
+            max_over_time(idrac_system_power_on{job="bmc-exporter"}[24h]) == 1
+          for: 15m
+          labels:
+            severity: warning
+        - alert: BmcSystemUnhealthy
+          annotations:
+            summary: "{{ $labels.instance }} reports system health {{ $labels.status }} — check the BMC event log."
+          expr: |-
+            idrac_system_health{job=~"bmc-exporter.*"} > 0
+          for: 15m
+          labels:
+            severity: warning
+        - alert: BmcPowerSupplyUnhealthy
+          annotations:
+            summary: "PSU {{ $labels.id }} on {{ $labels.instance }} reports {{ $labels.status }}."
+          expr: |-
+            idrac_power_supply_health{job=~"bmc-exporter.*"} > 0
+          for: 15m
+          labels:
+            severity: warning
+        # Redundancy lost rather than the PSU itself faulting: the module is
+        # healthy but its feed is gone, which is what a tripped breaker or a
+        # pulled cable looks like. Both PSUs read ~237V in normal service.
+        - alert: BmcPowerSupplyInputLost
+          annotations:
+            summary: "PSU {{ $labels.id }} on {{ $labels.instance }} has lost input voltage — the host is running unprotected on its remaining supply."
+          expr: |-
+            idrac_power_supply_input_voltage{job=~"bmc-exporter.*"} == 0
+          for: 5m
+          labels:
+            severity: critical
+        - alert: BmcFanUnhealthy
+          annotations:
+            summary: "Fan {{ $labels.name }} on {{ $labels.instance }} reports {{ $labels.status }}."
+          expr: |-
+            idrac_sensors_fan_health{job=~"bmc-exporter.*"} > 0
+          for: 10m
+          labels:
+            severity: warning
+        # Guarded on power state so a deliberate shutdown does not read as a
+        # stopped fan. A powered-off host drops its sensor series entirely, but
+        # the guard also covers the window while it is spinning down.
+        - alert: BmcFanStopped
+          annotations:
+            summary: "Fan {{ $labels.name }} on {{ $labels.instance }} has stopped while the host is running."
+          expr: |-
+            idrac_sensors_fan_speed{job=~"bmc-exporter.*"} == 0
+            and on (instance) idrac_system_power_on{job=~"bmc-exporter.*"} == 1
+          for: 10m
+          labels:
+            severity: critical
+        # CPU packages get their own band. Measured across the running fleet,
+        # CPU Temp peaks at 77C while the next hottest sensor of any kind is a
+        # NIC at 68C and everything else sits at or below 53C — so one blanket
+        # threshold cannot serve both. The matcher is `CPU[0-9]* Temp` rather
+        # than a `CPU` prefix so it covers a second socket ("CPU1 Temp") without
+        # catching the much cooler "CPU_VRM0 Temp" / "SOC_VRM Temp" rails.
+        - alert: BmcCpuTemperatureHigh
+          annotations:
+            summary: "{{ $labels.name }} on {{ $labels.instance }} is at {{ $value }}C."
+          expr: |-
+            idrac_sensors_temperature{job=~"bmc-exporter.*", name=~"CPU[0-9]* Temp"} > 90
+            and idrac_sensors_temperature{job=~"bmc-exporter.*", name=~"CPU[0-9]* Temp"} <= 95
+          for: 15m
+          labels:
+            severity: warning
+        - alert: BmcCpuTemperatureCritical
+          annotations:
+            summary: "{{ $labels.name }} on {{ $labels.instance }} is at {{ $value }}C — thermal shutdown territory."
+          expr: |-
+            idrac_sensors_temperature{job=~"bmc-exporter.*", name=~"CPU[0-9]* Temp"} > 95
+          for: 5m
+          labels:
+            severity: critical
+        # Everything that is not a CPU package: NICs, GPUs, VRMs, DIMMs, SSDs,
+        # inlet and board sensors. The hottest of these runs at 68C, so 80C is
+        # ~12C of headroom rather than the ~3C a single fleet-wide threshold
+        # would have left on the CPUs.
+        - alert: BmcTemperatureHigh
+          annotations:
+            summary: "{{ $labels.name }} on {{ $labels.instance }} is at {{ $value }}C."
+          expr: |-
+            idrac_sensors_temperature{job=~"bmc-exporter.*", name!~"CPU[0-9]* Temp"} > 80
+            and idrac_sensors_temperature{job=~"bmc-exporter.*", name!~"CPU[0-9]* Temp"} <= 90
+          for: 15m
+          labels:
+            severity: warning
+        # Bounded away from the warning above because this Alertmanager has no
+        # inhibit_rules — an unbounded warning would page a second time for the
+        # same sensor alongside the critical.
+        - alert: BmcTemperatureCritical
+          annotations:
+            summary: "{{ $labels.name }} on {{ $labels.instance }} is at {{ $value }}C — thermal shutdown territory."
+          expr: |-
+            idrac_sensors_temperature{job=~"bmc-exporter.*", name!~"CPU[0-9]* Temp"} > 90
+          for: 5m
+          labels:
+            severity: critical
+        # Correctable ECC errors degrade a DIMM's health long before it fails
+        # outright, and nothing else in the estate can see this.
+        - alert: BmcMemoryModuleUnhealthy
+          annotations:
+            summary: "DIMM {{ $labels.id }} on {{ $labels.instance }} reports {{ $labels.status }} — likely ECC errors."
+          expr: |-
+            idrac_memory_module_health{job=~"bmc-exporter.*"} > 0
+          for: 15m
+          labels:
+            severity: warning
+        - alert: BmcCpuUnhealthy
+          annotations:
+            summary: "CPU {{ $labels.id }} on {{ $labels.instance }} reports {{ $labels.status }}."
+          expr: |-
+            idrac_cpu_health{job=~"bmc-exporter.*"} > 0
+          for: 15m
+          labels:
+            severity: warning
+        # The BMC reporting on itself. Long `for` because a firmware update or a
+        # BMC reset trips this briefly and resolves on its own.
+        - alert: BmcManagerUnhealthy
+          annotations:
+            summary: "BMC {{ $labels.instance }} reports its own health as {{ $labels.status }}."
+          expr: |-
+            idrac_manager_health{job=~"bmc-exporter.*"} > 0
+          for: 30m
+          labels:
+            severity: warning
+        # SEL entries at warning or above, within the 7d window set in the
+        # exporter config. The metric's value is the entry's creation timestamp,
+        # so presence alone is the signal.
+        #
+        # PWR-0020 excluded: the BMC logs "First AC Power on" at Warning, but it
+        # is informational — every rack power-up emits one per node, which then
+        # pages for the whole 7d window. Four fired across the 2026-08-03
+        # maintenance and were still paging six days later. Scoped to the exact
+        # code rather than the PWR- prefix, which also carries real PSU faults.
+        - alert: BmcEventLogWarning
+          annotations:
+            summary: "{{ $labels.instance }} logged a {{ $labels.severity }} hardware event: {{ $labels.message }}"
+          expr: |-
+            idrac_events_log_entry{job=~"bmc-exporter.*", message!~".*PWR-0020.*"} > 0
+          for: 5m
+          labels:
+            severity: warning

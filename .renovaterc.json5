@@ -6,7 +6,18 @@
   // :timezone(Europe/London), Copilot reviewers, suppressNotifications,
   // dependencies/security labels, and vulnerabilityAlerts — single source of
   // truth, so they are no longer duplicated here.
-  extends: ["github>LukeEvansTech/renovate-config"],
+  // Since renovate-presets 6.0.0 the app-specific presets are opt-in under
+  // apps/ (the base keeps only general-purpose rules), so the ones this
+  // cluster runs are extended here directly. phanpy is the only apps/ preset
+  // not deployed here.
+  extends: [
+    "github>LukeEvansTech/renovate-config",
+    "github>home-operations/renovate-presets//apps/cnpg.json5#7.0.0",
+    "github>home-operations/renovate-presets//apps/grafanaDashboards.json5#7.0.0",
+    "github>home-operations/renovate-presets//apps/llamacpp.json5#7.0.0",
+    "github>home-operations/renovate-presets//apps/searxng.json5#7.0.0",
+    "github>home-operations/renovate-presets//apps/talosFactory.json5#7.0.0",
+  ],
   // Assign manual PRs to me so they reach my GitHub "Participating" notifications.
   // assignAutomerge:false (the Renovate default, pinned here for clarity) means
   // auto-merge PRs are NOT assigned — so with the repo Watch set to
@@ -47,10 +58,29 @@
   },
 
   // --- Custom managers (from customManagers.json5 + grafanaDashboards.json5) ---
-  // OCI, CloudNative-PG imageName, and standard "# renovate:" annotated managers
-  // come from home-operations/renovate-presets. Only the managers the preset does
-  // not cover live here (Minecraft, homebridge date tags, GrafanaDashboard CRD).
+  // OCI and "# renovate:" annotated managers come from the renovate-presets
+  // base; CNPG imageName, Grafana download-URL, and Talos factory managers
+  // from the apps/ presets above. Only what no preset covers lives here:
+  // Minecraft, homebridge date tags, and this repo's GrafanaDashboard CRD
+  // layout (the preset's grafanaCom manager needs `id:` directly under
+  // `grafanaCom:`, but our files put the renovate comment between them).
   customManagers: [
+    {
+      customType: "regex",
+      // etcd-defrag fetches talosctl with a plain wget inside an inline shell
+      // script, which no built-in manager sees, so the pin silently drifted:
+      // it sat on v1.11.5 while every other Talos pin in the repo had moved to
+      // v1.13.7. Tracking it here keeps the client in step with the nodes it
+      // talks to, and because the package name is siderolabs/talos it joins the
+      // Talos group rather than arriving as its own PR.
+      description: "Track the talosctl binary fetched by etcd-defrag",
+      managerFilePatterns: ["/(^|/)kubernetes/.+\\.ya?ml$/"],
+      matchStrings: [
+        "https://github\\.com/siderolabs/talos/releases/download/(?<currentValue>v[^/]+)/talosctl-",
+      ],
+      datasourceTemplate: "github-releases",
+      depNameTemplate: "siderolabs/talos",
+    },
     {
       customType: "regex",
       description: "Track Minecraft release versions",
@@ -289,14 +319,32 @@
       minimumGroupSize: 2,
     },
     {
+      // The Talos version is pinned in four places across three datasources:
+      // talconfig.yaml, talenv.yaml and the tuppr TalosUpgrade all carry a
+      // `datasource=docker depName=ghcr.io/siderolabs/installer` annotation, and
+      // .mise.toml pins the matching talosctl CLI as `aqua:siderolabs/talos`.
+      //
+      // This rule used to set matchDatasources: ["docker"], which grouped the
+      // first three but left the CLI to arrive as its own PR — so every Talos
+      // bump landed as two PRs that had to be reconciled by hand (1.13.6 ➔
+      // 1.13.7 came as #3753 for the CLI and #3754 for the image, the latter
+      // closed as superseded by #3842). Dropping the datasource restriction
+      // lets the regex below catch the aqua package too, since its package name
+      // is `aqua:siderolabs/talos`. Adopted from cluster-template 2026.8.0
+      // (onedr0p/cluster-template#2302), which groups the same three pins.
+      //
+      // Nothing else in the estate matches `siderolabs/`, and kubelet — which
+      // tracks the Kubernetes version, not the Talos one — is excluded below.
       description: "Talos Group",
       groupName: "Talos",
-      matchDatasources: ["docker"],
       // Negated match replaces the deprecated excludePackageNames: ["/kubelet/"]
       matchPackageNames: ["/siderolabs\\//", "!/kubelet/"],
       group: {
         commitMessageTopic: "{{{groupName}}} group",
       },
+      // Kept at 2 rather than upstream's 3: the CLI occasionally releases
+      // without a matching node image, and a 3 would hold the whole group back
+      // until every pin moved.
       minimumGroupSize: 2,
     },
     {
@@ -406,12 +454,6 @@
       matchDatasources: ["docker"],
       matchManagers: ["helmfile"],
       overrideDepName: "{{packageName}}",
-    },
-    {
-      description: "Override Talos Installer Package Name",
-      matchDatasources: ["docker"],
-      matchPackageNames: ["/factory\\.talos\\.dev/"],
-      overridePackageName: "ghcr.io/siderolabs/installer",
     },
     {
       description: "Disable helm-values manager for homebridge (handled by custom regex manager with quotes)",

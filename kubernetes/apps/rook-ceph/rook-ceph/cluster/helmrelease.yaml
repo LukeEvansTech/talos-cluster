@@ -47,6 +47,8 @@ spec:
           osd_class_update_on_start: "false" # quote
           device_failure_prediction_mode: local # requires mgr module
           mon_data_avail_warn: "15" # quote - mons live on OS disk, not OSD disk
+        mon:
+          mon_cluster_log_level: info # default debug floods the cluster log
       cleanupPolicy:
         wipeDevicesFromOtherClusters: true
       crashCollector:
@@ -174,39 +176,3 @@ spec:
       deletionPolicy: Delete
     # Object storage (RGW) removed — migrated to Garage (storage/garage).
     cephObjectStores: []
-  # Fix the chart's CephPoolGrowthWarning rule, which fails to evaluate whenever
-  # the mgr pod has been rescheduled inside its own [2d] lookback.
-  #
-  # predict_linear() emits one series per label-set, so a restarted mgr leaves the
-  # old pod's series in the window alongside the new one. Both share
-  # {cluster, pool_id, instance} but differ in `pod`, so group_right() sees a
-  # duplicate match group and errors:
-  #   found duplicate series for the match group {...} on the left hand-side
-  # Prometheus then raises PrometheusRuleFailures and — the part that matters —
-  # stops evaluating pool-growth prediction entirely, so a pool trending toward
-  # full would go unwarned. It self-heals ~2d after the last restart and breaks
-  # again on the next one; mgr churn is routine here (see the mgr resources note
-  # above, it was OOMKilling ~twice daily until the 3Gi bump).
-  #
-  # `max by(...)` collapses the duplicates before the join, keeping the most
-  # pessimistic prediction. Upstream bug, not a local misconfiguration.
-  postRenderers:
-    - kustomize:
-        patches:
-          - target:
-              kind: PrometheusRule
-              name: prometheus-ceph-rules
-            patch: |-
-              # Guard: the chart controls this ordering, so assert the index still
-              # points at the intended alert. If an upgrade reorders the groups the
-              # test fails and Flux stops loudly, rather than silently rewriting a
-              # different rule's expression.
-              - op: test
-                path: /spec/groups/7/rules/0/alert
-                value: CephPoolGrowthWarning
-              - op: replace
-                path: /spec/groups/7/rules/0/expr
-                value: >-
-                  (max by(cluster, pool_id, instance) (predict_linear(ceph_pool_percent_used[2d],
-                  3600 * 24 * 5)) * on(cluster,pool_id, instance) group_right()
-                  ceph_pool_metadata) >= 95

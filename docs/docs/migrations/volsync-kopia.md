@@ -267,7 +267,7 @@ spec:
 # kubernetes/apps/volsync-system/volsync/ks.yaml
 # The volsync-maintenance Kustomization is active and points to ./maintenance
 # kubernetes/apps/volsync-system/volsync/maintenance/kopiamaintenance.yaml
-# spec.enabled: true, trigger.schedule: 30 */4 * * *
+# spec.enabled: true, trigger.schedule: 30 * * * *
 ```
 
 ### Step 2: Deploy Kopia Server
@@ -314,7 +314,7 @@ kubectl get replicationsource smokeping-nfs -n default -o yaml
 | **Identity**              | Per-app                                | Configurable via repository.config   |
 | **CRD Field**             | `spec.restic:`                         | `spec.kopia:`                        |
 | **Restore**               | Direct PVC reference                   | Requires `sourceIdentity.sourceName` |
-| **Maintenance**           | Manual                                 | KopiaMaintenance CRD (live, every 4h)|
+| **Maintenance**           | Manual                                 | KopiaMaintenance CRD (live, hourly)  |
 
 ## Web UI Usage
 
@@ -498,7 +498,7 @@ metadata:
 spec:
     enabled: true
     trigger:
-        schedule: 30 */4 * * *
+        schedule: 30 * * * *
     repository:
         repository: volsync-maintenance-secret
 ```

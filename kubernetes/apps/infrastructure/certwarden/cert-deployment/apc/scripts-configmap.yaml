@@ -254,8 +254,11 @@ data:
         --from-literal=cert.pem="${CERTIFICATE_PEM}" \
         --from-literal=key.pem="${PRIVATE_KEY_PEM}"
 
-    # Note: Secret cleanup is handled by the Job's ownerReferences
-    # The secret will be garbage collected when the Job is deleted via ttlSecondsAfterFinished
+    # The Secret is adopted by the Job further down, once the Job exists and has
+    # a UID to point at. It cannot be created with an ownerReference here
+    # because the owner does not exist yet. (Same fix as the supermicro script:
+    # the old comment claimed ownerReferences handled cleanup but nothing ever
+    # set one, so every renewal leaked a Secret holding the private key.)
 
     # Create the deployment Job
     echo "Creating deployment Job: ${JOB_NAME}" >&2
@@ -277,7 +280,7 @@ data:
           restartPolicy: Never
           containers:
             - name: apc-deploy
-              image: docker.io/python:3.14-alpine@sha256:26730869004e2b9c4b9ad09cab8625e81d256d1ce97e72df5520e806b1709f92
+              image: docker.io/python:3.14-alpine@sha256:a1321512d6a287428c50dcdf2ab3857761127e03a23b1f648e9c1c0de59288f8
               command:
                 - sh
                 - -c
@@ -345,24 +348,61 @@ data:
                 secretName: ${CERT_SECRET_NAME}
     EOF
 
-    # Wait for the job to complete
-    echo "Waiting for Job to complete..." >&2
-    kubectl wait --for=condition=complete --timeout=5m "job/${JOB_NAME}" -n "${NAMESPACE}"
-
-    # Get the job logs
-    echo "=== Job Logs ===" >&2
-    kubectl logs "job/${JOB_NAME}" -n "${NAMESPACE}"
-
-    # Check if the job succeeded
-    JOB_STATUS=$(kubectl get job "${JOB_NAME}" -n "${NAMESPACE}" -o jsonpath='{.status.conditions[?(@.type=="Complete")].status}')
-    if [[ "${JOB_STATUS}" == "True" ]]; then
-        echo "✅ Certificate deployed successfully to ${APC_HOST}" >&2
-        exit 0
+    # Make the Job the owner of the cert Secret so the two are deleted together.
+    # blockOwnerDeletion is false so the Secret can never hold up deletion of
+    # the Job, and a failure here is not fatal: the deployment itself has
+    # already been submitted, and a Secret that outlives its Job is the old
+    # (bad) behaviour rather than a new one.
+    echo "Binding Secret ${CERT_SECRET_NAME} to Job ${JOB_NAME} for cleanup" >&2
+    JOB_UID=$(kubectl get job "${JOB_NAME}" -n "${NAMESPACE}" -o jsonpath='{.metadata.uid}' 2>/dev/null || true)
+    if [[ -n "${JOB_UID}" ]]; then
+        kubectl patch secret "${CERT_SECRET_NAME}" -n "${NAMESPACE}" --type merge -p \
+            "{\"metadata\":{\"ownerReferences\":[{\"apiVersion\":\"batch/v1\",\"kind\":\"Job\",\"name\":\"${JOB_NAME}\",\"uid\":\"${JOB_UID}\",\"controller\":false,\"blockOwnerDeletion\":false}]}}" \
+            || echo "WARNING: could not set ownerReference on ${CERT_SECRET_NAME}; it will need manual cleanup" >&2
     else
-        echo "❌ Failed to deploy certificate to ${APC_HOST}" >&2
-        kubectl logs "job/${JOB_NAME}" -n "${NAMESPACE}" >&2
-        exit 1
+        echo "WARNING: could not read Job UID; ${CERT_SECRET_NAME} will need manual cleanup" >&2
     fi
+
+    # Wait for the Job to reach a terminal condition (Complete or Failed).
+    # kubectl wait --for=condition=complete ignores Failed, so on a fast pod
+    # failure it would block the full --timeout instead of surfacing the real
+    # error. Poll both conditions explicitly so failures are caught quickly.
+    echo "Waiting for Job to complete..." >&2
+    JOB_TIMEOUT=300
+    DEADLINE=$(( $(date +%s) + JOB_TIMEOUT ))
+    JOB_RESULT=""
+    while [[ $(date +%s) -lt ${DEADLINE} ]]; do
+        COMPLETE=$(kubectl get job "${JOB_NAME}" -n "${NAMESPACE}" -o jsonpath='{.status.conditions[?(@.type=="Complete")].status}' 2>/dev/null || true)
+        FAILED=$(kubectl get job "${JOB_NAME}" -n "${NAMESPACE}" -o jsonpath='{.status.conditions[?(@.type=="Failed")].status}' 2>/dev/null || true)
+        if [[ "${COMPLETE}" == "True" ]]; then
+            JOB_RESULT="complete"
+            break
+        fi
+        if [[ "${FAILED}" == "True" ]]; then
+            JOB_RESULT="failed"
+            break
+        fi
+        sleep 5
+    done
+
+    # Always dump pod logs so Certwarden captures them on success and failure
+    echo "=== Job Logs ===" >&2
+    kubectl logs "job/${JOB_NAME}" -n "${NAMESPACE}" --all-containers --tail=-1 >&2 || true
+
+    case "${JOB_RESULT}" in
+        complete)
+            echo "✅ Certificate deployed successfully to ${APC_HOST}" >&2
+            exit 0
+            ;;
+        failed)
+            echo "❌ Failed to deploy certificate to ${APC_HOST}" >&2
+            exit 1
+            ;;
+        *)
+            echo "❌ Job did not reach a terminal state within ${JOB_TIMEOUT}s on ${APC_HOST}" >&2
+            exit 1
+            ;;
+    esac
 kind: ConfigMap
 metadata:
   annotations:

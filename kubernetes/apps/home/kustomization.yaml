@@ -22,5 +22,4 @@ resources:
   - ./shelly-operator/ks.yaml
   - ./shelly-prometheus-exporter/ks.yaml
   - ./zigbee2mqtt/ks.yaml
-  - ./zigbee2mqtt-garage/ks.yaml
   - ./zwave/ks.yaml

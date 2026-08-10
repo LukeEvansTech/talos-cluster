@@ -133,22 +133,89 @@ spec:
           for: 6h
           labels:
             severity: warning
+        # Both rules below were STRUCTURALLY DEAD until 2026-07-30 — they selected
+        # label values that stopped existing at the 2026-07-20 Debian -> FCOS
+        # rebuild, so each matched zero series and could never fire. Neither was a
+        # threshold that was merely never crossed; both were queries returning
+        # nothing. The check that catches this is to invert the comparison and
+        # confirm the expression still returns series: a live rule yields one
+        # series per array/mountpoint, a dead one yields nothing either way.
+        #
+        # Verify after any future change to the box's storage layout:
+        #   node_md_disks{job="seedbox-node",state="failed"} >= 0          -> 3 series
+        #   node_filesystem_avail_bytes{job="seedbox-node",
+        #     mountpoint=~"/var|/var/mnt/seedbox"}                          -> 2 series
+        #
+        # Arrays are deliberately NOT named here. mdadm renumbers arrays it cannot
+        # match to an mdadm.conf entry (md4 -> md125/md126/md127 at the rebuild),
+        # which is precisely what killed the old rule, so pinning md125 today would
+        # only reset the same trap for the next rebuild.
+        #
+        #   md125  23.8 TB xfs  /var/mnt/seedbox   the RAID5 data array
+        #   md126   367 MB ext4 /boot
+        #   md127  68.6 GB xfs  /var (and /etc, /sysroot, /sysroot/ostree/...)
+        #
+        # Aggregated with max by (device) so an unhealthy array pages ONCE rather
+        # than once per signal — the three arms overlap heavily in a real failure.
+        #
+        # Three arms because they are three genuinely different signals, from two
+        # independent kernel sources:
+        #   node_md_degraded   sysfs md/degraded — a COUNT of missing-or-failed
+        #     members, NOT a boolean, so the test is > 0. This is the arm that
+        #     catches a disk that has been REMOVED rather than marked faulty.
+        #     (`== 1` would silently miss a two-disk RAID5 loss — total data loss.)
+        #   node_md_disks{state="failed"}  /proc/mdstat (F) count — a member the
+        #     kernel has marked faulty but not yet removed.
+        #   node_md_state{state="inactive"} — the array failed to assemble at all.
         - alert: SeedboxRAIDDegraded
           annotations:
-            summary: "Seedbox md4 RAID5 is degraded ({{ $labels.state }}={{ $value }} disks)."
+            summary: "Seedbox RAID array {{ $labels.device }} is degraded — a member disk is failed, missing, or the array did not assemble."
+            description: >-
+              Array {{ $labels.device }} is no longer healthy. md125 is the 23.8 TB RAID5
+              data array; md127 holds the OS. Run `cat /proc/mdstat` on the box for which
+              member is affected — a RAID5 rebuild is the highest-risk window, and one
+              seedbox disk already carries a standing 8 reallocated sectors.
           expr: |-
-            node_md_disks{job="seedbox-node",device="md4",state="failed"} > 0
-            or node_md_disks{job="seedbox-node",device="md4",state="active"} < 4
+            max by (device) (
+              node_md_degraded{job="seedbox-node"} > 0
+              or node_md_disks{job="seedbox-node",state="failed"} > 0
+              or node_md_state{job="seedbox-node",state="inactive"} == 1
+            )
           for: 5m
           labels:
             severity: critical
+        # The old rule keyed on mountpoint="/", which FCOS never reports: / is a
+        # small composefs overlay and node-exporter does not surface it at all.
+        # The real filesystems are /var (OS, images, logs) and /var/mnt/seedbox
+        # (the data array).
+        #
+        # Both mountpoints are listed explicitly rather than matched loosely,
+        # for two reasons:
+        #   md127 is mounted at FOUR paths (/var, /etc, /sysroot,
+        #     /sysroot/ostree/deploy/fedora-coreos/var) reporting identical
+        #     numbers, so an unpinned expression would fire four identical alerts.
+        #   /boot is excluded on purpose: at 367 MB, 85% leaves 55 MB, which is
+        #     already past the point where rpm-ostree can stage a kernel. If /boot
+        #     ever needs watching it needs its own rule and its own number.
+        #
+        # 85% suits both despite the 350x size difference — it leaves ~3.5 TB free
+        # on the data array and ~10 GB on /var, both comfortable margins to react
+        # in. Baseline 2026-07-30: /var/mnt/seedbox 1.9% (456 GB of 23.8 TB),
+        # /var 16.1%. The array is near-empty because the rebuild wiped it and
+        # intake is off by choice, so expect the data figure to climb once
+        # autobrr is re-enabled; this is a "start pruning" warning, not an outage.
         - alert: SeedboxDiskFillHigh
           annotations:
-            summary: "Seedbox rootfs above 85% ({{ $value | humanizePercentage }} used)."
+            summary: "Seedbox {{ $labels.mountpoint }} is above 85% full ({{ $value | humanizePercentage }} used)."
+            description: >-
+              {{ $labels.mountpoint }} on the seedbox ({{ $labels.device }}) is
+              {{ $value | humanizePercentage }} full. On /var/mnt/seedbox this means
+              intake is about to stall — prune torrents or empty .RecycleBin. On /var it
+              means container images or logs are growing and the box itself is at risk.
           expr: |-
             1 - (
-              node_filesystem_avail_bytes{job="seedbox-node",mountpoint="/"}
-              / node_filesystem_size_bytes{job="seedbox-node",mountpoint="/"}
+              node_filesystem_avail_bytes{job="seedbox-node",mountpoint=~"/var|/var/mnt/seedbox"}
+              / node_filesystem_size_bytes{job="seedbox-node",mountpoint=~"/var|/var/mnt/seedbox"}
             ) > 0.85
           for: 30m
           labels:
@@ -165,3 +232,52 @@ spec:
           for: 2h
           labels:
             severity: info
+    # ---- container lifecycle (docker_state_exporter, seedbox-docker job) ------
+    # Three rules, matching the appliance's lean set rather than the NAS's five:
+    # exporter-down needs no rule of its own here (the job carries
+    # instance=seedbox, so SeedboxDown / SeedboxScrapePathDegraded absorb it),
+    # and OOM-kill is sticky until recreate and re-pages every repeatInterval —
+    # a poor trade on the flappy tailnet scrape path. That flap is also why
+    # `for` is 10m, not the NAS's 5m: container_state_* series simply go absent
+    # when a scrape misses (absence never fires), and 10m rides out a missed
+    # scrape without delaying a real page much.
+    #
+    # Scoped to the doco-cd-managed fleet (cd_doco_metadata_manager) so a
+    # hand-run throwaway container never pages.
+    - name: seedbox-docker.rules
+      rules:
+        # The declarative restore inits (apps/*/compose.yaml, service
+        # restore-<app>) are one-shots: they run, exit 0 and STAY exited. That
+        # is their steady state, so they are excluded from SeedboxContainerDown
+        # above — without the exclusion every one of them pages forever, which
+        # is exactly what happened when they first landed (13 across the fleet).
+        #
+        # A restore init that FAILS is still caught, just not here. It exits
+        # non-zero, so compose never starts the app it gates, and the app is
+        # left in `created` rather than `exited` — which is why `created` was
+        # added to the status list above. Nothing sits in `created` for
+        # 10m in normal operation; a deploy moves through it in seconds.
+        - alert: SeedboxContainerDown
+          annotations:
+            summary: "Seedbox container {{ $labels.name }} is not running (state: {{ $labels.status }})."
+          expr: |-
+            container_state_status{job="seedbox-docker", status=~"exited|dead|created", container_label_cd_doco_metadata_manager="doco-cd", name!~".*-restore-.*-[0-9]+"} == 1
+          for: 10m
+          labels:
+            severity: critical
+        - alert: SeedboxContainerUnhealthy
+          annotations:
+            summary: "Seedbox container {{ $labels.name }} healthcheck is failing (unhealthy)."
+          expr: |-
+            container_state_health_status{job="seedbox-docker", health_status="unhealthy"} == 1
+          for: 10m
+          labels:
+            severity: critical
+        - alert: SeedboxContainerFlapping
+          annotations:
+            summary: "Seedbox container {{ $labels.name }} restart count changed {{ $value }} times in the last hour."
+          expr: |-
+            changes(container_restartcount{job="seedbox-docker"}[1h]) > 3
+          for: 10m
+          labels:
+            severity: warning

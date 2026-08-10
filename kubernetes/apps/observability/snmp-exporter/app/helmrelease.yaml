@@ -21,6 +21,7 @@ spec:
       - --config.file=/etc/snmp_exporter/snmp.yml
       - --config.file=/run/snmp-extra/snmp.yml
       - --config.file=/run/snmp-printer/snmp.yml
+      - --config.file=/run/snmp-apc/snmp.yml
       - --config.file=/run/snmp-auth/snmp.yml
     extraConfigmapMounts:
       - name: entity-sensor
@@ -30,6 +31,10 @@ spec:
       - name: brother-printer
         configMap: snmp-exporter-brother-printer
         mountPath: /run/snmp-printer
+        readOnly: true
+      - name: apc-pdu
+        configMap: snmp-exporter-apc-pdu
+        mountPath: /run/snmp-apc
         readOnly: true
     # Credentials only (auths:) — templated by the snmp-exporter ExternalSecret
     # so no community string lives in git (public repo).
@@ -129,6 +134,53 @@ spec:
               targetLabel: instance
             - targetLabel: device_class
               replacement: printer
+        # APC rack PDU fleet — power telemetry only (config drift/compliance is
+        # the apc-fleet exporter's job). NMC2 cards speak SNMPv1/v3 only; apc_ro
+        # is the v1 read-only community from the ExternalSecret. The two 2G PDUs
+        # use the rPDU2 MIB, the legacy comms PDU the classic rPDU MIB. The
+        # pdu_name label comes from the device itself at scrape time.
+        - name: apc-pdu-main-1
+          target: ${APC_PDU_MAIN1_ADDR}
+          module:
+            - apc_rpdu2
+          auth:
+            - apc_ro
+          interval: 60s
+          scrapeTimeout: 30s
+          relabelings:
+            - sourceLabels:
+                - __param_target
+              targetLabel: instance
+            - targetLabel: device_class
+              replacement: pdu
+        - name: apc-pdu-main-2
+          target: ${APC_PDU_MAIN2_ADDR}
+          module:
+            - apc_rpdu2
+          auth:
+            - apc_ro
+          interval: 60s
+          scrapeTimeout: 30s
+          relabelings:
+            - sourceLabels:
+                - __param_target
+              targetLabel: instance
+            - targetLabel: device_class
+              replacement: pdu
+        - name: apc-pdu-comms
+          target: ${APC_PDU_COMMS_ADDR}
+          module:
+            - apc_rpdu
+          auth:
+            - apc_ro
+          interval: 60s
+          scrapeTimeout: 30s
+          relabelings:
+            - sourceLabels:
+                - __param_target
+              targetLabel: instance
+            - targetLabel: device_class
+              replacement: pdu
     resources:
       requests:
         cpu: 10m

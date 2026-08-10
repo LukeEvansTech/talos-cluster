@@ -10,7 +10,10 @@ resources:
   - ./namespace.yaml
   - ./netpol.yaml
   - ./acinfinity-exporter/ks.yaml
+  - ./apc-fleet/ks.yaml
   - ./blackbox-exporter/ks.yaml
+  - ./bmc-exporter/ks.yaml
+  - ./docker-backup/ks.yaml
   - ./exportarr/ks.yaml
   - ./gatus/ks.yaml
   - ./grafana/ks.yaml
@@ -25,6 +28,7 @@ resources:
   - ./plex-exporter/ks.yaml
   - ./prometheus-adapter/ks.yaml
   - ./qbittorrent-exporter/ks.yaml
+  - ./redfish-fleet/ks.yaml
   - ./sabnzbd-dashboard/ks.yaml
   - ./scrutiny/ks.yaml
   - ./scrutiny-collector/ks.yaml

@@ -1,0 +1,79 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/helm.toolkit.fluxcd.io/helmrelease_v2.json
+#
+# A second, single-target exporter instance for the workstation BMC.
+#
+# Why a separate deployment rather than one more host in the main config: the
+# workstation is a desk machine and is powered off most of the time, so it must
+# be exempt from BmcHostPoweredOff while still being covered by every other
+# rule. Excluding one host from one alert needs something in the PromQL to
+# match on, and none of the available options work here:
+#
+#   - `instance` is the target address, and this BMC has no DNS record, so
+#     matching on it would put a LAN address in this public repository
+#   - the `model` label does not discriminate: this board and the storage node
+#     both report the generic "Super Server"
+#   - the ScrapeConfig relabelings could synthesise a label, but only by
+#     matching the address, which is the same leak
+#
+# Giving it its own deployment gives it its own `job` label instead, which is a
+# plain string that discloses nothing. The rules then use job=~"bmc-exporter.*"
+# for hardware health and job="bmc-exporter" for power state. The cost is one
+# more 64Mi pod.
+#
+# If an internal DNS record is ever created for this BMC, the tidier form is to
+# fold it back into the main config and select on the hostname instead.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: &app bmc-exporter-workstation
+spec:
+  interval: 1h
+  chart:
+    spec:
+      chart: idrac-exporter
+      version: 2.6.2
+      sourceRef:
+        kind: HelmRepository
+        name: idrac-exporter
+  values:
+    fullnameOverride: *app
+    image:
+      repository: ghcr.io/mrlhansen/idrac_exporter
+      tag: 2.6.2@sha256:1aceff5464db3a1a85e94303fb43e0e231b1f3bef2adfce06938f9886a184b51
+    existingSecret: bmc-exporter-workstation-config
+    deploymentAnnotations:
+      reloader.stakater.com/auto: "true"
+    serviceAccount:
+      automount: false
+    podSecurityContext:
+      runAsNonRoot: true
+      runAsUser: 65534
+      runAsGroup: 65534
+      seccompProfile:
+        type: RuntimeDefault
+    securityContext:
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      capabilities:
+        drop:
+          - ALL
+    resources:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+      limits:
+        memory: 64Mi
+    prometheus:
+      monitor:
+        enabled: false
+      rules:
+        enabled: false
+      scrapeConfig:
+        enabled: true
+        interval: 60s
+        scrapeTimeout: 55s
+        relabelings:
+          - action: replace
+            replacement: *app
+            targetLabel: job

@@ -52,7 +52,7 @@ data:
     echo "Certificate: ${CERTIFICATE_NAME:-unknown}"
     echo "Target Supermicro: ${SUPERMICRO_HOST}"
     echo "Namespace: ${NAMESPACE}"
-    echo "Container: ghcr.io/lukeevanstech/supermicro-ipmi-cert@sha256:fec1afbf9f59423a4b9f8149c30c106c1383d69ce4d074579a471e2c45475053"
+    echo "Container: ghcr.io/lukeevanstech/supermicro-ipmi-cert:0.3.0@sha256:ef57ea05e2ff7f4136b4015327f18929d1e9c387fb53f24d9a41fec4a851aaa7"
 
     # Create a unique job name with timestamp
     JOB_NAME="supermicro-cert-deploy-${SUPERMICRO_HOST}-$(date +%s)"
@@ -66,8 +66,10 @@ data:
         --from-literal=cert.pem="${CERTIFICATE_PEM}" \
         --from-literal=key.pem="${PRIVATE_KEY_PEM}"
 
-    # Note: Secret cleanup is handled by the Job's ownerReferences
-    # The secret will be garbage collected when the Job is deleted via ttlSecondsAfterFinished
+    # The Secret is adopted by the Job further down, once the Job exists and has
+    # a UID to point at. It cannot be created with an ownerReference here
+    # because the owner does not exist yet, and a stale/incorrect ownerReference
+    # would have the Secret garbage-collected immediately.
 
     # Create the deployment Job
     echo "Creating deployment Job: ${JOB_NAME}"
@@ -90,7 +92,7 @@ data:
           restartPolicy: Never
           containers:
             - name: supermicro-deploy
-              image: ghcr.io/lukeevanstech/supermicro-ipmi-cert@sha256:f248b92d9245ec1b35fb22d75b26721a6379c21d3df33fcf98d986bec997a45e
+              image: ghcr.io/lukeevanstech/supermicro-ipmi-cert:0.3.0@sha256:cc0d59d258ebe21f7e0b656cdeec4cd387ef5fc2c16645db163b6fbb18aa9444
               command:
                 - sh
                 - -c
@@ -125,6 +127,29 @@ data:
               secret:
                 secretName: ${CERT_SECRET_NAME}
     EOF
+
+    # Make the Job the owner of the cert Secret so the two are deleted together.
+    #
+    # This is the step that was missing. The comment above the secret creation
+    # used to claim ownerReferences handled cleanup, but nothing ever set one:
+    # ttlSecondsAfterFinished removed the Job while the Secret — which holds the
+    # certificate's PRIVATE KEY — stayed in the namespace forever. Every renewal
+    # since the first deployment left one behind; 40 had accumulated by
+    # 2026-07-31 and were cleared out alongside this fix.
+    #
+    # blockOwnerDeletion is false so the Secret can never hold up deletion of
+    # the Job, and a failure here is not fatal: the deployment itself has
+    # already been submitted, and a Secret that outlives its Job is the old
+    # (bad) behaviour rather than a new one.
+    echo "Binding Secret ${CERT_SECRET_NAME} to Job ${JOB_NAME} for cleanup"
+    JOB_UID=$(kubectl get job "${JOB_NAME}" -n "${NAMESPACE}" -o jsonpath='{.metadata.uid}' 2>/dev/null || true)
+    if [[ -n "${JOB_UID}" ]]; then
+        kubectl patch secret "${CERT_SECRET_NAME}" -n "${NAMESPACE}" --type merge -p \
+            "{\"metadata\":{\"ownerReferences\":[{\"apiVersion\":\"batch/v1\",\"kind\":\"Job\",\"name\":\"${JOB_NAME}\",\"uid\":\"${JOB_UID}\",\"controller\":false,\"blockOwnerDeletion\":false}]}}" \
+            || echo "WARNING: could not set ownerReference on ${CERT_SECRET_NAME}; it will need manual cleanup"
+    else
+        echo "WARNING: could not read Job UID; ${CERT_SECRET_NAME} will need manual cleanup"
+    fi
 
     # Wait for the Job to reach a terminal condition (Complete or Failed).
     # kubectl wait --for=condition=complete ignores Failed, so on a fast pod

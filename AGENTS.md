@@ -187,6 +187,86 @@ just kube flate-build-ks <namespace> <app>
 just kube flate-test
 ```
 
+## Code Review Rules
+
+Read by Codex code review, and by any other reviewer that honours this file. A Renovate-facing
+reviewer already runs here: the `claude/renovate-review` commit status is the **gate** on dependency
+PRs (upstream changelog research, breaking-change verdict, required check on `main`). Reviews driven
+by this section are **advisory** — spend them on how the diff wires into _this_ repository rather than on
+re-deriving upstream release notes.
+
+Flag consequential, repository-specific breakage. Prefer silence over style commentary.
+
+### Always flag
+
+- **Internal coordinates in a public repository.** LAN IPs, `.lan` / `.internal` hostnames, device or node
+  names, deployment topology, MACs, disk serials — in files, and equally in the PR title and body,
+  since a squash merge copies the body into `main` permanently. Safe path: the `${SECRET_DOMAIN}` /
+  `${SECRET_INTERNAL_DOMAIN}` placeholders, or a real address templated inside an `ExternalSecret`'s
+  `target.template.data` and mounted from the rendered Secret — never a `ConfigMap` in Git.
+- **Plaintext secrets.** Every secret arrives via 1Password → ExternalSecret. A literal token,
+  password, or key in a manifest is a blocker regardless of how narrowly scoped it looks.
+- **A literal `${VAR}` left unescaped.** Flux `postBuild` substitutes `${VAR}` against
+  `cluster-secrets` and **undefined vars become empty strings**. A Grafana dashboard, envsubst
+  template, or shell snippet that needs the literal must escape it as `$${VAR}`. This fails silently
+  — the config deploys blank instead of erroring.
+- **An app removal that prunes data.** The root Kustomization sets `prune: true`, so deleting an
+  app's line from the namespace `kustomization.yaml` makes Flux delete its PVC. Flag unless the PR
+  shows a VolSync snapshot or copy-out happened first.
+
+### Worth flagging
+
+- A `ConfigMap` with no explicit `metadata.namespace` — Checkov CKV_K8S_21 fails the `default`
+  namespace.
+- A quoted anchored port (`PORT: &port "3000"`) reused as a probe `httpGet.port`. Rejected at apply
+  time with "must contain at least one letter"; ports are unquoted integers.
+- A new app whose name contains a hyphen. The route host is `{{ .Release.Name }}.${SECRET_DOMAIN}`,
+  so the hyphen leaks into the URL — name new apps hyphen-free end-to-end. Existing hyphenated apps
+  predate the rule and are left alone.
+- A second route hostname, or a `${SECRET_INTERNAL_DOMAIN}` alias beside the primary domain. It
+  resolves to the same gateway so it buys no extra restriction, and each alias costs an OPNsense
+  host-override record against a hard ceiling (~421) above which external-dns silently stops
+  publishing anything cluster-wide.
+- An app with an `externalsecret.yaml` that does not `dependsOn` `onepassword-connect` in
+  `external-secrets`.
+- Components (`volsync`, `alerts`, `homepage`, `kopiur`) or their `postBuild.substitute` values
+  declared in `app/kustomization.yaml` instead of `ks.yaml`.
+- A bump to cluster-critical infrastructure — the "Protected infra" `packageRules` entry in
+  `.renovaterc.json5` is the source of truth (Cilium, Rook-Ceph, Flux, Talos, cert-manager,
+  external-secrets, Envoy Gateway, CloudNativePG, …) — that needs a repo-side change the PR does not
+  make: a renamed Helm value, a CRD version the manifests still pin, a required migration step.
+- A GPU workload missing `runtimeClassName: nvidia`.
+
+### Expected patterns — do not flag
+
+- Bare `${VAR}` in manifests. That is the Flux substitution mechanism, not an undefined variable.
+- YAML anchors (`&app`, `&namespace`, `*app`) in `ks.yaml` — the house DRY pattern, not duplication.
+- Digest-pinned container tags (`tag@sha256:…`). Renovate owns them; do not suggest stripping them.
+- Flux `OCIRepository` tags that are **not** digest-pinned. Helm rejects an appended digest, so the
+  carve-out is deliberate rather than drift from the digest-pinning convention.
+- `HTTPRoute` with no `Ingress` anywhere. Routing is Envoy Gateway + Gateway API by design.
+- Schema or kubeconform-style complaints about raw YAML. The source is meaningless until kustomize
+  substitutes vars and merges components; real validation is `just kube flate-test`.
+- Secrets referenced but absent from Git (the ExternalSecret is the mechanism), and anything under
+  `.archive/` (kept for reference, never reconciled).
+- Missing PDBs, extra replicas, or other production-grade HA asks. This is one homelab cluster of
+  three control-plane nodes with no separate workers.
+- HelmRelease `spec` key order, formatting, and line width — super-linter, prettier, and yamlfmt own
+  those.
+- In-cluster service DNS names (`<svc>.<ns>.svc.cluster.local`). These are published by
+  construction: the app's whole directory is in this repository, so the name is derivable from the
+  tree and this file documents several of them itself. The public-repository rule targets LAN
+  addresses, `.lan` / `.internal` hostnames, and device names — not names that only resolve inside
+  the cluster.
+- Scale and count details ("about N sources share one repository", request rates, retention
+  counts). Operational magnitude is not deployment topology; what the rule prohibits is
+  coordinates — an address, a hostname, a device name — not how much of something there is.
+- A hyphen in the name of a **CR-only** app: one whose `app/` holds custom resources with no
+  HelmRelease, controller, or route. The hyphen-free rule exists so the route host
+  (`{{ .Release.Name }}.${SECRET_DOMAIN}`) stays clean, and an app with no Helm release has no such
+  host. `truenas-exporter` and `nut-appliance` are the shape to compare against, and most of the
+  `observability` namespace follows them.
+
 ## Agent tooling
 
 Tool-agnostic agent instructions and skills live under `.agents/`:

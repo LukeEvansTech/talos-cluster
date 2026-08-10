@@ -1,0 +1,132 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: docker-backup.rules
+spec:
+  groups:
+    # Offsite backup health for the Docker estate. The boxes back themselves up
+    # to Cloudflare R2 (seedbox-apps / truenas-apps apps/backup) and publish run
+    # metrics through node-exporter's textfile collector; the cluster is NEVER in
+    # the data path, only the alerting path.
+    #
+    # FIVE rules, deliberately. Every alert here PAGES — Alertmanager's root
+    # route sends all severities to Pushover, so `warning` is not a quiet tier.
+    # The justification for each is that it fires approximately never: unlike a
+    # threshold alert on a continuous signal, these are booleans about a thing
+    # that either worked or did not. That is the opposite of the seedbox iowait
+    # mistake, where a textbook threshold sat inside the normal working band.
+    #
+    # The design principle throughout: alert on the ABSENCE OF SUCCESS, not on
+    # the presence of errors. Silent death — container removed, credential
+    # expired, script never scheduled — produces no error event to alert on, and
+    # it is how backup systems actually fail. The observability handoff already
+    # records this class of blind spot in Vector's log shipping.
+    #
+    # All three Docker boxes now covered. The third one's backup stack landed
+    # 2026-08-03, so its box= selector is in the absent() rule below; the other
+    # two rules match on the series itself and picked it up automatically.
+    #
+    # NOT SHIPPED — an alert on restic_backup_duration_seconds. There is no
+    # history to calibrate against yet, the dataset is ~19 MB so a run takes
+    # seconds, and a duration threshold picked today would be a guess. Revisit
+    # with a few weeks of data if a slow-growth problem ever looks plausible.
+    - name: docker-backup.rules
+      rules:
+        # THE load-bearing alert. 36h gives a daily backup a full missed run plus
+        # 12h of slack, so a single transient failure self-heals without paging
+        # and only a sustained problem reaches you.
+        #
+        # This keeps working when the backup container is gone, because the
+        # textfile it wrote persists on disk and simply stops advancing.
+        - alert: DockerBackupStale
+          annotations:
+            summary: >-
+              No successful {{ $labels.tier }} backup from {{ $labels.box }} in over 36h —
+              offsite protection is stale.
+          expr: |-
+            time() - restic_backup_last_success_timestamp_seconds > 129600
+          for: 30m
+          labels:
+            severity: critical
+        # The complement: the series vanishing entirely, which the rule above
+        # cannot see because it has nothing left to evaluate. Causes are the
+        # backup stack being removed, the textfile deleted, or the collector
+        # misconfigured — all with the box otherwise healthy.
+        #
+        # Per-box selectors rather than a bare absent(): with three boxes
+        # eventually reporting, a global absent() would only fire once ALL of
+        # them stopped, which is precisely the case already covered elsewhere.
+        #
+        # 2h fuse, and severity warning rather than critical, because a genuine
+        # box outage is already covered at higher priority by SeedboxDown (public
+        # blackbox probe). This exists for the box-is-UP-but-metric-is-gone case;
+        # during a real outage it would double-page, and the long fuse keeps that
+        # to prolonged outages that warrant the noise.
+        - alert: DockerBackupMetricsMissing
+          annotations:
+            summary: >-
+              Backup metrics absent for {{ $labels.box }} for 2h — cannot tell whether
+              its offsite backup is running.
+          expr: |-
+            absent(restic_backup_last_success_timestamp_seconds{box="seedbox"})
+            or
+            absent(restic_backup_last_success_timestamp_seconds{box="truenas"})
+            or
+            absent(restic_backup_last_success_timestamp_seconds{box="nut"})
+          for: 2h
+          labels:
+            severity: warning
+        # A run that errored. Fires well before DockerBackupStale would (36h),
+        # which matters when the cause is fixable-now — an expired credential, a
+        # bucket permission change, a full disk. Kept despite every alert paging
+        # because a failed backup run is rare and always actionable.
+        - alert: DockerBackupFailing
+          annotations:
+            summary: >-
+              Last {{ $labels.tier }} backup run on {{ $labels.box }} exited non-zero —
+              check `docker logs backrest` on that box.
+          expr: |-
+            restic_backup_exit_code != 0
+          for: 15m
+          labels:
+            severity: warning
+        # Source freshness. The NAS backs up a fixed-name zfs snapshot refreshed
+        # by a separate cron 30 min beforehand, not the live tree — so a failed
+        # refresh means restic re-reads the OLD snapshot and exits 0. That is
+        # how 2026-08-05 to 08-09 ran four nights against a frozen source with
+        # every rule above green.
+        #
+        # No absent() companion: both textfiles share a directory and a
+        # node-exporter, so DockerBackupMetricsMissing already covers it.
+        #
+        # 36h/30m mirrors DockerBackupStale. This is the backstop for the cron
+        # never running, which the ok-flag rule below cannot see — a script that
+        # never runs never writes a 0.
+        - alert: DockerBackupSourceStale
+          annotations:
+            summary: >-
+              The {{ $labels.dataset }} source snapshot on {{ $labels.box }} has not
+              refreshed in over 36h — backups are copying stale data and still
+              reporting success.
+          expr: |-
+            time() - restic_snapshot_source_last_success_timestamp_seconds > 129600
+          for: 30m
+          labels:
+            severity: critical
+        # The fast complement — the script traps EXIT and writes 0 on every
+        # failure path, so this fires in 15m rather than 36h. Stays firing until
+        # the next nightly refresh succeeds, which is honest: the source really
+        # is stale until then.
+        - alert: DockerBackupSourceRefreshFailing
+          annotations:
+            summary: >-
+              The {{ $labels.dataset }} source snapshot refresh on {{ $labels.box }}
+              failed — tonight's backup will exit 0 against a stale source. Check
+              `zfs list -t snapshot {{ $labels.dataset }}` and the cron log.
+          expr: |-
+            restic_snapshot_source_refresh_ok == 0
+          for: 15m
+          labels:
+            severity: warning

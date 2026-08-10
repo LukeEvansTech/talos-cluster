@@ -1,0 +1,99 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/helm.toolkit.fluxcd.io/helmrelease_v2.json
+#
+# Redfish monitoring for the Supermicro BMC fleet.
+#
+# Named bmc-exporter for what it does here, while the chart, image and metric
+# prefix stay upstream's `idrac`: the exporter is vendor-neutral Redfish and is
+# explicitly tested against Supermicro, and keeping the default `idrac_` prefix
+# means upstream's dashboards and docs apply to this deployment unchanged. The
+# prefix is settable, but changing it later orphans every stored series, so it
+# is left alone deliberately rather than by omission.
+#
+# What the boards actually return here, measured against the live fleet rather
+# than assumed from the schema:
+#   - temperatures, fan RPM/health, voltages, PSU health/watts/input voltage,
+#     per-DIMM health, per-CPU health, BMC manager health, system power state
+#   - NO storage metrics on either board generation — Supermicro does not
+#     populate that Redfish tree, so drive health stays with smartctl-exporter
+#   - a powered-off host drops all of its sensor series and reports only
+#     idrac_system_power_on 0, which is what the alert rules key off
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: &app bmc-exporter
+spec:
+  interval: 1h
+  chart:
+    spec:
+      chart: idrac-exporter
+      version: 2.6.2
+      sourceRef:
+        kind: HelmRepository
+        name: idrac-exporter
+  values:
+    fullnameOverride: *app
+    image:
+      repository: ghcr.io/mrlhansen/idrac_exporter
+      tag: 2.6.2@sha256:1aceff5464db3a1a85e94303fb43e0e231b1f3bef2adfce06938f9886a184b51
+    # The whole of idrac.yml, credentials included, is rendered by the
+    # ExternalSecret and mounted at /etc/prometheus. Setting this suppresses the
+    # chart's own config Secret, so no BMC login is ever built from git values.
+    existingSecret: bmc-exporter-config
+    # The exporter only reads its config at startup, and the chart exposes a
+    # deployment annotation directly, so no postRenderer is needed here.
+    deploymentAnnotations:
+      reloader.stakater.com/auto: "true"
+    # Nothing here talks to the Kubernetes API — it reads a mounted config and
+    # makes outbound HTTPS calls to the BMCs.
+    serviceAccount:
+      automount: false
+    podSecurityContext:
+      runAsNonRoot: true
+      runAsUser: 65534
+      runAsGroup: 65534
+      seccompProfile:
+        type: RuntimeDefault
+    securityContext:
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      capabilities:
+        drop:
+          - ALL
+    resources:
+      requests:
+        cpu: 10m
+        memory: 64Mi
+      limits:
+        memory: 128Mi
+    prometheus:
+      # Deliberately off. The chart's ServiceMonitor scrapes /metrics with no
+      # target parameter, which is not a valid call for a multi-target exporter.
+      # Every per-target scrape below already carries idrac_exporter_build_info
+      # and idrac_exporter_scrape_errors_total, and `up` per target covers
+      # liveness, so this would add a permanently-failing target and nothing else.
+      monitor:
+        enabled: false
+      # Alerts are a standalone PrometheusRule in this directory rather than the
+      # chart's additionalRules, so they read as ordinary rule YAML.
+      rules:
+        enabled: false
+      # Targets come from the exporter's own /discover endpoint, which lists
+      # exactly the hosts in the mounted config. One source of truth: adding a
+      # BMC to the ExternalSecret adds a scrape target, with no second list to
+      # drift out of step.
+      #
+      # 60s/55s, not the usual 30s: a warm scrape measured ~7.5s on the H13
+      # boards and ~13s on the X12, and a cold one after a BMC restart ~23s.
+      scrapeConfig:
+        enabled: true
+        interval: 60s
+        scrapeTimeout: 55s
+        # The chart's own relabelings map the discovered host into ?target= and
+        # into `instance`; these are appended after them. Without an explicit
+        # job the operator names it scrapeConfig/<ns>/<name>, so it is set here
+        # the same way the nut-appliance ScrapeConfigs do it.
+        relabelings:
+          - action: replace
+            replacement: *app
+            targetLabel: job

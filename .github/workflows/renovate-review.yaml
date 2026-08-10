@@ -256,22 +256,49 @@ jobs:
           case "$code" in
             200) state=valid ;;
             401) state=invalid ;;
+            # 403 permission_error is the org-policy denial: the token authenticates
+            # but the Claude organization behind it has disabled Claude subscription
+            # access for Claude Code ("oauth_org_not_allowed"). No retry ever changes
+            # that, so it is exactly as dead as a revoked token and must fail CLOSED.
+            # Left on the inconclusive path it does the opposite of its job: the
+            # reviewer errors, the status step takes its pass-through branch, and
+            # every gated PR goes green unreviewed (observed 2026-07-31).
+            # Any OTHER 403 stays inconclusive — that is not a statement about the token.
+            403)
+              if [[ "$err_type" == "permission_error" ]]; then
+                state=invalid
+              else
+                state=inconclusive
+              fi
+              ;;
             *) state=inconclusive ;;
           esac
-          # Only a genuine authentication_error counts as a dead token; anything
-          # else downgrades to inconclusive so we never block on our own request.
-          if [[ "$state" == "invalid" && -n "$err_type" && "$err_type" != "authentication_error" ]]; then
+          # On a 401, only a genuine authentication_error counts as a dead token;
+          # anything else downgrades to inconclusive so we never block on our own
+          # request. The 403 arm above has already qualified its own error type.
+          if [[ "$state" == "invalid" && "$code" == "401" && -n "$err_type" && "$err_type" != "authentication_error" ]]; then
             state=inconclusive
           fi
+          # Which failure it is decides what the operator has to DO about it, so
+          # carry the distinction through to the status and the annotation.
+          reason=""
+          if [[ "$state" == "invalid" ]]; then
+            if [[ "$code" == "403" ]]; then
+              reason="org-policy"
+            else
+              reason="expired-or-revoked"
+            fi
+          fi
           echo "token_state=$state" >> "$GITHUB_OUTPUT"
-          echo "http=$code err_type=${err_type:-none} -> token_state=$state"
+          echo "token_reason=$reason" >> "$GITHUB_OUTPUT"
+          echo "http=$code err_type=${err_type:-none} -> token_state=$state reason=${reason:-none}"
 
       - id: claude
         if: >-
           steps.gate.outputs.gated == 'true'
           && steps.fp.outputs.skip_claude != 'true'
           && steps.token_check.outputs.token_state != 'invalid'
-        uses: anthropics/claude-code-action@be7b93b1907a4abad570368f3c74b6fe3807510b # v1.0.183
+        uses: anthropics/claude-code-action@6b082c41935b4c8a3b8b0ef85ba4ba4d9eeb8975 # v1.0.189
         with:
           # zizmor secrets-outside-env wants a GitHub deployment environment, but this
           # review runs on every Renovate PR branch: an environment with protection rules
@@ -281,9 +308,18 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }} # zizmor: ignore[secrets-outside-env]
           allowed_bots: "renovate[bot]"
           show_full_output: true
+          # --max-turns is 35, not 25: full-depth reviews land right on the old
+          # ceiling (21/25/26 turns across three consecutive Opus reviews on
+          # 2026-07-31). Overrunning it AFTER the verdict is posted still fails the
+          # action, so a successful review red-flags its own run — the status step
+          # reads the posted review and resolves correctly, but a routinely-red run
+          # trains you to ignore red runs. A ceiling, not a target: it costs nothing
+          # when a review finishes early, and the prompt still aims at 12-18 turns.
+          # (Comments cannot live inside claude_args — it is a literal block whose
+          # lines are passed to the CLI as arguments.)
           claude_args: |
             --model ${{ steps.model_tier.outputs.model }}
-            --max-turns 25
+            --max-turns 35
             --setting-sources user
             --allowedTools "Read,Glob,Grep,Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr review:*),Bash(gh issue view:*),Bash(gh api:*),Bash(gh release view:*),Bash(gh release list:*),Bash(gh repo view:*),Bash(git log:*),Bash(git show:*),Bash(git tag:*),Bash(curl:*),WebFetch,WebSearch"
           prompt: |
@@ -508,6 +544,7 @@ jobs:
           CLAUDE_OUTCOME: ${{ steps.claude.outcome }}
           SKIP: ${{ steps.fp.outputs.skip_claude }}
           TOKEN_STATE: ${{ steps.token_check.outputs.token_state }}
+          TOKEN_REASON: ${{ steps.token_check.outputs.token_reason }}
         run: |
           context="claude/renovate-review"
 
@@ -521,9 +558,15 @@ jobs:
             desc="Ungated update type (digest/github-actions) - auto-approved"
           elif [[ "$TOKEN_STATE" == "invalid" ]]; then
             # Dead token: no review happened. Fail closed and block - the run also
-            # fails red via the "Flag invalid token" step below.
+            # fails red via the "Flag invalid token" step below. The two reasons need
+            # different fixes, so say which one this is: rotating the token is useless
+            # against an org-policy denial, which needs a different ACCOUNT.
             state="failure"
-            desc="OAuth token invalid/expired/revoked - rotate CLAUDE_CODE_OAUTH_TOKEN (review skipped)"
+            if [[ "$TOKEN_REASON" == "org-policy" ]]; then
+              desc="Claude Code disabled for this token's org - re-mint from an allowed account (review skipped)"
+            else
+              desc="OAuth token invalid/expired/revoked - rotate CLAUDE_CODE_OAUTH_TOKEN (review skipped)"
+            fi
           else
             # Gated version bump - read the latest verdict. Works for fresh runs
             # AND fingerprint-skips (the prior review is still on the PR).
@@ -614,6 +657,11 @@ jobs:
         if: steps.token_check.outputs.token_state == 'invalid'
         env:
           REPO: ${{ github.repository }}
+          TOKEN_REASON: ${{ steps.token_check.outputs.token_reason }}
         run: |-
-          echo "::error title=Claude OAuth token invalid::CLAUDE_CODE_OAUTH_TOKEN failed authentication (HTTP 401 authentication_error) - it is expired or revoked. Rotate it: run 'claude setup-token', then 'gh secret set CLAUDE_CODE_OAUTH_TOKEN -R ${REPO}', then bump the 'expires' date on the 1Password 'Claude Code OAuth Token' item. Renovate AI review is blocked until rotated."
+          if [[ "$TOKEN_REASON" == "org-policy" ]]; then
+            echo "::error title=Claude Code blocked by org policy::CLAUDE_CODE_OAUTH_TOKEN authenticates but is refused (HTTP 403 permission_error / oauth_org_not_allowed): the Claude organization behind it has disabled Claude subscription access for Claude Code. Rotating the same token will NOT help - it must be re-minted from an account whose org allows Claude Code. Check with 'claude auth status', then 'claude setup-token', then 'gh secret set CLAUDE_CODE_OAUTH_TOKEN -R ${REPO}', then bump the 'expires' date on the 1Password 'Claude Code OAuth Token' item. Renovate AI review is blocked until fixed."
+          else
+            echo "::error title=Claude OAuth token invalid::CLAUDE_CODE_OAUTH_TOKEN failed authentication (HTTP 401 authentication_error) - it is expired or revoked. Rotate it: run 'claude setup-token', then 'gh secret set CLAUDE_CODE_OAUTH_TOKEN -R ${REPO}', then bump the 'expires' date on the 1Password 'Claude Code OAuth Token' item. Renovate AI review is blocked until rotated."
+          fi
           exit 1

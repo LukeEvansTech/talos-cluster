@@ -50,11 +50,11 @@ spec:
         # max() collapses nut-exporter's two ServiceMonitor endpoints (one per
         # UPS) to a single scalar so `and on()` has an empty label set to match.
         #
-        # min() over job=~"nut-appliance-.*" covers ALL THREE appliance scrapes
-        # (node, smartctl, docker) in one rule rather than three near-identical
-        # ones — the operator response is the same for any of them, and every
-        # extra rule is another thing that can page. 15m also rides out the
-        # smartctl job's 300s interval (three missed scrapes).
+        # min() over job=~"nut-appliance-.*" covers EVERY appliance scrape (node,
+        # smartctl, docker, doco-cd, traefik) in one rule rather than five
+        # near-identical ones — the operator response is the same for any of
+        # them, and every extra rule is another thing that can page. 15m also
+        # rides out the smartctl job's 300s interval (three missed scrapes).
         - alert: NutApplianceHostMetricsMissing
           annotations:
             description: >-
@@ -86,6 +86,17 @@ spec:
         # not redundant: "container nut-upsd exited" is directly actionable where
         # "UPS monitoring is blind" is a symptom. Different alertnames, so the
         # critical->warning inhibit rule does not couple them.
+        # The declarative restore inits (apps/*/compose.yaml, service
+        # restore-<app>) are one-shots: they run, exit 0 and STAY exited. That
+        # is their steady state, so they are excluded from NutApplianceContainerDown
+        # above — without the exclusion every one of them pages forever, which
+        # is exactly what happened when they first landed (13 across the fleet).
+        #
+        # A restore init that FAILS is still caught, just not here. It exits
+        # non-zero, so compose never starts the app it gates, and the app is
+        # left in `created` rather than `exited` — which is why `created` was
+        # added to the status list above. Nothing sits in `created` for
+        # 5m in normal operation; a deploy moves through it in seconds.
         - alert: NutApplianceContainerDown
           annotations:
             description: >-
@@ -94,7 +105,7 @@ spec:
               nut-apps with no other symptom.
             summary: NUT appliance container {{ $labels.name }} is not running.
           expr: |-
-            container_state_status{job="nut-appliance-docker", status=~"exited|dead", container_label_cd_doco_metadata_manager="doco-cd"} == 1
+            container_state_status{job="nut-appliance-docker", status=~"exited|dead|created", container_label_cd_doco_metadata_manager="doco-cd", name!~".*-restore-.*-[0-9]+"} == 1
           for: 5m
           labels:
             severity: warning

@@ -6,6 +6,9 @@ metadata:
   name: homeassistant
 spec:
   interval: 1h
+  # HA cold-boots in 4-6 minutes and the readiness probe now gates the helm
+  # wait, so the default 5m timeout rolls the upgrade back mid-boot.
+  timeout: 10m
   chartRef:
     kind: OCIRepository
     name: homeassistant
@@ -18,16 +21,38 @@ spec:
           app:
             image:
               repository: ghcr.io/home-operations/home-assistant
-              tag: 2026.7.4@sha256:fc3c0b5f7c2ff61a81b3c84dfcc405d3ff28bfc73caf68fb5c31818515f3554e
+              tag: 2026.8.1@sha256:e1f54eb0306d7ded8b3cdee70c21178413cd175aa3e526452af0e086a39ecc51
             env:
               TZ: ${TIMEZONE}
               # Install HACS at startup (built-in to the home-operations image).
               # Custom components (Rako, MG/SAIC, etc.) are added via the HACS UI
               # - the standard home-ops pattern for this image.
               HOME_ASSISTANT__HACS_INSTALL: "true"
-              # Trust proxy from pod network and management network
-              HASS_HTTP_TRUSTED_PROXY_1: 10.42.0.0/16
-              HASS_HTTP_TRUSTED_PROXY_2: 10.32.8.0/24
+            probes:
+              liveness:
+                enabled: true
+                spec:
+                  periodSeconds: 30
+                  timeoutSeconds: 5
+                  failureThreshold: 5
+              readiness:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    # Unauthenticated 200 on stock HA — /healthz 404s on this
+                    # instance (it is not a core endpoint) and wedged every
+                    # upgrade in a readiness-timeout rollback loop.
+                    path: /manifest.json
+                    port: &port 8123
+                  periodSeconds: 10
+                  timeoutSeconds: 5
+                  failureThreshold: 5
+              startup:
+                enabled: true
+                spec:
+                  failureThreshold: 30
+                  periodSeconds: 10
             securityContext:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: false
@@ -66,7 +91,7 @@ spec:
         ports:
           http:
             appProtocol: kubernetes.io/ws
-            port: 8123
+            port: *port
 
     route:
       app:

@@ -9,21 +9,13 @@ spec:
   chartRef:
     kind: OCIRepository
     name: snapshot-controller
+  # This chart ships CRDs in crds/ (Helm never upgrades or deletes them), so
+  # the old piraeus-era keep-policy postRenderer is gone. The flip side: after
+  # an appVersion bump, apply the matching CRDs by hand:
+  #   helm show crds oci://ghcr.io/home-operations/charts/snapshot-controller \
+  #     | kubectl apply --server-side -f -
   values:
-    controller:
-      replicaCount: 2
+    replicaCount: 2
+    monitoring:
       serviceMonitor:
-        create: true
-  # The chart templates its CRDs (templates/crds.yaml) rather than shipping them
-  # in crds/, so they are inside the Helm release's delete scope — dropping this
-  # HelmRelease would cascade-delete every VolumeSnapshot in the cluster. The
-  # chart exposes no annotation knob, so stamp the keep policy post-render.
-  postRenderers:
-    - kustomize:
-        patches:
-          - target:
-              kind: CustomResourceDefinition
-            patch: |-
-              - op: add
-                path: /metadata/annotations/helm.sh~1resource-policy
-                value: keep
+        enabled: true

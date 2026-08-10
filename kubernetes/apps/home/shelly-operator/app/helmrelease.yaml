@@ -19,7 +19,7 @@ spec:
   values:
     image:
       repository: ghcr.io/lukeevanstech/shelly-operator
-      tag: 0.3.3@sha256:31b1ec219fe012f3dde9ec822b10611a27ccb8de18f7481026da1e4f1cc87256
+      tag: 0.6.0@sha256:1299d458712cd8b110056deb2be64d3cec67929799a63f505601a8b622914300
     discovery:
       # Substituted from cluster-secrets (public repo: no literal LAN CIDRs).
       # IOT_TRUSTED_NETWORK_CIDR is the IoT VLAN the whole fleet lives on
@@ -30,6 +30,20 @@ spec:
     deviceNamespace: home
     nameMap: shelly-names
     exporterConfigMap: shelly-prometheus-exporter-config
+    # How often the exporter polls EACH device. This is ~98% of all RPC load on
+    # the fleet: the exporter makes ~6 calls per device per cycle, against
+    # ~1 per device per reconcileInterval from the operator itself.
+    #
+    # 60s deliberately MATCHES the exporter ServiceMonitor scrape interval. The
+    # chart default is 30s, which is a 2x oversample: those extra samples are
+    # overwritten before Prometheus ever reads them, so they buy no stored
+    # resolution and cost double the device traffic. Device firmware 2.0.0
+    # rate-limits and starts answering HTTP 429 under that load, leaving the
+    # operator unable to read config and reporting InSync=Unknown -- which is
+    # unverified, not the same as healthy.
+    #
+    # Raise the scrape interval and this together, never one alone.
+    exporterDeviceUpdateInterval: 60s
     dashboard:
       enabled: true
     metrics:

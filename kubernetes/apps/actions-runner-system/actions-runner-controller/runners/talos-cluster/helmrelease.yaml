@@ -14,7 +14,7 @@ spec:
     githubConfigUrl: https://github.com/LukeEvansTech/talos-cluster
     githubConfigSecret: talos-cluster-runner-secret
     maxRunners: 3
-    minRunners: 1
+    minRunners: 0
     containerMode:
       type: dind
     template:

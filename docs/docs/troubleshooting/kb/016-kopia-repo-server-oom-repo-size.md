@@ -16,7 +16,9 @@ in-use contents** / ~3,462 index blobs. The server loads the **full index into m
 start**, which exceeds the limit. The "too many index blobs" message is a **red herring**:
 maintenance is actually running fine:
 
-- The `KopiaMaintenance` CR drives the `kopia-maint-daily-*` cronjob every 4h.
+- The `KopiaMaintenance` CR drives the `kopia-maint-daily-*` cronjob every 4h. (Raised to
+  hourly after this incident: index blobs were still being created faster than epoch
+  compaction reclaimed them, so the schedule is now `30 * * * *`.)
 - Its job log shows it owns maintenance, runs quick **then full** maintenance (GC + epoch
   compaction), and reports `MAINTENANCE_STATUS: SUCCESS` in a few minutes.
 - The maintenance job pod has **no resource limits**, so it doesn't OOM, only the long-lived

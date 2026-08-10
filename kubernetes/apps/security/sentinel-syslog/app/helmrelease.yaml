@@ -112,7 +112,15 @@ spec:
           # components/global-vars/cluster-secrets.yaml — kept out of this PUBLIC repo per the
           # internal-identifier scan, same pattern as the other SVC_*_ADDR LB services.
           lbipam.cilium.io/ips: ${SVC_SYSLOG_ADDR}
-        externalTrafficPolicy: Local
+        # Cluster, not Local: Cilium's L2 announcement elects a lease-holder node
+        # without regard to backend locality, so with Local the LB IP is ARP'd by a
+        # node that then refuses the traffic whenever the pod lands elsewhere —
+        # external senders got TCP RST / silent UDP loss while in-cluster socket-LB
+        # kept working (found 2026-08-02: the firewall had been refused on every
+        # syslog write for days). Client source IP is SNAT'd under Cluster, which
+        # is acceptable here: the pipeline keys on [program] and the in-message
+        # hostname (logsource), not the peer address.
+        externalTrafficPolicy: Cluster
         ports:
           syslog-udp:
             port: 514
@@ -143,7 +151,7 @@ spec:
             }
 
             filter {
-              # OPNsense (cr-fw) keeps its clock in UTC and sends RFC3164 timestamps with no zone.
+              # OPNsense keeps its clock in UTC and sends RFC3164 timestamps with no zone.
               # The syslog input otherwise reads them in the container's local zone (Europe/London
               # => BST in summer), shifting TimeGenerated ~1h behind ingestion. Re-parse as UTC so
               # TimeGenerated (= the plugin's ls_timestamp = @timestamp) is correct.
