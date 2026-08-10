@@ -22,6 +22,7 @@ Work down from what you observe to the most likely entry:
     - After a Rook v1.20 upgrade: RBD nodeplugin `FailedCreate`, or ~88 `VolSyncVolumeOutOfSync` alerts → [KB-010](kb/010-rook-ceph-v120-csi-driver-split.md)
     - `volsync-system/kopia` repo server OOM-crashloops (`exit 137`) → [KB-016](kb/016-kopia-repo-server-oom-repo-size.md)
     - `CephMonDownQuorumAtRisk` (critical) fires minutes after cordoning a control-plane node → [KB-019](kb/019-cordon-control-plane-breaks-ceph-mon-quorum.md)
+    - Snapshot CRDs vanish minutes after merging a chart migration; controller crash-loops on "failure to ensure CRDs exist"; HelmRelease rollback loop re-deletes them each retry → [KB-029](kb/029-chart-migration-deletes-keep-annotated-crds.md)
 - **Workloads / pods**
     - A JVM/Logstash pod OOMKills on a cadence despite a bounded heap → [KB-012](kb/012-jvm-container-rss-oom-malloc-arena-max.md)
     - A pure-Go pod SIGSEGVs (`exit 139`) on a large fraction of starts, before any logs → [KB-013](kb/013-go-1264-binary-startup-sigsegv.md)
@@ -73,3 +74,4 @@ Work down from what you observe to the most likely entry:
 - [KB-026: Plex Apple TV App Freezes on One Frame (Client Receive-Window Deadlock)](kb/026-plex-apple-tv-app-receive-window-deadlock.md)
 - [KB-027: A DNS Cleanup Scaled Every NFS-Backed App to Zero](kb/027-dns-cleanup-scaled-nfs-apps-to-zero.md)
 - [KB-028: Talos Upgrade Installs Successfully but the Node Boots the Old Version (NVRAM Wipe)](kb/028-talos-upgrade-boots-old-version-loaderentrydefault.md)
+- [KB-029: Chart Migration Deletes Keep-Annotated CRDs (postRenderer Removal Races the Chart Swap)](kb/029-chart-migration-deletes-keep-annotated-crds.md)
