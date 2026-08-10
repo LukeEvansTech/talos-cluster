@@ -18,7 +18,7 @@ spec:
           app:
             image:
               repository: homebridge/homebridge
-              tag: "2026-07-31@sha256:d4f3579fc09c8d43d6956c8c970351f510096b9d990c53280d2c27c1e77bfbef"
+              tag: "2026-08-08@sha256:b6e80cb90939398e8030dabd8f5798772dacf0b7b83a34b02f9b8f2f17fe4ab9"
             env:
               TZ: ${TIMEZONE}
               # Must be explicitly "0" — the image bakes in ENV ENABLE_AVAHI=1,
