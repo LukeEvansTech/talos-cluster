@@ -25,9 +25,28 @@ spec:
               # Custom components (Rako, MG/SAIC, etc.) are added via the HACS UI
               # - the standard home-ops pattern for this image.
               HOME_ASSISTANT__HACS_INSTALL: "true"
-              # Trust proxy from pod network and management network
-              HASS_HTTP_TRUSTED_PROXY_1: 10.42.0.0/16
-              HASS_HTTP_TRUSTED_PROXY_2: 10.32.8.0/24
+            probes:
+              liveness:
+                enabled: true
+                spec:
+                  periodSeconds: 30
+                  timeoutSeconds: 5
+                  failureThreshold: 5
+              readiness:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /healthz
+                    port: &port 8123
+                  periodSeconds: 10
+                  timeoutSeconds: 5
+                  failureThreshold: 5
+              startup:
+                enabled: true
+                spec:
+                  failureThreshold: 30
+                  periodSeconds: 10
             securityContext:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: false
@@ -66,7 +85,7 @@ spec:
         ports:
           http:
             appProtocol: kubernetes.io/ws
-            port: 8123
+            port: *port
 
     route:
       app:
