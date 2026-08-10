@@ -40,7 +40,10 @@ spec:
                 custom: true
                 spec:
                   httpGet:
-                    path: /healthz
+                    # Unauthenticated 200 on stock HA — /healthz 404s on this
+                    # instance (it is not a core endpoint) and wedged every
+                    # upgrade in a readiness-timeout rollback loop.
+                    path: /manifest.json
                     port: &port 8123
                   periodSeconds: 10
                   timeoutSeconds: 5
