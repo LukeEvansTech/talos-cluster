@@ -308,18 +308,19 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }} # zizmor: ignore[secrets-outside-env]
           allowed_bots: "renovate[bot]"
           show_full_output: true
-          # --max-turns is 35, not 25: full-depth reviews land right on the old
-          # ceiling (21/25/26 turns across three consecutive Opus reviews on
-          # 2026-07-31). Overrunning it AFTER the verdict is posted still fails the
-          # action, so a successful review red-flags its own run — the status step
-          # reads the posted review and resolves correctly, but a routinely-red run
-          # trains you to ignore red runs. A ceiling, not a target: it costs nothing
-          # when a review finishes early, and the prompt still aims at 12-18 turns.
+          # --max-turns is 60, not 35: full-depth reviews keep outgrowing the
+          # ceiling (21/25/26 turns on 2026-07-31 broke 25; a 50-turn Opus review
+          # on 2026-08-10 broke 35). Overrunning it AFTER the verdict is posted
+          # still fails the action, so a successful review red-flags its own run —
+          # the status step reads the posted review and resolves correctly, but a
+          # routinely-red run trains you to ignore red runs. A ceiling, not a
+          # target: it costs nothing when a review finishes early, and the prompt
+          # still aims at 12-18 turns.
           # (Comments cannot live inside claude_args — it is a literal block whose
           # lines are passed to the CLI as arguments.)
           claude_args: |
             --model ${{ steps.model_tier.outputs.model }}
-            --max-turns 35
+            --max-turns 60
             --setting-sources user
             --allowedTools "Read,Glob,Grep,Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr review:*),Bash(gh issue view:*),Bash(gh api:*),Bash(gh release view:*),Bash(gh release list:*),Bash(gh repo view:*),Bash(git log:*),Bash(git show:*),Bash(git tag:*),Bash(curl:*),WebFetch,WebSearch"
           prompt: |
