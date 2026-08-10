@@ -18,7 +18,8 @@ docs/superpowers/
 .private/
 .task/
 .venv/
-.claude/
+.claude/*
+!.claude/settings.json
 .playwright-mcp/
 .DS_Store
 Thumbs.db
