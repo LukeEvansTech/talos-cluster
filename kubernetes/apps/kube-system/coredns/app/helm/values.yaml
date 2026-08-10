@@ -4,6 +4,7 @@ image:
   repository: mirror.gcr.io/coredns/coredns
 replicaCount: 2
 k8sAppLabelOverride: kube-dns
+priorityClassName: system-cluster-critical
 podDisruptionBudget:
   enabled: true
   minAvailable: 1
@@ -19,6 +20,12 @@ servers:
         use_tcp: true
     port: 53
     plugins:
+      # The cluster is IPv4-only, so answer every AAAA query with an instant
+      # empty NOERROR instead of forwarding it upstream.
+      - name: template
+        parameters: ANY AAAA
+        configBlock: |-
+          authority "{{ .Zone }} 60 IN SOA ns.dns.cluster.local. hostmaster.cluster.local. (1 60 60 60 60)"
       - name: errors
       - name: health
         configBlock: |-
@@ -37,6 +44,7 @@ servers:
         configBlock: |-
           prefetch 20
           serve_stale
+          servfail 0
       - name: loop
       - name: reload
       - name: loadbalance
