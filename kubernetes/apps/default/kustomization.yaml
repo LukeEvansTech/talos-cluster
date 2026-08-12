@@ -42,6 +42,7 @@ resources:
   - ./it-tools/ks.yaml
   - ./jobops/ks.yaml
   - ./keeper/ks.yaml
+  - ./lurcher/ks.yaml
   - ./mail-archiver/ks.yaml
   - ./mailrise/ks.yaml
   - ./manyfold/ks.yaml
