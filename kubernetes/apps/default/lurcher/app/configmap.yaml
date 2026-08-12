@@ -5,12 +5,28 @@ metadata:
   name: lurcher-searches
 data:
   searches.yaml: |-
-    # Keywords are OR; exclude rejects; rate/location/IR35 filters AND together.
-    # rateMin/rateMax are whole £/day. Edit to taste, then commit — the CronJob
-    # picks up the change on its next run.
-    - name: "Cloud / Platform (Outside IR35)"
-      keywords: [azure, aws, kubernetes, terraform, platform engineer, devops, sre]
-      exclude: [helpdesk, "1st line", "service desk"]
+    # Luke Evans — Microsoft security/identity solutions architect (4x MVP).
+    # Keywords are OR (any match); exclude rejects; rate/location/IR35 AND together.
+    # rateMin/rateMax are whole £/day. Edit + commit — the CronJob picks it up next run.
+    - name: "Security / Identity Architect (Microsoft)"
+      keywords:
+        - "security architect"
+        - "identity architect"
+        - "solutions architect"
+        - "cyber security architect"
+        - "cybersecurity architect"
+        - "entra"
+        - "conditional access"
+        - "microsoft sentinel"
+        - "microsoft purview"
+        - "defender for"
+        - "zero trust"
+        - "identity and access"
+        - "intune"
+        - "microsoft 365"
+        - "copilot"
+      exclude: ["1st line", "2nd line", "service desk", "helpdesk", "developer", "software engineer", "graduate"]
       ir35: outside
-      locations: [remote, london]
+      rateMin: 550
+      locations: [remote]
       matchIn: both
