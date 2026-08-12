@@ -79,6 +79,28 @@ spec:
 apiVersion: monitoring.coreos.com/v1alpha1
 kind: ScrapeConfig
 metadata:
+  name: &name seedbox-qui
+spec:
+  # qui (qBittorrent WebUI) metrics — host port 9476 (in-container default 9074 is
+  # taken on the host by autobrr, same project family, same default).
+  staticConfigs:
+    - targets:
+        - seedbox.observability.svc.cluster.local:9476
+  metricsPath: /metrics
+  scrapeInterval: 60s
+  scrapeTimeout: 30s # tailnet-egress scrapes are slow; 30s stops false up=0 (see node job)
+  relabelings:
+    - action: replace
+      targetLabel: job
+      replacement: *name
+    - action: replace
+      targetLabel: instance
+      replacement: seedbox
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/scrapeconfig_v1alpha1.json
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: ScrapeConfig
+metadata:
   name: &name seedbox-doco-cd
 spec:
   # doco-cd native metrics (:9120) — GitOps deploy/poll status on the seedbox.
