@@ -24,7 +24,7 @@ data:
         - "active directory"
         - "conditional access"
         - "microsoft sentinel"
-        - "microsoft purview"
+        - "purview"
         - "microsoft defender"
         - "defender for"
         - "zero trust"
@@ -35,6 +35,9 @@ data:
         - "microsoft 365"
         - "office 365"
         - "copilot"
+        - "azure"
+        - "sharepoint"
+        - "microsoft teams"
       exclude:
         - "1st line"
         - "2nd line"
