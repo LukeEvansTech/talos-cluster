@@ -1,0 +1,16 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lurcher-searches
+data:
+  searches.yaml: |-
+    # Keywords are OR; exclude rejects; rate/location/IR35 filters AND together.
+    # rateMin/rateMax are whole £/day. Edit to taste, then commit — the CronJob
+    # picks up the change on its next run.
+    - name: "Cloud / Platform (Outside IR35)"
+      keywords: [azure, aws, kubernetes, terraform, platform engineer, devops, sre]
+      exclude: [helpdesk, "1st line", "service desk"]
+      ir35: outside
+      locations: [remote, london]
+      matchIn: both
