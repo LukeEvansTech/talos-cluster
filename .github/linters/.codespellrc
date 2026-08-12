@@ -6,7 +6,8 @@
 #                enabled_plugins list); upstream's spelling, must stay verbatim
 # intoto — SLSA in-toto provenance paths in mise.lock (provenance.intoto.jsonl)
 # showin — Grafana annotation schema key `showIn` (vendored dashboard JSON)
-ignore-words-list = NotIn,adn,flate,informations,intoto,showin
+# matchIn — lurcher search-config field (title|description|both) in its ConfigMap
+ignore-words-list = NotIn,adn,flate,informations,intoto,matchIn,showin
 # mise.lock is a generated lockfile (checksums/URLs); not prose. NB: super-linter
 # passes files explicitly with its own --skip, so the config `skip` below is
 # ignored in CI — `intoto` above is the load-bearing fix. Kept for local runs.

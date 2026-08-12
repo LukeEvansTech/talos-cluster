@@ -1,0 +1,77 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/batch/cronjob_v1.json
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: lurcher
+  namespace: default
+spec:
+  schedule: "0 7 * * *" # daily 07:00
+  timeZone: "Europe/London"
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 300
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 3600
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app: lurcher
+        spec:
+          restartPolicy: OnFailure
+          automountServiceAccountToken: false
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65532
+            runAsGroup: 65532
+            fsGroup: 65532
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: lurcher
+              image: ghcr.io/lukeevanstech/lurcher:1.0.0@sha256:ec8373e8d10b8599e37621ff722b5fc9f4901c37c9a3e0c9225d283daea1df82
+              args:
+                - "run"
+              env:
+                - name: LURCHER_DB
+                  value: /data/lurcher.db
+                - name: HOME # apprise/node need a writable home under readOnlyRootFilesystem
+                  value: /tmp
+              envFrom:
+                - secretRef:
+                    name: lurcher-secret
+              volumeMounts:
+                - name: data
+                  mountPath: /data
+                - name: searches
+                  mountPath: /app/searches.yaml
+                  subPath: searches.yaml
+                  readOnly: true
+                - name: tmp
+                  mountPath: /tmp
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop:
+                    - "ALL"
+              resources:
+                requests:
+                  cpu: 25m
+                  memory: 128Mi
+                limits:
+                  cpu: "1"
+                  memory: 512Mi
+          volumes:
+            - name: data
+              persistentVolumeClaim:
+                claimName: lurcher
+            - name: searches
+              configMap:
+                name: lurcher-searches
+            - name: tmp
+              emptyDir: {}
