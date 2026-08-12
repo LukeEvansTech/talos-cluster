@@ -71,7 +71,10 @@ spec:
               persistentVolumeClaim:
                 claimName: lurcher
             - name: searches
-              configMap:
-                name: lurcher-searches
+              secret:
+                secretName: lurcher-secret
+                items:
+                  - key: SEARCHES_YAML
+                    path: searches.yaml
             - name: tmp
               emptyDir: {}
