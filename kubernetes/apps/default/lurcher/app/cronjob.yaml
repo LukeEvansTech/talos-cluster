@@ -6,7 +6,10 @@ metadata:
   name: lurcher
   namespace: default
 spec:
-  schedule: "0 7 * * *" # daily 07:00
+  # Source publishes its daily batch ~06:00-08:00 UTC (peak 07:00 UTC), weekdays.
+  # Run at 10:00 London (09:00 UTC in summer / 10:00 UTC in winter) so the scrape
+  # lands AFTER the batch and catches new roles same-morning, not a day late.
+  schedule: "0 10 * * *" # daily 10:00 London
   timeZone: "Europe/London"
   concurrencyPolicy: Forbid
   startingDeadlineSeconds: 300
