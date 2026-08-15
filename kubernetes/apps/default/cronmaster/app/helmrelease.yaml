@@ -18,7 +18,7 @@ spec:
           app:
             image:
               repository: ghcr.io/fccview/cronmaster
-              tag: 2.3.1@sha256:156be0d2c182f20c143f701f1047cfaeb48b55ef06c8f55e06b67c3226504f65
+              tag: 2.3.2@sha256:6816b59e05af9562f474c9761bcf5b83446ee14316f7401b796ee82166669db5
             env:
               TZ: ${TIMEZONE}
               NODE_ENV: production
