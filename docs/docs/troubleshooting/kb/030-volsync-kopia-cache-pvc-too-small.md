@@ -1,7 +1,7 @@
 # KB-030: VolSync Kopia Backups Fail with `no space left on device` on `/cache`
 
-**Status:** Resolved for `wizarr` (cache raised 4Gi → 8Gi). The sizing rule below applies to every
-app using the `volsync` component.
+**Status:** Resolved for `wizarr` (cache raised 4Gi → 8Gi; first good sync 2026-08-15T19:18Z after
+~15h of failures). The sizing rule below applies to every app using the `volsync` component.
 
 ## Symptom
 
@@ -85,18 +85,39 @@ postBuild:
     VOLSYNC_CACHE_CAPACITY: 8Gi # not 4Gi — cache tracks repo size, not app size
 ```
 
-VolSync does not shrink or grow an existing cache PVC in place, so the already-full one has to be
-expanded (or deleted and left to be recreated). `miroir-local` sets
-`allowVolumeExpansion: true`, so expansion is online and non-destructive:
+Flux alone is not enough: the existing cache PVC is already full and VolSync will not grow it as
+part of the mover run, so expand it too. `miroir-local` sets `allowVolumeExpansion: true`, so this
+is online and non-destructive:
 
 ```bash
 kubectl patch pvc volsync-src-<app>-nfs-cache -n <ns> \
   --type merge -p '{"spec":{"resources":{"requests":{"storage":"8Gi"}}}}'
 ```
 
-Deleting the cache PVC is equally safe (it is a cache — VolSync recreates it at the new size on the
-next run), it just makes that run re-download the index. Either way, clear the wedged mover pods so
-the next scheduled run starts clean:
+**Order matters, and the two halves cannot be separated.** VolSync reconciles the cache PVC's size
+from `ReplicationSource.spec.kopia.cacheCapacity`. The moment the PVC is 8Gi while the spec still
+says 4Gi, the controller wedges on a shrink it is not allowed to make:
+
+```text
+PersistentVolumeClaim "volsync-src-<app>-nfs-cache" is invalid:
+spec.resources.requests.storage: Forbidden: field can not be less than status.capacity
+```
+
+The mover pod itself still succeeds, but the controller never finishes its reconcile, so subsequent
+runs stall. PVCs cannot be shrunk, so there is no way back — the only exit is `cacheCapacity: 8Gi`
+in git. If the expansion is done before the change merges, patch the live `ReplicationSource` to
+match and merge promptly, because Flux reverts it on the next reconcile (hourly) and reintroduces
+the error:
+
+```bash
+kubectl patch replicationsource -n <ns> <app>-nfs \
+  --type merge -p '{"spec":{"kopia":{"cacheCapacity":"8Gi"}}}'
+```
+
+Deleting the cache PVC instead of expanding it is safe (it is a cache — VolSync recreates it and
+the run re-downloads the index), but only *after* the git change merges; before that it is
+recreated at the old size and fails again. Either way, clear the wedged mover pods so the next
+scheduled run starts clean:
 
 ```bash
 kubectl delete pod -n <ns> -l app.kubernetes.io/created-by=volsync --field-selector status.phase=Failed
