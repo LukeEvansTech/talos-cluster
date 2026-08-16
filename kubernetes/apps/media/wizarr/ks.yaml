@@ -19,7 +19,11 @@ spec:
     substitute:
       APP: *app
       VOLSYNC_CAPACITY: 5Gi
-      VOLSYNC_CACHE_CAPACITY: 4Gi
+      # The Kopia cache holds the index/metadata of the WHOLE shared repository, not just this
+      # app's data, so it does not scale down with VOLSYNC_CAPACITY. 4Gi filled to 100% and the
+      # mover died on `write /cache/CACHEDIR.TAG: no space left on device` (KB-030). 8Gi is the
+      # cluster-wide floor for small apps.
+      VOLSYNC_CACHE_CAPACITY: 8Gi
       HOMEPAGE_NAME: Wizarr
       HOMEPAGE_GROUP: Requests
       HOMEPAGE_ICON: wizarr.svg

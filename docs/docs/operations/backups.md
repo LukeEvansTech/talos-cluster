@@ -18,6 +18,11 @@ replacing, VolSync for those apps.
   it in both double-applies).
 - Set `VOLSYNC_CAPACITY` in the `ks.yaml` `postBuild.substitute` block to size the replication
   volume.
+- Leave `VOLSYNC_CACHE_CAPACITY` at **8Gi or above**, whatever `VOLSYNC_CAPACITY` is. Every app
+  shares one Kopia repository, so the mover's `/cache` holds that repository's index and metadata
+  rather than the app's own data — it does not scale down with a small app. Under-sizing it fills
+  the cache volume to 100% and the mover dies on `no space left on device`; see
+  [KB-030](../troubleshooting/kb/030-volsync-kopia-cache-pvc-too-small.md).
 
 ## Operating
 
