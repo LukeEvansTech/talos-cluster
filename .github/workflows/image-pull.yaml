@@ -125,7 +125,11 @@ jobs:
           # Find new images (in pull but not in default).
           # Read job outputs from env, not template interpolation, to avoid
           # zizmor template-injection (untrusted output → shell).
-          NEW_IMAGES=$(jq -n \
+          # -c keeps the array on ONE line: a multi-line value breaks the
+          # `key=value` GITHUB_OUTPUT syntax ("Invalid format" on every line
+          # after the first) whenever the diff is non-empty, i.e. any push that
+          # adds a new image.
+          NEW_IMAGES=$(jq -c -n \
             --argjson default "${DEFAULT_IMAGES_JSON}" \
             --argjson pull "${PULL_IMAGES_JSON}" \
             '$pull - $default')
