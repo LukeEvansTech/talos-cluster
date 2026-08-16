@@ -67,7 +67,6 @@ spec:
                   cpu: 25m
                   memory: 128Mi
                 limits:
-                  cpu: "1"
                   memory: 512Mi
           volumes:
             - name: data
