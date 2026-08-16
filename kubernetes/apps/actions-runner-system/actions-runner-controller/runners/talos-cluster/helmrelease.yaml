@@ -52,7 +52,12 @@ spec:
                 mountPath: /home/runner/_work
               - name: talos-secrets
                 mountPath: /home/runner/.talos/config
-                subPath: talosconfig
+                # Minted talosconfig secrets carry the config under key `config`
+                # (matches the talos MCP mount). The old `talosconfig` key never
+                # existed, so this subPath came up as an empty *directory* and
+                # `talosctl … --talosconfig ~/.talos/config` failed with
+                # "is a directory" on every image-pull run.
+                subPath: config
                 readOnly: true
         volumes:
           - name: work
@@ -67,7 +72,11 @@ spec:
                       storage: 25Gi
           - name: talos-secrets
             secret:
-              secretName: talos-cluster-runner-secret
+              # The os:admin talosconfig minted by the talos.dev ServiceAccount
+              # in rbac.yaml (Secret `talos-cluster-runner`) — NOT the GitHub App
+              # creds (`talos-cluster-runner-secret`), which was wired here by
+              # mistake and carries no talosconfig.
+              secretName: talos-cluster-runner
     controllerServiceAccount:
       name: actions-runner-controller
       namespace: actions-runner-system
