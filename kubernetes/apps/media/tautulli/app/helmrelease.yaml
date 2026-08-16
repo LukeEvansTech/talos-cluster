@@ -22,6 +22,9 @@ spec:
             env:
               TZ: ${TIMEZONE}
               TAUTULLI_HTTP_PORT: &port 80
+              # Opt out of the silent GA4 telemetry (Tautulli/Tautulli#2781).
+              # Must be "0": any other value fails int() and falls back to on.
+              TAUTULLI_SYSTEM_ANALYTICS: "0"
             envFrom:
               - secretRef:
                   name: "{{ .Release.Name }}-secret"
