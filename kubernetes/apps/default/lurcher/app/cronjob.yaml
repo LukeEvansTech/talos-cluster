@@ -36,7 +36,7 @@ spec:
               type: RuntimeDefault
           containers:
             - name: lurcher
-              image: ghcr.io/lukeevanstech/lurcher:1.3.0@sha256:36d8ed06fcc0fdd164ea90f9442ab74af4c80cfa420ff78167ca234181ba727b
+              image: ghcr.io/lukeevanstech/lurcher:1.4.0@sha256:d2dd529cf09345f81b63bcac253e9aa25e767a107a96e831bd4e900d27c9e410
               args:
                 - "run"
               env:
