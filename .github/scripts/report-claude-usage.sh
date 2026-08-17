@@ -34,6 +34,19 @@ if [ -z "$r" ] || [ "$r" = "null" ]; then
     exit 0
 fi
 
+# An API-error result (api_error_status set: 429 usage window, 5xx, ...) is a run
+# that never reviewed anything, but it still has a result record - so it must be
+# excluded here explicitly or its fingerprint gets stored and the next run skips
+# Claude on the strength of a review that never happened (seen on 2026-08-17: a
+# 429 run posted "Turns 1", all zeros, fingerprint stored). Max-turns overruns
+# carry no api_error_status and keep storing theirs, since their verdict was
+# posted before the overrun.
+api_status=$(printf '%s' "$r" | jq -r '.api_error_status // empty')
+if [ -n "$api_status" ]; then
+    echo "model=${MODEL:-unknown} (run failed with API error $api_status: $(printf '%s' "$r" | jq -r '.result // "no message"' | head -c 120) - no usage recorded, fingerprint not stored)" >>"$out"
+    exit 0
+fi
+
 # NOTE: computed fields must guard the source field INSIDE the expression. jq's //
 # binds looser than / and *, so a trailing `// 0` does NOT prevent a null/number
 # division or multiply error. Use `(.x // 0)/...` not `(.x/...) // 0`.
