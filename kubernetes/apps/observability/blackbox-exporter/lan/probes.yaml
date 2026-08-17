@@ -155,3 +155,28 @@ spec:
     - action: replace
       replacement: blackbox-exporter-lan
       targetLabel: service
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/probe_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: Probe
+metadata:
+  name: lan-tcp-veeam
+spec:
+  # Veeam B&R REST API (:9419) on the backup server. Complements
+  # VeeamServerGuestDown (vmware-exporter): that one sees a dead guest OS, this
+  # one sees "OS up but the Veeam services are not" — the service stopping or
+  # failing to start after a reboot. Alerted by the generic LanProbeFailed rule
+  # (probe_success == 0 for 15m, critical).
+  jobName: veeam_probe
+  interval: 1m
+  module: tcp_connect
+  prober:
+    url: blackbox-exporter-lan.observability.svc.cluster.local:9115
+  targets:
+    staticConfig:
+      static:
+        - ${SECRET_VEEAM_HOST}:9419
+  metricRelabelings:
+    - action: replace
+      replacement: blackbox-exporter-lan
+      targetLabel: service
