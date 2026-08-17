@@ -136,3 +136,95 @@ spec:
           for: 5m
           labels:
             severity: warning
+
+    # ------------------------------------------------------------------
+    # Off-site ZFS replication health. The netdata graphite bridge exports no
+    # replication (or pool) series — same reason there is no pool-state alert
+    # above — so the signal is produced host-side: a cron collector on the NAS
+    # writes zfs_replication_*.prom and node-exporter's textfile collector
+    # re-exposes it. Metrics are generic over every replication task (labelled by
+    # task name); the DR task is the load-bearing one.
+    #
+    # Same philosophy as docker-backup.rules: alert on the ABSENCE OF SUCCESS,
+    # not the presence of errors. Every rule pages (the root route sends all
+    # severities to Pushover) and each fires ~never and is actionable.
+    #
+    # SEED CAVEAT: the first full replication runs for days with state=RUNNING and
+    # last_success=0. The Stale rule's `> 0` guard keeps it quiet until the first
+    # completion; a genuine stall still pages via Failing (state=ERROR).
+    - name: truenas-replication.rules
+      rules:
+        # THE load-bearing alert: the off-site copy is stale. 36h gives a daily
+        # replication one full missed cycle plus slack. Guards: last_success > 0
+        # (never fires before the first completion — silent through the initial
+        # seed and for any deliberately-disabled task, both at 0); state != 1 so a
+        # long in-progress run is not called stale.
+        - alert: TrueNASReplicationStale
+          annotations:
+            summary: >-
+              No successful off-site replication of {{ $labels.task }} in over 36h —
+              the DR copy is stale.
+          expr: |-
+            (time() - zfs_replication_last_success_timestamp_seconds{box="truenas"} > 129600)
+            and (zfs_replication_last_success_timestamp_seconds{box="truenas"} > 0)
+            and (zfs_replication_state{box="truenas"} != 1)
+          for: 30m
+          labels:
+            severity: critical
+        # A run that errored — fires well before Stale would, when the cause is
+        # fixable now (off-site box unreachable, credentials, a full destination).
+        # zettarepl retries within a run, so a brief blip stays RUNNING; only a
+        # terminal ERROR reaches this, and the 15m fuse rides out the retry window.
+        - alert: TrueNASReplicationFailing
+          annotations:
+            summary: >-
+              Replication task {{ $labels.task }} is in ERROR — check its log on the
+              NAS and whether the off-site target is reachable.
+          expr: |-
+            zfs_replication_state{box="truenas"} == 2
+          for: 15m
+          labels:
+            severity: warning
+        # The DR task silently disabled — an absence-of-success mode with no error
+        # to catch. Scoped to the DR task by its middleware id (11), so a second
+        # replication task that is deliberately disabled never pages. This and the
+        # MetricsMissing selector below are the only task-specific ones; update
+        # the id if the task is ever recreated.
+        - alert: TrueNASReplicationDisabled
+          annotations:
+            summary: >-
+              DR replication task {{ $labels.task }} is DISABLED — the off-site copy
+              is not running.
+          expr: |-
+            zfs_replication_enabled{box="truenas", id="11"} == 0
+          for: 15m
+          labels:
+            severity: warning
+        # The series vanishing entirely, which Stale cannot see. Causes: the
+        # collector cannot reach middleware, the textfile was deleted, or the task
+        # was removed. Scoped to the DR task's own series, like docker-backup's
+        # per-box absent(). 2h fuse; a real box outage is covered elsewhere.
+        - alert: TrueNASReplicationMetricsMissing
+          annotations:
+            summary: >-
+              DR replication metrics absent for 2h — cannot tell whether the
+              off-site copy is running.
+          expr: |-
+            absent(zfs_replication_last_success_timestamp_seconds{box="truenas", id="11"})
+          for: 2h
+          labels:
+            severity: warning
+        # The collector cron stopped while its textfile persists (series present
+        # but frozen), which MetricsMissing cannot see. Attributes a stalled
+        # collector to the collector, in 1h rather than as a false Stale 36h later.
+        # Cron runs every 15m, so >1h is four missed runs.
+        - alert: TrueNASReplicationCollectorStale
+          annotations:
+            summary: >-
+              The ZFS-replication metrics collector on the NAS has not run in over
+              1h — replication alerts may be blind.
+          expr: |-
+            time() - zfs_replication_scrape_timestamp_seconds{box="truenas"} > 3600
+          for: 15m
+          labels:
+            severity: warning
