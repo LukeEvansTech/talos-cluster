@@ -38,6 +38,26 @@ spec:
           for: 5m
           labels:
             severity: critical
+        # The Veeam B&R server sat at a BSOD for 12 days in Aug 2026 with nothing
+        # to say so. This series was 1 with tools_status="toolsNotRunning" for the
+        # entire outage and flipped back to toolsOk on the reset, so it is the
+        # earliest, cheapest signal for "guest OS is dead" — BSOD, hung boot,
+        # or an unexpected power-off (a powered-off VM also reports
+        # toolsNotRunning, verified live). 15m rides out a normal reboot.
+        # Deliberately no absent() clause: the exporter being down is already
+        # VMwareExporterDown, and absent() would echo tools_status="toolsOk"
+        # into the annotation. The VM name comes from cluster-secrets so the
+        # vCenter inventory name never lands in this public repo.
+        - alert: VeeamServerGuestDown
+          annotations:
+            summary: >-
+              Veeam B&R server guest is not running (VMware Tools {{ $labels.tools_status }})
+              — check the VM console; backups are not happening.
+          expr: |-
+            vmware_vm_guest_tools_running_status{job="vmware-exporter", vm_name="${SECRET_VEEAM_VM_NAME}", tools_status!="toolsOk"} == 1
+          for: 15m
+          labels:
+            severity: critical
         - alert: VMwareSnapshotAgeHigh
           annotations:
             summary: "VM {{ $labels.vm_name }} has a snapshot older than 7 days."
