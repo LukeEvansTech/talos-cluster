@@ -31,7 +31,7 @@ spec:
             image:
               # Custom image: Logstash + microsoft-sentinel output plugin (LukeEvansTech/containers).
               repository: ghcr.io/lukeevanstech/logstash-sentinel
-              tag: 9.1.10@sha256:870d75a493b1f6764aae0f5b8c51c81a85e282e087ffa0b54053752b933809e2
+              tag: 9.1.10@sha256:5880a42b34680575b0d1fa60c17fb3c6112538f42c27081f5d5f7f57b950e7db
             env:
               TZ: ${TIMEZONE}
               # Bound the JVM heap AND Netty/direct off-heap for the semi-hyperconverged
