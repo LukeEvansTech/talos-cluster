@@ -234,8 +234,9 @@ jobs:
           # errors (so a blip doesn't wedge auto-merge), which would otherwise let
           # an EXPIRED/REVOKED token silently pass PRs through unreviewed. This step
           # closes that gap: a clean 401 is flagged loudly and blocks (fail closed);
-          # 400/5xx/timeout is "inconclusive" (our request or the network, not the
-          # token) so header/model drift can never false-flag.
+          # 429 (usage window spent) blocks too, with a re-run as the fix (see the
+          # case arm); 400/5xx/timeout is "inconclusive" (our request or the
+          # network, not the token) so header/model drift can never false-flag.
           #
           # sk-ant-oat01 OAuth tokens authenticate via `Authorization: Bearer`
           # (NOT x-api-key — that returns 401 "invalid x-api-key" even for a valid
@@ -271,6 +272,13 @@ jobs:
                 state=inconclusive
               fi
               ;;
+            # 429 rate_limit_error: the token is alive but the Claude subscription
+            # behind it has spent its usage window, which can stay shut for hours.
+            # Left inconclusive it rides the pass-through path and every gated PR
+            # goes green unreviewed until the window resets — three PRs on
+            # 2026-08-17, two of them auto-merge eligible. Fail CLOSED like a dead
+            # token; the fix is a re-run once the window resets, not a rotation.
+            429) state=rate-limited ;;
             *) state=inconclusive ;;
           esac
           # On a 401, only a genuine authentication_error counts as a dead token;
@@ -282,22 +290,32 @@ jobs:
           # Which failure it is decides what the operator has to DO about it, so
           # carry the distinction through to the status and the annotation.
           reason=""
+          detail=""
           if [[ "$state" == "invalid" ]]; then
             if [[ "$code" == "403" ]]; then
               reason="org-policy"
             else
               reason="expired-or-revoked"
             fi
+          elif [[ "$state" == "rate-limited" ]]; then
+            reason="usage-limit"
+            # The API message carries the reset time ("... resets 3:40am (UTC)"),
+            # which is the one thing the operator needs to know.
+            detail=$(jq -r '.error.message // ""' /tmp/tokresp.json 2>/dev/null | head -c 100 || true)
           fi
-          echo "token_state=$state" >> "$GITHUB_OUTPUT"
-          echo "token_reason=$reason" >> "$GITHUB_OUTPUT"
-          echo "http=$code err_type=${err_type:-none} -> token_state=$state reason=${reason:-none}"
+          {
+            echo "token_state=$state"
+            echo "token_reason=$reason"
+            echo "token_detail=$detail"
+          } >> "$GITHUB_OUTPUT"
+          echo "http=$code err_type=${err_type:-none} -> token_state=$state reason=${reason:-none} detail=${detail:-none}"
 
       - id: claude
         if: >-
           steps.gate.outputs.gated == 'true'
           && steps.fp.outputs.skip_claude != 'true'
           && steps.token_check.outputs.token_state != 'invalid'
+          && steps.token_check.outputs.token_state != 'rate-limited'
         uses: anthropics/claude-code-action@9d7150bc8a3dae8149739a88019d192b579ad90c # v1.0.193
         with:
           # zizmor secrets-outside-env wants a GitHub deployment environment, but this
@@ -546,6 +564,8 @@ jobs:
           SKIP: ${{ steps.fp.outputs.skip_claude }}
           TOKEN_STATE: ${{ steps.token_check.outputs.token_state }}
           TOKEN_REASON: ${{ steps.token_check.outputs.token_reason }}
+          TOKEN_DETAIL: ${{ steps.token_check.outputs.token_detail }}
+          EXEC_FILE: ${{ steps.claude.outputs.execution_file }}
         run: |
           context="claude/renovate-review"
 
@@ -568,6 +588,11 @@ jobs:
             else
               desc="OAuth token invalid/expired/revoked - rotate CLAUDE_CODE_OAUTH_TOKEN (review skipped)"
             fi
+          elif [[ "$TOKEN_STATE" == "rate-limited" ]]; then
+            # Usage window spent before the review started: nothing ran, so there
+            # is no verdict to read. Fail closed; a re-run after the reset clears it.
+            state="failure"
+            desc="Claude usage limit hit (429) - re-run once the window resets${TOKEN_DETAIL:+: $TOKEN_DETAIL}"
           else
             # Gated version bump - read the latest verdict. Works for fresh runs
             # AND fingerprint-skips (the prior review is still on the PR).
@@ -620,15 +645,32 @@ jobs:
               state="failure"
               desc="Claude finished without posting a verdict - review manually"
             else
-              # Claude step errored/cancelled (API blip, rate limit, timeout). The
-              # token was already confirmed alive by the preflight, so this is a
-              # genuine transient failure != changes-requested: pass through so the
-              # auto-merge pipeline isn't wedged. Surfaced in the status for audit.
-              state="success"
-              desc="Claude review errored (outcome=${CLAUDE_OUTCOME:-none}) - passed through, review manually"
+              # Claude step errored/cancelled with no verdict posted. The usage
+              # window can also run out MID-review (the pre-flight passed, a later
+              # turn got 429): the action's result record then carries
+              # api_error_status=429 and the reset time. That is the same hours-long
+              # outage as the pre-flight case, so fail closed on it. Anything else
+              # (API blip, timeout) is a genuine transient failure != changes-
+              # requested: pass through so the auto-merge pipeline isn't wedged.
+              # Surfaced in the status for audit either way.
+              limit_msg=""
+              if [[ -n "${EXEC_FILE:-}" && -f "$EXEC_FILE" ]]; then
+                limit_msg=$(jq -r 'map(select(.type=="result")) | last | select(.api_error_status == 429) | .result // "429"' \
+                  "$EXEC_FILE" 2>/dev/null | head -c 100 || true)
+              fi
+              if [[ -n "$limit_msg" ]]; then
+                state="failure"
+                desc="Claude usage limit hit mid-review (429) - re-run once the window resets: ${limit_msg}"
+              else
+                state="success"
+                desc="Claude review errored (outcome=${CLAUDE_OUTCOME:-none}) - passed through, review manually"
+              fi
             fi
           fi
 
+          # The statuses API rejects descriptions over 140 chars (422), which
+          # would drop the gate entirely - clamp rather than fail.
+          desc="${desc:0:140}"
           echo "Posting commit status: context=$context state=$state desc=$desc"
           gh api -X POST "repos/$REPO/statuses/$SHA" \
             -f state="$state" \
@@ -665,4 +707,15 @@ jobs:
           else
             echo "::error title=Claude OAuth token invalid::CLAUDE_CODE_OAUTH_TOKEN failed authentication (HTTP 401 authentication_error) - it is expired or revoked. Rotate it: run 'claude setup-token', then 'gh secret set CLAUDE_CODE_OAUTH_TOKEN -R ${REPO}', then bump the 'expires' date on the 1Password 'Claude Code OAuth Token' item. Renovate AI review is blocked until rotated."
           fi
+          exit 1
+
+      - name: Flag usage limit
+        # Usage window spent before the review started: the commit status already
+        # blocks the PR; go red with an annotation so the run can't be mistaken
+        # for a passed review. The fix is a re-run, NOT a token rotation.
+        if: steps.token_check.outputs.token_state == 'rate-limited'
+        env:
+          TOKEN_DETAIL: ${{ steps.token_check.outputs.token_detail }}
+        run: |-
+          echo "::error title=Claude usage limit hit::CLAUDE_CODE_OAUTH_TOKEN is valid, but the Claude subscription behind it has spent its usage window (HTTP 429 rate_limit_error${TOKEN_DETAIL:+: $TOKEN_DETAIL}). The review was skipped and the commit status is failing so the PR cannot auto-merge unreviewed. Re-run this workflow once the window resets - do NOT rotate the token. If this recurs, CI reviews are competing with interactive Claude Code sessions on the same subscription: enable extra usage or move the workflow to an API key."
           exit 1
