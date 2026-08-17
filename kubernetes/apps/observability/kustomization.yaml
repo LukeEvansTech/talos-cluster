@@ -38,5 +38,6 @@ resources:
   - ./snmp-exporter/ks.yaml
   - ./tautulli-exporter/ks.yaml
   - ./truenas-exporter/ks.yaml
+  - ./veeam-backup/ks.yaml
   - ./victoria-logs/ks.yaml
   - ./vmware-exporter/ks.yaml

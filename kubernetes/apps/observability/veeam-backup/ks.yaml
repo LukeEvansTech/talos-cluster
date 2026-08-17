@@ -1,0 +1,29 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/kustomize.toolkit.fluxcd.io/kustomization_v1.json
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: &app veeam-backup
+  namespace: &namespace observability
+spec:
+  commonMetadata:
+    labels:
+      app.kubernetes.io/name: *app
+  interval: 1h
+  path: ./kubernetes/apps/observability/veeam-backup/app
+  postBuild:
+    substitute:
+      APP: *app
+  prune: true
+  retryInterval: 2m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+    namespace: flux-system
+  targetNamespace: *namespace
+  timeout: 5m
+  # CR-only app, same shape as docker-backup: the Veeam B&R server runs
+  # windows_exporter itself (LukeEvansTech/veeam-config, ansible/monitoring.yml)
+  # and publishes job-result metrics through its textfile collector, so the
+  # cluster is only in the alerting path. Nothing in-cluster to health-check.
+  wait: false
