@@ -1,0 +1,76 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/helm.toolkit.fluxcd.io/helmrelease_v2.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: &name codelooks-org-runner
+spec:
+  chartRef:
+    kind: OCIRepository
+    name: gha-runner-scale-set-codelooks-org
+  interval: 1h
+  values:
+    fullnameOverride: *name
+    # ORG-scoped, not repo-scoped: one scale set serves every repo in
+    # codelooks-com via the Default runner group, instead of the one-scale-set-
+    # per-repo pattern the other runners here use. Personal-account repos can't
+    # do this — GitHub has no user-level runner scope (`users/<u>/actions/runners`
+    # and `user/actions/runners` both 404), only repository and organisation —
+    # which is why LukeEvansTech repos still need one scale set each.
+    githubConfigUrl: https://github.com/codelooks-com
+    githubConfigSecret: codelooks-org-runner-secret
+    runnerGroup: Default
+    runnerScaleSetName: codelooks-org
+    # 12 private repos share this pool and Renovate lands PRs in batches, so
+    # some parallelism matters; 6 concurrent runners is well inside the cluster
+    # (3 x 24 cores) while bounding the blast radius of a runaway workflow.
+    maxRunners: 6
+    minRunners: 0
+    containerMode:
+      # dind, NOT kubernetes mode. super-linter and checkov-action are Docker
+      # CONTAINER actions (`using: docker`, `image: docker://...`), which need a
+      # Docker daemon. kubernetes mode would have to translate them via the
+      # container hooks, and the two other runners here that use kubernetes mode
+      # only ever run plain `run:` steps. dind is the mode already proven for
+      # container workloads by talos-cluster-runner.
+      type: dind
+    template:
+      spec:
+        # miroir-local provisions a real ext4 block device whose root comes up
+        # root:root 0755, and this image runs as uid/gid 1001. Without fsGroup
+        # the runner cannot create _work/_tool and every job dies in ~2s with
+        # UnauthorizedAccessException before a single step executes. miroir's
+        # CSIDriver is fsGroupPolicy: ReadWriteOnceWithFSType and this claim is
+        # RWO + ext4, so kubelet honours fsGroup and chowns the volume.
+        securityContext:
+          fsGroup: 1001
+        containers:
+          - name: runner
+            # Same digest as talos-cluster-runner / terraform-vsphere-runner.
+            # Renovate manages this.
+            image: ghcr.io/home-operations/actions-runner:2.336.0@sha256:281a9a090522fafbf4967f158b8c97d03552b1978b688893c5f7cb1944bc5fe5
+            command:
+              - "/home/runner/run.sh"
+            volumeMounts:
+              - name: work
+                mountPath: /home/runner/_work
+        volumes:
+          - name: work
+            ephemeral:
+              volumeClaimTemplate:
+                spec:
+                  accessModes:
+                    - "ReadWriteOnce"
+                  storageClassName: miroir-local
+                  resources:
+                    requests:
+                      # Roomier than talos-cluster-runner's 25Gi: the super-linter
+                      # image alone is several GB and checkov/trivy add more. Note
+                      # dind's own image store is the sidecar's writable layer
+                      # (node ephemeral storage), not this claim — and Spegel does
+                      # not mirror dind pulls, only containerd ones, so every run
+                      # pulls super-linter from ghcr.io afresh.
+                      storage: 40Gi
+    controllerServiceAccount:
+      name: actions-runner-controller
+      namespace: actions-runner-system
