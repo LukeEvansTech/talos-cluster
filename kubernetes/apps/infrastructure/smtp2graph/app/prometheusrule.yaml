@@ -1,0 +1,79 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+# Why this exists at all: between 2026-08-10 and 2026-08-19 this relay accepted
+# mail and then failed EVERY Graph send with ErrorSendAsDenied — 353 messages
+# lost, 2,824 errors, zero delivered — and nothing noticed for nine days. The
+# SMTP listener was healthy the entire time, so any liveness or TCP check would
+# have stayed green. These rules therefore measure DELIVERY OUTCOME, never
+# reachability.
+kind: PrometheusRule
+metadata:
+  name: smtp2graph
+spec:
+  groups:
+    - name: smtp2graph
+      rules:
+        # The exact signature of the Aug 2026 outage. A file in failed/ is a
+        # message the relay has permanently given up on — it is not a backlog,
+        # it is lost mail. Healthy steady state is a hard zero, so this needs no
+        # threshold beyond "any". 15m only so a single transient retry burst
+        # does not page.
+        - alert: SMTP2GraphUndeliverableMail
+          annotations:
+            description: >-
+              smtp2graph has {{ $value }} message(s) it has given up delivering. These
+              will never arrive. Check `kubectl logs -n infrastructure deploy/smtp2graph`
+              for the Graph error — ErrorSendAsDenied means the From address is not the
+              noreply@ shared mailbox or one of its aliases.
+            summary: smtp2graph has mail it can never deliver.
+          expr: smtp2graph_messages_failed > 0
+          for: 15m
+          labels:
+            severity: critical
+        # Backlog that is not draining. Distinct from the above: these have not
+        # been given up on yet, so this catches a slow or wedged Graph path
+        # before messages start expiring into failed/.
+        - alert: SMTP2GraphQueueStalled
+          annotations:
+            description: >-
+              smtp2graph has had mail queued for over 30 minutes (oldest is
+              {{ $value | humanizeDuration }}). Delivery to Graph is stalled or
+              throttled.
+            summary: smtp2graph delivery queue is not draining.
+          expr: smtp2graph_oldest_queued_seconds > 1800
+          for: 10m
+          labels:
+            severity: warning
+        # The queue metrics above only say anything when mail is actually
+        # flowing. Estate mail is bursty — the UPS alerts that exposed the
+        # original fault stopped entirely once the flapping calmed down — so a
+        # relay broken during a quiet spell would look perfectly healthy. The
+        # canary sends its own message every 6h and confirms it left the queue
+        # without landing in failed/, which exercises the real Graph call.
+        # 3x the interval plus slack: two consecutive misses before paging.
+        - alert: SMTP2GraphCanaryFailing
+          annotations:
+            description: >-
+              No successful smtp2graph delivery canary for over 14 hours. Mail is
+              probably broken even though nothing is currently trying to send — this is
+              the check that would have caught the Aug 2026 outage on day one.
+            summary: smtp2graph end-to-end delivery canary is failing.
+          expr: >-
+            smtp2graph_canary_enabled == 1
+            and (time() - smtp2graph_canary_last_success_timestamp_seconds) > 50400
+          for: 15m
+          labels:
+            severity: critical
+        # Monitoring that can fail silently is how the original outage lasted
+        # nine days. If the exporter stops reporting, say so.
+        - alert: SMTP2GraphMetricsMissing
+          annotations:
+            description: >-
+              No smtp2graph_up metric for over 15 minutes. The metrics sidecar is down or
+              unscrapeable, so mail delivery is unmonitored.
+            summary: smtp2graph delivery monitoring is blind.
+          expr: absent(smtp2graph_up)
+          for: 15m
+          labels:
+            severity: critical

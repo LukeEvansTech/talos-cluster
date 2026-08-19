@@ -33,6 +33,68 @@ spec:
                 cpu: 10m
               limits:
                 memory: 256Mi
+          # smtp2graph v1.1.5 exposes NO metrics of its own — it listens on :25
+          # and nothing else, and its config schema has no metrics or health
+          # options. This sidecar is the only source of delivery telemetry.
+          #
+          # It exists because between 2026-08-10 and 2026-08-19 every Graph send
+          # failed with ErrorSendAsDenied — 353 messages lost, zero delivered —
+          # and nothing noticed for nine days, because the SMTP listener stayed
+          # healthy throughout. Liveness was never the problem; delivery was.
+          #
+          # It reads the queue directories (see persistence.data below) and runs
+          # a 6-hourly end-to-end canary through the relay's own :25. Script is
+          # a real file under exporter/, not inline YAML, so it can be unit
+          # tested — its three scenarios (delivered / rejected by Graph / relay
+          # down) were each exercised against a stub SMTP server before merge.
+          metrics:
+            image:
+              repository: python
+              tag: 3.13-alpine@sha256:540c7d91f98ff6880174c40e99067bf5941eb54d818a7a5e094d188b196a934d
+            command:
+              - "python"
+              - "-u"
+              - "/opt/exporter/exporter.py"
+            env:
+              MAILROOT: /data/mailroot
+              METRICS_PORT: "9184"
+              SMTP_HOST: 127.0.0.1
+              SMTP_PORT: "25"
+              CANARY_ENABLED: "true"
+              # 6h. The canary sends REAL mail to CANARY_TO — a mailbox rule on
+              # the "[canary] smtp2graph" subject keeps it out of the way.
+              # Shorten for a tighter detection window at the cost of more mail.
+              CANARY_INTERVAL_SECONDS: "21600"
+              CANARY_TIMEOUT_SECONDS: "180"
+              # MUST be listed in allowedFrom (see externalsecret.yaml) or the
+              # canary is rejected at MAIL FROM and reports a false outage.
+              CANARY_FROM: noreply@${SECRET_DOMAIN}
+              CANARY_TO: operations@${SECRET_DOMAIN}
+            probes:
+              liveness:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet: { path: /metrics, port: 9184 }
+                  initialDelaySeconds: 20
+                  periodSeconds: 60
+                  failureThreshold: 3
+              readiness:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet: { path: /metrics, port: 9184 }
+                  initialDelaySeconds: 10
+                  periodSeconds: 30
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities: { drop: ["ALL"] }
+            resources:
+              requests:
+                cpu: 5m
+              limits:
+                memory: 64Mi
     defaultPodOptions:
       securityContext:
         runAsNonRoot: true
@@ -52,24 +114,53 @@ spec:
         ports:
           smtp:
             port: 25
+      # Separate ClusterIP so metrics are never published on the LoadBalancer
+      # that faces the LAN. The port NAME (http) is what the ServiceMonitor
+      # matches on — see the note in servicemonitor.yaml.
+      metrics:
+        controller: smtp2graph
+        type: ClusterIP
+        ports:
+          http:
+            port: 9184
     persistence:
       # WORKDIR is /data: config.yml is read from here and the disk queue
       # (queue/ temp/ failed/) is created alongside it. emptyDir matches the
       # maddy smtp-relay's queue durability — acceptable at estate volume.
+      # advancedMounts, not globalMounts: the sidecar must NOT see client.key.
+      # globalMounts would hand the Graph signing key to a container whose only
+      # job is counting files, so each mount is now targeted at the container
+      # that actually needs it.
       data:
         type: emptyDir
-        globalMounts:
-          - path: /data
+        advancedMounts:
+          smtp2graph:
+            app:
+              - path: /data
+            metrics:
+              - path: /data
+                readOnly: true
       config:
         type: secret
         name: smtp2graph-secret
-        globalMounts:
-          - path: /data/config.yml
-            subPath: config.yml
-            readOnly: true
-          - path: /secrets/client.key
-            subPath: client.key
-            readOnly: true
+        advancedMounts:
+          smtp2graph:
+            app:
+              - path: /data/config.yml
+                subPath: config.yml
+                readOnly: true
+              - path: /secrets/client.key
+                subPath: client.key
+                readOnly: true
+      exporter:
+        type: configMap
+        name: smtp2graph-exporter
+        advancedMounts:
+          smtp2graph:
+            metrics:
+              - path: /opt/exporter/exporter.py
+                subPath: exporter.py
+                readOnly: true
       tmp:
         type: emptyDir
         globalMounts:
