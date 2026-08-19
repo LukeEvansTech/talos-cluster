@@ -1,0 +1,30 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/podmonitor_v1.json
+apiVersion: monitoring.coreos.com/v1
+# PodMonitor, deliberately, NOT a ServiceMonitor. Giving the metrics sidecar its
+# own Service makes app-template rename the existing one (smtp2graph ->
+# smtp2graph-app), which NXDOMAINs the address every in-cluster consumer uses
+# and drops the LoadBalancer VIP. Scraping the pod directly keeps the Service
+# untouched and keeps metrics off the LAN-facing LoadBalancer.
+#
+# prometheus-operator matches podMetricsEndpoints[].port by port NAME, so the
+# container declares `metrics` in helmrelease.yaml; a bare number resolves no
+# target. No `release: kube-prometheus-stack` label — this cluster's Prometheus
+# selects monitors without it.
+kind: PodMonitor
+metadata:
+  name: &app smtp2graph
+  labels:
+    app.kubernetes.io/name: *app
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: *app
+  namespaceSelector:
+    matchNames:
+      - infrastructure
+  podMetricsEndpoints:
+    - port: metrics
+      path: /metrics
+      interval: 60s
+      scrapeTimeout: 10s

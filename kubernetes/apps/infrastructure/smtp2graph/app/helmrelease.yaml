@@ -55,6 +55,18 @@ spec:
               - "python"
               - "-u"
               - "/opt/exporter/exporter.py"
+            # Container port, NOT a second Service. app-template 5.x renames EVERY
+            # service the moment there is more than one (smtp2graph ->
+            # smtp2graph-app), which NXDOMAINs
+            # smtp2graph.infrastructure.svc.cluster.local — the address
+            # pocket-id, tandoor, epicgames and scanopy all use, and it takes
+            # the LoadBalancer VIP down with it. `primary: true` does not opt
+            # out. So metrics are scraped straight off the pod by podmonitor.yaml
+            # and never touch the LAN-facing Service.
+            ports:
+              - name: metrics
+                containerPort: 9184
+                protocol: TCP
             env:
               MAILROOT: /data/mailroot
               METRICS_PORT: "9184"
@@ -114,15 +126,6 @@ spec:
         ports:
           smtp:
             port: 25
-      # Separate ClusterIP so metrics are never published on the LoadBalancer
-      # that faces the LAN. The port NAME (http) is what the ServiceMonitor
-      # matches on — see the note in servicemonitor.yaml.
-      metrics:
-        controller: smtp2graph
-        type: ClusterIP
-        ports:
-          http:
-            port: 9184
     persistence:
       # WORKDIR is /data: config.yml is read from here and the disk queue
       # (queue/ temp/ failed/) is created alongside it. emptyDir matches the
