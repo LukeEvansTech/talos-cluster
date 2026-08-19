@@ -20,7 +20,7 @@ jobs:
     permissions:
       contents: read
       security-events: write
-    uses: LukeEvansTech/shared-workflows/.github/workflows/security-scans.yml@3454940093a684ceb6be3b42cac3a0d219ae78cb # v1
+    uses: LukeEvansTech/shared-workflows/.github/workflows/security-scans.yml@19d6cdb4b62130c4486ef05f2b9e44db95292b17 # v1
     # Defaults match this repo's prior inline config: framework=kubernetes,helm,
     # severity=CRITICAL,HIGH,MEDIUM, scanners=vuln,secret,misconfig,
     # trivyignore=.trivyignore.yaml. Override here if drift becomes desirable.
