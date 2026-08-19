@@ -1,0 +1,22 @@
+---
+# Bespoke because there is no upstream smtp2graph dashboard — the application
+# exposes no metrics at all; everything here comes from the sidecar in
+# helmrelease.yaml. Panels deliberately mirror the alert rules, so what pages
+# you is what you can see.
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/grafana.integreatly.org/grafanadashboard_v1beta1.json
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  name: smtp2graph
+spec:
+  allowCrossNamespaceImport: true
+  instanceSelector:
+    matchLabels:
+      grafana.internal/instance: grafana
+  resyncPeriod: 1h
+  datasources:
+    - datasourceName: prometheus
+      inputName: DS_PROMETHEUS
+  configMapRef:
+    name: smtp2graph-dashboard
+    key: smtp2graph.json
