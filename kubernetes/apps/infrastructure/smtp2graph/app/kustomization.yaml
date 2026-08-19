@@ -6,7 +6,7 @@ resources:
   - ./ocirepository.yaml
   - ./helmrelease.yaml
   - ./externalsecret.yaml
-  - ./servicemonitor.yaml
+  - ./podmonitor.yaml
   - ./prometheusrule.yaml
   - ./grafanadashboard.yaml
 configMapGenerator:
