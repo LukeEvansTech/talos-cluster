@@ -20,8 +20,17 @@ spec:
           annotations:
             description: GPU {{ $labels.gpu }} on {{ $labels.Hostname }} memory usage is above 90%.
             summary: GPU memory usage is critically high.
+          # Exclude the card running an llmkube InferenceService: llama.cpp holds
+          # its weights + KV cache resident by design, idling at ~90% and peaking
+          # higher during prompt processing, so this alert flapped on every
+          # request (fire >90% for 5m, resolve when idle, repeat). DCGM
+          # attributes the series to the GPU's occupant via exported_container
+          # ("llama-server" for every llmkube runtime pod, whatever the model).
+          # That card's real failure mode — CUDA OOM killing the server — is
+          # covered by InferenceServiceDown and pod restart alerting instead.
           expr: |-
-            DCGM_FI_DEV_FB_USED / (DCGM_FI_DEV_FB_USED + DCGM_FI_DEV_FB_FREE) > 0.9
+            DCGM_FI_DEV_FB_USED{exported_container!="llama-server"}
+              / (DCGM_FI_DEV_FB_USED{exported_container!="llama-server"} + DCGM_FI_DEV_FB_FREE{exported_container!="llama-server"}) > 0.9
           for: 5m
           labels:
             severity: warning
