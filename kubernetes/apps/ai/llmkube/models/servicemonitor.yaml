@@ -14,7 +14,7 @@ spec:
       - ai
   # Copy the operator's per-InferenceService labels onto every series so the
   # llama-server dashboard can filter per backend (app.kubernetes.io/instance is
-  # the InferenceService, e.g. llama-nvidia / llama-uncensored).
+  # the InferenceService, e.g. llama-nvidia).
   targetLabels:
     - app.kubernetes.io/instance
     - app.kubernetes.io/name
