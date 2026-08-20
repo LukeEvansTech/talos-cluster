@@ -3,17 +3,24 @@
 # mmproj projector into the shared llmkube-model-cache PVC (CephFS RWX) and
 # passes the projector to the runtime itself — no staging Job, no hand-rolled
 # --mmproj path.
+#
+# Qwen3.8-27B (dense, hybrid Gated-DeltaNet linear attention 48/64 layers,
+# native VLM, 262k native context, embedded MTP head). Only the 16
+# full-attention layers hold KV cache (~32KB/token at q8_0), which is what
+# makes long context affordable on a 24GB L4. Requires a llama.cpp build from
+# release week (2026-08-14) or later — older builds don't register the qwen35
+# arch and refuse to load the GGUF.
 apiVersion: inference.llmkube.dev/v1alpha1
 kind: Model
 metadata:
-  name: qwen3.6-35b-a3b
+  name: qwen3.8-27b
 spec:
-  source: hf://unsloth/Qwen3.6-35B-A3B-GGUF
+  source: hf://unsloth/Qwen3.8-27B-GGUF
   files:
-    - Qwen3.6-35B-A3B-UD-IQ4_XS.gguf
+    - Qwen3.8-27B-UD-Q4_K_S.gguf
   mmproj: mmproj-F16.gguf
   format: gguf
-  quantization: UD-IQ4_XS
+  quantization: UD-Q4_K_S
   hardware:
     accelerator: cuda
     gpu:
@@ -29,10 +36,10 @@ metadata:
   labels:
     krr/ignore: "true"
 spec:
-  modelRef: qwen3.6-35b-a3b
+  modelRef: qwen3.8-27b
   # Do NOT set skipModelInit here. It looks safe — the controller does stage the
   # GGUF (+ mmproj) into the shared cache PVC, so the model-downloader init
-  # container only logs "already cached" — but on llmkube 0.9.7 the flag ALSO
+  # container only logs "already cached" — but on llmkube 0.9.x the flag ALSO
   # blanks the rendered `--model` arg, because the /models/<cacheKey>/ path is
   # derived from the init-container staging step. llama.cpp then starts in
   # router mode with zero models: the pod goes 1/1 Ready and every request fails
@@ -43,8 +50,15 @@ spec:
   replicas: 1
   runtimeClassName: nvidia
   priorityClassName: gpu-preemptible
-  contextSize: 32768
-  parallelSlots: 3
+  # VRAM budget on a 24GB L4: 15.4Gi weights (UD-Q4_K_S) + 0.9Gi mmproj +
+  # ~2Gi KV (64k @ q8_0, only 16/64 layers are full attention) + compute
+  # buffers ≈ 20Gi. MTP speculative decoding (--spec-type draft-mtp, head is
+  # embedded in this GGUF) is deliberately OFF for the first rollout — enable
+  # it once live headroom is measured; it costs ~1Gi and its benefit shrinks
+  # with concurrent slots anyway. 2 slots × 32k is 3× the per-request window
+  # the previous 32k ÷ 3-slot config offered.
+  contextSize: 65536
+  parallelSlots: 2
   flashAttention: true
   jinja: true
   cacheTypeK: q8_0
@@ -86,12 +100,15 @@ spec:
     type: ClusterIP
   # NB: no manual --mmproj here — the operator injects the projector argument
   # from Model.spec.mmproj with the correct cache path.
+  # Samplers are Unsloth's recommended thinking-mode settings for Qwen3.8
+  # (temp 1.0 / top-p 0.95 / top-k 20 / min-p 0) — note temp is higher than
+  # the 0.6 the previous Qwen3.6 MoE wanted.
   extraArgs:
     - --alias
     - self-hosted
     - --no-mmap
     - --temp
-    - "0.6"
+    - "1.0"
     - --top-p
     - "0.95"
     - --top-k
