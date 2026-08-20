@@ -59,13 +59,11 @@ spec:
   priorityClassName: gpu-preemptible
   # VRAM budget on a 24GB L4 (~22.4Gi usable): 14.9Gi weights (Q4_K_S + MTP
   # head) + 0.6Gi mmproj + 4Gi KV (128k @ q8_0, only 16/64 layers are full
-  # attention) + compute buffers ≈ 21Gi. MTP speculative decoding
-  # (--spec-type draft-mtp; the head is already in this GGUF) is deliberately
-  # OFF for the first rollout — enable once live headroom is measured; its
-  # gain also shrinks with concurrent slots. 2 slots × 64k gives every
-  # request — opencode's ~41k agent baseline included — the window the old
-  # YaRN-extended uncensored model needed hacks for, with no YaRN and no
-  # --override-kv.
+  # attention) + compute buffers. Measured without MTP: 20.2Gi used, 2.3Gi
+  # free; the MTP head + draft state costs ~0.5–1Gi of that headroom.
+  # 2 slots × 64k gives every request — opencode's ~41k agent baseline
+  # included — the window the old YaRN-extended uncensored model needed
+  # hacks for, with no YaRN and no --override-kv.
   contextSize: 131072
   parallelSlots: 2
   flashAttention: true
@@ -112,7 +110,19 @@ spec:
   # Samplers are the vanilla Qwen3.8 thinking-mode recommendations
   # (temp 1.0 / top-p 0.95 / top-k 20 / min-p 0) — part of keeping the
   # abliterated build's behaviour as close to stock as possible.
+  #
+  # MTP self-speculative decoding: drafts with the nextn head embedded in
+  # this GGUF and verifies with the main model — lossless (identical output
+  # distribution), it only changes tokens/step. Baseline without it measured
+  # 15.2 t/s decode on the L4; expect roughly +30–60% at typical ~0.75
+  # acceptance. n-max 2 is the consumer-GPU sweet spot per the qwen38-mtp
+  # recipe (tune 2–4); the gain shrinks as concurrent slots rise, which is
+  # fine at 2 slots. Both flags verified against this image digest's --help.
   extraArgs:
+    - --spec-type
+    - draft-mtp
+    - --spec-draft-n-max
+    - "2"
     - --alias
     - self-hosted
     - --no-mmap
