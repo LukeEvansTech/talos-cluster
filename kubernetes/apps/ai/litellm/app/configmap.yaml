@@ -14,8 +14,10 @@ data:
       # ------------------------------------------------------------------
 
       # Stable "self-hosted" group. One backend today (llama-nvidia, order 1):
-      # Qwen3.8-27B (unsloth UD-Q4_K_S), 64k context over 2 parallel slots
-      # (32k per request), vision via mmproj.
+      # Qwen3.8-27B Heretic-abliterated (0bserverx RVN Q4_K_S, KL ~0.0085 vs
+      # base — near-vanilla behaviour, refusals 0–1/100), 128k context over
+      # 2 parallel slots (64k per request), vision via mmproj. The single GPU
+      # model in the cluster.
       - model_name: self-hosted
         model_info:
           mode: chat
@@ -28,11 +30,11 @@ data:
           max_parallel_requests: 2
           order: 1
 
-      # Uncensored Qwen3 MoE (mlabonne Qwen3-30B-A3B abliterated, mradermacher
-      # imatrix Q4_K_S), served by the llmkube llama-uncensored InferenceService
-      # (dedicated GPU, anti-affinity to llama-nvidia). Pick it explicitly.
-      # Deliberately NOT in router_settings.fallbacks: a cloud fallback would
-      # reintroduce refusals and defeat the point.
+      # Alias for the SAME llama-nvidia backend (the model is abliterated, so
+      # the dedicated uncensored InferenceService is gone). Kept as its own
+      # group so existing clients (opencode etc.) keep working and because its
+      # fallback semantics differ: deliberately NOT in router_settings.fallbacks
+      # — a cloud fallback would reintroduce refusals and defeat the point.
       - model_name: self-hosted-uncensored
         model_info:
           mode: chat
@@ -40,8 +42,8 @@ data:
           supports_vision: false
         litellm_params:
           model: openai/self-hosted-uncensored
-          api_base: http://llama-uncensored.ai.svc.cluster.local:8080/v1
-          api_key: llama-uncensored
+          api_base: http://llama-nvidia.ai.svc.cluster.local:8080/v1
+          api_key: llama-nvidia
           max_parallel_requests: 2
 
       # ------------------------------------------------------------------
@@ -101,12 +103,9 @@ data:
       # If the local model is cooling-down / unhealthy, spill to cloud.
       fallbacks:
         - self-hosted: ["openrouter/auto"]
-      # Prompts that overflow a self-hosted slot (32k: 64k context ÷ 2 slots)
-      # spill to the larger single-slot self-hosted-uncensored model instead of
-      # erroring. ContextWindowExceededError only — orthogonal to the health
-      # fallback above.
-      context_window_fallbacks:
-        - self-hosted: ["self-hosted-uncensored"]
+      # No context_window_fallbacks: both aliases resolve to the same backend
+      # with the same 64k-per-request window, so there is no larger local model
+      # to spill into.
 
     litellm_settings:
       success_callback: ["prometheus"]

@@ -4,23 +4,30 @@
 # passes the projector to the runtime itself — no staging Job, no hand-rolled
 # --mmproj path.
 #
-# Qwen3.8-27B (dense, hybrid Gated-DeltaNet linear attention 48/64 layers,
-# native VLM, 262k native context, embedded MTP head). Only the 16
-# full-attention layers hold KV cache (~32KB/token at q8_0), which is what
-# makes long context affordable on a 24GB L4. Requires a llama.cpp build from
-# release week (2026-08-14) or later — older builds don't register the qwen35
-# arch and refuse to load the GGUF.
+# Qwen3.8-27B Heretic abliteration (0bserverx RVN refinement of the
+# trohrbaugh heretic-ara pass): the "as close to vanilla as possible"
+# uncensored build — KL divergence ~0.0085 vs the base model on harmless
+# prompts, refusals 0–1/100, official Qwen3.8 chat template embedded. This is
+# the cluster's ONLY GPU model: it serves both the `self-hosted` and
+# `self-hosted-uncensored` LiteLLM aliases (see litellm/app/configmap.yaml).
+#
+# Base arch: dense 27B, hybrid Gated-DeltaNet linear attention (48/64 layers),
+# native VLM, 262k native context, embedded MTP head (the -mtp file carries
+# the nextn tensors, +0.42Gi). Only the 16 full-attention layers hold KV cache
+# (~32KB/token at q8_0), which is what makes 128k affordable on a 24GB L4.
+# Requires a llama.cpp build from release week (2026-08-14) or later — older
+# builds don't register the qwen35 arch and refuse to load the GGUF.
 apiVersion: inference.llmkube.dev/v1alpha1
 kind: Model
 metadata:
-  name: qwen3.8-27b
+  name: qwen3.8-27b-heretic
 spec:
-  source: hf://unsloth/Qwen3.8-27B-GGUF
+  source: hf://0bserverx/Qwen3.8-27B-Heretic-Abliterated-Uncensored-GGUF
   files:
-    - Qwen3.8-27B-UD-Q4_K_S.gguf
-  mmproj: mmproj-F16.gguf
+    - RVN-Q4_K_S-multilingual-mtp.gguf
+  mmproj: mmproj-Qwen3.8-27B-Q8_0.gguf
   format: gguf
-  quantization: UD-Q4_K_S
+  quantization: Q4_K_S
   hardware:
     accelerator: cuda
     gpu:
@@ -36,7 +43,7 @@ metadata:
   labels:
     krr/ignore: "true"
 spec:
-  modelRef: qwen3.8-27b
+  modelRef: qwen3.8-27b-heretic
   # Do NOT set skipModelInit here. It looks safe — the controller does stage the
   # GGUF (+ mmproj) into the shared cache PVC, so the model-downloader init
   # container only logs "already cached" — but on llmkube 0.9.x the flag ALSO
@@ -50,14 +57,16 @@ spec:
   replicas: 1
   runtimeClassName: nvidia
   priorityClassName: gpu-preemptible
-  # VRAM budget on a 24GB L4: 15.4Gi weights (UD-Q4_K_S) + 0.9Gi mmproj +
-  # ~2Gi KV (64k @ q8_0, only 16/64 layers are full attention) + compute
-  # buffers ≈ 20Gi. MTP speculative decoding (--spec-type draft-mtp, head is
-  # embedded in this GGUF) is deliberately OFF for the first rollout — enable
-  # it once live headroom is measured; it costs ~1Gi and its benefit shrinks
-  # with concurrent slots anyway. 2 slots × 32k is 3× the per-request window
-  # the previous 32k ÷ 3-slot config offered.
-  contextSize: 65536
+  # VRAM budget on a 24GB L4 (~22.4Gi usable): 14.9Gi weights (Q4_K_S + MTP
+  # head) + 0.6Gi mmproj + 4Gi KV (128k @ q8_0, only 16/64 layers are full
+  # attention) + compute buffers ≈ 21Gi. MTP speculative decoding
+  # (--spec-type draft-mtp; the head is already in this GGUF) is deliberately
+  # OFF for the first rollout — enable once live headroom is measured; its
+  # gain also shrinks with concurrent slots. 2 slots × 64k gives every
+  # request — opencode's ~41k agent baseline included — the window the old
+  # YaRN-extended uncensored model needed hacks for, with no YaRN and no
+  # --override-kv.
+  contextSize: 131072
   parallelSlots: 2
   flashAttention: true
   jinja: true
@@ -100,9 +109,9 @@ spec:
     type: ClusterIP
   # NB: no manual --mmproj here — the operator injects the projector argument
   # from Model.spec.mmproj with the correct cache path.
-  # Samplers are Unsloth's recommended thinking-mode settings for Qwen3.8
-  # (temp 1.0 / top-p 0.95 / top-k 20 / min-p 0) — note temp is higher than
-  # the 0.6 the previous Qwen3.6 MoE wanted.
+  # Samplers are the vanilla Qwen3.8 thinking-mode recommendations
+  # (temp 1.0 / top-p 0.95 / top-k 20 / min-p 0) — part of keeping the
+  # abliterated build's behaviour as close to stock as possible.
   extraArgs:
     - --alias
     - self-hosted

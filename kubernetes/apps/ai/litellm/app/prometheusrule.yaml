@@ -66,7 +66,7 @@ spec:
     # Direct backend-down signal for the llmkube InferenceServices that back
     # `self-hosted`. `up` is the per-target scrape health already produced by the
     # llmkube-models ServiceMonitor (service label = the InferenceService's
-    # Service name, e.g. llama-nvidia / llama-uncensored). max by (service)
+    # Service name, e.g. llama-nvidia). max by (service)
     # collapses multiple scrape endpoints of a backend so it only fires when
     # every scrape of that backend is unreachable. A long `for:` absorbs pod
     # restarts and cold GGUF loads (the startup probe allows a lengthy first
