@@ -27,7 +27,7 @@ spec:
             image:
               # renovate: datasource=docker depName=ghcr.io/kittendevv/invio
               repository: ghcr.io/kittendevv/invio
-              tag: v2.1.1@sha256:3b562b61cce16f56cfbab6bc15e52fb5c65c1bb8de29b624d338f7a38bc21731
+              tag: v2.2.0@sha256:d8eae8d8872c3a55c4ee7c4284f3bd8899a4ab133722cf445f26b9420b2c4ec3
             # The image's default Cmd lets supervisord default its main logfile
             # to $CWD/supervisord.log = /app/supervisord.log, which user 1000
             # cannot write to. `-l /tmp/supervisord.log` redirects it.
@@ -83,7 +83,7 @@ spec:
             image:
               # renovate: datasource=docker depName=ghcr.io/kittendevv/invio
               repository: ghcr.io/kittendevv/invio
-              tag: v2.1.1@sha256:3b562b61cce16f56cfbab6bc15e52fb5c65c1bb8de29b624d338f7a38bc21731
+              tag: v2.2.0@sha256:d8eae8d8872c3a55c4ee7c4284f3bd8899a4ab133722cf445f26b9420b2c4ec3
             command:
               - sh
               - -c
