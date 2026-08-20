@@ -14,14 +14,14 @@ not a standalone document, so MD041's top-level-heading rule does not apply.
 -->
 <!-- markdownlint-disable-file MD041 -->
 
-## Repo Context
+## Repository Context
 
 This is a Flux GitOps repository managing a single homelab Kubernetes cluster running
 Talos Linux (3 control-plane nodes, no separate workers). Dependencies are primarily:
 
 - Container images referenced in Kubernetes manifests, pinned with SHA256 digests
 - Helm chart versions in HelmRelease CRDs (sourced from OCIRepository, not HelmRepository)
-- Custom dependencies managed via regex in YAML files (see the `customManagers` block in
+- Custom dependencies managed via regular expression in YAML files (see the `customManagers` block in
   .renovaterc.json5 — the former .renovate/customManagers.json5 was inlined into it)
 
 Architecture details relevant to impact assessment:
@@ -40,9 +40,9 @@ Architecture details relevant to impact assessment:
 High-blast-radius components that warrant deeper scrutiny: the "Protected infra" entry
 in `.renovaterc.json5` is the single source of truth for which components are
 cluster-critical — networking, storage, secrets/certs, the GitOps engine, and the node OS
-itself. This workflow derives its blast-radius regex from that same entry at runtime, so
+itself. This workflow derives its blast-radius regular expression from that same entry at runtime, so
 the two can never disagree.
 
-When assessing impact (step 3), the files in this repo that reference or consume a dependency
+When assessing impact (step 3), the files in this repository that reference or consume a dependency
 are: HelmRelease CRDs, Kustomizations, ConfigMaps, ExternalSecrets, HTTPRoutes, and anything
 else that touches the dependency.
