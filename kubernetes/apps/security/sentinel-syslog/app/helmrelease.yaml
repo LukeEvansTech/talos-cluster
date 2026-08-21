@@ -30,8 +30,11 @@ spec:
           app:
             image:
               # Custom image: Logstash + microsoft-sentinel output plugin (LukeEvansTech/containers).
+              # 9.5.2 carries plugin 2.5.0 — the 2.1.0 pin installed but failed to LOAD under the
+              # JRuby 10 runtime Logstash 9.4+ ships, crashlooping every rebuilt digest since
+              # 2026-08-17 while the (mis-tagged) 9.1.10 builds moved their base to 9.4/9.5.
               repository: ghcr.io/lukeevanstech/logstash-sentinel
-              tag: 9.1.10@sha256:f4837b9c8a1878bc16c2f58b6a88f5cb7e7aa27a42646cb1894e388241e7a234
+              tag: 9.5.2@sha256:6042b0d12a7d011791d87f65537cb8985182f06d97b9805d12cf2d62e83d6300
             env:
               TZ: ${TIMEZONE}
               # Bound the JVM heap AND Netty/direct off-heap for the semi-hyperconverged
