@@ -296,36 +296,42 @@ url = "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize/
 url_api = "https://api.github.com/repos/kubernetes-sigs/kustomize/releases/assets/220363317"
 
 [[tools."aqua:kubernetes/kubernetes/kubectl"]]
-version = "1.36.3"
+version = "1.36.4"
 backend = "aqua:kubernetes/kubernetes/kubectl"
 
 [tools."aqua:kubernetes/kubernetes/kubectl"."platforms.linux-arm64"]
-checksum = "sha256:3d86f24401c41ae5a46ac50eef8865fe891d3647d324a0836f6c63757a126e62"
-url = "https://dl.k8s.io/v1.36.3/bin/linux/arm64/kubectl"
+checksum = "sha256:0ecf44450ee6063bf19dd166a103ee6df4a9034455c2abce626e6eea657d73fb"
+url = "https://dl.k8s.io/v1.36.4/bin/linux/arm64/kubectl"
 
 [tools."aqua:kubernetes/kubernetes/kubectl"."platforms.linux-x64"]
-checksum = "sha256:ebbd080e7c2e275093b55915722043257eb24004363e20acb3c4d71919f88336"
-url = "https://dl.k8s.io/v1.36.3/bin/linux/amd64/kubectl"
+checksum = "sha256:8b8f088da2dab964f853b38464033b1be15ede2839eca751482357c45abdd05a"
+url = "https://dl.k8s.io/v1.36.4/bin/linux/amd64/kubectl"
 
 [tools."aqua:kubernetes/kubernetes/kubectl"."platforms.macos-arm64"]
-checksum = "sha256:fc8582acde13869a606730a79379d6515f30c68afcced0b5ac8789d5d002b7d6"
-url = "https://dl.k8s.io/v1.36.3/bin/darwin/arm64/kubectl"
+checksum = "sha256:c9e4f713d6fee0043a3d835cca13077cda2bc0973840eb9779360df0b5bdfc69"
+url = "https://dl.k8s.io/v1.36.4/bin/darwin/arm64/kubectl"
 
 [[tools."aqua:mikefarah/yq"]]
-version = "4.53.3"
+version = "4.53.6"
 backend = "aqua:mikefarah/yq"
 
 [tools."aqua:mikefarah/yq"."platforms.linux-arm64"]
-checksum = "sha256:578648e463a11c1b6db6010cbf41eafed6bee79466fcffa1bb446672cf7945ea"
-url = "https://github.com/mikefarah/yq/releases/download/v4.53.3/yq_linux_arm64"
+checksum = "sha256:88a1016bc1d657375a35864e4f44b6f333df8ff97b559f51bba0adcb2169df09"
+url = "https://github.com/mikefarah/yq/releases/download/v4.53.6/yq_linux_arm64"
+url_api = "https://api.github.com/repos/mikefarah/yq/releases/assets/522028007"
+provenance = "cosign"
 
 [tools."aqua:mikefarah/yq"."platforms.linux-x64"]
-checksum = "sha256:fa52a4e758c63d38299163fbdd1edfb4c4963247918bf9c1c5d31d84789eded4"
-url = "https://github.com/mikefarah/yq/releases/download/v4.53.3/yq_linux_amd64"
+checksum = "sha256:c5f056448f973ae7d39b5401949648a78f2dc1947d6a8eb65be60d5c504b9385"
+url = "https://github.com/mikefarah/yq/releases/download/v4.53.6/yq_linux_amd64"
+url_api = "https://api.github.com/repos/mikefarah/yq/releases/assets/522028022"
+provenance = "cosign"
 
 [tools."aqua:mikefarah/yq"."platforms.macos-arm64"]
-checksum = "sha256:877de31753a4dd2401aa048937aa9a7fc4d5f6ce858cf31508c5802954297213"
-url = "https://github.com/mikefarah/yq/releases/download/v4.53.3/yq_darwin_arm64"
+checksum = "sha256:cceb0b8d71ea5294334121f8429f33f92b920e7217d904a2f9f35443968ac424"
+url = "https://github.com/mikefarah/yq/releases/download/v4.53.6/yq_darwin_arm64"
+url_api = "https://api.github.com/repos/mikefarah/yq/releases/assets/522028033"
+provenance = "cosign"
 
 [[tools."aqua:mitsuhiko/minijinja"]]
 version = "2.18.0"
