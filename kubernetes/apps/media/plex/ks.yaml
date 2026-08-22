@@ -23,7 +23,9 @@ spec:
   postBuild:
     substitute:
       APP: *app
-      VOLSYNC_CAPACITY: 300Gi
+      # 290G of 294G used and growing ~7.5G/week, almost all of it generated
+      # trickplay thumbnails under Media/. 500Gi buys ~6 months.
+      VOLSYNC_CAPACITY: 500Gi
       VOLSYNC_CACHE_CAPACITY: 100Gi
       HOMEPAGE_NAME: Plex
       HOMEPAGE_GROUP: Media

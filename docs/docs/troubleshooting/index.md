@@ -24,6 +24,7 @@ Work down from what you observe to the most likely entry:
     - `CephMonDownQuorumAtRisk` (critical) fires minutes after cordoning a control-plane node → [KB-019](kb/019-cordon-control-plane-breaks-ceph-mon-quorum.md)
     - Snapshot CRDs vanish minutes after merging a chart migration; controller crash-loops on "failure to ensure CRDs exist"; HelmRelease rollback loop re-deletes them each retry → [KB-029](kb/029-chart-migration-deletes-keep-annotated-crds.md)
     - One app's `volsync-src-<app>-nfs-*` mover pods sit in `Error` while every other app backs up fine; the log ends `write /cache/CACHEDIR.TAG: no space left on device` then `found existing data in storage location` → [KB-030](kb/030-volsync-kopia-cache-pvc-too-small.md)
+    - A restore hangs on an unbindable cache PVC, is offered less capacity than the data, or hits ENOSPC on `/cache` — while every backup is green → [KB-031](kb/031-volsync-restore-destinations-never-updated.md)
 - **Workloads / pods**
     - A JVM/Logstash pod OOMKills on a cadence despite a bounded heap → [KB-012](kb/012-jvm-container-rss-oom-malloc-arena-max.md)
     - A pure-Go pod SIGSEGVs (`exit 139`) on a large fraction of starts, before any logs → [KB-013](kb/013-go-1264-binary-startup-sigsegv.md)
@@ -77,3 +78,4 @@ Work down from what you observe to the most likely entry:
 - [KB-028: Talos Upgrade Installs Successfully but the Node Boots the Old Version (NVRAM Wipe)](kb/028-talos-upgrade-boots-old-version-loaderentrydefault.md)
 - [KB-029: Chart Migration Deletes Keep-Annotated CRDs (postRenderer Removal Races the Chart Swap)](kb/029-chart-migration-deletes-keep-annotated-crds.md)
 - [KB-030: VolSync Kopia Backups Fail with `no space left on device` on `/cache`](kb/030-volsync-kopia-cache-pvc-too-small.md)
+- [KB-031: VolSync Restore Destinations Silently Frozen at Creation-Time Values](kb/031-volsync-restore-destinations-never-updated.md)

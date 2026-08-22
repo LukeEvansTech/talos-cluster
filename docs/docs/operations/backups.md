@@ -34,3 +34,22 @@ replacing, VolSync for those apps.
 
 See the [VolSync / Kopia migration](../migrations/volsync-kopia.md) for the move to the Kopia mover
 and the repository layout.
+
+## Restoring
+
+Each app has two `ReplicationDestination` objects — `<app>-nfs-dst` (Kopia, from the NAS) and
+`<app>-dst` (restic, from R2). Flux reconciles both, so **suspend the Kustomization before touching
+one** or the trigger you bump gets reverted on the next reconcile:
+
+```console
+$ flux suspend ks <app> -n flux-system
+$ kubectl patch replicationdestination <app>-nfs-dst -n <ns> --type=merge \
+    -p "{\"spec\":{\"trigger\":{\"manual\":\"restore-$(date +%s)\"}}}"
+```
+
+Watch for `status.latestImage`, then recreate the app's PVC from it and
+`flux resume ks <app> -n flux-system`.
+
+Destinations were frozen at their creation-time values until 2026-08-22 — see
+[KB-031](../troubleshooting/kb/031-volsync-restore-destinations-never-updated.md) for what that
+broke and the field-manager conflict to check for.
