@@ -644,12 +644,21 @@ kubectl -n volsync-system logs -f job/kopia-maint-plex-bundles-purge
 kubectl -n volsync-system delete job kopia-maint-plex-bundles-purge
 ```
 
-Confirm only post-cutover snapshots remain — this is also the point at which the bundles are
-genuinely unrecoverable from the NAS repository:
+This is the point at which the bundles become genuinely unrecoverable from the NAS repository, so
+confirm the result rather than assuming it. Re-run the Job one more time with `CONFIRM` set back to
+empty and `CUTOFF` unchanged:
+
+- The `=== every snapshot for …` listing should now show **only** snapshots dated on or after
+  `CUTOFF`, all of them at roughly 44G.
+- The selection stanza should find nothing, so the Job prints `nothing selected - check CUTOFF` and
+  ends `Failed`. **Here that failure is the pass condition** — it means no pre-cutover snapshot is
+  left to delete. Any other outcome means the purge was incomplete; read the listing before
+  re-running 11d.
+
+Delete the Job when finished:
 
 ```bash
-kubectl -n media get replicationsource plex-nfs \
-  -o custom-columns=NAME:.metadata.name,LAST:.status.lastSyncTime
+kubectl -n volsync-system delete job kopia-maint-plex-bundles-purge
 ```
 
 #### 11e. Wait for the space, do not chase it
