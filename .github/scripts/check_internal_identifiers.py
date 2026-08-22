@@ -77,7 +77,13 @@ PATTERNS: dict[str, re.Pattern] = {
 # session link publicly attributes the work and points at a private session.
 PROSE_PATTERNS: dict[str, re.Pattern] = {
     "AI session link / co-author trailer": re.compile(
-        r"claude\.ai/code/session|co-authored-by:\s*claude|generated with \[claude",
+        # "generated with" is matched with the markdown link bracket OPTIONAL:
+        # the plain "Generated with Claude Code" form (no link) reached main
+        # several times while the bracketed-only pattern passed it through.
+        r"claude\.ai/code/session"
+        r"|co-authored-by:\s*claude"
+        r"|generated with \[?claude"
+        r"|noreply@anthropic\.com",
         re.IGNORECASE,
     ),
 }
