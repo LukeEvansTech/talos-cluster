@@ -143,16 +143,16 @@ spec:
     - --cache-prompt
   probeOverrides:
     startup:
-      httpGet: {path: /health, port: 8080}
+      httpGet: { path: /health, port: 8080 }
       periodSeconds: 10
       failureThreshold: 360
     liveness:
-      httpGet: {path: /health, port: 8080}
+      httpGet: { path: /health, port: 8080 }
       initialDelaySeconds: 30
       periodSeconds: 30
       failureThreshold: 6
     readiness:
-      httpGet: {path: /health, port: 8080}
+      httpGet: { path: /health, port: 8080 }
       initialDelaySeconds: 20
       periodSeconds: 10
       failureThreshold: 6
