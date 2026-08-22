@@ -80,10 +80,7 @@ PROSE_PATTERNS: dict[str, re.Pattern] = {
         # "generated with" is matched with the markdown link bracket OPTIONAL:
         # the plain "Generated with Claude Code" form (no link) reached main
         # several times while the bracketed-only pattern passed it through.
-        r"claude\.ai/code/session"
-        r"|co-authored-by:\s*claude"
-        r"|generated with \[?claude"
-        r"|noreply@anthropic\.com",
+        r"claude\.ai/code/session" r"|co-authored-by:\s*claude" r"|generated with \[?claude" r"|noreply@anthropic\.com",
         re.IGNORECASE,
     ),
 }
