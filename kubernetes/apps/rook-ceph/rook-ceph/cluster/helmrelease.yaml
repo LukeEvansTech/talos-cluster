@@ -24,7 +24,7 @@ spec:
         # NOTE: mgr resources must live here (spec.resources.mgr) — the CephCluster
         # CRD has no spec.mgr.resources field, so a block there is silently pruned
         # and the chart default (1Gi limit) applies instead.
-        # 3Gi limit: with diskprediction_local/insights/pg_autoscaler/rook modules
+        # 3Gi limit: with diskprediction_local/insights/pg_autoscaler modules
         # plus the prometheus + dashboard endpoints enabled, the active mgr working
         # set climbs past 2Gi and gets OOMKilled (~twice daily), failing over to the
         # standby each time. 3Gi holds it with headroom (mon is already 4Gi).
@@ -66,8 +66,12 @@ spec:
             enabled: true
           - name: pg_autoscaler
             enabled: true
+          # Disabled: leaks mgr memory on Ceph v20.2.2 (rook#17786) and crash-loops
+          # the mgr every ~15s on v20.2.3/v20.2.4 (rook#18124). Rook v1.20.6 force-
+          # disables it, but only for Extra in [2,4] - leaving this true would
+          # silently re-enable it on v20.2.5.
           - name: rook
-            enabled: true
+            enabled: false
       network:
         provider: host
         connections:
