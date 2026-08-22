@@ -211,6 +211,14 @@ spec:
         existingClaim: "{{ .Release.Name }}-cache"
         globalMounts:
           - path: /config/Library/Application Support/Plex Media Server/Cache
+      # Same idea, ~247G larger: "Media" holds the generated trickplay/BIF
+      # preview bundles, 85% of the config volume and regenerable from the
+      # library. An empty PVC here MASKS the live bundles, so the data move in
+      # docs/docs/migrations/plex-media-bundles-volume.md must run first.
+      bundles:
+        existingClaim: "{{ .Release.Name }}-bundles"
+        globalMounts:
+          - path: /config/Library/Application Support/Plex Media Server/Media
       config-logs:
         type: emptyDir
         globalMounts:

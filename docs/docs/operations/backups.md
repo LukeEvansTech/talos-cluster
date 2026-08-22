@@ -23,6 +23,12 @@ replacing, VolSync for those apps.
   rather than the app's own data — it does not scale down with a small app. Under-sizing it fills
   the cache volume to 100% and the mover dies on `no space left on device`; see
   [KB-030](../troubleshooting/kb/030-volsync-kopia-cache-pvc-too-small.md).
+- **Keep regenerable data off the backed-up claim.** VolSync snapshots `spec.sourcePVC` and nothing
+  else, so a cache or thumbnail directory mounted from its own PVC is excluded for free. Neither
+  mover can exclude a path from a claim it is already backing up: restic has no exclusion field at
+  all, and the Kopia mover's `policyConfig` writes the shared repository's *global* policy. `plex`
+  is the worked example — see
+  [Plex media bundles volume](../migrations/plex-media-bundles-volume.md).
 
 ## Operating
 
