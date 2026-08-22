@@ -47,6 +47,10 @@ is gone; the 291G actually in use is what occupies the pool.
 Raw pool usage does not change either. The bundles keep their 3x replication, they simply live in a
 different RBD image.
 
+500Gi on `plex-bundles` is about eight months of headroom at the current growth rate. Unlike the
+config volume, growing it later is a one-line edit with no wedging risk: it is a plain claim, not
+one sized through `VOLSYNC_CAPACITY`, and `ceph-block` has `allowVolumeExpansion: true`.
+
 ## The alternatives considered, and why they were rejected
 
 The obvious way to avoid a data migration is to leave the bytes where they are and teach the backup
