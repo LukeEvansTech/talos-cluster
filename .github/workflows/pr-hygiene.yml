@@ -58,3 +58,35 @@ jobs:
         run: |-
           printf '%s\n\n%s\n' "$PR_TITLE" "$PR_BODY" \
             | python3 .github/scripts/check_internal_identifiers.py --text-file -
+
+  # Deliberately NOT gated on the Renovate skip above. The body check exempts
+  # Renovate because its bodies are machine-generated upstream release notes,
+  # but a human fix pushed onto a Renovate branch is authored normally -- and
+  # that is a real path for an assistant-authored commit to reach main.
+  scan-commit-authors:
+    name: Scan commit authorship
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Reject assistant-authored commits
+        # The body scan above is not sufficient. GitHub's squash merge derives
+        # Co-authored-by trailers from COMMIT AUTHORSHIP and appends them after
+        # this workflow has run, so a spotless body still lands a trailer on
+        # main if any commit carries an assistant identity. AGENTS.md forbids
+        # those trailers, so catch the authorship itself.
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |-
+          authors=$(gh api "repos/$REPO/pulls/$PR_NUMBER/commits" --paginate \
+            --jq '.[] | "\(.commit.author.name) <\(.commit.author.email)>"' \
+            | sort -u)
+          printf 'commit authors in this PR:\n%s\n\n' "$authors"
+          if printf '%s\n' "$authors" | grep -qiE 'anthropic\.com|@users\.noreply\.anthropic'; then
+            echo "::error::A commit in this pull request carries an assistant author identity. GitHub's squash merge would append a co-author trailer to main, which AGENTS.md forbids. Re-author the commits (git rebase --exec 'git commit --amend --no-edit --reset-author') and force-push the branch."
+            exit 1
+          fi
+          echo "No assistant-authored commits."
