@@ -4,7 +4,9 @@
     The manifest change and the data move are one operation. Landing the mount without first
     copying the data hides ~247G of live thumbnails from Plex, which then regenerates every one of
     them over a long GPU-bound rebuild while the originals sit unreachable on the config volume.
-    Merge only when the window below is scheduled.
+    Merge only when the window below is scheduled, and note that the procedure does not end at the
+    cutover: steps 10 and 11 reclaim the config volume and purge the superseded snapshots from the
+    shared NAS repository, and both are required.
 
 ## Why
 
@@ -121,13 +123,14 @@ maintenance window and a stateful cutover, which is what the rest of this page i
 - **Per-run backup dataset**: about 291G down to about 44G, an 85% reduction, on both targets.
 - **Config volume**: about 291G down to about 44G used of 500Gi, and the 7.5G-a-week growth moves
   to a volume nobody backs up.
-- **Repository size** is the honest caveat and it is not immediate. Kopia and restic both keep
-  content alive as long as any retained snapshot references it. The NFS Kopia source retains
-  `hourly: 168, daily: 90, weekly: 52, monthly: 24, yearly: 10`, so the existing 247G of bundle
-  blobs stay in the NAS repository for **years** unless old snapshots are deleted by hand. The R2
-  restic source retains `daily: 30` and prunes every 14 days, so that repository does reclaim on its
-  own within roughly 30 to 45 days. Plan for "new backups get small immediately, the NAS repository
-  only shrinks if you prune it".
+- **Repository size, R2 side: no action needed.** The restic source retains `daily: 30` with
+  `pruneIntervalDays: 14`, so the pre-cutover snapshots age out and the space comes back on its own
+  within roughly 30 to 45 days. Do not prune it by hand.
+- **Repository size, NAS side: action needed, and it is step 11.** The Kopia source retains
+  `hourly: 168, daily: 90, weekly: 52, monthly: 24, yearly: 10`, so left alone the 247G of bundle
+  blobs would sit in the shared repository for up to ten years. Step 11 deletes the pre-migration
+  snapshots for this one source; the space returns 24 to 48 hours later, once maintenance has
+  cleared its safety gates.
 
 ## Before you start
 
@@ -164,8 +167,10 @@ kubectl -n rook-ceph get cephcluster -o jsonpath='{.items[0].status.ceph.capacit
 
 ## Runbook
 
-Every step before step 6 is reversible by doing nothing. Nothing is deleted until step 9, which is
-deliberately the last thing that happens and is gated on Plex having been observed healthy.
+Every step before step 6 is reversible by doing nothing. Nothing is deleted until step 10, which is
+deliberately late and gated on Plex having been observed healthy for 48 hours. Steps 10 and 11 are
+required, not tidy-up: without step 11 the whole point of the change is only half delivered on the
+NAS side.
 
 ### 1. Suspend the HelmRelease, then merge
 
@@ -387,7 +392,7 @@ just kube volsync resume
 
 The HPA should be back at `0/1` minimum with one replica.
 
-### 9. Verify Plex, then reclaim
+### 9. Verify Plex, then soak
 
 Check the mount landed and both copies are visible:
 
@@ -407,9 +412,9 @@ Then check the thing that actually matters, in the Plex web interface:
 - **Settings → Manage → Troubleshooting** should show no new errors, and the pod log should be free
   of `Media` path errors.
 
-Leave it at least **48 hours** before reclaiming. Until step 9b runs, Rollback B is still available.
+Leave it at least **48 hours** before reclaiming. Until step 10 runs, Rollback B is still available.
 
-#### 9b. Delete the old copy
+### 10. Reclaim the config volume
 
 ```bash
 kubectl -n media exec deploy/plex -c app -- \
@@ -428,14 +433,267 @@ Filesystem      Size  Used Avail Use% Mounted on
 The next scheduled `plex-nfs` run backs up about 44G instead of about 291G. `plex-r2` follows that
 night.
 
-### 10. Optional: reclaim the NAS repository
+### 11. Purge the pre-migration snapshots from the NAS repository
 
-New snapshots are small immediately, but the existing ones still reference the old blobs and the
-Kopia retention policy holds some of them for ten years. If the NAS repository size matters, delete
-the pre-migration `plex` snapshots by hand through the Kopia server in `volsync-system`, then let
-maintenance reclaim the blobs. Treat this as a separate, deliberate operation: it is the one step
-that destroys the ability to restore the bundles from backup, and it should not be folded into the
-migration window.
+This step is **required**, not optional, and it is the only place in this runbook where the shared
+backup repository is written to. Read the whole step before running anything in it.
+
+New snapshots are small from the first run after step 10, but the old ones still reference the 247G
+of bundle blobs, and `plex-nfs` retains `hourly: 168, daily: 90, weekly: 52, monthly: 24,
+yearly: 10`. Left alone, those blobs stay in the repository on the NAS for up to ten years. Deleting
+the pre-migration `plex-nfs` snapshots is what actually returns the space.
+
+**The R2 side needs nothing, and must not be pruned by hand.** All 98 restic sources carry
+`pruneIntervalDays: 14` and `retain: {daily: 30}`, and every one of them has a recent
+`status.restic.lastPruned` (checked 2026-08-22: none missing, oldest 15 days old). The pre-cutover
+R2 snapshots therefore age out and the space is reclaimed on their own within roughly 30 to 45 days.
+Confirm rather than intervene:
+
+```bash
+kubectl -n media get replicationsource plex-r2 \
+  -o custom-columns=NAME:.metadata.name,PRUNED:.status.restic.lastPruned
+```
+
+#### This is a shared repository
+
+Around 200 replication sources write into the one `filesystem:///repository` on the NAS. They are
+separated only by per-source Kopia identity: this app's is `plex-nfs@media`, snapshotting `/data`.
+There is no per-app repository, no per-app credential, and no isolation beyond that identity string.
+
+Every command below names `plex-nfs@media:/data` explicitly. **Do not run anything repository-wide.**
+Specifically, none of these belong anywhere near this step, and all of them exist in Kopia 0.23.1:
+
+| Command | What it would do |
+| --- | --- |
+| `kopia snapshot delete --all-snapshots-for-source plex-nfs@media:/data` | Deletes **every** `plex` snapshot, the good post-migration ones included. The flag also silently changes what the positional argument means: with it set, the argument is read as a source spec rather than a snapshot ID. |
+| `kopia policy set --global …` | Rewrites the single policy object shared by all ~200 sources. |
+| `kopia maintenance set …`, `kopia maintenance run …` | Maintenance is owned by the `maintenance@volsync` identity and driven by the hourly CronJob. Running it by hand can take ownership away and stop that job silently. |
+| `kopia blob delete`, `kopia blob gc`, `kopia content delete` | Repository-wide storage destruction. All three are hidden commands gated behind `--dangerous-commands=enabled` / `KOPIA_DANGEROUS_COMMANDS`; upstream's own refusal message reads "Running this command is not needed for using Kopia. Instead, rely on periodic repository maintenance." Do not set that variable. |
+| `kopia repository set-parameters …` | Changes the repository for every source at once. |
+
+One more trap, learned the hard way: **do not run the Kopia CLI inside the `kopia` pod in
+`volsync-system`.** That container is capped at 2Gi and the server process already sits near it, so a
+second Kopia process loading the repository indexes OOM-kills the server (`exit 137`). It restarts by
+itself, but the backup web interface is down while it does. The Job below runs in its own pod with
+its own memory budget for exactly this reason.
+
+#### 11a. Record the "before" figure
+
+The hourly maintenance job already prints repository-wide content totals, so no extra tooling is
+needed. Record the numbers now:
+
+```console
+$ kubectl -n volsync-system logs \
+    "$(kubectl -n volsync-system get jobs -o name --sort-by=.metadata.creationTimestamp \
+       | grep kopia-maint | tail -1)" | grep "GC found"
+GC found 0 unused contents (0 B)
+GC found 1606 unused contents that are too recent to delete (445.2 MB)
+GC found 3899763 in-use contents (501.3 GB)
+GC found 620 in-use system-contents (106.7 MB)
+```
+
+That `in-use contents` figure is the whole shared repository, every source together. It is the number
+to compare against later.
+
+#### 11b. Choose the cutoff
+
+Any snapshot taken before step 10 finished still contains the bundles — including ones taken between
+the rename in step 6 and the reclaim in step 10, because `Media.pre-migration` was still on the
+volume and is the same 247G. So the cutoff is **the date of the first snapshot that shows the reduced
+size**, not the date of the cutover.
+
+The dry run in 11c prints every snapshot with its size, so read it, find the first one at roughly
+44G, and use its date as `CUTOFF` in `YYYY-MM-DD` form.
+
+#### 11c. Dry run
+
+The Job name prefix is load-bearing: the cluster-scoped `kopia-maintenance` MutatingAdmissionPolicy
+matches Jobs named `kopia-maint-*` and injects the NFS repository volume and its `/repository` mount
+into the first container. That is why no NAS address appears in this manifest and why it must not be
+renamed. Copy the current image pin from
+`kubernetes/apps/volsync-system/kopia/app/helmrelease.yaml` rather than trusting the one below to
+still be current.
+
+`CONFIRM` is empty here, and Kopia's own `snapshot delete` is a dry run without `--delete`: it prints
+`Would delete …` for each snapshot and changes nothing. That is the check that matters, because it
+reports what Kopia itself resolved, not what the selection script thinks it selected.
+
+The script selects on `--manifest-id`, and that is not cosmetic. If an argument to `snapshot delete`
+is not a manifest ID, Kopia retries it as a **root object ID** and deletes every snapshot sharing
+that root — and because identical trees deduplicate to the same root, that can reach snapshots
+belonging to **other sources**. Manifest IDs are unique per snapshot and cannot do this. Never hand
+this command an object ID.
+
+```yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kopia-maint-plex-bundles-purge
+  namespace: volsync-system
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      containers:
+        - name: kopia
+          image: ghcr.io/home-operations/kopia:0.23.1@sha256:27da0a33b44e1b902150a6c963514237217464bb13118a95bb056667be93cda5
+          command: ["/bin/sh", "-c"]
+          env:
+            - name: SOURCE
+              value: plex-nfs@media:/data
+            - name: CUTOFF
+              value: "YYYY-MM-DD" # from 11b
+            - name: CONFIRM
+              value: "" # "--delete" only in 11d
+            - name: KOPIA_CONFIG_PATH
+              value: /config/repository.config
+            - name: KOPIA_CACHE_DIRECTORY
+              value: /cache
+            - name: KOPIA_LOG_DIR
+              value: /logs
+            - name: HOME
+              value: /tmp
+          envFrom:
+            - secretRef:
+                name: volsync-maintenance-secret
+          args:
+            - |
+              set -eu
+              # A distinct identity, so this pod can never become the maintenance
+              # owner and displace the hourly CronJob.
+              kopia repository connect filesystem --path=/repository \
+                --override-username=bundles-purge --override-hostname=volsync
+
+              echo "=== every snapshot for $SOURCE"
+              kopia snapshot list "$SOURCE" --all --show-identical --manifest-id
+
+              echo "=== selecting snapshots started before $CUTOFF"
+              IDS=$(kopia snapshot list "$SOURCE" --all --show-identical --manifest-id \
+                | awk -v c="$CUTOFF" '$1 < c {
+                    for (i = 1; i <= NF; i++)
+                      if ($i ~ /^manifest:/) { sub(/^manifest:/, "", $i); print $i }
+                  }')
+              [ -n "$IDS" ] || { echo "nothing selected - check CUTOFF"; exit 1; }
+              echo "$IDS" | wc -l
+              echo "$IDS"
+
+              echo "=== kopia snapshot delete (dry run unless CONFIRM=--delete)"
+              # shellcheck disable=SC2086
+              kopia snapshot delete $IDS ${CONFIRM:-}
+          resources:
+            requests:
+              cpu: 100m
+              memory: 4Gi
+            limits:
+              memory: 6Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: cache
+              mountPath: /cache
+            - name: logs
+              mountPath: /logs
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: config
+          emptyDir: {}
+        - name: cache
+          emptyDir:
+            sizeLimit: 16Gi
+        - name: logs
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
+```
+
+```bash
+kubectl apply -f kopia-maint-plex-bundles-purge.yaml
+kubectl -n volsync-system logs -f job/kopia-maint-plex-bundles-purge
+```
+
+Check three things in the log before going further:
+
+- Every `Would delete …` line names `plex-nfs@media:/data`. **If any other source or any other path
+  appears, stop.** Kopia resolves a source argument by walking up parent paths, so a listing is not
+  guaranteed to stay on `/data` by construction — this line is the check that it did.
+- The newest selected snapshot is older than the first ~44G one.
+- The count is in the low hundreds, not thousands — retention caps this source at roughly 344
+  snapshots, so a four-figure count means the selection is wrong.
+
+#### 11d. Delete
+
+Set `CONFIRM` to `--delete`, recreate the Job, and re-read the log. `Would delete` becomes
+`Deleting`.
+
+```bash
+kubectl -n volsync-system delete job kopia-maint-plex-bundles-purge
+# edit CONFIRM to "--delete" in the manifest, then:
+kubectl apply -f kopia-maint-plex-bundles-purge.yaml
+kubectl -n volsync-system logs -f job/kopia-maint-plex-bundles-purge
+kubectl -n volsync-system delete job kopia-maint-plex-bundles-purge
+```
+
+Confirm only post-cutover snapshots remain — this is also the point at which the bundles are
+genuinely unrecoverable from the NAS repository:
+
+```bash
+kubectl -n media get replicationsource plex-nfs \
+  -o custom-columns=NAME:.metadata.name,LAST:.status.lastSyncTime
+```
+
+#### 11e. Wait for the space, do not chase it
+
+**Deleting the snapshots frees nothing by itself**, and the reclaim is not fast even though
+maintenance runs every hour. Snapshot deletion removes a manifest and nothing else; releasing the
+underlying storage is maintenance's job, behind four separate safety gates that are all working as
+intended:
+
+| Gate | Default | Effect |
+| --- | --- | --- |
+| Snapshot GC runs only in the **full** cycle | — | Quick maintenance contributes nothing to this, however often it runs. This cluster is fine here: the mover runs quick *and* `maintenance run --full` on every hourly invocation. |
+| `RequireTwoGCCycles` | true | Deleted contents are not dropped from the index until **two** successful snapshot-GC runs have happened. |
+| `MarginBetweenSnapshotGC` | 4h | Those two runs must be more than four hours apart. |
+| `MinContentAgeSubjectToGC` and `PackDeleteMinAge` | 24h each | Unreferenced content younger than a day is skipped, and the pack blob is kept for a further day after that. |
+
+The hourly full cycle clears the first three gates quickly; the two 24-hour age gates are what
+actually set the pace. **Expect the space back 24 to 48 hours after 11d**, not the same day.
+
+That last gate is already visible in the log line from 11a — `GC found 1606 unused contents that are
+too recent to delete` is exactly this mechanism, on content unrelated to this migration.
+
+Do not try to hurry it. `kopia maintenance run --full` by hand will refuse anyway, because
+maintenance is owned by the `maintenance@volsync` identity, and the flag that overrides the
+ownership check is hidden and documented as unsafe. Lowering `--safety` is worse: upstream describes
+the relaxed setting as safe only when no other Kopia clients are running, and roughly 200 sources
+back up into this repository around the clock.
+
+Re-read the same log line over the following two days:
+
+```bash
+kubectl -n volsync-system logs \
+  "$(kubectl -n volsync-system get jobs -o name --sort-by=.metadata.creationTimestamp \
+     | grep kopia-maint | tail -1)" | grep "GC found"
+```
+
+`in-use contents` should fall materially against the figure recorded in 11a, and the NAS dataset
+holding the repository should show the corresponding drop.
+
+For a precise number rather than a proxy, the purge Job can be re-run with its script replaced by
+`kopia blob stats --raw`, which reports actual blob count and bytes on the storage. It walks every
+blob in the repository over NFS, so run it deliberately, not on a loop. `kopia maintenance info` is
+the other useful read-only check: its `Recent Maintenance Runs` block shows whether the
+snapshot-GC task has been succeeding.
 
 ## Rollback
 
@@ -443,15 +701,17 @@ migration window.
 keep the HelmRelease suspended), delete the `plex-bundles` PVC if it was created, resume the
 HelmRelease and the Kustomization, and delete the copy Job. Plex comes back on the original layout.
 
-**Rollback B, after step 6 and before step 9b.** The original data is intact at
+**Rollback B, after step 6 and before step 10.** The original data is intact at
 `Media.pre-migration`. Suspend the HelmRelease, scale the Deployment to zero, run the rename Job in
 reverse (`mv "$BASE/Media.pre-migration" "$BASE/Media"`), revert the pull request so the mount is
 gone from the rendered HelmRelease, then resume. Delete the `plex-bundles` PVC once Plex is healthy.
 Plex returns to the original layout with every thumbnail in place.
 
-**After step 9b** there is no local rollback. Recovery is a VolSync restore of the `plex` PVC from a
-pre-migration snapshot, which is exactly why step 9 insists on the 48-hour soak and why the
-pre-flight checks confirm both backups are current.
+**After step 10** there is no local rollback, but a VolSync restore of the `plex` PVC from a
+pre-migration snapshot still works — which is exactly why step 9 insists on the 48-hour soak and why
+the pre-flight checks confirm both backups are current. **After step 11** even that is gone: step 11
+deletes the snapshots those restores would come from. Do not start it until Plex has been healthy
+for the full soak.
 
 ## Follow-ups
 
