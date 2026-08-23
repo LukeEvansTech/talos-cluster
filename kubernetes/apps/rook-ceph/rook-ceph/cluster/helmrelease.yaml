@@ -11,6 +11,17 @@ spec:
     kind: OCIRepository
     name: rook-ceph-cluster
   values:
+    # Hold Ceph on v20.2.2 for the chart move to v1.20.6; the data-plane upgrade to
+    # v20.2.4 lands separately so an operator bump and a rolling mon/mgr/OSD/MDS
+    # restart are never the same change. Without this the chart default silently
+    # carries the cluster forward (v1.20.4 defaults to v20.2.2, v1.20.6 to v20.2.4).
+    #
+    # Set cephImage, NOT cephClusterSpec.cephVersion: the chart derives both the
+    # version and the toolbox image from cephImage, and specifying both renders a
+    # duplicate key. The chart's own values.yaml says the same.
+    cephImage:
+      repository: quay.io/ceph/ceph
+      tag: v20.2.2
     monitoring:
       enabled: true
       createPrometheusRules: true
