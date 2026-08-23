@@ -69,6 +69,36 @@ spec:
         urlPrefix: /
         ssl: false
         prometheusEndpoint: http://prometheus-operated.observability.svc.cluster.local:9090
+      # Ceph v20.2.4 asserts on cephx key ciphers (CVE-2025-30156). Rotating the DAEMON
+      # keys is what clears both HEALTH_ERR items, AUTH_INSECURE_SERVICE_KEY_TYPE and
+      # AUTH_INSECURE_SERVICE_TICKETS. keyGeneration: 2 per upstream's guide.
+      #
+      # keyGeneration is APPEND-ONLY — the CRD enforces "keyGeneration cannot be removed
+      # once set", so deleting this field makes the API server reject every later
+      # CephCluster update and the HelmRelease stops reconciling. Raise the number to
+      # rotate again; never remove it.
+      #
+      # csi keys stay on the chart default (aes): AES256K needs a 7.0+ kernel, the fleet
+      # is on 6.18 even after Talos v1.13.9, and both storage paths here are kernel
+      # clients (krbd, and the built-in CephFS kernel client per KB-025).
+      security:
+        cephx:
+          daemon:
+            keyRotationPolicy: KeyGeneration
+            keyGeneration: 2
+      # These three cannot be cleared here, so they are muted rather than left to mask
+      # later health changes: CLIENT_KEY_TYPE needs those CSI keys rotated, and
+      # KEYS_ALLOWED/KEYS_CREATABLE need allowedCiphers restricted to aes256k, which
+      # would lock the same clients out. AUTH_INSECURE_ROTATING_SERVICE_KEY_TYPE is
+      # deliberately not muted — it clears itself once the daemons re-key.
+      healthCheck:
+        muteHealthWarning:
+          AUTH_INSECURE_CLIENT_KEY_TYPE:
+            policy: mute
+          AUTH_INSECURE_KEYS_ALLOWED:
+            policy: mute
+          AUTH_INSECURE_KEYS_CREATABLE:
+            policy: mute
       mgr:
         modules:
           - name: diskprediction_local
