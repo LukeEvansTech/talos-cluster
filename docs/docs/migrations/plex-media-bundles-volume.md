@@ -134,9 +134,14 @@ maintenance window and a stateful cutover, which is what the rest of this page i
 
 ## Before you start
 
-Budget a **maintenance window of two to four hours** with Plex offline. The copy is roughly 247G in
-several million small files, so it is metadata bound rather than throughput bound; two hours is a
-reasonable expectation on `ceph-block` and four is a safe upper bound.
+Budget a **maintenance window of two to four hours** with Plex offline, but expect to need far less
+of it. The estimate assumed the copy would be metadata bound rather than throughput bound; on this
+cluster's NVMe-backed `ceph-block` it was not.
+
+Measured on the 2026-08-23 run: **Plex was offline for 14 minutes 30 seconds**. The copy itself moved
+248G in 410,266 entries in about nine minutes, averaging 525 MB/s. Keep the wide window booked — it
+costs nothing and the failure modes below all want unhurried attention — but do not plan the day
+around four hours.
 
 Confirm the starting state:
 
@@ -277,11 +282,16 @@ spec:
               chmod 2775 /bundles
               echo "=== verification pass (expect no itemised lines)"
               rsync -aHAXn --numeric-ids --itemize-changes "$SRC/" /bundles/
-              echo "=== sizes in 1K blocks (must match)"
-              du -sk "$SRC" /bundles
-              echo "=== entry counts (must match)"
+              echo "=== entry counts excluding lost+found (must match exactly)"
               find "$SRC" | wc -l
-              find /bundles | wc -l
+              find /bundles -path /bundles/lost+found -prune -o -print | wc -l
+              echo "=== file and directory counts (must match exactly)"
+              find "$SRC" -type f | wc -l
+              find /bundles -type f | wc -l
+              find "$SRC" -type d | wc -l
+              find /bundles -type d -path /bundles/lost+found -prune -o -type d -print | wc -l
+              echo "=== allocated blocks (ADVISORY - will differ, see step 5)"
+              du -sk "$SRC" /bundles
           volumeMounts:
             - name: config
               mountPath: /config
@@ -310,15 +320,43 @@ re-run; `-aH` preserves everything Plex actually depends on.
 
 ### 5. Verify the copy
 
-Read the tail of the Job log and check all three signals:
+Read the tail of the Job log. **One signal is authoritative and two are advisory**, which is a
+correction to the original wording — as written, two of the three fail on a perfectly good copy.
 
-- The verification `rsync --dry-run --itemize-changes` pass printed **no** itemised lines. This is
-  the authoritative check: it compares every file's size, timestamp, ownership, and permissions.
-- The two `du -sk` totals are identical.
-- The two `find | wc -l` counts are identical.
+The authoritative check:
 
-Do not proceed on two out of three. If any disagree, re-run the Job; a mismatch after a clean re-run
-means something is still writing to the source, which means Plex did not actually stop.
+- The verification `rsync --dry-run --itemize-changes` pass printed **no** itemised lines. It
+  compares every file's size, timestamp, ownership and permissions. If this is clean, the copy is
+  clean. If it lists anything, re-run the Job; entries surviving a clean re-run mean something is
+  still writing to the source, which means Plex did not actually stop.
+
+The two advisory checks, and why neither can be an equality test:
+
+- **`find | wc -l` differs by exactly one.** A freshly formatted volume carries a `lost+found`
+  directory that the source does not. Compare with it excluded:
+
+  ```sh
+  find "$SRC" | wc -l
+  find /bundles -path /bundles/lost+found -prune -o -print | wc -l
+  ```
+
+- **`du -sk` totals will not match, and should not be expected to.** `du -sk` reports *allocated
+  blocks*, not content. The source has been written and rewritten for over a year, so several
+  thousand of its 161,479 directories hold an extra 4K block that the freshly written target packs
+  away. On the 2026-08-23 run the target was **13,884 KB smaller** with byte-identical content.
+  Compare file and directory counts instead, which are exact:
+
+  ```sh
+  find "$SRC" -type f | wc -l   # must equal the target's
+  find "$SRC" -type d | wc -l   # must equal the target's
+  ```
+
+  Note busybox `du` in the Alpine image has no `-sb`, so apparent size is not available there
+  without installing coreutils.
+
+For reference, the 2026-08-23 run: itemise pass clean, entries 410,266 on both sides once
+`lost+found` was excluded, 161,479 directories and 248,787 files on both sides, and a `du -sk` delta
+of 13,884 KB that was purely block allocation.
 
 ### 6. Rename the source directory
 
