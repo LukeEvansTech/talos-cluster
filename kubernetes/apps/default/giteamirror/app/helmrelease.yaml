@@ -19,7 +19,7 @@ spec:
           app:
             image:
               repository: ghcr.io/raylabshq/gitea-mirror
-              tag: v3.26.2@sha256:d2d222ca551c74887d0b8fb6590c35840b0b3b1ce5d8e652655094b8c6d4cbf4
+              tag: v3.27.2@sha256:fe66555ffd27c2bcfaf3404aa21a1c349c9db8e727970e041d8f6b4104f4aeb3
             env:
               TZ: ${TIMEZONE}
               PORT: "4321"
@@ -51,6 +51,10 @@ spec:
               CLEANUP_DELETE_IF_NOT_IN_GITHUB: "true"
               CLEANUP_ORPHANED_REPO_ACTION: archive
               CLEANUP_DRY_RUN: "false"
+              # v3.27.2 started actually reading this and defaults it to false, which
+              # would silently reduce the archive action above to a DB-only bookkeeping
+              # entry and leave the Forgejo copy live. The UI toggle cannot hold it.
+              CLEANUP_DELETE_FROM_GITEA: "true"
             envFrom:
               - secretRef:
                   name: giteamirror-secret
