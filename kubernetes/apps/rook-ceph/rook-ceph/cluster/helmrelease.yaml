@@ -11,6 +11,17 @@ spec:
     kind: OCIRepository
     name: rook-ceph-cluster
   values:
+    # Hold Ceph on v20.2.2 for the chart move to v1.20.6; the data-plane upgrade to
+    # v20.2.4 lands separately so an operator bump and a rolling mon/mgr/OSD/MDS
+    # restart are never the same change. Without this the chart default silently
+    # carries the cluster forward (v1.20.4 defaults to v20.2.2, v1.20.6 to v20.2.4).
+    #
+    # Set cephImage, NOT cephClusterSpec.cephVersion: the chart derives both the
+    # version and the toolbox image from cephImage, and specifying both renders a
+    # duplicate key. The chart's own values.yaml says the same.
+    cephImage:
+      repository: quay.io/ceph/ceph
+      tag: v20.2.2
     monitoring:
       enabled: true
       createPrometheusRules: true
@@ -24,7 +35,7 @@ spec:
         # NOTE: mgr resources must live here (spec.resources.mgr) — the CephCluster
         # CRD has no spec.mgr.resources field, so a block there is silently pruned
         # and the chart default (1Gi limit) applies instead.
-        # 3Gi limit: with diskprediction_local/insights/pg_autoscaler/rook modules
+        # 3Gi limit: with diskprediction_local/insights/pg_autoscaler modules
         # plus the prometheus + dashboard endpoints enabled, the active mgr working
         # set climbs past 2Gi and gets OOMKilled (~twice daily), failing over to the
         # standby each time. 3Gi holds it with headroom (mon is already 4Gi).
@@ -66,8 +77,12 @@ spec:
             enabled: true
           - name: pg_autoscaler
             enabled: true
+          # Disabled: leaks mgr memory on Ceph v20.2.2 (rook#17786) and crash-loops
+          # the mgr every ~15s on v20.2.3/v20.2.4 (rook#18124). Rook v1.20.6 force-
+          # disables it, but only for Extra in [2,4] - leaving this true would
+          # silently re-enable it on v20.2.5.
           - name: rook
-            enabled: true
+            enabled: false
       network:
         provider: host
         connections:
