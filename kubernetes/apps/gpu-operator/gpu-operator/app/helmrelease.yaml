@@ -16,7 +16,6 @@ spec:
       enabled: false
     cdi:
       enabled: true
-      default: true
     devicePlugin:
       enabled: true
       config:
