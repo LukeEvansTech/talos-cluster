@@ -11,17 +11,17 @@ spec:
     kind: OCIRepository
     name: rook-ceph-cluster
   values:
-    # Hold Ceph on v20.2.2 for the chart move to v1.20.6; the data-plane upgrade to
-    # v20.2.4 lands separately so an operator bump and a rolling mon/mgr/OSD/MDS
-    # restart are never the same change. Without this the chart default silently
-    # carries the cluster forward (v1.20.4 defaults to v20.2.2, v1.20.6 to v20.2.4).
+    # No cephImage pin: the CHART governs the Ceph version, and it moves with the
+    # chart (v1.20.4 shipped v20.2.2, v1.20.6 ships v20.2.4). The pin that held
+    # v20.2.2 through the v1.20.6 chart move has done its job and is removed here,
+    # which is what performs the v20.2.2 -> v20.2.4 data-plane upgrade.
     #
-    # Set cephImage, NOT cephClusterSpec.cephVersion: the chart derives both the
-    # version and the toolbox image from cephImage, and specifying both renders a
-    # duplicate key. The chart's own values.yaml says the same.
-    cephImage:
-      repository: quay.io/ceph/ceph
-      tag: v20.2.2
+    # An explicit pin is deliberately NOT kept: no Renovate manager in this
+    # repository tracks an inline cephImage tag, so it would be hand-maintained and
+    # would silently go stale. Instead, rook-ceph sits in the "Protected infra"
+    # packageRules entry, so every chart bump gets a human review -- and that
+    # reviewer must check whether the chart's default Ceph version has moved,
+    # because a chart bump alone will roll every mon, mgr, OSD and MDS.
     monitoring:
       enabled: true
       createPrometheusRules: true
