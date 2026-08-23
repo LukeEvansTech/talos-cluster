@@ -28,6 +28,6 @@ concurrency:
 
 jobs:
   docs:
-    uses: LukeEvansTech/shared-workflows/.github/workflows/zensical.yml@4b59abeae2838832057bed9bdcb66de1dbab2263 # v1
+    uses: LukeEvansTech/shared-workflows/.github/workflows/zensical.yml@dadd5af322f177cba99a056f34c5454d62908d75 # v1
     with:
       publish: ${{ github.event_name != 'pull_request' }}
