@@ -169,8 +169,20 @@ spec:
       targetLabel: instance
       replacement: seedbox
   metricRelabelings:
-    # Drop the noisy per-container label set but KEEP cd_doco_metadata_manager,
-    # so "container down" can be scoped to the GitOps-managed fleet and a
-    # hand-run throwaway never pages. Same shape as the truenas and appliance jobs.
+    # Drop the noisy per-container label set but KEEP two container labels:
+    #   - cd_doco_metadata_manager, so "container down" can be scoped to the
+    #     GitOps-managed fleet and a hand-run throwaway never pages.
+    #   - alerts_oneshot, which marks a container that is SUPPOSED to sit in
+    #     exited (0) forever (the restore/config inits in seedbox-apps, every
+    #     service with `restart: "no"`). SeedboxContainerDown excludes on it.
+    # Otherwise the shape matches the truenas and appliance jobs.
+    #
+    # ⚠️ This labelkeep is an ALLOW-LIST: a label the exporter publishes but
+    # that is not named here simply does not exist in Prometheus. Adding a new
+    # container label to seedbox-apps is therefore only half the job — verify
+    # with `count(container_state_status{container_label_<x>="..."})` against
+    # the real Prometheus before writing a rule that depends on it. Forgetting
+    # this on 2026-08-23 made a corrected SeedboxContainerDown match 8
+    # containers instead of 0, i.e. worse than the bug it fixed.
     - action: labelkeep
-      regex: __name__|job|instance|name|status|health_status|container_label_cd_doco_metadata_manager
+      regex: __name__|job|instance|name|status|health_status|container_label_cd_doco_metadata_manager|container_label_alerts_oneshot
