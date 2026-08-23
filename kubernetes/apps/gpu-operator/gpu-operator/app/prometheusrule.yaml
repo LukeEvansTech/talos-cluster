@@ -10,7 +10,7 @@ spec:
       rules:
         - alert: GpuHighTemperature
           annotations:
-            description: GPU {{ $labels.gpu }} on {{ $labels.Hostname }} temperature is {{ $value }}C which is above 85C.
+            description: GPU {{ $labels.gpu }} on {{ $labels.hostname }} temperature is {{ $value }}C which is above 85C.
             summary: GPU temperature is critically high.
           expr: DCGM_FI_DEV_GPU_TEMP > 85
           for: 5m
@@ -18,7 +18,7 @@ spec:
             severity: critical
         - alert: GpuHighMemoryUsage
           annotations:
-            description: GPU {{ $labels.gpu }} on {{ $labels.Hostname }} memory usage is above 90%.
+            description: GPU {{ $labels.gpu }} on {{ $labels.hostname }} memory usage is above 90%.
             summary: GPU memory usage is critically high.
           # Exclude the card running an llmkube InferenceService: llama.cpp holds
           # its weights + KV cache resident by design, idling at ~90% and peaking
@@ -36,7 +36,7 @@ spec:
             severity: warning
         - alert: GpuHighPowerUsage
           annotations:
-            description: GPU {{ $labels.gpu }} on {{ $labels.Hostname }} power usage is {{ $value }}W which is above 90% of the power limit.
+            description: GPU {{ $labels.gpu }} on {{ $labels.hostname }} power usage is {{ $value }}W which is above 90% of the power limit.
             summary: GPU power usage is critically high.
           expr: |-
             DCGM_FI_DEV_POWER_USAGE / DCGM_FI_DEV_POWER_MGMT_LIMIT > 0.9
@@ -45,7 +45,7 @@ spec:
             severity: warning
         - alert: GpuXidErrors
           annotations:
-            description: GPU {{ $labels.gpu }} on {{ $labels.Hostname }} has reported XID errors.
+            description: GPU {{ $labels.gpu }} on {{ $labels.hostname }} has reported XID errors.
             summary: GPU hardware errors detected.
           expr: DCGM_FI_DEV_XID_ERRORS > 0
           for: 1m
