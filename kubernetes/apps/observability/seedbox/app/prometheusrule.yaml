@@ -247,21 +247,42 @@ spec:
     - name: seedbox-docker.rules
       rules:
         # The declarative restore inits (apps/*/compose.yaml, service
-        # restore-<app>) are one-shots: they run, exit 0 and STAY exited. That
-        # is their steady state, so they are excluded from SeedboxContainerDown
-        # above — without the exclusion every one of them pages forever, which
-        # is exactly what happened when they first landed (13 across the fleet).
+        # restore-<app>) and the config inits (service init-<thing>) are
+        # one-shots: they run, exit 0 and STAY exited. That is their steady
+        # state, so they are excluded from SeedboxContainerDown below — without
+        # the exclusion every one of them pages forever, which is exactly what
+        # happened when they first landed (13 across the fleet).
+        #
+        # The exclusion is the container label `alerts.oneshot=true`, set on
+        # every seedbox-apps service that carries `restart: "no"`. It replaced a
+        # name regex (`name!~".*-restore-.*-[0-9]+"`) on 2026-08-23, which had
+        # silently missed `filebrowser-init-filebrowser-config-1` — an init-,
+        # not a restore- — so that container paged as "not running" while
+        # sitting in its correct steady state of exited (0).
+        #
+        # A name regex is the wrong mechanism here. "This container is supposed
+        # to exit" is DECLARED INTENT, and it cannot be derived from what
+        # docker_state_exporter publishes: it exposes only restartcount,
+        # startedat, finishedat, health_status, oomkilled and status — no exit
+        # code, and no restart policy, so the one real discriminator
+        # (RestartPolicy=no) is invisible to Prometheus. Nor does
+        # com.docker.compose.oneoff help; that marks `docker compose run`
+        # containers and reads False for every service on the box.
+        #
+        # A new one-shot added WITHOUT the label pages — the safe failure
+        # direction. A widened regex would instead silently swallow any real
+        # service whose name ever contained `-init-`.
         #
         # A restore init that FAILS is still caught, just not here. It exits
         # non-zero, so compose never starts the app it gates, and the app is
         # left in `created` rather than `exited` — which is why `created` was
-        # added to the status list above. Nothing sits in `created` for
+        # added to the status list below. Nothing sits in `created` for
         # 10m in normal operation; a deploy moves through it in seconds.
         - alert: SeedboxContainerDown
           annotations:
             summary: "Seedbox container {{ $labels.name }} is not running (state: {{ $labels.status }})."
           expr: |-
-            container_state_status{job="seedbox-docker", status=~"exited|dead|created", container_label_cd_doco_metadata_manager="doco-cd", name!~".*-restore-.*-[0-9]+"} == 1
+            container_state_status{job="seedbox-docker", status=~"exited|dead|created", container_label_cd_doco_metadata_manager="doco-cd", container_label_alerts_oneshot!="true"} == 1
           for: 10m
           labels:
             severity: critical
