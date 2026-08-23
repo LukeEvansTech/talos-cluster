@@ -48,6 +48,7 @@ nav = [
   { "Migrations" = [
     { "Envoy Gateway" = "migrations/envoy-gateway.md" },
     { "Multus VLAN" = "migrations/multus-vlan.md" },
+    { "Plex media bundles volume" = "migrations/plex-media-bundles-volume.md" },
     { "VolSync / Kopia" = "migrations/volsync-kopia.md" },
   ] },
   { "Apps" = [
