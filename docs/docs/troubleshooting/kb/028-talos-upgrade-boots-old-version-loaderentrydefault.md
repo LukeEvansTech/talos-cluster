@@ -1,6 +1,6 @@
 # KB-028: Talos Upgrade Installs Successfully but the Node Boots the Old Version (NVRAM Wipe → `LoaderEntryDefault`)
 
-**Status:** Fix proven on five nodes across two upgrades (v1.13.6 → v1.13.7, then v1.13.7 → v1.13.8, where all three needed it). The trigger is the BIOS flash off the buggy line, not a Talos regression. `BootOrder` turned out **not** to be the lever — see the section below — so recurrence depends entirely on whether `LoaderEntryDefault` comes back.
+**Status:** Fix proven on seven nodes across three upgrades (v1.13.6 → v1.13.7, v1.13.7 → v1.13.8 where all three needed it, and v1.13.8 → v1.13.9 where two of three did). The v1.13.9 run corrected several claims below — see [What the v1.13.9 run changed](#what-the-v1139-run-changed). The trigger is the BIOS flash off the buggy line, not a Talos regression. `BootOrder` turned out **not** to be the lever — see the section below — so recurrence depends entirely on whether `LoaderEntryDefault` comes back.
 
 ## Symptom
 
@@ -61,7 +61,7 @@ This was the first Talos upgrade after the flash.
 Two plausible-sounding explanations the evidence does **not** support. Both were tested.
 
 - **TPM unseal failing and falling back to the slot-1 static key.** `talosctl get volumestatus STATE` and `EPHEMERAL` report `encryptionSlot: 0` (the TPM slot) on all three nodes, so PCR 7 is intact and the sealed policy is valid. The slot-1 fallback added by #3552 is not engaged. It remains the right insurance for a future flash; it is simply not what happened here.
-- **A Talos v1.13.7 installer regression pointing `LoaderEntryDefault` at the outgoing version.** Contradicted twice: one node's variable names the version it *installed*, not the outgoing one, and on another the variable reappeared after a plain reboot with no installer running at all. Something writes it at boot; it is not the installer setting it backwards.
+- **A Talos installer regression pointing `LoaderEntryDefault` at the outgoing version.** Contradicted three times: on two nodes the variable named the version it *installed* rather than the outgoing one, and on another it reappeared after a plain reboot with no installer running. The v1.13.9 run adds the clearest datapoint — a node that booted cleanly onto the new version had the variable recreated naming **that same new version** within a minute of boot. The writer therefore records *whatever was just booted*, which is what arms the trap: at the next upgrade the variable still names the outgoing release, and systemd-boot honours it instead of selecting the newest UKI.
 
 ## Confirming it on a node
 
@@ -152,6 +152,19 @@ spec:
 
 Clearing the immutable flag is required: efivarfs marks variables immutable, so `unlink` fails without it.
 
+**The mount can come up read-only, and the pod above does not handle it.** On one node of the
+v1.13.9 run, `mount -t efivarfs none /ev` produced `ro,relatime` and the `FS_IOC_SETFLAGS` ioctl
+failed with `OSError: [Errno 30] Read-only file system` — after the script had already printed the
+current value, so it looks like a permissions problem rather than a mount problem. The other two
+nodes mounted read-write from the same manifest, so this is not deterministic. Always remount
+before touching the variable:
+
+```sh
+mount -t efivarfs none /ev
+mount -o remount,rw -t efivarfs none /ev
+mount | grep efivar   # expect rw,relatime
+```
+
 Then drain and reboot the node normally:
 
 ```bash
@@ -176,17 +189,19 @@ flux reconcile ks tuppr-upgrades -n system-upgrade --with-source=false
 
 If the install happens to leave only new-version UKIs on the ESP, the stale default matches nothing, systemd-boot falls back to newest, and that node boots the new version unaided. One of the three did exactly this. Do not conclude from one healthy node that the fleet is fine — check `bootedentry` on every node.
 
-On the v1.13.7 → v1.13.8 run, **none** of the three self-corrected. Plan for the workaround on every node until the `LoaderEntryDefault`-writer in open item 3 is identified.
+On the v1.13.7 → v1.13.8 run, **none** of the three self-corrected. On the v1.13.8 → v1.13.9 run, two of three needed the workaround and the third did not — its variable happened to name the version being installed rather than the outgoing one, so the default pointed at the right UKI by luck. Plan for the workaround on every node regardless.
 
-### The fix needs two boot cycles, not one
+### The fix may need two boot cycles, but not always
 
-Deleting `LoaderEntryDefault` and rebooting is not enough on its own. On all three nodes the first boot after the deletion **still came up on the old version**, then the node rebooted itself unprompted a few minutes later and came up on the new one.
+On the v1.13.7 → v1.13.8 run, deleting `LoaderEntryDefault` and rebooting was not enough on its own: all three nodes came up on the old version on the first boot, then rebooted themselves unprompted a few minutes later onto the new one.
+
+**On the v1.13.8 → v1.13.9 run this did not happen** — every node reached the new version on the first boot, roughly seven minutes after the reboot. So treat the second cycle as possible rather than certain. The practical advice is unchanged: judge by the version the kubelet reports, never by how long it has been.
 
 This matters because the obvious check — reading `bootedentry` as soon as the node is back — reports the old version and looks exactly like the fix having failed. It has not. Wait for the second boot before drawing any conclusion:
 
 ```bash
-# Wait for the kubelet to report the target version rather than eyeballing the first boot
-until kubectl get node <node> -o jsonpath='{.status.nodeInfo.osImage}' | grep -q 'v1.13.8'; do sleep 20; done
+# Wait for the kubelet to report the TARGET version rather than eyeballing the first boot
+until kubectl get node <node> -o jsonpath='{.status.nodeInfo.osImage}' | grep -q '<target-version>'; do sleep 20; done
 talosctl -n <node-ip> get bootedentry -o yaml   # only meaningful once the above returns
 ```
 
@@ -231,10 +246,61 @@ command:
 
 Because both entries resolve to the same loader, keeping `0002` in the list means the worst case is the behaviour you already had.
 
+## What the v1.13.9 run changed
+
+Four things the earlier text got wrong or did not cover. Recorded here rather than silently
+rewritten above, because knowing a claim was reversed is worth more than a clean document.
+
+- **The pre-flight check is not predictive.** `LoaderEntryDefault` was absent on all three nodes
+  twenty minutes before the upgrade, and was written during the upgrade boot anyway. Reading the
+  variable beforehand tells you nothing about whether the trap will spring; it only tells you
+  whether it is armed *right now*. Do not use a clean pre-flight to skip the workaround.
+- **The default tracks the last booted entry**, which is the mechanism rather than a curiosity.
+  A node that booted correctly onto the new version had the variable recreated naming that new
+  version within a minute. That is harmless today and is exactly what breaks the *next* upgrade.
+- **One boot cycle was enough on every node**, contradicting the two-cycle rule from the previous
+  run. See the section above.
+- **The efivarfs mount can be read-only.** See the remount note in the fix.
+
+### Drain timeouts are grace periods, not stuck pods
+
+The runbook blames stuck-`Terminating` pods for failed drains. On this run both drain failures were
+ordinary pods honouring long, deliberate grace periods:
+
+| Workload | `terminationGracePeriodSeconds` |
+| --- | --- |
+| CloudNativePG instance | 1800 |
+| Flux helm-controller | 600 |
+| Envoy gateway | 480 |
+| Plex | 300 |
+
+A `--timeout=7m` drain cannot succeed against a 1800s CloudNativePG pod, and `talosctl upgrade`'s
+own drain hit the same wall on a 300s one. Nothing was wedged — the pods were shutting down
+correctly and the timeout was simply shorter than the contract.
+
+Two consequences:
+
+- **Gate the reboot on the drain's exit status.** Rebooting through a failed drain cost a
+  CloudNativePG replica on this run. No data was lost — the primary was on another node — but the
+  ghost pod then sat `Terminating` until it was force-deleted, holding the cluster at 2/3.
+- **CloudNativePG switches the primary over by itself** under `primaryUpdateStrategy: unsupervised`.
+  When the drain reached the node holding the primary it promoted a replica cleanly and the drain
+  completed. Do not pre-empt it by deleting the primary pod.
+
+### Clear the CR before scaling the controller down
+
+The cleanup below deletes the `TalosUpgrade` CR. If the tuppr controller has already been scaled to
+zero, that delete **hangs forever** on `tuppr.home-operations.com/talos-finalizer` with nothing left
+to process it. Either clear the CR first, or scale the controller back up to release it:
+
+```sh
+kubectl scale deploy tuppr -n system-upgrade --replicas=2
+```
+
 ## Open items
 
-1. **Identify what writes `LoaderEntryDefault`.** This is the whole ballgame — it is the only variable that actually steers the boot here. After the v1.13.8 upgrade the variable is **absent on all three nodes**, which is the good state: with no default set, systemd-boot selects the newest UKI, so the next upgrade should boot correctly unaided. Read it before the next upgrade — if it has reappeared naming v1.13.8, the trap is armed again and the writer needs to be found.
-2. Because the workaround is applied after the fact, a tuppr-driven upgrade will always fail its first node and stop the batch. Budget for driving the rest by hand: fix the node, clear the CR, let tuppr re-plan, repeat. Three nodes took about an hour.
+1. **Identify what writes `LoaderEntryDefault`.** Still the whole ballgame. The v1.13.9 run narrowed it considerably: the variable is recreated at boot naming the entry that was just booted, on at least one node, within a minute of coming up. It is therefore not the installer writing it backwards. After the v1.13.9 upgrade the variable is **absent on two nodes and present on the third**, naming v1.13.9 — so that node's next upgrade is already armed and the other two are not. Whatever the writer is, it is not uniform across identical hardware, which is the most useful clue so far.
+2. Because the workaround is applied after the fact, a tuppr-driven upgrade will always fail its first node and stop the batch. Budget for driving the rest by hand. Note that tuppr stops cleanly after the first failure rather than marching on, so the blast radius is one node. The v1.13.9 run took roughly an hour for three nodes, most of it waiting for Ceph to return to `HEALTH_OK` between each.
 
 ## References
 
