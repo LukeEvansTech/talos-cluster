@@ -32,7 +32,7 @@ jobs:
       pull-requests: write
       statuses: write
       id-token: write
-    uses: LukeEvansTech/shared-workflows/.github/workflows/renovate-review.yml@275af0a49a18fe926c1d7f0e65ee45babdb57a30 # v1
+    uses: LukeEvansTech/shared-workflows/.github/workflows/renovate-review.yml@4b59abeae2838832057bed9bdcb66de1dbab2263 # v1
     with:
       # Derived at runtime from the "Protected infra" packageRules entry in
       # .renovaterc.json5, so the blast list can never drift from the Renovate
