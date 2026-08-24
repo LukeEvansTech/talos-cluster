@@ -18,7 +18,7 @@ spec:
       APP: *app
       HOMEPAGE_NAME: Sortarr
       HOMEPAGE_GROUP: Media
-      HOMEPAGE_ICON: https://raw.githubusercontent.com/Jaredharper1/Sortarr/main/static/sortarr.svg
+      HOMEPAGE_ICON: https://raw.githubusercontent.com/Jaredharper1/Sortarr/main/static/logo.svg
       HOMEPAGE_DESCRIPTION: Media storage analytics
   prune: true
   retryInterval: 2m
