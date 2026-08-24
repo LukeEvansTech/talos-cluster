@@ -9,6 +9,8 @@ spec:
   commonMetadata:
     labels:
       app.kubernetes.io/name: *app
+  components:
+    - ../../../../components/homepage
   dependsOn:
     - name: onepassword-connect
       namespace: external-secrets
@@ -16,6 +18,13 @@ spec:
       namespace: network
   interval: 1h
   path: ./kubernetes/apps/games/epicgames/app
+  postBuild:
+    substitute:
+      APP: *app
+      HOMEPAGE_NAME: Epic Games
+      HOMEPAGE_GROUP: Games
+      HOMEPAGE_ICON: epic-games.svg
+      HOMEPAGE_DESCRIPTION: Free games claimer
   prune: true
   retryInterval: 2m
   sourceRef:

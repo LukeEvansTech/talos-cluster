@@ -9,6 +9,8 @@ spec:
   commonMetadata:
     labels:
       app.kubernetes.io/name: *app
+  components:
+    - ../../../../components/homepage
   dependsOn:
     - name: cloudnative-pg-cluster
       namespace: database
@@ -19,6 +21,10 @@ spec:
   postBuild:
     substitute:
       APP: *app
+      HOMEPAGE_NAME: Miniflux
+      HOMEPAGE_GROUP: Productivity
+      HOMEPAGE_ICON: miniflux.svg
+      HOMEPAGE_DESCRIPTION: RSS reader
   prune: true
   retryInterval: 2m
   sourceRef:

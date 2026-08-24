@@ -10,6 +10,7 @@ spec:
     labels:
       app.kubernetes.io/name: *app
   components:
+    - ../../../../components/homepage
     - ../../../../components/volsync
   dependsOn:
     - name: onepassword-connect
@@ -20,6 +21,10 @@ spec:
     substitute:
       APP: *app
       VOLSYNC_CAPACITY: 1Gi
+      HOMEPAGE_NAME: Z-Wave
+      HOMEPAGE_GROUP: Home
+      HOMEPAGE_ICON: z-wave.svg
+      HOMEPAGE_DESCRIPTION: Z-Wave controller
   prune: true
   retryInterval: 2m
   sourceRef:

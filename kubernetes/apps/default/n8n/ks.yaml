@@ -10,6 +10,7 @@ spec:
     labels:
       app.kubernetes.io/name: *app
   components:
+    - ../../../../components/homepage
     - ../../../../components/volsync
   interval: 1h
   path: ./kubernetes/apps/default/n8n/app
@@ -18,6 +19,10 @@ spec:
       APP: *app
       VOLSYNC_CAPACITY: 5Gi
       VOLSYNC_CACHE_CAPACITY: 8Gi
+      HOMEPAGE_NAME: N8N
+      HOMEPAGE_GROUP: Productivity
+      HOMEPAGE_ICON: n8n.svg
+      HOMEPAGE_DESCRIPTION: Workflow automation
   prune: true
   retryInterval: 2m
   sourceRef:

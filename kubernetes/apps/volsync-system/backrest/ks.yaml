@@ -6,6 +6,8 @@ metadata:
   name: &app backrest
   namespace: volsync-system
 spec:
+  components:
+    - ../../../../components/homepage
   dependsOn:
     - name: volsync
   targetNamespace: volsync-system
@@ -23,3 +25,7 @@ spec:
   postBuild:
     substitute:
       APP: *app
+      HOMEPAGE_NAME: Backrest
+      HOMEPAGE_GROUP: Infrastructure
+      HOMEPAGE_ICON: mdi-backup-restore
+      HOMEPAGE_DESCRIPTION: Restic UI

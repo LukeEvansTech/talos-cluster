@@ -10,6 +10,7 @@ spec:
     labels:
       app.kubernetes.io/name: *app
   components:
+    - ../../../../components/homepage
     - ../../../../components/volsync
   interval: 1h
   path: ./kubernetes/apps/default/gitsave/app
@@ -17,6 +18,10 @@ spec:
     substitute:
       APP: *app
       VOLSYNC_CAPACITY: 5Gi
+      HOMEPAGE_NAME: GitSave
+      HOMEPAGE_GROUP: Git
+      HOMEPAGE_ICON: mdi-source-repository
+      HOMEPAGE_DESCRIPTION: Git backup
   prune: true
   retryInterval: 2m
   sourceRef:

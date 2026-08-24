@@ -10,6 +10,7 @@ spec:
     labels:
       app.kubernetes.io/name: *app
   components:
+    - ../../../../components/homepage
     - ../../../../components/volsync
   interval: 1h
   path: ./kubernetes/apps/default/filebrowser/app
@@ -18,6 +19,10 @@ spec:
       APP: *app
       VOLSYNC_CAPACITY: 1Gi
       VOLSYNC_CACHE_CAPACITY: 8Gi
+      HOMEPAGE_NAME: FileBrowser
+      HOMEPAGE_GROUP: Tools
+      HOMEPAGE_ICON: filebrowser.svg
+      HOMEPAGE_DESCRIPTION: File manager
   prune: true
   retryInterval: 2m
   sourceRef:

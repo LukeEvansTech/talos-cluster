@@ -1,2 +1,8 @@
 ---
 mode: cluster
+# Services are discovered from HTTPRoutes annotated `gethomepage.dev/*` (the
+# components/homepage kustomize component adds them). There are no Ingress or
+# Traefik IngressRoute objects in this cluster, so skip those API calls.
+gateway: true
+ingress: false
+traefik: false

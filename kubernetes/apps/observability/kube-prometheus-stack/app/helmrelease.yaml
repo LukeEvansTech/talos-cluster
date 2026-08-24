@@ -68,11 +68,11 @@ spec:
           enabled: true
           annotations:
             gethomepage.dev/enabled: "true"
-            gethomepage.dev/icon: prometheus.png
+            gethomepage.dev/icon: prometheus.svg
             gethomepage.dev/name: Prometheus
-            gethomepage.dev/group: Observability
+            gethomepage.dev/group: Monitoring
             gethomepage.dev/app: prometheus
-            gethomepage.dev/description: Monitoring Scrape Service
+            gethomepage.dev/description: Metrics
             gethomepage.dev/widget.type: prometheus
             gethomepage.dev/widget.url: http://kube-prometheus-stack-prometheus.observability:9090
           hostnames:
