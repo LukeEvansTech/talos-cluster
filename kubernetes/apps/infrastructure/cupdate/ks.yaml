@@ -9,11 +9,17 @@ spec:
   commonMetadata:
     labels:
       app.kubernetes.io/name: *app
+  components:
+    - ../../../../components/homepage
   interval: 1h
   path: ./kubernetes/apps/infrastructure/cupdate/app
   postBuild:
     substitute:
       APP: *app
+      HOMEPAGE_NAME: Cupdate
+      HOMEPAGE_GROUP: Infrastructure
+      HOMEPAGE_ICON: mdi-update
+      HOMEPAGE_DESCRIPTION: Container updates
   prune: true
   retryInterval: 2m
   sourceRef:

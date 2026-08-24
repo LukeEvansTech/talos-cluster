@@ -31,6 +31,8 @@ spec:
   commonMetadata:
     labels:
       app.kubernetes.io/name: *app
+  components:
+    - ../../../../components/homepage
   dependsOn:
     - name: cloudnative-pg-cluster
       namespace: database
@@ -42,6 +44,10 @@ spec:
   postBuild:
     substitute:
       APP: *app
+      HOMEPAGE_NAME: Guacamole
+      HOMEPAGE_GROUP: Tools
+      HOMEPAGE_ICON: guacamole.svg
+      HOMEPAGE_DESCRIPTION: Remote desktop
   prune: true
   retryInterval: 2m
   sourceRef:

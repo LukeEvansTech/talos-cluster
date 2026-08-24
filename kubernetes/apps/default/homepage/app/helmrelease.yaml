@@ -43,6 +43,12 @@ spec:
                 memory: 200M
               limits:
                 memory: 500M
+    defaultPodOptions:
+      # kubernetes.yaml runs in `mode: cluster`: the cluster/node info widget and
+      # the per-service /api/kubernetes stats read the in-cluster SA token. app-template
+      # disables the automount by default, so every one of those calls 500'd
+      # ("Error getting nodes: NaN undefined undefined") despite complete RBAC.
+      automountServiceAccountToken: true
     serviceAccount:
       homepage: {}
     service:

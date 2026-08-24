@@ -41,6 +41,12 @@ spec:
       enabled: true
       annotations:
         gatus.home-operations.com/enabled: "false"
+        gethomepage.dev/enabled: "true"
+        gethomepage.dev/app: gatus-sidecar
+        gethomepage.dev/name: Gatus
+        gethomepage.dev/group: Monitoring
+        gethomepage.dev/icon: gatus.svg
+        gethomepage.dev/description: Status page
       hostnames:
         - status.${SECRET_DOMAIN}
       parentRefs:

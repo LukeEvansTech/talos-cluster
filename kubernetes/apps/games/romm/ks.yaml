@@ -10,6 +10,7 @@ spec:
     labels:
       app.kubernetes.io/name: *app
   components:
+    - ../../../../components/homepage
     - ../../../../components/volsync
   dependsOn:
     - name: cloudnative-pg-cluster
@@ -22,6 +23,10 @@ spec:
     substitute:
       APP: *app
       VOLSYNC_CAPACITY: 5Gi
+      HOMEPAGE_NAME: ROMM
+      HOMEPAGE_GROUP: Games
+      HOMEPAGE_ICON: romm.svg
+      HOMEPAGE_DESCRIPTION: ROM manager
   prune: true
   retryInterval: 2m
   sourceRef:

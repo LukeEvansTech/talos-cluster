@@ -40,3 +40,9 @@ layout:
   Games:
     style: row
     columns: 2
+  Security:
+    style: row
+    columns: 2
+  Storage:
+    style: row
+    columns: 2

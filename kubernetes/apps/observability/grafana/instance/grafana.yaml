@@ -94,6 +94,13 @@ metadata:
     gatus.home-operations.com/endpoint: |-
       group: internal
       conditions: ["[STATUS] == 200"]
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: Grafana
+    gethomepage.dev/group: Monitoring
+    gethomepage.dev/icon: grafana.svg
+    gethomepage.dev/description: Dashboards
+    # grafana-operator pods carry `app: grafana`, not app.kubernetes.io/name
+    gethomepage.dev/pod-selector: app=grafana
 spec:
   hostnames:
     - grafana.${SECRET_DOMAIN}

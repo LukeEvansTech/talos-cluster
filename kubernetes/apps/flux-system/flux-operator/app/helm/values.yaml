@@ -16,6 +16,12 @@ web:
           - flux-admin
   httpRoute:
     enabled: true
+    annotations:
+      gethomepage.dev/enabled: "true"
+      gethomepage.dev/name: Flux
+      gethomepage.dev/group: Infrastructure
+      gethomepage.dev/icon: flux-cd.svg
+      gethomepage.dev/description: GitOps
     hostnames:
       - flux.${SECRET_DOMAIN}
     parentRefs:

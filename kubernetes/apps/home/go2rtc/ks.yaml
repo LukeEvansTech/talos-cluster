@@ -9,11 +9,17 @@ spec:
   commonMetadata:
     labels:
       app.kubernetes.io/name: *app
+  components:
+    - ../../../../components/homepage
   interval: 1h
   path: ./kubernetes/apps/home/go2rtc/app
   postBuild:
     substitute:
       APP: *app
+      HOMEPAGE_NAME: Go2RTC
+      HOMEPAGE_GROUP: Home
+      HOMEPAGE_ICON: mdi-cctv
+      HOMEPAGE_DESCRIPTION: Camera streaming
   prune: true
   retryInterval: 2m
   sourceRef:

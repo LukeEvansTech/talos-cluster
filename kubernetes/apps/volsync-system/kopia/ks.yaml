@@ -6,6 +6,8 @@ metadata:
   name: &app kopia
   namespace: volsync-system
 spec:
+  components:
+    - ../../../../components/homepage
   dependsOn:
     - name: volsync
       namespace: volsync-system
@@ -24,3 +26,7 @@ spec:
   postBuild:
     substitute:
       APP: *app
+      HOMEPAGE_NAME: Kopia
+      HOMEPAGE_GROUP: Infrastructure
+      HOMEPAGE_ICON: kopia.svg
+      HOMEPAGE_DESCRIPTION: Backups
