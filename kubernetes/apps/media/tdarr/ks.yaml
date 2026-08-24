@@ -25,7 +25,7 @@ spec:
       VOLSYNC_CAPACITY: 10Gi
       HOMEPAGE_NAME: Tdarr
       HOMEPAGE_GROUP: Media
-      HOMEPAGE_ICON: tdarr.svg
+      HOMEPAGE_ICON: tdarr.png
       HOMEPAGE_DESCRIPTION: Media transcoding
   prune: true
   retryInterval: 2m
