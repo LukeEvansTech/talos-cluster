@@ -23,7 +23,7 @@ spec:
       VOLSYNC_CAPACITY: 5Gi
       HOMEPAGE_NAME: Tandoor
       HOMEPAGE_GROUP: Productivity
-      HOMEPAGE_ICON: tandoor.svg
+      HOMEPAGE_ICON: tandoor-recipes.svg
       HOMEPAGE_DESCRIPTION: Recipe manager
   prune: true
   retryInterval: 2m

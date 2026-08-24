@@ -23,7 +23,7 @@ spec:
       VOLSYNC_CAPACITY: 1Gi
       HOMEPAGE_NAME: Wallos
       HOMEPAGE_GROUP: Tools
-      HOMEPAGE_ICON: wallos.svg
+      HOMEPAGE_ICON: wallos.png
       HOMEPAGE_DESCRIPTION: Subscription tracker
   prune: true
   retryInterval: 2m

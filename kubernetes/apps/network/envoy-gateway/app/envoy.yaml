@@ -63,13 +63,10 @@ spec:
     annotations:
       external-dns.alpha.kubernetes.io/hostname: *hostname
       lbipam.cilium.io/ips: 10.32.8.88
+  # https is listed first on purpose: homepage derives a discovered tile's URL
+  # scheme from listeners[0] when the HTTPRoute's parentRef has no sectionName
+  # (none of ours do), so http-first rendered every tile as http://.
   listeners:
-    - name: http
-      protocol: HTTP
-      port: 80
-      allowedRoutes:
-        namespaces:
-          from: Same
     - name: https
       protocol: HTTPS
       port: 443
@@ -80,6 +77,12 @@ spec:
         certificateRefs:
           - kind: Secret
             name: "${SECRET_DOMAIN/./-}-production-tls"
+    - name: http
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: Same
 ---
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/gateway.networking.k8s.io/gateway_v1.json
 apiVersion: gateway.networking.k8s.io/v1
@@ -101,13 +104,10 @@ spec:
     annotations:
       external-dns.alpha.kubernetes.io/hostname: *internalHost
       lbipam.cilium.io/ips: 10.32.8.87
+  # https is listed first on purpose: homepage derives a discovered tile's URL
+  # scheme from listeners[0] when the HTTPRoute's parentRef has no sectionName
+  # (none of ours do), so http-first rendered every tile as http://.
   listeners:
-    - name: http
-      protocol: HTTP
-      port: 80
-      allowedRoutes:
-        namespaces:
-          from: Same
     - name: https
       protocol: HTTPS
       port: 443
@@ -118,6 +118,12 @@ spec:
         certificateRefs:
           - kind: Secret
             name: "${SECRET_DOMAIN/./-}-production-tls"
+    - name: http
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: Same
 ---
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/gateway.envoyproxy.io/backendtrafficpolicy_v1alpha1.json
 apiVersion: gateway.envoyproxy.io/v1alpha1

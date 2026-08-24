@@ -20,7 +20,7 @@ spec:
       VOLSYNC_CAPACITY: 1Gi
       HOMEPAGE_NAME: Autopulse
       HOMEPAGE_GROUP: Media
-      HOMEPAGE_ICON: autopulse.svg
+      HOMEPAGE_ICON: mdi-autorenew
       HOMEPAGE_DESCRIPTION: Media automation
   prune: true
   retryInterval: 2m
