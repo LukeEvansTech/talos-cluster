@@ -12,11 +12,11 @@
   // not deployed here.
   extends: [
     "github>LukeEvansTech/renovate-config",
-    "github>home-operations/renovate-presets//apps/cnpg.json5#7.0.0",
-    "github>home-operations/renovate-presets//apps/grafanaDashboards.json5#7.0.0",
-    "github>home-operations/renovate-presets//apps/llamacpp.json5#7.0.0",
-    "github>home-operations/renovate-presets//apps/searxng.json5#7.0.0",
-    "github>home-operations/renovate-presets//apps/talosFactory.json5#7.0.0",
+    "github>home-operations/renovate-presets//apps/cnpg.json5#8.1.0",
+    "github>home-operations/renovate-presets//apps/grafanaDashboards.json5#8.1.0",
+    "github>home-operations/renovate-presets//apps/llamacpp.json5#8.1.0",
+    "github>home-operations/renovate-presets//apps/searxng.json5#8.1.0",
+    "github>home-operations/renovate-presets//apps/talosFactory.json5#8.1.0",
   ],
   // Assign manual PRs to me so they reach my GitHub "Participating" notifications.
   // assignAutomerge:false (the Renovate default, pinned here for clarity) means
