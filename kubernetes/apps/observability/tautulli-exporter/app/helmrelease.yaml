@@ -18,7 +18,7 @@ spec:
           app:
             image:
               repository: docker.io/mm404/tautulli-exporter
-              tag: 0.2.7@sha256:d7aaeeb02039af6c802e1cb66a204326515af72dab04bdcb6184c6a10da014d2
+              tag: 1.0.1@sha256:6b906d5668ec405178e248c3d7facc4681d8a7fd5072458979cdcadb080d756b
             env:
               # Tautulli's in-cluster API (media namespace). The exporter appends
               # /api/v2 itself; a read-only API key is supplied via envFrom.
