@@ -10,6 +10,7 @@ spec:
     labels:
       app.kubernetes.io/name: *app
   components:
+    - ../../../../components/homepage
     - ../../../../components/volsync
   interval: 1h
   path: ./kubernetes/apps/default/homebox/app
@@ -20,6 +21,10 @@ spec:
       # 8Gi cluster floor — the Kopia cache tracks the shared repository, not
       # VOLSYNC_CAPACITY (KB-030).
       VOLSYNC_CACHE_CAPACITY: 8Gi
+      HOMEPAGE_NAME: Homebox
+      HOMEPAGE_GROUP: Productivity
+      HOMEPAGE_ICON: homebox.svg
+      HOMEPAGE_DESCRIPTION: Home inventory
   prune: true
   retryInterval: 2m
   sourceRef:

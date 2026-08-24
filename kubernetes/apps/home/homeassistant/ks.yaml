@@ -10,6 +10,7 @@ spec:
     labels:
       app.kubernetes.io/name: *app
   components:
+    - ../../../../components/homepage
     - ../../../../components/volsync
   dependsOn:
     - name: multus-networks
@@ -23,6 +24,10 @@ spec:
       APP: *app
       VOLSYNC_CAPACITY: 5Gi
       VOLSYNC_CACHE_CAPACITY: 8Gi
+      HOMEPAGE_NAME: Home Assistant
+      HOMEPAGE_GROUP: Home
+      HOMEPAGE_ICON: home-assistant.svg
+      HOMEPAGE_DESCRIPTION: Home automation
   prune: true
   retryInterval: 2m
   sourceRef:
