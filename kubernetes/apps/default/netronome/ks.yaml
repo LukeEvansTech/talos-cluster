@@ -23,7 +23,7 @@ spec:
       VOLSYNC_CAPACITY: 1Gi
       HOMEPAGE_NAME: Netronome
       HOMEPAGE_GROUP: Tools
-      HOMEPAGE_ICON: speedtest-tracker.svg
+      HOMEPAGE_ICON: netronome.png
       HOMEPAGE_DESCRIPTION: Speed test tracker
   prune: true
   retryInterval: 2m

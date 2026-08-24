@@ -18,7 +18,7 @@ spec:
       APP: *app
       HOMEPAGE_NAME: Anubis
       HOMEPAGE_GROUP: Security
-      HOMEPAGE_ICON: anubis.svg
+      HOMEPAGE_ICON: anubis.png
       HOMEPAGE_DESCRIPTION: Bot protection
   prune: true
   retryInterval: 2m
