@@ -123,10 +123,10 @@ data:
             c = files.get(p)
             if not c:
                 continue
+            if total + len(c) > PAGE_CTX:
+                break
             ctx.append(f"=== {p} ===\n{c}")
             total += len(c)
-            if total > PAGE_CTX:
-                break
         user = (f"Repository: {repo}\nPage title: {page.get('title')}\n"
                 f"Focus: {page.get('focus', '')}\n\nRelevant source files:\n" + "\n\n".join(ctx))
         return chat(PAGE_SYS, user)
