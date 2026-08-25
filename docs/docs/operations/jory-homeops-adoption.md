@@ -207,7 +207,7 @@ What it buys: no staging Jobs or immutability hacks, operator-managed model life
 shared weights copy, and any node can serve any model without re-staging: model switching and
 failover stop being a re-download event. The `llm-gpu-model` anti-affinity spread stays.
 
-## Foreman: unblocked, parked
+## Foreman: installed for a bare trial (draft PR #TBD)
 
 foreman + dispatch + foreman-dispatch-bridge is jory's autonomous "GitHub issues in → pull
 requests out" pipeline: dispatch grooms and lanes issues with a small local model, the bridge
@@ -215,11 +215,69 @@ CronJob claims one ready issue per lane and creates a foreman `Workload`, and fo
 pods (per-language coders → deterministic lint/test gate → read-only reviewer, all inferencing
 through litellm) open the PR, with a big-context cloud model as the escalation lane.
 
-Its hard blocker here was the `gateCache` RWX volume, gone once PR D lands. The remaining
-question is a soft one: whether local-model coding PRs earn their GPU slices when Claude Code
-is the primary agent. Re-evaluate after PRs D + G have proven CephFS in anger. If pursued, his
-`GATEPROFILE_MAP` (per-repository lint/build/test commands) must be rebuilt for this account's
-repositories, and dispatch needs CNPG + an OIDC story.
+Its hard blocker here was the `gateCache` RWX volume, gone once PR D landed. The dispatch +
+foreman-dispatch-bridge half is still deliberately skipped (this trial hand-applies one
+`Workload` at a time); jory's `GATEPROFILE_MAP` is the bridge's own repo→gate-command table and
+has no bearing on a hand-applied `Workload`, which carries its gate command inline via
+`spec.gateProfile` instead (see below).
+
+**What the draft PR installs**: the `foreman` chart (operator + CRDs: `Workload`,
+`AgenticTask`, `Agent`, `FleetNode`, `AgentRelease`, `ModelProfile`) and three `Agent` CRs —
+`coder` (role `coder`, model `self-hosted` via LiteLLM, Job-mode execution), `gate` (role
+`verifier`, deterministic — no LLM, runs `run_gate_job`), `reviewer` (role `reviewer`, model
+`openrouter/auto`, read-only tools). All three inference through LiteLLM's `cloud-proxy`
+provider (`spec.providerConfig`), pointed at the `litellm-key-foreman` Secret the
+`LiteLLMVirtualKey` operator manages directly — no LiteLLM key is duplicated into the
+`foreman-agent` 1Password-sourced Secret.
+
+**Prerequisites the owner must create before the trial can run** (not automated by the PR):
+
+- A `foreman-github` item in the **Talos** 1Password vault, field `GITHUB_TOKEN`, holding a
+  fine-grained PAT scoped to `contents:write` + `pull_requests:write` + `issues:read` on
+  whichever repository is used for the trial. Without it the `foreman-agent` ExternalSecret
+  never populates and the coder Job cannot push a branch.
+- The `litellm` `LiteLLMProxy` cutover PR must land (or be otherwise verified) before the
+  `LiteLLMVirtualKey` in this PR can resolve — see that PR's Verification section for what was
+  actually observed against the litellm-operator's validating webhook.
+
+**Trial procedure** — apply one `Workload` by hand against a real issue in a repo the PAT
+covers:
+
+```yaml
+apiVersion: foreman.llmkube.dev/v1alpha1
+kind: Workload
+metadata:
+  name: foreman-trial-issue-<N>
+  namespace: ai
+spec:
+  intent: "<one-line description of the fix>"
+  repo: <owner>/<repo>
+  issues: [<N>]
+  coderAgentRef:
+    name: coder
+  verifierAgentRef:
+    name: gate
+  reviewerAgentRefs:
+    - name: reviewer
+  # Only needed for a non-Go repo — an omitted gateProfile resolves to the Go
+  # preset (gofmt/govet/golangci-lint/go test), byte-identical to no field at
+  # all. See LLMKube's docs/site/foreman/language-gates.md for the built-in
+  # presets (python, rust, node, generic) and the `commands` overrides.
+  # gateProfile:
+  #   language: python
+```
+
+Watch it decompose and run:
+
+```bash
+kubectl get workload,agentictask,fleetnode -n ai -w
+```
+
+A review `GO` opens the pull request itself (`Workload.spec.openPullRequest` defaults to true
+for an issue-batch Workload) — no dispatch bridge involved. Flux does not own these hand-applied
+objects, so clean up by name afterward: `kubectl delete workload foreman-trial-issue-<N> -n ai`,
+plus any decomposed `AgenticTask`s that linger as terminal objects
+(`kubectl get agentictask -n ai`).
 
 ## Decision checklist (pick-up point)
 
