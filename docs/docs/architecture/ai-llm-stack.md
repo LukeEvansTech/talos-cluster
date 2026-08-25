@@ -11,7 +11,7 @@ re-targeted to this cluster: **NVIDIA L4 GPUs + llama.cpp (llmkube)**.
 | `litellm`     | OpenAI-compatible gateway: routing, fallbacks, cache, metrics, MCP | live   |
 | `llmkube`     | llama.cpp model-serving operator (CUDA); 1 model active            | live   |
 | `open-webui`  | chat UI (SearXNG web search, Dragonfly websockets)                 | live   |
-| `toolhive`    | MCP servers (8 read-only servers) wired into LiteLLM               | live   |
+| `toolhive`    | MCP servers (9 read-only) + a VirtualMCPServer gateway             | live   |
 | `memini`      | agent long-term memory (SQLite + CPU embed/rerank)                 | live   |
 | `hermes`      | NousResearch hermes-agent gateway + dashboard (memini-backed)      | live   |
 | `hermeswebui` | chat web frontend for hermes (via its API server)                  | live   |
@@ -185,18 +185,39 @@ CRDs + operator charts, see `toolhive/app/ocirepository.yaml` for the current pi
 | `grafana` | grafana/mcp-grafana             | Grafana Viewer SA token (read-only)                       |
 | `arr`     | mcp-arr                         | Sonarr / Radarr / Prowlarr tools (per-app API keys)       |
 | `seerr`   | overseerr-mcp                   | Overseerr request + discovery tools                       |
+| `hamcp`   | ha-mcp                          | Home Assistant tools (scoped long-lived token)            |
 
 kubectl + flux share one read-only `ClusterRole` (`kubectl-mcp-readonly`) built from this cluster's
 API groups with core `secrets` omitted. Keep it in sync with `kubectl api-resources` as you add
 CRDs. The talos MCP mounts a `talos.dev` `ServiceAccount`-minted `os:reader` talosconfig.
 
 The `mcp_semantic_tool_filter` is **on** (top_k 8, embeddings via the `all-minilm` model on the
-CPU `llama-embed` pod): with 8 servers' worth of tools it trims each request to the most
+CPU `llama-embed` pod): with 9 servers' worth of tools it trims each request to the most
 relevant ones. `github` + `grafana` are read-only, via a fine-grained PAT (`toolhive-github`) and a
 Grafana Viewer service-account token (`toolhive-grafana`).
 
-Deferred (add later): the `VirtualMCPServer` aggregate + `EmbeddingServer` (a single
-`mcp.<domain>` endpoint for non-LiteLLM clients, which is what pulls in a Dragonfly + embedder).
+### MCP gateway (VirtualMCPServer)
+
+A `VirtualMCPServer` named `mcp-gateway` (`toolhive/gateway/virtualmcpserver.yaml`) aggregates
+every backend in the `mcp-tools` `MCPGroup` behind one endpoint, for hermes, workstation opencode,
+and any other client that talks MCP directly instead of going through LiteLLM's `mcp_servers`
+wiring. Tool names are namespaced `{workload}_<tool>` (e.g. `searxng_search`) to resolve
+collisions across backends. Because 9 backends' worth of raw tool definitions is too large for
+most client context windows, the built-in optimizer exposes only `find_tool`/`call_tool` to
+clients and resolves the right backend tool semantically, reusing LiteLLM's `all-minilm` embedding
+model rather than standing up a dedicated embedder. Sessions are stored in Dragonfly so the
+Deployment can scale beyond one replica.
+
+- **External URL**: `https://mcp.${SECRET_DOMAIN}/mcp`, header `x-api-key: <key>`. Keys live as
+  fields on the `toolhive` 1Password item; the workstation's key is
+  `TOOLHIVE_WORKSTATION_API_KEY`. Add a client by adding a field to that item plus a matching
+  template key in `toolhive/gateway/externalsecret.yaml`'s `mcp-gateway-api-keys` ExternalSecret —
+  any key's value in the resulting Secret is accepted (Envoy Gateway's `SecurityPolicy` doesn't
+  distinguish which one matched).
+- **In-cluster URL**: `http://vmcp-mcp-gateway.ai.svc.cluster.local:4483/mcp`, no auth (anonymous
+  `incomingAuth` — the API-key gate lives at the Envoy Gateway edge, not in the vmcp app itself).
+- Metrics are scraped from the same port via the existing `prometheus` `MCPTelemetryConfig`; a
+  Grafana dashboard is imported from ToolHive's upstream OTEL-scrape dashboard JSON.
 
 ### flux-mcp write access (enabled)
 

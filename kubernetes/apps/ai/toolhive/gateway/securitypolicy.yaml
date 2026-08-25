@@ -1,0 +1,24 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/gateway.envoyproxy.io/securitypolicy_v1alpha1.json
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: SecurityPolicy
+metadata:
+  name: mcp-gateway-api-key
+spec:
+  apiKeyAuth:
+    # Any key's value in the mcp-gateway-api-keys Secret (../gateway/externalsecret.yaml)
+    # is accepted; Envoy Gateway doesn't distinguish which key matched.
+    credentialRefs:
+      - group: ""
+        kind: Secret
+        name: mcp-gateway-api-keys
+    extractFrom:
+      - headers:
+          - x-api-key
+    # Strip the header before it reaches the vmcp backend, so the key is never
+    # forwarded past the gateway.
+    sanitize: true
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      name: mcp-gateway
