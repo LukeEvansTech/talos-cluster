@@ -228,3 +228,26 @@ spec:
           for: 15m
           labels:
             severity: warning
+        # Backstop for the one absence-of-success mode the five rules above
+        # cannot see: an enabled task whose schedule never actually triggers a
+        # run (state stays at its initial value, never RUNNING or ERROR), or
+        # one stuck in RUNNING and never completing. Both keep last_success at
+        # 0 forever, so Stale's `last_success > 0` guard and Failing's
+        # `state == 2` guard both stay quiet indefinitely. Deliberately does
+        # NOT exclude any state — a run wedged in RUNNING is exactly what this
+        # is for. 168h (7d) stays well clear of the multi-day initial-seed
+        # window noted above; an enabled task still at last_success=0 after a
+        # week is stuck, not seeding. Tune the window if real seed durations
+        # turn out longer than that.
+        - alert: TrueNASReplicationNeverSucceeded
+          annotations:
+            summary: >-
+              Replication task {{ $labels.task }} has never completed a
+              successful run in over 7 days — it may be stuck, or its
+              schedule never launched.
+          expr: |-
+            (zfs_replication_last_success_timestamp_seconds{box="truenas"} == 0)
+            and (zfs_replication_enabled{box="truenas"} == 1)
+          for: 168h
+          labels:
+            severity: warning
