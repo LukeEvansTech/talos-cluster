@@ -16,6 +16,7 @@ re-targeted to this cluster: **NVIDIA L4 GPUs + llama.cpp (llmkube)**.
 | `hermes`      | NousResearch hermes-agent gateway + dashboard (memini-backed, ToolHive VMCP-wired) | live   |
 | `hermeswebui` | chat web frontend for hermes (via its API server)                                  | live   |
 | `repowiki`    | AI-generated per-repository wiki (mkdocs-material + CronJob)                       | live   |
+| `foreman`     | LLMKube coder/gate/reviewer control plane (bare trial, no bridge)                  | trial  |
 
 LiteLLM persists to CNPG `postgres18` (`litellm` db) and caches in Dragonfly. Internal-only route
 (`litellm.${SECRET_DOMAIN}` on envoy-internal).
