@@ -13,10 +13,10 @@ spec:
     - ../../../../components/homepage
     - ../../../../components/volsync
   dependsOn:
-    - name: rook-ceph-cluster
-      namespace: rook-ceph
     - name: mosquitto
       namespace: home
+    - name: onepassword-connect
+      namespace: external-secrets
   interval: 1h
   path: ./kubernetes/apps/home/zigbee2mqtt/app
   postBuild:

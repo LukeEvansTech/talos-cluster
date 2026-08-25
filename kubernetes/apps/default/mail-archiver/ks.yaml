@@ -22,8 +22,8 @@ spec:
       namespace: database
     - name: envoy-gateway
       namespace: network
-    - name: volsync
-      namespace: volsync-system
+    - name: onepassword-connect
+      namespace: external-secrets
   path: ./kubernetes/apps/default/mail-archiver/app
   postBuild:
     substitute:

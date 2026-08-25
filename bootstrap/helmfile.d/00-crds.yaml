@@ -3,6 +3,11 @@
 
 # This helmfile is for extracting and installing Custom Resource Definitions (CRDs) from Helm charts.
 # It is not intended to be used with helmfile apply or helmfile sync.
+#
+# Charts listed here have their CRDs applied out-of-band at bootstrap so that app
+# Kustomizations can rely on them existing without a dependsOn edge on the
+# controller. The version pins are kept in step with each app's
+# ocirepository.yaml by Renovate's helmfile manager.
 
 helmDefaults:
   args:
@@ -25,7 +30,22 @@ releases:
     chart: oci://ghcr.io/grafana/helm-charts/grafana-operator
     version: 5.25.0
 
+  - name: kopiur
+    namespace: kopiur-system
+    chart: oci://ghcr.io/home-operations/charts/kopiur
+    version: 0.10.4
+
   - name: kube-prometheus-stack
     namespace: observability
     chart: oci://ghcr.io/prometheus-community/charts/kube-prometheus-stack
     version: 88.5.4
+
+  - name: snapshot-controller
+    namespace: kube-system
+    chart: oci://ghcr.io/home-operations/charts/snapshot-controller
+    version: 0.1.0
+
+  - name: volsync
+    namespace: volsync-system
+    chart: oci://ghcr.io/home-operations/charts-mirror/volsync-perfectra1n
+    version: 0.18.5
