@@ -8,8 +8,8 @@ kind: MCPServerEntry
 metadata:
   name: searxng
 spec:
-  # ToolHive rejects remoteUrl hosts containing "cluster.local" (RemoteURLInvalid);
-  # the short svc.ns form resolves the same in-cluster address and is accepted.
+  # ToolHive rejects remoteUrl hosts containing "cluster.local" (RemoteURLInvalid).
+  # The short svc.ns form resolves the same address and is accepted.
   remoteUrl: http://mcp-searxng.ai:3000/mcp
   transport: streamable-http
   groupRef:
