@@ -78,13 +78,13 @@ spec:
   # ≥1.5Gi free. V-cache q4_0 buys 1Gi (K stays q8_0 — K quantization is the
   # recall-sensitive half) and uBatchSize 512 shrinks the CUDA compute
   # buffers for the rest, at a modest prompt-processing cost. Idle free
-  # measured 2.0Gi with the projector on the GPU (2026-08-25) — still above
-  # the ≥1.5Gi floor.
-  # 2 slots × 64k gives every request — opencode's ~41k agent baseline
-  # included — the window the old YaRN-extended uncensored model needed
-  # hacks for, with no YaRN and no --override-kv. --kv-unified below lets a
-  # single request borrow the full 128k while the other slot is idle,
-  # instead of being capped at the static 64k-per-slot split.
+  # measured ~1.8Gi with the projector on the GPU and --kv-unified active
+  # (2026-08-25) — still above the ≥1.5Gi floor.
+  # 128k unified across the 2 parallelSlots (--kv-unified below) covers every
+  # request — opencode's ~41k agent baseline included — the window the old
+  # YaRN-extended uncensored model needed hacks for, with no YaRN and no
+  # --override-kv. A single request may borrow the full 128k while the other
+  # slot is idle, instead of a static 64k-per-slot split.
   contextSize: 131072
   parallelSlots: 2
   flashAttention: true
@@ -170,13 +170,13 @@ spec:
     # on the 1024-token image encode) versus low single-digit seconds with
     # the projector on the GPU. The `loupe` app depends on this vision path,
     # so latency wins over the 0.6Gi; see the VRAM-budget comment above for
-    # the 2.0Gi idle-free number measured with the projector back on the
+    # the ~1.8Gi idle-free number measured with the projector back on the
     # GPU. --image-min-tokens 1024 (Jory's value) keeps vision quality
     # regardless of where the projector runs. --kv-unified lets one request
     # use the whole 128k context when the other slot is idle instead of a
-    # hard 64k-per-slot ceiling; the /props verification
-    # (`default_generation_settings.n_ctx`) will report the unified size —
-    # the coordinator updates the VRAM-budget doc once measured.
+    # hard 64k-per-slot ceiling; measured post-merge: /props reports
+    # `default_generation_settings.n_ctx == 131072` (the full unified size,
+    # not a per-slot share), and idle free VRAM is the ~1.8Gi above.
     # --threads/--threads-batch below (and the matching cpu: "6" request in
     # resources above) still help prompt processing and tokenisation even
     # with the projector back on the GPU, so they're kept. All flags
