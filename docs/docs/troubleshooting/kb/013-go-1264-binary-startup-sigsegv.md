@@ -1,55 +1,82 @@
-# KB-013: Go 1.26.4 Binary SIGSEGV at Startup (Before Any Logging)
+# KB-013: Go Pod Startup SIGSEGV Was a UPX Stub vs. Service-Link Env Vars, Not a Go Regression
 
-**Status:** Not fixable in-cluster (upstream Go regression); left as-is, low impact. Documented
-for recognition and for the repro technique.
+**Status:** Misdiagnosis corrected 2026-08-25. The "unfixable upstream Go runtime regression"
+theory below was wrong on two counts — it isn't a Go bug, and it **is** fixable.
+`enableServiceLinks: false` is deployed and holding: see the `postRenderers` comment in
+`kubernetes/apps/default/chaski/app/helmrelease.yaml` for the confirmed root cause and proof
+numbers.
 
 ## Symptom
 
-A pure-Go pod (here `chaski`, a webhook relay) **SIGSEGVs at startup** (`exit 139`) on a
-fraction of fresh pod starts (~60-70%), recovering in ~1s on the kubelet restart. With 2
-replicas this causes **no downtime**, but a single restart trips a `KubePodCrashLooping`-style
+A pod running a UPX-packed Go binary (here `chaski`, a webhook relay) **SIGSEGVs at startup**
+(`exit 139`) on a fraction of fresh pod starts, recovering in ~1s on the kubelet restart. With
+2 replicas this causes **no downtime**, but a single restart trips a `KubePodCrashLooping`-style
 page on every rollout or restart, which can look like "the app is failing" when the cluster is
 otherwise green.
 
 ## Cause
 
-The crash is a **Go runtime-bootstrap regression**, not an application bug. It happens
-*before* any application code runs:
+The crash is real and genuinely happens before Go's own signal handler installs — but not for
+the reason first assumed.
 
-- `GODEBUG=inittrace=1` prints **nothing** → the crash is before package `init()`.
-- `GOTRACEBACK=crash` prints **nothing** → before the runtime's signal handler installs (hence
-  a raw `139` with **no obtainable stack**: the runtime dies before it can produce one).
-- The binary was built with **Go 1.26.4**, pure-Go, no CGO. cf. golang/go#78822 (Go 1.26.x
-  linux/amd64 SIGSEGV regressions).
+**Original (wrong) theory:** `GODEBUG=inittrace=1` and `GOTRACEBACK=crash` both printed nothing,
+which correctly places the crash before package `init()` and before the runtime's signal
+handler — but was then read as "Go 1.26.4 runtime-bootstrap regression," on the weak evidence
+that this was one of the first Go-1.26.4 binaries deployed. No config knob was found to fix it,
+so it was left as-is and documented as unfixable.
 
-Ruled out via a throwaway-probe Deployment (one variable at a time): `GOMAXPROCS` 24→2, memory
-limit 128Mi→1Gi, seccomp `RuntimeDefault`→`Unconfined`, none move the rate; not node-specific;
-identical on multiple app versions. Circumstantial proof it's the toolchain: hundreds of
-older-Go binaries start fine on the same nodes, and this is one of the first Go-1.26.4 binaries
-deployed.
+**What actually happened**, established the same day by two PRs 20 minutes apart:
+
+- `#4589`: the shipped chaski image is UPX-packed, and the crash is inside the UPX decompressor
+  stub — not Go code, and not version-specific (it reproduces on Go 1.27.0 too, ruling out a
+  Go-1.26.4-specific regression). First attempted fix, `GODEBUG=asyncpreemptoff=1`, was based
+  on an async-preemption theory and did not hold in production (7 of 12 pods still crashed
+  after merge).
+- `#4591`: controlled A/B testing on a production-config node pinned the actual trigger — the
+  UPX stub segfaults once the process environment crosses roughly 500 variables (a **count**
+  threshold, not a size one: 460 short vars was 0/8 crashes, 1000 short vars was 8/8). Kubernetes'
+  automatic `*_SERVICE_HOST`/`*_PORT` service-link injection put chaski at ~460-518 env vars —
+  right on the threshold, which is why only a fraction of starts crashed (stack-layout
+  randomisation tips individual starts over the line or not). Proven on the production config:
+  20/20 crashes with the links present, 0/20 with them stripped, 0/40 with the same binary
+  UPX-unpacked.
+
+So the "before any logging, no obtainable stack" signal was accurate; the inference from it
+("must be the Go toolchain") was not — it's the UPX stub, tipped over by namespace-driven
+environment size, and it recurred for the wrong reason worked out on the first attempted fix too.
 
 ## Fix
 
-No config knob fixes it and no older release of the affected app dodges it (all built on the
-same Go era). Options, in order of preference:
+Deployed and holding: `enableServiceLinks: false` via a `postRenderers` patch on the Deployment
+(the bjw-s app-template chart has no values knob for it) — see
+`kubernetes/apps/default/chaski/app/helmrelease.yaml`. This drops the Kubernetes-injected
+service-link variables entirely, keeping the pod's environment well under the UPX stub's crash
+threshold. Nothing in chaski reads service-link env vars, so there's no functional loss.
 
-1. **Leave it** if replicas ≥ 2 and recovery is sub-second: impact is a noisy alert, not an
-   outage. (This is what was chosen.)
-2. Rebuild the binary on a **different Go toolchain** once a fixed release exists.
-3. Silence the rollout-time crash-loop alert for the specific workload if it's too noisy.
+Drop the patch once upstream stops UPX-packing the image (tracked in `#3276`) — the compression
+choice is what leaves any app in a large namespace fragile to environment size at all.
 
-## Repro technique (reuse for any "crashes before logging" Go bug)
+## Lessons
 
-1. Copy the live Deployment to a throwaway one: `replicas: 10`, **distinct labels** so the
-   Service doesn't select it, strip the probes.
-2. Add `GODEBUG=inittrace=1` + `GOTRACEBACK=crash`.
-3. Roll it and count `restartCount > 0`.
-4. `inittrace`-silent = the crash precedes `init()`. A/B single env/resource variables across
-   rolls to localise.
-
-If other Go-1.26 binaries start crash-looping the same way, that confirms it's toolchain-wide.
+- Silence under `GODEBUG=inittrace=1` / `GOTRACEBACK=crash` proves the crash is early and
+  pre-signal-handler; it says nothing about *why*. That's equally consistent with "Go runtime
+  bug" and "something non-Go running before Go's signal handler installs" (here: a UPX
+  decompressor stub).
+- "One of the first binaries built on a new toolchain version" is a plausible-looking but weak
+  signal for "must be a toolchain regression" — it's equally consistent with "one of the first
+  binaries built with some other new property" (here: UPX packing, in a namespace with enough
+  Services to push env-var count over a threshold).
+- Confirming a root cause can take more than one controlled test: `#4589` correctly moved the
+  suspect from "Go regression" to "UPX stub" but the specific mechanism it proposed didn't hold
+  in production; `#4591`'s A/B env-var-count experiment is what actually pinned it down. Prefer a
+  repeatable crash-count experiment over a plausible-sounding theory before calling a root cause
+  confirmed.
+- For any unexplained pre-application-code crash in a pod, `enableServiceLinks: false` is worth
+  trying early when the namespace has many Services — the default service-link injection scales
+  with namespace size, not with anything about the app.
 
 ## References
 
-- golang/go#78822: Go 1.26.x linux/amd64 startup SIGSEGV reports.
-- `GODEBUG` runtime knobs: <https://pkg.go.dev/runtime#hdr-Environment_Variables>
+- `kubernetes/apps/default/chaski/app/helmrelease.yaml` — the deployed fix and its proof
+  numbers.
+- `#3276` — tracks dropping the patch once the upstream image stops UPX-packing.
