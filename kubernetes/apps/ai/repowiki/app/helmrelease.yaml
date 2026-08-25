@@ -1,0 +1,133 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: repowiki
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: repowiki
+  values:
+    defaultPodOptions:
+      securityContext:
+        fsGroup: 33
+        fsGroupChangePolicy: OnRootMismatch
+    controllers:
+      # Serves the rendered wiki (mkdocs-material, live-reload dev server) on
+      # the RWO PVC the generator writes into.
+      mkdocs:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        # Single RWO ceph-block volume: a rolling update would start the new
+        # pod (different node candidate) before the old one releases the RBD
+        # attach and the rollout would stall. Recreate avoids that.
+        strategy: Recreate
+        containers:
+          app:
+            image:
+              repository: squidfunk/mkdocs-material
+              tag: 9.7.7
+            args:
+              - "serve"
+              - "--dirty"
+              - "-f"
+              - "/config/mkdocs.yml"
+              - "-a"
+              - "0.0.0.0:8000"
+            command:
+              - "mkdocs"
+            resources:
+              requests:
+                cpu: 50m
+              limits:
+                memory: 512Mi
+      # 12-hourly CronJob: clones/updates each repo in repos.txt, has the LLM
+      # plan a page set per repo, writes the pages, and commits them into the
+      # git repository on the shared PVC that mkdocs serves.
+      repowiki-gen:
+        type: cronjob
+        cronjob:
+          schedule: "0 */12 * * *"
+          timeZone: "${TIMEZONE}"
+          concurrencyPolicy: Forbid
+          successfulJobsHistory: 1
+          failedJobsHistory: 1
+        pod:
+          # The data PVC is RWO — pin the generator pod to the same node as
+          # the mkdocs pod so both can mount it.
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                - labelSelector:
+                    matchExpressions:
+                      - key: app.kubernetes.io/name
+                        operator: In
+                        values:
+                          - "repowiki"
+                  topologyKey: kubernetes.io/hostname
+        containers:
+          app:
+            image:
+              repository: python
+              tag: "3.14"
+            command:
+              - "python3"
+              - "/config/generate.py"
+            env:
+              - name: OPENAI_BASE_URL
+                value: http://litellm.ai.svc.cluster.local:4000/v1
+              - name: WIKI_MODEL
+                value: self-hosted
+              - name: MAX_REPOS_PER_RUN
+                value: "2"
+              - name: MAX_PAGES_PER_REPO
+                value: "20"
+              - name: LLM_TIMEOUT
+                value: "1800"
+              - name: WIKI_REPO
+                value: /app-data/repository
+              - name: OPENAI_API_KEY
+                valueFrom:
+                  secretKeyRef:
+                    name: litellm-key-repowiki
+                    key: api-key
+              - name: GITHUB_TOKEN
+                valueFrom:
+                  secretKeyRef:
+                    name: repowiki-secret
+                    key: GITHUB_TOKEN
+            resources:
+              requests:
+                cpu: 100m
+              limits:
+                memory: 2Gi
+    persistence:
+      data:
+        existingClaim: "{{ .Release.Name }}"
+        advancedMounts:
+          mkdocs:
+            app:
+              - path: /app-data
+          repowiki-gen:
+            app:
+              - path: /app-data
+      config:
+        type: configMap
+        name: repowiki
+        globalMounts:
+          - path: /config
+    route:
+      app:
+        hostnames:
+          - "{{ .Release.Name }}.${SECRET_DOMAIN}"
+        parentRefs:
+          - name: envoy-internal
+            namespace: network
+    service:
+      app:
+        controller: mkdocs
+        ports:
+          http:
+            port: 8000

@@ -1,5 +1,6 @@
 {
   "_comment_": "Markdown is excluded from editorconfig-checker because YAML / bash / k8s manifest samples inside fenced code blocks legitimately use language-specific indents (e.g. YAML list-item continuation aligns at column 10 / 22) that the line-level checker would flag as non-multiple-of-4. Markdown style is enforced by markdownlint + prettier instead.",
+  "_comment_repowiki_": "repowiki's configmap.yaml embeds generate.py verbatim from upstream (joryirving/home-ops) as a ConfigMap block-scalar string, kept byte-identical (besides the git identity/env values) so upstream fixes stay easy to pull in. Its Python continuation lines hang-indent to an opening paren (PEP8-legal, not multiple-of-2), which the line-level checker would otherwise flag.",
   "Verbose": false,
   "Debug": false,
   "IgnoreDefaults": false,
@@ -8,7 +9,8 @@
   "exclude": [
     "testfiles",
     "\\.md$",
-    "kubernetes/apps/default/smokeping/app/config/Targets$"
+    "kubernetes/apps/default/smokeping/app/config/Targets$",
+    "kubernetes/apps/ai/repowiki/app/configmap\\.yaml$"
   ],
   "AllowedContentTypes": [],
   "PassedFiles": [],
