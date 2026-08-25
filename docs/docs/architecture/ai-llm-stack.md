@@ -268,3 +268,8 @@ To move embeddings onto the GPU later, swap `llama-embed`/`llama-rerank` for llm
   (`allow-litellm-from-consumers`) that grants the `default` and `custom` namespaces ingress to the
   `litellm` endpoint specifically. A new consumer namespace needs adding to that policy's
   `fromEndpoints` list before its calls to `litellm.ai.svc.cluster.local:4000` will connect.
+- **`drop_params` is deliberately off**: with it enabled, LiteLLM silently strips
+  `reasoning_effort` before a request reaches the llama.cpp backend (treated as unsupported for
+  the `openai/` provider entry), which defeats disabling Qwen3.8's thinking mode (verified
+  2026-08-25). If a real `UnsupportedParamsError` 400 ever shows up, scope the drop with a
+  per-model `additional_drop_params` on that model entry instead of re-enabling this globally.

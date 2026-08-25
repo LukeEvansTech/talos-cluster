@@ -1,5 +1,5 @@
 ---
-# yaml-language-server: $schema=https://json.schemastore.org/configmap.json
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/v1/configmap.json
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -22,7 +22,10 @@ data:
         model_info:
           mode: chat
           supports_function_calling: true
-          supports_vision: false
+          supports_vision: true
+          supports_reasoning: true
+          max_input_tokens: 65536
+          max_output_tokens: 16384
         litellm_params:
           model: openai/self-hosted
           api_base: http://llama-nvidia.ai.svc.cluster.local:8080/v1
@@ -39,7 +42,10 @@ data:
         model_info:
           mode: chat
           supports_function_calling: true
-          supports_vision: false
+          supports_vision: true
+          supports_reasoning: true
+          max_input_tokens: 65536
+          max_output_tokens: 16384
         litellm_params:
           model: openai/self-hosted-uncensored
           api_base: http://llama-nvidia.ai.svc.cluster.local:8080/v1
@@ -117,10 +123,16 @@ data:
         host: os.environ/REDIS_HOST
         port: os.environ/REDIS_PORT
         password: os.environ/REDIS_PASSWORD
-        ttl: 30
-      drop_params: true
+        ttl: 300
+      # drop_params is deliberately OFF: with it enabled LiteLLM silently strips
+      # reasoning_effort before it reaches the llama.cpp backend (treated as
+      # unsupported for the openai/ provider entry), which defeats disabling Qwen3.8's
+      # thinking mode (verified 2026-08-25). If a real UnsupportedParamsError 400 ever
+      # shows up, scope the drop with per-model additional_drop_params on that entry
+      # instead of re-enabling this globally.
       num_retries: 2
-      request_timeout: 600
+      retry_after: 5
+      request_timeout: 1200
       # Surfaces only the top-k relevant MCP tools per request (9 servers) using
       # the all-minilm embedding model above.
       mcp_semantic_tool_filter:
