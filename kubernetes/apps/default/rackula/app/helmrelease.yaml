@@ -25,7 +25,7 @@ spec:
           app:
             image:
               repository: ghcr.io/rackulalives/rackula
-              tag: 26.8.0@sha256:ee5cc4093c4dbc03ad5bfbce1b7a827e3378b47e5f72104b91dc04e4d414bf8d
+              tag: 26.8.0@sha256:d1d4a2631f5e8e4c994ee337fb2991657bba77b7b125384f210c2cca4b4a13e2
             env:
               TZ: ${TIMEZONE}
             resources:
