@@ -72,7 +72,7 @@ LiteLLM `model_name` groups make the serving tier transparent to clients:
 Five in-cluster apps route through LiteLLM, all at `http://litellm.ai.svc.cluster.local:4000/v1`
 and the `self-hosted` model (with the `openrouter/auto` cloud fallback in scope):
 
-| App             | Namespace | Key env var        |
+| App             | Namespace | Key env var         |
 | --------------- | --------- | ------------------- |
 | `contracthound` | `default` | `OPENAI_API_KEY`    |
 | `subspy`        | `default` | `OPENAI_API_KEY`    |
@@ -271,6 +271,20 @@ endpoint to LiteLLM's `mcp_servers`. The service name depends on the transport:
   spec's `mcpPort`.
 - **`stdio` transport with `proxyMode: streamable-http`** (e.g. github, grafana): ToolHive creates
   `mcp-<name>-proxy` on the spec's `proxyPort` (typically 8080).
+
+#### What clients actually see
+
+The gateway runs ToolHive's **semantic optimizer**, so a client that lists tools gets exactly two
+meta-tools, not the ~540 aggregated ones: `find_tool(tool_description)` returns the backend tools
+that best match a natural-language need (embedded via `qwen3-embedding`), and `call_tool` invokes
+one by its `<backend>_<tool>` name. Point agents at those two; do not expect `kubectl_*` names in
+`tools/list`.
+
+Warm-up: the first session after the gateway or embedder pod restarts builds the embedding store
+(~540 descriptions through the CPU `toolhiveembed` server, ~1–2 min) and that first `initialize`
+can drop with "connection closed"; the store persists, so every later session initializes in about
+a second. If sessions keep failing, check `toolhiveembed` for `OOMKilled` (its RSS peaks ~3.2Gi
+during the build; limit is 6Gi) and the VMCP logs for `exceed_context_size_error`.
 
 ## Agent memory (memini)
 
