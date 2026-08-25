@@ -232,15 +232,17 @@ provider (`spec.providerConfig`), pointed at the `litellm-key-foreman` Secret th
 
 **Prerequisites the owner must create before the trial can run** (not automated by the PR):
 
-- A `foreman-github` item in the **Talos** 1Password vault, field `GITHUB_TOKEN`, holding a
-  fine-grained PAT scoped to `contents:write` + `pull_requests:write` + `issues:read` on
-  whichever repository is used for the trial. Without it the `foreman-agent` ExternalSecret
-  never populates and the coder Job cannot push a branch.
+- The `foreman-lukeevanstech` GitHub App (id 4718328, Contents RW / Pull requests RW / Issues R /
+  Metadata R, webhook off) installed on the account; its private key lives on the `foreman-github`
+  1Password item (Talos vault, fields `APP_ID`, `INSTALLATION_ID`, `PRIVATE_KEY`). An
+  external-secrets `GithubAccessToken` generator (`foreman/app/githubaccesstoken.yaml`) mints
+  hourly installation tokens scoped to the `repositories` listed there — add a repo to that list
+  to let foreman work on it.
 - The `litellm` `LiteLLMProxy` cutover PR must land (or be otherwise verified) before the
   `LiteLLMVirtualKey` in this PR can resolve — see that PR's Verification section for what was
   actually observed against the litellm-operator's validating webhook.
 
-**Trial procedure** — apply one `Workload` by hand against a real issue in a repo the PAT
+**Trial procedure** — apply one `Workload` by hand against a real issue in a repo the generator's `repositories` list
 covers:
 
 ```yaml
