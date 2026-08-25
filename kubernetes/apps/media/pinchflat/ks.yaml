@@ -13,11 +13,6 @@ spec:
     - ../../../../components/homepage
     - ../../../../components/volsync
     - ../../../../components/zeroscaler
-  dependsOn:
-    - name: gpu-operator
-      namespace: gpu-operator
-    - name: rook-ceph-cluster
-      namespace: rook-ceph
   interval: 1h
   path: ./kubernetes/apps/media/pinchflat/app
   postBuild:

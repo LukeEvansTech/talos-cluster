@@ -14,10 +14,8 @@ spec:
   dependsOn:
     - name: litellm
       namespace: ai
-    - name: volsync
-      namespace: volsync-system
-    - name: rook-ceph-cluster
-      namespace: rook-ceph
+    - name: onepassword-connect
+      namespace: external-secrets
   interval: 1h
   path: ./kubernetes/apps/custom/loupe/app
   postBuild:

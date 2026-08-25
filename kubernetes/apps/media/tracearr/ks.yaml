@@ -17,8 +17,8 @@ spec:
       namespace: database
     - name: dragonfly-cluster
       namespace: database
-    - name: rook-ceph-cluster
-      namespace: rook-ceph
+    - name: onepassword-connect
+      namespace: external-secrets
   interval: 1h
   path: ./kubernetes/apps/media/tracearr/app
   postBuild:

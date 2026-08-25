@@ -9,7 +9,8 @@ spec:
   components:
     - ../../../../components/homepage
   dependsOn:
-    - name: volsync
+    - name: onepassword-connect
+      namespace: external-secrets
   targetNamespace: volsync-system
   commonMetadata:
     labels:

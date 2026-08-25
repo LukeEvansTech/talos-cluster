@@ -13,9 +13,9 @@ spec:
     - ../../../../components/homepage
     - ../../../../components/volsync
   dependsOn:
-    - name: volsync
-      namespace: volsync-system
     - name: litellm
+    - name: onepassword-connect
+      namespace: external-secrets
   interval: 1h
   path: ./kubernetes/apps/ai/open-webui/app
   postBuild:
