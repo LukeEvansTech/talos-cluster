@@ -83,6 +83,15 @@ spec:
               # required for every deployment) — is injected from the `hermes`
               # Secret via the envFrom below; the ExternalSecret now maps it from
               # the hermes-agent item's api_server_key field.
+              # LiteLLM virtual key, minted by the operator (see virtualkey.yaml)
+              # rather than sourced from the `hermes` Secret/1Password. config.yaml
+              # still reads it as HERMES_LITELLM_API_KEY (see the NOTE at the top
+              # of configmap.yaml on the $${VAR} escaping this depends on).
+              HERMES_LITELLM_API_KEY:
+                valueFrom:
+                  secretKeyRef:
+                    name: litellm-key-hermes
+                    key: api-key
             envFrom:
               - secretRef:
                   name: hermes

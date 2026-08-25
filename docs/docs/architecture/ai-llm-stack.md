@@ -6,16 +6,16 @@ re-targeted to this cluster: **NVIDIA L4 GPUs + llama.cpp (llmkube)**.
 
 ## Components
 
-| App           | Role                                                               | Status |
-| ------------- | ------------------------------------------------------------------ | ------ |
-| `litellm`     | OpenAI-compatible gateway: routing, fallbacks, cache, metrics, MCP | live   |
-| `llmkube`     | llama.cpp model-serving operator (CUDA); 1 model active            | live   |
-| `open-webui`  | chat UI (SearXNG web search, Dragonfly websockets)                 | live   |
-| `toolhive`    | MCP servers (9 read-only) + a VirtualMCPServer gateway             | live   |
-| `memini`      | agent long-term memory (SQLite + CPU embed/rerank)                 | live   |
-| `hermes`      | NousResearch hermes-agent gateway + dashboard (memini-backed)      | live   |
-| `hermeswebui` | chat web frontend for hermes (via its API server)                  | live   |
-| `repowiki`    | AI-generated per-repository wiki (mkdocs-material + CronJob)       | live   |
+| App           | Role                                                                               | Status |
+| ------------- | ---------------------------------------------------------------------------------- | ------ |
+| `litellm`     | OpenAI-compatible gateway: routing, fallbacks, cache, metrics, MCP                 | live   |
+| `llmkube`     | llama.cpp model-serving operator (CUDA); 1 model active                            | live   |
+| `open-webui`  | chat UI (SearXNG web search, Dragonfly websockets)                                 | live   |
+| `toolhive`    | MCP servers (9 read-only) + a VirtualMCPServer gateway                             | live   |
+| `memini`      | agent long-term memory (SQLite + CPU embed/rerank)                                 | live   |
+| `hermes`      | NousResearch hermes-agent gateway + dashboard (memini-backed, ToolHive VMCP-wired) | live   |
+| `hermeswebui` | chat web frontend for hermes (via its API server)                                  | live   |
+| `repowiki`    | AI-generated per-repository wiki (mkdocs-material + CronJob)                       | live   |
 
 LiteLLM persists to CNPG `postgres18` (`litellm` db) and caches in Dragonfly. Internal-only route
 (`litellm.${SECRET_DOMAIN}` on envoy-internal).

@@ -226,7 +226,7 @@ repositories, and dispatch needs CNPG + an OIDC story.
 - [ ] hermes: the web chat surface is already live via `hermeswebui`; the open question is only
       which bot-token platforms (Discord/Slack/etc.), if any, to enable next (each needs a bot
       token in 1Password)
-- [ ] hermes: MCP wiring: direct per-proxy entries (default) or litellm's `/mcp` aggregate?
+- [x] hermes: MCP wiring — resolved: ToolHive VMCP aggregate (#4594)
 - [ ] hermes: keep `approvals.mode: manual` (default) or `smart`?
 - [ ] hermes: image tag to pin (jory runs v2026.7.7; newer exists) + digest.
 - [ ] CephFS: StorageClass name (`ceph-filesystem` proposed), MDS memory limit, snapshot class now or later?
