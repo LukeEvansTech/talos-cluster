@@ -5,18 +5,25 @@ metadata:
   name: kubectl-mcp-readonly
   namespace: ai
 ---
-# Broad read-only access for the kubectl + flux MCP servers. Kubernetes Secrets
-# (core v1) are deliberately excluded so the LLM can inspect cluster state but
-# never read secret values.
+# Broad read-only access for the kubectl + flux MCP servers, split across two
+# ClusterRoles. Kubernetes Secrets (core v1) are deliberately excluded from
+# both so the LLM can inspect cluster state but never read secret values.
 #
-# - aggregationRule: same selector as the built-in "view" ClusterRole — expands
-#   automatically as operators ship rbac.authorization.k8s.io/aggregate-to-view
-#   ClusterRoles (CRDs, etc.).
-# - Core group "": explicit resource list with `secrets` omitted (and no
-#   exec/attach/proxy subresources).
-# - Non-core API groups: `resources: ["*"]` is safe because Secret objects only
-#   exist in the core group. The list is this cluster's actual API groups
-#   (kubectl api-resources), minus auth/* and onepassword.com.
+# The split is mandatory, not stylistic: a ClusterRole that carries an
+# aggregationRule has its `rules` field owned by the aggregation controller,
+# which overwrites anything written alongside it — any rules on a role like
+# that are dead on arrival. Both roles below are bound to the same
+# ServiceAccount (and, for flux-mcp, a second SA — see flux/rbac.yaml).
+#
+# - kubectl-mcp-readonly: aggregation only, `rules: []`. Same selector as the
+#   built-in "view" ClusterRole — expands automatically as operators ship
+#   rbac.authorization.k8s.io/aggregate-to-view ClusterRoles (CRDs, etc.).
+# - kubectl-mcp-readonly-explicit: the rules the aggregation does not cover.
+#   - Core group "": explicit resource list with `secrets` omitted (and no
+#     exec/attach/proxy subresources).
+#   - Non-core API groups: `resources: ["*"]` is safe because Secret objects
+#     only exist in the core group. The list is this cluster's actual API
+#     groups (kubectl api-resources), minus auth/* and onepassword.com.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -25,6 +32,12 @@ aggregationRule:
   clusterRoleSelectors:
     - matchLabels:
         rbac.authorization.k8s.io/aggregate-to-view: "true"
+rules: []
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kubectl-mcp-readonly-explicit
 rules:
   - nonResourceURLs:
       - /api
@@ -99,6 +112,7 @@ rules:
       - events.k8s.io
       - external-secrets.io
       - externaldns.k8s.io
+      - federation.llmkube.dev
       - flowcontrol.apiserver.k8s.io
       - fluxcd.controlplane.io
       - gateway.envoyproxy.io
@@ -108,11 +122,13 @@ rules:
       - grafana.integreatly.org
       - groupsnapshot.storage.k8s.io
       - helm.toolkit.fluxcd.io
+      - inference.llmkube.dev
       - k8s.cni.cncf.io
       - kguardian.dev
       - kopiur.home-operations.com
       - kustomize.toolkit.fluxcd.io
       - metrics.k8s.io
+      - miroir.home-operations.com
       - monitoring.coreos.com
       - monitoring.giantswarm.io
       - networking.k8s.io
@@ -126,6 +142,7 @@ rules:
       - postgresql.cnpg.io
       - rbac.authorization.k8s.io
       - resource.k8s.io
+      - resource.nvidia.com
       - scheduling.k8s.io
       - shelly.thirdimpact.io
       - snapshot.storage.k8s.io
@@ -133,6 +150,7 @@ rules:
       - storage.k8s.io
       - tailscale.com
       - talos.dev
+      - toolhive.stacklok.dev
       - tuppr.home-operations.com
       - upgrade.cattle.io
       - volsync.backube
@@ -151,6 +169,19 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: kubectl-mcp-readonly
+subjects:
+  - kind: ServiceAccount
+    name: kubectl-mcp-readonly
+    namespace: ai
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kubectl-mcp-readonly-explicit
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kubectl-mcp-readonly-explicit
 subjects:
   - kind: ServiceAccount
     name: kubectl-mcp-readonly
