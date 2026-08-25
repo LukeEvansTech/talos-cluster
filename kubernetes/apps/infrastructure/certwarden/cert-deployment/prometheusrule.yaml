@@ -18,7 +18,7 @@ spec:
         # are the slow-burn backstop; this is the real-time signal.
         - alert: CertDeployJobFailed
           expr: |-
-            kube_job_failed{namespace="infrastructure", condition="true", job_name=~"(supermicro|apc)-cert-deploy-.*"} == 1
+            kube_job_failed{namespace="infrastructure", condition="true", job_name=~"(supermicro|apc|brother|onyx)-cert-deploy-.*"} == 1
           for: 1m
           labels:
             severity: warning
