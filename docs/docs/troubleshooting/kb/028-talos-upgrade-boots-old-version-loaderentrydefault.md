@@ -173,6 +173,11 @@ kubectl drain <node> --ignore-daemonsets --delete-emptydir-data --force --timeou
 talosctl -n <node-ip> reboot
 # ~6 minutes of POST on this hardware, then:
 talosctl -n <node-ip> get bootedentry -o yaml   # -> talos-v1.13.7.efi
+
+# Do not uncordon on the bootedentry check above — the node may still need a second,
+# unprompted reboot before it settles on the target version (see "The fix may need two
+# boot cycles, but not always" below). Wait for the kubelet to report it instead:
+until kubectl get node <node> -o jsonpath='{.status.nodeInfo.osImage}' | grep -q '<target-version>'; do sleep 20; done
 kubectl uncordon <node>
 ```
 
