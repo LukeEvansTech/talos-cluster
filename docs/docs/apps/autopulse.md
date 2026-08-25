@@ -1,21 +1,34 @@
 # Autopulse
 
 Media-automation app in the `media` namespace (bjw-s app-template HelmRelease).
-Watches sources and notifies media targets to rescan. Runs minimal: pod Ready,
-web UI on the internal route, no triggers/targets wired yet.
+Receives import/upgrade webhooks from Sonarr and Radarr and tells Jellyfin to
+rescan just the changed paths.
 
 ## Purpose
 
-- Bring autopulse online on image `v2.0.0` in a deliberately minimal config:
-  - Pod becomes `Ready`; web UI reachable at `autopulse.${SECRET_DOMAIN}`,
-      served via `envoy-internal` (internal-only).
-  - SQLite database persisted on a VolSync-backed PVC (NFS + remote backups).
-  - Triggers/targets intentionally omitted. Integrations are added later.
-- Not in scope (for the minimal bring-up): wiring source/target integrations,
-  or exposing the app externally.
+- Sonarr and Radarr trigger autopulse on import/upgrade; autopulse's one target
+  is Jellyfin (`http://jellyfin.media.svc.cluster.local:8096`), scanned per
+  path rather than whole-library.
+- Web UI reachable at `autopulse.${SECRET_DOMAIN}` via `envoy-internal`
+  (internal-only); SQLite database persisted on a VolSync-backed PVC.
+- Not in scope: a Plex target, or exposing the app externally.
 
 ## Design decisions
 
+- **Jellyfin is the only target — Plex is deliberately absent.** Sonarr and
+  Radarr both already carry a native "Plex Media Server" Connect notification
+  (`updateLibrary: true`, on import and upgrade), so a Plex target here would
+  double-scan. Jellyfin has no such native notifier in either app and, with the
+  library mounted over NFS, receives no filesystem events — that is the gap
+  autopulse closes.
+- **No `rewrite:` blocks.** The Sonarr/Radarr root folders are `/media/tv` and
+  `/media/movies`, and autopulse, Sonarr, Radarr and Jellyfin all mount the same
+  export at `/media`, so the path a trigger sends is already the path Jellyfin
+  expects. `opts.check_path: true` makes autopulse stat the file before
+  notifying, which is why the HelmRelease mounts the media export read-only.
+- **Trigger auth is the app's basic auth.** autopulse has no per-trigger token;
+  Sonarr/Radarr POST to `/triggers/sonarr` / `/triggers/radarr` with the same
+  `auth.username` / `auth.password` as the UI.
 - **SQLite, not Postgres.** v2.0.0 changed the default `database_url` from
   PostgreSQL to a SQLite file (`sqlite://data/autopulse.db`, resolving to
   `/app/data/autopulse.db`). The minimal config embraces this: no database
@@ -78,10 +91,14 @@ web UI on the internal route, no triggers/targets wired yet.
   defaults. Create the `autopulse` 1Password login item (username `admin` + a
   generated 32-char password) via `op item create` in the operator's signed-in
   shell, never the UI, never committed. The field labels `username`/`password`
-  must match the `{{ .username }}` / `{{ .password }}` template vars.
-- **Empty `triggers`/`targets` may be rejected.** The minimal config omits both
-  maps (serde should default them to empty). If startup logs complain about
-  missing keys, add explicit `triggers: {}` / `targets: {}` to the inline config.
+  must match the `{{ .username }}` / `{{ .password }}` template vars. The
+  Jellyfin API key (Dashboard → API Keys, one issued for `autopulse`) lives on
+  the same item as a concealed `JELLYFIN_TOKEN` field.
+- **The Sonarr/Radarr side is not in git.** Each app needs a Connect → Webhook
+  (Settings → Connect) pointing at
+  `http://autopulse.media.svc.cluster.local:2875/triggers/<sonarr|radarr>`,
+  method `POST`, basic auth with the autopulse credentials, on Import and
+  Upgrade (Rename/Delete too if wanted). Re-add them after any *arr restore.
 - **First-deploy restore finds no snapshot.** This is standard VolSync
   bootstrap: the `ReplicationDestination` provisions an empty PVC and the app
   initializes a fresh DB. No manual action.
