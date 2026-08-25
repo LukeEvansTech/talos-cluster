@@ -133,6 +133,7 @@ spec:
         - |
           set -e
           mkdir -p /ev && mount -t efivarfs none /ev
+          mount -o remount,rw -t efivarfs none /ev
           python3 - <<'PY'
           import fcntl, os, struct
           P = "/ev/LoaderEntryDefault-4a67b082-0a4c-41cf-b6c7-440b29bb8c4f"
@@ -152,18 +153,16 @@ spec:
 
 Clearing the immutable flag is required: efivarfs marks variables immutable, so `unlink` fails without it.
 
-**The mount can come up read-only, and the pod above does not handle it.** On one node of the
-v1.13.9 run, `mount -t efivarfs none /ev` produced `ro,relatime` and the `FS_IOC_SETFLAGS` ioctl
-failed with `OSError: [Errno 30] Read-only file system` — after the script had already printed the
-current value, so it looks like a permissions problem rather than a mount problem. The other two
-nodes mounted read-write from the same manifest, so this is not deterministic. Always remount
-before touching the variable:
-
-```sh
-mount -t efivarfs none /ev
-mount -o remount,rw -t efivarfs none /ev
-mount | grep efivar   # expect rw,relatime
-```
+**The mount can come up read-only.** On one node of the v1.13.9 run, `mount -t efivarfs none /ev`
+produced `ro,relatime` and the `FS_IOC_SETFLAGS` ioctl failed with `OSError: [Errno 30] Read-only
+file system` — after the script had already printed the current value, so it looks like a
+permissions problem rather than a mount problem. The other two nodes mounted read-write from the
+same manifest, so this is not deterministic. Because the pod's script runs under `set -e`, a failed
+ioctl kills the whole script immediately — with `restartPolicy: Never` the pod lands `Failed` with
+no live container to exec a fix into, so the remount has to be unconditional and already in the
+manifest rather than a step run after the fact. The manifest above does this: it remounts
+read-write right after the initial mount, every time, regardless of whether the first mount came up
+read-write already.
 
 Then drain and reboot the node normally:
 
