@@ -14,6 +14,13 @@ spec:
     deploymentAnnotations:
       reloader.stakater.com/auto: "true"
     env:
+      # The shipped binary is UPX-packed, and Go's async-preemption signal
+      # (SIGURG) faults inside the runtime's signal handler when it lands during
+      # the CPU-bound route compile at startup: a silent exit 139 with no
+      # traceback on roughly half of fresh starts. Reproduced 40/40 with the
+      # packed binary, 0/40 with this knob, 0/40 with the same binary
+      # UPX-unpacked. Drop once upstream stops UPX-packing the image (#3276).
+      GODEBUG: asyncpreemptoff=1
       TZ: ${TIMEZONE}
     envFrom:
       - secretRef:
