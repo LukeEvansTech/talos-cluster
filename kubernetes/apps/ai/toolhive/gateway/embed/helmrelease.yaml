@@ -89,10 +89,16 @@ spec:
               - --embeddings
               - --pooling
               - last
+              # --ctx-size is the TOTAL KV budget and llama.cpp divides it evenly
+              # across --parallel slots, so 8192/4 gave each input only 2048 tokens
+              # and a batched tool-description upsert still 400'd
+              # (exceed_context_size_error, 2026-08-25). Two slots = 4096 tokens per
+              # input, well above the longest MCP tool description seen (~650),
+              # while keeping the 0.6B model's KV within the 2Gi memory limit.
               - --ctx-size
               - "8192"
               - --parallel
-              - "4"
+              - "2"
               - --cont-batching
               # llama.cpp requires --ubatch-size (physical max batch) to be at
               # least as large as the longest single input for embeddings — it
