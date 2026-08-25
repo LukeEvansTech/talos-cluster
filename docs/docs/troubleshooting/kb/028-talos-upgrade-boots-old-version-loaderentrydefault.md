@@ -169,14 +169,19 @@ Then drain and reboot the node normally:
 
 ```bash
 kubectl cordon <node>
-kubectl drain <node> --ignore-daemonsets --delete-emptydir-data --force --timeout=7m && \
+if kubectl drain <node> --ignore-daemonsets --delete-emptydir-data --force --timeout=7m; then
   talosctl -n <node-ip> reboot
-# ~6 minutes of POST on this hardware, then:
-talosctl -n <node-ip> get bootedentry -o yaml   # -> talos-v1.13.7.efi
-kubectl uncordon <node>
+  # ~6 minutes of POST on this hardware, then:
+  talosctl -n <node-ip> get bootedentry -o yaml   # -> talos-v1.13.7.efi
+  kubectl uncordon <node>
+else
+  echo "drain failed: node stays cordoned — inspect before rebooting or uncordoning"
+fi
 ```
 
-The `&&` is load-bearing: if the drain times out, do **not** reboot through it. Check what is still
+The `if` is load-bearing, and it guards the whole block, not just the reboot: if the drain times
+out, do **not** reboot through it, and do not let a pasted block fall through to the `uncordon`
+either — that would make a half-drained node schedulable again before you have looked. Check what is still
 `Terminating` and its `terminationGracePeriodSeconds` — a pod honouring a long, deliberate grace
 period (up to 1800s for a CloudNativePG instance) is not stuck, and rebooting through it is exactly
 what cost a database replica on the v1.13.9 run; see
