@@ -52,13 +52,13 @@ spec:
           for: 5m
           labels:
             severity: critical
-        # Backup WAN tiers (2026-08-02): 5G routers on transit VLANs feed the
-        # WAN_FAILOVER gateway group. A dead backup tier is invisible in daily
-        # use — it only matters mid-outage, which is exactly when it must not
-        # be discovered broken. Gated on the tier having been healthy in the
-        # last 24h so a not-yet-cabled or deliberately-parked tier never
-        # alerts; it self-arms on first successful dpinger and stands down a
-        # day after a deliberate decommission.
+        # Backup WAN tiers (2026-08-02) feed a failover gateway group. A dead
+        # backup tier is invisible in daily use — it only matters mid-outage,
+        # which is exactly when it must not be discovered broken. Gated on
+        # the tier having been healthy in the last 24h so a not-yet-cabled or
+        # deliberately-parked tier never alerts; it self-arms on first
+        # successful dpinger and stands down a day after a deliberate
+        # decommission.
         - alert: OPNsenseBackupWanTierDown
           annotations:
             summary: "Backup WAN tier {{ $labels.name }} is at 100% loss — the failover path is dead while the primary is fine."
