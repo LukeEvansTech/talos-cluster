@@ -1,0 +1,69 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/toolhive.stacklok.dev/virtualmcpserver_v1beta1.json
+apiVersion: toolhive.stacklok.dev/v1beta1
+kind: VirtualMCPServer
+metadata:
+  name: mcp-gateway
+spec:
+  # Aggregates every MCPServer/MCPServerEntry in the mcp-tools MCPGroup (see
+  # ../app/mcpgroup.yaml) behind one endpoint. Tool names collide across
+  # backends (e.g. multiple "search" tools), so conflicts are resolved by
+  # prefixing every tool with its backend workload name.
+  config:
+    aggregation:
+      conflictResolution: prefix
+      conflictResolutionConfig:
+        prefixFormat: "{workload}_"
+    # With 9 backends the raw tool list is too large for most client context
+    # windows. The optimizer exposes only find_tool/call_tool to clients and
+    # resolves the right backend tool semantically via embeddings, instead of
+    # advertising every tool up front. Reuses LiteLLM's existing all-minilm
+    # embedding model rather than standing up a dedicated embedder.
+    optimizer:
+      embeddingModel: all-minilm
+      embeddingProvider: openai
+      embeddingService: http://litellm.ai.svc.cluster.local:4000/v1
+      embeddingServiceTimeout: 60s
+  groupRef:
+    name: mcp-tools
+  # No client-facing auth at the vmcp layer itself: the Envoy Gateway
+  # SecurityPolicy (../gateway/securitypolicy.yaml) enforces the x-api-key
+  # requirement in front of this HTTPRoute, and the in-cluster Service has no
+  # route at all, so anonymous here does not mean unauthenticated in practice.
+  incomingAuth:
+    type: anonymous
+  outgoingAuth:
+    source: discovered
+  podTemplateSpec:
+    spec:
+      containers:
+        - name: vmcp
+          env:
+            # LiteLLM virtual key scoped to the all-minilm model only (see
+            # ../gateway/virtualkey.yaml); read by the optimizer's OpenAI-
+            # compatible embedding client.
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: litellm-key-toolhive
+                  key: api-key
+          resources:
+            requests:
+              memory: 256Mi
+            limits:
+              memory: 2Gi
+  # Redis-backed sessions so the vmcp Deployment can scale beyond one replica
+  # without pinning MCP clients to a specific pod.
+  sessionStorage:
+    provider: redis
+    address: dragonfly.database.svc.cluster.local:6379
+    db: 0
+    keyPrefix: "toolhive:vmcp:"
+    passwordRef:
+      name: toolhive-gateway-redis
+      key: password
+  # Enables the unauthenticated /metrics endpoint on the same port as the MCP
+  # traffic; scraped by ../gateway/podmonitor.yaml. Reuses the MCPTelemetryConfig
+  # already created by the toolhive Kustomization (../app/mcptelemetryconfig.yaml).
+  telemetryConfigRef:
+    name: prometheus

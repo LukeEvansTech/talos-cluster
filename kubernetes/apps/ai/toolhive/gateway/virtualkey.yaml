@@ -1,0 +1,16 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/litellm.home-operations.com/litellmvirtualkey_v1alpha1.json
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMVirtualKey
+metadata:
+  name: toolhive
+spec:
+  # proxyRef targets the LiteLLMProxy created by the litellm-operator cutover
+  # (a separate, currently-open PR). Until that merges, no LiteLLMProxy named
+  # "litellm" exists in this namespace and the operator cannot admit this key.
+  keyAlias: toolhive-vmcp
+  models:
+    - all-minilm
+  proxyRef: litellm
+  secretKey: api-key
+  secretName: litellm-key-toolhive
