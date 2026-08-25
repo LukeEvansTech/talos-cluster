@@ -43,7 +43,7 @@ spec:
         # builds its own fork (ghcr.io/misospace/llmkube-coder) because it
         # predates this upstream image; this cluster uses upstream instead.
         repository: ghcr.io/defilantech/llmkube-foreman-agent-coder
-        tag: 0.9.20
+        tag: 0.9.20@sha256:248060f5cb8ef8ad42d87c4decc0a5adf6628230a7d8f7f91f75f9e4d4b05419
       gateCache:
         storageClass: ceph-filesystem
         accessModes:
