@@ -32,6 +32,11 @@ data:
           api_key: llama-nvidia
           max_parallel_requests: 2
           order: 1
+          # LiteLLM's openai/ provider rejects reasoning_effort for non-o-series
+          # models (UnsupportedParamsError 400). llama-server honours it (`none`
+          # disables Qwen3.8 thinking), so pass it through explicitly.
+          allowed_openai_params:
+            - reasoning_effort
 
       # Alias for the SAME llama-nvidia backend (the model is abliterated, so
       # the dedicated uncensored InferenceService is gone). Kept as its own
@@ -51,6 +56,11 @@ data:
           api_base: http://llama-nvidia.ai.svc.cluster.local:8080/v1
           api_key: llama-nvidia
           max_parallel_requests: 2
+          # LiteLLM's openai/ provider rejects reasoning_effort for non-o-series
+          # models (UnsupportedParamsError 400). llama-server honours it (`none`
+          # disables Qwen3.8 thinking), so pass it through explicitly.
+          allowed_openai_params:
+            - reasoning_effort
 
       # ------------------------------------------------------------------
       # Cloud
@@ -129,7 +139,10 @@ data:
       # unsupported for the openai/ provider entry), which defeats disabling Qwen3.8's
       # thinking mode (verified 2026-08-25). If a real UnsupportedParamsError 400 ever
       # shows up, scope the drop with per-model additional_drop_params on that entry
-      # instead of re-enabling this globally.
+      # instead of re-enabling this globally. Note: turning drop_params off is not
+      # by itself enough to forward reasoning_effort — LiteLLM's UnsupportedParamsError
+      # check runs independently, so the self-hosted / self-hosted-uncensored entries
+      # also list reasoning_effort in litellm_params.allowed_openai_params.
       num_retries: 2
       retry_after: 5
       request_timeout: 1200
