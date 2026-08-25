@@ -1,0 +1,20 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/litellm.home-operations.com/litellmvirtualkey_v1alpha1.json
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMVirtualKey
+metadata:
+  name: foreman
+spec:
+  # KNOWN LIMITATION at PR time: proxyRef names a LiteLLMProxy that does not
+  # exist in this cluster yet (only the litellm-operator CRDs + controller are
+  # installed today; the LiteLLMProxy/LiteLLMModel cutover for the existing
+  # litellm HelmRelease is a separate, not-yet-merged PR). The litellm-operator
+  # validating webhook may reject this object until that PR lands — see the
+  # PR body / Verification section for what was actually observed.
+  proxyRef: litellm
+  keyAlias: foreman
+  secretName: litellm-key-foreman
+  secretKey: api-key
+  models:
+    - self-hosted
+    - openrouter/auto
