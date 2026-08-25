@@ -169,12 +169,19 @@ Then drain and reboot the node normally:
 
 ```bash
 kubectl cordon <node>
-kubectl drain <node> --ignore-daemonsets --delete-emptydir-data --force --timeout=7m
-talosctl -n <node-ip> reboot
+kubectl drain <node> --ignore-daemonsets --delete-emptydir-data --force --timeout=7m && \
+  talosctl -n <node-ip> reboot
 # ~6 minutes of POST on this hardware, then:
 talosctl -n <node-ip> get bootedentry -o yaml   # -> talos-v1.13.7.efi
 kubectl uncordon <node>
 ```
+
+The `&&` is load-bearing: if the drain times out, do **not** reboot through it. Check what is still
+`Terminating` and its `terminationGracePeriodSeconds` — a pod honouring a long, deliberate grace
+period (up to 1800s for a CloudNativePG instance) is not stuck, and rebooting through it is exactly
+what cost a database replica on the v1.13.9 run; see
+[Drain timeouts are grace periods, not stuck pods](#drain-timeouts-are-grace-periods-not-stuck-pods).
+Re-run the drain with `--timeout` sized to that grace period, then reboot.
 
 Wait for `HEALTH_OK` before starting the next node — see [KB-019](019-cordon-control-plane-breaks-ceph-mon-quorum.md), a cordoned control-plane node parks its affinity-pinned mon and OSDs in `Pending` and holds Ceph in `HEALTH_WARN` for as long as the cordon stands.
 
