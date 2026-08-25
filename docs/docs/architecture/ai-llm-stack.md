@@ -158,16 +158,16 @@ Layer 2 runs the [StackLok ToolHive](https://github.com/stacklok/toolhive) opera
 CRDs + operator charts, see `toolhive/app/ocirepository.yaml` for the current pin) in `ai`, an
 `MCPGroup` (`mcp-tools`), and these MCP servers, all wired into LiteLLM's `mcp_servers`:
 
-| Server    | Source                          | Access                                                  |
-| --------- | ------------------------------- | ------------------------------------------------------- |
-| `kubectl` | kubectl-mcp-server              | cluster read-only, secrets excluded                     |
-| `flux`    | flux-operator-mcp               | Flux read-only (write is opt-in)                        |
-| `talos`   | talos-mcp                       | Talos `os:reader` (talosconfig SA)                      |
-| `searxng` | mcp-searxng → `searxng.default` | web search                                              |
-| `github`  | github-mcp-server               | GitHub read-only (`GITHUB_READ_ONLY`, fine-grained PAT) |
-| `grafana` | grafana/mcp-grafana             | Grafana Viewer SA token (read-only)                     |
-| `arr`     | mcp-arr                         | Sonarr / Radarr / Prowlarr tools (per-app API keys)     |
-| `seerr`   | overseerr-mcp                   | Overseerr request + discovery tools                     |
+| Server    | Source                          | Access                                                    |
+| --------- | ------------------------------- | --------------------------------------------------------- |
+| `kubectl` | kubectl-mcp-server              | cluster read-only, secrets excluded                       |
+| `flux`    | flux-operator-mcp               | Flux read + write (reconcile/suspend/resume/apply/delete) |
+| `talos`   | talos-mcp                       | Talos `os:reader` (talosconfig SA)                        |
+| `searxng` | mcp-searxng → `searxng.default` | web search                                                |
+| `github`  | github-mcp-server               | GitHub read-only (`GITHUB_READ_ONLY`, fine-grained PAT)   |
+| `grafana` | grafana/mcp-grafana             | Grafana Viewer SA token (read-only)                       |
+| `arr`     | mcp-arr                         | Sonarr / Radarr / Prowlarr tools (per-app API keys)       |
+| `seerr`   | overseerr-mcp                   | Overseerr request + discovery tools                       |
 
 kubectl + flux share one read-only `ClusterRole` (`kubectl-mcp-readonly`) built from this cluster's
 API groups with core `secrets` omitted. Keep it in sync with `kubectl api-resources` as you add
@@ -181,46 +181,29 @@ Grafana Viewer service-account token (`toolhive-grafana`).
 Deferred (add later): the `VirtualMCPServer` aggregate + `EmbeddingServer` (a single
 `mcp.<domain>` endpoint for non-LiteLLM clients, which is what pulls in a Dragonfly + embedder).
 
-### Enabling flux-mcp write access
+### flux-mcp write access (enabled)
 
-The flux MCP is read-only by default. To let it (and therefore any model behind LiteLLM)
-reconcile / suspend / resume / apply / delete Flux objects, append to
-`toolhive/mcp-servers/flux/rbac.yaml` (no `kustomization.yaml` change needed, `rbac.yaml` is
-already listed there):
+The flux MCP has had write access to Flux CRDs since this was enabled: `flux-mcp-write`, a
+`ClusterRole` + `ClusterRoleBinding` in `toolhive/mcp-servers/flux/rbac.yaml`, grants the
+`flux-mcp` ServiceAccount `create`/`patch`/`update`/`delete` on every Flux kind installed on this
+cluster — one rule per apiGroup (`fluxcd.controlplane.io`, `helm.toolkit.fluxcd.io`,
+`kustomize.toolkit.fluxcd.io`, `notification.toolkit.fluxcd.io`, `source.toolkit.fluxcd.io`),
+each listing its resources by name rather than `resources: ["*"]` — a wildcard trips Trivy
+KSV-0046 and Checkov's wildcard-RBAC check even when the apiGroups are this narrow. Nothing
+outside Flux CRDs, and no `secrets` access (core `""` is never included). `image.toolkit.fluxcd.io`
+has no rule because this cluster doesn't run the Flux image-automation controller — add one
+(`imagepolicies`, `imagerepositories`, `imageupdateautomations`) if that ever changes, and add
+any other new Flux kind by hand when a component upgrade introduces one. This lets it (and
+therefore any model behind LiteLLM) reconcile, suspend, resume, apply, and delete Flux objects.
 
-```yaml
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-    name: flux-mcp-write
-rules:
-    - apiGroups:
-          - fluxcd.controlplane.io
-          - helm.toolkit.fluxcd.io
-          - image.toolkit.fluxcd.io
-          - kustomize.toolkit.fluxcd.io
-          - notification.toolkit.fluxcd.io
-          - source.toolkit.fluxcd.io
-      resources: ["*"]
-      verbs: ["create", "patch", "update", "delete"]
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-    name: flux-mcp-write
-roleRef:
-    apiGroup: rbac.authorization.k8s.io
-    kind: ClusterRole
-    name: flux-mcp-write
-subjects:
-    - kind: ServiceAccount
-      name: flux-mcp
-      namespace: ai
-```
+The `flux-operator-mcp` image's own `--read-only` flag defaults to `false` and this deployment
+has never set it, so the write tools were already registered at the MCP layer before this
+change — RBAC was, and remains, the only enforcement boundary.
 
-This grants an LLM mutate access to the cluster's GitOps controller. Enable only if you trust the
-calling chain.
+This grants an LLM mutate access to the cluster's GitOps controller; the owner has accepted
+that blast radius. **To revoke**, delete the `flux-mcp-write` `ClusterRole` and
+`ClusterRoleBinding` from `toolhive/mcp-servers/flux/rbac.yaml` (the two read-only bindings are
+unaffected).
 
 ### Adding an MCP server
 
