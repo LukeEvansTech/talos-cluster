@@ -1,0 +1,43 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/litellm.home-operations.com/litellmvirtualkey_v1alpha1.json
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMVirtualKey
+metadata:
+  name: contracthound
+  namespace: ai
+spec:
+  # The operator mints this key on the litellm proxy and writes it to the
+  # named Secret. contracthound lives in another namespace and can't mount an ai
+  # Secret directly, so the PushSecret below writes the generated key back
+  # to the litellm 1Password item; contracthound's own ExternalSecret then extracts
+  # it. openrouter/auto is in scope alongside self-hosted so the router's
+  # cloud fallback doesn't 401 this key when the local backend cools down.
+  proxyRef: litellm
+  keyAlias: contracthound
+  secretName: litellm-key-contracthound
+  secretKey: api-key
+  models:
+    - self-hosted
+    - openrouter/auto
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/external-secrets.io/pushsecret_v1alpha1.json
+apiVersion: external-secrets.io/v1alpha1
+kind: PushSecret
+metadata:
+  name: contracthound
+  namespace: ai
+spec:
+  refreshInterval: 1h
+  secretStoreRefs:
+    - name: onepassword-connect
+      kind: ClusterSecretStore
+  selector:
+    secret:
+      name: litellm-key-contracthound
+  updatePolicy: Replace
+  data:
+    - match:
+        secretKey: api-key
+        remoteRef:
+          remoteKey: litellm
+          property: LITELLM_CONTRACTHOUND_API_KEY

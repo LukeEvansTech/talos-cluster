@@ -10,6 +10,7 @@ resources:
   - ./models
   - ./prometheusrule.yaml
   - ./servicemonitor.yaml
+  - ./virtualkeys
 configMapGenerator:
   - name: litellm-dashboard
     namespace: ai

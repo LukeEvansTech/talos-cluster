@@ -1,0 +1,43 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/litellm.home-operations.com/litellmvirtualkey_v1alpha1.json
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMVirtualKey
+metadata:
+  name: todoist-sort
+  namespace: ai
+spec:
+  # The operator mints this key on the litellm proxy and writes it to the
+  # named Secret. todoist-sort lives in another namespace and can't mount an ai
+  # Secret directly, so the PushSecret below writes the generated key back
+  # to the litellm 1Password item; todoist-sort's own ExternalSecret then extracts
+  # it. openrouter/auto is in scope alongside self-hosted so the router's
+  # cloud fallback doesn't 401 this key when the local backend cools down.
+  proxyRef: litellm
+  keyAlias: todoist-sort
+  secretName: litellm-key-todoist-sort
+  secretKey: api-key
+  models:
+    - self-hosted
+    - openrouter/auto
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/external-secrets.io/pushsecret_v1alpha1.json
+apiVersion: external-secrets.io/v1alpha1
+kind: PushSecret
+metadata:
+  name: todoist-sort
+  namespace: ai
+spec:
+  refreshInterval: 1h
+  secretStoreRefs:
+    - name: onepassword-connect
+      kind: ClusterSecretStore
+  selector:
+    secret:
+      name: litellm-key-todoist-sort
+  updatePolicy: Replace
+  data:
+    - match:
+        secretKey: api-key
+        remoteRef:
+          remoteKey: litellm
+          property: LITELLM_TODOIST_SORT_API_KEY
