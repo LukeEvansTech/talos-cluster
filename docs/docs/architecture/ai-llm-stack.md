@@ -6,16 +6,16 @@ re-targeted to this cluster: **NVIDIA L4 GPUs + llama.cpp (llmkube)**.
 
 ## Components
 
-| App          | Role                                                               | Status |
-| ------------ | ------------------------------------------------------------------ | ------ |
-| `litellm`    | OpenAI-compatible gateway: routing, fallbacks, cache, metrics, MCP | live   |
-| `llmkube`    | llama.cpp model-serving operator (CUDA); 1 model active            | live   |
-| `open-webui` | chat UI                                                            | live   |
-| `toolhive`   | MCP servers (8 read-only servers) wired into LiteLLM               | live   |
-| `memini`     | agent long-term memory (SQLite + CPU embed/rerank)                 | live   |
-| `hermes`     | NousResearch hermes-agent gateway + dashboard (memini-backed)      | live   |
-| `hermeswebui`| chat web frontend for hermes (via its API server)                  | live   |
-| `repowiki`   | AI-generated per-repository wiki (mkdocs-material + CronJob)       | live   |
+| App           | Role                                                               | Status |
+| ------------- | ------------------------------------------------------------------ | ------ |
+| `litellm`     | OpenAI-compatible gateway: routing, fallbacks, cache, metrics, MCP | live   |
+| `llmkube`     | llama.cpp model-serving operator (CUDA); 1 model active            | live   |
+| `open-webui`  | chat UI (SearXNG web search, Dragonfly websockets)                 | live   |
+| `toolhive`    | MCP servers (8 read-only servers) wired into LiteLLM               | live   |
+| `memini`      | agent long-term memory (SQLite + CPU embed/rerank)                 | live   |
+| `hermes`      | NousResearch hermes-agent gateway + dashboard (memini-backed)      | live   |
+| `hermeswebui` | chat web frontend for hermes (via its API server)                  | live   |
+| `repowiki`    | AI-generated per-repository wiki (mkdocs-material + CronJob)       | live   |
 
 LiteLLM persists to CNPG `postgres18` (`litellm` db) and caches in Dragonfly. Internal-only route
 (`litellm.${SECRET_DOMAIN}` on envoy-internal).
@@ -28,10 +28,10 @@ pod), one file per model under `kubernetes/apps/ai/llmkube/models/`.
 
 **Active model** — one GPU model serves both LiteLLM groups:
 
-| LiteLLM model name        | InferenceService  | Notes                                    |
-| ------------------------- | ----------------- | ---------------------------------------- |
-| `self-hosted`             | `llama-nvidia`    | Default; vision-capable via mmproj       |
-| `self-hosted-uncensored`  | `llama-nvidia`    | Alias, same backend; no cloud fallback   |
+| LiteLLM model name       | InferenceService | Notes                                  |
+| ------------------------ | ---------------- | -------------------------------------- |
+| `self-hosted`            | `llama-nvidia`   | Default; vision-capable via mmproj     |
+| `self-hosted-uncensored` | `llama-nvidia`   | Alias, same backend; no cloud fallback |
 
 The model is **Qwen3.8-27B Heretic-abliterated** (0bserverx RVN Q4_K_S, MTP head retained):
 picked as the closest-to-vanilla uncensored build (KL ~0.0085 vs base, refusals 0–1/100,
@@ -69,11 +69,11 @@ LiteLLM `model_name` groups make the serving tier transparent to clients:
 
 Three in-cluster apps route through LiteLLM using the standardized OpenAI env contract:
 
-| App             | Namespace | LiteLLM model    |
-| --------------- | --------- | ---------------- |
-| `contracthound` | `default` | `self-hosted`    |
-| `subspy`        | `default` | `self-hosted`    |
-| `loupe`         | `custom`  | `self-hosted`    |
+| App             | Namespace | LiteLLM model |
+| --------------- | --------- | ------------- |
+| `contracthound` | `default` | `self-hosted` |
+| `subspy`        | `default` | `self-hosted` |
+| `loupe`         | `custom`  | `self-hosted` |
 
 All three consume:
 
@@ -143,7 +143,7 @@ Any OpenAI-compatible client can drive the self-hosted models through the gatewa
   `kubectl,flux,talos,searxng`). Requesting **all** servers times out, and the full tool list
   bloats every request (heavy on the small-context local models, so prefer a frontier model for
   tool-heavy work).
-- **Gotchas**: the self-hosted model is a Qwen *thinking* model (send `think: false` /
+- **Gotchas**: the self-hosted model is a Qwen _thinking_ model (send `think: false` /
   `enable_thinking: false`, or lower `reasoning_effort`, for non-reasoning output — Qwen3.8
   defaults to heavy reasoning). Both group names hit the same backend, so there is no
   model-swap cost for switching between them. See the context-budget note below for opencode's
@@ -293,6 +293,11 @@ Increase `MAX_REPOS_PER_RUN` only if the model has headroom.
   `config.yaml` into a `litellm.home-operations.com/config-hash` pod annotation, so editing a
   `LiteLLMModel`/`LiteLLMMCPServer`/`LiteLLMProxy` CR rolls the Deployment on its own — no
   Reloader annotation or manual restart needed.
+- **open-webui's database is still SQLite**: on a `ReadWriteOnce` ceph-block PVC, with `strategy:
+Recreate` and `TIMER_POLL_INTERVAL: "30"` working around a full-table-scan bug in the unused
+  scheduler loop (see the HelmRelease comments). Web search, RAG embeddings, and Dragonfly-backed
+  websockets are independent of this — Postgres migration is a separate, not-yet-scheduled
+  decision.
 - **Cross-namespace netpol**: `kubernetes/apps/ai/netpol.yaml` allows ingress to the `ai`
   namespace from the `network` namespace (gateway), plus a second `CiliumNetworkPolicy`
   (`allow-litellm-from-consumers`) that grants the `default` and `custom` namespaces ingress to the
