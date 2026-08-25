@@ -100,14 +100,16 @@ spec:
               - --parallel
               - "2"
               - --cont-batching
-              # llama.cpp requires --ubatch-size (physical max batch) to be at
-              # least as large as the longest single input for embeddings — it
-              # cannot split one sequence across ubatches — so both batch sizes
-              # are set to the full context window to guarantee that holds.
+              # llama.cpp cannot split one pooled-embedding sequence across
+              # micro-batches, so --ubatch-size must be >= the longest single
+              # input. It also sizes the attention scratch buffers quadratically:
+              # 8192 OOM-killed this pod at 2Gi on the first multi-input request
+              # (2026-08-25). The longest MCP tool description seen is ~650
+              # tokens, so 2048 is ample; --batch-size 4096 matches the slot ctx.
               - --batch-size
-              - "8192"
+              - "4096"
               - --ubatch-size
-              - "8192"
+              - "2048"
               - --threads
               - "4"
               - --metrics
@@ -117,7 +119,7 @@ spec:
                 cpu: 250m
                 memory: 1Gi
               limits:
-                memory: 2Gi
+                memory: 3Gi
             probes:
               liveness: &probe
                 enabled: true
