@@ -9,18 +9,29 @@ spec:
     kind: OCIRepository
     name: chaski
   interval: 1h
+  # The shipped binary is UPX-packed (upx 5.2.0), and its decompressor stub
+  # segfaults when the process environment carries the Kubernetes service-link
+  # variables (~460 *_SERVICE_HOST/_PORT vars from this namespace): a silent
+  # exit 139 with no traceback, ip on the stack per the kernel log. Proven on a
+  # node with the production config: 20/20 crashes with the links present,
+  # 0/20 with them stripped, 0/40 with the same binary UPX-unpacked. The chart
+  # has no knob for this, hence the patch. Drop once upstream stops packing
+  # the image (#3276).
+  postRenderers:
+    - kustomize:
+        patches:
+          - target:
+              kind: Deployment
+              name: chaski
+            patch: |
+              - op: add
+                path: /spec/template/spec/enableServiceLinks
+                value: false
   values:
     replicaCount: 2
     deploymentAnnotations:
       reloader.stakater.com/auto: "true"
     env:
-      # The shipped binary is UPX-packed, and Go's async-preemption signal
-      # (SIGURG) faults inside the runtime's signal handler when it lands during
-      # the CPU-bound route compile at startup: a silent exit 139 with no
-      # traceback on roughly half of fresh starts. Reproduced 40/40 with the
-      # packed binary, 0/40 with this knob, 0/40 with the same binary
-      # UPX-unpacked. Drop once upstream stops UPX-packing the image (#3276).
-      GODEBUG: asyncpreemptoff=1
       TZ: ${TIMEZONE}
     envFrom:
       - secretRef:
