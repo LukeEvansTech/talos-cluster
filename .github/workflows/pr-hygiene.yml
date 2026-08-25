@@ -70,6 +70,13 @@ jobs:
       contents: read
       pull-requests: read
     steps:
+      - name: Checkout
+        # Needed for the commit-message scan step below, which shells out to
+        # the tracked check_internal_identifiers.py script.
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
       - name: Reject assistant-authored commits
         # The body scan above is not sufficient. GitHub's squash merge derives
         # Co-authored-by trailers from COMMIT AUTHORSHIP and appends them after
@@ -90,3 +97,25 @@ jobs:
             exit 1
           fi
           echo "No assistant-authored commits."
+
+      - name: Scan commit messages for internal identifiers / co-author trailers
+        # The author-identity check above only sees GitHub's derived author
+        # metadata. A human-authored commit can still carry a literal
+        # `Co-authored-by: Claude <noreply@anthropic.com>` trailer (or a LAN
+        # IP / internal hostname) in its MESSAGE body, which scan-pr-text
+        # never sees either -- that job only reads $PR_TITLE/$PR_BODY, not
+        # per-commit messages. GitHub's squash-merge default body aggregates
+        # individual commit messages, so that trailer text can reach main
+        # verbatim. Reuse the same script and pattern set the PR-body and
+        # commit-msg-hook checks use, so prose can't drift between the three
+        # enforcement points.
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+          # See the matching comment in scan-pr-text above.
+          INTERNAL_DOMAIN_RE: ${{ secrets.INTERNAL_DOMAIN_RE }} # zizmor: ignore[secrets-outside-env]
+        run: |-
+          gh api "repos/$REPO/pulls/$PR_NUMBER/commits" --paginate \
+            --jq '.[].commit.message' \
+            | python3 .github/scripts/check_internal_identifiers.py --text-file -
