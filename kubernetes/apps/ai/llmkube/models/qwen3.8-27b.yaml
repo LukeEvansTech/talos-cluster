@@ -54,21 +54,37 @@ spec:
   # followed.
   runtime: llamacpp
   image: ghcr.io/ggml-org/llama.cpp:server-cuda@sha256:750f56822bd4ca3190e2515c7f668ba9be06fb93365cdb6adedb50971b30340e
+  # Defer a pod-template rollout (e.g. a Renovate image bump) until llama.cpp's
+  # own /slots endpoint reports both slots idle, instead of killing an
+  # in-flight opencode/agent session mid-response. Falls back to proceeding
+  # anyway after idleTimeoutSeconds so a genuinely stuck slot can't block
+  # upgrades forever. Field verified present on this llmkube CRD version via
+  # `kubectl explain inferenceservice.spec.rolloutPolicy` (crib:
+  # joryirving/home-ops litellm/llama-strix.yaml).
+  rolloutPolicy:
+    waitForIdle: true
+    idleTimeoutSeconds: 86400
   replicas: 1
   runtimeClassName: nvidia
   priorityClassName: gpu-preemptible
   # VRAM budget on a 24GB L4 (~22.4Gi usable): 14.9Gi weights (Q4_K_S + MTP
-  # head) + 0.6Gi mmproj + 3Gi KV (128k, K q8_0 + V q4_0; only 16/64 layers
-  # are full attention) + compute buffers. With MTP on and q8/q8 KV the card
-  # sat at 22.0/22.5Gi and the FIRST real prompt crashed llama-server with
-  # "CUDA error: out of memory" in ggml_cuda_pool_vmm::alloc — the mul_mat
-  # compute pool grows at decode time, so ~0.5Gi idle headroom is NOT enough;
-  # keep ≥1.5Gi free. V-cache q4_0 buys 1Gi (K stays q8_0 — K quantization is
-  # the recall-sensitive half) and uBatchSize 512 shrinks the CUDA compute
-  # buffers for the rest, at a modest prompt-processing cost.
+  # head) + 3Gi KV (128k, K q8_0 + V q4_0; only 16/64 layers are full
+  # attention) + compute buffers. The mmproj projector (0.6Gi) now loads on
+  # the host instead of VRAM (--no-mmproj-offload below), freeing that 0.6Gi
+  # toward the headroom rule below — image encode becomes CPU-bound as a
+  # result, hence the bumped cpu request and --threads/--threads-batch below.
+  # With MTP on and q8/q8 KV the card sat at 22.0/22.5Gi and the FIRST real
+  # prompt crashed llama-server with "CUDA error: out of memory" in
+  # ggml_cuda_pool_vmm::alloc — the mul_mat compute pool grows at decode
+  # time, so ~0.5Gi idle headroom is NOT enough; keep ≥1.5Gi free. V-cache
+  # q4_0 buys 1Gi (K stays q8_0 — K quantization is the recall-sensitive
+  # half) and uBatchSize 512 shrinks the CUDA compute buffers for the rest,
+  # at a modest prompt-processing cost.
   # 2 slots × 64k gives every request — opencode's ~41k agent baseline
   # included — the window the old YaRN-extended uncensored model needed
-  # hacks for, with no YaRN and no --override-kv.
+  # hacks for, with no YaRN and no --override-kv. --kv-unified below lets a
+  # single request borrow the full 128k while the other slot is idle,
+  # instead of being capped at the static 64k-per-slot split.
   contextSize: 131072
   parallelSlots: 2
   flashAttention: true
@@ -81,7 +97,7 @@ spec:
   uBatchSize: 512
   resources:
     gpu: 1
-    cpu: "500m"
+    cpu: "6"
     memory: 20Gi
   nodeSelector:
     nvidia.com/gpu.present: "true"
@@ -141,6 +157,28 @@ spec:
     - "0"
     - --cont-batching
     - --cache-prompt
+    # Host-side projector + unified KV (crib: joryirving/home-ops
+    # litellm/llama-nvidia.yaml). --no-mmproj-offload moves the mmproj
+    # projector off the GPU onto the host, freeing ~0.6Gi VRAM toward the
+    # ≥1.5Gi headroom rule above — image encode becomes CPU-bound as a
+    # result, hence --threads/--threads-batch below and the bumped cpu
+    # request. --image-min-tokens 1024 (Jory's value) keeps vision quality
+    # after the projector move. --kv-unified lets one request use the whole
+    # 128k context when the other slot is idle instead of a hard
+    # 64k-per-slot ceiling; the /props verification
+    # (`default_generation_settings.n_ctx`) will report the unified size
+    # post-merge — the coordinator updates the VRAM-budget doc once
+    # measured. All four flags verified against this image digest's --help
+    # (llama.cpp server-cuda, digest above; ran `llama-server --help` inside
+    # the live llama-nvidia pod).
+    - --no-mmproj-offload
+    - --image-min-tokens
+    - "1024"
+    - --kv-unified
+    - --threads
+    - "6"
+    - --threads-batch
+    - "12"
   probeOverrides:
     startup:
       httpGet: { path: /health, port: 8080 }
