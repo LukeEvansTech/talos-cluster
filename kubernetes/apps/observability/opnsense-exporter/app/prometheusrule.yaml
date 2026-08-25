@@ -42,13 +42,16 @@ spec:
         # zero for 15 minutes while the link stayed up and no watchdog logged —
         # dpinger's monitor traffic rides this interface, so a healthy WAN can
         # never legitimately read zero-in-both-directions for 5 minutes.
+        # rate() uses a 1m window (not 5m) so the "zero" reading itself doesn't
+        # add its own multi-minute lag on top of the `for: 5m` debounce below —
+        # a 5m rate window here would double effective detection to ~10m.
         - alert: OPNsenseWanTrafficFrozen
           annotations:
             summary: "WAN has passed zero bytes in BOTH directions for 5m — NIC/modem wedge, likely needs a link bounce."
           expr: |-
-            rate(opnsense_interfaces_received_bytes_total{job="opnsense-exporter", interface="WAN"}[5m]) == 0
+            rate(opnsense_interfaces_received_bytes_total{job="opnsense-exporter", interface="WAN"}[1m]) == 0
             and
-            rate(opnsense_interfaces_transmitted_bytes_total{job="opnsense-exporter", interface="WAN"}[5m]) == 0
+            rate(opnsense_interfaces_transmitted_bytes_total{job="opnsense-exporter", interface="WAN"}[1m]) == 0
           for: 5m
           labels:
             severity: critical
