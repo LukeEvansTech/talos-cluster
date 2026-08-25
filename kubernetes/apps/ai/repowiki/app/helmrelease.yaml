@@ -24,11 +24,45 @@ spec:
         # pod (different node candidate) before the old one releases the RBD
         # attach and the rollout would stall. Recreate avoids that.
         strategy: Recreate
-        containers:
-          app:
-            image:
+        initContainers:
+          # First-boot race: on a fresh PVC /app-data/repository doesn't exist
+          # until repowiki-gen has run once, and mkdocs refuses to start
+          # ("Config value 'docs_dir': The path '/app-data/repository' isn't
+          # an existing directory") — observed as 5 crash-loops on a new PVC.
+          # Seed a placeholder index.md so mkdocs has something to serve;
+          # generate.py unconditionally rewrites REPO/index.md at the end of
+          # every run (mkdocs.yml's docs_dir points straight at the repo root,
+          # not a nested docs/ subdir, matching where generate.py writes), so
+          # the real content replaces this the first time the CronJob fires.
+          # Reuses the mkdocs image (no new image to pull); generate.py
+          # already `git init`s the repo itself when .git is absent, so this
+          # step only needs to create the directory and the placeholder file.
+          seed-placeholder:
+            image: &mkdocsImage
               repository: squidfunk/mkdocs-material
               tag: 9.7.7@sha256:51b87149d227691486b5f08993d28c65ca7e4990010664b697265b8e6fcd5287
+            command:
+              - "sh"
+              - "-c"
+              - |
+                mkdir -p /app-data/repository
+                f=/app-data/repository/index.md
+                [ -f "$f" ] && exit 0
+                printf '# repowiki\n\nNo pages yet — runs every 12h.\n' > "$f"
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop:
+                  - ALL
+            resources:
+              requests:
+                cpu: 10m
+              limits:
+                memory: 32Mi
+        containers:
+          app:
+            image: *mkdocsImage
             args:
               - "serve"
               - "--dirty"
@@ -109,6 +143,8 @@ spec:
         advancedMounts:
           mkdocs:
             app:
+              - path: /app-data
+            seed-placeholder:
               - path: /app-data
           repowiki-gen:
             app:
