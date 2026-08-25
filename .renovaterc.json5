@@ -170,6 +170,7 @@
         "/tuppr/", // drives Talos + Kubernetes node upgrades (system-upgrade)
         "/volsync/", // backup mover (charts-mirror/volsync-perfectra1n)
         "/snapshot-controller/", // CSI VolumeSnapshot controller (backup path)
+        "/litellm-operator/", // pre-1.0 operator; manual review until it stabilizes
       ],
       automerge: false,
     },

@@ -1,0 +1,27 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/helm.toolkit.fluxcd.io/helmrelease_v2.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: litellm-operator
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: litellm-operator
+  values:
+    controller:
+      logLevel: info
+      leaderElection:
+        enabled: true
+    llmkube:
+      # Off: we keep explicit LiteLLMModel CRs (mirroring the existing
+      # cloud + Ollama model list) rather than auto-registering from LLMKube
+      # InferenceServices. Revisit once llmkube backends are the norm.
+      autoRegister: false
+    resources:
+      requests:
+        cpu: 25m
+        memory: 128Mi
+      limits:
+        memory: 512Mi
