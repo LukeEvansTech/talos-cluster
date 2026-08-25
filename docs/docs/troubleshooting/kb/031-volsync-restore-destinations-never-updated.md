@@ -69,6 +69,7 @@ bumped:
 ```console
 $ flux suspend ks <app> -n flux-system
 $ kubectl patch replicationdestination <app>-nfs-dst -n <ns> --type=merge \
+    --field-manager=kustomize-controller \
     -p '{"spec":{"trigger":{"manual":"restore-'"$(date +%s)"'"}}}'
 # ... restore, then:
 $ flux resume ks <app> -n flux-system
@@ -77,10 +78,16 @@ $ flux resume ks <app> -n flux-system
 Note the quoting. One destination in this cluster was found holding the **literal** string
 `restore-$(date +%s)`, because the shell never expanded it inside single quotes.
 
+`--field-manager=kustomize-controller` matters as much as the quoting: `kubectl patch --type=merge`
+defaults to a field manager named `kubectl-patch`, which is a different manager than Flux's own
+`kustomize-controller`. Patching under Flux's manager name means the resume below reconciles
+cleanly instead of hitting the conflict in the next section.
+
 ## Two traps when rolling this out
 
-**Field-manager conflicts do not force themselves.** That hand-patched destination had
-`spec.trigger` owned by the `kubectl-patch` field manager, so Flux's server-side apply returns:
+**Field-manager conflicts do not force themselves.** This is what happens if the patch above is run
+without `--field-manager`: one destination in this cluster had `spec.trigger` owned by the
+`kubectl-patch` field manager, so Flux's server-side apply returned:
 
 ```text
 Error from server (Conflict): Apply failed with 1 conflict:
