@@ -78,11 +78,16 @@ spec:
       # CephCluster update and the HelmRelease stops reconciling. Raise the number to
       # rotate again; never remove it.
       #
-      # csi keys stay on the chart default (aes): AES256K needs a 7.0+ kernel, the fleet
-      # is on 6.18 even after Talos v1.13.9, and both storage paths here are kernel
-      # clients (krbd, and the built-in CephFS kernel client per KB-025).
+      # csi keys are pinned to aes rather than left to the chart default: AES256K
+      # needs a 7.0+ kernel, the fleet is on 6.18 even after Talos v1.13.9, and both
+      # storage paths here are kernel clients (krbd, and the built-in CephFS kernel
+      # client per KB-025). Rook's rotation guide says to always set the type so a
+      # default flip upstream can't hand CSI a key the nodes can't use. No csi
+      # keyRotationPolicy is set, so existing PV connections are untouched.
       security:
         cephx:
+          csi:
+            keyType: aes
           daemon:
             keyRotationPolicy: KeyGeneration
             keyGeneration: 2
