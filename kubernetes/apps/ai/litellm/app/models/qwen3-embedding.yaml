@@ -1,0 +1,22 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/litellm.home-operations.com/litellmmodel_v1alpha1.json
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMModel
+metadata:
+  name: qwen3-embedding
+  namespace: ai
+spec:
+  # Embedding — served by the CPU toolhiveembed pod (Qwen3-Embedding-0.6B,
+  # 8k ctx; ../../../toolhive/gateway/embed/helmrelease.yaml). Long-context
+  # embedder for the VMCP tool optimizer (../../../toolhive/gateway/
+  # virtualmcpserver.yaml): all-minilm below is all-MiniLM-L6-v2, capped at
+  # 512 tokens, which some kubectl tool descriptions exceed. all-minilm
+  # stays the model for memini and LiteLLM's own semantic tool filter.
+  modelName: qwen3-embedding
+  proxyRef: litellm
+  params:
+    model: openai/Qwen3-Embedding-0.6B
+    apiBase: http://toolhiveembed.ai.svc.cluster.local:8080/v1
+    apiKey: toolhive-embed
+  info:
+    mode: embedding

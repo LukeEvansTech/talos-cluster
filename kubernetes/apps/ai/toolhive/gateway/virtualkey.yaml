@@ -11,6 +11,7 @@ spec:
   keyAlias: toolhive-vmcp
   models:
     - all-minilm
+    - qwen3-embedding
   proxyRef: litellm
   secretKey: api-key
   secretName: litellm-key-toolhive

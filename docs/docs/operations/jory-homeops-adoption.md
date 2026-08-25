@@ -245,7 +245,12 @@ speculative decoding, HF-token ExternalSecret.
 Skipped with reasons: openclaw + hermes-parallel runtimes as *always-on personas* (hermes is
 being adopted deliberately instead), comfyui + miso-gallery + comfyui-mcp (AMD ROCm hardware),
 llama-strix / llama-ryzen / llama-vision serving (AMD/Vulkan + DRA on hardware we lack),
-toolhive-embed (redundant with all-minilm), memory-mcp (fragments memini), litellm
-HA/public/OIDC/ChatGPT deltas (his conventions, not ours), `.agents` foreman + pr-review
-instructions (document infrastructure we don't run; our sorting + add-app files verified
-better than his), dispatch (pointless without foreman; revisit only together).
+memory-mcp (fragments memini), litellm HA/public/OIDC/ChatGPT deltas (his conventions, not
+ours), `.agents` foreman + pr-review instructions (document infrastructure we don't run; our
+sorting + add-app files verified better than his), dispatch (pointless without foreman; revisit
+only together).
+
+`toolhive-embed (redundant with all-minilm)` above no longer holds: the VMCP tool optimizer's
+`all-minilm` embeddings failed on kubectl tool descriptions over MiniLM's 512-token limit, so a
+CPU `qwen3-embedding` server (`toolhive/gateway/embed/`) was adopted after all — see
+`docs/docs/architecture/ai-llm-stack.md` § "MCP gateway (VirtualMCPServer)" (#this PR).
