@@ -57,12 +57,22 @@ one** or the trigger you bump gets reverted on the next reconcile:
 
 ```console
 $ flux suspend ks <app> -n flux-system
+$ TRIGGER="restore-$(date +%s)"
 $ kubectl patch replicationdestination <app>-nfs-dst -n <ns> --type=merge \
-    -p "{\"spec\":{\"trigger\":{\"manual\":\"restore-$(date +%s)\"}}}"
+    -p "{\"spec\":{\"trigger\":{\"manual\":\"$TRIGGER\"}}}"
 ```
 
-Watch for `status.latestImage`, then recreate the app's PVC from it and
-`flux resume ks <app> -n flux-system`.
+`status.latestImage` is already populated from the destination's original creation-time
+`restore-once` run, so its mere presence proves nothing — watching for it to just be *set* can
+recreate the PVC from a stale, pre-existing image while the new restore is still running. Wait for
+`status.lastManualSync` to equal `$TRIGGER` (VolSync only updates it once the requested sync
+completes) before recreating the app's PVC from `status.latestImage` and running
+`flux resume ks <app> -n flux-system`:
+
+```console
+$ kubectl get replicationdestination <app>-nfs-dst -n <ns> \
+    -o jsonpath='{.status.lastManualSync}'
+```
 
 Destinations were frozen at their creation-time values until 2026-08-22 — see
 [KB-031](../troubleshooting/kb/031-volsync-restore-destinations-never-updated.md) for what that
