@@ -68,7 +68,7 @@ spec:
               HF_HUB_ENABLE_HF_TRANSFER: "1"
             resources:
               requests:
-                cpu: "4"
+                cpu: 250m
                 memory: 512Mi
               limits:
                 memory: 2Gi
@@ -131,10 +131,14 @@ spec:
               - --mmap
             resources:
               requests:
-                cpu: 250m
-                memory: 1Gi
+                cpu: "4"
+                memory: 2Gi
               limits:
-                memory: 3Gi
+                # llama-server RSS grows ~2Gi transiently while it works through
+                # the optimizer ~540-input batch (measured 2026-08-25 with prompt
+                # caching off) and returns to ~1Gi afterwards; 3Gi OOM-killed it
+                # mid-batch three times. Nodes have ~190Gi allocatable.
+                memory: 6Gi
             probes:
               liveness: &probe
                 enabled: true
