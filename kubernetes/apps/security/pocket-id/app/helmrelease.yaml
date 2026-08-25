@@ -83,8 +83,12 @@ spec:
               SESSION_DURATION: "43800"
               TRUST_PROXY: "true"
               UPLOAD_PATH: /app/data/uploads
-              # TODO: Enable when MaxMind is configured
-              # GEOLITE_DB_PATH: /app/data/GeoLite2-City.mmdb
+              # GeoLite2-City is a cache of a public artifact, not state:
+              # pocket-id downloads it on start when missing and refreshes it
+              # every 14 days (temp file + rename in the same directory). Keep
+              # it on the geolite emptyDir below rather than the default
+              # data/GeoLite2-City.mmdb, which sits on the VolSync-backed PVC.
+              GEOLITE_DB_PATH: /app/geolite/GeoLite2-City.mmdb
             envFrom: *envFrom
             probes:
               liveness: &probes
@@ -148,3 +152,11 @@ spec:
             app:
               - path: /tmp
                 subPath: tmp
+      geolite:
+        # ~60 MiB mmdb plus its in-flight replacement during a refresh.
+        type: emptyDir
+        sizeLimit: 256Mi
+        advancedMounts:
+          pocket-id:
+            app:
+              - path: /app/geolite
