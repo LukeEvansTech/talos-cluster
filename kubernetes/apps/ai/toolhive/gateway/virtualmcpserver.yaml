@@ -17,10 +17,23 @@ spec:
     # With 9 backends the raw tool list is too large for most client context
     # windows. The optimizer exposes only find_tool/call_tool to clients and
     # resolves the right backend tool semantically via embeddings, instead of
-    # advertising every tool up front. Reuses LiteLLM's existing all-minilm
-    # embedding model rather than standing up a dedicated embedder.
+    # advertising every tool up front.
+    #
+    # Uses qwen3-embedding (Qwen3-Embedding-0.6B, 8k context; served by the
+    # dedicated CPU toolhiveembed pod, ../embed/helmrelease.yaml) rather than
+    # LiteLLM's existing all-minilm model. all-minilm is all-MiniLM-L6-v2, a
+    # BERT model with a hard 512-token absolute-position limit, and some
+    # kubectl tool descriptions exceed it — the optimizer previously
+    # terminated every VMCP session with an OpenAI 400 "input larger than max
+    # context size" error trying to embed them. all-minilm stays in place for
+    # memini and LiteLLM's own semantic tool filter
+    # (../../litellm/app/litellmproxy.yaml `mcp_semantic_tool_filter`),
+    # neither of which hits that limit. Mirrors Jory's dedicated
+    # toolhive-embed llama.cpp server
+    # (docs/docs/operations/jory-homeops-adoption.md), but on CPU since the
+    # cluster's GPUs are already spoken for.
     optimizer:
-      embeddingModel: all-minilm
+      embeddingModel: qwen3-embedding
       embeddingProvider: openai
       embeddingService: http://litellm.ai.svc.cluster.local:4000/v1
       embeddingServiceTimeout: 60s
@@ -39,7 +52,7 @@ spec:
       containers:
         - name: vmcp
           env:
-            # LiteLLM virtual key scoped to the all-minilm model only (see
+            # LiteLLM virtual key scoped to all-minilm + qwen3-embedding (see
             # ../gateway/virtualkey.yaml); read by the optimizer's OpenAI-
             # compatible embedding client.
             - name: OPENAI_API_KEY

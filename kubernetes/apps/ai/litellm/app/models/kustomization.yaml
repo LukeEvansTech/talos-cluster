@@ -5,6 +5,7 @@ kind: Kustomization
 resources:
   - ./all-minilm.yaml
   - ./openrouter-auto.yaml
+  - ./qwen3-embedding.yaml
   - ./self-hosted-uncensored.yaml
   - ./self-hosted.yaml
 
