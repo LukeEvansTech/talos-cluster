@@ -152,8 +152,9 @@ disagrees with research snapshots on ports).
 Proposed defaults, changeable later; see the decision checklist below for the open ones:
 no chat platforms at first boot; MCP wired directly per ToolHive proxy; `approvals.mode:
 manual` (hermes gets kubectl/flux/talos tools and a local terminal, the Pod is the only
-boundary, so no unattended cluster actions until it has earned trust); reuse
-`LITELLM_MASTER_KEY` (open-webui precedent) with a scoped virtual key as later hardening;
+boundary, so no unattended cluster actions until it has earned trust); a scoped LiteLLM
+virtual key from the start, matching the operator-issued `LiteLLMVirtualKey` pattern
+open-webui and memini already use, rather than reusing the master key;
 `MEMINI_NAMESPACE: hermes`.
 
 ### PR F: (optional) CPU-served auxiliary model

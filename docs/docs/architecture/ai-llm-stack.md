@@ -36,8 +36,10 @@ pod), one file per model under `kubernetes/apps/ai/llmkube/models/`.
 The model is **Qwen3.8-27B Heretic-abliterated** (0bserverx RVN Q4_K_S, MTP head retained):
 picked as the closest-to-vanilla uncensored build (KL ~0.0085 vs base, refusals 0–1/100,
 official chat template). Its hybrid Gated-DeltaNet layout keeps KV at ~32KB/token (q8_0), so
-one 24GB L4 serves 128k of context (2 slots × 64k per request) alongside the weights and the
-vision projector — no YaRN, no `--override-kv`.
+one 24GB L4 serves 128k of context across 2 slots alongside the weights and the vision
+projector — no YaRN, no `--override-kv`. `--kv-unified` (#4579) pools that context rather than
+splitting it statically, so one request may use the whole 128k window while the other slot is
+idle, instead of a fixed 64k-per-slot cap.
 
 Weight files are declared as `hf://` URIs pointing to single-file public GGUFs on Hugging Face.
 llmkube downloads and caches them on the shared CephFS RWX `modelCache` PVC (`ceph-filesystem`
@@ -167,18 +169,19 @@ the master key for any workstation client: it's revocable on its own.
 
 opencode's agent sends **~41k tokens before any user input**: its system prompt plus built-in tool
 schemas (measured; LiteLLM is not injecting MCP tools, a plain request is ~18 tokens and one with a
-tool is ~130). Qwen3.8-27B's 262k native context makes this a non-issue: both groups serve **64k
-per request** (`contextSize 131072 ÷ 2 parallelSlots` in `llmkube/models/qwen3.8-27b.yaml`), no
-YaRN, no `--override-kv`. Either group hosts opencode; use `self-hosted-uncensored` if a cloud
-fallback mid-session would be unwelcome.
+tool is ~130). Qwen3.8-27B's 262k native context makes this a non-issue: `--kv-unified` (#4579)
+lets **one request use the full 131072-token window** (`contextSize` in
+`llmkube/models/qwen3.8-27b.yaml`) while the other of the 2 `parallelSlots` sits idle, rather than
+splitting it into a static 64k-per-slot cap. Either group hosts opencode; use
+`self-hosted-uncensored` if a cloud fallback mid-session would be unwelcome.
 
 The YaRN + `--override-kv` workaround the previous Qwen3-30B-A3B uncensored model needed (the
 pinned server hard-capped slots to the trained context even with correct YaRN args,
 [llama.cpp#22140](https://github.com/ggml-org/llama.cpp/issues/22140)) is retired with it. The
 verification habit it taught still stands: a `Ready` phase and a clean `kustomize build` do
 **not** prove the served window — confirm with `/props`
-(`.default_generation_settings.n_ctx == 65536`, the per-slot share of `contextSize 131072`)
-after any context change.
+(`.default_generation_settings.n_ctx == 131072`, the full unified `contextSize`, not a per-slot
+share) after any context change.
 
 ## MCP tools (ToolHive)
 
@@ -281,9 +284,9 @@ Both run on **CPU** (`ghcr.io/ggml-org/llama.cpp:server`, GPU/Vulkan bits stripp
 spoken for by llmkube, and these models are small (~30 MB / ~600 MB). memini's consolidation LLM is
 LiteLLM's `self-hosted` group.
 
-Secrets: a generated `MEMINI_API_KEY` (Talos vault item `memini`) + `LITELLM_MASTER_KEY` (reused
-from the `litellm` item). Data PVC via the volsync component (10Gi). Route:
-`memini.${SECRET_DOMAIN}` (envoy-internal).
+Secrets: a generated `MEMINI_API_KEY` (Talos vault item `memini`) + a scoped `LiteLLMVirtualKey`
+(`litellm-key-memini`, see `memini/app/virtualkey.yaml`) rather than the master key. Data PVC via
+the volsync component (10Gi). Route: `memini.${SECRET_DOMAIN}` (envoy-internal).
 
 To move embeddings onto the GPU later, swap `llama-embed`/`llama-rerank` for llmkube
 `InferenceService`s and repoint `MEMINI_EMBED_BASE_URL` / `MEMINI_RERANK`.

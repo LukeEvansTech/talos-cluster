@@ -6,11 +6,23 @@
 # our in-cluster automation callers (mcp-searxng, open-webui RAG) and LAN
 # clients through unthrottled if it is ever enabled.
 
-[real_ip]
-# Number of values to trust from X-Forwarded-For (one hop: Envoy Gateway).
-x_for = 1
+[botdetection]
+# Number of leading bits compared to bucket a client address into a network
+# for rate-limiting. Formerly [real_ip].ipv4_prefix / ipv6_prefix — SearXNG
+# 2026.8 moved both under [botdetection] (searx/limiter.toml upstream schema
+# at the tag this instance runs, 2026.8.22-9fea41204).
 ipv4_prefix = 32
 ipv6_prefix = 48
+# X-Forwarded-For / X-Real-IP are only trusted when the connecting peer is in
+# one of these networks. Formerly [real_ip].x_for, a hop count (we set 1 for
+# the single Envoy Gateway hop); SearXNG 2026.8 replaced the hop count with an
+# explicit proxy allowlist and does not auto-migrate the value (only the
+# prefix keys carry over — see searx/compat.py's LIMITER_CFG_DEPRECATED).
+# Envoy Gateway is the only hop in front of this instance and lives in the
+# same in-cluster range as pass_ip below.
+trusted_proxies = [
+  '10.0.0.0/8', # RFC1918 private range in use by this cluster (Envoy Gateway)
+]
 
 [botdetection.ip_limit]
 # Link-local networks are never rate-limited.
