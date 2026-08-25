@@ -1,0 +1,12 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/litellm.home-operations.com/litellmmcpserver_v1alpha1.json
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMMCPServer
+metadata:
+  name: hamcp
+  namespace: ai
+spec:
+  # Home Assistant tools (ha-mcp in ha-mcp-web mode). Native streamable-http
+  # container like seerr, so the Service is mcp-hamcp:8080 directly.
+  proxyRef: litellm
+  url: http://mcp-hamcp.ai.svc.cluster.local:8080/mcp

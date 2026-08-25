@@ -1,0 +1,72 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ./all-minilm.yaml
+  - ./openrouter-auto.yaml
+  - ./self-hosted-uncensored.yaml
+  - ./self-hosted.yaml
+
+# ------------------------------------------------------------------
+# Optional cloud providers (Jory's set), kept here as reference since they
+# had no home in the CR-based layout. To enable one: add its key to the
+# `litellm` 1Password item, add the matching line to externalsecret.yaml's
+# template, then add a LiteLLMModel CR under this directory (proxyRef: litellm)
+# shaped like:
+#
+# apiVersion: litellm.home-operations.com/v1alpha1
+# kind: LiteLLMModel
+# metadata:
+#   name: kimi-k2                               # Moonshot
+#   namespace: ai
+# spec:
+#   modelName: kimi-k2
+#   proxyRef: litellm
+#   params:
+#     model: moonshot/kimi-k2
+#     apiBase: https://api.moonshot.ai/v1
+#     apiKey: os.environ/MOONSHOT_API_KEY
+#   info:
+#     mode: chat
+#     supportsFunctionCalling: true
+# ---
+# apiVersion: litellm.home-operations.com/v1alpha1
+# kind: LiteLLMModel
+# metadata:
+#   name: minimax                                # MiniMax (Anthropic-format)
+#   namespace: ai
+# spec:
+#   modelName: MiniMax
+#   proxyRef: litellm
+#   params:
+#     model: minimax/MiniMax-M2
+#     apiBase: https://api.minimax.io/anthropic/v1/messages
+#     apiKey: os.environ/MINIMAX_API_KEY
+#     additional:
+#       cache_control_injection_points:
+#         - {location: message, role: system}
+#         - {location: message, index: -1}
+#   info:
+#     mode: messages
+#     supportsFunctionCalling: true
+#     supportsVision: true
+# ---
+# apiVersion: litellm.home-operations.com/v1alpha1
+# kind: LiteLLMModel
+# metadata:
+#   name: zen-glm                                # OpenCode "zen" (one key, many models)
+#   namespace: ai
+# spec:
+#   modelName: zen/glm
+#   proxyRef: litellm
+#   params:
+#     model: openai/glm-4.6
+#     apiBase: https://opencode.ai/zen/go/v1
+#     apiKey: os.environ/OPENCODE_API_KEY
+#   info:
+#     mode: chat
+#     supportsFunctionCalling: true
+#
+# Disabled by default so a missing key can't fail the deploy.
+# ------------------------------------------------------------------

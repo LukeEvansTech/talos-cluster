@@ -1,0 +1,17 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/litellm.home-operations.com/litellmmodel_v1alpha1.json
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMModel
+metadata:
+  name: openrouter-auto
+  namespace: ai
+spec:
+  # Cloud fallback for the self-hosted group (see litellmproxy.yaml
+  # routerSettings.fallbacks).
+  modelName: openrouter/auto
+  proxyRef: litellm
+  params:
+    model: openrouter/openrouter/auto
+    apiKey: os.environ/OPENROUTER_API_KEY
+  info:
+    mode: chat
