@@ -124,7 +124,11 @@ spec:
     - operator: Exists
   containers:
     - name: fix
-      image: python:3.13-alpine
+      # Pinned by digest (this doc block is outside Renovate's manifest-only digest-pinning
+      # coverage) — this is a privileged pod with efivarfs mounted read-write, so a moved
+      # tag pulling different bytes at run time is a real risk here. Re-pin by hand if a
+      # newer base is ever needed: `docker buildx imagetools inspect python:3.13-alpine`.
+      image: python:3.13-alpine@sha256:540c7d91f98ff6880174c40e99067bf5941eb54d818a7a5e094d188b196a934d
       securityContext:
         privileged: true
       command:
