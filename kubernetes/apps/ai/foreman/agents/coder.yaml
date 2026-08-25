@@ -50,7 +50,7 @@ spec:
         cpu: "4"
         memory: 8Gi
     activeDeadlineSeconds: 43200
-    image: ghcr.io/defilantech/llmkube-foreman-agent-coder:0.9.20
+    image: ghcr.io/defilantech/llmkube-foreman-agent-coder:0.9.20@sha256:248060f5cb8ef8ad42d87c4decc0a5adf6628230a7d8f7f91f75f9e4d4b05419
     mode: Job
     serviceAccountName: foreman-coder
   requiredCapability:
