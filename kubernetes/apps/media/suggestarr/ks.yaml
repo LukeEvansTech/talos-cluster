@@ -12,6 +12,9 @@ spec:
   components:
     - ../../../../components/homepage
     - ../../../../components/volsync
+  dependsOn:
+    - name: onepassword-connect
+      namespace: external-secrets
   interval: 1h
   path: ./kubernetes/apps/media/suggestarr/app
   postBuild:
