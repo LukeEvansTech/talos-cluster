@@ -36,7 +36,10 @@ spec:
       embeddingModel: qwen3-embedding
       embeddingProvider: openai
       embeddingService: http://litellm.ai.svc.cluster.local:4000/v1
-      embeddingServiceTimeout: 60s
+      # A fresh session embeds every tool description through the CPU embedder;
+      # measured ~2 min for the full set, so 60s (Jory's GPU-sized value) timed
+      # out and stacked retries. 600s leaves headroom without hiding a real hang.
+      embeddingServiceTimeout: 600s
   groupRef:
     name: mcp-tools
   # No client-facing auth at the vmcp layer itself: the Envoy Gateway
