@@ -126,7 +126,10 @@ spec:
             {"expr": "idrac_cpu_info{job=~\"bmc-exporter.*\", instance=\"$host\"}", "format": "table", "instant": true, "refId": "C"},
             {"expr": "idrac_manager_info{job=~\"bmc-exporter.*\", instance=\"$host\"}", "format": "table", "instant": true, "refId": "D"}
           ],
-          "transformations": [{"id": "organize", "options": {"excludeByName": {"Time": true, "Value": true, "__name__": true, "job": true, "instance": true}}}],
+          "transformations": [
+            {"id": "merge", "options": {}},
+            {"id": "organize", "options": {"excludeByName": {"Time": true, "Value": true, "__name__": true, "job": true, "instance": true}}}
+          ],
           "options": {"showHeader": true}
         },
         {"collapsed": false, "gridPos": {"h": 1, "w": 24, "x": 0, "y": 11}, "id": 101, "panels": [], "title": "Thermal and fans", "type": "row"},
