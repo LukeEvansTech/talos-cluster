@@ -112,6 +112,16 @@ spec:
               - "2048"
               - --threads
               - "4"
+              # llama-server keeps a RAM prompt cache (--cache-ram, default 8192
+              # MiB) of every processed sequence's KV so later prompts sharing a
+              # prefix can reuse it. Embedding inputs never share prefixes, so the
+              # cache only grows: the pod was OOM-killed at 3Gi after ~180
+              # tool-description inputs from the VMCP optimizer (2026-08-25).
+              # Disable prompt caching entirely (both flags verified in this
+              # image's --help).
+              - --cache-ram
+              - "0"
+              - --no-cache-prompt
               - --metrics
               - --mmap
             resources:
