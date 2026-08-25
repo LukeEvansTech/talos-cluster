@@ -31,8 +31,22 @@ spec:
               MEMINI_EMBED_BASE_URL: http://llama-embed.ai.svc.cluster.local:8080/v1
               MEMINI_EMBED_MODEL: sentence-transformers/all-MiniLM-L6-v2
               MEMINI_EMBED_DIMS: "384"
+              # Cap in-flight calls to the single-replica CPU embed backend so a
+              # recall burst can't queue behind it; bound the recall-path embed
+              # call so a stuck backend degrades to keyword-only search instead
+              # of hanging recall.
+              MEMINI_EMBED_MAX_CONCURRENCY: 2
+              MEMINI_RECALL_EMBED_TIMEOUT: 5s
+              # Re-embed the store automatically on an embed-model swap instead
+              # of refusing to start.
+              MEMINI_REEMBED_ON_MODEL_CHANGE: true
               MEMINI_RERANK: http://llama-rerank.ai.svc.cluster.local:8080/v1
               MEMINI_RERANK_MODEL: qwen3-reranker
+              MEMINI_RERANK_MAX_CONCURRENCY: 2
+              MEMINI_RERANK_TIMEOUT: 12s
+              # Widen the reranked candidate pool past the recall limit so the
+              # cross-encoder can promote a result the fused score buried below it.
+              MEMINI_RERANK_POOL: "8"
               # Consolidation LLM via LiteLLM's self-hosted group (-> llmkube/llama.cpp).
               MEMINI_LLM_BASE_URL: http://litellm.ai.svc.cluster.local:4000
               MEMINI_LLM_MODEL: self-hosted
@@ -41,11 +55,33 @@ spec:
                   secretKeyRef:
                     name: memini
                     key: llm-api-key
+              # Coalesce a near-duplicate write into its nearest same-tier memory
+              # instead of just hinting, and keep the periodic dedup pass +
+              # short-term cap tuned to match.
+              MEMINI_WRITE_DEDUP_SCORE: "0.80"
+              MEMINI_WRITE_DEDUP_ACTION: coalesce
+              MEMINI_DEDUP_TIERS: episodic
+              MEMINI_DEDUP_SIMILARITY: "0.80"
+              MEMINI_SHORT_TERM_CAP: "300"
+              MEMINI_ASSESS_BATCH: "5"
               MEMINI_API_KEY:
                 valueFrom:
                   secretKeyRef:
                     name: memini
                     key: api-key
+            probes:
+              startup:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /healthz
+                    port: 8080
+                  initialDelaySeconds: 10
+                  periodSeconds: 10
+                  # ~30 minutes: MEMINI_REEMBED_ON_MODEL_CHANGE re-embeds the whole
+                  # store synchronously at startup, one embed call per memory.
+                  failureThreshold: 180
             resources:
               requests:
                 cpu: 25m
