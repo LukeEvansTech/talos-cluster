@@ -20,17 +20,47 @@ spec:
           annotations:
             description: GPU {{ $labels.gpu }} on {{ $labels.hostname }} memory usage is above 90%.
             summary: GPU memory usage is critically high.
-          # Exclude the card running an llmkube InferenceService: llama.cpp holds
-          # its weights + KV cache resident by design, idling at ~90% and peaking
-          # higher during prompt processing, so this alert flapped on every
-          # request (fire >90% for 5m, resolve when idle, repeat). DCGM
-          # attributes the series to the GPU's occupant via exported_container
-          # ("llama-server" for every llmkube runtime pod, whatever the model).
-          # That card's real failure mode — CUDA OOM killing the server — is
-          # covered by InferenceServiceDown and pod restart alerting instead.
+          # Exclude the GPU node running an llmkube InferenceService: llama.cpp
+          # holds its weights + KV cache resident by design, sitting at ~92% of
+          # the card whether or not a request is in flight. That card's real
+          # failure mode — CUDA OOM killing the server — is covered by
+          # InferenceServiceDown and pod restart alerting instead.
+          #
+          # Excluding by exported_container!="llama-server" does NOT work, and
+          # only looked like it did while the runtime pod was the card's sole
+          # GPU tenant. The card is time-sliced, so DCGM attributes its total
+          # FB_USED to exactly ONE co-tenant pod at a time, and alternates:
+          # over 24h the same 20.7GiB was stamped with the runtime pod for
+          # 96/288 samples and with an unrelated transcoder pod for the other
+          # 192/288 — mutually exclusive, never concurrent. So when the alert
+          # fires, nothing in the series identifies the real owner, and no
+          # label matcher on the metric itself can tell them apart.
+          #
+          # Excluding by node is therefore the only correct scope. The node is
+          # derived from the llmkube runtime pod label rather than named here,
+          # so it follows the InferenceService if that is renamed or moved;
+          # the 1h max_over_time keeps the exclusion asserted across a runtime
+          # pod restart, which would otherwise re-open the flap. Every other GPU
+          # node still alerts normally — verified live: 3 series before, the
+          # 2 non-inference nodes after.
           expr: |-
-            DCGM_FI_DEV_FB_USED{exported_container!="llama-server"}
-              / (DCGM_FI_DEV_FB_USED{exported_container!="llama-server"} + DCGM_FI_DEV_FB_FREE{exported_container!="llama-server"}) > 0.9
+            (
+              DCGM_FI_DEV_FB_USED
+                / (DCGM_FI_DEV_FB_USED + DCGM_FI_DEV_FB_FREE) > 0.9
+            )
+            unless on (hostname)
+            label_replace(
+              max by (node) (
+                max_over_time(kube_pod_info[1h])
+                  and on (namespace, pod)
+                max_over_time(
+                  kube_pod_labels{
+                    label_inference_llmkube_dev_runtime="llamacpp"
+                  }[1h]
+                )
+              ),
+              "hostname", "$1", "node", "(.+)"
+            )
           for: 5m
           labels:
             severity: warning
