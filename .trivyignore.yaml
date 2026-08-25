@@ -8,6 +8,7 @@ misconfigurations:
       - "kubernetes/apps/infrastructure/certwarden/cert-deployment/apc/scripts-configmap.yaml"
       - "kubernetes/apps/infrastructure/certwarden/cert-deployment/onyx/scripts-configmap.yaml"
       - "kubernetes/apps/infrastructure/certwarden/cert-deployment/supermicro/scripts-configmap.yaml"
+      - "kubernetes/apps/ai/repowiki/app/configmap.yaml"
     statement: |
       False positive. oxidized/configmap.yaml: the YAML schema requires
       top-level 'username' and 'password' keys; the values here are literal
@@ -21,6 +22,11 @@ misconfigurations:
       or `kubectl get secret`); the literal strings Trivy matches
       (`export APC_PASSWORD`, `export ONYX_PASSWORD`, `self.password`,
       `password`) are variable / parameter NAMES inside the script, not values.
+      repowiki/app/configmap.yaml: the embedded generate.py reads
+      GITHUB_TOKEN and OPENAI_API_KEY from os.environ at runtime (populated
+      from repowiki-secret / litellm-key-repowiki via the HelmRelease env),
+      not from the ConfigMap. `TOKEN` and `KEY` are Python variable names
+      assigned from those env lookups, not secret values.
 
   - id: KSV-01010
     paths:
@@ -28,6 +34,7 @@ misconfigurations:
       - "kubernetes/apps/infrastructure/certwarden/cert-deployment/apc/scripts-configmap.yaml"
       - "kubernetes/apps/infrastructure/certwarden/cert-deployment/onyx/scripts-configmap.yaml"
       - "kubernetes/apps/infrastructure/certwarden/cert-deployment/supermicro/scripts-configmap.yaml"
+      - "kubernetes/apps/ai/repowiki/app/configmap.yaml"
     statement: |-
       False positive. oxidized/configmap.yaml: flagged keys (username, email,
       remote_repo) are config field names, not sensitive content. The git
@@ -38,6 +45,10 @@ misconfigurations:
       `export APC_USERNAME`, `export ONYX_USERNAME`, `self.username`,
       `username`) are variable / parameter names inside embedded deploy
       scripts, not actual usernames.
+      repowiki/app/configmap.yaml: the flagged line is
+      `-c "user.email=repowiki@${SECRET_DOMAIN}"` in generate.py's git
+      commit call — a generated bot commit-author email (substituted by Flux
+      from the public SECRET_DOMAIN placeholder), not sensitive content.
 
   - id: KSV-0046
     paths:
