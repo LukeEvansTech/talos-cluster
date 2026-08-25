@@ -46,6 +46,10 @@ spec:
               tag: 2.1.0@sha256:0825937c93cf0eeabd4ef120dd5cd8d127ed4f7eed0049f94a45735f33265787
             env:
               TZ: ${TIMEZONE}
+              # 2.x warms every poster into /app/data/image-cache after each sync
+              # (default cap 3072 MB). The cache lives on the PVC below, which is
+              # 5Gi, so keep the cap under it.
+              IMAGE_CACHE_MAX_MB: "2048"
             envFrom:
               - secretRef:
                   name: tracearr-secret
@@ -112,3 +116,8 @@ spec:
         existingClaim: "{{ .Release.Name }}"
         globalMounts:
           - path: /data
+          # The poster cache is written relative to the app's cwd (/app), not
+          # /data, so without this it sat on the container overlay (2.6 GB,
+          # ~200k files) and re-warmed from scratch on every restart.
+          - path: /app/data/image-cache
+            subPath: image-cache
