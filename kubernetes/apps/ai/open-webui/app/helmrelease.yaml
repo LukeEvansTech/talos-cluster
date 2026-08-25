@@ -44,14 +44,50 @@ spec:
               - name: OPENAI_API_KEY
                 valueFrom:
                   secretKeyRef:
+                    name: litellm-key-open-webui
+                    key: api-key
+              # Web search (RAG citations from live search results), backed by the
+              # in-cluster SearXNG instance's JSON API. v0.11.0 renamed these from
+              # RAG_WEB_SEARCH_* / ENABLE_RAG_WEB_SEARCH to WEB_SEARCH_* / ENABLE_WEB_SEARCH
+              # (backend/open_webui/config.py:1129,1138,1147,1164,1185) — the old names are
+              # not read by this version.
+              - name: ENABLE_WEB_SEARCH
+                value: "true"
+              - name: WEB_SEARCH_ENGINE
+                value: searxng
+              - name: SEARXNG_QUERY_URL
+                value: http://searxng.default.svc.cluster.local:8080/search?q=<query>
+              - name: WEB_SEARCH_RESULT_COUNT
+                value: "5"
+              - name: WEB_SEARCH_CONCURRENT_REQUESTS
+                value: "5"
+              # RAG embeddings (web search + file upload) route through LiteLLM's
+              # OpenAI-compatible endpoint on the all-minilm model
+              # (backend/open_webui/config.py:984,990,1080-1081).
+              - name: RAG_EMBEDDING_ENGINE
+                value: openai
+              - name: RAG_EMBEDDING_MODEL
+                value: all-minilm
+              - name: RAG_OPENAI_API_BASE_URL
+                value: http://litellm.ai.svc.cluster.local:4000/v1
+              - name: RAG_OPENAI_API_KEY
+                valueFrom:
+                  secretKeyRef:
+                    name: litellm-key-open-webui
+                    key: api-key
+              # Socket.IO state moves off the single pod's memory onto the shared
+              # Dragonfly instance, so websocket sessions/events survive the
+              # Recreate rollout described above instead of dropping on every deploy
+              # (backend/open_webui/env.py:450,453,470).
+              - name: ENABLE_WEBSOCKET_SUPPORT
+                value: "true"
+              - name: WEBSOCKET_MANAGER
+                value: redis
+              - name: WEBSOCKET_REDIS_URL
+                valueFrom:
+                  secretKeyRef:
                     name: open-webui-secret
-                    key: LITELLM_MASTER_KEY
-              - name: ENABLE_RAG_WEB_SEARCH
-                value: false
-                # - name: RAG_WEB_SEARCH_ENGINE
-                #   value: searxng
-                # - name: SEARXNG_QUERY_URL
-                #   value: http://searxng.default.svc.cluster.local:8080/search?q=<query>
+                    key: WEBSOCKET_REDIS_URL
             resources:
               requests:
                 cpu: 500m
