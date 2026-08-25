@@ -253,4 +253,4 @@ only together).
 `toolhive-embed (redundant with all-minilm)` above no longer holds: the VMCP tool optimizer's
 `all-minilm` embeddings failed on kubectl tool descriptions over MiniLM's 512-token limit, so a
 CPU `qwen3-embedding` server (`toolhive/gateway/embed/`) was adopted after all — see
-`docs/docs/architecture/ai-llm-stack.md` § "MCP gateway (VirtualMCPServer)" (#this PR).
+`docs/docs/architecture/ai-llm-stack.md` § "MCP gateway (VirtualMCPServer)" (#4595).
