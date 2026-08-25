@@ -52,7 +52,7 @@ multimodal projector alongside the main GGUF. This is the model that `loupe` (im
 consumes via LiteLLM.
 
 To add a model: drop a `Model` + `InferenceService` manifest under `llmkube/models/`, add a
-`model_list` entry to `litellm/app/configmap.yaml`, and commit. Flux reconciles both.
+`LiteLLMModel` CR under `litellm/app/models/`, and commit. Flux reconciles both.
 
 ### Model groups
 
@@ -94,22 +94,38 @@ All three consume:
 5. **Ollama decommission**: Ollama removed; contracthound/subspy/loupe repointed to LiteLLM.
 
 Each layer is a separate commit on one branch (one PR). `mcp_servers` and
-`mcp_semantic_tool_filter` are now fully active in `litellm/app/configmap.yaml`, and one cloud
-provider is live: `openrouter/auto` is an active `model_list` entry serving as the `self-hosted`
-group's fallback. The remaining cloud-provider stubs are still commented out.
+`mcp_semantic_tool_filter` are now fully active (rendered by litellm-operator from the
+`LiteLLMMCPServer` CRs and `litellmSettings` in `litellm/app/litellmproxy.yaml`), and one cloud
+provider is live: `openrouter/auto` is an active `LiteLLMModel` serving as the `self-hosted`
+group's fallback. The remaining cloud-provider stubs are commented reference in
+`litellm/app/models/kustomization.yaml`.
 
 > Since ported from Jory's repository: `hermes` (plus a `hermeswebui` chat frontend). Still not
 > ported: `openclaw` (agent runtime) and `agentmemory` (memini covers agent memory here).
 
 ## How to extend LiteLLM
 
-- **Add a backend to a group**: add a `model_list` entry with an existing `model_name` and the
-  next `order:`. LiteLLM balances / fails over within the group.
+The gateway is `litellm-operator`-managed: a `LiteLLMProxy` CR (`litellm/app/litellmproxy.yaml`,
+`applyMode: file`) plus `LiteLLMModel` and `LiteLLMMCPServer` CRs the operator adopts via
+`proxyRef: litellm` and renders into `config.yaml`, rolling the Deployment on change. There is no
+`litellm/app/configmap.yaml` any more — `store_model_in_db: false` in the proxy's
+`generalSettings`, so the rendered CRs (not the Postgres-backed admin UI) are the model source of
+truth.
+
+- **Add a backend to a group**: add a `LiteLLMModel` CR under `litellm/app/models/` with an
+  existing `spec.modelName` and the next `params.additional.order`. LiteLLM balances / fails over
+  within the group.
 - **Add a cloud provider**: add the key to the `litellm` 1Password item, add a line to
-  `externalsecret.yaml`'s `target.template.data`, then uncomment the matching stub in
-  `configmap.yaml`. Don't reference an `os.environ/KEY` that isn't in the secret. The pod env read
-  fails at startup.
-- **Fallbacks**: `router_settings.fallbacks` is a list of `{model_name: [fallback, …]}`.
+  `externalsecret.yaml`'s `target.template.data`, then add a `LiteLLMModel` CR under
+  `litellm/app/models/` (commented examples for Jory's set live in that directory's
+  `kustomization.yaml`). Don't reference an `os.environ/KEY` that isn't in the secret. The pod env
+  read fails at startup.
+- **Fallbacks**: `litellmproxy.yaml`'s `routerSettings.fallbacks` is a list of
+  `{model_name: [fallback, …]}`.
+- **A consumer's scoped key**: add a `LiteLLMVirtualKey` CR in the consumer's own app directory
+  (`proxyRef: litellm`, `secretName: litellm-key-<app>`, `secretKey: api-key`) rather than handing
+  out the master key. The operator creates the key via the proxy's admin API and writes it to that
+  Secret; consume it with a `secretKeyRef`.
 
 ## Consuming the stack from a workstation (opencode)
 
@@ -261,8 +277,10 @@ To move embeddings onto the GPU later, swap `llama-embed`/`llama-rerank` for llm
 - **CephFS dependency**: llmkube's shared `modelCache` PVC requires `ceph-filesystem` (RWX).
   Without it, multi-replica `InferenceService` pods fail to schedule (only one pod can hold an RWO
   volume at a time). The `ceph-filesystem` storage class is provisioned by Rook-Ceph.
-- **ConfigMap reloads**: the `litellm` controller is annotated `reloader.stakater.com/auto`, so
-  Stakater Reloader restarts it automatically when the configmap changes.
+- **Config changes roll the pod automatically**: litellm-operator hashes the rendered
+  `config.yaml` into a `litellm.home-operations.com/config-hash` pod annotation, so editing a
+  `LiteLLMModel`/`LiteLLMMCPServer`/`LiteLLMProxy` CR rolls the Deployment on its own — no
+  Reloader annotation or manual restart needed.
 - **Cross-namespace netpol**: `kubernetes/apps/ai/netpol.yaml` allows ingress to the `ai`
   namespace from the `network` namespace (gateway), plus a second `CiliumNetworkPolicy`
   (`allow-litellm-from-consumers`) that grants the `default` and `custom` namespaces ingress to the
@@ -272,8 +290,9 @@ To move embeddings onto the GPU later, swap `llama-embed`/`llama-rerank` for llm
   `reasoning_effort` before a request reaches the llama.cpp backend (treated as unsupported for
   the `openai/` provider entry), which defeats disabling Qwen3.8's thinking mode (verified
   2026-08-25). If a real `UnsupportedParamsError` 400 ever shows up, scope the drop with a
-  per-model `additional_drop_params` on that model entry instead of re-enabling this globally.
+  `params.dropParams` on that model's `LiteLLMModel` CR instead of re-enabling this globally.
   Turning `drop_params` off alone did not forward the param either — LiteLLM's
   `UnsupportedParamsError` check runs independently of it, so the `self-hosted` and
-  `self-hosted-uncensored` entries also list `reasoning_effort` in
-  `litellm_params.allowed_openai_params`, which is the actual forwarding mechanism.
+  `self-hosted-uncensored` `LiteLLMModel` CRs also list `reasoning_effort` in
+  `params.additional.allowed_openai_params` (rendered into `litellm_params.allowed_openai_params`),
+  which is the actual forwarding mechanism.

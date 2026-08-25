@@ -1,0 +1,113 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/litellm.home-operations.com/litellmproxy_v1alpha1.json
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMProxy
+metadata:
+  name: litellm
+  namespace: ai
+spec:
+  applyMode: file
+  image: ghcr.io/berriai/litellm:main-stable@sha256:20b5044b619055374061a6d5b7b08754cad75aeabbf82ddf4f69cc0cf80ddaf4
+  replicas: 1
+  service:
+    port: 4000
+    type: ClusterIP
+  route:
+    hostnames:
+      - "litellm.${SECRET_DOMAIN}"
+    parentRefs:
+      - name: envoy-internal
+        namespace: network
+  env:
+    - name: LITELLM_LOG
+      value: INFO
+    - name: LITELLM_MODE
+      value: PRODUCTION
+    - name: REDIS_HOST
+      value: dragonfly.database.svc.cluster.local
+    - name: REDIS_PORT
+      value: "6379"
+  envFrom:
+    - secretRef:
+        name: litellm-secret
+  livenessProbe:
+    httpGet:
+      path: /health/liveliness
+      port: 4000
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    failureThreshold: 6
+  readinessProbe:
+    httpGet:
+      path: /health/liveliness
+      port: 4000
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    failureThreshold: 6
+  resources:
+    requests:
+      cpu: 100m
+      memory: 512Mi
+    limits:
+      memory: 2Gi
+  routerSettings:
+    redis_host: os.environ/REDIS_HOST
+    redis_port: os.environ/REDIS_PORT
+    redis_password: os.environ/REDIS_PASSWORD
+    routing_strategy: simple-shuffle
+    cooldown_time: 30
+    enable_pre_call_checks: true
+    # If the local model is cooling-down / unhealthy, spill to cloud.
+    fallbacks:
+      - self-hosted:
+          - "openrouter/auto"
+        # No context_window_fallbacks: both aliases resolve to the same backend
+        # with the same 64k-per-request window, so there is no larger local model
+        # to spill into.
+  litellmSettings:
+    success_callback:
+      - "prometheus"
+    failure_callback:
+      - "prometheus"
+    require_auth_for_metrics_endpoint: false
+    cache: true
+    cache_params:
+      type: redis
+      host: os.environ/REDIS_HOST
+      port: os.environ/REDIS_PORT
+      password: os.environ/REDIS_PASSWORD
+      ttl: 300
+    # drop_params is deliberately OFF: with it enabled LiteLLM silently strips
+    # reasoning_effort before it reaches the llama.cpp backend (treated as
+    # unsupported for the openai/ provider entry), which defeats disabling Qwen3.8's
+    # thinking mode (verified 2026-08-25). If a real UnsupportedParamsError 400 ever
+    # shows up, scope the drop with per-model additional_drop_params on that entry
+    # (LiteLLMModel spec.params.dropParams) instead of re-enabling this globally.
+    num_retries: 2
+    retry_after: 5
+    request_timeout: 1200
+    set_verbose: false
+    # Surfaces only the top-k relevant MCP tools per request (9 servers) using
+    # the all-minilm embedding model below.
+    mcp_semantic_tool_filter:
+      enabled: true
+      embedding_model: all-minilm
+      top_k: 8
+      similarity_threshold: 0.3
+  generalSettings:
+    health_check_endpoint: /v1/health
+    # The operator renders model_list from LiteLLMModel CRs (applyMode: file), so
+    # the DB is not the model source of truth. Existing DB-stored virtual keys
+    # (per-consumer scoped keys, e.g. hermes) are unaffected — they authenticate
+    # against whichever models this config exposes, independent of this flag.
+    store_model_in_db: false
+  extraConfig:
+    environment:
+      - REDIS_HOST
+      - REDIS_PORT
+      - REDIS_PASSWORD
+      - OPENROUTER_API_KEY
+  apiAccess:
+    masterKeyRef:
+      name: litellm-secret
+      key: LITELLM_MASTER_KEY
