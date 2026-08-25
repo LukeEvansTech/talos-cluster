@@ -185,11 +185,16 @@ Deferred (add later): the `VirtualMCPServer` aggregate + `EmbeddingServer` (a si
 
 The flux MCP has had write access to Flux CRDs since this was enabled: `flux-mcp-write`, a
 `ClusterRole` + `ClusterRoleBinding` in `toolhive/mcp-servers/flux/rbac.yaml`, grants the
-`flux-mcp` ServiceAccount `create`/`patch`/`update`/`delete` on the `fluxcd.controlplane.io`,
-`helm.toolkit.fluxcd.io`, `image.toolkit.fluxcd.io`, `kustomize.toolkit.fluxcd.io`,
-`notification.toolkit.fluxcd.io`, and `source.toolkit.fluxcd.io` API groups — nothing outside
-Flux CRDs, and no `secrets` access (core `""` is never included). This lets it (and therefore
-any model behind LiteLLM) reconcile, suspend, resume, apply, and delete Flux objects.
+`flux-mcp` ServiceAccount `create`/`patch`/`update`/`delete` on every Flux kind installed on this
+cluster — one rule per apiGroup (`fluxcd.controlplane.io`, `helm.toolkit.fluxcd.io`,
+`kustomize.toolkit.fluxcd.io`, `notification.toolkit.fluxcd.io`, `source.toolkit.fluxcd.io`),
+each listing its resources by name rather than `resources: ["*"]` — a wildcard trips Trivy
+KSV-0046 and Checkov's wildcard-RBAC check even when the apiGroups are this narrow. Nothing
+outside Flux CRDs, and no `secrets` access (core `""` is never included). `image.toolkit.fluxcd.io`
+has no rule because this cluster doesn't run the Flux image-automation controller — add one
+(`imagepolicies`, `imagerepositories`, `imageupdateautomations`) if that ever changes, and add
+any other new Flux kind by hand when a component upgrade introduces one. This lets it (and
+therefore any model behind LiteLLM) reconcile, suspend, resume, apply, and delete Flux objects.
 
 The `flux-operator-mcp` image's own `--read-only` flag defaults to `false` and this deployment
 has never set it, so the write tools were already registered at the MCP layer before this

@@ -39,6 +39,21 @@ subjects:
 # tools against Flux objects. Enabled per "flux-mcp write access (enabled)"
 # in docs/docs/architecture/ai-llm-stack.md; revoke by deleting this
 # ClusterRole + its binding.
+#
+# Resources are enumerated explicitly per apiGroup (not `resources: ["*"]`)
+# so Trivy KSV-0046 and Checkov's "minimize wildcard use in Roles and
+# ClusterRoles" stay quiet — a wildcard here reads identically to
+# cluster-admin-over-Flux to both scanners even though it's group-scoped.
+# Generated from `kubectl api-resources --api-group=<group> -o name` against
+# the live cluster; add new Flux kinds here by hand when a Flux component is
+# upgraded to introduce one (subresources like `<kind>/status` are
+# deliberately excluded — flux-operator-mcp's write tools only ever patch
+# spec/annotations on the main object, never status).
+#
+# `image.toolkit.fluxcd.io` (imagepolicies, imagerepositories,
+# imageupdateautomations) is omitted: this cluster does not run the Flux
+# image-automation controller, so the group has no CRDs installed. Add a
+# rule for it here if that controller is ever deployed.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -46,13 +61,54 @@ metadata:
 rules:
   - apiGroups:
       - fluxcd.controlplane.io
+    resources:
+      - fluxinstances
+      - fluxreports
+      - resourcesetinputproviders
+      - resourcesets
+    verbs:
+      - create
+      - patch
+      - update
+      - delete
+  - apiGroups:
       - helm.toolkit.fluxcd.io
-      - image.toolkit.fluxcd.io
+    resources:
+      - helmreleases
+    verbs:
+      - create
+      - patch
+      - update
+      - delete
+  - apiGroups:
       - kustomize.toolkit.fluxcd.io
+    resources:
+      - kustomizations
+    verbs:
+      - create
+      - patch
+      - update
+      - delete
+  - apiGroups:
       - notification.toolkit.fluxcd.io
+    resources:
+      - alerts
+      - providers
+      - receivers
+    verbs:
+      - create
+      - patch
+      - update
+      - delete
+  - apiGroups:
       - source.toolkit.fluxcd.io
     resources:
-      - "*"
+      - buckets
+      - externalartifacts
+      - gitrepositories
+      - helmcharts
+      - helmrepositories
+      - ocirepositories
     verbs:
       - create
       - patch
