@@ -67,20 +67,25 @@ LiteLLM `model_name` groups make the serving tier transparent to clients:
 
 ## In-cluster consumers
 
-Three in-cluster apps route through LiteLLM using the standardized OpenAI env contract:
+Five in-cluster apps route through LiteLLM, all at `http://litellm.ai.svc.cluster.local:4000/v1`
+and the `self-hosted` model (with the `openrouter/auto` cloud fallback in scope):
 
-| App             | Namespace | LiteLLM model |
-| --------------- | --------- | ------------- |
-| `contracthound` | `default` | `self-hosted` |
-| `subspy`        | `default` | `self-hosted` |
-| `loupe`         | `custom`  | `self-hosted` |
+| App             | Namespace | Key env var        |
+| --------------- | --------- | ------------------- |
+| `contracthound` | `default` | `OPENAI_API_KEY`    |
+| `subspy`        | `default` | `OPENAI_API_KEY`    |
+| `jobops`        | `default` | `LLM_API_KEY`       |
+| `loupe`         | `custom`  | `OPENAI_API_KEY`    |
+| `todoist-sort`  | `custom`  | `ANTHROPIC_API_KEY` |
 
-All three consume:
-
-- `LLM_PROVIDER=openai`
-- `OPENAI_API_BASE_URL=http://litellm.ai.svc.cluster.local:4000/v1`
-- `OPENAI_MODEL=self-hosted`
-- `OPENAI_API_KEY` from the `litellm` 1Password item via ExternalSecret
+All five live outside the `ai` namespace, so none of them mounts an `ai` Secret directly. Each
+gets an operator-issued **scoped** key instead of the account-wide master key: a
+`LiteLLMVirtualKey` CR in `litellm/app/virtualkeys/<app>.yaml` (`ai` namespace, scoped to
+`self-hosted` + `openrouter/auto`) mints the key and writes it to an in-namespace Secret; a
+paired `PushSecret` then writes that key back to the `litellm` 1Password item as property
+`LITELLM_<APP>_API_KEY` (`updatePolicy: Replace`, `refreshInterval: 1h`). The consumer's own
+ExternalSecret extracts that property like any other `litellm`-item field — no cross-namespace
+Secret access required. See the consumer's own `externalsecret.yaml` for the exact template line.
 
 ## Rollout (staged)
 
@@ -123,10 +128,16 @@ truth.
   read fails at startup.
 - **Fallbacks**: `litellmproxy.yaml`'s `routerSettings.fallbacks` is a list of
   `{model_name: [fallback, …]}`.
-- **A consumer's scoped key**: add a `LiteLLMVirtualKey` CR in the consumer's own app directory
-  (`proxyRef: litellm`, `secretName: litellm-key-<app>`, `secretKey: api-key`) rather than handing
-  out the master key. The operator creates the key via the proxy's admin API and writes it to that
-  Secret; consume it with a `secretKeyRef`.
+- **A consumer's scoped key (same namespace)**: add a `LiteLLMVirtualKey` CR in the consumer's own
+  app directory (`proxyRef: litellm`, `secretName: litellm-key-<app>`, `secretKey: api-key`)
+  rather than handing out the master key. The operator creates the key via the proxy's admin API
+  and writes it to that Secret; consume it with a `secretKeyRef`. See
+  `memini/app/virtualkey.yaml`.
+- **A consumer's scoped key (cross-namespace)**: a consumer outside `ai` can't mount an `ai`
+  Secret directly. Add the `LiteLLMVirtualKey` CR (`ai` namespace) plus a paired `PushSecret`
+  under `litellm/app/virtualkeys/<app>.yaml` instead — the `PushSecret` writes the operator-minted
+  key back to the `litellm` 1Password item as `LITELLM_<APP>_API_KEY`, and the consumer's existing
+  ExternalSecret extracts it like any other field on that item. See "In-cluster consumers" above.
 
 ## Consuming the stack from a workstation (opencode)
 
