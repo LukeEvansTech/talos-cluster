@@ -207,7 +207,7 @@ What it buys: no staging Jobs or immutability hacks, operator-managed model life
 shared weights copy, and any node can serve any model without re-staging: model switching and
 failover stop being a re-download event. The `llm-gpu-model` anti-affinity spread stays.
 
-## Foreman: installed for a bare trial (draft PR #TBD)
+## Foreman: installed for a bare trial (draft PR #4585)
 
 foreman + dispatch + foreman-dispatch-bridge is jory's autonomous "GitHub issues in → pull
 requests out" pipeline: dispatch grooms and lanes issues with a small local model, the bridge
