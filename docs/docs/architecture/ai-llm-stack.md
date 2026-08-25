@@ -273,3 +273,7 @@ To move embeddings onto the GPU later, swap `llama-embed`/`llama-rerank` for llm
   the `openai/` provider entry), which defeats disabling Qwen3.8's thinking mode (verified
   2026-08-25). If a real `UnsupportedParamsError` 400 ever shows up, scope the drop with a
   per-model `additional_drop_params` on that model entry instead of re-enabling this globally.
+  Turning `drop_params` off alone did not forward the param either — LiteLLM's
+  `UnsupportedParamsError` check runs independently of it, so the `self-hosted` and
+  `self-hosted-uncensored` entries also list `reasoning_effort` in
+  `litellm_params.allowed_openai_params`, which is the actual forwarding mechanism.
