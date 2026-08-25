@@ -28,7 +28,7 @@ spec:
           app:
             image:
               repository: squidfunk/mkdocs-material
-              tag: 9.7.7
+              tag: 9.7.7@sha256:51b87149d227691486b5f08993d28c65ca7e4990010664b697265b8e6fcd5287
             args:
               - "serve"
               - "--dirty"
@@ -71,7 +71,7 @@ spec:
           app:
             image:
               repository: python
-              tag: "3.14"
+              tag: "3.14@sha256:93e0cf89d9feef7a0c7466bd982423f701a3ddcd4ee247ad8fe19ab296bf287d"
             command:
               - "python3"
               - "/config/generate.py"
