@@ -1,0 +1,145 @@
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: toolhiveembed
+spec:
+  accessModes:
+    - "ReadWriteOnce"
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: ceph-block
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: toolhiveembed
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: toolhiveembed
+  values:
+    controllers:
+      toolhiveembed:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        initContainers:
+          # Qwen3-Embedding-0.6B is a public GGUF (no HF token needed). Downloaded
+          # once into the RWO model PVC, reused on restart. Mirrors the
+          # llama-embed / llama-rerank pattern (../../../memini/models/).
+          #
+          # Long-context CPU embedder for the VMCP tool optimizer (see
+          # ../virtualmcpserver.yaml). LiteLLM's existing all-minilm model
+          # (served by the CPU llama-embed pod, ../../../memini/models/llama-embed.yaml)
+          # is all-MiniLM-L6-v2 — a BERT model with a hard 512-token absolute
+          # position limit — and some kubectl tool descriptions exceed that,
+          # which previously terminated every VMCP session with an OpenAI 400
+          # "input larger than max context size" error. Qwen3-Embedding-0.6B
+          # supports 32k context; we run it at 8k here, well above the 512-token
+          # ceiling. all-minilm stays in place for memini and LiteLLM's own
+          # semantic tool filter, which never hit that limit. Mirrors Jory's
+          # dedicated toolhive-embed llama.cpp server (see
+          # docs/docs/operations/jory-homeops-adoption.md), but on CPU since
+          # the cluster's GPUs are already spoken for.
+          model-download:
+            image:
+              repository: python
+              tag: 3.14-slim@sha256:83ff1d245a3d57d04152252d3ef9cb361494d0b3395abd65a5ebe91c401c8e83
+            command:
+              - /bin/sh
+              - -ec
+              - |
+                set -euo pipefail
+                if [ ! -s /models/Qwen3-Embedding-0.6B/Qwen3-Embedding-0.6B-Q8_0.gguf ]; then
+                  pip install --no-cache-dir "huggingface_hub[hf_transfer]"
+                  mkdir -p /models/Qwen3-Embedding-0.6B
+                  hf download \
+                    Qwen/Qwen3-Embedding-0.6B-GGUF \
+                    Qwen3-Embedding-0.6B-Q8_0.gguf \
+                    --local-dir /models/Qwen3-Embedding-0.6B
+                  echo "Qwen3-Embedding-0.6B download complete"
+                else
+                  echo "Qwen3-Embedding-0.6B already present, skipping"
+                fi
+            env:
+              HF_HUB_ENABLE_HF_TRANSFER: "1"
+            resources:
+              requests:
+                cpu: 250m
+                memory: 512Mi
+              limits:
+                memory: 2Gi
+        containers:
+          app:
+            image:
+              repository: ghcr.io/ggml-org/llama.cpp
+              tag: server@sha256:b9b2fa89baafb4e948a766562b70fd86202b570244ccc170556ea1332b61176a
+            args:
+              - --host
+              - 0.0.0.0
+              - --port
+              - "8080"
+              - --alias
+              - Qwen3-Embedding-0.6B
+              - --model
+              - /models/Qwen3-Embedding-0.6B/Qwen3-Embedding-0.6B-Q8_0.gguf
+              - --embeddings
+              - --pooling
+              - last
+              - --ctx-size
+              - "8192"
+              - --parallel
+              - "4"
+              - --cont-batching
+              # llama.cpp requires --ubatch-size (physical max batch) to be at
+              # least as large as the longest single input for embeddings — it
+              # cannot split one sequence across ubatches — so both batch sizes
+              # are set to the full context window to guarantee that holds.
+              - --batch-size
+              - "8192"
+              - --ubatch-size
+              - "8192"
+              - --threads
+              - "4"
+              - --metrics
+              - --mmap
+            resources:
+              requests:
+                cpu: 250m
+                memory: 1Gi
+              limits:
+                memory: 2Gi
+            probes:
+              liveness: &probe
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /health
+                    port: 8080
+                  initialDelaySeconds: 30
+                  periodSeconds: 30
+                  failureThreshold: 6
+              readiness: *probe
+              startup:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /health
+                    port: 8080
+                  failureThreshold: 60
+                  periodSeconds: 10
+    persistence:
+      models:
+        existingClaim: toolhiveembed
+        globalMounts:
+          - path: /models
+    service:
+      app:
+        ports:
+          http:
+            port: 8080

@@ -215,9 +215,13 @@ and any other client that talks MCP directly instead of going through LiteLLM's 
 wiring. Tool names are namespaced `{workload}_<tool>` (e.g. `searxng_search`) to resolve
 collisions across backends. Because 9 backends' worth of raw tool definitions is too large for
 most client context windows, the built-in optimizer exposes only `find_tool`/`call_tool` to
-clients and resolves the right backend tool semantically, reusing LiteLLM's `all-minilm` embedding
-model rather than standing up a dedicated embedder. Sessions are stored in Dragonfly so the
-Deployment can scale beyond one replica.
+clients and resolves the right backend tool semantically. It embeds via `qwen3-embedding`
+(Qwen3-Embedding-0.6B, 8k context; `toolhive/gateway/embed/`), a dedicated CPU llama.cpp server,
+rather than LiteLLM's `all-minilm` (all-MiniLM-L6-v2): MiniLM's BERT architecture has a hard
+512-token limit and some kubectl tool descriptions exceed it, which used to terminate every VMCP
+session with an OpenAI 400 "input larger than max context size" error. `all-minilm` stays in
+place for memini and LiteLLM's own `mcp_semantic_tool_filter` above, neither of which hits that
+limit. Sessions are stored in Dragonfly so the Deployment can scale beyond one replica.
 
 - **External URL**: `https://mcp.${SECRET_DOMAIN}/mcp`, header `x-api-key: <key>`. Keys live as
   fields on the `toolhive` 1Password item; the workstation's key is
