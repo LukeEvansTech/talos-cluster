@@ -48,13 +48,14 @@ spec:
               # cross-encoder can promote a result the fused score buried below it.
               MEMINI_RERANK_POOL: "8"
               # Consolidation LLM via LiteLLM's self-hosted group (-> llmkube/llama.cpp).
+              # Scoped LiteLLMVirtualKey (see virtualkey.yaml), not the master key.
               MEMINI_LLM_BASE_URL: http://litellm.ai.svc.cluster.local:4000
               MEMINI_LLM_MODEL: self-hosted
               MEMINI_LLM_API_KEY:
                 valueFrom:
                   secretKeyRef:
-                    name: memini
-                    key: llm-api-key
+                    name: litellm-key-memini
+                    key: api-key
               # Coalesce a near-duplicate write into its nearest same-tier memory
               # instead of just hinting, and keep the periodic dedup pass +
               # short-term cap tuned to match.
