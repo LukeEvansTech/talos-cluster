@@ -290,7 +290,7 @@ spec:
           annotations:
             summary: "Seedbox container {{ $labels.name }} healthcheck is failing (unhealthy)."
           expr: |-
-            container_state_health_status{job="seedbox-docker", health_status="unhealthy"} == 1
+            container_state_health_status{job="seedbox-docker", health_status="unhealthy", container_label_cd_doco_metadata_manager="doco-cd"} == 1
           for: 10m
           labels:
             severity: critical
@@ -298,7 +298,7 @@ spec:
           annotations:
             summary: "Seedbox container {{ $labels.name }} restart count changed {{ $value }} times in the last hour."
           expr: |-
-            changes(container_restartcount{job="seedbox-docker"}[1h]) > 3
+            changes(container_restartcount{job="seedbox-docker", container_label_cd_doco_metadata_manager="doco-cd"}[1h]) > 3
           for: 10m
           labels:
             severity: warning
