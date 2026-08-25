@@ -1,7 +1,10 @@
 # KB-020: App Returns 404 Through the Gateway (HTTPRoute Drifted to Placeholder Hostnames)
 
 **Status:** Structurally fixed 2026-08-03: the placeholder Secret now carries
-`kustomize.toolkit.fluxcd.io/ssa: IfNotPresent`, so the race below can no longer recur.
+`kustomize.toolkit.fluxcd.io/ssa: IfNotPresent`, which stops the **recurring**,
+every-reconcile version of the race below. A narrower window is still open on a fresh
+bootstrap or a newly-added namespace, before ExternalSecret's first sync completes —
+mitigated there by fail-loud placeholder values (see Structural fix), not eliminated.
 Objects that drifted *before* the fix stay drifted until remediated per-app (see Fix).
 
 ## Symptom
@@ -96,6 +99,13 @@ never again overwrites the ESO-managed real values. CI rendering (flate/Konflate
 unaffected: both read the git file, not the live object. Trade-off: a key added to the
 placeholder file after bootstrap reaches only CI rendering; the live value must land in
 the `cluster-secrets` 1Password item, which was already the required workflow.
+
+That first creation is itself still a race: nothing gates the child Kustomizations on
+ExternalSecret's first sync, so a fresh bootstrap or a newly-added namespace can still
+render the placeholder into an app's manifests in the window before ESO writes the real
+values. This is why the placeholder values above are deliberately dead/unroutable
+(`example.com`, TEST-NET-1 addresses) rather than plausible-looking ones — the goal
+shifted from *preventing* that narrower race to making it *fail loudly* if it is ever hit.
 
 Options considered earlier and declined: global `driftDetection.mode: enabled` (would
 fight the zeroscaler HPAs), a self-healing CronJob guard, splitting `cluster-secrets` into
