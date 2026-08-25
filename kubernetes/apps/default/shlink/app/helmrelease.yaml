@@ -25,6 +25,14 @@ spec:
               IS_HTTPS_ENABLED: "true"
               TASK_WORKER_NUM: 4
               WEB_WORKER_NUM: 1
+              # Keep skipping the boot-time download even though a license key
+              # is now set: the image entrypoint runs under `set -e`, so a
+              # MaxMind outage at start would crash-loop the pod. Shlink's
+              # visit-time updater fetches the database in the background
+              # instead and refreshes it every 30 days. It lands on the data
+              # PVC (data/GeoLite2-City.mmdb) because Shlink has no path
+              # override; a single ~60 MiB file is an accepted exception to
+              # keeping caches off backed-up volumes.
               SKIP_INITIAL_GEOLITE_DOWNLOAD: "true"
               DISABLE_TRACKING_FROM: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
             envFrom:
