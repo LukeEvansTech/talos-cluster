@@ -5,12 +5,9 @@ metadata:
   name: flux-mcp
   namespace: ai
 ---
-# Read-only: reuses the two broad read ClusterRoles from kubectl-mcp (secrets
+# Read: reuses the two broad read ClusterRoles from kubectl-mcp (secrets
 # excluded — see kubectl/rbac.yaml for why the aggregated role is split from
-# its explicit-rules counterpart) so the flux MCP can inspect Flux state but
-# not mutate it. To grant write access (reconcile/suspend/resume/apply/delete
-# on Flux CRDs), see "Enabling flux-mcp write access" in
-# docs/docs/architecture/ai-llm-stack.md.
+# its explicit-rules counterpart) so the flux MCP can inspect Flux state.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
@@ -32,6 +29,44 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: kubectl-mcp-readonly-explicit
+subjects:
+  - kind: ServiceAccount
+    name: flux-mcp
+    namespace: ai
+---
+# Write: limited to Flux API groups (never core "" — no Secret access is
+# granted here), enabling the MCP reconcile/suspend/resume/apply/delete
+# tools against Flux objects. Enabled per "flux-mcp write access (enabled)"
+# in docs/docs/architecture/ai-llm-stack.md; revoke by deleting this
+# ClusterRole + its binding.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: flux-mcp-write
+rules:
+  - apiGroups:
+      - fluxcd.controlplane.io
+      - helm.toolkit.fluxcd.io
+      - image.toolkit.fluxcd.io
+      - kustomize.toolkit.fluxcd.io
+      - notification.toolkit.fluxcd.io
+      - source.toolkit.fluxcd.io
+    resources:
+      - "*"
+    verbs:
+      - create
+      - patch
+      - update
+      - delete
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: flux-mcp-write
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: flux-mcp-write
 subjects:
   - kind: ServiceAccount
     name: flux-mcp
