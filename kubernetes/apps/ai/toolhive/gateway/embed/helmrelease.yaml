@@ -68,7 +68,7 @@ spec:
               HF_HUB_ENABLE_HF_TRANSFER: "1"
             resources:
               requests:
-                cpu: 250m
+                cpu: "4"
                 memory: 512Mi
               limits:
                 memory: 2Gi
@@ -110,8 +110,13 @@ spec:
               - "4096"
               - --ubatch-size
               - "2048"
+              # The VMCP optimizer embeds every tool description (~540 inputs,
+              # ~100k tokens) when a session starts; at 4 threads that took
+              # minutes and the optimizer's request timed out, then retried while
+              # the first batch was still queued (2026-08-25). Nodes have 24
+              # cores — give it 12 threads and a matching CPU request.
               - --threads
-              - "4"
+              - "12"
               # llama-server keeps a RAM prompt cache (--cache-ram, default 8192
               # MiB) of every processed sequence's KV so later prompts sharing a
               # prefix can reuse it. Embedding inputs never share prefixes, so the
