@@ -16,8 +16,14 @@ search:
   autocomplete: ""
   favicon_resolver: ""
   default_lang: "en"
+  # Upstream default is html only. mcp-searxng and open-webui RAG both call
+  # /search?format=json, which webapp.py 403s unless the format is listed here.
+  formats:
+    - html
+    - json
 server:
-  secret_key: "$${SEARXNG_SECRET_KEY}"
+  # server.secret_key comes from the SEARXNG_SECRET env var (searx/settings_defaults.py) —
+  # SearXNG does not expand env-style placeholders in this file, so no key is set here.
   limiter: false
   image_proxy: true
   method: "GET"
