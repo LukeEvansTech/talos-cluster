@@ -37,10 +37,10 @@ spec:
   #     instead of its `instance` (scrape-endpoint IP:port) label, and every
   #     DCGM_FI_DEV_* query filters on hostname=~"$$instance" accordingly.
   #     DCGM's hostname label is byte-identical to node-exporter's
-  #     node_uname_info `nodename` label (both report e.g. "cr-talos-01"),
-  #     which the Host CPU/RAM panels already join against -- with the raw
-  #     per-pod instance address, $$instance could never match nodename and
-  #     those two panels rendered empty in the upstream JSON.
+  #     node_uname_info `nodename` label (both report the node's short
+  #     hostname), which the Host CPU/RAM panels already join against --
+  #     with the raw per-pod instance address, $$instance could never match
+  #     nodename and those two panels rendered empty in the upstream JSON.
   json: |-
     {
       "id": null,
