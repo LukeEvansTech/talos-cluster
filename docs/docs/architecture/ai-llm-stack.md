@@ -15,6 +15,7 @@ re-targeted to this cluster: **NVIDIA L4 GPUs + llama.cpp (llmkube)**.
 | `memini`     | agent long-term memory (SQLite + CPU embed/rerank)                 | live   |
 | `hermes`     | NousResearch hermes-agent gateway + dashboard (memini-backed)      | live   |
 | `hermeswebui`| chat web frontend for hermes (via its API server)                  | live   |
+| `repowiki`   | AI-generated per-repository wiki (mkdocs-material + CronJob)       | live   |
 
 LiteLLM persists to CNPG `postgres18` (`litellm` db) and caches in Dragonfly. Internal-only route
 (`litellm.${SECRET_DOMAIN}` on envoy-internal).
@@ -251,6 +252,34 @@ from the `litellm` item). Data PVC via the volsync component (10Gi). Route:
 
 To move embeddings onto the GPU later, swap `llama-embed`/`llama-rerank` for llmkube
 `InferenceService`s and repoint `MEMINI_EMBED_BASE_URL` / `MEMINI_RERANK`.
+
+## repowiki
+
+`repowiki` generates an AI-written wiki for every repository in the `LukeEvansTech` GitHub
+account and serves it as a static site. Two controllers share one RWO `ceph-block` PVC:
+
+- **`mkdocs`** (Deployment): `squidfunk/mkdocs-material` in `serve --dirty` mode, rendering
+  whatever is committed to the git repository on the shared PVC. This is what the
+  `repowiki.${SECRET_DOMAIN}` route (envoy-internal) serves.
+- **`repowiki-gen`** (CronJob, every 12h): clones/updates each repository from
+  `repos.txt`, has the `self-hosted` LiteLLM model plan a page set per repository, writes the
+  pages, and commits them into the git repository on the PVC. A `podAffinity` pins it to the
+  same node as the `mkdocs` pod, since the PVC is ReadWriteOnce.
+
+Ported from Jory's [`repo-wiki`](https://github.com/joryirving/home-ops/tree/main/kubernetes/apps/base/llm/repo-wiki);
+`generate.py` (in `kubernetes/apps/ai/repowiki/app/configmap.yaml`) is otherwise unmodified from
+upstream — only the git commit identity and env values changed for this cluster.
+
+**Adding or removing a repository**: edit `repos.txt` in `configmap.yaml` and commit — no
+Helm/Kustomize change needed. The generator only regenerates a repository once its `HEAD` SHA
+changes since the last successful run, so a new entry is picked up on the CronJob's next
+occurrence.
+
+**Pacing**: `MAX_REPOS_PER_RUN: "2"` caps each run to two repositories (whichever are most stale),
+so a full pass over a large `repos.txt` takes several days, not one run. This is deliberate —
+`MAX_PAGES_PER_REPO: "20"` pages per repository through an LLM planning + writing pass is not
+cheap, and the CronJob shares the `self-hosted` LiteLLM model with every other consumer.
+Increase `MAX_REPOS_PER_RUN` only if the model has headroom.
 
 ## Gotchas
 
