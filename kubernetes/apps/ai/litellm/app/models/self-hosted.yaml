@@ -1,0 +1,41 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/litellm.home-operations.com/litellmmodel_v1alpha1.json
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMModel
+metadata:
+  name: self-hosted
+  namespace: ai
+spec:
+  # Local — llama.cpp (llama-nvidia). Served by the llmkube llama-nvidia
+  # StatefulSet in the ai namespace.
+  #
+  # Stable "self-hosted" group. One backend today (llama-nvidia, order 1):
+  # Qwen3.8-27B Heretic-abliterated (0bserverx RVN Q4_K_S, KL ~0.0085 vs
+  # base — near-vanilla behaviour, refusals 0–1/100), 128k context over
+  # 2 parallel slots (64k per request), vision via mmproj. The single GPU
+  # model in the cluster.
+  modelName: self-hosted
+  proxyRef: litellm
+  params:
+    model: openai/self-hosted
+    apiBase: http://llama-nvidia.ai.svc.cluster.local:8080/v1
+    apiKey: llama-nvidia
+    additional:
+      order: 1
+      max_parallel_requests: 2
+      # allowed_openai_params opts this model back into forwarding
+      # reasoning_effort even though drop_params is off globally — without it
+      # LiteLLM's own default param allowlist for the openai/ provider strips
+      # the field before it reaches llama.cpp.
+      allowed_openai_params:
+        - reasoning_effort
+  info:
+    mode: chat
+    maxInputTokens: 65536
+    maxOutputTokens: 16384
+    supportsFunctionCalling: true
+    supportsVision: true
+    extra:
+      supports_reasoning: true
+      input_cost_per_token: 1.0e-08
+      output_cost_per_token: 3.0e-08

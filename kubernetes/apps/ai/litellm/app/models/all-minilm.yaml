@@ -1,0 +1,18 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/litellm.home-operations.com/litellmmodel_v1alpha1.json
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMModel
+metadata:
+  name: all-minilm
+  namespace: ai
+spec:
+  # Embedding — served by the CPU llama-embed pod (all-MiniLM-L6-v2, 384-dim,
+  # OpenAI /v1). Powers the MCP semantic tool filter in litellmproxy.yaml.
+  modelName: all-minilm
+  proxyRef: litellm
+  params:
+    model: openai/sentence-transformers/all-MiniLM-L6-v2
+    apiBase: http://llama-embed.ai.svc.cluster.local:8080/v1
+    apiKey: llama-embed
+  info:
+    mode: embedding
