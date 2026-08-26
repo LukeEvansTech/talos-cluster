@@ -11,3 +11,22 @@ spec:
     - fromEndpoints:
         - matchLabels:
             io.kubernetes.pod.namespace: network
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/cilium.io/ciliumnetworkpolicy_v2.json
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: allow-searxng-from-ai
+spec:
+  # open-webui and mcp-searxng (both in `ai`) call SearXNG directly by its
+  # ClusterIP DNS name for web search rather than through the envoy-internal
+  # route. Additive to the namespace-wide policy above (Cilium unions
+  # allows), scoped to the searxng endpoint only.
+  description: "Allow ai namespace pods to reach searxng"
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: searxng
+  ingress:
+    - fromEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: ai
