@@ -44,8 +44,10 @@ Recovery, in the order that worked:
 
     Without `--version`, `helm show crds` resolves to whatever the registry currently reports as
     latest — not necessarily the version the wedged release was mid-upgrade to. Get `<deployed-tag>`
-    from the app's `ocirepository.yaml` (`spec.ref.tag`) or from `helm history -n <namespace>
-    snapshot-controller`.
+    from the app's `ocirepository.yaml` (`spec.ref.tag`), or from the pending/failed revision in
+    `helm history -n <namespace> snapshot-controller` — but note its `CHART` column prints
+    `<chart>-<version>` (e.g. `snapshot-controller-0.1.0`); `--version` wants only the bare
+    version suffix (`0.1.0`), and the registry has no tag by the combined name.
 
 3. With the CRDs present, the crash-looping pod starts and the in-flight upgrade completes on its own (`helm history` flips to `deployed`). Then `flux resume hr`.
 4. **Recreate the cluster-scoped CRs the CRD deletion destroyed.** Helm will not self-heal deleted objects without drift detection, so force the owners:
