@@ -132,6 +132,15 @@ spec:
                 # left in place instead of being overwritten with a partial
                 # or zero count.
                 collect() {
+                  # An unreadable repository root (NFS gone, permissions) must
+                  # be a failure too, not "no shards": with the root unlistable
+                  # the shard globs below simply never expand, every emit
+                  # would report 0, and the false-zero this collector exists
+                  # to avoid would come straight back.
+                  ls /repository/ >/dev/null 2>&1 || {
+                    echo "collect: /repository not readable, keeping previous metrics.txt" >&2
+                    return 1
+                  }
                   {
                     echo "# HELP $$M Index blobs in the kopia repository."
                     echo "# TYPE $$M gauge"
