@@ -183,8 +183,21 @@ spec:
           labels:
             severity: warning
         # SEL entries at warning or above, within the 7d window set in the
-        # exporter config. The metric's value is the entry's creation timestamp,
-        # so presence alone is the signal.
+        # exporter config. The raw metric's value is the entry's creation
+        # timestamp, so presence alone is the signal.
+        #
+        # Aggregated with `count by` deliberately. Every SEL entry carries its
+        # own `id` label, so the unaggregated form raises one alert — and one
+        # Pushover push — per log entry rather than per fault. A failing CR2032
+        # asserts and deasserts "Battery low" every few minutes as the cell sags
+        # under the sensor threshold and recovers: one board went 3 entries on
+        # 2026-08-23 to 20 on 08-25 to 79 by midday on 08-26, each its own page,
+        # and 44 of the 62 alerts then standing in Alertmanager were this rule.
+        # Collapsing on (instance, message, severity) keeps every distinct fault
+        # visible exactly once and moves the repeat count into the summary,
+        # which is the better signal anyway — "flapped 79 times" says more than
+        # 79 identical pages. It also stops a re-read of the log (an exporter
+        # restart, a BMC reset) re-firing the entire 7d backlog at once.
         #
         # PWR-0020 excluded: the BMC logs "First AC Power on" at Warning, but it
         # is informational — every rack power-up emits one per node, which then
@@ -193,9 +206,11 @@ spec:
         # code rather than the PWR- prefix, which also carries real PSU faults.
         - alert: BmcEventLogWarning
           annotations:
-            summary: "{{ $labels.instance }} logged a {{ $labels.severity }} hardware event: {{ $labels.message }}"
+            summary: "{{ $labels.instance }} logged {{ $value }} {{ $labels.severity }} hardware event(s) in the last 7d: {{ $labels.message }}"
           expr: |-
-            idrac_events_log_entry{job=~"bmc-exporter.*", message!~".*PWR-0020.*"} > 0
+            count by (job, instance, severity, message) (
+              idrac_events_log_entry{job=~"bmc-exporter.*", message!~".*PWR-0020.*"}
+            ) > 0
           for: 5m
           labels:
             severity: warning
