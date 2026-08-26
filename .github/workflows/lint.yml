@@ -17,7 +17,7 @@ jobs:
       contents: read
       statuses: write
       pull-requests: write
-    uses: LukeEvansTech/shared-workflows/.github/workflows/super-linter.yml@4a27af481a70705a65b82c72ef62fc58c5af6ed0 # v1
+    uses: LukeEvansTech/shared-workflows/.github/workflows/super-linter.yml@2b83f6654fce8e8fcad2f0c39fd1238f6d8b21e4 # v1
     with:
       # Kubeconform validates raw YAML source. On this Flux GitOps repo the
       # source is meaningless until kustomize substitutes vars
