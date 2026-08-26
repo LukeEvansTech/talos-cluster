@@ -91,9 +91,31 @@ spec:
                 # fire. Check the rendered output, not just the source, after
                 # editing this block.
                 M=kopia_repo_index_blobs
-                # arg 1 = blob prefix under /repository, arg 2 = metric label
+                # arg 1 = blob prefix under /repository, arg 2 = metric label.
+                # find's own exit status is captured directly per shard dir
+                # here (not read off a pipe into wc -l, whose status under
+                # `set -eu` without pipefail is wc's -- which always succeeds)
+                # so a failed walk (e.g. a transient NFS I/O error) aborts
+                # collect() instead of silently producing a partial or zero
+                # count. A shard prefix with no directories yet (e.g. before
+                # the first compaction) is not an error: the glob below only
+                # expands to paths that exist, so an unmatched glob is simply
+                # skipped and the count stays at its initial 0.
                 emit() {
-                  n=$$(find /repository/x$$1[0-9] -type f 2>/dev/null | wc -l)
+                  n=0
+                  for d in /repository/x$$1[0-9]; do
+                    [ -e "$$d" ] || continue
+                    find "$$d" -type f >/metrics/.emit.out 2>/dev/null
+                    rc=$$?
+                    if [ "$$rc" -ne 0 ]; then
+                      rm -f /metrics/.emit.out
+                      echo "collect: find failed under $$d (rc=$$rc)" >&2
+                      return 1
+                    fi
+                    c=$$(wc -l < /metrics/.emit.out)
+                    n=$$((n + c))
+                  done
+                  rm -f /metrics/.emit.out
                   echo "$$M{kind=\"$$2\"} $$n"
                 }
                 # Served as .txt, not .prom, and that extension is load-bearing:
@@ -104,19 +126,38 @@ spec:
                 # ServiceMonitor CRD does not expose. Renaming to .prom marks
                 # the target down.
                 #
-                # Write atomically so a scrape never reads a half-built file.
+                # Write atomically so a scrape never reads a half-built file,
+                # and only publish once every shard walk above succeeded --
+                # on a failed walk the previous good metrics.txt (if any) is
+                # left in place instead of being overwritten with a partial
+                # or zero count.
                 collect() {
+                  # An unreadable repository root (NFS gone, permissions) must
+                  # be a failure too, not "no shards": with the root unlistable
+                  # the shard globs below simply never expand, every emit
+                  # would report 0, and the false-zero this collector exists
+                  # to avoid would come straight back.
+                  ls /repository/ >/dev/null 2>&1 || {
+                    echo "collect: /repository not readable, keeping previous metrics.txt" >&2
+                    return 1
+                  }
                   {
                     echo "# HELP $$M Index blobs in the kopia repository."
                     echo "# TYPE $$M gauge"
-                    emit n uncompacted
-                    emit s single_epoch
+                    emit n uncompacted &&
+                    emit s single_epoch &&
                     emit r range
-                  } > /metrics/.metrics.txt
+                  } > /metrics/.metrics.txt || {
+                    echo "collect: repository walk failed, keeping previous metrics.txt" >&2
+                    return 1
+                  }
                   mv /metrics/.metrics.txt /metrics/metrics.txt
                 }
-                collect
-                while true; do sleep 900; collect; done &
+                collect || echo "collect: initial walk failed, metrics.txt not yet published" >&2
+                while true; do
+                  sleep 900
+                  collect || true
+                done &
                 exec httpd -f -v -p 9101 -h /metrics
             probes:
               liveness:
