@@ -13,6 +13,9 @@ spec:
     - ../../../../components/homepage
     - ../../../../components/volsync
     - ../../../../components/zeroscaler
+  dependsOn:
+    - name: onepassword-connect
+      namespace: external-secrets
   interval: 1h
   path: ./kubernetes/apps/media/plex/app
   postBuild:

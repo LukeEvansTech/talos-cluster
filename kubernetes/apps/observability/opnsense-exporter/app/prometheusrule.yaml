@@ -42,6 +42,11 @@ spec:
         # zero for 15 minutes while the link stayed up and no watchdog logged —
         # dpinger's monitor traffic rides this interface, so a healthy WAN can
         # never legitimately read zero-in-both-directions for 5 minutes.
+        # The 5m rate() window is the debounce: it must hold at least several
+        # scrapes (the ServiceMonitor scrapes every 60s, and rate() needs two
+        # samples in range — a 1m window would usually see one and the alert
+        # could never sustain). So `for` is kept short (1m) rather than stacking
+        # another 5m on top, which would double effective detection to ~10m.
         - alert: OPNsenseWanTrafficFrozen
           annotations:
             summary: "WAN has passed zero bytes in BOTH directions for 5m — NIC/modem wedge, likely needs a link bounce."
@@ -49,23 +54,32 @@ spec:
             rate(opnsense_interfaces_received_bytes_total{job="opnsense-exporter", interface="WAN"}[5m]) == 0
             and
             rate(opnsense_interfaces_transmitted_bytes_total{job="opnsense-exporter", interface="WAN"}[5m]) == 0
-          for: 5m
+          for: 1m
           labels:
             severity: critical
         # Backup WAN tiers (2026-08-02) feed a failover gateway group. A dead
         # backup tier is invisible in daily use — it only matters mid-outage,
-        # which is exactly when it must not be discovered broken. Gated on
-        # the tier having been healthy in the last 24h so a not-yet-cabled or
-        # deliberately-parked tier never alerts; it self-arms on first
-        # successful dpinger and stands down a day after a deliberate
-        # decommission.
+        # which is exactly when it must not be discovered broken.
+        #
+        # Gated on opnsense_gateways_status != 6 ("offline forced" — the
+        # exporter's own state for a gateway an admin has explicitly forced
+        # down in OPNsense), not on time. A tier being wired up or
+        # deliberately retired stays silent by forcing it down in OPNsense;
+        # anything not force-down alerts on sustained 100% loss with no
+        # expiry. The previous gate — min_over_time(...[24h]) < 100 — used
+        # the same rolling window to both arm on first success AND disarm
+        # after 24h, so once a REAL outage ran past 24h the window filled
+        # entirely with 100%-loss samples and the alert silently resolved
+        # while the failure was still active — indistinguishable from a
+        # deliberate decommission, and self-silencing during the one case
+        # this alert exists to catch.
         - alert: OPNsenseBackupWanTierDown
           annotations:
             summary: "Backup WAN tier {{ $labels.name }} is at 100% loss — the failover path is dead while the primary is fine."
           expr: |-
             opnsense_gateways_loss_percentage{job="opnsense-exporter", name=~"WAN[23]_5G_.+"} == 100
             and
-            min_over_time(opnsense_gateways_loss_percentage{job="opnsense-exporter", name=~"WAN[23]_5G_.+"}[24h]) < 100
+            opnsense_gateways_status{job="opnsense-exporter", name=~"WAN[23]_5G_.+"} != 6
           for: 30m
           labels:
             severity: warning

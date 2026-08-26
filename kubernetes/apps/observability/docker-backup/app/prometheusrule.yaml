@@ -59,6 +59,13 @@ spec:
         # eventually reporting, a global absent() would only fire once ALL of
         # them stopped, which is precisely the case already covered elsewhere.
         #
+        # Also covers the NAS source-freshness textfile going absent on its
+        # own: it is a separate file from the base backup metric, so a broken
+        # or missing refresh script can wipe it out while
+        # restic_backup_last_success_timestamp_seconds keeps advancing — which
+        # DockerBackupSourceStale/RefreshFailing below cannot detect, since
+        # both evaluate to nothing over an empty series.
+        #
         # 2h fuse, and severity warning rather than critical, because a genuine
         # box outage is already covered at higher priority by SeedboxDown (public
         # blackbox probe). This exists for the box-is-UP-but-metric-is-gone case;
@@ -75,6 +82,8 @@ spec:
             absent(restic_backup_last_success_timestamp_seconds{box="truenas"})
             or
             absent(restic_backup_last_success_timestamp_seconds{box="nut"})
+            or
+            absent(restic_snapshot_source_last_success_timestamp_seconds{box="truenas"})
           for: 2h
           labels:
             severity: warning
@@ -98,8 +107,13 @@ spec:
         # how 2026-08-05 to 08-09 ran four nights against a frozen source with
         # every rule above green.
         #
-        # No absent() companion: both textfiles share a directory and a
-        # node-exporter, so DockerBackupMetricsMissing already covers it.
+        # Absence is covered by DockerBackupMetricsMissing above, not here: a
+        # bare absent() on this metric would need the same box="truenas"
+        # selector as that rule and duplicate its 2h/warning tier for no
+        # benefit, so the check was folded into the existing alert instead of
+        # standing alone. (Sharing a directory/node-exporter with the base
+        # backup textfile was NOT sufficient on its own — see that rule's
+        # comment.)
         #
         # 36h/30m mirrors DockerBackupStale. This is the backstop for the cron
         # never running, which the ok-flag rule below cannot see — a script that

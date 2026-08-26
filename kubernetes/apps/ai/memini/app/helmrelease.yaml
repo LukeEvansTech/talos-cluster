@@ -9,6 +9,11 @@ spec:
     kind: OCIRepository
     name: *app
   interval: 1h
+  # MEMINI_REEMBED_ON_MODEL_CHANGE re-embeds the whole store synchronously at
+  # startup and the startup probe budgets ~30 minutes for that (see
+  # probes.startup below); the default 5m Helm timeout would roll the
+  # upgrade back mid-re-embed before the probe ever gets a chance to pass.
+  timeout: 35m
   install:
     remediation:
       retries: 3
