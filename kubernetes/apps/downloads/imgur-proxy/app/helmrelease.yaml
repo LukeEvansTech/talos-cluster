@@ -92,7 +92,15 @@ spec:
               FIREWALL_INPUT_PORTS: "8443,9999"
               FIREWALL_OUTBOUND_SUBNETS: '"${CLUSTER_PODS_CIDR},${CLUSTER_SVCS_CIDR},${CR_LAN_CIDR},${GH_LAN_CIDR}"'
               HEALTH_SERVER_ADDRESS: ":9999"
-              HEALTH_SERVER_DISABLE_LOOP: on
+              # Keep gluetun's internal health-check loop running (`off` means
+              # "do not disable it"). With the kubelet probe below turned off,
+              # this loop is the only thing left that notices a degraded
+              # tunnel and restarts it in-process, without touching the pod
+              # netns the way a kubelet-triggered container restart would.
+              # Leave this `off`: flipping it back to `on` silently removes
+              # that recovery path again while the comment on the probes
+              # below still claims it is active.
+              HEALTH_SERVER_DISABLE_LOOP: off
               HEALTH_VPN_DURATION_INITIAL: 60s
               LOG_LEVEL: info
               # Run as root (0) rather than gluetun's default 1000. gluetun
@@ -134,9 +142,10 @@ spec:
             # 1352 restarts, ending in OOMKills against the limit below, and
             # only a pod recreation could break it. gluetun's own internal
             # healthcheck loop already restarts the *tunnel* in-process on
-            # failure, which recovers the same faults without touching the
-            # netns, so the kubelet probe adds a failure mode without adding
-            # a recovery path.
+            # failure (kept enabled via HEALTH_SERVER_DISABLE_LOOP above),
+            # which recovers the same faults without touching the netns, so
+            # the kubelet probe adds a failure mode without adding a
+            # recovery path.
             probes:
               liveness:
                 enabled: false

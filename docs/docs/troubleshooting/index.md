@@ -60,7 +60,7 @@ Work down from what you observe to the most likely entry:
 - [KB-010: Rook-Ceph v1.20 CSI Driver Split Gotchas](kb/010-rook-ceph-v120-csi-driver-split.md)
 - [KB-011: konflate Render Failures (Cache Inode Fill / Phantom Mirror)](kb/011-konflate-render-failures.md)
 - [KB-012: JVM / Logstash Container RSS OOM Despite a Bounded Heap (`MALLOC_ARENA_MAX`)](kb/012-jvm-container-rss-oom-malloc-arena-max.md)
-- [KB-013: Go 1.26.4 Binary SIGSEGV at Startup (Before Any Logging)](kb/013-go-1264-binary-startup-sigsegv.md)
+- [KB-013: Go Pod Startup SIGSEGV Was a UPX Stub vs. Service-Link Env Vars, Not a Go Regression](kb/013-go-1264-binary-startup-sigsegv.md)
 - [KB-014: GPU Device-Plugin Handover Leaves `allocatable.nvidia.com/gpu = 0`](kb/014-gpu-device-plugin-handover-allocatable-zero.md)
 - [KB-015: Slow Image Pulls Exceed the HelmRelease Timeout (Rollback Loop)](kb/015-slow-image-pulls-exceed-helmrelease-timeout.md)
 - [KB-016: Kopia Repo Server OOM = Repo Size, Not a Maintenance Failure](kb/016-kopia-repo-server-oom-repo-size.md)
