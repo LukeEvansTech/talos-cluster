@@ -139,8 +139,8 @@ echo "Binding Secret ${CERT_SECRET_NAME} to Job ${JOB_NAME} for cleanup"
 JOB_UID=$(kubectl get job "${JOB_NAME}" -n "${NAMESPACE}" -o jsonpath='{.metadata.uid}' 2>/dev/null || true)
 if [[ -n "${JOB_UID}" ]]; then
     kubectl patch secret "${CERT_SECRET_NAME}" -n "${NAMESPACE}" --type merge -p \
-        "{\"metadata\":{\"ownerReferences\":[{\"apiVersion\":\"batch/v1\",\"kind\":\"Job\",\"name\":\"${JOB_NAME}\",\"uid\":\"${JOB_UID}\",\"controller\":false,\"blockOwnerDeletion\":false}]}}" \
-        || echo "WARNING: could not set ownerReference on ${CERT_SECRET_NAME}; it will need manual cleanup"
+        "{\"metadata\":{\"ownerReferences\":[{\"apiVersion\":\"batch/v1\",\"kind\":\"Job\",\"name\":\"${JOB_NAME}\",\"uid\":\"${JOB_UID}\",\"controller\":false,\"blockOwnerDeletion\":false}]}}" ||
+        echo "WARNING: could not set ownerReference on ${CERT_SECRET_NAME}; it will need manual cleanup"
 else
     echo "WARNING: could not read Job UID; ${CERT_SECRET_NAME} will need manual cleanup"
 fi
