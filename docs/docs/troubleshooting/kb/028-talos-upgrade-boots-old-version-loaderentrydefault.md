@@ -124,7 +124,11 @@ spec:
     - operator: Exists
   containers:
     - name: fix
-      image: python:3.13-alpine
+      # Pinned by digest (this doc block is outside Renovate's manifest-only digest-pinning
+      # coverage) — this is a privileged pod with efivarfs mounted read-write, so a moved
+      # tag pulling different bytes at run time is a real risk here. Re-pin by hand if a
+      # newer base is ever needed: `docker buildx imagetools inspect python:3.13-alpine`.
+      image: python:3.13-alpine@sha256:540c7d91f98ff6880174c40e99067bf5941eb54d818a7a5e094d188b196a934d
       securityContext:
         privileged: true
       command:
@@ -133,6 +137,7 @@ spec:
         - |
           set -e
           mkdir -p /ev && mount -t efivarfs none /ev
+          mount -o remount,rw -t efivarfs none /ev
           python3 - <<'PY'
           import fcntl, os, struct
           P = "/ev/LoaderEntryDefault-4a67b082-0a4c-41cf-b6c7-440b29bb8c4f"
@@ -152,29 +157,44 @@ spec:
 
 Clearing the immutable flag is required: efivarfs marks variables immutable, so `unlink` fails without it.
 
-**The mount can come up read-only, and the pod above does not handle it.** On one node of the
-v1.13.9 run, `mount -t efivarfs none /ev` produced `ro,relatime` and the `FS_IOC_SETFLAGS` ioctl
-failed with `OSError: [Errno 30] Read-only file system` — after the script had already printed the
-current value, so it looks like a permissions problem rather than a mount problem. The other two
-nodes mounted read-write from the same manifest, so this is not deterministic. Always remount
-before touching the variable:
-
-```sh
-mount -t efivarfs none /ev
-mount -o remount,rw -t efivarfs none /ev
-mount | grep efivar   # expect rw,relatime
-```
+**The mount can come up read-only.** On one node of the v1.13.9 run, `mount -t efivarfs none /ev`
+produced `ro,relatime` and the `FS_IOC_SETFLAGS` ioctl failed with `OSError: [Errno 30] Read-only
+file system` — after the script had already printed the current value, so it looks like a
+permissions problem rather than a mount problem. The other two nodes mounted read-write from the
+same manifest, so this is not deterministic. Because the pod's script runs under `set -e`, a failed
+ioctl kills the whole script immediately — with `restartPolicy: Never` the pod lands `Failed` with
+no live container to exec a fix into, so the remount has to be unconditional and already in the
+manifest rather than a step run after the fact. The manifest above does this: it remounts
+read-write right after the initial mount, every time, regardless of whether the first mount came up
+read-write already.
 
 Then drain and reboot the node normally:
 
 ```bash
 kubectl cordon <node>
-kubectl drain <node> --ignore-daemonsets --delete-emptydir-data --force --timeout=7m
-talosctl -n <node-ip> reboot
-# ~6 minutes of POST on this hardware, then:
-talosctl -n <node-ip> get bootedentry -o yaml   # -> talos-v1.13.7.efi
-kubectl uncordon <node>
+if kubectl drain <node> --ignore-daemonsets --delete-emptydir-data --force --timeout=7m; then
+  talosctl -n <node-ip> reboot
+  # ~6 minutes of POST on this hardware, then:
+  talosctl -n <node-ip> get bootedentry -o yaml   # -> talos-v1.13.7.efi
+
+  # Do not uncordon on the bootedentry check above — the node may still need a second,
+  # unprompted reboot before it settles on the target version (see "The fix may need two
+  # boot cycles, but not always" below). Wait for the kubelet to report it instead:
+  until kubectl get node <node> -o jsonpath='{.status.nodeInfo.osImage}' | grep -q '<target-version>'; do sleep 20; done
+  kubectl uncordon <node>
+else
+  echo "drain failed: node stays cordoned — inspect before rebooting or uncordoning"
+fi
 ```
+
+The `if` is load-bearing, and it guards the whole block, not just the reboot: if the drain times
+out, do **not** reboot through it, and do not let a pasted block fall through to the `uncordon`
+either — that would make a half-drained node schedulable again before you have looked. Check what is still
+`Terminating` and its `terminationGracePeriodSeconds` — a pod honouring a long, deliberate grace
+period (up to 1800s for a CloudNativePG instance) is not stuck, and rebooting through it is exactly
+what cost a database replica on the v1.13.9 run; see
+[Drain timeouts are grace periods, not stuck pods](#drain-timeouts-are-grace-periods-not-stuck-pods).
+Re-run the drain with `--timeout` sized to that grace period, then reboot.
 
 Wait for `HEALTH_OK` before starting the next node — see [KB-019](019-cordon-control-plane-breaks-ceph-mon-quorum.md), a cordoned control-plane node parks its affinity-pinned mon and OSDs in `Pending` and holds Ceph in `HEALTH_WARN` for as long as the cordon stands.
 
