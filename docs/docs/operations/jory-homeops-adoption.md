@@ -238,7 +238,6 @@ deleted App is a liability, not a spare), so the generator path needs a fresh Ap
 off, installed on this repository only) before it works again. The rest of this section is the
 trial-time write-up, kept for the pick-up.
 
-
 foreman + dispatch + foreman-dispatch-bridge is jory's autonomous "GitHub issues in → pull
 requests out" pipeline: dispatch grooms and lanes issues with a small local model, the bridge
 CronJob claims one ready issue per lane and creates a foreman `Workload`, and foreman's agent
