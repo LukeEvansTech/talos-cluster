@@ -70,17 +70,28 @@ bumped:
 $ flux suspend ks <app> -n flux-system
 $ kubectl patch replicationdestination <app>-nfs-dst -n <ns> --type=merge \
     -p '{"spec":{"trigger":{"manual":"restore-'"$(date +%s)"'"}}}'
-# ... restore, then:
+# ... restore, then hand spec.trigger back to Flux BEFORE resuming — the one-off
+# --server-side --field-manager=kustomize-controller --force-conflicts apply of the
+# rendered ReplicationDestination described under "Two traps" below. Only then:
 $ flux resume ks <app> -n flux-system
 ```
 
 Note the quoting. One destination in this cluster was found holding the **literal** string
 `restore-$(date +%s)`, because the shell never expanded it inside single quotes.
 
+Handing ownership back matters as much as the quoting. A merge patch always records an
+**`Update`** managed-fields entry for `spec.trigger.manual`, whatever manager name it uses —
+`--field-manager=kustomize-controller` only relabels that entry, it does not become Flux's
+**`Apply`** entry (the two operations are distinct in `managedFields`). Flux's next server-side
+apply therefore still conflicts, exactly as in the next section, until a real server-side apply
+with `--force-conflicts` under Flux's manager name returns the field. Do that step before the
+resume, not after the conflict has already wedged the app.
+
 ## Two traps when rolling this out
 
-**Field-manager conflicts do not force themselves.** That hand-patched destination had
-`spec.trigger` owned by the `kubectl-patch` field manager, so Flux's server-side apply returns:
+**Field-manager conflicts do not force themselves.** This is what happens if the patch above is
+resumed without the hand-back apply: one destination in this cluster had `spec.trigger` owned by
+the `kubectl-patch` field manager's `Update` entry, so Flux's server-side apply returned:
 
 ```text
 Error from server (Conflict): Apply failed with 1 conflict:
