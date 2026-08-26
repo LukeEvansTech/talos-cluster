@@ -6,8 +6,8 @@ MCP as #3491, and PR G as the staged #3489 (operator 0.9.3) → #3490 (shared ca
 abliterated model) → #3493 (vision, first-class mmproj) with both models verified on the shared
 CephFS cache (text + vision end-to-end). The CephFS RWX smoke test passed on 2026-07-10.
 Still open: **ha MCP** (awaiting a user-created read-only Home Assistant token in 1Password),
-**PR F** (optional CPU auxiliary model), and **foreman** (parked; re-evaluate now CephFS is
-proven). Planned 2026-07-09 via multi-agent gap analysis + adversarial review.
+**PR F** (optional CPU auxiliary model), and **foreman** (trialled 2026-08-25, then archived —
+see below). Planned 2026-07-09 via multi-agent gap analysis + adversarial review.
 
 A survey of [joryirving/home-ops](https://github.com/joryirving/home-ops) (`kubernetes/apps/base/llm`
 and `.agents`) against this cluster. Most of his stack was already ported (open-webui, litellm,
@@ -207,7 +207,35 @@ What it buys: no staging Jobs or immutability hacks, operator-managed model life
 shared weights copy, and any node can serve any model without re-staging: model switching and
 failover stop being a re-download event. The `llm-gpu-model` anti-affinity spread stays.
 
-## Foreman: installed for a bare trial (draft PR #4585)
+## Foreman: trialled (#4585), archived 2026-08-26
+
+**Outcome: archived.** The manifests moved to `.archive/kubernetes/apps/ai/foreman/` and the
+`./foreman/ks.yaml` line left the `ai` namespace kustomization, so Flux pruned the operator, the
+three `Agent` CRs, the `foreman-gate-cache` PVC (a rebuildable gate cache, nothing to snapshot),
+the `litellm-key-foreman` virtual key and the GitHub token generator. What the one hand-applied
+`Workload` trial showed:
+
+- The local coder (`self-hosted`, Qwen3.8-27B on a single L4) managed about 30 model turns an
+  hour — roughly 178k prompt tokens in the hour without producing a diff. A real issue needs
+  100+ turns, so one attempt is a multi-hour affair on this hardware.
+- The first attempt died with a one-off agent Deployment rollout (its claim expired with the
+  pod) — a fragility of Job-mode execution that the retry budget does not cover.
+- Foreman reads `GITHUB_TOKEN` once at pod start, so the hourly installation tokens the
+  `GithubAccessToken` generator mints expire mid-attempt; a long-lived PAT (jory runs a bot user
+  with one) is the only token shape that survives a full attempt.
+- There is no queue of well-specified mechanical issues here for it to work through — work in
+  this repository arrives as "look at this and figure out what is wrong", which an unattended
+  issue → pull request loop cannot do.
+
+To reinstate: `git mv` the directory back, re-add the `ks.yaml` line, and before the next trial
+(a) point the `coder` Agent at a cloud model (`openrouter/auto`) and keep `reviewer` local,
+(b) add a `self-hosted` alias with `reasoning_effort: none` for any local coding lane, and
+(c) store a PAT on the `foreman-github` item and flip the `foreman-agent` ExternalSecret from the
+generator back to `extract`. The `foreman-lukeevanstech` GitHub App stays installed and its
+private key stays on the `foreman-github` 1Password item, so the generator path keeps working for
+anything that can re-read a token. The rest of this section is the trial-time write-up, kept for
+the pick-up.
+
 
 foreman + dispatch + foreman-dispatch-bridge is jory's autonomous "GitHub issues in → pull
 requests out" pipeline: dispatch grooms and lanes issues with a small local model, the bridge
@@ -235,7 +263,7 @@ provider (`spec.providerConfig`), pointed at the `litellm-key-foreman` Secret th
 - The `foreman-lukeevanstech` GitHub App (id 4718328, Contents RW / Pull requests RW / Issues R /
   Metadata R, webhook off) installed on the account; its private key lives on the `foreman-github`
   1Password item (Talos vault, fields `APP_ID`, `INSTALLATION_ID`, `PRIVATE_KEY`). An
-  external-secrets `GithubAccessToken` generator (`foreman/app/githubaccesstoken.yaml`) mints
+  external-secrets `GithubAccessToken` generator (`foreman/app/githubaccesstoken.yaml`, now under `.archive/`) mints
   hourly installation tokens scoped to the `repositories` listed there — add a repo to that list
   to let foreman work on it.
 - The `litellm` `LiteLLMProxy` cutover PR must land (or be otherwise verified) before the
@@ -301,7 +329,8 @@ Deferred (right idea, wrong time): ToolHive `VirtualMCPServer` aggregate (litell
 aggregates + semantically filters; revisit if external agents need one URL: hermes could be
 that trigger), litellm complexity auto-router + cost economics (need a paid cloud roster),
 `memini-summary` dedicated model (GPU pressure; PR F could host it on CPU instead), repo-wiki,
-speculative decoding, HF-token ExternalSecret.
+speculative decoding, HF-token ExternalSecret, foreman (trialled and archived 2026-08-26 — the
+Foreman section above carries the reinstatement recipe).
 
 Skipped with reasons: openclaw + hermes-parallel runtimes as *always-on personas* (hermes is
 being adopted deliberately instead), comfyui + miso-gallery + comfyui-mcp (AMD ROCm hardware),

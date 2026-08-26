@@ -9,7 +9,6 @@ components:
 resources:
   - ./namespace.yaml
   - ./netpol.yaml
-  - ./foreman/ks.yaml
   - ./hermes/ks.yaml
   - ./hermeswebui/ks.yaml
   - ./litellm/ks.yaml
