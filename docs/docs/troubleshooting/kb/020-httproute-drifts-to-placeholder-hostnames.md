@@ -1,7 +1,12 @@
 # KB-020: App Returns 404 Through the Gateway (HTTPRoute Drifted to Placeholder Hostnames)
 
 **Status:** Structurally fixed 2026-08-03: the placeholder Secret now carries
-`kustomize.toolkit.fluxcd.io/ssa: IfNotPresent`, so the race below can no longer recur.
+`kustomize.toolkit.fluxcd.io/ssa: IfNotPresent`, which stops the **recurring**,
+every-reconcile version of the race below. A narrower window is still open on a fresh
+bootstrap, a newly-added namespace, or an existing namespace whose `cluster-secrets`
+Secret has been deleted (the next reconcile re-enters the same first-creation path),
+before ExternalSecret's first sync completes — only partly mitigated there by the
+placeholder values (see Structural fix), not eliminated.
 Objects that drifted *before* the fix stay drifted until remediated per-app (see Fix).
 
 ## Symptom
@@ -96,6 +101,17 @@ never again overwrites the ESO-managed real values. CI rendering (flate/Konflate
 unaffected: both read the git file, not the live object. Trade-off: a key added to the
 placeholder file after bootstrap reaches only CI rendering; the live value must land in
 the `cluster-secrets` 1Password item, which was already the required workflow.
+
+That first creation is itself still a race: nothing gates the child Kustomizations on
+ExternalSecret's first sync, so a fresh bootstrap, a newly-added namespace, or a namespace
+whose `cluster-secrets` Secret was deleted can still render the placeholder into an app's
+manifests in the window before ESO writes the real values. The newer placeholder values
+are deliberately dead (TEST-NET-1 addresses) so that window *fails loudly* if it is ever
+hit — but that is not true of all of them: the older service-address placeholders are
+ordinary RFC1918 values and the hostnames are `example.com`, both of which are routable
+and can quietly select a plausible wrong destination (an external-dns target, a
+load-balancer address, an outbound policy). Treat the fail-loud property as partial until
+those are moved onto TEST-NET-1 / `.invalid` values too.
 
 Options considered earlier and declined: global `driftDetection.mode: enabled` (would
 fight the zeroscaler HPAs), a self-healing CronJob guard, splitting `cluster-secrets` into
