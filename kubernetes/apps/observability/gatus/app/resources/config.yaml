@@ -26,6 +26,57 @@ endpoints:
     conditions:
       - "[CONNECTED] == true"
 
+  # Split-DNS integrity. These assert that the hand-managed Unbound include
+  # files are still live on the firewall. They live in a package-owned
+  # directory, so an OPNsense firmware upgrade deletes every non-package file
+  # in it without warning or error — 26.7.1 did exactly that and took the
+  # imgur redirect and the Firefox DoH canary with it for 24 days. Nothing
+  # else notices: the resolver stays healthy and simply answers from the
+  # public internet instead. Source of truth for the includes is
+  # LukeEvansTech/network-ops -> ansible/vars/unbound-includes.yml.
+  #
+  # ${OPNSENSE_ADDR} and ${SVC_IMGUR_PROXY_ADDR} are expanded by gatus from
+  # its own environment (see extraEnv in helmrelease.yaml), NOT by Flux — this
+  # ConfigMap sets kustomize.toolkit.fluxcd.io/substitute: disabled, which is
+  # what keeps real addresses out of this public repository.
+  - name: imgur-proxy-dns
+    group: split-dns
+    url: "${OPNSENSE_ADDR}"
+    interval: 2m
+    dns:
+      query-name: "imgur.com"
+      query-type: "A"
+    conditions:
+      - "[DNS_RCODE] == NOERROR"
+      - "[BODY] == ${SVC_IMGUR_PROXY_ADDR}"
+
+  # Returning NXDOMAIN here is what stops Firefox auto-enabling DNS-over-HTTPS
+  # and bypassing the on-box resolver entirely. Same include mechanism, same
+  # blast radius, so it fails at exactly the same moment as the check above —
+  # the pair together identify "the includes were wiped" rather than "imgur
+  # changed something".
+  - name: firefox-doh-canary
+    group: split-dns
+    url: "${OPNSENSE_ADDR}"
+    interval: 2m
+    dns:
+      query-name: "use-application-dns.net"
+      query-type: "A"
+    conditions:
+      - "[DNS_RCODE] == NXDOMAIN"
+
+  # End-to-end through the proxy: resolves via cluster DNS (which forwards to
+  # the same redirect), connects to the nginx SNI relay, and out through the
+  # gluetun tunnel. Covers the half the DNS checks cannot see — the nginx
+  # probes are tcpSocket only, so a dead VPN tunnel leaves the pod Ready and
+  # serving nothing.
+  - name: imgur-proxy
+    group: split-dns
+    url: https://imgur.com/
+    interval: 2m
+    conditions:
+      - "[STATUS] == 200"
+
 metrics: true
 
 storage:
