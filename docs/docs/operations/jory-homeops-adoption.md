@@ -230,12 +230,13 @@ the `litellm-key-foreman` virtual key and the GitHub token generator. What the o
 To reinstate: `git mv` the directory back, re-add the `ks.yaml` line, and before the next trial
 (a) point the `coder` Agent at a cloud model (`openrouter/auto`) and keep `reviewer` local,
 (b) add a `self-hosted` alias with `reasoning_effort: none` for any local coding lane, and
-(c) store a PAT on the `foreman-github` item and flip the `foreman-agent` ExternalSecret from the
-generator back to `extract`. The `foreman-lukeevanstech` GitHub App stays installed and its
-private key stays on the `foreman-github` 1Password item, so the generator path keeps working for
-anything that can re-read a token. The rest of this section is the trial-time write-up, kept for
-the pick-up.
-
+(c) recreate the `foreman-github` 1Password item with a fine-grained PAT and flip the
+`foreman-agent` ExternalSecret from the generator back to `extract`. The `foreman-lukeevanstech`
+GitHub App was deleted on 2026-08-26 and the `foreman-github` item with it (a private key for a
+deleted App is a liability, not a spare), so the generator path needs a fresh App registration
+(`github.com/settings/apps/new`: Contents RW / Pull requests RW / Issues R / Metadata R, webhook
+off, installed on this repository only) before it works again. The rest of this section is the
+trial-time write-up, kept for the pick-up.
 
 foreman + dispatch + foreman-dispatch-bridge is jory's autonomous "GitHub issues in → pull
 requests out" pipeline: dispatch grooms and lanes issues with a small local model, the bridge
@@ -260,9 +261,10 @@ provider (`spec.providerConfig`), pointed at the `litellm-key-foreman` Secret th
 
 **Prerequisites the owner must create before the trial can run** (not automated by the PR):
 
-- The `foreman-lukeevanstech` GitHub App (id 4718328, Contents RW / Pull requests RW / Issues R /
-  Metadata R, webhook off) installed on the account; its private key lives on the `foreman-github`
-  1Password item (Talos vault, fields `APP_ID`, `INSTALLATION_ID`, `PRIVATE_KEY`). An
+- A GitHub App (the trial used `foreman-lukeevanstech`, id 4718328: Contents RW / Pull requests
+  RW / Issues R / Metadata R, webhook off — deleted 2026-08-26 together with its 1Password item)
+  installed on the account; its private key lives on the `foreman-github` 1Password item (Talos
+  vault, fields `APP_ID`, `INSTALLATION_ID`, `PRIVATE_KEY`). An
   external-secrets `GithubAccessToken` generator (`foreman/app/githubaccesstoken.yaml`, now under `.archive/`) mints
   hourly installation tokens scoped to the `repositories` listed there — add a repo to that list
   to let foreman work on it.
