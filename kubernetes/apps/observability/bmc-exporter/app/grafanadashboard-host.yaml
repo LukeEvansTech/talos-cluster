@@ -127,8 +127,9 @@ spec:
             {"expr": "idrac_manager_info{job=~\"bmc-exporter.*\", instance=\"$host\"}", "format": "table", "instant": true, "refId": "D"}
           ],
           "transformations": [
+            {"id": "organize", "options": {"excludeByName": {"__name__": true}}},
             {"id": "merge", "options": {}},
-            {"id": "organize", "options": {"excludeByName": {"Time": true, "Value": true, "__name__": true, "job": true, "instance": true}}}
+            {"id": "organize", "options": {"excludeByName": {"Time": true, "Value": true, "job": true, "instance": true}}}
           ],
           "options": {"showHeader": true}
         },
