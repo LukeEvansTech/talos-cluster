@@ -203,7 +203,7 @@ spec:
           "datasource": {"type": "prometheus", "uid": "prometheus"},
           "targets": [{"expr": "idrac_cpu_current_speed_mhz{job=~\"bmc-exporter.*\", instance=\"$host\"}", "legendFormat": "CPU {{id}}", "refId": "A"}],
           "options": {"legend": {"displayMode": "list", "placement": "bottom", "calcs": ["lastNotNull", "max"]}, "tooltip": {"mode": "multi"}},
-          "fieldConfig": {"defaults": {"unit": "rothz", "custom": {"drawStyle": "line", "lineWidth": 1, "fillOpacity": 0, "showPoints": "never"}}, "overrides": []}
+          "fieldConfig": {"defaults": {"unit": "rotmhz", "custom": {"drawStyle": "line", "lineWidth": 1, "fillOpacity": 0, "showPoints": "never"}}, "overrides": []}
         },
         {
           "id": 15,
