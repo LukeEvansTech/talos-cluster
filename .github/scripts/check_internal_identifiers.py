@@ -80,7 +80,15 @@ PROSE_PATTERNS: dict[str, re.Pattern] = {
         # "generated with" is matched with the markdown link bracket OPTIONAL:
         # the plain "Generated with Claude Code" form (no link) reached main
         # several times while the bracketed-only pattern passed it through.
-        r"claude\.ai/code/session|co-authored-by:\s*claude|generated with \[?claude|noreply@anthropic\.com",
+        # The trailer match is by assistant NAME, not e-mail domain: every
+        # assistant that writes a trailer names itself, while their addresses
+        # vary (Copilot's numbered GitHub noreply address gets its own
+        # alternative below).
+        r"claude\.ai/code/session"
+        r"|co-authored-by:\s*(?:claude|codex|copilot|chatgpt|openai|gemini|cursor|devin|aider)\b"
+        r"|generated (?:with|by) \[?(?:claude|codex|copilot|chatgpt|gemini|cursor)"
+        r"|noreply@anthropic\.com"
+        r"|\d+\+copilot@users\.noreply\.github\.com",
         re.IGNORECASE,
     ),
 }
