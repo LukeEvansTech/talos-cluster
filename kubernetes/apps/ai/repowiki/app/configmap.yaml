@@ -146,7 +146,14 @@ data:
     state = json.loads(STATE.read_text()) if STATE.exists() else {}
 
     candidates = sorted({r for e in ENTRIES for r in expand(e)})
-    stale = [(r, s) for r in candidates if (s := head_sha(r)) and state.get(r) != s][:MAX]
+    stale_all = [(r, s) for r in candidates if (s := head_sha(r)) and state.get(r) != s]
+    # Rotate the pick through stale_all instead of always slicing the sorted head, so
+    # repos that keep failing (state[repo] never advances past them) only reclaim a
+    # slot once every full cycle instead of every run, and later repos still get a turn.
+    cursor = int(state.get("__cursor__", 0)) % max(len(stale_all), 1)
+    stale = (stale_all[cursor:] + stale_all[:cursor])[:MAX]
+    state["__cursor__"] = (cursor + len(stale)) % max(len(stale_all), 1)
+    STATE.write_text(json.dumps(state, indent=2))
     print(f"{len(candidates)} repos discovered, {len(stale)} to regenerate this run", flush=True)
 
     for repo, sha in stale:
