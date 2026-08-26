@@ -57,10 +57,9 @@ spec:
           for: 1m
           labels:
             severity: critical
-        # Backup WAN tiers (2026-08-02): 5G routers on transit VLANs feed the
-        # WAN_FAILOVER gateway group. A dead backup tier is invisible in daily
-        # use — it only matters mid-outage, which is exactly when it must not
-        # be discovered broken.
+        # Backup WAN tiers (2026-08-02) feed a failover gateway group. A dead
+        # backup tier is invisible in daily use — it only matters mid-outage,
+        # which is exactly when it must not be discovered broken.
         #
         # Gated on opnsense_gateways_status != 6 ("offline forced" — the
         # exporter's own state for a gateway an admin has explicitly forced
