@@ -25,6 +25,30 @@ spec:
       delayStartSeconds: "5"
       env:
         TZ: ${TIMEZONE}
+      # Addresses for the split-DNS checks in resources/config.yaml. Gatus
+      # expands ${VAR} from its own environment when it reads the config, and
+      # the config ConfigMap opts out of Flux substitution, so this is the only
+      # route by which a real address reaches those checks.
+      #
+      # Deliberately extraEnv + optional rather than envFrom on the whole
+      # Secret: envFrom with a missing Secret wedges the pod in
+      # CreateContainerConfigError, which would take the entire monitoring
+      # stack down over two DNS checks. Optional keys instead leave the vars
+      # empty, the two split-dns endpoints then fail their conditions, and
+      # GatusEndpointDown pages — the failure stays loud but contained.
+      extraEnv:
+        - name: OPNSENSE_ADDR
+          valueFrom:
+            secretKeyRef:
+              name: gatus-secret
+              key: OPNSENSE_ADDR
+              optional: true
+        - name: SVC_IMGUR_PROXY_ADDR
+          valueFrom:
+            secretKeyRef:
+              name: gatus-secret
+              key: SVC_IMGUR_PROXY_ADDR
+              optional: true
     sidecar:
       kinds:
         httproute:

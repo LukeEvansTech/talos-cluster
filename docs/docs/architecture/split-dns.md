@@ -503,6 +503,87 @@ API endpoint, which has an operational ceiling this cluster has already hit once
   signature in `opnsense-dns` logs as the early warning before the ceiling trips
   again.
 
+## Unbound Include Files Are Wiped by Firmware Upgrades
+
+Not every internal DNS answer comes from a host override. A few need raw Unbound
+directives — whole-zone redirects, in particular, which a host override cannot
+express because it matches one exact name. Those live as `.conf` files in
+Unbound's local override directory on the firewall, and are managed
+declaratively from `LukeEvansTech/network-ops`
+(`ansible/vars/unbound-includes.yml`, applied with `mise run
+opnsense-unbound-includes`).
+
+!!! danger "An OPNsense firmware upgrade silently deletes every one of them"
+    The override directory sits under `/usr/local/etc`, and is owned by the
+    `opnsense` package itself. A firmware upgrade reinstalls that package and
+    takes the directory with it, destroying every file the package does not
+    own. There is no warning, no error, and no entry in any log that names the
+    files it removed.
+
+This is not a hypothetical. The upgrade to OPNsense 26.7.1 on 2026-08-02
+deleted all three managed includes, and **nothing noticed for 24 days**:
+
+- **`imgur-proxy`** — the whole-zone redirect that points `imgur.com` and every
+  subdomain at `${SVC_IMGUR_PROXY_ADDR}`, the in-cluster SNI relay in
+  `downloads/imgur-proxy`. Losing it does not break DNS; it just makes the
+  resolver answer from the public internet again, so clients quietly stop using
+  the proxy.
+- **`firefox-canary`** — returns NXDOMAIN for the Mozilla canary domain, which
+  is what stops Firefox auto-enabling DNS-over-HTTPS and bypassing the on-box
+  resolver entirely. Losing it is a silent hole in the DNS lockdown.
+- **`statistics`** — Unbound extended statistics.
+
+### Why it presents as "nothing is wrong"
+
+Every signal an operator would normally check stays green. Unbound keeps
+running and keeps serving its host-override table correctly, so a spot check
+against the resolver looks healthy. On the Kubernetes side the affected app is
+untouched: `imgur-proxy` stayed `2/2 Running` with zero restarts, its
+HelmRelease Ready, its LoadBalancer IP assigned and reachable, and its VPN
+tunnel up. It simply received no traffic at all. The only direct evidence was
+its own access log — every connection in it came from the kubelet probe, and
+not one carried a real SNI.
+
+The general lesson: **an app that depends on out-of-band DNS to be reached
+cannot be diagnosed from its own health.** Read its access log, and prove the
+service independently by forcing a client at it
+(`curl --resolve <host>:443:<service IP>`) before touching anything.
+
+### Detection
+
+`observability/gatus` carries a `split-dns` endpoint group that asserts these
+answers directly — the redirect resolves to the proxy address, and the canary
+domain returns NXDOMAIN. Both fail the moment the includes are wiped, and
+`GatusEndpointDown` pages after five minutes. A third endpoint drives a real
+request through the proxy, covering the half the DNS checks cannot see: the
+relay's probes are `tcpSocket` only, so a dead VPN tunnel leaves the pod Ready
+and serving nothing.
+
+The addresses those checks compare against reach gatus as environment
+variables from a `cluster-secrets` ExternalSecret, not through Flux
+substitution — the gatus ConfigMap is generated with
+`kustomize.toolkit.fluxcd.io/substitute: disabled` so that gatus's own `${VAR}`
+expansion survives, which conveniently also keeps real addresses out of this
+public repository.
+
+### After every firmware upgrade
+
+Re-apply the includes. The playbook is idempotent, so running it when nothing
+is missing is a no-op:
+
+```bash
+mise run opnsense-unbound-includes-check   # confirm what is missing
+mise run opnsense-unbound-includes         # restore and restart Unbound
+```
+
+Then confirm the answers, rather than trusting the run:
+
+```bash
+dig +short imgur.com A @<resolver>              # expect the proxy address
+dig use-application-dns.net @<resolver>         # expect NXDOMAIN
+```
+
+
 ## References
 
 - [External DNS Documentation](https://kubernetes-sigs.github.io/external-dns/)
@@ -512,5 +593,5 @@ API endpoint, which has an operational ceiling this cluster has already hit once
 
 ---
 
-**Last Updated**: 2026-06-16
+**Last Updated**: 2026-08-27
 **Cluster**: talos-cluster
