@@ -34,12 +34,20 @@ The subtlety: **Helm's keep decision reads the *previous release's stored manife
 Recovery, in the order that worked:
 
 1. **Stop the loop first**: `flux suspend hr snapshot-controller -n kube-system`. Until the HelmRelease is suspended, every retry re-deletes whatever you restore.
-2. **Restore the CRDs** from the new chart's bundle, server-side:
+2. **Restore the CRDs** from the new chart's bundle, pinned to the version actually being deployed,
+    server-side:
 
     ```sh
-    helm show crds oci://ghcr.io/home-operations/charts/snapshot-controller \
+    helm show crds oci://ghcr.io/home-operations/charts/snapshot-controller --version <deployed-tag> \
       | kubectl apply --server-side --force-conflicts -f -
     ```
+
+    Without `--version`, `helm show crds` resolves to whatever the registry currently reports as
+    latest — not necessarily the version the wedged release was mid-upgrade to. Get `<deployed-tag>`
+    from the app's `ocirepository.yaml` (`spec.ref.tag`), or from the pending/failed revision in
+    `helm history -n <namespace> snapshot-controller` — but note its `CHART` column prints
+    `<chart>-<version>` (e.g. `snapshot-controller-0.1.0`); `--version` wants only the bare
+    version suffix (`0.1.0`), and the registry has no tag by the combined name.
 
 3. With the CRDs present, the crash-looping pod starts and the in-flight upgrade completes on its own (`helm history` flips to `deployed`). Then `flux resume hr`.
 4. **Recreate the cluster-scoped CRs the CRD deletion destroyed.** Helm will not self-heal deleted objects without drift detection, so force the owners:
