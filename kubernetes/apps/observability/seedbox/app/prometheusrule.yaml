@@ -6,15 +6,46 @@ metadata:
   name: seedbox.rules
 spec:
   groups:
-    # Combined availability reading. seedbox:up:ratio = fraction of the 6 tailnet
-    # scrape sensors currently reachable (0..1). NB all 6 ride the same tailnet
-    # egress, so this measures MONITORING-PATH health, not true box-up — the
-    # independent public-IP blackbox probe (probe_success{job="seedbox-public"})
-    # is the box-up anchor. Dashboards graph both for the overall picture.
+    # Combined availability reading. seedbox:up:ratio = fraction of the seedbox
+    # scrape sensors currently reachable (0..1) — 8 as of 2026-08-27: seven
+    # direct tailnet scrapes plus the in-cluster qBittorrent exporter, which
+    # reaches the box over that same egress. NB they all ride one tailnet path,
+    # so this measures MONITORING-PATH health, not true box-up — the independent
+    # public-IP blackbox probe (probe_success{job="seedbox-public"}) is the
+    # box-up anchor. Dashboards graph both for the overall picture.
     - name: seedbox.recording
       rules:
         - record: seedbox:up:ratio
           expr: avg(up{instance="seedbox"})
+        # The tracker economy — the thing a ratio box exists for. qui publishes
+        # lifetime up/down per tracker for ~87 samples a scrape; this folds it
+        # to one stable low-cardinality series per tracker so history survives
+        # dashboard edits and is available to calibrate a future alert against.
+        # No alert keys on it yet, deliberately: the obvious "ratio below floor"
+        # rule would have fired for four trackers the moment it shipped
+        # (measured 2026-08-27), which is the same miscalibration the iowait
+        # alert already taught this repo. It also moves for a reason that is not
+        # a fault — qbit-manage culls torrents that have ALREADY met their share
+        # limit, so removing high-ratio torrents drags the tracker aggregate
+        # DOWN. Calibrate against one observed cull cycle before writing the
+        # rule. Guarded with `> 0` so a tracker with no recorded download is
+        # absent rather than +Inf.
+        - record: seedbox:tracker:ratio
+          expr: |-
+            qbittorrent_tracker_uploaded_bytes{job="seedbox-qui"}
+              / (qbittorrent_tracker_downloaded_bytes{job="seedbox-qui"} > 0)
+        # Dead weight: torrents that have never uploaded a byte. On a ratio box
+        # this is pure cost — disk held for nothing. Two series, both cheap, and
+        # both immune to the cull interaction above: a cull only ever REDUCES
+        # them, so they cannot false-alarm after one.
+        - record: seedbox:torrents:zero_ratio_count
+          expr: count(qbittorrent_torrent_ratio{job="seedbox-qbittorrent"} == 0)
+        - record: seedbox:torrents:zero_ratio_bytes
+          expr: |-
+            sum(
+              qbittorrent_torrent_size_bytes{job="seedbox-qbittorrent"}
+                and (qbittorrent_torrent_ratio{job="seedbox-qbittorrent"} == 0)
+            )
     - name: seedbox.rules
       rules:
         # TRUE box-down: the blackbox TCP probe to the box's PUBLIC IP (probe.yaml),
@@ -281,6 +312,38 @@ spec:
               }[7d],
               10 * 86400
             ) < 0
+          for: 6h
+          labels:
+            severity: warning
+        # Dead weight: disk held by torrents that have never uploaded a byte.
+        # Pairs with the two disk-fill rules above as the CHEAPEST lever — this
+        # is space that can be reclaimed without costing a single ratio point,
+        # so it is worth culling before shortening anyone's max_seeding_time.
+        #
+        # Calibrated against the observed band, not a round number: over the 7d
+        # to 2026-08-27 the pool ran 0.93–2.15 TiB on a 21.6 TiB array with 7.6
+        # TiB free. 4 TiB is ~2x the observed max — quiet on arrival, and
+        # reached only by a genuine doubling. Unlike a tracker-ratio rule this
+        # cannot be tripped by a qbit-manage cull: a cull only ever removes
+        # torrents, so it drives this DOWN.
+        #
+        # Depends on the two per-torrent metrics kept past the cardinality drop
+        # in servicemonitor.yaml (size_bytes, ratio). If those are ever dropped
+        # this rule goes silent while still reporting health=ok — re-check it by
+        # inverting the comparison, the way the RAID rule regression was found.
+        - alert: SeedboxDeadWeightHigh
+          annotations:
+            summary: "Seedbox holds over 4 TiB of torrents that have never uploaded — reclaimable without losing ratio."
+            description: >-
+              Torrents at ratio 0 are holding more than 4 TiB of the data
+              array. This is the cheapest space on the box to reclaim: none
+              of it is earning anything. Check the Grafana "Cull candidates"
+              panel for the worst offenders, but confirm each tracker's
+              hit-and-run rules before removing — a recent grab may simply
+              not have found a peer yet. Reclaim is not immediate: culls
+              move data to .RecycleBin on the same filesystem for 3 days.
+          expr: |-
+            seedbox:torrents:zero_ratio_bytes > 4 * 1024^4
           for: 6h
           labels:
             severity: warning
