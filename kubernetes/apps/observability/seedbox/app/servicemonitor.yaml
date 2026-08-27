@@ -24,3 +24,43 @@ spec:
         - action: replace
           targetLabel: instance
           replacement: seedbox
+      metricRelabelings:
+        # Cardinality control. This exporter emits one series PER TORRENT for
+        # ~18 metrics; at 1,834 torrents that was 36,427 series — 5.3% of the
+        # whole cluster's active series — of which 30,905 were read by NOTHING
+        # (verified 2026-08-27: `qbittorrent_torrent_*` appeared in zero rules
+        # and zero dashboard panels). The series key on the torrent NAME, so
+        # every qbit-manage cull and every new grab churns the whole set.
+        #
+        # No upstream lever exists: ENABLE_HIGH_CARDINALITY governs only
+        # qbittorrent_torrent_info / qbittorrent_tracker_info (already false in
+        # helmrelease.yaml), not the base per-torrent gauges. Dropping at ingest
+        # is the only option.
+        #
+        # DELIBERATELY a drop-list, not an `action: keep` allow-list. Prometheus
+        # does not document whether the synthetic `up` / `scrape_*` series are
+        # exempt from metric_relabel_configs, and there is no `action: keep`
+        # anywhere else in this repo to check the behaviour against. A keep-list
+        # that silently ate `up` would kill SeedboxQbittorrentExporterDown,
+        # seedbox:up:ratio and the availability panel — a far worse failure than
+        # a new upstream metric arriving unfiltered. Naming what to remove
+        # cannot have that failure mode.
+        #
+        # ⚠️ `qbittorrent_torrent_states` is NOT per-torrent — it is an
+        # aggregate of 20 series where `name` is the STATE, and it powers the
+        # "qBittorrent torrents by state" panel. Any future regex written as
+        # `qbittorrent_torrent_.+` would eat it. It is excluded by name here.
+        #
+        # The three per-torrent metrics kept are each read by a live panel in
+        # dashboards/seedbox.json: size_bytes + ratio ("cull candidates") and
+        # total_uploaded_bytes ("top earners"). If those panels ever go, drop
+        # these too rather than leaving them unread.
+        #
+        # Effect: 36,427 → 5,522 per-torrent series (−85%). Re-check the list
+        # after an exporter bump, since a NEW per-torrent metric will flow until
+        # it is added here:
+        #   count({job="seedbox-qbittorrent",__name__=~"qbittorrent_torrent_.+"})
+        - action: drop
+          sourceLabels:
+            - __name__
+          regex: qbittorrent_torrent_(?:added_on|amount_left_bytes|completed_on|download_speed_bytes|eta|leechers|popularity|progress|seeders|session_downloaded_bytes|session_uploaded_bytes|tags|time_active|total_downloaded_bytes|upload_speed_bytes)
