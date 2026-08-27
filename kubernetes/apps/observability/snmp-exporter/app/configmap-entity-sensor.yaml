@@ -14,6 +14,15 @@ data:
   snmp.yml: |-
     modules:
       entity_sensor:
+        # This agent serves the entPhysicalTable slowly and drops GETBULK
+        # responses under the default max_repetitions of 25 — measured at 5/8
+        # successful walks, avg 11.3s against 0.3s for if_mib on the same box
+        # (2026-08-27). Smaller bulk requests are gentler on a constrained
+        # agent at the cost of more round trips, which the 5m scrape interval
+        # absorbs easily. Tune here rather than trimming the walk: six panels
+        # of the Onyx dashboard key off entPhysicalDescr (PSU power rails,
+        # optics Rx/Tx power, every legend), so the table itself has to stay.
+        max_repetitions: 10
         walk:
           - 1.3.6.1.2.1.47.1.1.1.1.2   # entPhysicalDescr
           - 1.3.6.1.2.1.47.1.1.1.1.7   # entPhysicalName
