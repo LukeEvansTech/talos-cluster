@@ -26,17 +26,22 @@ spec:
           for: 5m
           labels:
             severity: critical
-        # Deliberately a success RATE over a window, not `up == 0` with a long
+        # Deliberately a failure RATE over a window, not `up == 0` with a long
         # `for:`. This walk fails intermittently in short bursts — 29% of a day
         # in stalls mostly under 5m — which never trips a `for:` and so went
         # completely unalerted while the combined target flapped ~130 times a
         # day. A rate catches exactly that shape: steady partial loss. At 5m
-        # scrapes, <0.5 over 1h means more than half the readings are missing.
+        # scrapes, >0.5 over 1h means more than half the readings are missing.
+        #
+        # Written as `1 - avg_over_time(...)` rather than comparing the success
+        # rate directly so that $value IS the failure fraction the summary
+        # quotes. avg_over_time(up) is the SUCCESS fraction, so the direct form
+        # would report "failing 25%" for a walk that is actually failing 75%.
         - alert: OnyxSensorScrapeDegraded
           annotations:
             summary: "Sensor walk on {{ $labels.instance }} is failing {{ $value | humanizePercentage }} of the time — temps/fans/PSU/optics readings are incomplete."
           expr: |-
-            avg_over_time(up{job="snmp-exporter", device_class="sensors"}[1h]) < 0.5
+            1 - avg_over_time(up{job="snmp-exporter", device_class="sensors"}[1h]) > 0.5
           for: 30m
           labels:
             severity: warning

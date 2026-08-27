@@ -203,9 +203,19 @@ spec:
               - op: test
                 path: /spec/groups/0/rules/0/alert
                 value: TargetDown
+              # device_class=sensors is excluded alongside printers. That target
+              # walks the whole entPhysicalTable on an agent that serves it
+              # slowly, so its `up` tracks agent load rather than reachability —
+              # snmp-exporter.rules excludes it from SnmpTargetDown for the same
+              # reason. Excluding it there but not here would leave the ratio to
+              # fire instead: this rule groups by job, and one failed sensor
+              # target is 1 of 5 remaining SNMP series (interface + 3 PDUs), so
+              # 20% against a 10% threshold. Reachability for that box is still
+              # covered by its own interface target, which stays in scope here.
               - op: replace
                 path: /spec/groups/0/rules/0/expr
                 value: >-
                   100 * (count by (cluster, job, namespace, service)
-                  (up{device_class!="printer"} == 0) / count by (cluster, job,
-                  namespace, service) (up{device_class!="printer"})) > 10
+                  (up{device_class!~"printer|sensors"} == 0) / count by (cluster,
+                  job, namespace, service)
+                  (up{device_class!~"printer|sensors"})) > 10
