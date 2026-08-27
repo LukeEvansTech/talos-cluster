@@ -1,10 +1,10 @@
 # KB-013: Go Pod Startup SIGSEGV Was a UPX Stub vs. Service-Link Env Vars, Not a Go Regression
 
-**Status:** Misdiagnosis corrected 2026-08-25. The "unfixable upstream Go runtime regression"
-theory below was wrong on two counts — it isn't a Go bug, and it **is** fixable.
-`enableServiceLinks: false` is deployed and holding: see the `postRenderers` comment in
-`kubernetes/apps/default/chaski/app/helmrelease.yaml` for the confirmed root cause and proof
-numbers.
+**Status:** Resolved upstream 2026-08-27. The "unfixable upstream Go runtime regression"
+theory below was wrong on two counts — it isn't a Go bug, and it **is** fixable. The local
+`enableServiceLinks: false` workaround held from 2026-08-25 until upstream dropped the UPX step
+(`home-operations/chaski#137` → `#138`, shipped in chart/app 0.5.1); the workaround has since
+been removed. Kept for the diagnostic method and the proof numbers.
 
 ## Symptom
 
@@ -47,14 +47,17 @@ environment size, and it recurred for the wrong reason worked out on the first a
 
 ## Fix
 
-Deployed and holding: `enableServiceLinks: false` via a `postRenderers` patch on the Deployment
-(the bjw-s app-template chart has no values knob for it) — see
-`kubernetes/apps/default/chaski/app/helmrelease.yaml`. This drops the Kubernetes-injected
-service-link variables entirely, keeping the pod's environment well under the UPX stub's crash
-threshold. Nothing in chaski reads service-link env vars, so there's no functional loss.
+**Upstream (final):** the UPX step was removed from the image build after the findings below
+were reported (`home-operations/chaski#137`, fixed by `#138`), first shipping in **0.5.1**. The
+binary went from ~7 MB packed to ~27 MB plain, and starts cleanly at 460 / 600 / 1000 / 2000
+environment variables where the packed one died above ~500. Compression was the thing that made
+any app in a large namespace fragile to environment size at all, so removing it is the real fix.
 
-Drop the patch once upstream stops UPX-packing the image (tracked in `#3276`) — the compression
-choice is what leaves any app in a large namespace fragile to environment size at all.
+**Local (stopgap, now removed):** `enableServiceLinks: false` via a `postRenderers` patch on the
+Deployment (the chart has no values knob for it), which dropped the Kubernetes-injected
+service-link variables and kept the pod's environment under the stub's threshold. It held from
+2026-08-25 until the 0.5.1 bump; nothing in chaski reads service-link env vars, so there was no
+functional loss either way. Reach for the same patch on any other pod that shows this shape.
 
 ## Lessons
 
@@ -77,6 +80,7 @@ choice is what leaves any app in a large namespace fragile to environment size a
 
 ## References
 
-- `kubernetes/apps/default/chaski/app/helmrelease.yaml` — the deployed fix and its proof
+- `home-operations/chaski#137` — the upstream report, and `#138` — the UPX removal shipped in 0.5.1
+- `kubernetes/apps/default/chaski/app/helmrelease.yaml` — where the stopgap patch lived
   numbers.
 - `#3276` — tracks dropping the patch once the upstream image stops UPX-packing.
