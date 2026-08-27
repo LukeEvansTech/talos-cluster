@@ -56,11 +56,24 @@ spec:
         # the core switch. if_mib gives all port
         # counters/status; entity_sensor adds temp/fan/PSU/optics. auth onyx_ro
         # is a dedicated RO community defined via the ExternalSecret.
+        #
+        # Deliberately TWO targets rather than one with both modules. A scrape
+        # is only as healthy as its slowest module, and measured against this
+        # switch on 2026-08-27 (8 walks each, via the exporter's own /snmp):
+        #
+        #   if_mib alone         8/8 ok   avg  0.3s  max  1.9s
+        #   entity_sensor alone  5/8 ok   avg 11.3s  max 20.1s
+        #   both together        4/8 ok   avg 11.0s  max 20.1s
+        #
+        # Combined, that marked the whole target down ~29% of the day, so
+        # `up` said "core switch unreachable" when its interface data was in
+        # fact fast and complete, and SnmpTargetDown (critical, for 5m) was one
+        # slightly longer stall away from paging on it. Split, if_mib stays
+        # trustworthy and a slow sensor walk can no longer forge an outage.
         - name: onyx-core
           target: ${ONYX_ADDR}
           module:
             - if_mib
-            - entity_sensor
           auth:
             - onyx_ro
           interval: 60s
@@ -69,6 +82,26 @@ spec:
             - sourceLabels:
                 - __param_target
               targetLabel: instance
+        # The sensor walk covers the whole entPhysicalTable to label 54 sensors,
+        # which this agent serves slowly and sometimes not at all. Sensor
+        # readings are slow-moving, so a 5m interval costs nothing and cuts the
+        # load on the agent five-fold. device_class=sensors keeps it out of the
+        # critical SnmpTargetDown (same mechanism the label printers use) and
+        # gives OnyxSensorScrapeDegraded something to match on instead.
+        - name: onyx-core-sensors
+          target: ${ONYX_ADDR}
+          module:
+            - entity_sensor
+          auth:
+            - onyx_ro
+          interval: 300s
+          scrapeTimeout: 30s
+          relabelings:
+            - sourceLabels:
+                - __param_target
+              targetLabel: instance
+            - targetLabel: device_class
+              replacement: sensors
         # Brother printer fleet on PRINT VLAN 72. if_mib gives link/oper status;
         # brother_printer adds supplies/page-count/printer-status. Each carries a
         # device_class=printer label so the noisy label printers (which power

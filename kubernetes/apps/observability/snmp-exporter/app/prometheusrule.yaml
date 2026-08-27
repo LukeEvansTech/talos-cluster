@@ -11,14 +11,35 @@ spec:
         # Printers are excluded here: the label printers (QL/PT) power themselves
         # off by design, so a blanket down-alert on them is pure noise. Printer
         # health is covered by PrinterFault + PrinterSupplyLow below instead.
+        #
+        # device_class=sensors is excluded on the same basis: that target walks
+        # the whole entPhysicalTable on an agent that serves it slowly, so its
+        # `up` tracks how busy the agent is, not whether the device is reachable.
+        # Reachability for that box is already carried by its if_mib target,
+        # which is fast and stable; sustained sensor loss is covered by
+        # OnyxSensorScrapeDegraded below at a severity that fits it.
         - alert: SnmpTargetDown
           annotations:
             summary: "SNMP target {{ $labels.instance }} is not being scraped."
           expr: |-
-            up{job="snmp-exporter", device_class!="printer"} == 0
+            up{job="snmp-exporter", device_class!~"printer|sensors"} == 0
           for: 5m
           labels:
             severity: critical
+        # Deliberately a success RATE over a window, not `up == 0` with a long
+        # `for:`. This walk fails intermittently in short bursts — 29% of a day
+        # in stalls mostly under 5m — which never trips a `for:` and so went
+        # completely unalerted while the combined target flapped ~130 times a
+        # day. A rate catches exactly that shape: steady partial loss. At 5m
+        # scrapes, <0.5 over 1h means more than half the readings are missing.
+        - alert: OnyxSensorScrapeDegraded
+          annotations:
+            summary: "Sensor walk on {{ $labels.instance }} is failing {{ $value | humanizePercentage }} of the time — temps/fans/PSU/optics readings are incomplete."
+          expr: |-
+            avg_over_time(up{job="snmp-exporter", device_class="sensors"}[1h]) < 0.5
+          for: 30m
+          labels:
+            severity: warning
         # entPhySensorOperStatus: 1=ok, 2=unavailable, 3=nonoperational. Catches
         # fan/PSU/temperature sensor hardware faults on the core switch.
         # (entPhySensorValue carries the readings for dashboards; raw value must
