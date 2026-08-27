@@ -220,6 +220,70 @@ spec:
           for: 30m
           labels:
             severity: warning
+        # The 85% rule above is a "you are nearly full" backstop, and on
+        # THIS array it cannot stand alone: the warning time it buys is
+        # about equal to the remediation latency.
+        #   85% of 21.6 TiB leaves ~3.25 TiB free. At the fill rate seen
+        #   over the week to 2026-08-27 (~1.0 TiB/day) that is ~3.2 days
+        #   of runway. The remedy is a qbit-manage retention cull, but a
+        #   cull only MOVES data to .RecycleBin on the same filesystem,
+        #   which holds it for 3 days (recyclebin.empty_after_x_days in
+        #   seedbox-apps apps/qbit-manage/config.yml).
+        # So by the time 85% fires a cull can no longer yield space
+        # before the array fills. This rule keys on the TREND instead,
+        # far enough ahead that the cull still has time to land.
+        #
+        # NOT covered by the stack's NodeFilesystemSpaceFillingUp: that
+        # selects job="node-exporter" while this scrape is
+        # job="seedbox-node", so it matches zero series here - the same
+        # structurally-dead-rule trap called out further up this file.
+        # It is also gated on <15% free, the same too-late point.
+        #
+        # Window and horizon are both load-bearing. The 7d window smooths
+        # the hourly qbit-manage culls (each a step UP in free space) and
+        # the bin's 3-day release cycle; a short window reads whichever
+        # side of that cycle it lands on. The 10d horizon must exceed the
+        # 3d reclaim latency plus reaction time, or the alert inherits
+        # the very problem it exists to fix.
+        #
+        # Verify it is live rather than silently matching nothing -
+        # invert it and confirm the expression still returns a series:
+        #   predict_linear(node_filesystem_avail_bytes{
+        #     job="seedbox-node", mountpoint="/var/mnt/seedbox"}[7d],
+        #     10*86400)                                    -> 1 series
+        #
+        # Backtested 2026-08-27 across the retained window: positive
+        # 20-22 Aug, crosses zero at 22:29 on 2026-08-22, then negative
+        # for 55/55 later samples - five days before the trend was
+        # spotted by hand, and a day before the 16d retention experiment
+        # that steepened it. Prometheus retention is 14d and the window
+        # is 7d, so 20 Aug is the earliest evaluable point: the quiet
+        # side is shown over ~2.5 days, not a long healthy baseline.
+        - alert: SeedboxDiskFillProjected
+          annotations:
+            summary: "Seedbox data array is on trend to fill within 10 days — cull now, while a cull still has time to reclaim."
+            description: >-
+              /var/mnt/seedbox is projected by its own 7-day trend to run
+              out of space within 10 days. Act on this rather than waiting
+              for SeedboxDiskFillHigh at 85%: culling moves data to
+              .RecycleBin on the same filesystem and reclaims nothing for
+              3 days, and 85% leaves less runway than that. Levers,
+              cheapest first: shorten a per-tracker max_seeding_time in
+              seedbox-apps apps/qbit-manage/config.yml, empty .RecycleBin
+              early, or pause autobrr intake. Check the unbounded trackers
+              first - a group with max_seeding_time -1 never returns space
+              and will re-trigger this no matter what else is trimmed.
+          expr: |-
+            predict_linear(
+              node_filesystem_avail_bytes{
+                job="seedbox-node",
+                mountpoint="/var/mnt/seedbox"
+              }[7d],
+              10 * 86400
+            ) < 0
+          for: 6h
+          labels:
+            severity: warning
         # Steady-state seeding is iowait-heavy: the observed live working band
         # is p50≈0.45 / p90≈0.56 / max≈0.66, and Alertmanager routes every
         # firing alert to Pushover (info is not a quiet tier), so the threshold
