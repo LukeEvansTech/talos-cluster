@@ -1,4 +1,5 @@
 ---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/kustomize.toolkit.fluxcd.io/kustomization_v1.json
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
@@ -8,11 +9,23 @@ spec:
   commonMetadata:
     labels:
       app.kubernetes.io/name: *app
+  components:
+    - ../../../../components/homepage
   dependsOn:
     - name: onepassword-connect
       namespace: external-secrets
   interval: 1h
   path: ./kubernetes/apps/default/lurcher/app
+  postBuild:
+    substitute:
+      APP: *app
+      VOLSYNC_CAPACITY: 1Gi
+      VOLSYNC_PUID: "65532"
+      VOLSYNC_PGID: "65532"
+      HOMEPAGE_NAME: Lurcher
+      HOMEPAGE_GROUP: Productivity
+      HOMEPAGE_ICON: mdi-dog-side
+      HOMEPAGE_DESCRIPTION: Contract-listing scraper and triage
   prune: true
   retryInterval: 2m
   sourceRef:
