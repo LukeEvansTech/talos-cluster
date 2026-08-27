@@ -31,10 +31,6 @@ spec:
               LURCHER_SCHEDULE: "0 10 * * *"
               LURCHER_TZ: Europe/London
               LURCHER_PUBLIC_URL: https://lurcher.${SECRET_DOMAIN}
-              # The secret's SEARCHES_YAML key is file CONTENT (mounted below), but serve
-              # reads this env var as a PATH; explicit env outranks the envFrom'd content,
-              # which would otherwise silently import nothing.
-              SEARCHES_YAML: /app/searches.yaml
             envFrom:
               - secretRef:
                   name: lurcher-secret
@@ -105,13 +101,6 @@ spec:
         existingClaim: lurcher
         globalMounts:
           - path: /data
-      searches:
-        type: secret
-        name: lurcher-secret
-        globalMounts:
-          - path: /app/searches.yaml
-            subPath: SEARCHES_YAML # secret keys project as filenames; subPath picks this one
-            readOnly: true
       tmp:
         type: emptyDir
         globalMounts:
