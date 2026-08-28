@@ -18,11 +18,17 @@ spec:
         # Reachability for that box is already carried by its if_mib target,
         # which is fast and stable; sustained sensor loss is covered by
         # OnyxSensorScrapeDegraded below at a severity that fits it.
+        #
+        # device_class=switch-if is excluded for the same reason, in the other
+        # direction: on the MikroTik switches it is the INTERFACE walk that is
+        # slow (~15.4s measured) while the health/PoE walk is ~1.5s, so the
+        # health target is the honest reachability signal and the interface
+        # target gets MikrotikInterfaceScrapeDegraded instead.
         - alert: SnmpTargetDown
           annotations:
             summary: "SNMP target {{ $labels.instance }} is not being scraped."
           expr: |-
-            up{job="snmp-exporter", device_class!~"printer|sensors"} == 0
+            up{job="snmp-exporter", device_class!~"printer|sensors|switch-if"} == 0
           for: 5m
           labels:
             severity: critical
@@ -42,6 +48,45 @@ spec:
             summary: "Sensor walk on {{ $labels.instance }} is failing {{ $value | humanizePercentage }} of the time — temps/fans/PSU/optics readings are incomplete."
           expr: |-
             1 - avg_over_time(up{job="snmp-exporter", device_class="sensors"}[1h]) > 0.5
+          for: 30m
+          labels:
+            severity: warning
+        # The access points and the Zigbee coordinator are PoE-powered off the
+        # comms-rack switch and have no exporter, no agent and no probe of their
+        # own — the switch's own PoE meter is the only signal that says they are
+        # alive. Verified 2026-08-28: the four AP ports draw an order of
+        # magnitude more than anything else on the switch, and every other port
+        # reads exactly 0, so "was drawing, now draws nothing" is unambiguous.
+        #
+        # Deliberately expressed against POWER rather than mtxrPOEStatus: the
+        # status enum was inferred from observation, not from a MIB we hold, so
+        # an alert built on it would encode a guess. Zero-versus-nonzero needs
+        # neither the enum nor the (unconfirmed) power scaling factor.
+        #
+        # The port list is NOT hardcoded — any port that has been reliably
+        # delivering power is covered, so a device moved to a different port, or
+        # a new PoE device, is picked up with no change here. `for: 15m` clears
+        # an AP reboot. If a device is decommissioned the alert self-resolves
+        # once ~6.5h of zeroes have rolled through the window.
+        - alert: MikrotikPoeDeviceLostPower
+          annotations:
+            summary: "PoE device on {{ $labels.poe_port }} ({{ $labels.instance }}) has stopped drawing power — the attached device is off, unplugged or dead."
+          expr: |-
+            mtxrPOEPower{job="snmp-exporter"} == 0
+            and
+            min_over_time(mtxrPOEPower{job="snmp-exporter"}[6h] offset 30m) > 0
+          for: 15m
+          labels:
+            severity: warning
+        # Same shape and rationale as OnyxSensorScrapeDegraded: a failure RATE,
+        # because a slow walk fails in short bursts that never trip a `for:`.
+        # Written as `1 - avg_over_time(...)` so $value is the failure fraction
+        # the summary quotes, not the success fraction.
+        - alert: MikrotikInterfaceScrapeDegraded
+          annotations:
+            summary: "Interface walk on {{ $labels.instance }} is failing {{ $value | humanizePercentage }} of the time — port counters and link state are incomplete."
+          expr: |-
+            1 - avg_over_time(up{job="snmp-exporter", device_class="switch-if"}[1h]) > 0.5
           for: 30m
           labels:
             severity: warning
