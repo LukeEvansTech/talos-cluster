@@ -88,15 +88,50 @@ spec:
     prometheusRule:
       enabled: true
       rules:
+        # job="ap_probe" is excluded because every target here is critical by
+        # nature — a BMC, the firewall, the NAS — whereas the access points are
+        # four overlapping radios where losing one is degraded coverage, not an
+        # outage. They get the two rules below instead, split by blast radius.
         - alert: LanProbeFailed
           expr: |-
-            probe_success{service="blackbox-exporter-lan"} == 0
+            probe_success{service="blackbox-exporter-lan", job!="ap_probe"} == 0
           for: 15m
           labels:
             severity: critical
           annotations:
             summary: |-
               The probe targeting {{ $labels.instance }} is currently having connectivity issues
+        # One AP unreachable. Warning, not critical: the other three carry the
+        # clients, so this is "go and look at it", not "get up now". `for: 15m`
+        # rides out a firmware reboot.
+        #
+        # This complements rather than duplicates MikrotikPoeDeviceLostPower:
+        # that one watches the switch's PoE meter and so sees an AP that has
+        # lost power, while this sees an AP that still has power but has stopped
+        # answering — a hung AP draws its ~26W as happily as a healthy one.
+        # Both firing together points at power; this one alone points at the AP.
+        - alert: AccessPointDown
+          expr: |-
+            probe_success{job="ap_probe"} == 0
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: |-
+              Access point {{ $labels.instance }} is not answering ICMP — powered but off the network, or dead.
+        # Every AP down at once. That is the whole wireless estate, so it earns
+        # the critical the individual rule deliberately does not take. Usually
+        # means the comms-rack switch or its power rather than the APs
+        # themselves — check SnmpTargetDown on the access switch first.
+        - alert: AllAccessPointsDown
+          expr: |-
+            sum(probe_success{job="ap_probe"}) == 0
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            summary: |-
+              All wireless access points are unreachable — wireless is down estate-wide.
         # ── Why these exist ──────────────────────────────────────────────────
         # Added 2026-07-29 after an incident that was invisible for weeks. Two
         # hand-made Cloudflare DNS-01 tokens carried an IP allowlist that no
