@@ -1,0 +1,108 @@
+---
+# Custom snmp_exporter module for the two MikroTik CRS354 access switches
+# (MIKROTIK-MIB), verified against both live devices 2026-08-28.
+#
+# WHY NOT THE BUNDLED `mikrotik` MODULE: it walks the whole 1.3.6.1.4.1.14988
+# enterprise tree, which on the PoE switch is 5,274 variables and takes 48.4s
+# per scrape — unusable at any interval, and the same failure mode that made
+# the core switch's sensor target flap for a week. The two subtrees below are
+# the only ones carrying anything we act on, and cost ~1.5s together.
+#
+# mtxrHealthTable (.3.100.1) is self-describing: column .2 is the sensor name,
+# .3 the reading, .4 a unit code. Which sensors exist differs per model and is
+# NOT hardcoded here — the PoE switch reports poe-out-consumption and one PSU,
+# the non-PoE switch reports two PSUs and a second board temperature.
+# Observed unit codes: 1=celsius, 2=rpm, 6=state(boolean). Codes 3/4/5 appear
+# on voltage/current/power rows respectively but the exact scaling factor has
+# NOT been confirmed against the device CLI, so nothing here asserts one and
+# no alert depends on one.
+#
+# mtxrPOETable (.15.1.1) is per-port PoE, indexed by ifIndex, with the port's
+# own name in column .2 — so the AP/PoE-device topology is looked up from the
+# switch at scrape time rather than written into this public repo. Absent
+# entirely on the non-PoE model, which is expected and harmless.
+#
+# Auths (community) live in the snmp-exporter-auth Secret (external-secrets),
+# never here.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: snmp-exporter-mikrotik
+  namespace: observability
+data:
+  snmp.yml: |-
+    modules:
+      mikrotik_health:
+        walk:
+          - 1.3.6.1.2.1.1.3                  # sysUpTime
+          - 1.3.6.1.4.1.14988.1.1.3.100.1    # mtxrHealthTable
+          - 1.3.6.1.4.1.14988.1.1.15.1.1     # mtxrPOETable
+        metrics:
+          - name: sysUpTime
+            oid: 1.3.6.1.2.1.1.3
+            type: gauge
+            help: Time since the SNMP agent was last re-initialized (hundredths of a second)
+          - name: mtxrHealthValue
+            oid: 1.3.6.1.4.1.14988.1.1.3.100.1.3
+            type: gauge
+            help: Health sensor reading; see mtxrHealthName for what it measures and mtxrHealthUnit for the device's unit code
+            indexes:
+              - labelname: mtxrHealthIndex
+                type: gauge
+            lookups:
+              - labels: [mtxrHealthIndex]
+                labelname: mtxrHealthName
+                oid: 1.3.6.1.4.1.14988.1.1.3.100.1.2
+                type: DisplayString
+              - labels: [mtxrHealthIndex]
+                labelname: mtxrHealthUnit
+                oid: 1.3.6.1.4.1.14988.1.1.3.100.1.4
+                type: gauge
+          - name: mtxrPOEStatus
+            oid: 1.3.6.1.4.1.14988.1.1.15.1.1.3
+            type: gauge
+            help: PoE-out status per port; 3 is the value observed on every port actually delivering power
+            indexes:
+              - labelname: mtxrPOEInterfaceIndex
+                type: gauge
+            lookups:
+              - labels: [mtxrPOEInterfaceIndex]
+                labelname: poe_port
+                oid: 1.3.6.1.4.1.14988.1.1.15.1.1.2
+                type: DisplayString
+          - name: mtxrPOEPower
+            oid: 1.3.6.1.4.1.14988.1.1.15.1.1.5
+            type: gauge
+            help: PoE-out power drawn by the device on this port (raw device units, unconfirmed scaling; 0 means nothing is drawing)
+            indexes:
+              - labelname: mtxrPOEInterfaceIndex
+                type: gauge
+            lookups:
+              - labels: [mtxrPOEInterfaceIndex]
+                labelname: poe_port
+                oid: 1.3.6.1.4.1.14988.1.1.15.1.1.2
+                type: DisplayString
+          - name: mtxrPOEVoltage
+            oid: 1.3.6.1.4.1.14988.1.1.15.1.1.4
+            type: gauge
+            help: PoE-out voltage on this port (raw device units, unconfirmed scaling)
+            indexes:
+              - labelname: mtxrPOEInterfaceIndex
+                type: gauge
+            lookups:
+              - labels: [mtxrPOEInterfaceIndex]
+                labelname: poe_port
+                oid: 1.3.6.1.4.1.14988.1.1.15.1.1.2
+                type: DisplayString
+          - name: mtxrPOECurrent
+            oid: 1.3.6.1.4.1.14988.1.1.15.1.1.6
+            type: gauge
+            help: PoE-out current on this port (raw device units, unconfirmed scaling)
+            indexes:
+              - labelname: mtxrPOEInterfaceIndex
+                type: gauge
+            lookups:
+              - labels: [mtxrPOEInterfaceIndex]
+                labelname: poe_port
+                oid: 1.3.6.1.4.1.14988.1.1.15.1.1.2
+                type: DisplayString

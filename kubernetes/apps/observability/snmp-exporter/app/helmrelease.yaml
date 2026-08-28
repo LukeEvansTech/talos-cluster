@@ -22,6 +22,7 @@ spec:
       - --config.file=/run/snmp-extra/snmp.yml
       - --config.file=/run/snmp-printer/snmp.yml
       - --config.file=/run/snmp-apc/snmp.yml
+      - --config.file=/run/snmp-mikrotik/snmp.yml
       - --config.file=/run/snmp-auth/snmp.yml
     extraConfigmapMounts:
       - name: entity-sensor
@@ -35,6 +36,10 @@ spec:
       - name: apc-pdu
         configMap: snmp-exporter-apc-pdu
         mountPath: /run/snmp-apc
+        readOnly: true
+      - name: mikrotik
+        configMap: snmp-exporter-mikrotik
+        mountPath: /run/snmp-mikrotik
         readOnly: true
     # Credentials only (auths:) — templated by the snmp-exporter ExternalSecret
     # so no community string lives in git (public repo).
@@ -214,6 +219,85 @@ spec:
               targetLabel: instance
             - targetLabel: device_class
               replacement: pdu
+        # The two CRS354 access switches, unmonitored since the mktxp exporter
+        # was retired on 2026-07-19 (it needed the RouterOS binary API, which
+        # the network-ops hardening baseline disables). SNMP is enabled and the
+        # community is ACL-locked to the cluster nodes by that same Terraform,
+        # so this needs no change on the device side. Closes network-ops#112.
+        #
+        # Split into a health target and an interface target per switch, for the
+        # reason the core switch had to be split: the walks are wildly unequal.
+        # Measured 2026-08-28 on the PoE switch — mtxrHealth + mtxrPOE together
+        # are ~1.5s, while if_mib's ifTable + ifXTable are ~15.4s. Combining
+        # them would make `up` track the slow walk instead of the device.
+        #
+        # The health target is the reachability signal (fast, so a failure here
+        # really does mean the switch): device_class=switch keeps it in the
+        # critical SnmpTargetDown alert. It also carries per-port PoE, which is
+        # how a dead access point or PoE device is detected — the AP ports are
+        # the only heavy PoE draws on the estate.
+        - name: mikrotik-poe
+          target: ${MIKROTIK_POE_ADDR}
+          module:
+            - mikrotik_health
+          auth:
+            - mikrotik_ro
+          interval: 60s
+          scrapeTimeout: 30s
+          relabelings:
+            - sourceLabels:
+                - __param_target
+              targetLabel: instance
+            - targetLabel: device_class
+              replacement: switch
+        - name: mikrotik-nonpoe
+          target: ${MIKROTIK_NONPOE_ADDR}
+          module:
+            - mikrotik_health
+          auth:
+            - mikrotik_ro
+          interval: 60s
+          scrapeTimeout: 30s
+          relabelings:
+            - sourceLabels:
+                - __param_target
+              targetLabel: instance
+            - targetLabel: device_class
+              replacement: switch
+        # Interface counters. 5m interval and a timeout well clear of the
+        # measured ~15.4s walk, so a slow walk degrades resolution rather than
+        # registering the switch as down. device_class=switch-if keeps that
+        # slowness out of the critical down-alert (same carve-out as the core
+        # switch's sensor target); sustained loss is covered by
+        # MikrotikInterfaceScrapeDegraded instead.
+        - name: mikrotik-poe-interfaces
+          target: ${MIKROTIK_POE_ADDR}
+          module:
+            - if_mib
+          auth:
+            - mikrotik_ro
+          interval: 300s
+          scrapeTimeout: 60s
+          relabelings:
+            - sourceLabels:
+                - __param_target
+              targetLabel: instance
+            - targetLabel: device_class
+              replacement: switch-if
+        - name: mikrotik-nonpoe-interfaces
+          target: ${MIKROTIK_NONPOE_ADDR}
+          module:
+            - if_mib
+          auth:
+            - mikrotik_ro
+          interval: 300s
+          scrapeTimeout: 60s
+          relabelings:
+            - sourceLabels:
+                - __param_target
+              targetLabel: instance
+            - targetLabel: device_class
+              replacement: switch-if
     resources:
       requests:
         cpu: 10m
