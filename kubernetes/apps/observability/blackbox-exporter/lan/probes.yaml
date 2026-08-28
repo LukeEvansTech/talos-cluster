@@ -37,6 +37,45 @@ spec:
 apiVersion: monitoring.coreos.com/v1
 kind: Probe
 metadata:
+  name: lan-icmp-ap
+spec:
+  # The wireless access points. Separate from lan-icmp above purely so the
+  # severity can differ: that probe's LanProbeFailed is critical, which is right
+  # for a BMC or the firewall but wrong for one of four overlapping APs. Own
+  # jobName so those rules can carve this job out; see AccessPointDown /
+  # AllAccessPointsDown in the HelmRelease.
+  #
+  # This is the SECOND signal for the APs, and an independent one. Per-port PoE
+  # on the access switch (snmp-exporter) says an AP is drawing power; this says
+  # it is actually on the network. An AP that has hung still draws its ~26W, so
+  # neither check subsumes the other.
+  #
+  # Named targets, not addresses: the leases are reserved and the names are
+  # served by Unbound (network-ops ansible/vars/{dhcp,dns}.yml). Before that
+  # these APs had no probe at all, because a dynamic address is nothing to point
+  # one at. Note the Unleashed MASTER role floats between APs after a reboot, so
+  # none of these four is durably the controller.
+  jobName: ap_probe
+  interval: 1m
+  module: icmp
+  prober:
+    url: blackbox-exporter-lan.observability.svc.cluster.local:9115
+  targets:
+    staticConfig:
+      static:
+        - ap-garage.${SECRET_INTERNAL_DOMAIN}
+        - ap-hall.${SECRET_INTERNAL_DOMAIN}
+        - ap-living-room.${SECRET_INTERNAL_DOMAIN}
+        - ap-attic.${SECRET_INTERNAL_DOMAIN}
+  metricRelabelings:
+    - action: replace
+      replacement: blackbox-exporter-lan
+      targetLabel: service
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/probe_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: Probe
+metadata:
   name: lan-tcp-nfs
 spec:
   jobName: nfs_probe
