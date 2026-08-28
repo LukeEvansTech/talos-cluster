@@ -63,18 +63,28 @@ spec:
         # an alert built on it would encode a guess. Zero-versus-nonzero needs
         # neither the enum nor the (unconfirmed) power scaling factor.
         #
-        # The port list is NOT hardcoded — any port that has been reliably
-        # delivering power is covered, so a device moved to a different port, or
-        # a new PoE device, is picked up with no change here. `for: 15m` clears
-        # an AP reboot. If a device is decommissioned the alert self-resolves
-        # once ~6.5h of zeroes have rolled through the window.
+        # The port list is NOT hardcoded — any port seen delivering power is
+        # covered, so a device moved to a different port, or a new PoE device, is
+        # picked up with no change here. `for: 15m` clears an AP reboot. If a
+        # device is decommissioned the alert self-resolves once the whole 6h
+        # window is zeroes, i.e. ~6.5h after it was unplugged.
+        #
+        # The second term is max_over_time, NOT min_over_time. It has to answer
+        # "was this port ever powered recently", and min answers "was it powered
+        # at EVERY sample", which breaks the rule in two ways. A single zero —
+        # from exactly the reboot the `for:` above exists to tolerate — would
+        # blank the evidence for the next 6.5h and suppress a real outage in
+        # that period. Worse, during a sustained outage the first zero enters
+        # the offset window ~30m in, so the alert would resolve itself ~15
+        # minutes after firing while the device was still dead: an alert that
+        # says "recovered" about a dead access point is worse than no alert.
         - alert: MikrotikPoeDeviceLostPower
           annotations:
             summary: "PoE device on {{ $labels.poe_port }} ({{ $labels.instance }}) has stopped drawing power — the attached device is off, unplugged or dead."
           expr: |-
             mtxrPOEPower{job="snmp-exporter"} == 0
             and
-            min_over_time(mtxrPOEPower{job="snmp-exporter"}[6h] offset 30m) > 0
+            max_over_time(mtxrPOEPower{job="snmp-exporter"}[6h] offset 30m) > 0
           for: 15m
           labels:
             severity: warning
