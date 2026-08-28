@@ -18,6 +18,7 @@ cross-cutting "what lives where and how to update it" reference.
 | vCenter / ESXi | `pryorda/vmware_exporter`         | `vmware-exporter`                             | `${SECRET_VSPHERE_ENDPOINT}` | `vsphere-monitoring`                   |
 | Firewall       | `AthennaMind/opnsense-exporter`   | `opnsense-exporter`                           | `host` field in item         | `opnsense-exporter`                    |
 | Core switch    | `prometheus/snmp_exporter`        | `snmp-exporter`                               | `${ONYX_ADDR}`               | — (SNMP community `<community>`)       |
+| Access switches | `prometheus/snmp_exporter`       | `snmp-exporter`                               | `${MIKROTIK_POE_ADDR}`, `${MIKROTIK_NONPOE_ADDR}` | `snmp-exporter` (`MIKROTIK_COMMUNITY`) |
 | UPS (NUT)      | `hon95/prometheus-nut-exporter`   | `nut-exporter`                                | `${NUT_SERVER_ADDR}`         | — (anonymous NUT protocol read)        |
 | Server BMCs    | `mrlhansen/idrac_exporter`        | `bmc-exporter`                                | ExternalSecret (`/discover`) | one item per BMC (shared with certwarden) |
 | Workstation BMC | `mrlhansen/idrac_exporter`       | `bmc-exporter-workstation`                    | ExternalSecret (`/discover`) | `workstation-ipmi`                     |
@@ -38,22 +39,49 @@ cluster — which a power event is precisely what shuts down, so the dashboard
 went dark at the one moment it was wanted. `nut-exporter` stays: its value is
 history in Prometheus, which is a cluster concern either way.
 
-!!! warning "The two MikroTik CRS354 switches are currently NOT monitored"
+### The two MikroTik CRS354 access switches
 
-    They were covered by the `mktxp` exporter, which was **retired on
-    2026-07-19** (archived to `.archive/kubernetes/apps/observability/mktxp`).
+Covered again since 2026-08-28, over **SNMP** — closing the gap left when the
+`mktxp` exporter was **retired on 2026-07-19** (archived to
+`.archive/kubernetes/apps/observability/mktxp`) and network-ops issue #112.
 
-    mktxp speaks the RouterOS **binary API on 8729**, and `api-ssl` is declared
-    `disabled = true` by the network-ops Terraform hardening baseline
-    (`terraform/mikrotik/hardening.tf`, since 2026-04-02). The exporter only ever
-    worked because api-ssl had been enabled by hand in June and never codified; a
-    `terraform apply` on 2026-07-06 reconciled that drift and the exporter went
-    blind. Re-enabling it by hand is not durable: the next apply reverts it.
+mktxp spoke the RouterOS **binary API on 8729**, and `api-ssl` is declared
+`disabled = true` by the network-ops Terraform hardening baseline
+(`terraform/mikrotik/hardening.tf`, since 2026-04-02). The exporter only ever
+worked because api-ssl had been enabled by hand in June and never codified; a
+`terraform apply` on 2026-07-06 reconciled that drift and the exporter went
+blind. SNMP needed no device-side change at all: the same Terraform enables it
+and locks the community to the cluster node addresses.
 
-    Restoring coverage without touching the hardening posture means **SNMP**:
-    add the two switches as `serviceMonitor.params[]` entries on `snmp-exporter`
-    (module `if_mib`). SNMP is already enabled and ACL-scoped on both switches by
-    the same Terraform. See network-ops issue #112.
+Each switch is scraped as **two targets**, because the walks are wildly unequal.
+Measured on the PoE switch, 2026-08-28:
+
+| Walk | Variables | Time |
+| ---- | --------: | ---: |
+| `mtxrHealthTable` + `mtxrPOETable` (custom `mikrotik_health` module) | 332 | ~1.5 s |
+| `ifTable` + `ifXTable` (`if_mib`) | 2,442 | ~15.4 s |
+| whole `1.3.6.1.4.1.14988` tree (bundled `mikrotik` module) | 5,274 | **48.4 s** |
+
+The bundled `mikrotik` module is therefore unusable, and
+`configmap-mikrotik.yaml` defines a custom module walking only the two subtrees
+that carry anything actionable. Combining health and interfaces into one target
+would make `up` track the slow walk instead of the device — the same failure
+that made the core switch's sensor target flap. So `device_class=switch` (fast,
+health + PoE) is the reachability signal and stays in the critical
+`SnmpTargetDown` alert, while `device_class=switch-if` is excluded from it and
+from the generic `TargetDown` ratio, and carries
+`MikrotikInterfaceScrapeDegraded` instead.
+
+!!! tip "Per-port PoE is how the wireless estate is monitored"
+
+    The access points and the Zigbee coordinator have no exporter, agent or
+    probe of their own, and sit on DHCP addresses that move — so there is
+    nothing stable to point a check at. The switch's own PoE meter is the only
+    signal that says they are alive, and it is a good one: the AP ports draw an
+    order of magnitude more than anything else on the switch and every unused
+    port reads exactly 0. `MikrotikPoeDeviceLostPower` alerts on any port that
+    was reliably delivering power and has stopped, so it needs no port list and
+    picks up new or relocated PoE devices automatically.
 
 ## Where the settings live
 

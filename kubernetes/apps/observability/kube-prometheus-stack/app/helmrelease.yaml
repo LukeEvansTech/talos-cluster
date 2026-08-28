@@ -212,10 +212,17 @@ spec:
               # target is 1 of 5 remaining SNMP series (interface + 3 PDUs), so
               # 20% against a 10% threshold. Reachability for that box is still
               # covered by its own interface target, which stays in scope here.
+              #
+              # device_class=switch-if is excluded on identical grounds: the
+              # MikroTik interface walk is ~15.4s against a ~1.5s health walk on
+              # the same device, so it is the walk that is slow, not the switch.
+              # Its own target carries MikrotikInterfaceScrapeDegraded, and the
+              # health target — which stays in scope here — is the reachability
+              # signal for those two switches.
               - op: replace
                 path: /spec/groups/0/rules/0/expr
                 value: >-
                   100 * (count by (cluster, job, namespace, service)
-                  (up{device_class!~"printer|sensors"} == 0) / count by (cluster,
-                  job, namespace, service)
-                  (up{device_class!~"printer|sensors"})) > 10
+                  (up{device_class!~"printer|sensors|switch-if"} == 0) / count by
+                  (cluster, job, namespace, service)
+                  (up{device_class!~"printer|sensors|switch-if"})) > 10
