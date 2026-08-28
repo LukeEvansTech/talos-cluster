@@ -46,7 +46,7 @@ spec:
             # stale cached image whose baked ansible venv/pywinrm was absent,
             # so Windows WinRM provisioning failed with "No module named
             # 'winrm'". Renovate bumps the digest as new images are built.
-            image: ghcr.io/codelooks-com/packer-runner:latest@sha256:5548cd89dabd0b3837a6f25ac2952c8d2dc06f43f5ac006d387b632e55b81ebb
+            image: ghcr.io/codelooks-com/packer-runner:latest@sha256:8875b32bd9c1a132514ba39b380d4d0f986f6b652e9bb4fc2a2fe668efcf83f4
             command:
               - "/home/runner/run.sh"
             env:
