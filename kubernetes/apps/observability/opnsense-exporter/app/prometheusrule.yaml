@@ -94,12 +94,12 @@ spec:
           for: 5m
           labels:
             severity: warning
-        # The Azure S2S tunnel is the last thing that still depends on the home
-        # WAN IP: strongSwan's identity_local and the Azure Local Network
-        # Gateway are both pinned to the literal address. The IP is Virgin Media
-        # dynamic — sticky, held by wan.spoofmac, but it moved on 2026-07-28 —
-        # and when it moves the tunnel stays down until BOTH pins are changed
-        # together. Until now that failure was measured and never announced:
+        # The S2S tunnel is the last thing here that still depends on the WAN
+        # address: the local IKE identity and the far-end gateway are both
+        # pinned to the literal IP, so whenever the upstream address changes the
+        # tunnel stays down until BOTH pins are changed together. That is a
+        # manual, two-sided fix, which is exactly why it needs an alert rather
+        # than a dashboard. Until now the failure was measured, never announced:
         # phase1_status has been scraped all along with no rule on it, so the
         # tunnel could sit down indefinitely with every dashboard green.
         #
@@ -114,7 +114,7 @@ spec:
         # transient upstream blip, and paging on a two-minute reconnect is noise.
         - alert: OPNsenseIPsecTunnelDown
           annotations:
-            summary: "IPsec tunnel {{ $labels.description }} is down or no longer reported — check the WAN IP against the Azure LNG pin."
+            summary: "IPsec tunnel {{ $labels.description }} is down or no longer reported — check the WAN address against the far-end gateway pin."
           expr: |-
             opnsense_ipsec_phase1_status{job="opnsense-exporter", description="azure-hub-vpngw"} == 0
             or
