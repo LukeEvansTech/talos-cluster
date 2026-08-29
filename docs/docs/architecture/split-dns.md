@@ -503,25 +503,29 @@ API endpoint, which has an operational ceiling this cluster has already hit once
   signature in `opnsense-dns` logs as the early warning before the ceiling trips
   again.
 
-## Unbound Include Files Are Wiped by Firmware Upgrades
+## Unbound Include Files Do Not Survive a Rebuild
 
 Not every internal DNS answer comes from a host override. A few need raw Unbound
-directives — whole-zone redirects, in particular, which a host override cannot
+directives — whole-zone redirects in particular, which a host override cannot
 express because it matches one exact name. Those live as `.conf` files in
-Unbound's local override directory on the firewall, and are managed
+Unbound's local override directory on the firewall, dropped over SSH and managed
 declaratively from `LukeEvansTech/network-ops`
 (`ansible/vars/unbound-includes.yml`, applied with `mise run
 opnsense-unbound-includes`).
 
-!!! danger "An OPNsense firmware upgrade silently deletes every one of them"
-    The override directory sits under `/usr/local/etc`, and is owned by the
-    `opnsense` package itself. A firmware upgrade reinstalls that package and
-    takes the directory with it, destroying every file the package does not
-    own. There is no warning, no error, and no entry in any log that names the
-    files it removed.
+!!! danger "They are not in `config.xml`, so a restore does not bring them back"
+    The firewall's whole backup and restore path is `config.xml`. Everything
+    configured through the GUI or the API — host overrides, NAT rules,
+    interfaces, syslog targets, IPsec — lives there and returns on restore.
+    These include files do not. A fresh install that imports `config.xml`
+    therefore comes up looking complete while silently missing every one of
+    them.
 
-This is not a hypothetical. The upgrade to OPNsense 26.7.1 on 2026-08-02
-deleted all three managed includes, and **nothing noticed for 24 days**:
+That is exactly what happened. The firewall was rebuilt on new hardware on
+2026-07-29 — fresh install, ZFS-on-root, `config.xml` imported — and the three
+managed includes were never restored, because nothing in the restore path
+carries them. **Nothing noticed for 28 days.** It is the same class of loss as
+the plugin set that the same migration silently dropped.
 
 - **`imgur-proxy`** — the whole-zone redirect that points `imgur.com` and every
   subdomain at `${SVC_IMGUR_PROXY_ADDR}`, the in-cluster SNI relay in
@@ -533,43 +537,54 @@ deleted all three managed includes, and **nothing noticed for 24 days**:
   resolver entirely. Losing it is a silent hole in the DNS lockdown.
 - **`statistics`** — Unbound extended statistics.
 
+### Routine upgrades are not the cause
+
+Worth stating plainly, because the timing invites the wrong conclusion and did
+once already. The override directory is owned by the `opnsense` package, and a
+point upgrade rewrites the four files the package ships into it — which updates
+the directory's mtime and makes it look as though the directory was emptied at
+that moment. It was not. Verified directly: the 2026-08-28 upgrade from
+26.7.1_1 to 26.7.3_8 left all three restored includes untouched, with their
+original mtimes, still copied into the chroot. `pkg` removes only files it owns.
+
+So the trigger to watch for is a **rebuild or a restore**, not an upgrade.
+
 ### Why it presents as "nothing is wrong"
 
-Every signal an operator would normally check stays green. Unbound keeps
-running and keeps serving its host-override table correctly, so a spot check
-against the resolver looks healthy. On the Kubernetes side the affected app is
-untouched: `imgur-proxy` stayed `2/2 Running` with zero restarts, its
-HelmRelease Ready, its LoadBalancer IP assigned and reachable, and its VPN
-tunnel up. It simply received no traffic at all. The only direct evidence was
-its own access log — every connection in it came from the kubelet probe, and
-not one carried a real SNI.
+Every signal an operator would normally check stays green. Unbound keeps running
+and keeps serving its host-override table correctly, so a spot check against the
+resolver looks healthy. On the Kubernetes side the affected app is untouched:
+`imgur-proxy` stayed `2/2 Running` with zero restarts, its HelmRelease Ready, its
+LoadBalancer IP assigned and reachable, and its VPN tunnel up. It simply received
+no traffic at all. The only direct evidence was its own access log — every
+connection in it came from the kubelet probe, and not one carried a real SNI.
 
-The general lesson: **an app that depends on out-of-band DNS to be reached
-cannot be diagnosed from its own health.** Read its access log, and prove the
-service independently by forcing a client at it
+The general lesson: **an app that depends on out-of-band DNS to be reached cannot
+be diagnosed from its own health.** Read its access log, and prove the service
+independently by forcing a client at it
 (`curl --resolve <host>:443:<service IP>`) before touching anything.
 
 ### Detection
 
 `observability/gatus` carries a `split-dns` endpoint group that asserts these
 answers directly — the redirect resolves to the proxy address, and the canary
-domain returns NXDOMAIN. Both fail the moment the includes are wiped, and
+domain returns NXDOMAIN. Both fail the moment the includes go missing, and
 `GatusEndpointDown` pages after five minutes. A third endpoint drives a real
 request through the proxy, covering the half the DNS checks cannot see: the
 relay's probes are `tcpSocket` only, so a dead VPN tunnel leaves the pod Ready
 and serving nothing.
 
-The addresses those checks compare against reach gatus as environment
-variables from a `cluster-secrets` ExternalSecret, not through Flux
-substitution — the gatus ConfigMap is generated with
+The addresses those checks compare against reach gatus as environment variables
+from a `cluster-secrets` ExternalSecret, not through Flux substitution — the
+gatus ConfigMap is generated with
 `kustomize.toolkit.fluxcd.io/substitute: disabled` so that gatus's own `${VAR}`
 expansion survives, which conveniently also keeps real addresses out of this
 public repository.
 
-### After every firmware upgrade
+### After a rebuild or a config restore
 
-Re-apply the includes. The playbook is idempotent, so running it when nothing
-is missing is a no-op:
+Re-apply the includes. The playbook is idempotent, so running it when nothing is
+missing is a no-op:
 
 ```bash
 mise run opnsense-unbound-includes-check   # confirm what is missing
@@ -583,6 +598,12 @@ dig +short imgur.com A @<resolver>              # expect the proxy address
 dig use-application-dns.net @<resolver>         # expect NXDOMAIN
 ```
 
+An audit of the firewall on 2026-08-29 confirmed these three files are the
+**only** hand-managed configuration outside `config.xml`. Every other
+non-package file in the config trees is either generated by OPNsense's configd
+templates from `config.xml`, or written by the system itself (Suricata's rules
+database, the IPsec CA exports, the pkg repository definitions). Nothing else
+needs re-applying after a rebuild.
 
 ## References
 
