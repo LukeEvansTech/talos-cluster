@@ -42,8 +42,11 @@ spec:
                     port: &port 8080
                   initialDelaySeconds: 0
                   periodSeconds: 10
-                  timeoutSeconds: 1
-                  failureThreshold: 3
+                  # cloudflared's /ready reports edge-connection state, so it can
+                  # blip during an edge reconnect. 1s/3 turned a transient blip into
+                  # a restart; 5s/5 rides it out and still catches a hung process.
+                  timeoutSeconds: 5
+                  failureThreshold: 5
               readiness: *probes
             securityContext:
               allowPrivilegeEscalation: false
