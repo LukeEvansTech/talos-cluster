@@ -19,6 +19,13 @@ spec:
           effect: "NoSchedule"
     controllers:
       generic-device-plugin:
+        # DaemonSet, not the app-template default Deployment: the plugin only
+        # advertises kernel.org/tun on the node it happens to run on, so a
+        # single replica silently pinned every gluetun pod in the cluster
+        # (qbittorrent, sabnzbd, prowlarr, imgur-proxy, dispatcharr) to one
+        # machine. All three nodes expose /dev/net/tun, so one pod per node
+        # makes the device schedulable everywhere it physically exists.
+        type: daemonset
         containers:
           generic-device-plugin:
             image:
