@@ -27,12 +27,14 @@ endpoints:
       - "[CONNECTED] == true"
 
   # Split-DNS integrity. These assert that the hand-managed Unbound include
-  # files are still live on the firewall. They live in a package-owned
-  # directory, so an OPNsense firmware upgrade deletes every non-package file
-  # in it without warning or error — 26.7.1 did exactly that and took the
-  # imgur redirect and the Firefox DoH canary with it for 24 days. Nothing
-  # else notices: the resolver stays healthy and simply answers from the
-  # public internet instead. Source of truth for the includes is
+  # files are still live on the firewall. They are dropped over SSH and live
+  # outside config.xml, so the firewall's backup/restore path does not carry
+  # them: the 2026-07-29 rebuild imported config.xml and came up complete
+  # apart from these, silently losing the imgur redirect and the Firefox DoH
+  # canary for 28 days. (Point upgrades do NOT remove them — verified across
+  # 26.7.1 -> 26.7.3 — so a rebuild or restore is the trigger to watch.)
+  # Nothing else notices: the resolver stays healthy and simply answers from
+  # the public internet instead. Source of truth for the includes is
   # LukeEvansTech/network-ops -> ansible/vars/unbound-includes.yml.
   #
   # ${OPNSENSE_ADDR} and ${SVC_IMGUR_PROXY_ADDR} are expanded by gatus from
