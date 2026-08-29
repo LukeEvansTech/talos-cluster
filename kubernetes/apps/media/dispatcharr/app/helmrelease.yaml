@@ -101,6 +101,11 @@ spec:
             # HEALTH_SERVER_DISABLE_LOOP keeps gluetun's in-process tunnel
             # restart, which recovers the same faults without touching the netns.
             probes:
+              # Liveness stays OFF. It restarts the *container*, but the pod
+              # netns survives and gluetun re-appends its firewall rules on
+              # every start, so one transient failure compounds into a
+              # self-sustaining loop. The health loop above recovers the same
+              # faults in-process instead.
               liveness:
                 enabled: false
                 custom: true
@@ -111,28 +116,24 @@ spec:
                   timeoutSeconds: 10
                   periodSeconds: 30
                   failureThreshold: 5
+              # Startup, by contrast, is ON and load-bearing. Kubernetes gates
+              # the app container on a sidecar's startup probe, and gluetun's
+              # health server only answers 200 once the tunnel and firewall are
+              # actually up. Without it "started" means merely "the process is
+              # running", so dispatcharr could fetch a playlist over the pod's
+              # default route before the kill switch existed — the exact leak
+              # this app is meant to prevent. 5m of headroom before it gives up.
               startup:
-                enabled: false
+                enabled: true
                 custom: true
                 spec:
                   httpGet:
                     path: /
                     port: 9999
-                  initialDelaySeconds: 10
+                  initialDelaySeconds: 5
                   periodSeconds: 10
-                  failureThreshold: 5
+                  failureThreshold: 30
             restartPolicy: Always
-            # An abrupt gluetun exit leaves an orphaned policy-routing rule for
-            # the wireguard table in the shared netns; the next start then fails
-            # with "adding ip rule 101 ... table 51820: file exists" and never
-            # connects. Clear stale v4/v6 rules on (re)start.
-            lifecycle:
-              postStart:
-                exec:
-                  command:
-                    - /bin/sh
-                    - -c
-                    - "(ip rule del table 51820; ip -6 rule del table 51820) || true"
             securityContext:
               runAsUser: 0
               runAsNonRoot: false
