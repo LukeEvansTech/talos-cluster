@@ -50,12 +50,25 @@ spec:
               DOT: "on"
               DOT_CACHING: "on"
               DOT_IPV6: off
-              # Required for cluster-service resolution — without it dispatcharr
-              # cannot resolve dragonfly.database.svc.cluster.local. The
-              # trade-off is that provider hostname lookups go to CoreDNS (and
-              # upstream) rather than through the tunnel; the streams themselves
-              # are still tunnelled.
-              DNS_KEEP_NAMESERVER: "on"
+              # OFF, so gluetun owns resolv.conf and every external lookup goes
+              # to its DoT resolver *inside* the tunnel. This is deliberate and
+              # load-bearing: estate DNS forwards to NextDNS, whose ddns rule
+              # sinkholes dynamic-DNS hostnames to 0.0.0.0 — and the IPTV panel
+              # 302s every stream to a rotating No-IP hostname. Six such domains
+              # were in use at last count and the set keeps moving, so
+              # allowlisting them one at a time is a treadmill whose failure mode
+              # (playlist fine, auth fine, player spins forever) is
+              # indistinguishable from a dead provider.
+              #
+              # Taking this pod off estate DNS fixes the whole class permanently
+              # and leaves NextDNS fully enforced for every other device. The
+              # OPNsense :53 redirect does not interfere: it matches plaintext
+              # port 53 to public destinations, while this is DoT (853) carried
+              # inside WireGuard, which the firewall cannot see.
+              #
+              # The cost is that .cluster.local stops resolving here, so the one
+              # in-cluster dependency (dragonfly) is pinned via hostAliases below.
+              DNS_KEEP_NAMESERVER: off
               FIREWALL: true
               FIREWALL_DEBUG: on
               # dispatcharr (9191), gluetun-webui (3000), health server (9999)
@@ -227,6 +240,17 @@ spec:
               limits:
                 memory: 128Mi
     defaultPodOptions:
+      # gluetun owns resolv.conf (DNS_KEEP_NAMESERVER: off), so cluster DNS is
+      # not available in this pod. dragonfly is its only in-cluster dependency,
+      # pinned here by ClusterIP so both REDIS_HOST and the templated
+      # CELERY_BROKER_URL keep working with the service name they already use.
+      # If the dragonfly Service is ever recreated its ClusterIP changes and
+      # this must be updated: kubectl -n database get svc dragonfly
+      hostAliases:
+        - ip: 10.43.92.110
+          hostnames:
+            - dragonfly.database.svc.cluster.local
+            - dragonfly.database.svc
       labels:
         gpu-workload: "true"
         gluetun: "true"
