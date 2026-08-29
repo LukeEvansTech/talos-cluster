@@ -94,3 +94,51 @@ spec:
           for: 5m
           labels:
             severity: warning
+        # The Azure S2S tunnel is the last thing that still depends on the home
+        # WAN IP: strongSwan's identity_local and the Azure Local Network
+        # Gateway are both pinned to the literal address. The IP is Virgin Media
+        # dynamic — sticky, held by wan.spoofmac, but it moved on 2026-07-28 —
+        # and when it moves the tunnel stays down until BOTH pins are changed
+        # together. Until now that failure was measured and never announced:
+        # phase1_status has been scraped all along with no rule on it, so the
+        # tunnel could sit down indefinitely with every dashboard green.
+        #
+        # The absent() half is not decoration. If the connection is removed,
+        # renamed, or simply stops being returned by the API, the series
+        # VANISHES — and `== 0` can never fire on an empty vector. Same blind
+        # spot that left mktxp unmonitored for 8 days. Verified against live
+        # Prometheus: the expression is empty while healthy, and fires when
+        # pointed at a description that does not exist.
+        #
+        # 10m rather than 5m: an S2S tunnel re-establishes on its own after a
+        # transient upstream blip, and paging on a two-minute reconnect is noise.
+        - alert: OPNsenseIPsecTunnelDown
+          annotations:
+            summary: "IPsec tunnel {{ $labels.description }} is down or no longer reported — check the WAN IP against the Azure LNG pin."
+          expr: |-
+            opnsense_ipsec_phase1_status{job="opnsense-exporter", description="azure-hub-vpngw"} == 0
+            or
+            absent(opnsense_ipsec_phase1_status{job="opnsense-exporter", description="azure-hub-vpngw"})
+          for: 10m
+          labels:
+            severity: critical
+        # Phase 1 up but no child SA means IKE negotiated and the traffic path
+        # is still dead — invisible to the alert above. Scoped with `and on()`
+        # to phase1 being up so a full outage pages once, not twice.
+        #
+        # Existence is the only usable signal here. There is no phase2_status
+        # metric, and the byte counters are NOT a substitute: a healthy idle
+        # tunnel legitimately reads bytes_in == 0 (confirmed on the live tunnel
+        # while it was up), so any "no traffic" rule would false-positive
+        # continuously. 15m clears a phase2 rekey window (life ~2300s,
+        # rekey ~1500s) without flapping.
+        - alert: OPNsenseIPsecChildSAMissing
+          annotations:
+            summary: "IPsec phase 2 (azure-hub-traffic) has no child SA while phase 1 is up — traffic path down."
+          expr: |-
+            absent(opnsense_ipsec_phase2_install_time{job="opnsense-exporter", description="azure-hub-traffic"})
+            and on()
+            (opnsense_ipsec_phase1_status{job="opnsense-exporter", description="azure-hub-vpngw"} == 1)
+          for: 15m
+          labels:
+            severity: critical
