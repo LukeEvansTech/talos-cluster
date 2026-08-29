@@ -12,6 +12,19 @@ spec:
   values:
     fullnameOverride: victoria-logs
     server:
+      # Native syslog listener: the local (non-Sentinel) syslog sink for the
+      # estate — ESXi hosts ship here (CIS 4.2/4.9; VMware logs stay local by
+      # decision), and it doubles as a second native target for anything else
+      # (e.g. the firewall) that wants a full local copy alongside the
+      # sentinel-syslog pipeline. Senders use RFC3164 over TCP where possible
+      # (UDP truncates at 480 bytes). Both current senders keep their clocks
+      # in UTC and 3164 timestamps carry no zone, hence the explicit timezone.
+      # Listens on 5514 because the pod is non-root; the LB Service below maps
+      # 514 -> 5514.
+      extraArgs:
+        syslog.listenAddr.tcp: ":5514"
+        syslog.listenAddr.udp: ":5514"
+        syslog.timezone: "UTC"
       resources:
         requests:
           cpu: 10m
@@ -72,3 +85,35 @@ spec:
               port: 9428
               protocol: TCP
               targetPort: http
+      # LAN syslog endpoint for the listener above. The real address is in
+      # cluster-secrets (SVC_VLSYSLOG_ADDR, 1Password), with a CI placeholder
+      # in components/global-vars/cluster-secrets.yaml — same pattern as the
+      # other SVC_*_ADDR LB services. externalTrafficPolicy stays Cluster:
+      # with Local, Cilium's L2 lease-holder can ARP the IP on a node without
+      # the pod and refuse the traffic (see sentinel-syslog, found 2026-08-02).
+      - apiVersion: v1
+        kind: Service
+        metadata:
+          name: victoria-logs-syslog
+          annotations:
+            lbipam.cilium.io/ips: ${SVC_VLSYSLOG_ADDR}
+            external-dns.alpha.kubernetes.io/hostname: vlsyslog.${SECRET_DOMAIN}
+        spec:
+          type: LoadBalancer
+          externalTrafficPolicy: Cluster
+          selector:
+            app: server
+            app.kubernetes.io/instance: victoria-logs
+            app.kubernetes.io/name: victoria-logs-single
+          ports:
+            # Target the chart's own named container ports: setting the
+            # syslog.listenAddr args above makes it declare syslog-tcp /
+            # syslog-udp, so the names track any future port change.
+            - name: syslog-tcp
+              port: 514
+              protocol: TCP
+              targetPort: syslog-tcp
+            - name: syslog-udp
+              port: 514
+              protocol: UDP
+              targetPort: syslog-udp
