@@ -52,6 +52,11 @@ spec:
                   periodSeconds: 30
                   timeoutSeconds: 10
                   failureThreshold: 3
+              # Readiness has to ride the SAME ~13s stall. At 5s it timed out on
+              # roughly every dedup cycle — ~51 Unhealthy events/hour, never enough
+              # consecutive failures to actually drop the endpoint, so pure noise.
+              # A 15s timeout outlasts the stall so the probe passes, and the 30s
+              # period stops readiness adding load to the single-threaded server.
               readiness:
                 enabled: true
                 custom: true
@@ -59,9 +64,9 @@ spec:
                   httpGet:
                     path: /health/ready
                     port: *port
-                  periodSeconds: 10
-                  timeoutSeconds: 5
-                  failureThreshold: 5
+                  periodSeconds: 30
+                  timeoutSeconds: 15
+                  failureThreshold: 3
             securityContext:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: true
