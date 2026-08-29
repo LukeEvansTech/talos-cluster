@@ -13,3 +13,29 @@ machine:
       content: |-
         # Guarantees the miroir loopfile pool baseDir exists on first boot —
         # the miroir agent does not create it (crash-loops on a missing dir).
+    # Raise NFS client parallelism for the NAS mounts. Inline `nfs:` pod volumes
+    # cannot carry mountOptions, so this file is the only place nconnect can be
+    # set for them — without it every mount runs the kernel default of a SINGLE
+    # TCP connection per client/server pair, shared by every mount on the node.
+    #
+    # nconnect is per (client, server), not per mount: 3 nodes x 8 = 24
+    # connections against the NAS's 48 nfsd threads. 16 is the kernel ceiling;
+    # 8 is the conservative first step.
+    #
+    # Only the two options that actually change something are set. vers=4.2,
+    # hard and rsize/wsize=1048576 are already what the kernel negotiates here
+    # (confirmed in /proc/mounts on all three nodes), and pinning nfsvers=4.2
+    # would be worse than redundant — it would force-break any NFSv3 mount, and
+    # the NAS still offers v3.
+    #
+    # `op: overwrite` replaces the whole file, so Talos's shipped nolock=true is
+    # restated. It is inert for the NFSv4.x mounts made here (v4 has integrated
+    # locking, hence local_lock=none) but matters on a v3 fallback.
+    - op: overwrite
+      path: /etc/nfsmount.conf
+      permissions: 0o644
+      content: |-
+        [ NFSMount_Global_Options ]
+        nolock=true
+        nconnect=8
+        noatime=True
