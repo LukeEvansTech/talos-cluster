@@ -79,14 +79,30 @@ spec:
         # Keyed on the two BINARY facts, deliberately NOT on avg(up) == 1:
         #   probe_success — box reachable on its public IP, off-tailnet.
         #   avg(up) > 0   — at least one tailnet scrape is still landing.
-        # So it stops for a real outage or a TOTAL tailnet blackout (the
-        # 2026-08-30 flap signature — the shared egress takes all eight jobs at
-        # once), and not for one dead exporter. avg(up) == 1 would be a trap: a
-        # single permanently-dead exporter would hold the check red forever, and
-        # a red check you have learned to ignore is a dead man's switch that no
-        # longer switches. Partial degradation stays in-band on
-        # SeedboxScrapePathDegraded, which CAN say which fraction is missing —
-        # a stopped heartbeat is binary and never can.
+        # So it stops for a real outage or a TOTAL tailnet blackout, and not for
+        # partial degradation. avg(up) == 1 would be a trap twice over: a single
+        # permanently-dead exporter would hold the check red forever (and a red
+        # check you have learned to ignore is a dead man's switch that no longer
+        # switches), and the measured duty cycle would defeat any usable grace
+        # period on its own.
+        #
+        # Measured over the 7d to 2026-08-30 (10,081 samples at 60s):
+        #   avg(up) == 1        9,228 samples  91.5%
+        #   0 < avg(up) < 1       818 samples   8.1%   <- partial, NOT ours
+        #   avg(up) == 0           35 samples   0.35%  <- what stops this alert
+        # Total blackouts: 12 in 7 days, LONGEST 11 MINUTES. So a 5m period plus
+        # a 30m grace on the Healthchecks.io side clears the worst observed
+        # blackout by ~2.7x and this heartbeat would not have alarmed once in
+        # that window — correct for a backstop. Keying on avg(up) == 1 would
+        # instead have withheld pings 8.5% of the time.
+        #
+        # Re-measure both figures before changing the grace period; the whole
+        # calibration rests on total blackouts being rare and short while
+        # partial degradation is neither.
+        #
+        # Partial degradation stays in-band on SeedboxScrapePathDegraded, which
+        # CAN say which fraction is missing — a stopped heartbeat is binary and
+        # never can.
         #
         # No `for`: it must resume the instant health returns, or a recovered
         # flap would keep withholding pings and trip the grace period anyway.
@@ -129,10 +145,14 @@ spec:
         # overlap is deliberate — it is the case where being told twice costs
         # one notification and being told zero times costs the box.
         #
-        # 20m is calibrated against observed flaps (the 2026-08-30 burst ran
-        # ~14m end to end). Raising it further trades away detection of a truly
-        # dead exporter for very little extra quiet; lower it and the TargetDown
-        # noise simply comes back under a new name.
+        # 20m is measured, not guessed. Over the 7d to 2026-08-30 the scrape
+        # path was partially degraded for 818 of 10,081 samples (8.1%), yet this
+        # rule fired only ~45 minutes across the FULL 14d retention — i.e. that
+        # 8.1% is overwhelmingly short bursts, and 20m sits above essentially all
+        # of them while still catching anything sustained. Lower it and the
+        # TargetDown noise comes back under a new name; raise it and a genuinely
+        # dead exporter goes unnoticed for longer, with the heartbeat above no
+        # help because a single dead exporter never stops it.
         - alert: SeedboxScrapePathDegraded
           annotations:
             summary: "Seedbox reachable on public IP but only {{ $value | humanizePercentage }} of tailnet scrapes are up for 20m — monitoring path degraded, not an outage."
