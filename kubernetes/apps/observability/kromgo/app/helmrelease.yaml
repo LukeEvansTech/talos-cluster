@@ -74,12 +74,7 @@ spec:
 
         - title: Alerts
           id: cluster_alert_count
-          # Subtract the always-firing alerts: Watchdog (cluster dead man's
-          # switch) and SeedboxHeartbeat (seedbox dead man's switch). Both fire
-          # permanently by design, so each one added here is a constant this
-          # badge would otherwise report as a live alert. Keep this in step with
-          # the heartbeat receivers in kube-prometheus-stack alertmanagerconfig.
-          query: alertmanager_alerts{state="active"} - 2
+          query: alertmanager_alerts{state="active"} - 1 # Ignore Watchdog
           colorExpr: 'colorScale(result, [1.0], ["green", "red"])'
 
         # Gatus-backed service checks. min()/max() collapse the per-replica

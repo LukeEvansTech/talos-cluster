@@ -62,67 +62,6 @@ spec:
           for: 5m
           labels:
             severity: critical
-        # DEAD MAN'S SWITCH. Every other rule in this file alerts on a signal
-        # ARRIVING. This one fires continuously while the box is healthy and is
-        # POSTed to its own Healthchecks.io check every 5m (receiver
-        # heartbeat-seedbox in kube-prometheus-stack/app/alertmanagerconfig.yaml)
-        # — so the SILENCE is the alert, exactly like the chart's Watchdog.
-        #
-        # Two things this buys that an in-band rule cannot:
-        #   * Flap tolerance moves OUT of Git. The grace period is a field in the
-        #     Healthchecks.io UI, so tuning it against a flap that actually
-        #     happened is a 5-second edit, not a commit and a Flux reconcile.
-        #   * It survives its own failure domain. SeedboxDown can only page while
-        #     Prometheus, Alertmanager and Pushover are all working; this fires
-        #     the alarm precisely BECAUSE they stopped.
-        #
-        # Keyed on the two BINARY facts, deliberately NOT on avg(up) == 1:
-        #   probe_success — box reachable on its public IP, off-tailnet.
-        #   avg(up) > 0   — at least one tailnet scrape is still landing.
-        # So it stops for a real outage or a TOTAL tailnet blackout, and not for
-        # partial degradation. avg(up) == 1 would be a trap twice over: a single
-        # permanently-dead exporter would hold the check red forever (and a red
-        # check you have learned to ignore is a dead man's switch that no longer
-        # switches), and the measured duty cycle would defeat any usable grace
-        # period on its own.
-        #
-        # Measured over the 7d to 2026-08-30 (10,081 samples at 60s):
-        #   avg(up) == 1        9,228 samples  91.5%
-        #   0 < avg(up) < 1       818 samples   8.1%   <- partial, NOT ours
-        #   avg(up) == 0           35 samples   0.35%  <- what stops this alert
-        # Total blackouts: 12 in 7 days, LONGEST 11 MINUTES. So a 5m period plus
-        # a 30m grace on the Healthchecks.io side clears the worst observed
-        # blackout by ~2.7x and this heartbeat would not have alarmed once in
-        # that window — correct for a backstop. Keying on avg(up) == 1 would
-        # instead have withheld pings 8.5% of the time.
-        #
-        # Re-measure both figures before changing the grace period; the whole
-        # calibration rests on total blackouts being rare and short while
-        # partial degradation is neither.
-        #
-        # Partial degradation stays in-band on SeedboxScrapePathDegraded, which
-        # CAN say which fraction is missing — a stopped heartbeat is binary and
-        # never can.
-        #
-        # No `for`: it must resume the instant health returns, or a recovered
-        # flap would keep withholding pings and trip the grace period anyway.
-        #
-        # Aggregated so the alert carries NO labels. This one is POSTed to a
-        # third party, and probe_success{job="seedbox-public"} carries
-        # instance=<the box's public IP> — which is kept out of this public repo
-        # (see probe.yaml) and does not belong in a webhook body either.
-        - alert: SeedboxHeartbeat
-          annotations:
-            summary: >-
-              Seedbox heartbeat — fires continuously while the box is reachable
-              and its metrics are flowing. The silence is the alert; if you are
-              reading this in Alertmanager, nothing is wrong.
-          expr: |-
-            (max(probe_success{job="seedbox-public"}) == 1)
-            and on()
-            (avg(up{instance="seedbox"}) > 0)
-          labels:
-            severity: none
         # Box IS reachable on its public IP, but some/all tailnet metric scrapes are
         # failing — a monitoring blind spot (DERP-relay flakiness / box I/O starving
         # tailscaled), NOT an outage. This is what used to page as SeedboxDown; it is a
@@ -138,12 +77,19 @@ spec:
         # narrowing the `up{instance="seedbox"}` selector now silently drops a
         # job out of alerting entirely rather than merely quietening it.
         #
-        # This rule and SeedboxHeartbeat above split the job by SHAPE, not by
-        # duplication: this one is fractional (some scrapes down, and it can say
-        # what fraction), the heartbeat is binary (nothing is landing at all).
-        # They overlap only on a total blackout lasting past 20m, and that
-        # overlap is deliberate — it is the case where being told twice costs
-        # one notification and being told zero times costs the box.
+        # An Alertmanager-driven dead man's switch for this signal was written
+        # and then dropped on 2026-08-30, deliberately. It would have pinged a
+        # Healthchecks.io check while the scrape path was alive, but every link
+        # it depended on — Prometheus, Alertmanager, the cluster's egress — is
+        # already covered by the chart's Watchdog, so its unique contribution
+        # was close to nil. The gap Watchdog genuinely leaves is the seedbox
+        # being a REMOTE box in a different failure domain from this cluster:
+        # if the cluster dies you learn Watchdog stopped and nothing about the
+        # box. That gap cannot be closed from inside the cluster, so it is
+        # closed at the source instead — the box pings Healthchecks.io itself
+        # (see seedbox-apps). Do not re-add a cluster-side heartbeat for it: two
+        # pingers on one check keep it green whenever EITHER is alive, which
+        # silently defeats the switch.
         #
         # 20m is measured, not guessed. Over the 7d to 2026-08-30 the scrape
         # path was partially degraded for 818 of 10,081 samples (8.1%), yet this
@@ -151,8 +97,7 @@ spec:
         # 8.1% is overwhelmingly short bursts, and 20m sits above essentially all
         # of them while still catching anything sustained. Lower it and the
         # TargetDown noise comes back under a new name; raise it and a genuinely
-        # dead exporter goes unnoticed for longer, with the heartbeat above no
-        # help because a single dead exporter never stops it.
+        # dead exporter goes unnoticed for longer.
         - alert: SeedboxScrapePathDegraded
           annotations:
             summary: "Seedbox reachable on public IP but only {{ $value | humanizePercentage }} of tailnet scrapes are up for 20m — monitoring path degraded, not an outage."
