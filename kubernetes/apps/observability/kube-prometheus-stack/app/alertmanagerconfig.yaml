@@ -31,20 +31,6 @@ spec:
           - name: alertname
             value: Watchdog
             matchType: =
-      # Seedbox dead man's switch — same mechanism as the Watchdog route above,
-      # pointed at its OWN Healthchecks.io check so the two failure domains stay
-      # independent: the Watchdog answers "is this cluster alerting at all", this
-      # answers "is the seedbox alive and still talking to us". A shared check
-      # could not tell those apart. See SeedboxHeartbeat in seedbox.rules for
-      # why the alert is shaped the way it is; the flap tolerance is the check's
-      # grace period, set in the Healthchecks.io UI, not here.
-      - receiver: heartbeat-seedbox
-        groupWait: 0s
-        repeatInterval: 5m
-        matchers:
-          - name: alertname
-            value: SeedboxHeartbeat
-            matchType: =
       # UPS emergencies — page at Pushover priority 2 (retry/expire) until acknowledged.
       # Placed before the generic critical route (first match wins) so only alerts
       # labelled pushover_priority=emergency escalate; every other critical still routes
@@ -75,25 +61,20 @@ spec:
           matchType: =
   receivers:
     - name: "null"
-    # sendResolved is false on BOTH heartbeat receivers, and it is load-bearing
-    # rather than tidiness. Healthchecks.io treats any request to the ping URL as
-    # a success ping — it never reads the body — so a "resolved" notification is
-    # indistinguishable from "still alive". That is the one notification a dead
-    # man's switch must not send: it arrives at the exact moment the signal died
-    # and pushes the check's clock forward by a repeatInterval, delaying the
-    # alarm by the length of time it took to notice.
+    # sendResolved is false here, and it is load-bearing rather than tidiness.
+    # Healthchecks.io treats any request to the ping URL as a success ping — it
+    # never reads the body — so a "resolved" notification is indistinguishable
+    # from "still alive". That is the one notification a dead man's switch must
+    # not send: it arrives at the exact moment the signal died and pushes the
+    # check's clock forward by a repeatInterval, delaying the alarm by the
+    # length of time it took to notice. Watchdog resolving is not hypothetical —
+    # alertmanagerSpec sets resolveTimeout 5m, so a Prometheus outage would
+    # otherwise buy itself one last ping on the way down.
     - name: heartbeat
       webhookConfigs:
         - urlSecret:
             name: &secret alertmanager-secret
             key: ALERTMANAGER_HEARTBEAT_URL
-          sendResolved: false
-    # Fed by SeedboxHeartbeat (observability/seedbox prometheusrule.yaml).
-    - name: heartbeat-seedbox
-      webhookConfigs:
-        - urlSecret:
-            name: *secret
-            key: SEEDBOX_HEARTBEAT_URL
           sendResolved: false
     - name: pushover
       pushoverConfigs:
