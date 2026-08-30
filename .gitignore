@@ -20,6 +20,12 @@ docs/superpowers/
 .venv/
 .claude/*
 !.claude/settings.json
+# settings.json references hooks by path, so the hooks must be tracked with it
+# or a fresh clone gets a config pointing at scripts that do not exist — and the
+# `|| true` those hooks are invoked with turns that into silence, not an error.
+# The directory itself has to be un-ignored: git does not descend into an
+# excluded directory, so a negation on a file inside one never matches.
+!.claude/hooks/
 .playwright-mcp/
 .DS_Store
 Thumbs.db

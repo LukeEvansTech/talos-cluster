@@ -61,11 +61,21 @@ spec:
           matchType: =
   receivers:
     - name: "null"
+    # sendResolved is false here, and it is load-bearing rather than tidiness.
+    # Healthchecks.io treats any request to the ping URL as a success ping — it
+    # never reads the body — so a "resolved" notification is indistinguishable
+    # from "still alive". That is the one notification a dead man's switch must
+    # not send: it arrives at the exact moment the signal died and pushes the
+    # check's clock forward by a repeatInterval, delaying the alarm by the
+    # length of time it took to notice. Watchdog resolving is not hypothetical —
+    # alertmanagerSpec sets resolveTimeout 5m, so a Prometheus outage would
+    # otherwise buy itself one last ping on the way down.
     - name: heartbeat
       webhookConfigs:
         - urlSecret:
             name: &secret alertmanager-secret
             key: ALERTMANAGER_HEARTBEAT_URL
+          sendResolved: false
     - name: pushover
       pushoverConfigs:
         - html: true
