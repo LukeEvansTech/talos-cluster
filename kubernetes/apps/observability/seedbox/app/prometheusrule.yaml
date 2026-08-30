@@ -62,20 +62,72 @@ spec:
           for: 5m
           labels:
             severity: critical
+        # DEAD MAN'S SWITCH. Every other rule in this file alerts on a signal
+        # ARRIVING. This one fires continuously while the box is healthy and is
+        # POSTed to its own Healthchecks.io check every 5m (receiver
+        # heartbeat-seedbox in kube-prometheus-stack/app/alertmanagerconfig.yaml)
+        # — so the SILENCE is the alert, exactly like the chart's Watchdog.
+        #
+        # Two things this buys that an in-band rule cannot:
+        #   * Flap tolerance moves OUT of Git. The grace period is a field in the
+        #     Healthchecks.io UI, so tuning it against a flap that actually
+        #     happened is a 5-second edit, not a commit and a Flux reconcile.
+        #   * It survives its own failure domain. SeedboxDown can only page while
+        #     Prometheus, Alertmanager and Pushover are all working; this fires
+        #     the alarm precisely BECAUSE they stopped.
+        #
+        # Keyed on the two BINARY facts, deliberately NOT on avg(up) == 1:
+        #   probe_success — box reachable on its public IP, off-tailnet.
+        #   avg(up) > 0   — at least one tailnet scrape is still landing.
+        # So it stops for a real outage or a TOTAL tailnet blackout (the
+        # 2026-08-30 flap signature — the shared egress takes all eight jobs at
+        # once), and not for one dead exporter. avg(up) == 1 would be a trap: a
+        # single permanently-dead exporter would hold the check red forever, and
+        # a red check you have learned to ignore is a dead man's switch that no
+        # longer switches. Partial degradation stays in-band on
+        # SeedboxScrapePathDegraded, which CAN say which fraction is missing —
+        # a stopped heartbeat is binary and never can.
+        #
+        # No `for`: it must resume the instant health returns, or a recovered
+        # flap would keep withholding pings and trip the grace period anyway.
+        #
+        # Aggregated so the alert carries NO labels. This one is POSTed to a
+        # third party, and probe_success{job="seedbox-public"} carries
+        # instance=<the box's public IP> — which is kept out of this public repo
+        # (see probe.yaml) and does not belong in a webhook body either.
+        - alert: SeedboxHeartbeat
+          annotations:
+            summary: >-
+              Seedbox heartbeat — fires continuously while the box is reachable
+              and its metrics are flowing. The silence is the alert; if you are
+              reading this in Alertmanager, nothing is wrong.
+          expr: |-
+            (max(probe_success{job="seedbox-public"}) == 1)
+            and on()
+            (avg(up{instance="seedbox"}) > 0)
+          labels:
+            severity: none
         # Box IS reachable on its public IP, but some/all tailnet metric scrapes are
         # failing — a monitoring blind spot (DERP-relay flakiness / box I/O starving
         # tailscaled), NOT an outage. This is what used to page as SeedboxDown; it is a
         # warning now. `and on()` gates it on the box being up so it does not double-fire
         # with SeedboxDown during a real outage.
         #
-        # As of 2026-08-30 this is the ONLY alert on seedbox scrape health: the
-        # chart's generic TargetDown now excludes instance="seedbox" (see the
-        # postRenderer in observability/kube-prometheus-stack). It had been
-        # firing once per job — eight single-target jobs, so eight pages and
+        # As of 2026-08-30 this is the only IN-BAND alert on seedbox scrape
+        # health: the chart's generic TargetDown now excludes instance="seedbox"
+        # (see the postRenderer in observability/kube-prometheus-stack). It had
+        # been firing once per job — eight single-target jobs, so eight pages and
         # eight resolves per relay flap — at a 10m `for` this rule's 20m already
         # rides out. So keep this expression aggregated over ALL seedbox scrapes:
         # narrowing the `up{instance="seedbox"}` selector now silently drops a
         # job out of alerting entirely rather than merely quietening it.
+        #
+        # This rule and SeedboxHeartbeat above split the job by SHAPE, not by
+        # duplication: this one is fractional (some scrapes down, and it can say
+        # what fraction), the heartbeat is binary (nothing is landing at all).
+        # They overlap only on a total blackout lasting past 20m, and that
+        # overlap is deliberate — it is the case where being told twice costs
+        # one notification and being told zero times costs the box.
         #
         # 20m is calibrated against observed flaps (the 2026-08-30 burst ran
         # ~14m end to end). Raising it further trades away detection of a truly
