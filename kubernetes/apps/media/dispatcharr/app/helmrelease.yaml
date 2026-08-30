@@ -178,6 +178,14 @@ spec:
               # stops at the real LAN client.
               DISPATCHARR_TRUSTED_PROXIES: ${CLUSTER_PODS_CIDR}
               REDIS_HOST: dragonfly.database.svc.cluster.local
+              # Own Dragonfly db, isolating this app's Celery queue from
+              # prowler's worker (-Q celery on db 0), which was consuming and
+              # discarding dispatcharr's EPG/M3U tasks. REDIS_DB is the lever
+              # that works: uwsgi spawns the workers via attach-daemon, and
+              # that child does not inherit CELERY_BROKER_URL, so celery falls
+              # back to the URL it builds from REDIS_*. Verified by connection
+              # state (CLIENT LIST db=3), not by reading the env back.
+              REDIS_DB: "3"
             envFrom:
               - secretRef:
                   name: dispatcharr-secret
