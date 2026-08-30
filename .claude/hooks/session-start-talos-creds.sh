@@ -32,9 +32,25 @@
 # rather than doing something half-configured, which is the intended failure
 # direction: this script is for reading the cluster, not for rebuilding it.
 #
-# It only ever runs as a FALLBACK. If the primary path worked, this exits
-# untouched — so fixing the toolchain upstream silently retires this script
-# instead of colliding with it.
+# INTERIM — DELETE THIS FILE ONCE THE UPSTREAM FIX LANDS
+# This does not belong in this repo. The right home is the cloud environment's
+# own hook (LukeEvansTech/claude-cloud-env, hooks/session-start.sh), next to the
+# gen-config call it is backing up: that script self-updates from main at every
+# session start, so a fix there reaches EVERY session and every repo at once,
+# rather than only this repo and only after a merge. That change is written and
+# tested on branch claude/talos-client-cred-fallback there; this file exists
+# only because that repo was not in the session's authorized set at the time.
+#
+# When it lands, delete this script, its entry in .claude/settings.json, and the
+# `!.claude/hooks/` exception in .gitignore. Two copies of one fallback in two
+# repos is exactly the drift this repo's comments elsewhere exist to prevent.
+#
+# Until then the two compose safely rather than racing, and that is by design,
+# not luck: the cloud-env hook runs FIRST (it is first in the settings.json
+# hooks array) and writes the same kubeconfig path this script checks for. So
+# the moment the upstream fix works, this exits at the "already present" guard
+# below without touching anything — no conflict, no double-fetch, and no need to
+# co-ordinate the two removals with the merge.
 set -uo pipefail
 
 # Never abort session startup. Every failure below is logged and swallowed:
