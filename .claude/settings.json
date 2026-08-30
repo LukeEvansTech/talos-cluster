@@ -7,6 +7,11 @@
             "type": "command",
             "command": "bash -c '[ \"$CLAUDE_CODE_REMOTE\" = true ] && [ -x /opt/claude-cloud-env/session-start.sh ] && bash /opt/claude-cloud-env/session-start.sh || true'",
             "timeout": 300
+          },
+          {
+            "type": "command",
+            "command": "bash -c 'bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/session-start-talos-creds.sh\" || true'",
+            "timeout": 180
           }
         ]
       }
