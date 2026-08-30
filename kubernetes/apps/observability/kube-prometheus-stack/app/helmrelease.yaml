@@ -228,14 +228,21 @@ spec:
               # not the box. seedbox/app/scrapeconfig.yaml already pushed
               # scrapeTimeout to 30s to absorb the slow-but-alive scrapes; what
               # is left is genuine multi-minute relay outages, and each one
-              # fired TargetDown once PER JOB — eight single-target jobs, so
-              # eight pages and eight resolves for one blip that never touched
-              # the box (observed 2026-08-30: seedbox-autobrr / -node / -doco-cd
-              # / -docker / -qbittorrent all firing at 12:09, resolving by
-              # 12:13). Single-target jobs make this unavoidable at the chart's
-              # threshold: one target down is 100%, so the 10% ratio and the
-              # 10m `for` are the whole rule, and neither can ride out a 14m
-              # flap without also blinding TargetDown estate-wide.
+              # fired TargetDown once PER JOB. Measured over the 7d to
+              # 2026-08-30: 20 separate firing episodes spread across 7 of the
+              # 8 seedbox jobs (every one but seedbox-smartctl), i.e. ~40
+              # Pushover messages a week counting resolves, for blips that
+              # never touched the box — the public probe stayed up throughout.
+              #
+              # Single-target jobs make this unavoidable at the chart's
+              # threshold: one target down is 100%, so the 10% ratio does
+              # nothing and the 10m `for` is the entire rule. Most of those
+              # episodes ran 1-4 minutes PAST that 10m, so riding them out
+              # in-band would mean a `for` of 30m+ on a rule that also guards
+              # the rest of the estate — where it earns its keep: the same
+              # window caught a genuine 5-DAY veeam-windows-exporter outage
+              # (Aug 23-28). Excluding the one noisy instance is the change
+              # that keeps both properties.
               #
               # Nothing is lost, because seedbox.rules already covers all three
               # failure modes with signals that DON'T ride the tailnet:
