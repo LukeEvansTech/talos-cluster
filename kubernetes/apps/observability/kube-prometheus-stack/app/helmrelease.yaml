@@ -178,7 +178,9 @@ spec:
                 expr: node_zfs_zpool_state{state!="online"} > 0
                 labels:
                   severity: critical
-  # Teach the chart's generic TargetDown about the label printers.
+  # Teach the chart's generic TargetDown about targets whose `up` is not a
+  # reachability signal — the label printers, two slow SNMP walks, and the
+  # seedbox's tailnet-egress scrapes.
   #
   # The Brother label printers power themselves off by design, so snmp-exporter's
   # own SnmpTargetDown already excludes device_class="printer" (see
@@ -219,10 +221,46 @@ spec:
               # Its own target carries MikrotikInterfaceScrapeDegraded, and the
               # health target — which stays in scope here — is the reachability
               # signal for those two switches.
+              #
+              # instance="seedbox" is excluded for the same reason, but harder:
+              # EVERY seedbox metric scrape rides one tailnet egress that is
+              # DERP-relayed (no UDP path), so `up` there tracks relay health,
+              # not the box. seedbox/app/scrapeconfig.yaml already pushed
+              # scrapeTimeout to 30s to absorb the slow-but-alive scrapes; what
+              # is left is genuine multi-minute relay outages, and each one
+              # fired TargetDown once PER JOB — eight single-target jobs, so
+              # eight pages and eight resolves for one blip that never touched
+              # the box (observed 2026-08-30: seedbox-autobrr / -node / -doco-cd
+              # / -docker / -qbittorrent all firing at 12:09, resolving by
+              # 12:13). Single-target jobs make this unavoidable at the chart's
+              # threshold: one target down is 100%, so the 10% ratio and the
+              # 10m `for` are the whole rule, and neither can ride out a 14m
+              # flap without also blinding TargetDown estate-wide.
+              #
+              # Nothing is lost, because seedbox.rules already covers all three
+              # failure modes with signals that DON'T ride the tailnet:
+              #   SeedboxDown (critical, 5m) — blackbox TCP to the box's PUBLIC
+              #     IP, off the tailnet entirely. This is the real box-down page.
+              #   SeedboxScrapePathDegraded (warning, 20m) — avg(up) < 1 gated on
+              #     the public probe being up. This is TargetDown's job for the
+              #     seedbox, aggregated to ONE alert and with a `for` long enough
+              #     to outlast a relay flap. A genuinely dead exporter is still
+              #     caught: it holds avg(up) < 1 indefinitely.
+              #   SeedboxContainerDown (critical, 10m) — per-container state from
+              #     docker_state_exporter, which names the failed service.
+              #
+              # Matching on instance, not job=~"seedbox-.*", is deliberate: every
+              # seedbox scrape relabels instance=seedbox (scrapeconfig.yaml and
+              # servicemonitor.yaml), so a new seedbox exporter inherits this
+              # exclusion instead of quietly re-introducing the noise. It also
+              # leaves job="seedbox-public" in scope — that probe carries
+              # instance=<public IP>, does not traverse the tailnet, and does not
+              # flap, so the one target that means "box down" still alerts here.
               - op: replace
                 path: /spec/groups/0/rules/0/expr
                 value: >-
                   100 * (count by (cluster, job, namespace, service)
-                  (up{device_class!~"printer|sensors|switch-if"} == 0) / count by
-                  (cluster, job, namespace, service)
-                  (up{device_class!~"printer|sensors|switch-if"})) > 10
+                  (up{device_class!~"printer|sensors|switch-if",instance!="seedbox"}
+                  == 0) / count by (cluster, job, namespace, service)
+                  (up{device_class!~"printer|sensors|switch-if",instance!="seedbox"}))
+                  > 10
