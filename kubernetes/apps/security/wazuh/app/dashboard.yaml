@@ -8,7 +8,17 @@ metadata:
     checkov.io/skip2: "CKV2_K8S_6=False positive. Ingress IS restricted: the cluster runs default-deny via kube-system cilium-policies, and this app ships a CiliumNetworkPolicy (networkpolicy.yaml) allowing only world->manager on the ingest ports. Checkov does not recognise CiliumNetworkPolicy as an associated policy."
     checkov.io/skip3: "CKV_K8S_35=The Wazuh images read these credentials from environment variables in their entrypoints; there is no file-based option without forking the image. Values come from a Secret built by ExternalSecret, never from Git."
     checkov.io/skip4: "CKV_K8S_40=uid is baked into the upstream images (1000 indexer/dashboard, 101 manager). Raising it means rebuilding the vendor's containers. These pods mount no host paths and set no hostPID/hostIPC/hostNetwork, so host uid collision is not a live risk."
-    reloader.stakater.com/auto: "true"
+    # Scoped deliberately, NOT reloader auto. Auto would also watch the
+    # `wazuh` Secret, which carries both the client passwords AND the
+    # internal_users.yml hashes — so a credential rotation would restart
+    # every pod onto the new plaintext passwords the moment the
+    # ExternalSecret refreshed, while the indexer security index still
+    # held the old hashes. That race takes the stack down and cannot be
+    # ordered around by hand. Config and certificates reload freely;
+    # rotating credentials is a deliberate, ordered procedure documented
+    # in externalsecret.yaml.
+    configmap.reloader.stakater.com/reload: wazuh-dashboard-conf
+    secret.reloader.stakater.com/reload: wazuh-certs
   name: wazuh-dashboard
   namespace: security
 spec:

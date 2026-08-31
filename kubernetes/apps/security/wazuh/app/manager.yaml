@@ -10,7 +10,17 @@ metadata:
     checkov.io/skip4: "CKV_K8S_40=uid is baked into the upstream images (1000 indexer/dashboard, 101 manager). Raising it means rebuilding the vendor's containers. These pods mount no host paths and set no hostPID/hostIPC/hostNetwork, so host uid collision is not a live risk."
     checkov.io/skip5: "CKV_K8S_25=Capabilities are added back only after dropping ALL, which is tighter than upstream (drops nothing). The sets are empirically verified against the images; a smaller set crashes the manager."
     checkov.io/skip6: "CKV_K8S_23=The manager entrypoint must start as root to chroot and fix ownership on the data volume before stepping the daemons down to the wazuh user."
-    reloader.stakater.com/auto: "true"
+    # Scoped deliberately, NOT reloader auto. Auto would also watch the
+    # `wazuh` Secret, which carries both the client passwords AND the
+    # internal_users.yml hashes — so a credential rotation would restart
+    # every pod onto the new plaintext passwords the moment the
+    # ExternalSecret refreshed, while the indexer security index still
+    # held the old hashes. That race takes the stack down and cannot be
+    # ordered around by hand. Config and certificates reload freely;
+    # rotating credentials is a deliberate, ordered procedure documented
+    # in externalsecret.yaml.
+    configmap.reloader.stakater.com/reload: wazuh-manager-conf
+    secret.reloader.stakater.com/reload: wazuh-certs
   name: wazuh-manager
   namespace: security
 spec:
