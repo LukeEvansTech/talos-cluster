@@ -4,6 +4,7 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: wazuh-indexer
+  namespace: security
 spec:
   replicas: 1
   selector:
@@ -15,8 +16,11 @@ spec:
       labels:
         app: wazuh-indexer
     spec:
+      automountServiceAccountToken: false
       securityContext:
         fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
       volumes:
         - name: certs
           secret:
@@ -47,7 +51,15 @@ spec:
             - "-c"
             - "chown -R 1000:1000 /var/lib/wazuh-indexer"
           securityContext:
+            # Root purely to chown a freshly provisioned volume to the indexer's
+            # uid; the main container does not run as root.
             runAsUser: 0
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - "ALL"
+              add:
+                - "CHOWN"
           resources:
             requests: { cpu: 25m, memory: 32Mi }
             limits: { memory: 64Mi }
@@ -84,7 +96,12 @@ spec:
           securityContext:
             runAsUser: 1000
             runAsGroup: 1000
+            allowPrivilegeEscalation: false
             capabilities:
+              drop:
+                - "ALL"
+              # The indexer entrypoint chroots during startup; without this the
+              # container exits before OpenSearch is reached.
               add:
                 - "SYS_CHROOT"
           ports:

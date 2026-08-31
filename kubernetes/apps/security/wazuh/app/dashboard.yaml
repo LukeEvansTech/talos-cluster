@@ -4,6 +4,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: wazuh-dashboard
+  namespace: security
 spec:
   replicas: 1
   selector:
@@ -14,6 +15,15 @@ spec:
       labels:
         app: wazuh-dashboard
     spec:
+      automountServiceAccountToken: false
+      securityContext:
+        # The dashboard image builds and runs as uid/gid 1000.
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
       volumes:
         - name: conf
           configMap:
@@ -58,6 +68,11 @@ spec:
               valueFrom: { secretKeyRef: { name: wazuh, key: API_USERNAME } }
             - name: API_PASSWORD
               valueFrom: { secretKeyRef: { name: wazuh, key: API_PASSWORD } }
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - "ALL"
           ports:
             - containerPort: 5601
               name: http

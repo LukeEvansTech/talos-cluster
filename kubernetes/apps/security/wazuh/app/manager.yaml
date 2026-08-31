@@ -4,6 +4,7 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: wazuh-manager
+  namespace: security
 spec:
   replicas: 1
   selector:
@@ -15,8 +16,11 @@ spec:
       labels:
         app: wazuh-manager
     spec:
+      automountServiceAccountToken: false
       securityContext:
         fsGroup: 101
+        seccompProfile:
+          type: RuntimeDefault
       volumes:
         - name: conf
           configMap:
@@ -44,9 +48,18 @@ spec:
             limits:
               memory: 4Gi
           securityContext:
+            allowPrivilegeEscalation: false
             capabilities:
+              drop:
+                - "ALL"
+              # The manager entrypoint chroots during startup, and the process
+              # tree drops to the wazuh user itself after binding its sockets.
               add:
                 - "SYS_CHROOT"
+                - "SETUID"
+                - "SETGID"
+                - "CHOWN"
+                - "DAC_OVERRIDE"
           env:
             - name: INDEXER_URL
               value: https://wazuh-indexer:9200

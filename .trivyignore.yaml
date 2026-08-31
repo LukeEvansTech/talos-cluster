@@ -69,3 +69,32 @@ misconfigurations:
       tailnet proxy so cluster workloads (Prometheus) can reach the seedbox's
       tailnet IP. No user traffic is routed to an attacker-controllable
       external name; the operator manages the value.
+
+  - id: KSV-0109
+    paths:
+      - "kubernetes/apps/security/wazuh/app/configmap-manager.yaml"
+      - "kubernetes/apps/security/wazuh/app/configmap-indexer.yaml"
+    statement: |-
+      False positive. Both ConfigMaps hold Wazuh configuration files, not
+      credentials. configmap-manager.yaml is ossec.conf: the flagged strings
+      are XML element and attribute NAMES (`<key>`, `<ssl_manager_key>`,
+      `use_password`) plus a literal `to_be_replaced_by_cluster_key`
+      placeholder the manager entrypoint overwrites at boot from the
+      WAZUH_CLUSTER_KEY env var, which comes from the wazuh Secret.
+      configmap-indexer.yaml is opensearch.yml: the matches are certificate
+      FILE PATHS (`pemkey_filepath`) and the DN strings the security plugin
+      compares peer certificates against, which are public identifiers.
+      Every actual secret for this app -- the indexer/dashboard/API passwords,
+      the cluster key, the registration password, the internal_users.yml
+      bcrypt hashes and all TLS material -- arrives via ExternalSecret from
+      1Password and is mounted from a Secret, never from these ConfigMaps.
+
+  - id: KSV-01010
+    paths:
+      - "kubernetes/apps/security/wazuh/app/configmap-manager.yaml"
+      - "kubernetes/apps/security/wazuh/app/configmap-indexer.yaml"
+    statement: |-
+      False positive, same two files as the KSV-0109 entry above. The flagged
+      keys are Wazuh/OpenSearch configuration field names (`<key>`,
+      `use_password`, `pemkey_filepath`, `authcz.admin_dn`), not sensitive
+      values. See that statement for where the real secrets live.

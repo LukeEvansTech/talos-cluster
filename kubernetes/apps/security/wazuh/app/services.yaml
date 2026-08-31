@@ -5,6 +5,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: wazuh-indexer-headless
+  namespace: security
   labels:
     app: wazuh-indexer
 spec:
@@ -23,6 +24,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: wazuh-indexer
+  namespace: security
   labels:
     app: wazuh-indexer
 spec:
@@ -38,6 +40,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: wazuh-manager-headless
+  namespace: security
   labels:
     app: wazuh-manager
 spec:
@@ -54,6 +57,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: wazuh-manager
+  namespace: security
   labels:
     app: wazuh-manager
 spec:
@@ -69,6 +73,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: wazuh-dashboard
+  namespace: security
   labels:
     app: wazuh-dashboard
 spec:
@@ -88,6 +93,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: wazuh-syslog
+  namespace: security
   annotations:
     lbipam.cilium.io/ips: ${SVC_WAZUH_SYSLOG_ADDR}
     external-dns.alpha.kubernetes.io/hostname: wazuh-syslog.${SECRET_DOMAIN}
