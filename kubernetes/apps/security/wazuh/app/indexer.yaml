@@ -3,6 +3,8 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
+  annotations:
+    reloader.stakater.com/auto: "true"
   name: wazuh-indexer
   namespace: security
 spec:

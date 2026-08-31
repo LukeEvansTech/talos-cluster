@@ -1,0 +1,40 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/cilium.io/ciliumnetworkpolicy_v2.json
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: wazuh-allow-external-ingest
+  namespace: security
+spec:
+  # The cluster runs default-deny ingress (see kube-system cilium-policies): the
+  # cluster-wide policies allow same-namespace, kube-apiserver and Prometheus
+  # only. External senders arrive with Cilium's `world` identity, so without this
+  # rule every LoadBalancer'd port is dropped at pod ingress ("Policy denied",
+  # bpf_lxc) — the manager would come up healthy and simply receive nothing,
+  # which is the worst possible failure mode for a log collector.
+  #
+  # Same shape and rationale as sentinel-syslog's policy. Scoped tightly: only the
+  # manager pod, and only the ingest ports — NOT the :55000 API, which stays
+  # cluster-internal for the dashboard. The LB address is RFC1918, so `world`
+  # here is effectively the on-prem LAN; using the entity keeps LAN CIDRs out of
+  # this public repository.
+  description: "Allow external (LAN) syslog senders and Wazuh agents to reach the manager"
+  endpointSelector:
+    matchLabels:
+      app: wazuh-manager
+  ingress:
+    - fromEntities:
+        - world
+      toPorts:
+        - ports:
+            # Agentless syslog from the firewall, hypervisors and network kit.
+            - port: "514"
+              protocol: UDP
+            - port: "514"
+              protocol: TCP
+            # Agent event channel.
+            - port: "1514"
+              protocol: TCP
+            # Agent enrolment (authd).
+            - port: "1515"
+              protocol: TCP

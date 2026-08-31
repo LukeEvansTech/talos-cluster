@@ -3,6 +3,8 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
+  annotations:
+    reloader.stakater.com/auto: "true"
   name: wazuh-manager
   namespace: security
 spec:
@@ -52,14 +54,29 @@ spec:
             capabilities:
               drop:
                 - "ALL"
-              # The manager entrypoint chroots during startup, and the process
-              # tree drops to the wazuh user itself after binding its sockets.
+              # Upstream drops nothing at all. This is the container runtime's
+              # default set minus NET_RAW, MKNOD and AUDIT_WRITE, which the
+              # manager has no use for and NET_RAW is the one Checkov objects to.
+              #
+              # The list is empirically determined, not guessed: the entrypoint
+              # chroots, chowns and chmods files it does not own, and steps down
+              # to the wazuh user itself. A smaller set was tested and FAILED —
+              # without FOWNER, wazuh-clusterd dies on os.chmod of cluster.log,
+              # and trimming further leaves "wazuh-apid did not start correctly"
+              # while an unrestricted control run of the same image is clean.
+              # Re-verify against the image before trimming this further.
               add:
                 - "SYS_CHROOT"
                 - "SETUID"
                 - "SETGID"
+                - "SETPCAP"
+                - "SETFCAP"
                 - "CHOWN"
                 - "DAC_OVERRIDE"
+                - "FOWNER"
+                - "FSETID"
+                - "KILL"
+                - "NET_BIND_SERVICE"
           env:
             - name: INDEXER_URL
               value: https://wazuh-indexer:9200

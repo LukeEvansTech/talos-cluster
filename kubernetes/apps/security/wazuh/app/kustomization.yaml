@@ -26,3 +26,4 @@ resources:
   - ./services.yaml
   - ./httproute.yaml
   - ./retention.yaml
+  - ./networkpolicy.yaml
