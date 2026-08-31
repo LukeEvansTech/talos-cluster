@@ -1,0 +1,29 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+#
+# These manifests are VENDORED from wazuh/wazuh-kubernetes, not consumed from it.
+# Upstream ships no Helm chart and its Kustomize base carries defects we have to
+# correct anyway (a 65%-of-limit JVM heap, 500Mi PVCs, a privileged sysctl init
+# container, a WAZUH_API_URL that is wrong for the whole 4.x line, no ISM policy,
+# demo credentials in internal_users.yml). Patching an out-of-tree base for all
+# of that would put the fixes somewhere no reviewer can see them.
+#
+# Renovate tracks the images directly. The marker below tracks upstream's own
+# manifest releases so a new tag raises a PR to come back and re-vendor — no
+# manager can diff manifest SHAPE, so that step stays manual on purpose.
+# renovate: datasource=github-tags depName=wazuh/wazuh-kubernetes
+# upstream-manifests: v4.14.7
+resources:
+  - ./externalsecret.yaml
+  - ./configmap-indexer.yaml
+  - ./configmap-manager.yaml
+  - ./configmap-dashboard.yaml
+  - ./indexer.yaml
+  - ./manager.yaml
+  - ./dashboard.yaml
+  - ./services.yaml
+  - ./httproute.yaml
+  - ./retention.yaml
+  - ./networkpolicy.yaml

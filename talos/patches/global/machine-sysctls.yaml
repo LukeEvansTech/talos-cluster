@@ -9,3 +9,4 @@ machine:
     net.ipv4.tcp_notsent_lowat: "131072" # TCP performance tuning
     net.ipv4.tcp_slow_start_after_idle: "0" # Disable TCP slow start after idle
     user.max_user_namespaces: "11255" # Required for hostUsers: false
+    vm.max_map_count: "262144" # Wazuh indexer | OpenSearch mmap limit

@@ -1,0 +1,238 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/apps/statefulset_v1.json
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  annotations:
+    checkov.io/skip1: "CKV_K8S_11=CPU is compressible; limits are omitted repository-wide because throttling an indexer mid-merge or analysisd under a log burst worsens an overload. CPU requests are set on every container."
+    checkov.io/skip2: "CKV2_K8S_6=False positive. Ingress IS restricted: the cluster runs default-deny via kube-system cilium-policies, and this app ships a CiliumNetworkPolicy (networkpolicy.yaml) allowing only world->manager on the ingest ports. Checkov does not recognise CiliumNetworkPolicy as an associated policy."
+    checkov.io/skip3: "CKV_K8S_35=The Wazuh images read these credentials from environment variables in their entrypoints; there is no file-based option without forking the image. Values come from a Secret built by ExternalSecret, never from Git."
+    checkov.io/skip4: "CKV_K8S_40=uid is baked into the upstream images (1000 indexer/dashboard, 101 manager). Raising it means rebuilding the vendor's containers. These pods mount no host paths and set no hostPID/hostIPC/hostNetwork, so host uid collision is not a live risk."
+    checkov.io/skip5: "CKV_K8S_25=Capabilities are added back only after dropping ALL, which is tighter than upstream (drops nothing). The sets are empirically verified against the images; a smaller set crashes the manager."
+    checkov.io/skip6: "CKV_K8S_23=The manager entrypoint must start as root to chroot and fix ownership on the data volume before stepping the daemons down to the wazuh user."
+    # Scoped deliberately, NOT reloader auto. Auto would also watch the
+    # `wazuh` Secret, which carries both the client passwords AND the
+    # internal_users.yml hashes — so a credential rotation would restart
+    # every pod onto the new plaintext passwords the moment the
+    # ExternalSecret refreshed, while the indexer security index still
+    # held the old hashes. That race takes the stack down and cannot be
+    # ordered around by hand. Config and certificates reload freely;
+    # rotating credentials is a deliberate, ordered procedure documented
+    # in externalsecret.yaml.
+    configmap.reloader.stakater.com/reload: wazuh-manager-conf
+    secret.reloader.stakater.com/reload: wazuh-certs
+  name: wazuh-manager
+  namespace: security
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: wazuh-manager
+  serviceName: wazuh-manager-headless
+  template:
+    metadata:
+      labels:
+        app: wazuh-manager
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        fsGroup: 101
+        seccompProfile:
+          type: RuntimeDefault
+      volumes:
+        - name: conf
+          configMap:
+            name: wazuh-manager-conf
+        - name: certs
+          secret:
+            secretName: wazuh-certs
+        - name: authd-pass
+          secret:
+            secretName: wazuh
+            items:
+              - key: authd.pass
+                path: authd.pass
+      containers:
+        - name: wazuh-manager
+          image: docker.io/wazuh/wazuh-manager:4.14.7@sha256:8665c9807a5765253c79e4b072a1b7462c997bd69be949118a8d82ce44dd33e9
+          # Upstream ships 400m/512Mi for a container running analysisd, remoted,
+          # wazuh-db, the Python API AND Filebeat together — the documented cause of
+          # repeated OOMKill reports. Sized here for full-fidelity syslog ingest
+          # (~14M events/day observed on the existing collector) rather than a demo.
+          resources:
+            requests:
+              cpu: 500m
+              memory: 2Gi
+            limits:
+              memory: 4Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - "ALL"
+              # Upstream drops nothing at all. This is the container runtime's
+              # default set minus NET_RAW, MKNOD and AUDIT_WRITE, which the
+              # manager has no use for and NET_RAW is the one Checkov objects to.
+              #
+              # The list is empirically determined, not guessed: the entrypoint
+              # chroots, chowns and chmods files it does not own, and steps down
+              # to the wazuh user itself. A smaller set was tested and FAILED —
+              # without FOWNER, wazuh-clusterd dies on os.chmod of cluster.log,
+              # and trimming further leaves "wazuh-apid did not start correctly"
+              # while an unrestricted control run of the same image is clean.
+              # Re-verify against the image before trimming this further.
+              add:
+                - "SYS_CHROOT"
+                - "SETUID"
+                - "SETGID"
+                - "SETPCAP"
+                - "SETFCAP"
+                - "CHOWN"
+                - "DAC_OVERRIDE"
+                - "FOWNER"
+                - "FSETID"
+                - "KILL"
+                - "NET_BIND_SERVICE"
+          env:
+            - name: INDEXER_URL
+              value: https://wazuh-indexer:9200
+            - name: INDEXER_USERNAME
+              valueFrom:
+                { secretKeyRef: { name: wazuh, key: INDEXER_USERNAME } }
+            - name: INDEXER_PASSWORD
+              valueFrom:
+                { secretKeyRef: { name: wazuh, key: INDEXER_PASSWORD } }
+            - name: FILEBEAT_SSL_VERIFICATION_MODE
+              value: full
+            - name: SSL_CERTIFICATE_AUTHORITIES
+              value: /etc/ssl/root-ca.pem
+            - name: SSL_CERTIFICATE
+              value: /etc/ssl/filebeat.pem
+            - name: SSL_KEY
+              value: /etc/ssl/filebeat.key
+            - name: API_USERNAME
+              valueFrom: { secretKeyRef: { name: wazuh, key: API_USERNAME } }
+            - name: API_PASSWORD
+              valueFrom: { secretKeyRef: { name: wazuh, key: API_PASSWORD } }
+            - name: WAZUH_CLUSTER_KEY
+              valueFrom: { secretKeyRef: { name: wazuh, key: CLUSTER_KEY } }
+          ports:
+            # 1514 is the agent event channel. Upstream puts it only on the worker
+            # StatefulSet, so a master-only deployment has to declare it here or
+            # enrolled agents register successfully and then never connect.
+            - { containerPort: 1514, name: agents-tcp, protocol: TCP }
+            - { containerPort: 1515, name: registration }
+            - { containerPort: 514, name: syslog-tcp, protocol: TCP }
+            - { containerPort: 514, name: syslog-udp, protocol: UDP }
+            - { containerPort: 55000, name: api }
+          startupProbe:
+            tcpSocket:
+              port: 55000
+            periodSeconds: 10
+            failureThreshold: 60
+          readinessProbe:
+            tcpSocket:
+              port: 55000
+            periodSeconds: 20
+          livenessProbe:
+            tcpSocket:
+              port: 55000
+            periodSeconds: 30
+            failureThreshold: 10
+          volumeMounts:
+            - {
+                name: conf,
+                mountPath: /wazuh-config-mount/etc/ossec.conf,
+                subPath: ossec.conf,
+                readOnly: true,
+              }
+            - {
+                name: certs,
+                mountPath: /etc/ssl/root-ca.pem,
+                subPath: root-ca.pem,
+                readOnly: true,
+              }
+            - {
+                name: certs,
+                mountPath: /etc/ssl/filebeat.pem,
+                subPath: filebeat.pem,
+                readOnly: true,
+              }
+            - {
+                name: certs,
+                mountPath: /etc/ssl/filebeat.key,
+                subPath: filebeat-key.pem,
+                readOnly: true,
+              }
+            - {
+                name: authd-pass,
+                mountPath: /wazuh-config-mount/etc/authd.pass,
+                subPath: authd.pass,
+                readOnly: true,
+              }
+            - {
+                name: data,
+                mountPath: /var/ossec/api/configuration,
+                subPath: wazuh/var/ossec/api/configuration,
+              }
+            - {
+                name: data,
+                mountPath: /var/ossec/etc,
+                subPath: wazuh/var/ossec/etc,
+              }
+            - {
+                name: data,
+                mountPath: /var/ossec/logs,
+                subPath: wazuh/var/ossec/logs,
+              }
+            - {
+                name: data,
+                mountPath: /var/ossec/queue,
+                subPath: wazuh/var/ossec/queue,
+              }
+            - {
+                name: data,
+                mountPath: /var/ossec/var/multigroups,
+                subPath: wazuh/var/ossec/var/multigroups,
+              }
+            - {
+                name: data,
+                mountPath: /var/ossec/integrations,
+                subPath: wazuh/var/ossec/integrations,
+              }
+            - {
+                name: data,
+                mountPath: /var/ossec/active-response/bin,
+                subPath: wazuh/var/ossec/active-response/bin,
+              }
+            - {
+                name: data,
+                mountPath: /var/ossec/agentless,
+                subPath: wazuh/var/ossec/agentless,
+              }
+            - {
+                name: data,
+                mountPath: /var/ossec/wodles,
+                subPath: wazuh/var/ossec/wodles,
+              }
+            - {
+                name: data,
+                mountPath: /etc/filebeat,
+                subPath: filebeat/etc/filebeat,
+              }
+            - {
+                name: data,
+                mountPath: /var/lib/filebeat,
+                subPath: filebeat/var/lib/filebeat,
+              }
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        # RWO block only — wazuh-db is SQLite. Upstream's default here is 500Mi.
+        storageClassName: ceph-block
+        resources:
+          requests:
+            storage: 20Gi

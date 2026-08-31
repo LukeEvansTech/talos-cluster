@@ -1,0 +1,211 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/apps/statefulset_v1.json
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  annotations:
+    checkov.io/skip1: "CKV_K8S_11=CPU is compressible; limits are omitted repository-wide because throttling an indexer mid-merge or analysisd under a log burst worsens an overload. CPU requests are set on every container."
+    checkov.io/skip2: "CKV2_K8S_6=False positive. Ingress IS restricted: the cluster runs default-deny via kube-system cilium-policies, and this app ships a CiliumNetworkPolicy (networkpolicy.yaml) allowing only world->manager on the ingest ports. Checkov does not recognise CiliumNetworkPolicy as an associated policy."
+    checkov.io/skip3: "CKV_K8S_40=uid is baked into the upstream images (1000 indexer/dashboard, 101 manager). Raising it means rebuilding the vendor's containers. These pods mount no host paths and set no hostPID/hostIPC/hostNetwork, so host uid collision is not a live risk."
+    checkov.io/skip4: "CKV_K8S_25=Capabilities are added back only after dropping ALL, which is tighter than upstream (drops nothing). The sets are empirically verified against the images; a smaller set crashes the manager."
+    # Scoped deliberately, NOT reloader auto. Auto would also watch the
+    # `wazuh` Secret, which carries both the client passwords AND the
+    # internal_users.yml hashes — so a credential rotation would restart
+    # every pod onto the new plaintext passwords the moment the
+    # ExternalSecret refreshed, while the indexer security index still
+    # held the old hashes. That race takes the stack down and cannot be
+    # ordered around by hand. Config and certificates reload freely;
+    # rotating credentials is a deliberate, ordered procedure documented
+    # in externalsecret.yaml.
+    configmap.reloader.stakater.com/reload: wazuh-indexer-conf
+    secret.reloader.stakater.com/reload: wazuh-certs
+  name: wazuh-indexer
+  namespace: security
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: wazuh-indexer
+  serviceName: wazuh-indexer
+  template:
+    metadata:
+      labels:
+        app: wazuh-indexer
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      volumes:
+        - name: certs
+          secret:
+            secretName: wazuh-certs
+            defaultMode: 0600
+        - name: conf
+          configMap:
+            name: wazuh-indexer-conf
+            defaultMode: 0600
+        - name: internal-users
+          secret:
+            secretName: wazuh
+            defaultMode: 0600
+            items:
+              - key: internal_users.yml
+                path: internal_users.yml
+      initContainers:
+        # Upstream also ships an "increase-the-vm-max-map-count" init container that
+        # runs sysctl with privileged: true. It is removed here: the security
+        # namespace inherits Talos's baseline Pod Security default, which rejects it,
+        # and relaxing PSA for four other security apps to set one kernel tunable is
+        # the wrong trade. vm.max_map_count=262144 is set on the nodes instead, in
+        # talos/patches/global/machine-sysctls.yaml.
+        #
+        # ⚠️  DEPLOYMENT PREREQUISITE. That patch is an input to `just talos
+        # gen-config` / `apply-node`; Flux does NOT push machine config to nodes.
+        # Merging this Kustomization while the nodes still hold the old value
+        # leaves the indexer relying on a sysctl that is not there. Apply the
+        # regenerated machine config to every schedulable node BEFORE this app is
+        # enabled, and confirm it landed:
+        #   talosctl -n <node> read /proc/sys/vm/max_map_count   # expect 262144
+        # (discovery.type single-node happens to skip OpenSearch's bootstrap check
+        # for this value, so the symptom is mmap exhaustion under load later
+        # rather than a clean refusal at startup — do not rely on that.)
+        - name: chown-data
+          image: docker.io/library/busybox:1.37.0@sha256:9db7b59979c38555a39def84a31fb98b5296952f9e3afd4f6f11f05b07adfab0
+          command:
+            - "sh"
+            - "-c"
+            - "chown -R 1000:1000 /var/lib/wazuh-indexer"
+          securityContext:
+            # Root purely to chown a freshly provisioned volume to the indexer's
+            # uid; the main container does not run as root.
+            runAsUser: 0
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - "ALL"
+              add:
+                - "CHOWN"
+          resources:
+            requests: { cpu: 25m, memory: 32Mi }
+            limits: { memory: 64Mi }
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/wazuh-indexer
+      containers:
+        - name: wazuh-indexer
+          image: docker.io/wazuh/wazuh-indexer:4.14.7@sha256:66b7640cce54f5f20a65e8320601b4570a1306d9f9b334d30bcaa324720a517c
+          env:
+            # Heap is HALF the container limit, per OpenSearch's own guidance.
+            # Upstream ships -Xmx1g inside a 1564Mi limit (65%), leaving ~540Mi for
+            # Lucene mmap, Netty direct buffers, metaspace and thread stacks — so the
+            # kernel OOM-kills the pod with no OutOfMemoryError in the log, which is
+            # the "crash loop without providing error message" report (#879).
+            - name: OPENSEARCH_JAVA_OPTS
+              value: -Xms2g -Xmx2g -Dlog4j2.formatMsgNoLookups=true
+            - name: CLUSTER_NAME
+              value: wazuh
+            - name: NETWORK_HOST
+              value: 0.0.0.0
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: DISABLE_INSTALL_DEMO_CONFIG
+              value: "true"
+          resources:
+            requests:
+              cpu: 500m
+              memory: 4Gi
+            limits:
+              memory: 4Gi
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - "ALL"
+              # The indexer entrypoint chroots during startup; without this the
+              # container exits before OpenSearch is reached.
+              add:
+                - "SYS_CHROOT"
+          ports:
+            - containerPort: 9200
+              name: rest
+            - containerPort: 9300
+              name: nodes
+          startupProbe:
+            tcpSocket:
+              port: 9200
+            # OpenSearch plus the security-index bootstrap is slow on first boot;
+            # a short window here restarts the pod mid-initialisation.
+            periodSeconds: 10
+            failureThreshold: 60
+          readinessProbe:
+            tcpSocket:
+              port: 9200
+            periodSeconds: 20
+          livenessProbe:
+            tcpSocket:
+              port: 9200
+            periodSeconds: 30
+            # Generous: a busy indexer can stall the REST listener briefly under
+            # merge pressure, and restarting it mid-merge makes things worse.
+            failureThreshold: 10
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/wazuh-indexer
+            - {
+                name: certs,
+                mountPath: /usr/share/wazuh-indexer/config/certs/node.pem,
+                subPath: node.pem,
+                readOnly: true,
+              }
+            - {
+                name: certs,
+                mountPath: /usr/share/wazuh-indexer/config/certs/node-key.pem,
+                subPath: node-key.pem,
+                readOnly: true,
+              }
+            - {
+                name: certs,
+                mountPath: /usr/share/wazuh-indexer/config/certs/root-ca.pem,
+                subPath: root-ca.pem,
+                readOnly: true,
+              }
+            - {
+                name: certs,
+                mountPath: /usr/share/wazuh-indexer/config/certs/admin.pem,
+                subPath: admin.pem,
+                readOnly: true,
+              }
+            - {
+                name: certs,
+                mountPath: /usr/share/wazuh-indexer/config/certs/admin-key.pem,
+                subPath: admin-key.pem,
+                readOnly: true,
+              }
+            - {
+                name: conf,
+                mountPath: /usr/share/wazuh-indexer/config/opensearch.yml,
+                subPath: opensearch.yml,
+                readOnly: true,
+              }
+            - name: internal-users
+              mountPath: /usr/share/wazuh-indexer/config/opensearch-security/internal_users.yml
+              subPath: internal_users.yml
+              readOnly: true
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        # ceph-block, never NFS: wazuh-db is SQLite and its locking is unsafe over a
+        # network filesystem (upstream confirm remote storage "will not work").
+        storageClassName: ceph-block
+        resources:
+          requests:
+            storage: 100Gi
