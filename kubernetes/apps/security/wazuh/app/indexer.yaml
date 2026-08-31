@@ -60,6 +60,17 @@ spec:
         # and relaxing PSA for four other security apps to set one kernel tunable is
         # the wrong trade. vm.max_map_count=262144 is set on the nodes instead, in
         # talos/patches/global/machine-sysctls.yaml.
+        #
+        # ⚠️  DEPLOYMENT PREREQUISITE. That patch is an input to `just talos
+        # gen-config` / `apply-node`; Flux does NOT push machine config to nodes.
+        # Merging this Kustomization while the nodes still hold the old value
+        # leaves the indexer relying on a sysctl that is not there. Apply the
+        # regenerated machine config to every schedulable node BEFORE this app is
+        # enabled, and confirm it landed:
+        #   talosctl -n <node> read /proc/sys/vm/max_map_count   # expect 262144
+        # (discovery.type single-node happens to skip OpenSearch's bootstrap check
+        # for this value, so the symptom is mmap exhaustion under load later
+        # rather than a clean refusal at startup — do not rely on that.)
         - name: chown-data
           image: docker.io/library/busybox:1.37.0@sha256:9db7b59979c38555a39def84a31fb98b5296952f9e3afd4f6f11f05b07adfab0
           command:
