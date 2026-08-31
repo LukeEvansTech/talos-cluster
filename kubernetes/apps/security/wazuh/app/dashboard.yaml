@@ -33,7 +33,7 @@ spec:
             secretName: wazuh-certs
       containers:
         - name: wazuh-dashboard
-          image: docker.io/wazuh/wazuh-dashboard:4.14.7
+          image: docker.io/wazuh/wazuh-dashboard:4.14.7@sha256:eeff857a664b3c09d3df4407b8749a351f321e4f366ca60ea1dffaa76f2146a7
           resources:
             requests:
               cpu: 200m
@@ -87,6 +87,12 @@ spec:
               port: 5601
             periodSeconds: 20
             failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /api/status
+              port: 5601
+            periodSeconds: 30
+            failureThreshold: 10
           volumeMounts:
             - name: conf
               mountPath: /usr/share/wazuh-dashboard/config/opensearch_dashboards.yml

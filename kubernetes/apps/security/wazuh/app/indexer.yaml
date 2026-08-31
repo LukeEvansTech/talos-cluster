@@ -45,7 +45,7 @@ spec:
         # the wrong trade. vm.max_map_count=262144 is set on the nodes instead, in
         # talos/patches/global/machine-sysctls.yaml.
         - name: chown-data
-          image: docker.io/library/busybox:1.37.0
+          image: docker.io/library/busybox:1.37.0@sha256:9db7b59979c38555a39def84a31fb98b5296952f9e3afd4f6f11f05b07adfab0
           command:
             - "sh"
             - "-c"
@@ -68,7 +68,7 @@ spec:
               mountPath: /var/lib/wazuh-indexer
       containers:
         - name: wazuh-indexer
-          image: docker.io/wazuh/wazuh-indexer:4.14.7
+          image: docker.io/wazuh/wazuh-indexer:4.14.7@sha256:66b7640cce54f5f20a65e8320601b4570a1306d9f9b334d30bcaa324720a517c
           env:
             # Heap is HALF the container limit, per OpenSearch's own guidance.
             # Upstream ships -Xmx1g inside a 1564Mi limit (65%), leaving ~540Mi for
@@ -120,6 +120,13 @@ spec:
             tcpSocket:
               port: 9200
             periodSeconds: 20
+          livenessProbe:
+            tcpSocket:
+              port: 9200
+            periodSeconds: 30
+            # Generous: a busy indexer can stall the REST listener briefly under
+            # merge pressure, and restarting it mid-merge makes things worse.
+            failureThreshold: 10
           volumeMounts:
             - name: data
               mountPath: /var/lib/wazuh-indexer

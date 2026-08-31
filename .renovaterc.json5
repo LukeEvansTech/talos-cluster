@@ -128,7 +128,7 @@
         "/(^|/)kubernetes/apps/security/wazuh/.+\\.ya?ml$/",
       ],
       matchStrings: [
-        "image:\\s*docker\\.io/(?<depName>wazuh/wazuh-(?:manager|indexer|dashboard)):(?<currentValue>[0-9]+\\.[0-9]+\\.[0-9]+)",
+        "image:\\s*docker\\.io/(?<depName>wazuh/wazuh-(?:manager|indexer|dashboard)):(?<currentValue>[0-9]+\\.[0-9]+\\.[0-9]+)(@(?<currentDigest>sha256:[a-f0-9]+))?",
       ],
       datasourceTemplate: "docker",
     },
