@@ -1,0 +1,124 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/core/service_v1.json
+# Headless service backing the indexer StatefulSet's stable network identity.
+apiVersion: v1
+kind: Service
+metadata:
+  name: wazuh-indexer-headless
+  labels:
+    app: wazuh-indexer
+spec:
+  clusterIP: None
+  selector:
+    app: wazuh-indexer
+  ports:
+    - name: nodes
+      port: 9300
+      targetPort: 9300
+---
+# Indexer REST API. Consumed in-cluster by the manager's Filebeat and by the
+# dashboard. Upstream makes this a LoadBalancer, which would spend a LAN address
+# publishing the raw indexer API — nothing outside the cluster needs it.
+apiVersion: v1
+kind: Service
+metadata:
+  name: wazuh-indexer
+  labels:
+    app: wazuh-indexer
+spec:
+  type: ClusterIP
+  selector:
+    app: wazuh-indexer
+  ports:
+    - name: rest
+      port: 9200
+      targetPort: 9200
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: wazuh-manager-headless
+  labels:
+    app: wazuh-manager
+spec:
+  clusterIP: None
+  selector:
+    app: wazuh-manager
+  ports:
+    - name: api
+      port: 55000
+      targetPort: 55000
+---
+# Manager API, dialled by the dashboard (WAZUH_API_URL).
+apiVersion: v1
+kind: Service
+metadata:
+  name: wazuh-manager
+  labels:
+    app: wazuh-manager
+spec:
+  type: ClusterIP
+  selector:
+    app: wazuh-manager
+  ports:
+    - name: api
+      port: 55000
+      targetPort: 55000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: wazuh-dashboard
+  labels:
+    app: wazuh-dashboard
+spec:
+  type: ClusterIP
+  selector:
+    app: wazuh-dashboard
+  ports:
+    - name: http
+      port: 5601
+      targetPort: 5601
+---
+# The LAN-facing endpoint: syslog from the firewall, hypervisors and network kit,
+# plus agent enrolment (1515) and agent events (1514). The real address lives in
+# the cluster-secrets 1Password item; components/global-vars/cluster-secrets.yaml
+# carries only a CI placeholder, per the public-repo rule.
+apiVersion: v1
+kind: Service
+metadata:
+  name: wazuh-syslog
+  annotations:
+    lbipam.cilium.io/ips: ${SVC_WAZUH_SYSLOG_ADDR}
+    external-dns.alpha.kubernetes.io/hostname: wazuh-syslog.${SECRET_DOMAIN}
+  labels:
+    app: wazuh-manager
+spec:
+  type: LoadBalancer
+  # Cluster, not Local. Cilium's L2 announcement elects a lease-holder node without
+  # regard to backend locality, so under Local the LB address is ARP'd by a node
+  # that then refuses the traffic whenever the pod sits elsewhere — external senders
+  # get TCP RST or silent UDP loss while in-cluster socket-LB keeps working. That
+  # cost days of missing firewall logs on the sentinel-syslog service (2026-08-02).
+  # The cost of Cluster is SNAT: senders arrive as a node address, which is why
+  # ossec.conf allows a CIDR and authd sets use_source_ip to no.
+  externalTrafficPolicy: Cluster
+  selector:
+    app: wazuh-manager
+  ports:
+    - name: syslog-udp
+      port: 514
+      targetPort: 514
+      protocol: UDP
+    - name: syslog-tcp
+      port: 514
+      targetPort: 514
+      protocol: TCP
+    - name: agents-tcp
+      port: 1514
+      targetPort: 1514
+      protocol: TCP
+    - name: registration
+      port: 1515
+      targetPort: 1515
+      protocol: TCP

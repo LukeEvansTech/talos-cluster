@@ -12,3 +12,4 @@ resources:
   - ./pocket-id/ks.yaml
   - ./prowler/ks.yaml
   - ./sentinel-syslog/ks.yaml
+  - ./wazuh/ks.yaml

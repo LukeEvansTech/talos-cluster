@@ -115,6 +115,37 @@
       datasourceTemplate: "custom.grafana-dashboards",
       versioningTemplate: "regex:^(?<major>\\d+)$",
     },
+    {
+      customType: "regex",
+      // Wazuh's manifests are vendored (see the header in the app's
+      // kustomization.yaml), so the images sit in plain StatefulSet/Deployment
+      // YAML rather than a HelmRelease the OCI manager would see. Manager,
+      // indexer and dashboard are released in lockstep and MUST stay on the same
+      // version — a mixed set is the documented cause of "Wazuh dashboard server
+      // is not ready yet" — so they are grouped into one PR below.
+      description: "Track vendored Wazuh component images",
+      managerFilePatterns: [
+        "/(^|/)kubernetes/apps/security/wazuh/.+\\.ya?ml$/",
+      ],
+      matchStrings: [
+        "image:\\s*docker\\.io/(?<depName>wazuh/wazuh-(?:manager|indexer|dashboard)):(?<currentValue>[0-9]+\\.[0-9]+\\.[0-9]+)",
+      ],
+      datasourceTemplate: "docker",
+    },
+    {
+      customType: "regex",
+      // Upstream manifest releases. This raises a "go re-vendor" PR; it cannot be
+      // auto-applied, because nothing can detect that upstream renamed a volume or
+      // moved a cert path.
+      description: "Track upstream wazuh-kubernetes manifest releases",
+      managerFilePatterns: [
+        "/(^|/)kubernetes/apps/security/wazuh/.+\\.ya?ml$/",
+      ],
+      matchStrings: [
+        "# renovate: datasource=github-tags depName=(?<depName>wazuh/wazuh-kubernetes)\\n\\s*#\\s*upstream-manifests:\\s*(?<currentValue>v[0-9.]+)",
+      ],
+      datasourceTemplate: "github-tags",
+    },
   ],
 
   // --- Package rules ---
@@ -221,6 +252,16 @@
       groupName: "Busybox",
       matchDatasources: ["docker"],
       matchPackageNames: ["/^docker\\.io\\/(library\\/)?busybox$/"],
+      group: {
+        commitMessageTopic: "{{{groupName}}} group",
+      },
+      minimumGroupSize: 1,
+    },
+    {
+      description: "Wazuh Group (manager, indexer and dashboard move in lockstep)",
+      groupName: "Wazuh",
+      matchDatasources: ["docker"],
+      matchPackageNames: ["/^wazuh\\/wazuh-(manager|indexer|dashboard)$/"],
       group: {
         commitMessageTopic: "{{{groupName}}} group",
       },

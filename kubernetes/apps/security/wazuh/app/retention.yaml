@@ -1,0 +1,114 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wazuh-retention
+  namespace: security
+data:
+  policy.json: |
+    {
+      "policy": {
+        "description": "Wazuh alert retention: roll over, then delete at 90 days.",
+        "default_state": "hot",
+        "states": [
+          {
+            "name": "hot",
+            "actions": [
+              {
+                "rollover": {
+                  "min_primary_shard_size": "20gb",
+                  "min_index_age": "7d"
+                }
+              }
+            ],
+            "transitions": [
+              { "state_name": "delete", "conditions": { "min_index_age": "90d" } }
+            ]
+          },
+          {
+            "name": "delete",
+            "actions": [{ "delete": {} }],
+            "transitions": []
+          }
+        ],
+        "ism_template": [
+          { "index_patterns": ["wazuh-alerts-*"], "priority": 100 },
+          { "index_patterns": ["wazuh-archives-*"], "priority": 100 },
+          { "index_patterns": ["wazuh-states-vulnerabilities-*"], "priority": 100 }
+        ]
+      }
+    }
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/batch/cronjob_v1.json
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: wazuh-retention
+spec:
+  # Upstream ships NO index lifecycle policy at all, so alert indices grow until
+  # the volume fills. This runs daily rather than as a one-shot Job on purpose:
+  # the PUT is idempotent, so a daily apply also re-establishes the policy after
+  # an indexer rebuild or a manual change, instead of silently never running again.
+  schedule: "17 4 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 3
+      template:
+        spec:
+          restartPolicy: OnFailure
+          volumes:
+            - name: policy
+              configMap:
+                name: wazuh-retention
+            - name: certs
+              secret:
+                secretName: wazuh-certs
+                items:
+                  - key: root-ca.pem
+                    path: root-ca.pem
+          containers:
+            - name: apply
+              image: docker.io/curlimages/curl:8.18.0
+              env:
+                - name: INDEXER_USERNAME
+                  valueFrom:
+                    { secretKeyRef: { name: wazuh, key: INDEXER_USERNAME } }
+                - name: INDEXER_PASSWORD
+                  valueFrom:
+                    { secretKeyRef: { name: wazuh, key: INDEXER_PASSWORD } }
+              command:
+                - sh
+                - -c
+                - |
+                  set -eu
+                  # Dollar signs are doubled throughout: Flux postBuild substitutes
+                  # single-dollar placeholders against cluster-secrets and blanks
+                  # anything undefined, so writing these shell variables unescaped
+                  # would ship an empty string into the container.
+                  echo "Applying ISM policy wazuh-retention"
+                  code=$$(curl -sS -o /tmp/out -w '%{http_code}' \
+                    --cacert /certs/root-ca.pem \
+                    -u "$${INDEXER_USERNAME}:$${INDEXER_PASSWORD}" \
+                    -X PUT "https://wazuh-indexer:9200/_plugins/_ism/policies/wazuh-retention" \
+                    -H 'Content-Type: application/json' \
+                    --data @/policy/policy.json)
+                  cat /tmp/out
+                  echo
+                  # 409 means the policy already exists at this sequence number,
+                  # which is the normal steady-state result for a daily re-apply.
+                  case "$$code" in
+                    2*|409) echo "OK ($$code)" ;;
+                    *) echo "FAILED ($$code)" >&2; exit 1 ;;
+                  esac
+              volumeMounts:
+                - { name: policy, mountPath: /policy, readOnly: true }
+                - { name: certs, mountPath: /certs, readOnly: true }
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: false
+                capabilities:
+                  drop:
+                    - "ALL"

@@ -1,0 +1,61 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wazuh-indexer-conf
+  namespace: security
+data:
+  opensearch.yml: |-
+    # The doubled dollar signs below are deliberate: these are OpenSearch's OWN
+    # env placeholders, resolved by the indexer at boot from the container env.
+    # Flux postBuild substitutes single-dollar placeholders against cluster-secrets
+    # and replaces anything undefined with an empty string, so writing them
+    # unescaped here would ship a blank cluster name, node name and bind address.
+    cluster.name: $${CLUSTER_NAME}
+    node.name: $${NODE_NAME}
+    network.host: $${NETWORK_HOST}
+
+    # Single-node deployment. Upstream ships a 3-replica set whose only seed host
+    # and only bootstrap master is wazuh-indexer-0, which is the mechanism behind
+    # the most-reported failure on Kubernetes: lose node 0's volume and the other
+    # two cannot form a quorum with each other, the cluster blocks, and the
+    # security plugin then reports "not yet initialized" — a symptom that sends
+    # people to securityadmin.sh when the cluster itself is the broken thing.
+    # discovery.type single-node removes quorum from the picture entirely.
+    discovery.type: single-node
+
+    path.data: /var/lib/wazuh-indexer
+    path.logs: /var/log/wazuh-indexer
+
+    plugins.security.ssl.http.pemcert_filepath: /usr/share/wazuh-indexer/config/certs/node.pem
+    plugins.security.ssl.http.pemkey_filepath: /usr/share/wazuh-indexer/config/certs/node-key.pem
+    plugins.security.ssl.http.pemtrustedcas_filepath: /usr/share/wazuh-indexer/config/certs/root-ca.pem
+    plugins.security.ssl.transport.pemcert_filepath: /usr/share/wazuh-indexer/config/certs/node.pem
+    plugins.security.ssl.transport.pemkey_filepath: /usr/share/wazuh-indexer/config/certs/node-key.pem
+    plugins.security.ssl.transport.pemtrustedcas_filepath: /usr/share/wazuh-indexer/config/certs/root-ca.pem
+    plugins.security.ssl.http.enabled: true
+
+    # Left at upstream's values. Our certs DO carry SANs (upstream's carry none),
+    # so these could be flipped to true — but that is a change to make once the
+    # stack is known-good, not while first-deploy failures are still possible.
+    plugins.security.ssl.transport.enforce_hostname_verification: false
+    plugins.security.ssl.transport.resolve_hostname: false
+
+    # These DNs must match the certificate subjects byte-for-byte. A peer whose DN
+    # does not match nodes_dn is reclassified as a transport client, and OpenSearch
+    # 2.x removed transport-client auth — so the failure surfaces as
+    # "Transport client authentication no longer supported", which names neither
+    # the certificate nor this setting. Regenerate certs with the same subject.
+    plugins.security.authcz.admin_dn:
+      - CN=admin,O=Company,L=California,C=US
+    plugins.security.nodes_dn:
+      - CN=indexer,O=Company,L=California,C=US
+
+    plugins.security.check_snapshot_restore_write_privileges: true
+    plugins.security.enable_snapshot_restore_privilege: true
+    plugins.security.restapi.roles_enabled:
+      - "all_access"
+      - "security_rest_api_access"
+    plugins.security.allow_default_init_securityindex: true
+    cluster.routing.allocation.disk.threshold_enabled: false
+    compatibility.override_main_response_version: true
