@@ -5,6 +5,10 @@ metadata:
   name: wazuh-retention
   namespace: security
 data:
+  # Applies ONLY to the date-partitioned time-series indices. Deliberately NOT
+  # wazuh-states-vulnerabilities-*: that holds the CURRENT vulnerability
+  # inventory rather than a disposable time slice, so an index-age rule would
+  # delete the whole live inventory at 90 days however recently it was updated.
   policy.json: |
     {
       "policy": {
@@ -26,8 +30,7 @@ data:
         ],
         "ism_template": [
           { "index_patterns": ["wazuh-alerts-*"], "priority": 100 },
-          { "index_patterns": ["wazuh-archives-*"], "priority": 100 },
-          { "index_patterns": ["wazuh-states-vulnerabilities-*"], "priority": 100 }
+          { "index_patterns": ["wazuh-archives-*"], "priority": 100 }
         ]
       }
     }
@@ -107,20 +110,57 @@ spec:
                   # single-dollar placeholders against cluster-secrets and blanks
                   # anything undefined, so writing these shell variables unescaped
                   # would ship an empty string into the container.
-                  echo "Applying ISM policy wazuh-retention"
-                  code=$$(curl -sS -o /tmp/out -w '%{http_code}' \
-                    --cacert /certs/root-ca.pem \
-                    -u "$${INDEXER_USERNAME}:$${INDEXER_PASSWORD}" \
-                    -X PUT "https://wazuh-indexer:9200/_plugins/_ism/policies/wazuh-retention" \
+                  API="https://wazuh-indexer:9200"
+
+                  # The credential goes in a curl config file, never on the
+                  # command line: an argument is visible in /proc and to anything
+                  # that can run ps in this namespace, and would be echoed by any
+                  # future `set -x`. /tmp is a private emptyDir.
+                  umask 077
+                  printf 'user = "%s:%s"\n' "$${INDEXER_USERNAME}" "$${INDEXER_PASSWORD}" > /tmp/curlrc
+                  CURL="curl -sS --cacert /certs/root-ca.pem -K /tmp/curlrc"
+
+                  # --- 1. Create or UPDATE the policy -------------------------
+                  # A bare PUT on an existing policy returns 409 and changes
+                  # nothing. Treating that as success (an earlier version of this
+                  # script did) would pin the cluster to whatever policy landed
+                  # first and report OK forever. An update must carry the current
+                  # sequence number and primary term, so read them first.
+                  cur=$$($$CURL -o /tmp/cur -w '%{http_code}' "$${API}/_plugins/_ism/policies/wazuh-retention")
+                  q=""
+                  if [ "$$cur" = "200" ]; then
+                    seq=$$(sed -n 's/.*"_seq_no":\([0-9]*\).*/\1/p' /tmp/cur)
+                    pt=$$(sed -n 's/.*"_primary_term":\([0-9]*\).*/\1/p' /tmp/cur)
+                    if [ -n "$$seq" ] && [ -n "$$pt" ]; then
+                      q="?if_seq_no=$${seq}&if_primary_term=$${pt}"
+                    fi
+                  fi
+
+                  code=$$($$CURL -o /tmp/out -w '%{http_code}' \
+                    -X PUT "$${API}/_plugins/_ism/policies/wazuh-retention$${q}" \
                     -H 'Content-Type: application/json' \
                     --data @/policy/policy.json)
-                  cat /tmp/out
-                  echo
-                  # 409 means the policy already exists at this sequence number,
-                  # which is the normal steady-state result for a daily re-apply.
+                  cat /tmp/out; echo
                   case "$$code" in
-                    2*|409) echo "OK ($$code)" ;;
-                    *) echo "FAILED ($$code)" >&2; exit 1 ;;
+                    2*) echo "policy applied ($$code)" ;;
+                    *)  echo "policy FAILED ($$code)" >&2; exit 1 ;;
+                  esac
+
+                  # --- 2. Attach to indices that predate the policy ------------
+                  # An ism_template is evaluated at index CREATION only. Any index
+                  # Wazuh created before this job first ran -- which is the normal
+                  # case, since ingestion starts as soon as the manager is up --
+                  # stays unmanaged forever otherwise. `add` is a no-op for indices
+                  # that already have a policy, so this is safe to repeat daily.
+                  add=$$($$CURL -o /tmp/add -w '%{http_code}' \
+                    -X POST "$${API}/_plugins/_ism/add/wazuh-alerts-*,wazuh-archives-*" \
+                    -H 'Content-Type: application/json' \
+                    -d '{"policy_id":"wazuh-retention"}')
+                  cat /tmp/add; echo
+                  # 404 simply means no matching index exists yet on a fresh cluster.
+                  case "$$add" in
+                    2*|404) echo "attach OK ($$add)" ;;
+                    *)      echo "attach FAILED ($$add)" >&2; exit 1 ;;
                   esac
               volumeMounts:
                 - { name: policy, mountPath: /policy, readOnly: true }

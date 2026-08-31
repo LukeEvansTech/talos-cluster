@@ -265,7 +265,25 @@
       group: {
         commitMessageTopic: "{{{groupName}}} group",
       },
-      minimumGroupSize: 1,
+      // All THREE must have an update before a PR opens. Grouping alone does not
+      // wait: with a size of 1, a component whose tag or digest lands first would
+      // ship on its own and, under the shared preset's auto-merge, deploy the
+      // mixed-version state that produces "Wazuh dashboard server is not ready
+      // yet". The three are released together, so requiring three is not a stall.
+      minimumGroupSize: 3,
+    },
+    {
+      description: "Wazuh upstream manifests — notify only, never auto-merge",
+      matchDatasources: ["github-tags"],
+      matchPackageNames: ["wazuh/wazuh-kubernetes"],
+      // This dependency is a marker comment, not a deployed artifact. Left to the
+      // shared minor/patch auto-merge policy, Renovate would merge a PR that only
+      // advances the marker — recording the manifests as re-vendored when nobody
+      // has looked at what upstream actually changed, and silencing the next
+      // notification too. The whole point of the tracker is the human step.
+      automerge: false,
+      dependencyDashboardApproval: true,
+      commitMessageTopic: "Wazuh upstream manifests (re-vendor required)",
     },
     {
       description: "Cert-Manager Group",
