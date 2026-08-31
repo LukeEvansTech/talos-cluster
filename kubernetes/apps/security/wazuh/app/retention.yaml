@@ -38,6 +38,9 @@ kind: CronJob
 metadata:
   name: wazuh-retention
   namespace: security
+  annotations:
+    checkov.io/skip1: "CKV_K8S_11=CPU is compressible; limits are omitted repository-wide because throttling worsens an overload rather than containing it. CPU requests are set."
+    checkov.io/skip2: "CKV_K8S_35=The indexer credentials are read from environment variables by curl's -u flag. Values come from a Secret built by ExternalSecret, never from Git."
 spec:
   # Upstream ships NO index lifecycle policy at all, so alert indices grow until
   # the volume fills. This runs daily rather than as a one-shot Job on purpose:
