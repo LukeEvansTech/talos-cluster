@@ -1,0 +1,204 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wazuh-manager-conf
+  namespace: security
+data:
+  ossec.conf: |-
+    <ossec_config>
+      <global>
+        <jsonout_output>yes</jsonout_output>
+        <alerts_log>yes</alerts_log>
+        <!--
+          Archives stay off. The indexer holds ALERTS; raw log retention is
+          VictoriaLogs' job, and it already receives the same sources. Turning
+          logall on here would also mean fighting the image: /etc/filebeat/filebeat.yml
+          is on the PERMANENT_DATA_EXCP exclusion list, so it is restored from
+          the image and rewritten from env on every container start.
+        -->
+        <logall>no</logall>
+        <logall_json>no</logall_json>
+
+        <email_notification>yes</email_notification>
+        <smtp_server>smtp2graph.infrastructure.svc.cluster.local</smtp_server>
+        <email_from>wazuh@${SECRET_DOMAIN}</email_from>
+        <email_to>${SECRET_ACME_EMAIL}</email_to>
+        <email_maxperhour>12</email_maxperhour>
+        <email_log_source>alerts.log</email_log_source>
+
+        <queue_size>131072</queue_size>
+        <agents_disconnection_time>20s</agents_disconnection_time>
+        <agents_disconnection_alert_time>100s</agents_disconnection_alert_time>
+        <white_list>127.0.0.1</white_list>
+        <white_list>^localhost.localdomain$</white_list>
+      </global>
+
+      <alerts>
+        <log_alert_level>3</log_alert_level>
+        <!--
+          Deliberately high for first light. Full-fidelity firewall and DNS
+          ingest generates a large level 3-9 volume; mailing that would bury
+          the signal on day one. Lower once the real rates are known.
+        -->
+        <email_alert_level>12</email_alert_level>
+      </alerts>
+
+      <logging>
+        <log_format>plain</log_format>
+      </logging>
+
+      <!-- Agent traffic (enrolled endpoints, e.g. the NAS). -->
+      <remote>
+        <connection>secure</connection>
+        <port>1514</port>
+        <protocol>tcp</protocol>
+        <queue_size>131072</queue_size>
+      </remote>
+
+      <!--
+        Agentless syslog ingest: the firewall, hypervisors and network kit ship
+        here directly. The LoadBalancer in front of this uses
+        externalTrafficPolicy: Cluster (Local breaks Cilium L2 announcement, see
+        the syslog Service), so kube-proxy SNATs and every sender arrives as a
+        node address — hence a CIDR here rather than per-device entries.
+      -->
+      <remote>
+        <connection>syslog</connection>
+        <port>514</port>
+        <protocol>udp</protocol>
+        <allowed-ips>${CR_LAN_CIDR}</allowed-ips>
+        <allowed-ips>${CLUSTER_PODS_CIDR}</allowed-ips>
+      </remote>
+      <remote>
+        <connection>syslog</connection>
+        <port>514</port>
+        <protocol>tcp</protocol>
+        <allowed-ips>${CR_LAN_CIDR}</allowed-ips>
+        <allowed-ips>${CLUSTER_PODS_CIDR}</allowed-ips>
+      </remote>
+
+      <!--
+        rootcheck and syscheck are DISABLED on the manager. Upstream leaves them
+        scanning /etc, /bin, /usr/bin, /boot — which inside this container is the
+        image's own filesystem, not a host. They produce noise about a read-only
+        layer that is replaced wholesale on every image bump. Endpoint FIM is the
+        agents' job, where those paths mean something.
+      -->
+      <rootcheck>
+        <disabled>yes</disabled>
+      </rootcheck>
+      <syscheck>
+        <disabled>yes</disabled>
+      </syscheck>
+
+      <!--
+        Inventory and CVE correlation for ENROLLED AGENTS. Both are driven by the
+        agent's package inventory, so they produce findings for the NAS and any
+        other conventional host, and nothing at all for a Talos node (no package
+        database exists there).
+      -->
+      <wodle name="syscollector">
+        <disabled>no</disabled>
+        <interval>1h</interval>
+        <scan_on_start>yes</scan_on_start>
+        <hardware>yes</hardware>
+        <os>yes</os>
+        <network>yes</network>
+        <packages>yes</packages>
+        <ports all="no">yes</ports>
+        <processes>yes</processes>
+      </wodle>
+
+      <vulnerability-detection>
+        <enabled>yes</enabled>
+        <index-status>yes</index-status>
+        <feed-update-interval>60m</feed-update-interval>
+      </vulnerability-detection>
+
+      <indexer>
+        <enabled>yes</enabled>
+        <hosts>
+          <host>https://wazuh-indexer:9200</host>
+        </hosts>
+        <ssl>
+          <certificate_authorities>
+            <ca>/etc/ssl/root-ca.pem</ca>
+          </certificate_authorities>
+          <certificate>/etc/ssl/filebeat.pem</certificate>
+          <key>/etc/ssl/filebeat.key</key>
+        </ssl>
+      </indexer>
+
+      <ruleset>
+        <decoder_dir>ruleset/decoders</decoder_dir>
+        <rule_dir>ruleset/rules</rule_dir>
+        <rule_exclude>0215-policy_rules.xml</rule_exclude>
+        <list>etc/lists/audit-keys</list>
+        <list>etc/lists/amazon/aws-sources</list>
+        <list>etc/lists/amazon/aws-eventnames</list>
+        <list>etc/lists/malicious-ioc/malicious-ip</list>
+        <list>etc/lists/malicious-ioc/malicious-domains</list>
+        <list>etc/lists/malicious-ioc/malware-hashes</list>
+        <decoder_dir>etc/decoders</decoder_dir>
+        <rule_dir>etc/rules</rule_dir>
+      </ruleset>
+
+      <rule_test>
+        <enabled>yes</enabled>
+        <threads>1</threads>
+        <max_sessions>64</max_sessions>
+        <session_timeout>15m</session_timeout>
+      </rule_test>
+
+      <auth>
+        <disabled>no</disabled>
+        <port>1515</port>
+        <!--
+          Must stay 'no'. With externalTrafficPolicy Cluster the manager sees a
+          SNAT'd node address for every agent, so binding a key to the observed
+          source IP would reject that agent's next connection and fill the log
+          with "Invalid ID nnn for the source ip".
+        -->
+        <use_source_ip>no</use_source_ip>
+        <force>
+          <enabled>yes</enabled>
+          <key_mismatch>yes</key_mismatch>
+          <disconnected_time enabled="yes">1h</disconnected_time>
+          <after_registration_time>1h</after_registration_time>
+        </force>
+        <purge>no</purge>
+        <use_password>yes</use_password>
+        <ciphers>HIGH:!ADH:!EXP:!MD5:!RC4:!3DES:!CAMELLIA:@STRENGTH</ciphers>
+        <ssl_verify_host>no</ssl_verify_host>
+        <ssl_manager_cert>/var/ossec/etc/sslmanager.cert</ssl_manager_cert>
+        <ssl_manager_key>/var/ossec/etc/sslmanager.key</ssl_manager_key>
+        <ssl_auto_negotiate>no</ssl_auto_negotiate>
+      </auth>
+
+      <!--
+        Single manager: no workers, so there is no cluster to join. Leaving this
+        enabled would start wazuh-clusterd listening on 1516 for peers that will
+        never exist.
+      -->
+      <cluster>
+        <name>wazuh</name>
+        <node_name>wazuh-manager-master</node_name>
+        <node_type>master</node_type>
+        <key>to_be_replaced_by_cluster_key</key>
+        <port>1516</port>
+        <bind_addr>0.0.0.0</bind_addr>
+        <nodes>
+          <node>wazuh-manager-master-0.wazuh-cluster</node>
+        </nodes>
+        <hidden>no</hidden>
+        <disabled>yes</disabled>
+      </cluster>
+    </ossec_config>
+
+    <ossec_config>
+      <localfile>
+        <log_format>syslog</log_format>
+        <location>/var/ossec/logs/active-responses.log</location>
+      </localfile>
+    </ossec_config>

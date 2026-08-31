@@ -69,3 +69,119 @@ misconfigurations:
       tailnet proxy so cluster workloads (Prometheus) can reach the seedbox's
       tailnet IP. No user traffic is routed to an attacker-controllable
       external name; the operator manages the value.
+
+  - id: KSV-0109
+    paths:
+      - "kubernetes/apps/security/wazuh/app/configmap-manager.yaml"
+      - "kubernetes/apps/security/wazuh/app/configmap-indexer.yaml"
+    statement: |-
+      False positive. Both ConfigMaps hold Wazuh configuration files, not
+      credentials. configmap-manager.yaml is ossec.conf: the flagged strings
+      are XML element and attribute NAMES (`<key>`, `<ssl_manager_key>`,
+      `use_password`) plus a literal `to_be_replaced_by_cluster_key`
+      placeholder the manager entrypoint overwrites at boot from the
+      WAZUH_CLUSTER_KEY env var, which comes from the wazuh Secret.
+      configmap-indexer.yaml is opensearch.yml: the matches are certificate
+      FILE PATHS (`pemkey_filepath`) and the DN strings the security plugin
+      compares peer certificates against, which are public identifiers.
+      Every actual secret for this app -- the indexer/dashboard/API passwords,
+      the cluster key, the registration password, the internal_users.yml
+      bcrypt hashes and all TLS material -- arrives via ExternalSecret from
+      1Password and is mounted from a Secret, never from these ConfigMaps.
+
+  - id: KSV-01010
+    paths:
+      - "kubernetes/apps/security/wazuh/app/configmap-manager.yaml"
+      - "kubernetes/apps/security/wazuh/app/configmap-indexer.yaml"
+    statement: |-
+      False positive, same two files as the KSV-0109 entry above. The flagged
+      keys are Wazuh/OpenSearch configuration field names (`<key>`,
+      `use_password`, `pemkey_filepath`, `authcz.admin_dn`), not sensitive
+      values. See that statement for where the real secrets live.
+
+  # --- Wazuh (kubernetes/apps/security/wazuh) -------------------------------
+  # Accepted risks, not false positives, except where noted. Recorded here so the
+  # security dashboard stays a signal rather than a wall of known-and-decided
+  # findings. KSV-0014 (read-only root filesystem) is deliberately NOT listed:
+  # that one is real hardening debt, tracked in the manifests, not accepted.
+  - id: KSV-0125
+    paths: &wazuh_workloads
+      - "kubernetes/apps/security/wazuh/app/indexer.yaml"
+      - "kubernetes/apps/security/wazuh/app/manager.yaml"
+      - "kubernetes/apps/security/wazuh/app/dashboard.yaml"
+      - "kubernetes/apps/security/wazuh/app/retention.yaml"
+    statement: |-
+      docker.io is not in Trivy's default trusted-registry list, but these are
+      the official Wazuh images published by the vendor, and every one is
+      digest-pinned (tag@sha256:...) and maintained by Renovate. A tag cannot be
+      silently repointed under us. Wazuh publishes no GHCR mirror.
+
+  - id: KSV-0011
+    paths: *wazuh_workloads
+    statement: |-
+      CPU limits are deliberately omitted here, as they are throughout this
+      repository. CPU is compressible: a limit causes throttling rather than
+      protection, and throttling an indexer mid-merge or an analysisd under a
+      log burst makes an overload worse. CPU requests are set on every
+      container, so scheduling and shares are still bounded.
+
+  - id: KSV-0012
+    paths: *wazuh_workloads
+    statement: |-
+      The wazuh-manager image starts as root by design: its entrypoint chroots,
+      fixes ownership on the mounted data volume and only then steps the daemons
+      down to the wazuh user. The indexer's chown init container is root for one
+      command against a freshly provisioned volume. Neither runs as root once
+      serving. Capabilities are dropped to ALL and added back to a verified
+      minimum in both cases, which upstream does not do at all.
+
+  - id: KSV-0020
+    paths: *wazuh_workloads
+    statement: |-
+      Same finding as KSV-0021, on uid rather than gid. The indexer and dashboard
+      images build their filesystems for uid 1000 and the manager for 101; those
+      ids are baked into the images, so raising them above 10000 would mean
+      rebuilding upstream's containers rather than configuring them.
+
+  - id: KSV-0021
+    paths: *wazuh_workloads
+    statement: |-
+      Image-determined gid (1000 for indexer/dashboard, 101 for manager). See
+      the KSV-0020 statement above. Host uid/gid collision is not a meaningful
+      risk here: these pods mount no host paths and run with hostPID, hostIPC
+      and hostNetwork all unset.
+
+  - id: KSV-0105
+    paths:
+      - "kubernetes/apps/security/wazuh/app/indexer.yaml"
+    statement: |-
+      The chown-data init container sets runAsUser 0 to fix ownership on a newly
+      provisioned volume before the non-root indexer starts. It runs one chown,
+      holds only CHOWN (everything else dropped), and exits.
+
+  - id: KSV-0022
+    paths: *wazuh_workloads
+    statement: |-
+      Capabilities are added back only after dropping ALL, which is strictly
+      tighter than upstream (which drops nothing and inherits the runtime's full
+      default set). The indexer holds SYS_CHROOT alone; the manager holds the
+      default set minus NET_RAW, MKNOD and AUDIT_WRITE. The manager's list is
+      empirically derived — a smaller set was tested and crashes the container.
+
+  - id: KSV-0106
+    paths: *wazuh_workloads
+    statement: |-
+      Same capabilities as KSV-0022 above. Restricting to NET_BIND_SERVICE alone
+      is not achievable for these images: the manager entrypoint needs SYS_CHROOT
+      and the setuid/chown family to hand off to the wazuh user, and the indexer
+      entrypoint chroots. Verified against the images rather than assumed.
+
+  - id: KSV-0117
+    paths:
+      - "kubernetes/apps/security/wazuh/app/manager.yaml"
+    statement: |-
+      Port 514 is below 1024 because that is where syslog is, and the network
+      devices shipping to it cannot be told otherwise. NET_BIND_SERVICE is
+      granted for exactly this. The alternative — a high port plus a Service
+      remap — was rejected because the manager must also see the real port for
+      its own remoted configuration.
