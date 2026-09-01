@@ -104,7 +104,19 @@ spec:
               PROWLARR__APP__INSTANCENAME: Prowlarr
               PROWLARR__APP__THEME: dark
               PROWLARR__LOG__LEVEL: info
+              # Host header allowlist. localhost, loopback and the pod hostname
+              # are always accepted, so the exportarr sidecar (http://localhost:80)
+              # needs no entry. The other *arr apps reach Prowlarr on the FQDN
+              # baked into the indexer definitions Prowlarr syncs to them, which
+              # is the service name and NOT the release name -- this app exposes
+              # two services, so the HTTP one is prowlarr-app. Verified against
+              # the live indexer list on both consumers.
+              PROWLARR__SERVER__ALLOWEDHOSTS: prowlarr.${SECRET_DOMAIN},prowlarr-app.downloads.svc.cluster.local
               PROWLARR__SERVER__PORT: &port 80
+              # Trust X-Forwarded-* from the Envoy Gateway proxies (pod network)
+              # so the real client address is what Prowlarr sees and logs.
+              # Requires Prowlarr >= 2.6.3, where the setting was added.
+              PROWLARR__SERVER__TRUSTEDNETWORKS: ${CLUSTER_PODS_CIDR}
               PROWLARR__UPDATE__BRANCH: develop
             envFrom: *envFrom
             probes:
