@@ -97,15 +97,25 @@ spec:
               port: 5601
             periodSeconds: 10
             failureThreshold: 60
+          # NOT /api/status. That is the canonical OpenSearch Dashboards health
+          # endpoint, but the security plugin authenticates it, so an unauthenticated
+          # kubelet probe gets 401 and the kubelet restarts a perfectly healthy pod
+          # in a loop (observed: 128 restarts in 11h, while the app was serving the
+          # UI throughout). A probe cannot read a Secret, so there is no credential
+          # to give it. /app/login is served unauthenticated and returns 200 only
+          # once the plugins — including the security plugin that issues the 401
+          # above — have finished loading, so it is a stronger readiness signal than
+          # the 302 on /. Verified against the running pod:
+          #   /api/status 401 | /status 401 | / 302 | /app/login 200
           readinessProbe:
             httpGet:
-              path: /api/status
+              path: /app/login
               port: 5601
             periodSeconds: 20
             failureThreshold: 6
           livenessProbe:
             httpGet:
-              path: /api/status
+              path: /app/login
               port: 5601
             periodSeconds: 30
             failureThreshold: 10
