@@ -114,6 +114,16 @@ spec:
     persistence:
       config:
         existingClaim: "{{ .Release.Name }}"
+      # Radarr runs with a read-only root filesystem, and ASP.NET's data
+      # protection layer writes a new key ring entry through
+      # Path.GetTempFileName() — i.e. into /tmp. Without a writable /tmp that
+      # write throws (IOException: Read-only file system : '/tmp/'), so no new
+      # key can be created once the existing ones expire, and cookie
+      # encryption fails: forms login returns 401 and no session is ever
+      # issued. Sonarr and prowlarr already carry this mount; radarr did not,
+      # and its newest key expired 2025-11-10.
+      tmp:
+        type: emptyDir
       config-cache:
         existingClaim: "{{ .Release.Name }}-cache"
         globalMounts:
