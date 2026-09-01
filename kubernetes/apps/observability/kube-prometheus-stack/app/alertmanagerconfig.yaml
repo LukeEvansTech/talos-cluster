@@ -59,6 +59,30 @@ spec:
         - name: severity
           value: warning
           matchType: =
+    # CephHealthWarning is a catch-all on ceph_health_status == 1 -- it says the
+    # cluster is in HEALTH_WARN without saying why, so it duplicates whichever
+    # specific Ceph alert already describes the condition. Ceph's own rules give
+    # the specific alert a short "for" and the catch-all 15m, so one event
+    # arrives as two pages a quarter of an hour apart and then two resolves.
+    # Suppress the catch-all whenever a specific Ceph alert is firing for the
+    # same cluster; a HEALTH_WARN with no specific alert behind it still pages.
+    # The source deliberately excludes both catch-alls rather than relying on
+    # Alertmanager's two-sided-match handling, so source and target are disjoint
+    # by construction. CephHealthError is never a target: HEALTH_ERR pages.
+    - equal:
+        - "cluster"
+        - "namespace"
+      sourceMatch:
+        - name: alertname
+          value: "Ceph.+"
+          matchType: "=~"
+        - name: alertname
+          value: "CephHealth(Warning|Error)"
+          matchType: "!~"
+      targetMatch:
+        - name: alertname
+          value: CephHealthWarning
+          matchType: =
   receivers:
     - name: "null"
     # sendResolved is false here, and it is load-bearing rather than tidiness.

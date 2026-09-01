@@ -60,6 +60,19 @@ spec:
           mon_data_avail_warn: "15" # quote - mons live on OS disk, not OSD disk
         mon:
           mon_cluster_log_level: info # default debug floods the cluster log
+          # 0.3s, up from the 0.05s default. The nodes discipline their clocks
+          # against public NTP over the WAN, and the kernel offset wanders in a
+          # sawtooth between polls: peak |offset| over a 30-day window was
+          # 111ms, with 27 excursions past 30ms spread evenly across all three
+          # nodes and unrelated to boots. That routinely crossed the 50ms
+          # default, so CephMonClockSkew fired and self-cleared on the next
+          # 300s mon_timecheck_interval -- and because the skew also puts the
+          # cluster in HEALTH_WARN, CephHealthWarning fired 15m behind it for
+          # the same event. 0.3s sits 2.7x above the observed peak and is 6% of
+          # mon_lease (5s), so a real time fault -- which shows up as seconds of
+          # drift, not tens of milliseconds -- still trips it. Runtime-settable,
+          # so Rook applies it without restarting the mons.
+          mon_clock_drift_allowed: "0.3" # quote
       cleanupPolicy:
         wipeDevicesFromOtherClusters: true
       crashCollector:
