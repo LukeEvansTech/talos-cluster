@@ -54,7 +54,7 @@ spec:
                 path: authd.pass
       containers:
         - name: wazuh-manager
-          image: docker.io/wazuh/wazuh-manager:4.14.7@sha256:8665c9807a5765253c79e4b072a1b7462c997bd69be949118a8d82ce44dd33e9
+          image: docker.io/wazuh/wazuh-manager:4.14.7@sha256:80cada6a192fcb8caa8b415a5b64e2155138dd8df1da3a7b227d7e5e4e7460c0
           # Upstream ships 400m/512Mi for a container running analysisd, remoted,
           # wazuh-db, the Python API AND Filebeat together — the documented cause of
           # repeated OOMKill reports. Sized here for full-fidelity syslog ingest
