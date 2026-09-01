@@ -25,7 +25,15 @@ spec:
               RADARR__AUTH__REQUIRED: DisabledForLocalAddresses
               RADARR__LOG__DBENABLED: "False"
               RADARR__LOG__LEVEL: info
+              # Host header allowlist. localhost, loopback and the pod hostname
+              # are always accepted, so the exportarr sidecar (http://localhost:80)
+              # needs no entry; every other in-cluster client uses the FQDN
+              # service name. Mirrors sonarr.
+              RADARR__SERVER__ALLOWEDHOSTS: radarr.${SECRET_DOMAIN},radarr.media.svc.cluster.local
               RADARR__SERVER__PORT: &port 80
+              # Trust X-Forwarded-* from the Envoy Gateway proxies (pod network)
+              # so the real client address is what Radarr sees and logs.
+              RADARR__SERVER__TRUSTEDNETWORKS: ${CLUSTER_PODS_CIDR}
               RADARR__UPDATE__BRANCH: develop
               TZ: ${TIMEZONE}
             envFrom:
@@ -39,6 +47,11 @@ spec:
                   httpGet:
                     path: /ping
                     port: *port
+                    # kubelet sends the pod IP as Host, which the allowlist
+                    # above rejects; localhost is always accepted.
+                    httpHeaders:
+                      - name: Host
+                        value: localhost
                   initialDelaySeconds: 0
                   periodSeconds: 10
                   timeoutSeconds: 1
