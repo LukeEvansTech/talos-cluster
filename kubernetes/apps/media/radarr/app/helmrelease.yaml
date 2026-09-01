@@ -31,9 +31,6 @@ spec:
               # service name. Mirrors sonarr.
               RADARR__SERVER__ALLOWEDHOSTS: radarr.${SECRET_DOMAIN},radarr.media.svc.cluster.local
               RADARR__SERVER__PORT: &port 80
-              # Trust X-Forwarded-* from the Envoy Gateway proxies (pod network)
-              # so the real client address is what Radarr sees and logs.
-              RADARR__SERVER__TRUSTEDNETWORKS: ${CLUSTER_PODS_CIDR}
               RADARR__UPDATE__BRANCH: develop
               TZ: ${TIMEZONE}
             envFrom:
