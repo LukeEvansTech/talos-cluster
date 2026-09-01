@@ -49,7 +49,7 @@ spec:
             secretName: wazuh-certs
       containers:
         - name: wazuh-dashboard
-          image: docker.io/wazuh/wazuh-dashboard:4.14.7@sha256:eeff857a664b3c09d3df4407b8749a351f321e4f366ca60ea1dffaa76f2146a7
+          image: docker.io/wazuh/wazuh-dashboard:4.14.7@sha256:a7b565642dcb88ebfc2fe411169bad1d39fd02de4e5e1fa70f4b441380e62f47
           resources:
             requests:
               cpu: 200m
