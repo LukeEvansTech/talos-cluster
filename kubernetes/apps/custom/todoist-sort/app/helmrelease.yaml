@@ -45,7 +45,7 @@ spec:
             # renovate/pin-dependencies branch (renovate#24942 family).
             image:
               repository: ghcr.io/lukeevanstech/todoist-sort
-              tag: 0.2.5@sha256:21fc1b16d230444fd890eb5a7619914ba464ad23e648a0c783d6780b6a1469be
+              tag: 0.2.5@sha256:4ccd0da296bef04cea783625b154c8ab02dc9b7a7b5c6c1794886d370f78d43b
             command:
               - "sort-inbox"
               - "--root"
@@ -90,7 +90,7 @@ spec:
             # Duplicated from sort-inbox on purpose — see the comment there.
             image:
               repository: ghcr.io/lukeevanstech/todoist-sort
-              tag: 0.2.5@sha256:21fc1b16d230444fd890eb5a7619914ba464ad23e648a0c783d6780b6a1469be
+              tag: 0.2.5@sha256:4ccd0da296bef04cea783625b154c8ab02dc9b7a7b5c6c1794886d370f78d43b
             command:
               - "plan-day"
               - "--root"
