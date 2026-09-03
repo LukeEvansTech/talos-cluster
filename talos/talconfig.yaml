@@ -1,7 +1,7 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/budimanjojo/talhelper/master/pkg/config/schemas/talconfig.json
 ---
-# renovate: datasource=docker depName=ghcr.io/siderolabs/installer
-talosVersion: v1.13.9
+# renovate: datasource=custom.talos-factory depName=siderolabs/talos
+talosVersion: v1.14.0
 # renovate: datasource=docker depName=ghcr.io/siderolabs/kubelet
 kubernetesVersion: v1.36.4
 
@@ -272,6 +272,7 @@ nodes:
 # Global patches
 patches:
   - "@./patches/global/machine-files.yaml"
+  - "@./patches/global/machine-fstrim.yaml"
   - "@./patches/global/machine-image-verification.yaml"
   - "@./patches/global/machine-kernel.yaml"
   - "@./patches/global/machine-kubelet.yaml"

@@ -1,33 +1,12 @@
 ---
+# etcd has no multi-document form yet and stays in v1alpha1.
 cluster:
+  # Every node is a control plane that also runs workloads. KubeNodeConfig is
+  # the 1.14 home for this, but talhelper 3.1.17 does not know it yet.
   allowSchedulingOnControlPlanes: true
-  apiServer:
-    admissionControl:
-      "$$patch": delete
-    extraArgs:
-      # https://kubernetes.io/docs/tasks/extend-kubernetes/configure-aggregation-layer/
-      enable-aggregator-routing: true
-      # Required here AND under controllerManager below for the zeroscaler HPAs to use
-      # minReplicas=0: the apiserver validates the field (rejects 0 without the gate), the
-      # controller-manager does the scaling. Control-plane change (rolling apiserver restart).
-      # See KB-024.
-      feature-gates: HPAScaleToZero=true
-      # Public OIDC issuer so Entra (and other clouds) can federate the cluster's service-account
-      # tokens — backs the sentinel-syslog workload identity (no secrets). Served as static OIDC
-      # discovery + JWKS by the `network/oidc-talos` app at this exact URL. MUST match byte-for-byte:
-      # the oidc-talos openid-configuration `issuer` + terraform-entra var.sentinel_syslog_oidc_issuer.
-      # ── OPS: control-plane change (rolling apiserver restart). Apply in a maintenance window;
-      #     existing pods re-auth as their projected SA tokens rotate (self-healing, brief).
-      service-account-issuer: https://oidc-talos.codelooks.com
-    resources:
-      requests:
-        memory: 2Gi
-      limits:
-        memory: 4Gi
-  controllerManager:
-    extraArgs:
-      bind-address: 0.0.0.0
-      feature-gates: HPAScaleToZero=true
+  # CoreDNS is Flux-managed. talhelper 3.1.17 (machinery 1.14.0-alpha.2) does
+  # not know KubeCoreDNSConfig yet, so this stays v1alpha1 (deprecated, still
+  # supported; no KubeCoreDNSConfig document exists to conflict with).
   coreDNS:
     disabled: true
   etcd:
@@ -35,8 +14,56 @@ cluster:
       listen-metrics-urls: http://0.0.0.0:2381
     advertisedSubnets:
       - 10.32.8.0/24
-  proxy:
-    disabled: true
-  scheduler:
-    extraArgs:
-      bind-address: 0.0.0.0
+---
+# The generator ships a PodSecurity admission config; this cluster never ran it.
+apiVersion: v1alpha1
+kind: KubeAdmissionControlConfig
+name: PodSecurity
+$$patch: delete
+---
+apiVersion: v1alpha1
+kind: KubeAPIServerConfig
+# talhelper 3.1.17 does not carry additionalApiServerCertSans into the 1.14
+# contract, so the extra SANs are restated here. Keep in sync with the &sans
+# anchor in talconfig.yaml.
+certExtraSANs:
+  - "127.0.0.1"
+  - "10.32.8.85"
+  - "talos-cluster.codelooks.com"
+  - "talos-cluster.core.codelooks.com"
+extraArgs:
+  # https://kubernetes.io/docs/tasks/extend-kubernetes/configure-aggregation-layer/
+  enable-aggregator-routing: true
+  # Required here AND under KubeControllerManagerConfig below for the zeroscaler HPAs to
+  # use minReplicas=0: the apiserver validates the field (rejects 0 without the gate), the
+  # controller-manager does the scaling. Control-plane change (rolling apiserver restart).
+  # See KB-024.
+  feature-gates: HPAScaleToZero=true
+  # Public OIDC issuer so Entra (and other clouds) can federate the cluster's service-account
+  # tokens — backs the sentinel-syslog workload identity (no secrets). Served as static OIDC
+  # discovery + JWKS by the `network/oidc-talos` app at this exact URL. MUST match byte-for-byte:
+  # the oidc-talos openid-configuration `issuer` + terraform-entra var.sentinel_syslog_oidc_issuer.
+  # ── OPS: control-plane change (rolling apiserver restart). Apply in a maintenance window;
+  #     existing pods re-auth as their projected SA tokens rotate (self-healing, brief).
+  service-account-issuer: https://oidc-talos.codelooks.com
+resources:
+  requests:
+    memory: 2Gi
+  limits:
+    memory: 4Gi
+---
+apiVersion: v1alpha1
+kind: KubeControllerManagerConfig
+extraArgs:
+  bind-address: 0.0.0.0
+  feature-gates: HPAScaleToZero=true
+---
+apiVersion: v1alpha1
+kind: KubeSchedulerConfig
+extraArgs:
+  bind-address: 0.0.0.0
+---
+# kube-proxy is replaced by Cilium.
+apiVersion: v1alpha1
+kind: KubeProxyConfig
+enabled: false
