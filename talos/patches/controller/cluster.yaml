@@ -1,8 +1,8 @@
 ---
 # etcd has no multi-document form yet and stays in v1alpha1.
 cluster:
-  # Every node is a control plane that also runs workloads. KubeNodeConfig is
-  # the 1.14 home for this, but talhelper 3.1.17 does not know it yet.
+  # KubeNodeConfig is the 1.14 home for this, but talhelper 3.1.17 does not
+  # know it yet, so it stays v1alpha1 (deprecated, still supported).
   allowSchedulingOnControlPlanes: true
   # CoreDNS is Flux-managed. talhelper 3.1.17 (machinery 1.14.0-alpha.2) does
   # not know KubeCoreDNSConfig yet, so this stays v1alpha1 (deprecated, still

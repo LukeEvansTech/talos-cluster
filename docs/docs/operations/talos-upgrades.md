@@ -251,6 +251,16 @@ version, tuppr reports `version mismatch`, `LoaderEntryDefault` points at the ol
 `Talos-vX.efi` is on the ESP, and `talosctl upgrade --wait` still exits 0. The new version never
 booted, so do not debug it as a boot failure.
 
+[KB-028](../troubleshooting/kb/028-talos-upgrade-boots-old-version-loaderentrydefault.md) describes
+the same outward symptom with a different recovery (delete `LoaderEntryDefault`, do not re-run the
+upgrade). Tell them apart before choosing: this case shows a **5-minute gap** between tuppr entering
+`Rebooting` (or `talosctl upgrade` printing `installation ... complete`) and the node actually going
+down, and the machined log of that shutdown (stream it with the `KmsgLogConfig` trick below) ends
+with `task teardownLifecycle (1/1): failed: context deadline exceeded`, `running emergency volume
+cleanup`, and thousands of `error closing luks2-EPHEMERAL: mapped device is still in use` lines. A
+prompt reboot with none of that is KB-028. Either recovery leaves the node on the new version; the
+loop-device cleanup below is what stops it recurring on the next upgrade.
+
 **Cause (1.13.9 source):** the upgrade API installs first, then runs the reboot sequence. Its
 `volumeFinalize` / `teardownLifecycle` step has to close the LUKS `EPHEMERAL` volume; if anything
 still references `/dev/dm-1` it retries `mapped device is still in use` for 5 minutes, the sequence
@@ -266,15 +276,21 @@ even on a drained node. `talosctl upgrade --stage` no longer exists in the 1.13 
 2. Keep the agent off the node (it tolerates every taint):
    `kubectl -n miroir-system patch ds miroir-agent --type=merge -p '{"spec":{"template":{"spec":{"affinity":{"nodeAffinity":{"requiredDuringSchedulingIgnoredDuringExecution":{"nodeSelectorTerms":[{"matchExpressions":[{"key":"kubernetes.io/hostname","operator":"NotIn","values":["<node>"]}]}]}}}}}}}'`
    and wait for its pod on that node to disappear.
-3. From a privileged `hostPID` pod on the node, `nsenter --mount=/host/proc/$(pidof kubelet)/ns/mnt`
-   (the kubelet image carries util-linux, like the fstrim CronJob does) and run
-   `umount` on every remaining `.../csi/miroir.home-operations.com/*/globalmount`, then
+3. From a privileged pod on the node with `hostPID: true` **and** a `hostPath` mount of `/proc` at
+   `/host/proc` (the same shape as the fstrim CronJob in `kubernetes/apps/kube-system/fstrim`),
+   `nsenter --mount=/host/proc/$(pidof kubelet)/ns/mnt` (the kubelet image carries util-linux) and
+   run `umount` on every remaining `.../csi/miroir.home-operations.com/*/globalmount`, then
    `losetup -d` on every loop whose backing file is under `/var/`.
 4. Confirm from the host that no loop is backed by `/var` for ~40 seconds, then
-   `talosctl upgrade --image factory.talos.dev/installer-secureboot/<schematic>:<version> --wait`.
+   `talosctl upgrade --nodes <node-ip> --image factory.talos.dev/installer-secureboot/<schematic>:<version> --wait`.
    Teardown then takes seconds.
-5. After the node is back: `kubectl -n miroir-system patch ds miroir-agent --type=json -p '[{"op":"remove","path":"/spec/template/spec/affinity"}]'`,
-   `kubectl uncordon <node>`, and delete + let Flux recreate the tuppr `TalosUpgrade` so it shows
+5. After the node is back: `kubectl -n miroir-system patch ds miroir-agent --type=json -p '[{"op":"remove","path":"/spec/template/spec/affinity"}]'`
+   and `kubectl uncordon <node>`.
+6. Before touching the next node, wait for Ceph `HEALTH_OK` (`ceph health` in the toolbox) and all
+   three etcd members healthy (`talosctl -n <node-ip> etcd status`); Kubernetes `Ready` alone comes
+   well before Ceph and etcd have re-converged, and the next control-plane reboot is a quorum risk
+   until they have. This is the gate tuppr applies itself (`healthChecks` in the `TalosUpgrade`).
+7. When every node is done, delete the tuppr `TalosUpgrade` and let Flux recreate it so it shows
    `Completed`.
 
 If the new UKI is already on the ESP and the teardown still stalls, `talosctl rollback` is a

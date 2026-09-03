@@ -2,6 +2,15 @@
 
 **Status:** Fix proven on seven nodes across three upgrades (v1.13.6 → v1.13.7, v1.13.7 → v1.13.8 where all three needed it, and v1.13.8 → v1.13.9 where two of three did). The v1.13.9 run corrected several claims below — see [What the v1.13.9 run changed](#what-the-v1139-run-changed). The trigger is the BIOS flash off the buggy line, not a Talos regression. `BootOrder` turned out **not** to be the lever — see the section below — so recurrence depends entirely on whether `LoaderEntryDefault` comes back.
 
+> **2026-09-03 update.** The v1.14.0 rollout produced this exact symptom on all three nodes with a
+> different, directly observed cause: the reboot sequence's `teardownLifecycle` step could not close
+> the encrypted `EPHEMERAL` volume (miroir loop devices still attached), timed out after 5 minutes,
+> and machined's error handler reverted the freshly installed UKI before rebooting. That mechanism
+> also explains every observation in this KB, including the variable "recording whatever was just
+> booted". See [Talos 1.14 notes](../../operations/talos-upgrades.md#upgrade-didnt-take-node-reboots-into-the-old-version)
+> for how to tell the two apart and the cleanup that stops it recurring. The recovery below still
+> works: with `LoaderEntryDefault` deleted, systemd-boot picks the newest UKI on the ESP.
+
 ## Symptom
 
 A tuppr-driven Talos upgrade fails with a version mismatch, even though nothing looks broken:

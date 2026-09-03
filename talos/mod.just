@@ -10,7 +10,8 @@ set shell := ['bash', '-euo', 'pipefail', '-c']
 gen-config:
     just log info "Generating Talos configuration..." "stage" "{{ recipe_name() }}"
     TALSECRET=$(mktemp)
-    trap 'rm -f "${TALSECRET}"' EXIT
+    OUTDIR=$(mktemp -d)
+    trap 'rm -f "${TALSECRET}"; rm -rf "${OUTDIR}"' EXIT
     op document get talsecret --vault Talos > "${TALSECRET}"
     # LUKS2 slot-1 fallback passphrase, substituted into talconfig.yaml as ${TALOS_LUKS_FALLBACK}.
     # Never committed: this repo is public and the rendered configs are gitignored.
@@ -25,14 +26,19 @@ gen-config:
         just log error "TALOS_SECRETBOX_SECRET is empty — talsecret has no secretboxencryptionsecret" "stage" "{{ recipe_name() }}"
         exit 1
     fi
-    talhelper genconfig --config-file "{{ source_directory() }}/talconfig.yaml" --secret-file "${TALSECRET}" --out-dir "{{ source_directory() }}/clusterconfig"
+    # Render into a scratch directory first: a rejected render must never reach clusterconfig/,
+    # which apply-node consumes as-is.
+    talhelper genconfig --config-file "{{ source_directory() }}/talconfig.yaml" --secret-file "${TALSECRET}" --out-dir "${OUTDIR}"
     # Guard: a render whose secretbox key is not "key2" would stop every apiserver decrypting Secrets.
-    for f in "{{ source_directory() }}"/clusterconfig/kubernetes-*.yaml; do
+    for f in "${OUTDIR}"/kubernetes-*.yaml; do
         if [[ "$(yq 'select(.kind == "KubeEtcdEncryptionConfig") | ((.config.resources | length) == 1 and .config.resources[0].providers[0].secretbox.keys[0].name == "key2")' "${f}")" != "true" ]]; then
-            just log error "etcd encryption key is not a single secretbox key named key2 in ${f} — refusing" "stage" "{{ recipe_name() }}"
+            just log error "etcd encryption key is not a single secretbox key named key2 in ${f} — refusing, clusterconfig/ left untouched" "stage" "{{ recipe_name() }}"
             exit 1
         fi
     done
+    mkdir -p "{{ source_directory() }}/clusterconfig"
+    rm -f "{{ source_directory() }}"/clusterconfig/kubernetes-*.yaml
+    cp -R "${OUTDIR}"/. "{{ source_directory() }}/clusterconfig/"
 
 [doc('Generate secret if missing (stored as the talsecret document in 1Password)')]
 gen-secret:
