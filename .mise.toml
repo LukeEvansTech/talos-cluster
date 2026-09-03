@@ -65,7 +65,7 @@ run = "uv pip install -r docs/requirements.txt"
 "github:home-operations/flate" = "latest"
 "github:home-operations/yayamlls" = "latest"
 python = "3.14.7"
-uv = "0.12.7"
+uv = "0.12.8"
 # Exact pins (not ranges): an in-range update is LOCKFILE-ONLY for Renovate,
 # and that artifact path fails on Mend hosted — the node/prettier
 # "-lockfile" branches errored on every dashboard tick while ordinary
