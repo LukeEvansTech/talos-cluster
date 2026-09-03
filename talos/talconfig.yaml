@@ -285,5 +285,6 @@ patches:
 controlPlane:
   patches:
     - "@./patches/controller/cluster.yaml"
+    - "@./patches/controller/etcd-encryption.yaml"
     - "@./patches/controller/machine-features.yaml"
     - "@./patches/controller/machine-vip.yaml"
