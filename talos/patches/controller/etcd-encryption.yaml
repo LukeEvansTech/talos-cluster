@@ -1,0 +1,19 @@
+---
+# Replaces the KubeEtcdEncryptionConfig talhelper generates (deleted in
+# cluster.yaml, which must stay ahead of this file in talconfig.yaml). The key
+# name MUST be "key2": that is the name Talos gave the v1alpha1
+# secretboxEncryptionSecret, and existing etcd data is prefixed with it.
+# The value is the talsecret document's secretboxencryptionsecret, exported by
+# `just talos gen-config` as TALOS_SECRETBOX_SECRET; never commit it.
+apiVersion: v1alpha1
+kind: KubeEtcdEncryptionConfig
+config:
+  resources:
+    - providers:
+        - secretbox:
+            keys:
+              - name: key2
+                secret: ${TALOS_SECRETBOX_SECRET}
+        - identity: {}
+      resources:
+        - secrets

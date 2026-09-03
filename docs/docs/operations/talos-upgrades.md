@@ -243,3 +243,58 @@ with KubeProxyConfig document`). talhelper 3.1.17 (machinery `v1.14.0-alpha.2`) 
   `EPHEMERAL` volume also needs `encryption.allowDiscards: true`, which waits for talhelper support.
 - **etcd metrics stay on port 2381** because `listen-metrics-urls` is set; stock 1.14 moves the
   HTTP endpoints to 2383.
+
+### Upgrade "didn't take": node reboots into the old version
+
+**Symptom:** tuppr sits in `Rebooting` for ~7 minutes, the node comes back Ready on the _old_
+version, tuppr reports `version mismatch`, `LoaderEntryDefault` points at the old UKI while the new
+`Talos-vX.efi` is on the ESP, and `talosctl upgrade --wait` still exits 0. The new version never
+booted, so do not debug it as a boot failure.
+
+**Cause (1.13.9 source):** the upgrade API installs first, then runs the reboot sequence. Its
+`volumeFinalize` / `teardownLifecycle` step has to close the LUKS `EPHEMERAL` volume; if anything
+still references `/dev/dm-1` it retries `mapped device is still in use` for 5 minutes, the sequence
+errors, and machined's fatal-error handler calls `revertBootloader()`, which puts the old UKI back
+as the sd-boot default before rebooting. On this cluster the holder is miroir: its loopfile
+volumes under `/var/mnt/extra/miroir/volumes/` stay attached as loop devices (one node had 196,
+most of them leaked), and the miroir agent re-attaches them within ~30 seconds of a `losetup -d`
+even on a drained node. `talosctl upgrade --stage` no longer exists in the 1.13 or 1.14 client.
+
+**Procedure that works (per node):**
+
+1. `kubectl drain <node> --ignore-daemonsets --delete-emptydir-data`.
+2. Keep the agent off the node (it tolerates every taint):
+   `kubectl -n miroir-system patch ds miroir-agent --type=merge -p '{"spec":{"template":{"spec":{"affinity":{"nodeAffinity":{"requiredDuringSchedulingIgnoredDuringExecution":{"nodeSelectorTerms":[{"matchExpressions":[{"key":"kubernetes.io/hostname","operator":"NotIn","values":["<node>"]}]}]}}}}}}}'`
+   and wait for its pod on that node to disappear.
+3. From a privileged `hostPID` pod on the node, `nsenter --mount=/host/proc/$(pidof kubelet)/ns/mnt`
+   (the kubelet image carries util-linux, like the fstrim CronJob does) and run
+   `umount` on every remaining `.../csi/miroir.home-operations.com/*/globalmount`, then
+   `losetup -d` on every loop whose backing file is under `/var/`.
+4. Confirm from the host that no loop is backed by `/var` for ~40 seconds, then
+   `talosctl upgrade --image factory.talos.dev/installer-secureboot/<schematic>:<version> --wait`.
+   Teardown then takes seconds.
+5. After the node is back: `kubectl -n miroir-system patch ds miroir-agent --type=json -p '[{"op":"remove","path":"/spec/template/spec/affinity"}]'`,
+   `kubectl uncordon <node>`, and delete + let Flux recreate the tuppr `TalosUpgrade` so it shows
+   `Completed`.
+
+If the new UKI is already on the ESP and the teardown still stalls, `talosctl rollback` is a
+rollback-_forward_: sd-boot's `Revert()` points the default at the other UKI and reboots, and with
+no fallback tag left in META the failure-path revert is a no-op. That boot has no auto-revert.
+
+To see what the shutdown is doing, add a `KmsgLogConfig` document (`url: udp://<other node>:5514`)
+pointing at a `hostNetwork` socat pod on another node; the delivery starts on apply and only changes
+target on delete + re-add. Loop attach/detach show up as `loopN: detected capacity change`.
+
+### Applying a regenerated config: check the etcd encryption key name
+
+talhelper 3.1.17 (machinery `v1.14.0-alpha.2`) renders `KubeEtcdEncryptionConfig` with the secretbox
+key named `key1`. Talos has always rendered the v1alpha1 `secretboxEncryptionSecret` as `key2`, and
+etcd ciphertext is prefixed with the key name, so applying that render stops every kube-apiserver
+from decrypting Secrets (`no matching key was found for the provided Secretbox transformer`) and
+every controller that reads Secrets crash-loops. `talos/patches/controller/cluster.yaml` deletes the
+generated document and `talos/patches/controller/etcd-encryption.yaml` restates it with `key2`; the
+value comes from the talsecret document via `TALOS_SECRETBOX_SECRET`, exported by
+`just talos gen-config`, which also refuses any render that does not carry exactly one `key2`.
+Before applying any regenerated config, save the live one
+(`talosctl -n <ip> get mc v1alpha1 -o yaml`, the config is the `.spec` string) and dry-run first;
+re-applying that saved file is the recovery.

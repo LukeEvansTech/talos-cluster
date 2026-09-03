@@ -67,3 +67,13 @@ extraArgs:
 apiVersion: v1alpha1
 kind: KubeProxyConfig
 enabled: false
+---
+# talhelper 3.1.17 (machinery 1.14.0-alpha.2) renders this document with the
+# secretbox key named "key1". Talos has always rendered the v1alpha1
+# secretboxEncryptionSecret as "key2", and etcd ciphertext carries the key
+# NAME, so a "key1" config leaves every kube-apiserver unable to decrypt
+# Secrets (2026-09-03 outage). Drop the generated document; the correct one
+# is restated in etcd-encryption.yaml, which is listed after this file.
+apiVersion: v1alpha1
+kind: KubeEtcdEncryptionConfig
+$$patch: delete
