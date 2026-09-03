@@ -6,5 +6,6 @@ resources:
   - ./contracthound.yaml
   - ./jobops.yaml
   - ./loupe.yaml
+  - ./lurcher.yaml
   - ./subspy.yaml
   - ./todoist-sort.yaml
