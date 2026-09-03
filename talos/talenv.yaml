@@ -1,6 +1,6 @@
 ---
 # Versions used by Taskfile helpers
-# renovate: datasource=docker depName=ghcr.io/siderolabs/installer
-talosVersion: v1.13.9
+# renovate: datasource=custom.talos-factory depName=siderolabs/talos
+talosVersion: v1.14.0
 # renovate: datasource=docker depName=ghcr.io/siderolabs/kubelet
 kubernetesVersion: v1.36.4

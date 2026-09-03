@@ -6,8 +6,8 @@ metadata:
   name: talos
 spec:
   talos:
-    # renovate: datasource=docker depName=ghcr.io/siderolabs/installer
-    version: v1.13.9
+    # renovate: datasource=custom.talos-factory depName=siderolabs/talos
+    version: v1.14.0
   policy:
     rebootMode: default
   # Drain each node before its reboot. With Rook-Ceph (ceph-block) this lets the

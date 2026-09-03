@@ -379,10 +379,12 @@
       minimumGroupSize: 2,
     },
     {
-      // The Talos version is pinned in four places across three datasources:
+      // The Talos version is pinned in four places across two datasources:
       // talconfig.yaml, talenv.yaml and the tuppr TalosUpgrade all carry a
-      // `datasource=docker depName=ghcr.io/siderolabs/installer` annotation, and
-      // .mise.toml pins the matching talosctl CLI as `aqua:siderolabs/talos`.
+      // `datasource=custom.talos-factory depName=siderolabs/talos` annotation
+      // (the home-operations talosFactory preset; ghcr.io/siderolabs/installer
+      // stopped publishing at Talos 1.14), and .mise.toml pins the matching
+      // talosctl CLI as `aqua:siderolabs/talos`.
       //
       // This rule used to set matchDatasources: ["docker"], which grouped the
       // first three but left the CLI to arrive as its own PR — so every Talos

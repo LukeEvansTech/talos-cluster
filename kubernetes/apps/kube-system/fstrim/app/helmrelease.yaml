@@ -11,6 +11,11 @@ spec:
     name: fstrim
   values:
     controllers:
+      # Kept alongside Talos 1.14's native FilesystemTrimConfig on purpose:
+      # Talos only trims the volumes it mounts itself (STATE, EPHEMERAL, user
+      # volumes). The Ceph RBD PVC filesystems and the miroir loop devices are
+      # kubelet CSI mounts, so this job is the only thing returning their freed
+      # blocks to the pool / punching holes in the loopfiles.
       fstrim:
         type: cronjob
         cronjob:

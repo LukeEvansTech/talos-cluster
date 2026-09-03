@@ -1,12 +1,17 @@
 ---
 machine:
   files:
+    # Deprecated in 1.14 in favour of CRICustomizationConfig, which talhelper
+    # 3.1.17 (machinery 1.14.0-alpha.2) does not know yet. Still supported
+    # under the reserved customization name.
     - op: create
       path: /etc/cri/conf.d/20-customization.part
       permissions: 0o644
       content: |-
         [plugins."io.containerd.cri.v1.images"]
           discard_unpacked_layers = false
+    # EtcFileConfig only manages files under /etc; this path lives on the
+    # extra volume, so it stays v1alpha1.
     - op: create
       path: /var/mnt/extra/miroir/.keep
       permissions: 0o644

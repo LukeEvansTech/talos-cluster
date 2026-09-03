@@ -10,12 +10,12 @@ The Talos upgrade plan uses health checks to ensure the cluster is in a healthy 
 
 ```yaml
 healthChecks:
-    - apiVersion: volsync.backube/v1alpha1
-      expr: status.conditions.filter(c, c.type == "Synchronizing").all(c, c.status == "False")
-      kind: ReplicationSource
-    - apiVersion: ceph.rook.io/v1
-      expr: status.ceph.health in ['HEALTH_OK']
-      kind: CephCluster
+  - apiVersion: volsync.backube/v1alpha1
+    expr: status.conditions.filter(c, c.type == "Synchronizing").all(c, c.status == "False")
+    kind: ReplicationSource
+  - apiVersion: ceph.rook.io/v1
+    expr: status.ceph.health in ['HEALTH_OK']
+    kind: CephCluster
 ```
 
 ### 1. VolSync ReplicationSource Check
@@ -136,6 +136,9 @@ within a minor, v1.13.0 → v1.13.1, don't need a talhelper update.)
 
 - Watch for a matching release at <https://github.com/budimanjojo/talhelper/releases>, then return
   to the normal `just talos gen-config` flow.
+- A minor bump can also change the **config contract**, which is a different failure: with
+  Talos 1.14 talhelper accepted the version but rejected the old v1alpha1 patches. See
+  [Talos 1.14 notes](#talos-114-notes).
 
 ### Image verification failures
 
@@ -201,3 +204,42 @@ Tuppr's `TalosUpgrade` spec does not have a `force` field. To bypass a blocked u
    Replace `<node-ip>` and `<version>` with the target node address and Talos version from `talos/talconfig.yaml`.
 
 This is **not recommended** for production use unless the cluster health is understood. Always resolve the underlying issue before proceeding.
+
+## Talos 1.14 notes
+
+What changed for this cluster when the fleet moved from 1.13 to 1.14 (September 2026), and what is still
+pending.
+
+- **Installer image moved to the Image Factory.** `ghcr.io/siderolabs/installer` is not published
+  for 1.14+. tuppr 0.5.3 or newer is required (it builds the `installer-secureboot` image from each
+  node's own schematic), and the Renovate pins in `talconfig.yaml`, `talenv.yaml` and the
+  `TalosUpgrade` use `datasource=custom.talos-factory depName=siderolabs/talos` (the home-operations
+  `talosFactory` preset) instead of the Docker installer tag.
+- **The upgrade is one-way.** 1.14 ships etcd 3.7 and 1.13 only supports etcd 3.6, so
+  `talosctl rollback` to 1.13 is not an option once a node has booted 1.14.
+- **Machine config is a hybrid until talhelper catches up.** With `talosVersion: v1.14.0` talhelper
+  renders the 1.14 contract: kube-apiserver, controller-manager, scheduler, kube-proxy, admission
+  control, cluster network, etcd encryption and discovery are multi-document kinds, and the old
+  v1alpha1 patches for them are rejected (`cluster proxy config in v1alpha1 config ... can't be used
+with KubeProxyConfig document`). talhelper 3.1.17 (machinery `v1.14.0-alpha.2`) does not know
+  `KubeNodeConfig`, `KubeCoreDNSConfig`, `KubeTalosAPIAccessConfig`, `KernelModuleConfig`,
+  `CRICustomizationConfig` or `encryption.allowDiscards`, and still writes the kubelet into
+  v1alpha1, so those settings stay v1alpha1 (deprecated, still supported) with a note in each
+  patch. Finish the migration when talhelper ships GA 1.14 machinery. The generator also drops
+  `additionalApiServerCertSans` in the 1.14 contract, so the apiserver SANs are restated as
+  `certExtraSANs` in `talos/patches/controller/cluster.yaml`; keep both lists in sync.
+- **The rendered config only applies to a 1.14 node.** A 1.13 node rejects the new document kinds.
+  Roll the fleet with tuppr first, then `just talos gen-config` and apply per node with a dry run:
+
+  ```bash
+  talosctl apply-config --dry-run --nodes <node-ip> --file talos/clusterconfig/<node>.yaml
+  ```
+
+  `--mode=reboot` was removed from `apply-config` in 1.14; reboot explicitly if the diff needs it.
+
+- **fstrim.** 1.14 adds `FilesystemTrimConfig` (`talos/patches/global/machine-fstrim.yaml`), which
+  trims only the volumes Talos mounts itself. The `kube-system/fstrim` CronJob stays because it is
+  what trims the Ceph RBD PVC filesystems and the miroir loop devices. Trimming the LUKS-encrypted
+  `EPHEMERAL` volume also needs `encryption.allowDiscards: true`, which waits for talhelper support.
+- **etcd metrics stay on port 2381** because `listen-metrics-urls` is set; stock 1.14 moves the
+  HTTP endpoints to 2383.

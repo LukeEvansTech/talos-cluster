@@ -1,10 +1,9 @@
 ---
+# talhelper 3.1.17 (machinery 1.14.0-alpha.2) does not know
+# KubeTalosAPIAccessConfig yet, so this stays v1alpha1 (deprecated, still
+# supported; no KubeTalosAPIAccessConfig document exists to conflict with).
 machine:
   features:
-    hostDNS:
-      enabled: true
-      resolveMemberNames: true
-      forwardKubeDNSToHost: true # Requires Cilium socketLB features
     kubernetesTalosAPIAccess:
       enabled: true
       allowedRoles:
