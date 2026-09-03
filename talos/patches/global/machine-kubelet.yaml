@@ -1,4 +1,7 @@
 ---
+# talhelper 3.1.17 (machinery 1.14.0-alpha.2) renders the kubelet image into
+# v1alpha1 machine.kubelet and does not know KubeNodeConfig, so the kubelet
+# overrides and the node IP selection stay v1alpha1 (deprecated, supported).
 machine:
   kubelet:
     extraConfig:
