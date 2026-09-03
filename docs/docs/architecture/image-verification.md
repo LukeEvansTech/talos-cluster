@@ -54,7 +54,7 @@ On-node pull-test matrix (run against any node with `talosctl image pull -n <nod
 
 | Test image | Expected |
 | --- | --- |
-| `ghcr.io/siderolabs/installer:<current-version>` | pulled, signature verifies |
+| `factory.talos.dev/installer-secureboot/<schematic>:<current-version>` | pulled, signature verifies (`ghcr.io/siderolabs/installer` is not published for 1.14+) |
 | `docker.io/library/busybox:<tag>` | pulled, no matching rule, unaffected |
 | `ghcr.io/siderolabs/installer:v1.0.0` | **rejected**, pre-dates signing, proves enforcement |
 

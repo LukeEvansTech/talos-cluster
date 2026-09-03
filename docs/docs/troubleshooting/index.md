@@ -40,7 +40,7 @@ Work down from what you observe to the most likely entry:
     - Apple TV shows one frame of a 4K title then the Plex app freezes (force-quit to recover); the same file plays fine in Infuse → [KB-026](kb/026-plex-apple-tv-app-receive-window-deadlock.md)
 - **Talos upgrades**
     - TUPPR patch rollout stuck after drain; node cordoned and still on the old version → [KB-004](kb/004-talos-patch-rollout-gotchas-tuppr.md)
-    - Upgrade reports success but the node comes back Ready, uncordoned, and still on the old version (after a BIOS flash) → [KB-028](kb/028-talos-upgrade-boots-old-version-loaderentrydefault.md)
+    - Upgrade reports success but the node comes back Ready, uncordoned, and still on the old version → [KB-028](kb/028-talos-upgrade-boots-old-version-loaderentrydefault.md) (NVRAM wipe) or, if the node took ~5 min to go down, the reboot-sequence teardown revert in [Talos 1.14 notes](../operations/talos-upgrades.md#upgrade-didnt-take-node-reboots-into-the-old-version)
 - **CI / validation / local dev**
     - `Flate - Test` fails or skips on the `gpu-operator` namespace → [KB-005](kb/005-flate-misresolves-ngc-helmrepository-chart-urls.md)
     - Checkov CKV_K8S_21 flags a namespaced resource as `default` → [KB-006](kb/006-checkov-ckv-k8s-21-namespaced-resources.md)
