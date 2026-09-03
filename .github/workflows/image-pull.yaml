@@ -20,7 +20,7 @@ concurrency:
 
 env:
   # renovate: datasource=github-releases depName=home-operations/flate
-  FLATE_VERSION: "v0.6.1"
+  FLATE_VERSION: "v0.6.2"
 
 jobs:
   filter:
