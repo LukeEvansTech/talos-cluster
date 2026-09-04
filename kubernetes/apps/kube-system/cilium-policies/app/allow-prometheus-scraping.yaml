@@ -17,6 +17,13 @@ spec:
           - rook-ceph
           - volsync-system
           - system-upgrade
+      - key: app.kubernetes.io/name
+        operator: NotIn
+        values:
+          # Holds a signed-in mail session behind no authentication of its own,
+          # and is reached only by `kubectl port-forward`. allow-kube-apiserver
+          # still grants it host ingress, which is that path.
+          - thunderbird
   ingress:
     - fromEndpoints:
         - matchLabels:
