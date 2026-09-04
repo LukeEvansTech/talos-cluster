@@ -1,7 +1,7 @@
 # Troubleshooting
 
 This section tracks known issues and their workarounds in the cluster, split into one
-knowledge-base entry per issue. Each entry follows the same shape: **Symptom → Cause → Fix**.
+knowledge-base entry per issue. Each entry follows the same shape: symptom, cause, fix.
 
 ## Symptom ladder
 
