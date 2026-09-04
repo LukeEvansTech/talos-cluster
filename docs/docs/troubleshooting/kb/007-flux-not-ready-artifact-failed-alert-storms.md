@@ -1,4 +1,4 @@
-# KB-007: Flux "not ready" / "artifact failed" Alert Storms
+# KB-007: Flux "not ready" / "artifact failed" alert storms
 
 **Status:** Both patterns understood; either can recur under load or an upstream blip.
 

@@ -1,4 +1,4 @@
-# KB-006: Checkov CKV_K8S_21 Flags Namespaced Resources Without an Explicit Namespace
+# KB-006: Checkov CKV_K8S_21 flags namespaced resources without an explicit namespace
 
 **Status:** Resolved by convention: set `metadata.namespace` explicitly on every namespaced resource you author.
 

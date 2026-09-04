@@ -3,7 +3,7 @@ name: add-app
 description: Scaffold a new bjw-s app-template application for the talos-cluster repository
 ---
 
-# Add New Application
+# Add new application
 
 Scaffold a new application for this repository's **single-cluster** Flux layout.
 
@@ -14,13 +14,13 @@ Scaffold a new application for this repository's **single-cluster** Flux layout.
 - Each app-template app has its **own** `app/ocirepository.yaml` pointing at
   `oci://ghcr.io/bjw-s-labs/helm/app-template`; the HelmRelease references it via
   `spec.chartRef.kind: OCIRepository`, `name: <app>` (the app's own name). There is **no** shared
-  `app-template` OCIRepository — do not create one, and do not use `chartRef.name: app-template`.
+  `app-template` OCIRepository. Do not create one, and do not use `chartRef.name: app-template`.
 - The app is registered (alphabetically) in `kubernetes/apps/<namespace>/kustomization.yaml`.
 - Secrets use `external-secrets` with the `onepassword-connect` `ClusterSecretStore` (reads the
   `Talos` 1Password vault). ES-using apps `dependsOn` `onepassword-connect`.
 - Ingress is Envoy Gateway via the app-template `route:` values (preferred) on the
   `envoy-internal` / `envoy-external` listeners in the `network` namespace.
-- This repository is **PUBLIC** — never write LAN IPs, `.lan`/`.internal` hostnames, or device names.
+- This repository is **PUBLIC**. Never write LAN IPs, `.lan`/`.internal` hostnames, or device names.
   Hosts use `${SECRET_DOMAIN}` / `${SECRET_INTERNAL_DOMAIN}` (Flux substitutes them at apply time).
   Any literal `${VAR}` that must survive Flux substitution has to be escaped as `$${VAR}`.
 
@@ -108,7 +108,7 @@ with the matching substitutes. Component paths are `../../../../components/...` 
       VOLSYNC_CAPACITY: 5Gi
 ```
 
-The `volsync` component goes in `ks.yaml` `spec.components` **only** — never also in
+The `volsync` component goes in `ks.yaml` `spec.components` **only**, never also in
 `app/kustomization.yaml` (Flux applies ks.yaml components on top of the path build; listing in both
 double-applies). Keep `spec` keys alphabetical (this repository's ks.yaml convention).
 
@@ -147,7 +147,7 @@ spec:
 ### Step 7: Generate `app/helmrelease.yaml`
 
 `spec` order is `interval` → `chartRef` → (`dependsOn`) → `values` (this repository omits `install`/`upgrade`
-on most HRs — the root kustomization injects those defaults):
+on most HRs, because the root kustomization injects those defaults):
 
 ```text
 ---
@@ -199,7 +199,7 @@ spec:
             port: <port>
 ```
 
-If the app needs a route, add (internal-only default — both hostnames resolve via `envoy-internal`):
+If the app needs a route, add (internal-only default, so both hostnames resolve via `envoy-internal`):
 
 ```text
     route:
@@ -211,7 +211,7 @@ If the app needs a route, add (internal-only default — both hostnames resolve 
             namespace: network
 ```
 
-For **external** exposure, use `name: envoy-external` instead (and confirm the intent — this repository is
+For **external** exposure, use `name: envoy-external` instead (and confirm the intent, since this repository is
 public). For GPU workloads, set `runtimeClassName: nvidia` under the controller's `pod`.
 
 The route is auto-monitored by the gatus-sidecar (no component needed). To opt out, annotate the

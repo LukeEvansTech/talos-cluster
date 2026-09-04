@@ -3,7 +3,7 @@ Repo context for the Renovate reviewer.
 
 Spliced into the review prompt by the shared-workflows renovate-review reusable,
 in place of the generic "## Repo Context" section. Everything else in the prompt
-is generic and lives in the reusable — keep only repo-specific facts here.
+is generic and lives in the reusable. Keep only repo-specific facts here.
 
 Read from the PR's BASE commit, not the PR head, so a pull request cannot
 rewrite the rules it is about to be judged by. Edits therefore only take effect
@@ -14,7 +14,7 @@ not a standalone document, so MD041's top-level-heading rule does not apply.
 -->
 <!-- markdownlint-disable-file MD041 -->
 
-## Repository Context
+## Repository context
 
 This is a Flux GitOps repository managing a single homelab Kubernetes cluster running
 Talos Linux (3 control-plane nodes, no separate workers). Dependencies are primarily:
@@ -22,7 +22,7 @@ Talos Linux (3 control-plane nodes, no separate workers). Dependencies are prima
 - Container images referenced in Kubernetes manifests, pinned with SHA256 digests
 - Helm chart versions in HelmRelease CRDs (sourced from OCIRepository, not HelmRepository)
 - Custom dependencies managed via regular expression in YAML files (see the `customManagers` block in
-  .renovaterc.json5 — the former .renovate/customManagers.json5 was inlined into it)
+  .renovaterc.json5; the former .renovate/customManagers.json5 was inlined into it)
 
 Architecture details relevant to impact assessment:
 
@@ -39,7 +39,7 @@ Architecture details relevant to impact assessment:
 
 High-blast-radius components that warrant deeper scrutiny: the "Protected infra" entry
 in `.renovaterc.json5` is the single source of truth for which components are
-cluster-critical — networking, storage, secrets/certs, the GitOps engine, and the node OS
+cluster-critical: networking, storage, secrets/certs, the GitOps engine, and the node OS
 itself. This workflow derives its blast-radius regular expression from that same entry at runtime, so
 the two can never disagree.
 

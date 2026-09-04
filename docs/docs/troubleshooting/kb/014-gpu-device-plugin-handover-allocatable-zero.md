@@ -1,4 +1,4 @@
-# KB-014: GPU Device-Plugin Handover Leaves `allocatable.nvidia.com/gpu = 0`
+# KB-014: GPU device-plugin handover leaves `allocatable.nvidia.com/gpu = 0`
 
 **Status:** Resolved; recipe applies to any future device-plugin swap.
 

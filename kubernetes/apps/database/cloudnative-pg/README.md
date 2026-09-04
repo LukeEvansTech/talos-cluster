@@ -1,12 +1,12 @@
-# CloudNative-PG PostgreSQL 18 Implementation
+# CloudNative-PG PostgreSQL 18 implementation
 
 ## Overview
 
-This directory contains a complete CloudNative-PG deployment for PostgreSQL 18 with high availability, dual backup strategies, comprehensive monitoring, and connection pooling.
+A CloudNative-PG deployment of PostgreSQL 18 with high availability, two backup strategies, monitoring, and connection pooling.
 
 ## Architecture
 
-### Directory Structure
+### Directory structure
 
 ```text
 cloudnative-pg/
@@ -32,21 +32,21 @@ cloudnative-pg/
     └── kustomization.yaml
 ```
 
-## Design Decisions
+## Design decisions
 
-### PostgreSQL Configuration
+### PostgreSQL configuration
 
 - **Version**: PostgreSQL 18.0 (latest stable)
 - **Instances**: 3 for high availability with automatic failover
 - **Storage**: 200Gi using `miroir-local`
 - **Resources**: 500m CPU / 2Gi memory requests, 4Gi memory limit
-- **Tuning**: mixed-workload tuning — `max_connections: 300`, `shared_buffers: 512MB`, `effective_cache_size: 1536MB`, transaction-level checkpoint completion
+- **Tuning**: mixed-workload tuning with `max_connections: 300`, `shared_buffers: 512MB`, `effective_cache_size: 1536MB`, transaction-level checkpoint completion
 
-### Backup Strategy
+### Backup strategy
 
 We implemented a **dual backup approach** for redundancy:
 
-#### 1. Barman Cloud (S3/Garage) - Primary
+#### 1. Barman Cloud (S3/Garage) - primary
 
 - **Method**: Continuous WAL archiving via Barman Object Store
 - **Schedule**: Daily scheduled backups via `ScheduledBackup` CR
@@ -56,7 +56,7 @@ We implemented a **dual backup approach** for redundancy:
 - **Location**: `s3://cnpg/` at `http://garage.storage.svc.cluster.local:3900` (in-cluster Garage)
 - **Use Case**: Point-in-time recovery (PITR), cluster bootstrap/migration
 
-#### 2. NFS Database Dumps - Secondary
+#### 2. NFS database dumps - secondary
 
 - **Method**: `pg_dump` via tiredofit/docker-db-backup
 - **Schedule**: Daily at 2 AM (cronjob)
@@ -71,20 +71,20 @@ We implemented a **dual backup approach** for redundancy:
 - NFS dumps provide simple SQL-level restores and additional redundancy
 - Different failure domains (object storage vs. file storage)
 
-### Connection Pooling
+### Connection pooling
 
 - **Pooler**: pgBouncer (3 instances for HA)
 - **Mode**: Transaction-level pooling
 - **Capacity**: 1000 max client connections, 100 default pool size
 - **Monitoring**: PodMonitor enabled for metrics
 
-### Monitoring Stack
+### Monitoring stack
 
-#### Metrics Collection
+#### Metrics collection
 
-- **PodMonitor**: Scrapes PostgreSQL metrics from all instances
-- **Metrics Port**: Standard CNPG metrics endpoint
-- **Label Relabeling**: Converts `cluster` → `cnpg_cluster` for clarity
+- **PodMonitor**: scrapes PostgreSQL metrics from all instances
+- **Metrics port**: the standard CNPG metrics endpoint
+- **Label relabeling**: converts `cluster` → `cnpg_cluster` for clarity
 
 #### Alerting (PrometheusRule)
 
@@ -98,7 +98,7 @@ Seven critical alerts configured:
 6. **DatabaseDeadlockConflicts**: > 10 deadlocks detected
 7. **ReplicaFailingReplication**: Replica replication failures
 
-#### Health Checks
+#### Health checks
 
 - **Gatus**: TCP connectivity checks every minute
 - **Endpoint**: `postgres18-rw.database.svc.cluster.local:5432`
@@ -108,14 +108,14 @@ Seven critical alerts configured:
 
 - **Grafana**: Auto-deployed with operator (`grafanaDashboard.create: true`)
 
-### External Access
+### External access
 
 - **Service Type**: LoadBalancer
 - **IP**: `${SVC_POSTGRES_ADDR}` (configured via cluster-secrets)
 - **DNS**: `postgres18.${SECRET_DOMAIN_INT}` (External DNS)
 - **Target**: Primary instance only (read-write)
 
-## Deployment Flow
+## Deployment flow
 
 Flux will deploy components in this order (via `dependsOn`):
 
@@ -136,7 +136,7 @@ Each Flux Kustomization has:
 - 5m timeout
 - Health checks on the Cluster CR
 
-## Pre-Deployment Requirements
+## Pre-deployment requirements
 
 Before merging/deploying, you **must** complete:
 
@@ -155,7 +155,7 @@ onto `AWS_*` keys by the ExternalSecret template:
 - `CNPG_ACCESS_KEY_ID` → `AWS_ACCESS_KEY_ID`
 - `CNPG_SECRET_ACCESS_KEY` → `AWS_SECRET_ACCESS_KEY`
 
-### 2. NFS Backup Configuration
+### 2. NFS backup configuration
 
 Edit `backup/helmrelease.yaml` lines 105-106:
 
@@ -172,7 +172,7 @@ backups:
 - Export path must exist and be writable
 - Verify with: `showmount -e <nas-server>`
 
-### 3. Garage S3 Bucket
+### 3. Garage S3 bucket
 
 Create the S3 bucket in the in-cluster Garage:
 
@@ -184,16 +184,16 @@ garage bucket allow --read --write cnpg --key cnpg-key
 
 Verify credentials in the `garage` 1Password item have access to the `cnpg` bucket.
 
-## Post-Deployment Verification
+## Post-deployment verification
 
-### Check Operator
+### Check operator
 
 ```bash
 kubectl get pods -n database -l app.kubernetes.io/name=cloudnative-pg
 # Expected: 2 operator pods (replicaCount: 2)
 ```
 
-### Check Cluster
+### Check cluster
 
 ```bash
 # Cluster status
@@ -208,7 +208,7 @@ kubectl get pods -n database -l cnpg.io/cluster=postgres18
 kubectl get cluster -n database postgres18 -o jsonpath='{.status.currentPrimary}'
 ```
 
-### Check Pooler
+### Check pooler
 
 ```bash
 kubectl get pooler -n database
@@ -216,7 +216,7 @@ kubectl get pods -n database -l cnpg.io/pooler=postgres18-pgbouncer-rw
 # Expected: 3 pgbouncer pods
 ```
 
-### Check Backups
+### Check backups
 
 ```bash
 # Scheduled backup
@@ -232,7 +232,7 @@ kubectl get cronjob -n database
 # Expected: postgres18-backup-postgres-backup
 ```
 
-### Test Connectivity
+### Test connectivity
 
 #### Internal (via service)
 
@@ -249,7 +249,7 @@ psql -h <node-ip> -U postgres -d postgres
 psql -h postgres18.${SECRET_DOMAIN_INT} -U postgres -d postgres
 ```
 
-### Check Monitoring
+### Check monitoring
 
 ```bash
 # Prometheus metrics
@@ -263,11 +263,11 @@ curl localhost:9187/metrics | grep cnpg
 # Check AlertManager for any firing CloudNative-PG alerts
 ```
 
-## Accessing the Database
+## Accessing the database
 
-### Connection Strings
+### Connection strings
 
-#### Read-Write (Primary)
+#### Read-write (primary)
 
 ```bash
 # Via service
@@ -280,13 +280,13 @@ postgres://postgres:<password>@<example-peer-ip>:5432/postgres
 postgres://postgres:<password>@postgres18-pgbouncer-rw.database.svc.cluster.local:5432/postgres
 ```
 
-#### Read-Only (Replicas)
+#### Read-only (replicas)
 
 ```bash
 postgres://postgres:<password>@postgres18-ro.database.svc.cluster.local:5432/postgres
 ```
 
-### Creating Databases/Users
+### Creating databases/users
 
 ```bash
 # Connect to primary
@@ -300,9 +300,9 @@ CREATE USER myapp_user WITH PASSWORD 'secure_password';
 GRANT ALL PRIVILEGES ON DATABASE myapp TO myapp_user;
 ```
 
-## Backup & Recovery
+## Backup & recovery
 
-### Manual Backup (Barman)
+### Manual backup (Barman)
 
 ```bash
 # Trigger backup immediately
@@ -322,7 +322,7 @@ EOF
 kubectl get backup -n database
 ```
 
-### Restore from Barman Backup
+### Restore from Barman backup
 
 To restore from a backup, modify `cluster/cluster.yaml`:
 
@@ -349,7 +349,7 @@ spec:
           compression: bzip2
 ```
 
-### Restore from NFS Dump
+### Restore from NFS dump
 
 ```bash
 # List available backups on NAS
@@ -362,7 +362,7 @@ gunzip < /mnt/data/backup/database/postgresql/mydb_YYYYMMDD.sql.gz | \
 
 ## Troubleshooting
 
-### Cluster Won't Start
+### Cluster won't start
 
 ```bash
 # Check operator logs
@@ -375,7 +375,7 @@ kubectl describe cluster -n database postgres18
 kubectl logs -n database postgres18-1
 ```
 
-### Backup Failures
+### Backup failures
 
 ```bash
 # Check scheduled backup
@@ -389,7 +389,7 @@ kubectl describe backup -n database <backup-name>
 kubectl get secret -n database cloudnative-pg-secret -o yaml
 ```
 
-### Replication Issues
+### Replication issues
 
 ```bash
 # Check replication status
@@ -410,7 +410,7 @@ CloudNative-PG supports in-place major version upgrades:
 2. Set `primaryUpdateStrategy: unsupervised` (already set)
 3. Apply changes - operator handles rolling upgrade
 
-### Scaling Instances
+### Scaling instances
 
 ```bash
 # Edit cluster
@@ -431,7 +431,7 @@ kubectl exec -n database postgres18-1 -- psql -U postgres -d mydb -c "VACUUM ANA
 
 ## References
 
-### Implementation Sources
+### Implementation sources
 
 This implementation is based on:
 
@@ -454,7 +454,7 @@ This implementation is based on:
 - **Resource Limits**: Conservative - adjust based on workload monitoring
 - **Timezone**: Backup cronjob uses `America/New_York`
 
-## Next Steps
+## Next steps
 
 After successful deployment:
 
