@@ -6,11 +6,11 @@ metadata:
   name: qwen3-embedding
   namespace: ai
 spec:
-  # Embedding — served by the CPU toolhiveembed pod (Qwen3-Embedding-0.6B,
-  # 8k ctx; ../../../toolhive/gateway/embed/helmrelease.yaml). Long-context
+  # Embedding, served by the CPU toolhiveembed pod (Qwen3-Embedding-0.6B,
+  # 8k ctx; ../../../toolhive/embed/helmrelease.yaml). Long-context
   # embedder for the VMCP tool optimizer (../../../toolhive/gateway/
   # virtualmcpserver.yaml): all-minilm below is all-MiniLM-L6-v2, capped at
-  # 512 tokens, which some kubectl tool descriptions exceed — the same cap
+  # 512 tokens, which some kubectl tool descriptions exceed. The same cap
   # silently killed LiteLLM's own mcp_semantic_tool_filter (the MCP registry
   # payload is 625 tokens), so that now points here too. all-minilm stays the
   # model for memini.

@@ -222,7 +222,7 @@ wiring. Tool names are namespaced `{workload}_<tool>` (e.g. `searxng_search`) to
 collisions across backends. Because 9 backends' worth of raw tool definitions is too large for
 most client context windows, the built-in optimizer exposes only `find_tool`/`call_tool` to
 clients and resolves the right backend tool semantically. It embeds via `qwen3-embedding`
-(Qwen3-Embedding-0.6B, 8k context; `toolhive/gateway/embed/`), a dedicated CPU llama.cpp server,
+(Qwen3-Embedding-0.6B, 8k context; `toolhive/embed/`), a dedicated CPU llama.cpp server,
 rather than LiteLLM's `all-minilm` (all-MiniLM-L6-v2): MiniLM's BERT architecture has a hard
 512-token limit and some kubectl tool descriptions exceed it, which used to terminate every VMCP
 session with an OpenAI 400 "input larger than max context size" error. The same cap turned out
