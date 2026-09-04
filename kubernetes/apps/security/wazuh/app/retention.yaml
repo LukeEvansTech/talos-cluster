@@ -53,7 +53,7 @@ spec:
   # The hot state deliberately has NO actions. Wazuh writes date-named indices
   # (wazuh-alerts-4.x-YYYY.MM.DD) with no rollover alias behind them, so a
   # rollover action fails, the index parks in a failed state, and ISM never
-  # evaluates the transition — retention would silently never happen at all.
+  # evaluates the transition. Retention would silently never happen at all.
   # Age-based deletion needs no action in the source state.
   schedule: "17 4 * * *"
   concurrencyPolicy: Forbid

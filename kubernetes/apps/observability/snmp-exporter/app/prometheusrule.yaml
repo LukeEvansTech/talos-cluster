@@ -33,8 +33,8 @@ spec:
           labels:
             severity: critical
         # Deliberately a failure RATE over a window, not `up == 0` with a long
-        # `for:`. This walk fails intermittently in short bursts — 29% of a day
-        # in stalls mostly under 5m — which never trips a `for:` and so went
+        # `for:`. This walk fails intermittently in short bursts, 29% of a day
+        # in stalls mostly under 5m, which never trips a `for:` and so went
         # completely unalerted while the combined target flapped ~130 times a
         # day. A rate catches exactly that shape: steady partial loss. At 5m
         # scrapes, >0.5 over 1h means more than half the readings are missing.
@@ -45,7 +45,7 @@ spec:
         # would report "failing 25%" for a walk that is actually failing 75%.
         - alert: OnyxSensorScrapeDegraded
           annotations:
-            summary: "Sensor walk on {{ $labels.instance }} is failing {{ $value | humanizePercentage }} of the time — temps/fans/PSU/optics readings are incomplete."
+            summary: "Sensor walk on {{ $labels.instance }} is failing {{ $value | humanizePercentage }} of the time. temps/fans/PSU/optics readings are incomplete."
           expr: |-
             1 - avg_over_time(up{job="snmp-exporter", device_class="sensors"}[1h]) > 0.5
           for: 30m
@@ -53,7 +53,7 @@ spec:
             severity: warning
         # The access points and the Zigbee coordinator are PoE-powered off the
         # comms-rack switch and have no exporter, no agent and no probe of their
-        # own — the switch's own PoE meter is the only signal that says they are
+        # own. The switch's own PoE meter is the only signal that says they are
         # alive. Verified 2026-08-28: the four AP ports draw an order of
         # magnitude more than anything else on the switch, and every other port
         # reads exactly 0, so "was drawing, now draws nothing" is unambiguous.
@@ -63,7 +63,7 @@ spec:
         # an alert built on it would encode a guess. Zero-versus-nonzero needs
         # neither the enum nor the (unconfirmed) power scaling factor.
         #
-        # The port list is NOT hardcoded — any port seen delivering power is
+        # The port list is NOT hardcoded. Any port seen delivering power is
         # covered, so a device moved to a different port, or a new PoE device, is
         # picked up with no change here. `for: 15m` clears an AP reboot. If a
         # device is decommissioned the alert self-resolves once the whole 6h
@@ -71,8 +71,8 @@ spec:
         #
         # The second term is max_over_time, NOT min_over_time. It has to answer
         # "was this port ever powered recently", and min answers "was it powered
-        # at EVERY sample", which breaks the rule in two ways. A single zero —
-        # from exactly the reboot the `for:` above exists to tolerate — would
+        # at EVERY sample", which breaks the rule in two ways. A single zero,
+        # from exactly the reboot the `for:` above exists to tolerate. Would
         # blank the evidence for the next 6.5h and suppress a real outage in
         # that period. Worse, during a sustained outage the first zero enters
         # the offset window ~30m in, so the alert would resolve itself ~15
@@ -80,7 +80,7 @@ spec:
         # says "recovered" about a dead access point is worse than no alert.
         - alert: MikrotikPoeDeviceLostPower
           annotations:
-            summary: "PoE device on {{ $labels.poe_port }} ({{ $labels.instance }}) has stopped drawing power — the attached device is off, unplugged or dead."
+            summary: "PoE device on {{ $labels.poe_port }} ({{ $labels.instance }}) has stopped drawing power. The attached device is off, unplugged or dead."
           expr: |-
             mtxrPOEPower{job="snmp-exporter"} == 0
             and
@@ -94,7 +94,7 @@ spec:
         # the summary quotes, not the success fraction.
         - alert: MikrotikInterfaceScrapeDegraded
           annotations:
-            summary: "Interface walk on {{ $labels.instance }} is failing {{ $value | humanizePercentage }} of the time — port counters and link state are incomplete."
+            summary: "Interface walk on {{ $labels.instance }} is failing {{ $value | humanizePercentage }} of the time. Port counters and link state are incomplete."
           expr: |-
             1 - avg_over_time(up{job="snmp-exporter", device_class="switch-if"}[1h]) > 0.5
           for: 30m
@@ -113,7 +113,7 @@ spec:
           labels:
             severity: warning
         # Brother raises hrDeviceStatus to warning(3)/down(5) on low-supply, cover
-        # open, paper jam/out etc. — the reliable numeric fault signal (the
+        # open, paper jam/out etc., the reliable numeric fault signal (the
         # hrPrinterDetectedErrorState bitfield is kept as a label only). idle/
         # printing/sleep all report running(2), so this does not false-fire.
         - alert: PrinterFault
@@ -124,7 +124,7 @@ spec:
           for: 15m
           labels:
             severity: warning
-        # Real supply percentage only exists where MaxCapacity>0 and Level>=0 —
+        # Real supply percentage only exists where MaxCapacity>0 and Level>=0,
         # this excludes Brother toners (Level -3, "present, unmeasured") and the
         # label rolls (Level -2, unknown), leaving drum/belt units which report
         # true ratios. Fires below 10% remaining.

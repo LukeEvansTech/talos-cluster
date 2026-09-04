@@ -2,8 +2,8 @@
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
 apiVersion: monitoring.coreos.com/v1
 # Why this exists at all: between 2026-08-10 and 2026-08-19 this relay accepted
-# mail and then failed EVERY Graph send with ErrorSendAsDenied — 353 messages
-# lost, 2,824 errors, zero delivered — and nothing noticed for nine days. The
+# mail and then failed EVERY Graph send with ErrorSendAsDenied, 353 messages
+# lost, 2,824 errors, zero delivered, and nothing noticed for nine days. The
 # SMTP listener was healthy the entire time, so any liveness or TCP check would
 # have stayed green. These rules therefore measure DELIVERY OUTCOME, never
 # reachability.
@@ -15,7 +15,7 @@ spec:
     - name: smtp2graph
       rules:
         # The exact signature of the Aug 2026 outage. A file in failed/ is a
-        # message the relay has permanently given up on — it is not a backlog,
+        # message the relay has permanently given up on. It is not a backlog,
         # it is lost mail. Healthy steady state is a hard zero, so this needs no
         # threshold beyond "any". 15m only so a single transient retry burst
         # does not page.
@@ -24,7 +24,7 @@ spec:
             description: >-
               smtp2graph has {{ $value }} message(s) it has given up delivering. These
               will never arrive. Check `kubectl logs -n infrastructure deploy/smtp2graph`
-              for the Graph error — ErrorSendAsDenied means the From address is not the
+              for the Graph error, ErrorSendAsDenied means the From address is not the
               noreply@ shared mailbox or one of its aliases.
             summary: smtp2graph has mail it can never deliver.
           expr: smtp2graph_messages_failed > 0
@@ -46,8 +46,8 @@ spec:
           labels:
             severity: warning
         # The queue metrics above only say anything when mail is actually
-        # flowing. Estate mail is bursty — the UPS alerts that exposed the
-        # original fault stopped entirely once the flapping calmed down — so a
+        # flowing. Estate mail is bursty; the UPS alerts that exposed the
+        # original fault stopped entirely once the flapping calmed down, so a
         # relay broken during a quiet spell would look perfectly healthy. The
         # canary sends its own message every 6h and confirms it left the queue
         # without landing in failed/, which exercises the real Graph call.
@@ -56,7 +56,7 @@ spec:
           annotations:
             description: >-
               No successful smtp2graph delivery canary for over 14 hours. Mail is
-              probably broken even though nothing is currently trying to send — this is
+              probably broken even though nothing is currently trying to send. This is
               the check that would have caught the Aug 2026 outage on day one.
             summary: smtp2graph end-to-end delivery canary is failing.
           expr: >-

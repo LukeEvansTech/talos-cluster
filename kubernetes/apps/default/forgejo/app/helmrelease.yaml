@@ -64,7 +64,7 @@ spec:
       # forgejo-helm 17.1.0 changed `mount` from a string (the path) to a
       # boolean (whether to mount at all); the mount path is now hardcoded
       # to /data in the chart's deployment template. Dropped the redundant
-      # `existingClaim` — current schema uses claimName + create: false.
+      # `existingClaim`. Current schema uses claimName + create: false.
       mount: true
 
     redis-cluster:

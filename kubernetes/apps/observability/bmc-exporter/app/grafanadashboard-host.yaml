@@ -13,7 +13,7 @@ spec:
   # everything Redfish reports about it. The fleet view answers "is anything
   # wrong across the estate"; this one answers "what is wrong with this box".
   #
-  # Grafana template variables are bare ($host) — Flux postBuild only consumes
+  # Grafana template variables are bare ($host). Flux postBuild only consumes
   # the braced ${VAR} form.
   #
   # job=~"bmc-exporter.*" so the workstation, which is scraped by its own

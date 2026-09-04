@@ -25,7 +25,7 @@ spec:
         storageClassName: miroir-local
         resources:
           requests:
-            # Remote state + small providers — terraform needs little scratch.
+            # Remote state + small providers. Terraform needs little scratch.
             storage: 5Gi
     template:
       spec:

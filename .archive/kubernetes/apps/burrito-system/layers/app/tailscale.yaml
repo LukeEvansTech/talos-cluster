@@ -1,5 +1,5 @@
 ---
-# Tailscale tailnet policy stack — OpenTofu, R2 s3 backend. The ACL lives in acl.hujson at
+# Tailscale tailnet policy stack, OpenTofu, R2 s3 backend. The ACL lives in acl.hujson at
 # the repo root, so it's covered by the layer's path ".". Creds from tailscale-creds.
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret

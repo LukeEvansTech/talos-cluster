@@ -14,17 +14,17 @@ spec:
     #   /var 8.2 GB of 238 GB (3.4%) | coretemp 35-36 C | NVMe 33-35 C
     #
     # Every alert here PAGES. Alertmanager's root route sends all severities to
-    # Pushover, so `warning` is not a quiet tier and `info` is not either — the
+    # Pushover, so `warning` is not a quiet tier and `info` is not either. The
     # seedbox learned this the expensive way (an iowait alert calibrated at the
     # textbook 0.4 "would have paged perpetually"). Hence a small set with wide
     # margins, not a comprehensive one.
     #
-    # NOT SHIPPED — a RAPL power-regression alert, despite the power series being
+    # NOT SHIPPED: a RAPL power-regression alert, despite the power series being
     # the reason node-exporter runs as root on that box. POWER.md's tuning delta
     # is 525 mW -> 411 mW package idle, and POWER.md itself records 394 vs 411 mW
     # as indistinguishable run-to-run noise, so a threshold separating tuned from
     # untuned sits inside the noise floor. Worse, a fresh 300s sample on
-    # 2026-07-28 read 261 mW — 36% below the figure recorded five days earlier,
+    # 2026-07-28 read 261 mW, 36% below the figure recorded five days earlier,
     # with package C-state residency moved from PC8 65% to PC9 85%. The band is
     # not stable enough to threshold. It is graphed on the dashboard instead;
     # revisit with a couple of weeks of history and a real working band. Shipping
@@ -34,12 +34,12 @@ spec:
       rules:
         # Deliberately NOT a "box is down" alert. UPSUnreachable already covers
         # that, at Pushover EMERGENCY priority with a 3m fuse tuned to the main
-        # UPS's ~13 minute battery — a second critical would only double-page.
+        # UPS's ~13 minute battery, and a second critical would only double-page.
         #
         # What that alert cannot see is host metrics dying while upsd keeps
         # serving: a crashed exporter, a docker problem, a bad deploy. Gating on
         # the nut-exporter scrape still succeeding turns this into exactly that
-        # statement — "the appliance is alive, but we have gone blind on it".
+        # statement. "the appliance is alive, but we have gone blind on it".
         #
         # The gate also keeps FCOS auto-updates quiet. Zincati is enabled on this
         # box, so it reboots itself; a reboot takes upsd down too, so the gate is
@@ -52,7 +52,7 @@ spec:
         #
         # min() over job=~"nut-appliance-.*" covers EVERY appliance scrape (node,
         # smartctl, docker, doco-cd, traefik) in one rule rather than five
-        # near-identical ones — the operator response is the same for any of
+        # near-identical ones. The operator response is the same for any of
         # them, and every extra rule is another thing that can page. 15m also
         # rides out the smartctl job's 300s interval (three missed scrapes).
         - alert: NutApplianceHostMetricsMissing
@@ -60,7 +60,7 @@ spec:
             description: >-
               At least one appliance exporter (node, smartctl or docker-state) has not
               been scraped for 15 minutes, but nut-exporter is still reading upsd on the
-              same host — so the box is up and only its metrics are blind. Check the
+              same host, so the box is up and only its metrics are blind. Check the
               monitoring stack (nut-apps apps/monitoring) rather than the box itself.
             summary: NUT appliance metrics are missing while the box is still up.
           expr: |-
@@ -76,7 +76,7 @@ spec:
         # here by something better: the exporter-down case is the rule above, and
         # OOM is NutApplianceMemoryLow plus the down/flapping rules below showing
         # the aftermath. `container_state_oomkilled` is also sticky until the
-        # container is recreated, so it re-pages every repeatInterval — a poor
+        # container is recreated, so it re-pages every repeatInterval, a poor
         # trade on a box this small.
         #
         # Scoped to the doco-cd-managed fleet so a hand-run throwaway container
@@ -89,12 +89,12 @@ spec:
         # The declarative restore inits (apps/*/compose.yaml, service
         # restore-<app>) are one-shots: they run, exit 0 and STAY exited. That
         # is their steady state, so they are excluded from NutApplianceContainerDown
-        # above — without the exclusion every one of them pages forever, which
+        # above, without the exclusion every one of them pages forever, which
         # is exactly what happened when they first landed (13 across the fleet).
         #
         # A restore init that FAILS is still caught, just not here. It exits
         # non-zero, so compose never starts the app it gates, and the app is
-        # left in `created` rather than `exited` — which is why `created` was
+        # left in `created` rather than `exited`, which is why `created` was
         # added to the status list above. Nothing sits in `created` for
         # 5m in normal operation; a deploy moves through it in seconds.
         - alert: NutApplianceContainerDown
@@ -124,7 +124,7 @@ spec:
         # NutApplianceContainerDown catches doco-cd's container exiting; this
         # catches the worse case, where the container is up and healthy but has
         # stopped POLLING. Nothing deploys, the box drifts from nut-apps, and
-        # there is no other symptom — the failure this whole job exists for.
+        # there is no other symptom, the failure this whole job exists for.
         #
         # doco_cd_polls_total only counts SUCCESSFUL polls, so a stalled or
         # erroring poller shows up as the counter not moving; there is no error
@@ -139,9 +139,9 @@ spec:
             description: >-
               doco-cd on the NUT appliance has not completed a successful poll of
               {{ $labels.repository }} in 3 hours (it polls hourly). The container may
-              be up and healthy while deploying nothing — the box is drifting from
+              be up and healthy while deploying nothing. The box is drifting from
               nut-apps with no other symptom.
-            summary: NUT appliance GitOps has stalled — no successful doco-cd poll in 3h.
+            summary: NUT appliance GitOps has stalled, no successful doco-cd poll in 3h.
           expr: |-
             increase(doco_cd_polls_total{job="nut-appliance-doco-cd"}[3h]) == 0
           for: 30m
@@ -151,7 +151,7 @@ spec:
           annotations:
             description: >-
               Container {{ $labels.name }} on the NUT appliance restarted {{ $value }}
-              times in the last hour — a crash loop, which `restart: unless-stopped`
+              times in the last hour, a crash loop, which `restart: unless-stopped`
               will hide indefinitely.
             summary: NUT appliance container {{ $labels.name }} is crash-looping.
           expr: |-
@@ -159,7 +159,7 @@ spec:
           for: 5m
           labels:
             severity: warning
-        # Baseline 3.4% used, so this needs ~202 GB of growth — a runaway-log or
+        # Baseline 3.4% used, so this needs ~202 GB of growth, a runaway-log or
         # runaway-image safety net, not a routine capacity watch.
         #
         # mountpoint="/var" is load-bearing. FCOS 44 mounts the same xfs at four
@@ -170,14 +170,14 @@ spec:
         # from the moment this target came up.
         #
         # /boot is deliberately excluded. It is 350 MB at 48%, and 85% of that is
-        # 52 MB free — already past the point where rpm-ostree can stage a kernel,
+        # 52 MB free. Already past the point where rpm-ostree can stage a kernel,
         # so this threshold would be useless there. If /boot ever needs watching it
         # needs its own rule and its own number, not a share of this one.
         - alert: NutApplianceDiskFillHigh
           annotations:
             description: >-
               /var on the NUT appliance is {{ $value | humanizePercentage }} full.
-              Baseline is 3.4%, so something is growing that should not be — most
+              Baseline is 3.4%, so something is growing that should not be, most
               likely container logs or unpruned images.
             summary: NUT appliance /var is above 85% full.
           expr: |-
@@ -189,7 +189,7 @@ spec:
           labels:
             severity: warning
         # Baseline 36 C against a Tjmax of 100 C. 75 C on a box that idles at ~1%
-        # CPU means a dead fan or a blocked intake, not work — this is a rack
+        # CPU means a dead fan or a blocked intake, not work. This is a rack
         # hardware alert wearing a temperature threshold. Set ~40 C above the
         # working band so it cannot false-fire, and 25 C below Tjmax so it still
         # arrives before thermal throttling rather than after.
@@ -201,7 +201,7 @@ spec:
           annotations:
             description: >-
               Hottest CPU core on the NUT appliance is {{ $value }}°C, against a
-              35-36°C idle baseline. On a box this idle that means cooling, not load —
+              35-36°C idle baseline. On a box this idle that means cooling, not load,
               check the fan and the intake.
             summary: NUT appliance CPU temperature is high.
           expr: |-
@@ -210,7 +210,7 @@ spec:
           labels:
             severity: warning
         # Baseline 89% available. This box has NO SWAP, so memory exhaustion does
-        # not degrade — the OOM killer picks a victim, and the candidates include
+        # not degrade. The OOM killer picks a victim, and the candidates include
         # upsd, which is the one process on this box that must not die quietly.
         # Only a genuine leak can reach 10%.
         - alert: NutApplianceMemoryLow
@@ -218,7 +218,7 @@ spec:
             description: >-
               Available memory on the NUT appliance is {{ $value | humanizePercentage }}
               of total (baseline 89%). There is no swap on this box, so the next step is
-              the OOM killer — and upsd is a candidate.
+              the OOM killer, and upsd is a candidate.
             summary: NUT appliance is low on available memory.
           expr: |-
             node_memory_MemAvailable_bytes{job="nut-appliance-node"}

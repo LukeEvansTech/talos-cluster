@@ -11,5 +11,5 @@ disable=import-error
 
 [FORMAT]
 
-# Match super-linter's ruff config (120) — black, ruff, pylint all agree.
+# Match super-linter's ruff config (120); black, ruff and pylint all agree.
 max-line-length=120

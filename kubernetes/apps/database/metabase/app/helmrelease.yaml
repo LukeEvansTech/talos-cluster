@@ -38,7 +38,7 @@ spec:
               repository: docker.io/metabase/metabase
               tag: v0.63.16@sha256:c6dd0c6a7861a612aab5825a7fd4236d803883a1c1227715bf41c0948c3cde82
             # Explicit named container ports are required for the PodMonitor
-            # to match `port: metrics` — bjw-s app-template does not synthesise
+            # to match `port: metrics`. bjw-s app-template does not synthesise
             # container ports from the service spec.
             ports:
               - name: http

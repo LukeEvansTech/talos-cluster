@@ -11,7 +11,7 @@ spec:
         - alert: VMwareExporterDown
           annotations:
             summary: "VMware exporter scrape of {{ $labels.instance }} is failing."
-          # Long `for` — pryorda scrapes are slow and an occasional timeout is normal.
+          # Long `for`. Pryorda scrapes are slow and an occasional timeout is normal.
           expr: |-
             up{job="vmware-exporter"} == 0
           for: 15m
@@ -41,7 +41,7 @@ spec:
         # The Veeam B&R server sat at a BSOD for 12 days in Aug 2026 with nothing
         # to say so. This series was 1 with tools_status="toolsNotRunning" for the
         # entire outage and flipped back to toolsOk on the reset, so it is the
-        # earliest, cheapest signal for "guest OS is dead" — BSOD, hung boot,
+        # earliest, cheapest signal for "guest OS is dead", BSOD, hung boot,
         # or an unexpected power-off (a powered-off VM also reports
         # toolsNotRunning, verified live). 15m rides out a normal reboot.
         # Deliberately no absent() clause: the exporter being down is already
@@ -51,8 +51,8 @@ spec:
         - alert: VeeamServerGuestDown
           annotations:
             summary: >-
-              Veeam B&R server guest is not running (VMware Tools {{ $labels.tools_status }})
-              — check the VM console; backups are not happening.
+              Veeam B&R server guest is not running (VMware Tools {{ $labels.tools_status }}).
+              Check the VM console; backups are not happening.
           expr: |-
             vmware_vm_guest_tools_running_status{job="vmware-exporter", vm_name="${SECRET_VEEAM_VM_NAME}", tools_status!="toolsOk"} == 1
           for: 15m

@@ -35,7 +35,7 @@ spec:
       # CreateContainerConfigError, which would take the entire monitoring
       # stack down over two DNS checks. Optional keys instead leave the vars
       # empty, the two split-dns endpoints then fail their conditions, and
-      # GatusEndpointDown pages — the failure stays loud but contained.
+      # GatusEndpointDown pages, so the failure stays loud but contained.
       extraEnv:
         - name: OPNSENSE_ADDR
           valueFrom:

@@ -10,7 +10,7 @@ spec:
       node-role.kubernetes.io/control-plane: ""
   template:
     pools:
-      # Loopfile pool on the system disk's EPHEMERAL filesystem — the same disk
+      # Loopfile pool on the system disk's EPHEMERAL filesystem, the same disk
       # the now-retired OpenEBS hostpath provisioner used, so identical capacity
       # and failure domain. The name leaves room for a future Optane-backed pool.
       - name: system

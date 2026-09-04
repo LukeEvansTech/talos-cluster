@@ -2,7 +2,7 @@
 # Commit message hygiene.
 #
 # This repository is PUBLIC. AGENTS.md forbids committing LAN IPs, internal
-# hostnames and topology detail — but that rule reads as "in files", so the one
+# hostnames and topology detail, but that rule reads as "in files", so the one
 # surface nobody linted was prose. A squash merge copies the PR body verbatim
 # into the commit message on main, which is how a LAN IP and the internal zone
 # name became permanent history in #3803. This reuses the SAME patterns and
@@ -40,7 +40,7 @@ run = "mise x -- actionlint -no-color"
 glob = [".github/workflows/*.yml", ".github/workflows/*.yaml"]
 
 # Audit GitHub Actions workflows for security issues (template injection,
-# dangerous triggers, credential leaks) — complements actionlint.
+# dangerous triggers, credential leaks). Complements actionlint.
 [pre-commit.commands.lint-zizmor]
 run = "mise x -- zizmor --offline {staged_files}"
 glob = [".github/workflows/*.yml", ".github/workflows/*.yaml", ".github/actions/**/action.yaml"]
@@ -68,12 +68,12 @@ exclude = ["docs/**"]
 stage_fixed = true
 
 # ---------------------------------------------------------------------------
-# super-linter parity (report-only — these block the commit, they don't fix).
+# super-linter parity (report-only: these block the commit, they don't fix).
 #
 # The checks above auto-format; the four below mirror the remaining
 # non-Docker super-linter linters so their findings surface at commit time
 # instead of in CI. Each points at the SAME config super-linter uses under
-# .github/linters/, and is scoped to staged files — matching CI's
+# .github/linters/, and is scoped to staged files, matching CI's
 # changed-files-only behaviour on PRs. docs/ is excluded everywhere because
 # the zensical toolchain (canonical root .markdownlint.yml, 2-space indent)
 # owns it and super-linter excludes it too. Tool versions are pinned in
@@ -88,7 +88,7 @@ run = "mise x -- yamllint -c .github/linters/.yaml-lint.yml {staged_files}"
 glob = ["*.yaml", "*.yml"]
 exclude = ["docs/**"]
 
-# codespell (super-linter spell check). No glob — scans every staged file;
+# codespell (super-linter spell check). No glob, so it scans every staged file;
 # codespell auto-skips binaries. Honours ignore-words-list from .codespellrc.
 [pre-commit.commands.lint-codespell]
 run = "mise x -- codespell --config .github/linters/.codespellrc {staged_files}"

@@ -3,7 +3,7 @@
 # https://github.com/pryorda/vmware_exporter/tree/v0.18.4/dashboards
 # These were previously imported via `url:`, but the upstream JSON hard-codes its
 # `$datasource` template variable to "Prometheus" (capital), which does not match
-# this cluster's datasource (name `prometheus`) — so every panel rendered blank.
+# this cluster's datasource (name `prometheus`), so every panel rendered blank.
 # Vendoring lets us pin that variable to `prometheus` (configMapGenerator carries
 # substitute:disabled so Flux postBuild leaves the dashboard macros intact).
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/grafana.integreatly.org/grafanadashboard_v1beta1.json

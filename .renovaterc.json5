@@ -4,7 +4,7 @@
   // The shared house standard (github>LukeEvansTech/renovate-config) provides
   // the home-operations/renovate-presets base, docker:pinDigests,
   // :timezone(Europe/London), Copilot reviewers, suppressNotifications,
-  // dependencies/security labels, and vulnerabilityAlerts — single source of
+  // dependencies/security labels, and vulnerabilityAlerts: the single source of
   // truth, so they are no longer duplicated here.
   // Since renovate-presets 6.0.0 the app-specific presets are opt-in under
   // apps/ (the base keeps only general-purpose rules), so the ones this
@@ -20,15 +20,15 @@
   ],
   // Assign manual PRs to me so they reach my GitHub "Participating" notifications.
   // assignAutomerge:false (the Renovate default, pinned here for clarity) means
-  // auto-merge PRs are NOT assigned — so with the repo Watch set to
+  // auto-merge PRs are NOT assigned, so with the repo Watch set to
   // "Participating and @mentions" (not "All Activity"), only PRs that need a human
   // (protected-infra guard + any `major`) email me. Auto-merge PRs that FAIL CI
   // won't merge (platformAutomerge:false self-gates on CI) and get me assigned by
   // .github/workflows/renovate-assign-on-failure.yaml, so a broken bump emails me
-  // too — clean auto-merges stay silent.
+  // too, and clean auto-merges stay silent.
   assignees: ["LukeEvansTech"],
   assignAutomerge: false,
-  // Only rebase a PR when it actually conflicts — NOT every time it falls behind
+  // Only rebase a PR when it actually conflicts, NOT every time it falls behind
   // main (the default with automerge enabled). With high auto-merge volume every
   // merge would otherwise re-rebase all open PRs and re-run the full CI suite on
   // each (PRs accumulated ~55 redundant runs). Behind-base PRs still auto-merge
@@ -121,8 +121,8 @@
       // kustomization.yaml), so the images sit in plain StatefulSet/Deployment
       // YAML rather than a HelmRelease the OCI manager would see. Manager,
       // indexer and dashboard are released in lockstep and MUST stay on the same
-      // version — a mixed set is the documented cause of "Wazuh dashboard server
-      // is not ready yet" — so they are grouped into one PR below.
+      // version. A mixed set is the documented cause of "Wazuh dashboard server
+      // is not ready yet", so they are grouped into one PR below.
       description: "Track vendored Wazuh component images",
       managerFilePatterns: [
         "/(^|/)kubernetes/apps/security/wazuh/.+\\.ya?ml$/",
@@ -163,14 +163,14 @@
   // Every Renovate incident in this repo came from exactly that:
   //   - a local minimumReleaseAge:"2 days" reverted the preset's docker opt-out,
   //     and because GHCR exposes no release timestamp the gate never turned
-  //     green — 38 of 39 open PRs were permanently stuck (#3866);
+  //     green: 38 of 39 open PRs were permanently stuck (#3866);
   //   - local automergeType:"branch" + ignoreTests:true reverted the preset's
   //     CI-gated PR merge, so claude/renovate-review landed its verdict 76-93s
   //     AFTER the commit was already on main and could never gate it (#3871).
-  // To change auto-merge behaviour, change the preset — every repo benefits.
+  // To change auto-merge behaviour, change the preset, and every repo benefits.
   packageRules: [
     {
-      description: "Protected infra — never auto-merge, manual review only",
+      description: "Protected infra: never auto-merge, manual review only",
       // The datasource list must cover every datasource the preset auto-merges,
       // or a tier-0 component tracked through another one slips past the guard
       // entirely. github-releases was exactly that gap (#3869).
@@ -219,7 +219,7 @@
     {
       addLabels: ["renovate/grafana-dashboard"],
       // A dashboard "major" is just a revision bump, not a breaking change, so
-      // this opts them back into auto-merge — the preset leaves majors with no
+      // this opts them back into auto-merge. The preset leaves majors with no
       // automerge rule, and separately queues them behind a dashboard checkbox.
       // automergeType/ignoreTests are deliberately NOT set: Renovate already
       // defaults to a CI-gated PR merge, and restating them here is what caused
@@ -273,12 +273,12 @@
       minimumGroupSize: 3,
     },
     {
-      description: "Wazuh upstream manifests — notify only, never auto-merge",
+      description: "Wazuh upstream manifests: notify only, never auto-merge",
       matchDatasources: ["github-tags"],
       matchPackageNames: ["wazuh/wazuh-kubernetes"],
       // This dependency is a marker comment, not a deployed artifact. Left to the
       // shared minor/patch auto-merge policy, Renovate would merge a PR that only
-      // advances the marker — recording the manifests as re-vendored when nobody
+      // advances the marker, recording the manifests as re-vendored when nobody
       // has looked at what upstream actually changed, and silencing the next
       // notification too. The whole point of the tracker is the human step.
       automerge: false,
@@ -328,7 +328,7 @@
         commitMessageTopic: "{{{groupName}}} group",
       },
       // 1, not 2: same solo-pinDigest parking issue as the Cilium/CoreDNS
-      // groups above — a lone flux-operator-manifests digest pin sat under
+      // groups above. A lone flux-operator-manifests digest pin sat under
       // "Group Size Not Met" forever (protected-infra keeps merges manual
       // regardless; 2+ simultaneous updates still group).
       minimumGroupSize: 1,
@@ -387,7 +387,7 @@
       // talosctl CLI as `aqua:siderolabs/talos`.
       //
       // This rule used to set matchDatasources: ["docker"], which grouped the
-      // first three but left the CLI to arrive as its own PR — so every Talos
+      // first three but left the CLI to arrive as its own PR, so every Talos
       // bump landed as two PRs that had to be reconciled by hand (1.13.6 ➔
       // 1.13.7 came as #3753 for the CLI and #3754 for the image, the latter
       // closed as superseded by #3842). Dropping the datasource restriction
@@ -395,8 +395,8 @@
       // is `aqua:siderolabs/talos`. Adopted from cluster-template 2026.8.0
       // (onedr0p/cluster-template#2302), which groups the same three pins.
       //
-      // Nothing else in the estate matches `siderolabs/`, and kubelet — which
-      // tracks the Kubernetes version, not the Talos one — is excluded below.
+      // Nothing else in the estate matches `siderolabs/`, and kubelet, which
+      // tracks the Kubernetes version rather than the Talos one, is excluded below.
       description: "Talos Group",
       groupName: "Talos",
       // Negated match replaces the deprecated excludePackageNames: ["/kubelet/"]
@@ -549,7 +549,7 @@
       // renovate/pin-dependencies branch ("Error updating branch: update
       // failure"; renovatebot/renovate#24942). The same charts' runtime twins
       // in the per-app kubernetes ocirepository.yaml files are already exempt via the flux
-      // rule above — bootstrap/helmfile.d/ is only the cold-start path.
+      // rule above; bootstrap/helmfile.d/ is only the cold-start path.
       description: "Don't pin digests on Helmfile OCI chart releases (no digest field; crashes the pin branch)",
       matchManagers: ["helmfile"],
       pinDigests: false,
@@ -558,7 +558,7 @@
       // The home-operations 'annotated' custom manager (# renovate: comments
       // in talconfig.yaml / talenv.yaml / tuppr upgrades) captures no
       // currentDigest group, so first-time digest pins hit the same
-      // renovatebot/renovate#24942 crash — installer took down the
+      // renovatebot/renovate#24942 crash: the installer took down the
       // renovate/talos branch, kubelet the pin-dependencies branch.
       description: "Don't pin digests on annotated Talos installer/kubelet deps (no currentDigest capture; crashes the pin branch)",
       matchDatasources: ["docker"],
@@ -572,7 +572,7 @@
       // registry.erwanleboucher.dev answers /v2/ token requests with a
       // plaintext non-JSON body when no scope is given, which breaks
       // Renovate's auth negotiation ("Failed to look up docker package …
-      // talos-mcp: no-result") — third-party registry defect, nothing to fix
+      // talos-mcp: no-result"), a third-party registry defect with nothing to fix
       // here. Skip digest pinning so the dep can't wedge a combined pin
       // branch; version updates still apply when the lookup succeeds.
       description: "Don't pin digests on talos-mcp (registry auth endpoint violates the token spec)",
@@ -582,7 +582,7 @@
     },
     {
       // The preset's `oci` custom manager (managers/oci.json5) matches inline
-      // `oci://repo:tag` strings — here the FluxInstance distribution.artifact —
+      // `oci://repo:tag` strings, here the FluxInstance distribution.artifact,
       // with `(?<currentValue>\S+)` and NO currentDigest group: a first-time
       // digest pin can't be appended (renovate#24942 crash, same as the
       // annotated installer/kubelet case), and seeding a digest by hand would
@@ -599,12 +599,12 @@
       // The home-operations preset forces regex versioning
       // (^server-<variant>-b<build>$) on every llama.cpp reference repo-wide,
       // but memini's model init containers use the bare legacy `server` tag,
-      // which that scheme cannot parse — an unparseable currentValue under
+      // which that scheme cannot parse. An unparseable currentValue under
       // strict custom versioning wedges the combined pin-dependencies branch
       // (same renovatebot/renovate#24942 failure family as PR #3652).
       // Fall back to plain docker versioning for these two files so the tag
       // is treated as an ordinary mutable tag and digest-pins normally.
-      description: "memini llama.cpp images use the bare 'server' tag — preset regex versioning can't parse it",
+      description: "memini llama.cpp images use the bare 'server' tag, which preset regex versioning can't parse",
       matchDatasources: ["docker"],
       matchPackageNames: ["ghcr.io/ggml-org/llama.cpp"],
       matchFileNames: [
@@ -617,14 +617,14 @@
       // pulsarr upstream (github.com/jamcalli/Pulsarr) is still on 0.15.x.
       // Stray 1.x tags appeared on Docker Hub (1.1.5, 1.1.6) and were pulled.
       // Block the whole 1.x major until upstream legitimately ships a 1.0 release.
-      description: "Block pulsarr 1.x — no matching upstream release",
+      description: "Block pulsarr 1.x: no matching upstream release",
       matchDatasources: ["docker"],
       matchPackageNames: ["docker.io/lakker/pulsarr"],
       allowedVersions: "<1.0.0",
     },
     {
       // Paper lists new Minecraft versions before any STABLE build exists
-      // (e.g. 26.2 shipped ALPHA/BETA only — PR #3533); the itzg image
+      // (e.g. 26.2 shipped ALPHA/BETA only, PR #3533); the itzg image
       // defaults PAPER_CHANNEL to stable-only, so merging early crash-loops
       // the server with "No build found for version X with channel 'default'".
       // The Fill v3 version list carries no per-version channel data (builds
@@ -632,7 +632,7 @@
       // creation on a human check instead. Before ticking the dashboard box,
       // confirm STABLE builds exist:
       //   curl -s https://fill.papermc.io/v3/projects/paper/versions/<ver>/builds | jq '[.[].channel] | unique'
-      description: "Minecraft (Paper) — dashboard approval; wait for a STABLE Paper build",
+      description: "Minecraft (Paper): dashboard approval; wait for a STABLE Paper build",
       matchDatasources: ["custom.minecraft-release"],
       dependencyDashboardApproval: true,
     },

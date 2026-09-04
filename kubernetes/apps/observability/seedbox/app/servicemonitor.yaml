@@ -26,8 +26,8 @@ spec:
           replacement: seedbox
       metricRelabelings:
         # Cardinality control. This exporter emits one series PER TORRENT for
-        # ~18 metrics; at 1,834 torrents that was 36,427 series — 5.3% of the
-        # whole cluster's active series — of which 30,905 were read by NOTHING
+        # ~18 metrics; at 1,834 torrents that was 36,427 series, 5.3% of the
+        # whole cluster's active series, of which 30,905 were read by NOTHING
         # (verified 2026-08-27: `qbittorrent_torrent_*` appeared in zero rules
         # and zero dashboard panels). The series key on the torrent NAME, so
         # every qbit-manage cull and every new grab churns the whole set.
@@ -42,11 +42,11 @@ spec:
         # exempt from metric_relabel_configs, and there is no `action: keep`
         # anywhere else in this repo to check the behaviour against. A keep-list
         # that silently ate `up` would kill SeedboxQbittorrentExporterDown,
-        # seedbox:up:ratio and the availability panel — a far worse failure than
+        # seedbox:up:ratio and the availability panel, a far worse failure than
         # a new upstream metric arriving unfiltered. Naming what to remove
         # cannot have that failure mode.
         #
-        # ⚠️ `qbittorrent_torrent_states` is NOT per-torrent — it is an
+        # ⚠️ `qbittorrent_torrent_states` is NOT per-torrent. It is an
         # aggregate of 20 series where `name` is the STATE, and it powers the
         # "qBittorrent torrents by state" panel. Any future regex written as
         # `qbittorrent_torrent_.+` would eat it. It is excluded by name here.

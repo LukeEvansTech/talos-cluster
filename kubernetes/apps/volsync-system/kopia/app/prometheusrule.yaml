@@ -15,7 +15,7 @@ spec:
         # Kopia warns "too many index blobs" and degrades every repository
         # operation once these accumulate, and maintenance compacts only a
         # bounded number of epochs per run. About 100 ReplicationSources share
-        # this repository, so creation can outpace compaction — which is exactly
+        # this repository, so creation can outpace compaction, which is exactly
         # what happened on 2026-07-30 (2803 -> 4048 over 16h at a 4h cadence,
         # fixed by moving maintenance to hourly).
         #
@@ -38,6 +38,6 @@ spec:
               Maintenance runs hourly and compacts a bounded number of epochs
               per run, so this means compaction is losing to snapshot creation.
               Break it down by kind with
-              kopia_repo_index_blobs — a high "uncompacted" share confirms it.
+              kopia_repo_index_blobs. A high "uncompacted" share confirms it.
               Next lever is backup retention (hourly: 168 in
               components/volsync/nfs), not maintenance frequency.

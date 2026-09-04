@@ -220,11 +220,11 @@ spec:
           # Pin the LB IP from the Cilium pool. Add SVC_IMGUR_PROXY_ADDR
           # to cluster-secrets in 1Password before applying.
           lbipam.cilium.io/ips: ${SVC_IMGUR_PROXY_ADDR}
-        # externalTrafficPolicy: Cluster (default) — Cilium L2 picks any
+        # externalTrafficPolicy: Cluster (default). Cilium L2 picks any
         # node as announcer; with Local the announcer must coincide with
         # the pod's node, which Cilium L2 doesn't currently guarantee
         # (announcer is hash-selected from the policy's nodeSelector).
-        # Source IP visibility isn't useful here — the proxy is
+        # Source IP visibility isn't useful here. The proxy is
         # SNI-allowlisted and doesn't do per-client policy.
         externalTrafficPolicy: Cluster
         ports:
@@ -259,7 +259,7 @@ spec:
 
               # SNI allowlist: leading-dot `.imgur.com` matches the apex
               # AND any subdomain in nginx's `hostnames;` map syntax.
-              # Empty default drops other SNI (open-relay protection — only
+              # Empty default drops other SNI (open-relay protection: only
               # Imgur-owned hosts are relayed).
               map $$ssl_preread_server_name $$upstream {
                 hostnames;

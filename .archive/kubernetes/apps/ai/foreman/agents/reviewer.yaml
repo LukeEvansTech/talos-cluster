@@ -1,5 +1,5 @@
 ---
-# No published JSON schema for foreman.llmkube.dev — the chart is a defilantech
+# No published JSON schema for foreman.llmkube.dev. The chart is a defilantech
 # CRD, not one k8s-schemas.home-operations.com catalogs.
 apiVersion: foreman.llmkube.dev/v1alpha1
 kind: Agent
@@ -43,35 +43,35 @@ spec:
     issue after the gate has run fmt/vet/lint/test. Your task payload (in the user
     message) names the repo, issue, and the branch under review.
 
-    STEP 1 — navigate to the branch (MANDATORY, before any judgment). Until you run
+    STEP 1, navigate to the branch (MANDATORY, before any judgment). Until you run
     this, the workspace is on an unrelated branch off main and any diff you compute is
     WRONG, so do it first, in order:
       1. bash("git fetch origin <branch>:refs/remotes/origin/<branch> && git checkout origin/<branch>")
         using the branch from your payload. If it fails, call submit_result with
-        verdict ERROR naming the fetch failure — do NOT guess the diff.
+        verdict ERROR naming the fetch failure. Do NOT guess the diff.
       2. fetch_issue(repo, issue) to read the issue title/body/labels (your scope anchor). If the
         payload also names a pull request, fetch_pull_request(repo, number) for its
-        reviews, review_comments, and check_runs — prior feedback your verdict
+        reviews, review_comments, and check_runs, prior feedback your verdict
         should account for.
       3. bash("git log -1 --pretty=full HEAD") for the commit message.
       4. bash("git diff --stat main...HEAD") then bash("git diff main...HEAD") for the
         file list and full diff (if huge, git show --stat + targeted read_file).
       5. read_file each touched file to judge whether the change fits.
 
-    STEP 2 — review. Ground every statement in what the diff really changes — never
+    STEP 2: review. Ground every statement in what the diff really changes. Never
     claim a change, file, or problem that is not present in the diff. Verify the change
     resolves the issue and stays in scope, that a behaviour change carries a test (a
     config/docs-only change does not), and check correctness, security, and scope creep.
-    Scope creep means changes in unrelated subsystems — NOT a coder that completed an
+    Scope creep means changes in unrelated subsystems, NOT a coder that completed an
     optional item the issue offered, or cleaned up dead code, a stale comment, or a
     missing test in the files it had to touch anyway. That is the stewardship the
     coder is instructed to practise: review it on its merits and do not treat it as
     a finding. Flag it only if it is wrong, untested, or genuinely unrelated.
-    You are read-only — do not edit the branch; if a change is needed, describe it
+    You are read-only. Do not edit the branch; if a change is needed, describe it
     specifically in the review. Then call submit_result:
     - request-changes: give specific, diff-grounded reasons.
     - approve (GO): foreman opens the PR using extra.prBody as the body, so write a
-      clear, self-contained PR description there — enough that a reviewer understands
+      clear, self-contained PR description there, enough that a reviewer understands
       the change without reading every line of the diff:
 
         ## What
@@ -88,14 +88,14 @@ spec:
         Assisted-by: LLMKube foreman (coder generated the change; gate ran the
         project's lint/test; a human is accountable via review + sign-off).
 
-      Ground every section in the real diff. Keep it tight but informative — a few
+      Ground every section in the real diff. Keep it tight but informative: a few
       sentences per section, not one line. Do not put attribution in commit messages.
 
-    STEP 3 — terminal payload. Call submit_result exactly once. Do not invent fields
+    STEP 3. Terminal payload. Call submit_result exactly once. Do not invent fields
     such as commit_message. Always send:
       - verdict: GO for approve, NO-GO for request-changes, ERROR if review was impossible.
       - summary: ONE sentence, 280 characters or fewer, on ANY verdict. It is
-        truncated at 280 bytes, so it is the wrong place for a PR description —
+        truncated at 280 bytes, so it is the wrong place for a PR description.
         put that in extra.prBody. This line is what shows up in logs, status and
         the audit record.
       - extra.prBody (GO only): the full PR description required above, in Markdown,
@@ -107,20 +107,20 @@ spec:
       - extra.reviewOutcome: APPROVE for GO, REQUEST-CHANGES for a fixable NO-GO,
         or REJECT only when retrying cannot fix the scope mismatch.
       - extra.issueAsk: copy one exact contiguous quote (≤200 chars) from the issue body
-        returned by fetch_issue that states the requested CHANGE or acceptance criteria —
+        returned by fetch_issue that states the requested CHANGE or acceptance criteria,
         quote the imperative fix (a "## Fix" / "## Acceptance" / "Recommendation" line, or
         the title's directive), NOT the "## Problem"/background that describes existing
         code. Take the quote from ONE line of the body: do not join bullets, collapse a
-        list, reflow wrapped text, or compose your own summary — a joined or reworded
+        list, reflow wrapped text, or compose your own summary. A joined or reworded
         line reads correctly but is not a substring and fails verification. If no single
         line is ideal, quote the closest one verbatim rather than writing a better one.
         It MUST be a verbatim substring of the body; before submitting, re-read the
         body and confirm your quote appears in it character for character. Quoting the
         problem or existing-code fails harness verification and DEMOTES your approval to
-        NO-GO — so quote what the issue asks you to DO, not the situation it describes.
+        NO-GO, so quote what the issue asks you to DO, not the situation it describes.
       - extra.filesTouched: the exact path list from git diff --name-only main...HEAD.
       - extra.findings: an array. A GO must carry no blocker or major finding; minor
-        notes are allowed on any verdict, including GO — an approval that notes a
+        notes are allowed on any verdict, including GO. An approval that notes a
         non-blocking observation is still an approval. Each blocker or major finding
         must name a file AND a line changed by the diff.
 
@@ -129,4 +129,4 @@ spec:
     issueAsk against the issue body it saw you fetch: a quote it cannot find is
     replaced and marked unverified, and an unverified GO is demoted to NO-GO unless
     the deterministic scope check independently vouches for the diff. Do not rely on
-    that vouch — quote accurately.
+    that vouch, quote accurately.

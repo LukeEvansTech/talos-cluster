@@ -5,7 +5,7 @@ kind: ScrapeConfig
 metadata:
   name: &name seedbox-node
 spec:
-  # node-exporter on the seedbox host (:9100) — CPU/memory/disk/network.
+  # node-exporter on the seedbox host (:9100), CPU/memory/disk/network.
   staticConfigs:
     - targets:
         - seedbox.observability.svc.cluster.local:9100
@@ -39,7 +39,7 @@ kind: ScrapeConfig
 metadata:
   name: &name seedbox-traefik
 spec:
-  # Traefik metrics entrypoint (:8082) — per-router/service request stats.
+  # Traefik metrics entrypoint (:8082), per-router/service request stats.
   staticConfigs:
     - targets:
         - seedbox.observability.svc.cluster.local:8082
@@ -60,7 +60,7 @@ kind: ScrapeConfig
 metadata:
   name: &name seedbox-autobrr
 spec:
-  # autobrr built-in metrics endpoint (:9074) — IRC/filter/push activity.
+  # autobrr built-in metrics endpoint (:9074), IRC/filter/push activity.
   staticConfigs:
     - targets:
         - seedbox.observability.svc.cluster.local:9074
@@ -81,7 +81,7 @@ kind: ScrapeConfig
 metadata:
   name: &name seedbox-qui
 spec:
-  # qui (qBittorrent WebUI) metrics — host port 9476 (in-container default 9074 is
+  # qui (qBittorrent WebUI) metrics. Host port 9476 (in-container default 9074 is
   # taken on the host by autobrr, same project family, same default).
   staticConfigs:
     - targets:
@@ -103,7 +103,7 @@ kind: ScrapeConfig
 metadata:
   name: &name seedbox-doco-cd
 spec:
-  # doco-cd native metrics (:9120) — GitOps deploy/poll status on the seedbox.
+  # doco-cd native metrics (:9120), GitOps deploy/poll status on the seedbox.
   staticConfigs:
     - targets:
         - seedbox.observability.svc.cluster.local:9120
@@ -124,7 +124,7 @@ kind: ScrapeConfig
 metadata:
   name: &name seedbox-smartctl
 spec:
-  # smartctl-exporter on the seedbox host (:9633) — per-disk SMART attributes.
+  # smartctl-exporter on the seedbox host (:9633), per-disk SMART attributes.
   # netdata's mdstat alarms only catch a disk once it has DROPPED OUT of the
   # array; this is the upstream signal (reallocated/pending sectors) that
   # precedes that. See seedbox-apps apps/smartctl-exporter.
@@ -133,7 +133,7 @@ spec:
         - seedbox.observability.svc.cluster.local:9633
   metricsPath: /metrics
   # 300s not 60s: smartctl shells out to all four spinning disks per scrape, and
-  # the attributes move on a timescale of days — a 5x cheaper scrape loses nothing.
+  # the attributes move on a timescale of days, so a 5x cheaper scrape loses nothing.
   scrapeInterval: 300s
   scrapeTimeout: 30s # tailnet-egress scrapes are slow; 30s stops false up=0 (see node job)
   relabelings:
@@ -150,10 +150,10 @@ kind: ScrapeConfig
 metadata:
   name: &name seedbox-docker
 spec:
-  # docker_state_exporter on the seedbox (:9419) — per-container state, health,
+  # docker_state_exporter on the seedbox (:9419), per-container state, health,
   # restart count and OOM-kill, keyed by container NAME. Landed with the
   # 2026-07-30 fleet convergence (seedbox-apps): the seedbox was the one box
-  # without it — netdata sees containers, but the estate's container-lifecycle
+  # without it, netdata sees containers, but the estate's container-lifecycle
   # alerting keys on container_state_* series only this exposes.
   staticConfigs:
     - targets:
@@ -179,7 +179,7 @@ spec:
     #
     # ⚠️ This labelkeep is an ALLOW-LIST: a label the exporter publishes but
     # that is not named here simply does not exist in Prometheus. Adding a new
-    # container label to seedbox-apps is therefore only half the job — verify
+    # container label to seedbox-apps is therefore only half the job, verify
     # with `count(container_state_status{container_label_<x>="..."})` against
     # the real Prometheus before writing a rule that depends on it. Forgetting
     # this on 2026-08-23 made a corrected SeedboxContainerDown match 8
