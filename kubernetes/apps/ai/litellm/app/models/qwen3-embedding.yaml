@@ -10,8 +10,10 @@ spec:
   # 8k ctx; ../../../toolhive/gateway/embed/helmrelease.yaml). Long-context
   # embedder for the VMCP tool optimizer (../../../toolhive/gateway/
   # virtualmcpserver.yaml): all-minilm below is all-MiniLM-L6-v2, capped at
-  # 512 tokens, which some kubectl tool descriptions exceed. all-minilm
-  # stays the model for memini and LiteLLM's own semantic tool filter.
+  # 512 tokens, which some kubectl tool descriptions exceed — the same cap
+  # silently killed LiteLLM's own mcp_semantic_tool_filter (the MCP registry
+  # payload is 625 tokens), so that now points here too. all-minilm stays the
+  # model for memini.
   modelName: qwen3-embedding
   proxyRef: litellm
   params:
