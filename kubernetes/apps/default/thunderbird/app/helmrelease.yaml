@@ -31,9 +31,6 @@ spec:
               # window can be shut from the desktop and mail sync stops with
               # the pod still Running and the web UI still answering.
               RESTART_APP: "true"
-            envFrom:
-              - secretRef:
-                  name: thunderbird-secret
             probes:
               liveness: &probes
                 enabled: true
@@ -63,18 +60,6 @@ spec:
         ports:
           http:
             port: *port
-    route:
-      app:
-        annotations:
-          # Basic auth fronts the desktop, so an unauthenticated probe is
-          # answered with 401. That response is the healthy one here.
-          gatus.home-operations.com/endpoint: |
-            conditions: ["[STATUS] == 401"]
-        hostnames:
-          - "{{ .Release.Name }}.${SECRET_DOMAIN}"
-        parentRefs:
-          - name: envoy-internal
-            namespace: network
     persistence:
       config:
         existingClaim: "{{ .Release.Name }}"
