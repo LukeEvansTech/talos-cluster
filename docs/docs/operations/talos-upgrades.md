@@ -287,9 +287,12 @@ even on a drained node. `talosctl upgrade --stage` no longer exists in the 1.13 
 5. After the node is back: `kubectl -n miroir-system patch ds miroir-agent --type=json -p '[{"op":"remove","path":"/spec/template/spec/affinity"}]'`
    and `kubectl uncordon <node>`.
 6. Before touching the next node, wait for Ceph `HEALTH_OK` (`ceph health` in the toolbox) and all
-   three etcd members healthy (`talosctl -n <node-ip> etcd status`); Kubernetes `Ready` alone comes
+   three etcd members healthy: `talosctl -n <ip-1>,<ip-2>,<ip-3> etcd status` with **every**
+   control-plane address, because each address reports only that node's member, so querying the
+   node you just recovered can mask a member that is still down. Kubernetes `Ready` alone comes
    well before Ceph and etcd have re-converged, and the next control-plane reboot is a quorum risk
-   until they have. This is the gate tuppr applies itself (`healthChecks` in the `TalosUpgrade`).
+   until they have. Only the Ceph half of this gate is automated: the `healthChecks` in the
+   `TalosUpgrade` cover VolSync and the `CephCluster`, not etcd, so the etcd check is manual here.
 7. When every node is done, delete the tuppr `TalosUpgrade` and let Flux recreate it so it shows
    `Completed`.
 
