@@ -1,15 +1,15 @@
 # KB-028: Talos Upgrade Installs Successfully but the Node Boots the Old Version (NVRAM Wipe → `LoaderEntryDefault`)
 
-**Status:** Fix proven on seven nodes across three upgrades (v1.13.6 → v1.13.7, v1.13.7 → v1.13.8 where all three needed it, and v1.13.8 → v1.13.9 where two of three did). The v1.13.9 run corrected several claims below — see [What the v1.13.9 run changed](#what-the-v1139-run-changed). The trigger is the BIOS flash off the buggy line, not a Talos regression. `BootOrder` turned out **not** to be the lever — see the section below — so recurrence depends entirely on whether `LoaderEntryDefault` comes back.
+**Status:** Fix proven on seven nodes across three upgrades (v1.13.6 → v1.13.7, v1.13.7 → v1.13.8 where all three needed it, and v1.13.8 → v1.13.9 where two of three did). The v1.13.9 run corrected several claims below; see [What the v1.13.9 run changed](#what-the-v1139-run-changed). The trigger is the BIOS flash off the buggy line, not a Talos regression. `BootOrder` is not the lever (see [that section](#bootorder-is-not-the-lever-it-looks-like)), so recurrence depends entirely on whether `LoaderEntryDefault` comes back.
 
-> **2026-09-03 update.** The v1.14.0 rollout produced this exact symptom on all three nodes with a
-> different, directly observed cause: the reboot sequence's `teardownLifecycle` step could not close
-> the encrypted `EPHEMERAL` volume (miroir loop devices still attached), timed out after 5 minutes,
-> and machined's error handler reverted the freshly installed UKI before rebooting. That mechanism
-> also explains every observation in this KB, including the variable "recording whatever was just
-> booted". See [Talos 1.14 notes](../../operations/talos-upgrades.md#upgrade-didnt-take-node-reboots-into-the-old-version)
-> for how to tell the two apart and the cleanup that stops it recurring. The recovery below still
-> works: with `LoaderEntryDefault` deleted, systemd-boot picks the newest UKI on the ESP.
+> Update, 2026-09-03: the v1.14.0 rollout produced this exact symptom on all three nodes with a
+> different, directly observed cause. The reboot sequence's `teardownLifecycle` step could not close
+> the encrypted `EPHEMERAL` volume (miroir loop devices were still attached), timed out after 5
+> minutes, and machined's error handler reverted the freshly installed UKI before rebooting. That
+> mechanism also explains every observation in this KB, including the variable "recording whatever
+> was just booted". See [Talos 1.14 notes](../../operations/talos-upgrades.md#upgrade-didnt-take-node-reboots-into-the-old-version)
+> for how to tell the two apart and for the cleanup that stops it recurring. The recovery below
+> still works: with `LoaderEntryDefault` deleted, systemd-boot picks the newest UKI on the ESP.
 
 ## Symptom
 
@@ -23,21 +23,21 @@ INFO  Node upgrade failed     node=<node>
 
 The `TalosUpgrade` CR lands in `Failed` with `lastError: "Job failed permanently"` and `retries: 0`, and stops the batch so the remaining nodes are never attempted.
 
-What makes this confusing is that every individual step *succeeded*:
+What makes this confusing is that every individual step succeeded:
 
 - The drain completed.
 - The installer image was pulled and signature-verified.
 - The install reported `exit_code=0`.
-- The node rebooted, came back `Ready`, and was **uncordoned automatically**.
-- `kubectl get nodes` shows it healthy — just still on the **old** `osImage`.
+- The node rebooted, came back `Ready`, and was uncordoned automatically.
+- `kubectl get nodes` shows it healthy, just still on the old `osImage`.
 
-This is not the KB-004 failure mode. There the reboot never happened; here the reboot happens and the node boots the *wrong* image.
+This is not the KB-004 failure mode. There the reboot never happened; here the reboot happens and the node boots the wrong image.
 
 ## Cause
 
-**A BIOS flash wiped the NVRAM, including the EFI boot entries Talos relies on.** The upgrade itself is fine; only the boot *selection* is broken.
+A BIOS flash wiped the NVRAM, including the EFI boot entries Talos relies on. The upgrade itself is fine; only the boot selection is broken.
 
-Normally Talos writes the new UKI to the ESP and creates a direct EFI boot entry for it, which the firmware then boots. After an NVRAM wipe that entry is gone and is never re-established in `BootOrder`, so the firmware falls through to the removable-media fallback `\EFI\BOOT\BOOTX64.efi` — systemd-boot — which picks its entry from the `LoaderEntryDefault` EFI variable. That variable named the outgoing version, so the node booted the old UKI.
+Normally Talos writes the new UKI to the ESP and creates a direct EFI boot entry for it, which the firmware then boots. After an NVRAM wipe that entry is gone and is never re-established in `BootOrder`, so the firmware falls through to the removable-media fallback `\EFI\BOOT\BOOTX64.efi`, which is systemd-boot, and systemd-boot picks its entry from the `LoaderEntryDefault` EFI variable. That variable named the outgoing version, so the node booted the old UKI.
 
 The installer log states it plainly. Note the empty list: Talos cannot find any boot entry it created on a previous upgrade either.
 
@@ -52,36 +52,37 @@ created Talos Linux UKI boot entry at index 0
 
 ### Why it started when it did
 
-[#3552](https://github.com/LukeEvansTech/talos-cluster/pull/3552) recorded all three sleds on **BIOS 1.4** on 2026-07-15, and documented with hardware proof that flashing *from* the buggy line (≤ 1.7) wipes the Secure Boot keys despite `PreserveSECBOOTKEY: true` — because the preservation logic runs in the *outgoing* BIOS. The boards now report **BIOS 1.9**, so that flash happened, and it took the boot entries along with the keys.
+[#3552](https://github.com/LukeEvansTech/talos-cluster/pull/3552) recorded all three sleds on BIOS 1.4 on 2026-07-15, and documented with hardware proof that flashing from the buggy line (1.7 and earlier) wipes the Secure Boot keys despite `PreserveSECBOOTKEY: true`, because the preservation logic runs in the outgoing BIOS. The boards now report BIOS 1.9, so that flash happened, and it took the boot entries along with the keys.
 
-The timeline is the giveaway, and it is worth trusting over any theory about the Talos release:
+The timeline settles it, whatever the theory about the Talos release:
 
-| Date       | Event                                         | Outcome    |
-| ---------- | --------------------------------------------- | ---------- |
-| 2026-07-11 | Talos v1.13.5 → v1.13.6                       | Success    |
-| 2026-07-15 | #3552 lands; sleds recorded on BIOS 1.4       | —          |
-| after that | BIOS flashed to 1.9 (out of band, not in Git) | —          |
-| 2026-07-26 | Talos v1.13.6 → v1.13.7                       | **Failed** |
+| Date       | Event                                         | Outcome |
+| ---------- | --------------------------------------------- | ------- |
+| 2026-07-11 | Talos v1.13.5 → v1.13.6                       | Success |
+| 2026-07-15 | #3552 lands; sleds recorded on BIOS 1.4       |         |
+| after that | BIOS flashed to 1.9 (out of band, not in Git) |         |
+| 2026-07-26 | Talos v1.13.6 → v1.13.7                       | Failed  |
 
 This was the first Talos upgrade after the flash.
 
 ### Ruled out
 
-Two plausible-sounding explanations the evidence does **not** support. Both were tested.
+Two explanations sounded plausible and were tested. The evidence supports neither.
 
-- **TPM unseal failing and falling back to the slot-1 static key.** `talosctl get volumestatus STATE` and `EPHEMERAL` report `encryptionSlot: 0` (the TPM slot) on all three nodes, so PCR 7 is intact and the sealed policy is valid. The slot-1 fallback added by #3552 is not engaged. It remains the right insurance for a future flash; it is simply not what happened here.
-- **A Talos installer regression pointing `LoaderEntryDefault` at the outgoing version.** Contradicted three times: on two nodes the variable named the version it *installed* rather than the outgoing one, and on another it reappeared after a plain reboot with no installer running. The v1.13.9 run adds the clearest datapoint — a node that booted cleanly onto the new version had the variable recreated naming **that same new version** within a minute of boot. The writer therefore records *whatever was just booted*, which is what arms the trap: at the next upgrade the variable still names the outgoing release, and systemd-boot honours it instead of selecting the newest UKI.
+The first was the TPM unseal failing and falling back to the slot-1 static key. `talosctl get volumestatus STATE` and `EPHEMERAL` report `encryptionSlot: 0` (the TPM slot) on all three nodes, so PCR 7 is intact and the sealed policy is valid. The slot-1 fallback added by #3552 is not engaged. It remains the right insurance for a future flash; it is simply not what happened here.
+
+The second was a Talos installer regression pointing `LoaderEntryDefault` at the outgoing version. Contradicted three times: on two nodes the variable named the version it installed rather than the outgoing one, and on another it reappeared after a plain reboot with no installer running. The v1.13.9 run added the clearest datapoint. A node that booted cleanly onto the new version had the variable recreated naming that same new version within a minute of boot. The writer therefore records whatever was just booted, which is what arms the trap: at the next upgrade the variable still names the outgoing release, and systemd-boot honours it instead of selecting the newest UKI.
 
 ## Confirming it on a node
 
-Talos persists service logs to `/var/log`, and they **survive the reboot**, so the failed boot's install output is still readable. This is the single most useful command here:
+Talos persists service logs to `/var/log`, and they survive the reboot, so the failed boot's install output is still readable. This is the single most useful command here:
 
 ```bash
 export TALOSCONFIG=./talos/clusterconfig/talosconfig
 talosctl -n <node-ip> read /var/log/machined.log.1 | grep -Ei 'upgrade|install|UKI|BootOrder'
 ```
 
-A successful install ends like this — which is the whole point, the install is not the problem:
+A successful install ends like this. The install is not the problem:
 
 ```text
 copying /usr/install/amd64/vmlinuz.efi to /boot/EFI/EFI/Linux/Talos-v1.13.7.efi
@@ -92,7 +93,7 @@ installation of v1.13.7 complete
 [talos] upgrade completed successfully: exit_code=0
 ```
 
-Then confirm which entry actually booted, and what steered it:
+Then confirm which entry booted, and what steered it:
 
 ```bash
 talosctl -n <node-ip> get bootedentry -o yaml          # -> bootedEntry: talos-v1.13.6.efi
@@ -109,7 +110,7 @@ If `LoaderEntries` contains the new UKI while `LoaderEntryDefault` names the old
 
 ## Fix
 
-The install is already on disk — **do not re-run the upgrade**. Delete `LoaderEntryDefault` and reboot; with no default set, systemd-boot selects the newest UKI, which is the new version.
+The install is already on disk, so do not re-run the upgrade. Delete `LoaderEntryDefault` and reboot. With no default set, systemd-boot selects the newest UKI, which is the new version.
 
 The host mounts `efivarfs` read-only, so this cannot be done with `talosctl` alone:
 
@@ -117,7 +118,7 @@ The host mounts `efivarfs` read-only, so this cannot be done with `talosctl` alo
 none /sys/firmware/efi/efivars efivarfs ro,nosuid,nodev,noexec,relatime 0 0
 ```
 
-A privileged pod can mount its **own** `efivarfs` instance read-write instead. Use `nodeName` (not `nodeSelector`) so it bypasses the scheduler and still lands on a cordoned node:
+A privileged pod can mount its own `efivarfs` instance read-write instead. Use `nodeName` (not `nodeSelector`) so it bypasses the scheduler and still lands on a cordoned node:
 
 ```yaml
 ---
@@ -133,10 +134,11 @@ spec:
     - operator: Exists
   containers:
     - name: fix
-      # Pinned by digest (this doc block is outside Renovate's manifest-only digest-pinning
-      # coverage) — this is a privileged pod with efivarfs mounted read-write, so a moved
-      # tag pulling different bytes at run time is a real risk here. Re-pin by hand if a
-      # newer base is ever needed: `docker buildx imagetools inspect python:3.13-alpine`.
+      # Pinned by digest, because this doc block is outside Renovate's manifest-only
+      # digest-pinning coverage and this is a privileged pod with efivarfs mounted
+      # read-write, so a moved tag pulling different bytes at run time is a real risk.
+      # Re-pin by hand if a newer base is ever needed:
+      # `docker buildx imagetools inspect python:3.13-alpine`.
       image: python:3.13-alpine@sha256:540c7d91f98ff6880174c40e99067bf5941eb54d818a7a5e094d188b196a934d
       securityContext:
         privileged: true
@@ -166,16 +168,16 @@ spec:
 
 Clearing the immutable flag is required: efivarfs marks variables immutable, so `unlink` fails without it.
 
-**The mount can come up read-only.** On one node of the v1.13.9 run, `mount -t efivarfs none /ev`
+The mount can come up read-only. On one node of the v1.13.9 run, `mount -t efivarfs none /ev`
 produced `ro,relatime` and the `FS_IOC_SETFLAGS` ioctl failed with `OSError: [Errno 30] Read-only
-file system` — after the script had already printed the current value, so it looks like a
+file system`, after the script had already printed the current value, so it looks like a
 permissions problem rather than a mount problem. The other two nodes mounted read-write from the
 same manifest, so this is not deterministic. Because the pod's script runs under `set -e`, a failed
-ioctl kills the whole script immediately — with `restartPolicy: Never` the pod lands `Failed` with
-no live container to exec a fix into, so the remount has to be unconditional and already in the
-manifest rather than a step run after the fact. The manifest above does this: it remounts
-read-write right after the initial mount, every time, regardless of whether the first mount came up
-read-write already.
+ioctl kills the whole script immediately, and with `restartPolicy: Never` the pod lands `Failed`
+with no live container to exec a fix into. The remount therefore has to be unconditional and
+already in the manifest rather than a step run after the fact. The manifest above does this: it
+remounts read-write right after the initial mount, every time, whether or not the first mount came
+up read-write.
 
 Then drain and reboot the node normally:
 
@@ -186,26 +188,26 @@ if kubectl drain <node> --ignore-daemonsets --delete-emptydir-data --force --tim
   # ~6 minutes of POST on this hardware, then:
   talosctl -n <node-ip> get bootedentry -o yaml   # -> talos-v1.13.7.efi
 
-  # Do not uncordon on the bootedentry check above — the node may still need a second,
+  # Do not uncordon on the bootedentry check above. The node may still need a second,
   # unprompted reboot before it settles on the target version (see "The fix may need two
   # boot cycles, but not always" below). Wait for the kubelet to report it instead:
   until kubectl get node <node> -o jsonpath='{.status.nodeInfo.osImage}' | grep -q '<target-version>'; do sleep 20; done
   kubectl uncordon <node>
 else
-  echo "drain failed: node stays cordoned — inspect before rebooting or uncordoning"
+  echo "drain failed, node stays cordoned. Inspect before rebooting or uncordoning"
 fi
 ```
 
-The `if` is load-bearing, and it guards the whole block, not just the reboot: if the drain times
-out, do **not** reboot through it, and do not let a pasted block fall through to the `uncordon`
-either — that would make a half-drained node schedulable again before you have looked. Check what is still
-`Terminating` and its `terminationGracePeriodSeconds` — a pod honouring a long, deliberate grace
-period (up to 1800s for a CloudNativePG instance) is not stuck, and rebooting through it is exactly
-what cost a database replica on the v1.13.9 run; see
+The `if` guards the whole block, not just the reboot. If the drain times out, do not reboot through
+it, and do not let a pasted block fall through to the `uncordon` either, because that makes a
+half-drained node schedulable again before you have looked. Check what is still `Terminating` and
+its `terminationGracePeriodSeconds`. A pod honouring a long, deliberate grace period (up to 1800s
+for a CloudNativePG instance) is not stuck, and rebooting through one is exactly what cost a
+database replica on the v1.13.9 run; see
 [Drain timeouts are grace periods, not stuck pods](#drain-timeouts-are-grace-periods-not-stuck-pods).
 Re-run the drain with `--timeout` sized to that grace period, then reboot.
 
-Wait for `HEALTH_OK` before starting the next node — see [KB-019](019-cordon-control-plane-breaks-ceph-mon-quorum.md), a cordoned control-plane node parks its affinity-pinned mon and OSDs in `Pending` and holds Ceph in `HEALTH_WARN` for as long as the cordon stands.
+Wait for `HEALTH_OK` before starting the next node. As [KB-019](019-cordon-control-plane-breaks-ceph-mon-quorum.md) explains, a cordoned control-plane node parks its affinity-pinned mon and OSDs in `Pending` and holds Ceph in `HEALTH_WARN` for as long as the cordon stands.
 
 Finally clear the failed CR so tuppr re-plans against reality:
 
@@ -216,17 +218,17 @@ flux reconcile ks tuppr-upgrades -n system-upgrade --with-source=false
 
 ### A node may self-correct, and can mislead you
 
-If the install happens to leave only new-version UKIs on the ESP, the stale default matches nothing, systemd-boot falls back to newest, and that node boots the new version unaided. One of the three did exactly this. Do not conclude from one healthy node that the fleet is fine — check `bootedentry` on every node.
+If the install happens to leave only new-version UKIs on the ESP, the stale default matches nothing, systemd-boot falls back to newest, and that node boots the new version unaided. One of the three did exactly this. Do not conclude from one healthy node that the fleet is fine. Check `bootedentry` on every node.
 
-On the v1.13.7 → v1.13.8 run, **none** of the three self-corrected. On the v1.13.8 → v1.13.9 run, two of three needed the workaround and the third did not — its variable happened to name the version being installed rather than the outgoing one, so the default pointed at the right UKI by luck. Plan for the workaround on every node regardless.
+On the v1.13.7 → v1.13.8 run, none of the three self-corrected. On the v1.13.8 → v1.13.9 run, two of three needed the workaround and the third did not. Its variable happened to name the version being installed rather than the outgoing one, so the default pointed at the right UKI by luck. Plan for the workaround on every node regardless.
 
 ### The fix may need two boot cycles, but not always
 
 On the v1.13.7 → v1.13.8 run, deleting `LoaderEntryDefault` and rebooting was not enough on its own: all three nodes came up on the old version on the first boot, then rebooted themselves unprompted a few minutes later onto the new one.
 
-**On the v1.13.8 → v1.13.9 run this did not happen** — every node reached the new version on the first boot, roughly seven minutes after the reboot. So treat the second cycle as possible rather than certain. The practical advice is unchanged: judge by the version the kubelet reports, never by how long it has been.
+On the v1.13.8 → v1.13.9 run this did not happen. Every node reached the new version on the first boot, roughly seven minutes after the reboot. So treat the second cycle as possible rather than certain. The practical advice is unchanged: judge by the version the kubelet reports, never by how long it has been.
 
-This matters because the obvious check — reading `bootedentry` as soon as the node is back — reports the old version and looks exactly like the fix having failed. It has not. Wait for the second boot before drawing any conclusion:
+This matters because the obvious check, reading `bootedentry` as soon as the node is back, reports the old version and looks exactly like the fix having failed. It has not. Wait for the second boot before drawing any conclusion:
 
 ```bash
 # Wait for the kubelet to report the TARGET version rather than eyeballing the first boot
@@ -234,17 +236,17 @@ until kubectl get node <node> -o jsonpath='{.status.nodeInfo.osImage}' | grep -q
 talosctl -n <node-ip> get bootedentry -o yaml   # only meaningful once the above returns
 ```
 
-Budget roughly 15 minutes per node — two POST cycles on this hardware — rather than one.
+Budget roughly 15 minutes per node (two POST cycles on this hardware) rather than one.
 
 ### Do not fix it by repointing the default
 
-Setting `LoaderEntryDefault` to the new version — for example by pressing `d` in the systemd-boot menu over IPMI — boots the node correctly today but leaves a default set, which recreates this trap on the next upgrade. **Deleting** it is what restores correct behaviour.
+Setting `LoaderEntryDefault` to the new version, for example by pressing `d` in the systemd-boot menu over IPMI, boots the node correctly today but leaves a default set, which recreates this trap on the next upgrade. Deleting it is what restores correct behaviour.
 
 ## `BootOrder` is not the lever it looks like
 
 The original open item 1 read "the real fix is to get a Talos UKI boot entry back into `BootOrder` so the firmware stops falling through to systemd-boot." That was based on a false premise, and the 2026-08-09 run disproved it. Recording the evidence so nobody spends a maintenance window on it.
 
-The entry was never missing. Every node has had it all along — it simply was not referenced by `BootOrder`:
+The entry was never missing. Every node has had it all along. It simply was not referenced by `BootOrder`:
 
 ```text
 BootCurrent: 0002
@@ -253,11 +255,11 @@ Boot0000* Talos Linux UKI  HD(1,GPT,…)/\EFI\boot\BOOTX64.efi
 Boot0002* UEFI OS          HD(1,GPT,…)/\EFI\BOOT\BOOTX64.EFI
 ```
 
-**Both entries point at the same file.** `Boot0000` is named "Talos Linux UKI" but its device path is the removable-media fallback `\EFI\boot\BOOTX64.efi` — systemd-boot — not a versioned UKI under `\EFI\Linux\`. Promoting it therefore changes nothing: the firmware hands control to systemd-boot either way, and systemd-boot picks the entry, so `LoaderEntryDefault` decides the boot no matter what `BootOrder` says.
+Both entries point at the same file. `Boot0000` is named "Talos Linux UKI" but its device path is the removable-media fallback `\EFI\boot\BOOTX64.efi` (systemd-boot), not a versioned UKI under `\EFI\Linux\`. Promoting it therefore changes nothing: the firmware hands control to systemd-boot either way, and systemd-boot picks the entry, so `LoaderEntryDefault` decides the boot no matter what `BootOrder` says.
 
-`BootOrder` was set to `0000,0002` on all three nodes anyway, since that matches what the installer intends when it logs `created Talos Linux UKI boot entry at index 0`, and it costs nothing. **It is not a fix**, and the node still booted via `Boot0002` afterwards. Do not treat it as one.
+`BootOrder` was set to `0000,0002` on all three nodes anyway, since that matches what the installer intends when it logs `created Talos Linux UKI boot entry at index 0`, and it costs nothing. It is not a fix, and the node still booted via `Boot0002` afterwards. Do not treat it as one.
 
-This can be done in-cluster — no BIOS or IPMI needed. Same privileged-pod trick as the deletion, with `efibootmgr` instead of hand-written bytes:
+This can be done in-cluster, with no BIOS or IPMI session. Same privileged-pod trick as the deletion, with `efibootmgr` instead of hand-written bytes:
 
 ```yaml
 # containers[0]: image alpine:3.22, securityContext.privileged: true
@@ -280,47 +282,47 @@ Because both entries resolve to the same loader, keeping `0002` in the list mean
 Four things the earlier text got wrong or did not cover. Recorded here rather than silently
 rewritten above, because knowing a claim was reversed is worth more than a clean document.
 
-- **The pre-flight check is not predictive.** `LoaderEntryDefault` was absent on all three nodes
+- The pre-flight check is not predictive. `LoaderEntryDefault` was absent on all three nodes
   twenty minutes before the upgrade, and was written during the upgrade boot anyway. Reading the
   variable beforehand tells you nothing about whether the trap will spring; it only tells you
-  whether it is armed *right now*. Do not use a clean pre-flight to skip the workaround.
-- **The default tracks the last booted entry**, which is the mechanism rather than a curiosity.
-  A node that booted correctly onto the new version had the variable recreated naming that new
-  version within a minute. That is harmless today and is exactly what breaks the *next* upgrade.
-- **One boot cycle was enough on every node**, contradicting the two-cycle rule from the previous
-  run. See the section above.
-- **The efivarfs mount can be read-only.** See the remount note in the fix.
+  whether it is armed right now. Do not use a clean pre-flight to skip the workaround.
+- The default tracks the last booted entry, which is the mechanism rather than a curiosity. A node
+  that booted correctly onto the new version had the variable recreated naming that new version
+  within a minute. That is harmless today and is exactly what breaks the next upgrade.
+- One boot cycle was enough on every node, contradicting the two-cycle rule from the previous run.
+  See the section above.
+- The efivarfs mount can be read-only. See the remount note in the fix.
 
 ### Drain timeouts are grace periods, not stuck pods
 
 The runbook blames stuck-`Terminating` pods for failed drains. On this run both drain failures were
 ordinary pods honouring long, deliberate grace periods:
 
-| Workload | `terminationGracePeriodSeconds` |
-| --- | --- |
-| CloudNativePG instance | 1800 |
-| Flux helm-controller | 600 |
-| Envoy gateway | 480 |
-| Plex | 300 |
+| Workload               | `terminationGracePeriodSeconds` |
+| ---------------------- | ------------------------------- |
+| CloudNativePG instance | 1800                            |
+| Flux helm-controller   | 600                             |
+| Envoy gateway          | 480                             |
+| Plex                   | 300                             |
 
 A `--timeout=7m` drain cannot succeed against a 1800s CloudNativePG pod, and `talosctl upgrade`'s
-own drain hit the same wall on a 300s one. Nothing was wedged — the pods were shutting down
+own drain hit the same wall on a 300s one. Nothing was wedged. The pods were shutting down
 correctly and the timeout was simply shorter than the contract.
 
-Two consequences:
-
-- **Gate the reboot on the drain's exit status.** Rebooting through a failed drain cost a
-  CloudNativePG replica on this run. No data was lost — the primary was on another node — but the
-  ghost pod then sat `Terminating` until it was force-deleted, holding the cluster at 2/3.
-- **CloudNativePG switches the primary over by itself** under `primaryUpdateStrategy: unsupervised`.
-  When the drain reached the node holding the primary it promoted a replica cleanly and the drain
-  completed. Do not pre-empt it by deleting the primary pod.
+Two consequences follow. Gate the reboot on the drain's exit status: rebooting through a failed
+drain cost a CloudNativePG replica on this run. No data was lost, because the primary was on
+another node, but the ghost pod then sat `Terminating` until it was force-deleted, holding the
+cluster at 2/3. And leave CloudNativePG to switch the primary over by itself, which it does under
+`primaryUpdateStrategy: unsupervised`: when the drain reached the node holding the primary it
+promoted a replica cleanly and the drain completed. Deleting the primary pod to hurry it along only
+gets in the way.
 
 ### Clear the CR before scaling the controller down
 
-The cleanup below deletes the `TalosUpgrade` CR. If the tuppr controller has already been scaled to
-zero, that delete **hangs forever** on `tuppr.home-operations.com/talos-finalizer` with nothing left
-to process it. Either clear the CR first, or scale the controller back up to release it:
+The cleanup step in the fix deletes the `TalosUpgrade` CR. If the tuppr controller has already been
+scaled to zero, that delete hangs forever on `tuppr.home-operations.com/talos-finalizer` with
+nothing left to process it. Either clear the CR first, or scale the controller back up to release
+it:
 
 ```sh
 kubectl scale deploy tuppr -n system-upgrade --replicas=2
@@ -328,12 +330,12 @@ kubectl scale deploy tuppr -n system-upgrade --replicas=2
 
 ## Open items
 
-1. **Identify what writes `LoaderEntryDefault`.** Still the whole ballgame. The v1.13.9 run narrowed it considerably: the variable is recreated at boot naming the entry that was just booted, on at least one node, within a minute of coming up. It is therefore not the installer writing it backwards. After the v1.13.9 upgrade the variable is **absent on two nodes and present on the third**, naming v1.13.9 — so that node's next upgrade is already armed and the other two are not. Whatever the writer is, it is not uniform across identical hardware, which is the most useful clue so far.
-2. Because the workaround is applied after the fact, a tuppr-driven upgrade will always fail its first node and stop the batch. Budget for driving the rest by hand. Note that tuppr stops cleanly after the first failure rather than marching on, so the blast radius is one node. The v1.13.9 run took roughly an hour for three nodes, most of it waiting for Ceph to return to `HEALTH_OK` between each.
+1. Identify what writes `LoaderEntryDefault`. This is still the central question. The v1.13.9 run narrowed it considerably: the variable is recreated at boot naming the entry that was just booted, on at least one node, within a minute of coming up. It is therefore not the installer writing it backwards. After the v1.13.9 upgrade the variable is absent on two nodes and present on the third, naming v1.13.9, so that node's next upgrade is already armed and the other two are not. Whatever the writer is, it is not uniform across identical hardware, which is the most useful clue so far.
+2. Because the workaround is applied after the fact, a tuppr-driven upgrade will always fail its first node and stop the batch. Budget for driving the rest by hand. tuppr stops cleanly after the first failure rather than marching on, so the blast radius is one node. The v1.13.9 run took roughly an hour for three nodes, most of it waiting for Ceph to return to `HEALTH_OK` between each.
 
 ## References
 
-- KB-004 — [Talos Patch Rollout Gotchas (TUPPR)](004-talos-patch-rollout-gotchas-tuppr.md), the other reason an upgrade leaves a node on the old version
-- KB-019 — [Cordoning a Control-Plane Node Breaks Ceph Mon Quorum](019-cordon-control-plane-breaks-ceph-mon-quorum.md)
-- #3552 — the LUKS2 slot-1 fallback key, which documents the BIOS key-wipe behaviour that triggers this
+- KB-004, [Talos Patch Rollout Gotchas (TUPPR)](004-talos-patch-rollout-gotchas-tuppr.md): the other reason an upgrade leaves a node on the old version
+- KB-019, [Cordoning a Control-Plane Node Breaks Ceph Mon Quorum](019-cordon-control-plane-breaks-ceph-mon-quorum.md)
+- #3552: the LUKS2 slot-1 fallback key, which documents the BIOS key-wipe behaviour that triggers this
 - systemd-boot variables: <https://systemd.io/BOOT_LOADER_INTERFACE/>
