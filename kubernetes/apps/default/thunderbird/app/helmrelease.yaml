@@ -1,0 +1,86 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: thunderbird
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: thunderbird
+  values:
+    controllers:
+      thunderbird:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        containers:
+          app:
+            image:
+              repository: ghcr.io/linuxserver/thunderbird
+              tag: 1140.15.0@sha256:cb5bb11164aa13d9708fbb813c4dec20e4eaad6891d11f978c510d6d61afb4fb
+            env:
+              TZ: ${TIMEZONE}
+              PUID: "1000"
+              PGID: "1000"
+              # The desktop ships a terminal with passwordless sudo. This
+              # container holds a signed-in mail session, so both are removed.
+              DISABLE_SUDO: "true"
+              DISABLE_TERMINALS: "true"
+              # Relaunch Thunderbird if it is ever closed. Without this the
+              # window can be shut from the desktop and mail sync stops with
+              # the pod still Running and the web UI still answering.
+              RESTART_APP: "true"
+            envFrom:
+              - secretRef:
+                  name: thunderbird-secret
+            probes:
+              liveness: &probes
+                enabled: true
+                custom: true
+                spec:
+                  tcpSocket:
+                    port: &port 3000
+                  initialDelaySeconds: 30
+                  periodSeconds: 30
+                  timeoutSeconds: 5
+                  failureThreshold: 5
+              readiness: *probes
+            resources:
+              requests:
+                cpu: 100m
+                memory: 1Gi
+              limits:
+                memory: 3Gi
+    defaultPodOptions:
+      securityContext:
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile: { type: RuntimeDefault }
+    service:
+      app:
+        controller: thunderbird
+        ports:
+          http:
+            port: *port
+    route:
+      app:
+        annotations:
+          # Basic auth fronts the desktop, so an unauthenticated probe is
+          # answered with 401. That response is the healthy one here.
+          gatus.home-operations.com/endpoint: |
+            conditions: ["[STATUS] == 401"]
+        hostnames:
+          - "{{ .Release.Name }}.${SECRET_DOMAIN}"
+        parentRefs:
+          - name: envoy-internal
+            namespace: network
+    persistence:
+      config:
+        existingClaim: "{{ .Release.Name }}"
+      dshm:
+        type: emptyDir
+        medium: Memory
+        sizeLimit: 512Mi
+        globalMounts:
+          - path: /dev/shm

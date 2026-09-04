@@ -64,6 +64,7 @@ resources:
   - ./bentopdf/ks.yaml
   - ./tandoor/ks.yaml
   - ./termix/ks.yaml
+  - ./thunderbird/ks.yaml
   - ./universal/ks.yaml
   - ./uptimekuma/ks.yaml
   - ./wallos/ks.yaml
