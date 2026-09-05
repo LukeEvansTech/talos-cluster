@@ -1961,7 +1961,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "sum by (indexer) (rate(prowlarr_indexer_queries_total{job=\"seedbox-prowlarr\"}[$__rate_interval])) * 3600",
+          "expr": "sum by (indexer) (rate(prowlarr_indexer_queries_total{job=\"seedbox-prowlarr\"}[5m])) * 3600",
           "legendFormat": "{{ indexer }} queries/h",
           "range": true,
           "refId": "A"
@@ -1972,7 +1972,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "sum by (indexer) (rate(prowlarr_indexer_grabs_total{job=\"seedbox-prowlarr\"}[$__rate_interval])) * 3600",
+          "expr": "sum by (indexer) (rate(prowlarr_indexer_grabs_total{job=\"seedbox-prowlarr\"}[5m])) * 3600",
           "legendFormat": "{{ indexer }} grabs/h",
           "range": true,
           "refId": "B"
