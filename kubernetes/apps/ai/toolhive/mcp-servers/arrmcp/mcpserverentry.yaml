@@ -1,0 +1,25 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/toolhive.stacklok.dev/mcpserverentry_v1alpha1.json
+# Registers the externally-deployed arrmcp app (kubernetes/apps/ai/arrmcp) into
+# the mcp-tools group so it reaches the VirtualMCPServer aggregate. LiteLLM
+# talks to it directly via its own LiteLLMMCPServer; this entry is what puts it
+# behind vmcp-mcp-gateway.
+apiVersion: toolhive.stacklok.dev/v1alpha1
+kind: MCPServerEntry
+metadata:
+  name: arrmcp
+spec:
+  # ToolHive rejects a remoteUrl host containing "cluster.local" unless
+  # allowPrivateEndpoint is set; the short svc.ns form resolves the same
+  # address and is accepted as-is, matching the searxng entry.
+  remoteUrl: http://arrmcp.ai:6060/mcp
+  transport: streamable-http
+  headerForward:
+    # Injected verbatim, which is why the secret holds the "Bearer " prefix.
+    addHeadersFromSecret:
+      - headerName: Authorization
+        valueSecretRef:
+          name: arrmcp-secret
+          key: ARR_MCP_AUTHORIZATION
+  groupRef:
+    name: mcp-tools
