@@ -235,11 +235,9 @@ spec:
   # against one repo for four hours, with backups still succeeding and every
   # existing metric still green.
   #
-  # The endpoint needs BOTH a credential and a firewall rule. It is auth-gated,
-  # and backrest runs with host networking, so its bind is subject to the host's
-  # nftables input chain rather than reaching it through docker's DNAT the way
-  # every bridge-network exporter here does — it needed an explicit accept that
-  # had been declared in the box's provisioning file but never applied to it.
+  # The endpoint is auth-gated, hence basicAuth below. Reaching it also has a
+  # host-side prerequisite that this repository deliberately does not describe;
+  # it is documented in the private repository that provisions the host.
   staticConfigs:
     - targets:
         - seedbox.observability.svc.cluster.local:9898
