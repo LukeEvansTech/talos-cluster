@@ -74,7 +74,7 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
-      "description": "7-day in+out volume on eno0 extrapolated to 30 days. Prometheus retention is 14d so a calendar-month sum is not computable; vnstat on the box is the authoritative monthly counter. Seedhost counts BOTH directions against the 100 TB/mo cap (1 TB = 1e12 bytes, provider-style).",
+      "description": "Projected calendar-month total from vnStat, the authoritative counter against Seedhost's 100 TB cap. Was extrapolated from node_network_*_bytes_total, which resets on every reboot (zincati reboots this box weekly) and is bounded by 14d retention, so it systematically under-reported.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -132,7 +132,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "(increase(node_network_receive_bytes_total{job=\"seedbox-node\",device=\"eno0\"}[7d]) + increase(node_network_transmit_bytes_total{job=\"seedbox-node\",device=\"eno0\"}[7d])) * 30 / 7",
+          "expr": "(vnstat_month_total_bytes{job=\"seedbox-node\",interface=\"eno0\"} / clamp_min(time() - vnstat_month_start_timestamp_seconds{job=\"seedbox-node\",interface=\"eno0\"}, 3600)) * 2592000",
           "legendFormat": "30-day pace",
           "range": true,
           "refId": "A"
@@ -146,7 +146,7 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
-      "description": "Total in+out traffic on eno0 over the last 14 days (full Prometheus retention window).",
+      "description": "Actual bytes used this calendar month, both directions, from vnStat's own database \u2014 survives reboots and Prometheus retention.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -196,13 +196,13 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "increase(node_network_receive_bytes_total{job=\"seedbox-node\",device=\"eno0\"}[14d]) + increase(node_network_transmit_bytes_total{job=\"seedbox-node\",device=\"eno0\"}[14d])",
+          "expr": "vnstat_month_total_bytes{job=\"seedbox-node\",interface=\"eno0\"}",
           "legendFormat": "14d in+out",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "14d cumulative traffic",
+      "title": "Month to date (vnStat)",
       "type": "stat"
     },
     {
@@ -1637,6 +1637,301 @@
       ],
       "title": "Top earners \u2014 lifetime upload",
       "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "description": "Emptying the bin frees only the reclaimable series. cross-seed hardlinks reach from the bin into the live library, so deleting the bin's copy of those inodes frees nothing \u2014 measured at roughly half the footprint. Reading du as headroom overstates it by ~2x.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 48
+      },
+      "id": 18,
+      "options": {},
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "recyclebin_reclaimable_bytes{job=\"seedbox-node\"}",
+          "legendFormat": "reclaimable",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "recyclebin_pinned_bytes{job=\"seedbox-node\"}",
+          "legendFormat": "pinned by a live hardlink",
+          "range": true,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "recyclebin_footprint_bytes{job=\"seedbox-node\"}",
+          "legendFormat": "footprint (what du reports)",
+          "range": true,
+          "refId": "C"
+        }
+      ],
+      "title": "RecycleBin \u2014 reclaimable vs pinned",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "description": "The component behind the 2026-08-25 incident that left 40 torrents in missingFiles. It had no metrics at all until 2026-09-05; diagnosis was grepping the log.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 48
+      },
+      "id": 19,
+      "options": {},
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "qbm_last_run_deleted{job=\"seedbox-node\"}",
+          "legendFormat": "deleted (last run)",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "qbm_deleted_today{job=\"seedbox-node\"}",
+          "legendFormat": "deleted (today)",
+          "range": true,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "qbm_last_run_tagged{job=\"seedbox-node\"}",
+          "legendFormat": "tagged (last run)",
+          "range": true,
+          "refId": "C"
+        }
+      ],
+      "title": "qbit-manage \u2014 culls",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "description": "Injections against the work done to get them. A high search count with near-zero injections is a tracker problem, not a cross-seed one. Sustained auth failures mean a tracker session has expired.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 48
+      },
+      "id": 20,
+      "options": {},
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "cross_seed_injected_today{job=\"seedbox-node\"}",
+          "legendFormat": "injected today",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "cross_seed_searches_today{job=\"seedbox-node\"}",
+          "legendFormat": "searches today",
+          "range": true,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "cross_seed_errors_today{job=\"seedbox-node\",kind=\"unauthorized\"}",
+          "legendFormat": "auth failures",
+          "range": true,
+          "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "cross_seed_errors_today{job=\"seedbox-node\",kind=\"rate_limited\"}",
+          "legendFormat": "rate limited",
+          "range": true,
+          "refId": "D"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "cross_seed_pending_files{job=\"seedbox-node\"}",
+          "legendFormat": "pending pile",
+          "range": true,
+          "refId": "E"
+        }
+      ],
+      "title": "cross-seed \u2014 yield and failures",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "description": "qBittorrent 5 keeps torrent metadata only in torrents.db. This is the format-independent copy that makes a corrupt database recoverable. 'uncovered' above zero means a torrent has no exported .torrent.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 56
+      },
+      "id": 21,
+      "options": {},
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "qbt_torrent_export_files_total{job=\"seedbox-node\"}",
+          "legendFormat": "exported .torrent files",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "qbt_torrents_total{job=\"seedbox-node\"}",
+          "legendFormat": "torrents in client",
+          "range": true,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "qbt_torrent_export_missing_total{job=\"seedbox-node\"}",
+          "legendFormat": "uncovered (should be 0)",
+          "range": true,
+          "refId": "C"
+        }
+      ],
+      "title": "Torrent metadata backup",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "description": "`issue` is applied when a tracker errors and rises before any ratio moves, so it is the earliest warning that a tracker is going bad.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 56
+      },
+      "id": 22,
+      "options": {},
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "qbt_torrents_by_tag{job=\"seedbox-node\"}",
+          "legendFormat": "{{tag}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Torrents by qbit-manage tag",
+      "type": "timeseries"
     }
   ],
   "refresh": "30s",

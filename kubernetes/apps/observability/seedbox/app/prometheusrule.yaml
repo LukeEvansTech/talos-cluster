@@ -170,17 +170,33 @@ spec:
         # These are PACE alerts: 7-day in+out volume extrapolated to 30 days.
         # Under-reads until the series has 7d of history (and after series
         # churn); vnstat covers the gap.
-        # vnstat on the box is the authoritative calendar-month counter
-        # (docker exec vnstat vnstat -i eno0 -m). Seedhost counts BOTH directions
-        # against the 100 TB/mo cap. 1 TB here = 1e12 bytes (decimal, provider-style).
+        # vnstat is the AUTHORITATIVE calendar-month counter against Seedhost's
+        # 100 TB/mo cap, and since 2026-09-05 it is scraped rather than read by
+        # hand: apps/vnstat publishes vnstat_month_* into node-exporter's
+        # textfile dir, so these ride the existing seedbox-node job.
+        #
+        # These rules used to extrapolate from
+        # increase(node_network_*_bytes_total[7d]) * 30/7, which was wrong in a
+        # way that always UNDER-reported. That counter resets to zero on every
+        # reboot, and zincati reboots this box weekly for OS updates, so a 7-day
+        # window routinely contained a reset and the pace was computed from a
+        # partial week. It was also bounded by 14d retention. vnstat keeps its
+        # own SQLite database, so it survives both.
+        #
+        # Seedhost counts BOTH directions, hence month_total. 1 TB = 1e12 bytes
+        # (decimal, provider-style). Projection is rate-so-far x 30 days, the
+        # same shape the old rules used, so the thresholds stay comparable.
         - alert: SeedboxTrafficPaceCritical
           annotations:
             summary: "Seedbox on pace for {{ $value | humanize }}B/mo, 100 TB cap at risk."
           expr: |-
             (
-              increase(node_network_receive_bytes_total{job="seedbox-node",device="eno0"}[7d])
-              + increase(node_network_transmit_bytes_total{job="seedbox-node",device="eno0"}[7d])
-            ) * 30 / 7 > 95e12
+              vnstat_month_total_bytes{job="seedbox-node",interface="eno0"}
+              / clamp_min(
+                  time() - vnstat_month_start_timestamp_seconds{job="seedbox-node",interface="eno0"},
+                  3600
+                )
+            ) * 2592000 > 95e12
           for: 6h
           labels:
             severity: critical
@@ -189,10 +205,45 @@ spec:
             summary: "Seedbox on pace for {{ $value | humanize }}B/mo (warn at 80 TB/mo pace)."
           expr: |-
             (
-              increase(node_network_receive_bytes_total{job="seedbox-node",device="eno0"}[7d])
-              + increase(node_network_transmit_bytes_total{job="seedbox-node",device="eno0"}[7d])
-            ) * 30 / 7 > 80e12
+              vnstat_month_total_bytes{job="seedbox-node",interface="eno0"}
+              / clamp_min(
+                  time() - vnstat_month_start_timestamp_seconds{job="seedbox-node",interface="eno0"},
+                  3600
+                )
+            ) * 2592000 > 80e12
           for: 6h
+          labels:
+            severity: warning
+        # Absolute, not a projection. A pace rule cannot fire on the 28th when
+        # the month is nearly over however much has been used, because the
+        # remaining days cannot change the extrapolation enough. This one keys
+        # on bytes actually spent.
+        - alert: SeedboxTrafficCapNear
+          annotations:
+            summary: "Seedbox has used {{ $value | humanize }}B this month of a 100 TB cap."
+          expr: |-
+            vnstat_month_total_bytes{job="seedbox-node",interface="eno0"} > 85e12
+          for: 30m
+          labels:
+            severity: critical
+        # The cap metric going stale is itself a fault: without it the rules
+        # above silently stop evaluating rather than firing. clamp_min above
+        # guards the first hour of a month; this guards the collector.
+        #
+        # NOTE the freshness term is load-bearing, not belt-and-braces.
+        # node-exporter keeps serving a textfile after whatever writes it has
+        # died, so vnstat_up would sit at its last value of 1 and
+        # vnstat_month_total_bytes would stay present — the two obvious
+        # conditions both stay false for ever while the cap counter is frozen.
+        # The exported success timestamp is the only term that actually notices.
+        - alert: SeedboxVnstatCollectorDown
+          annotations:
+            summary: "Seedbox vnstat collector unhealthy or stale - the 100 TB cap metric is frozen."
+          expr: |-
+            vnstat_up{job="seedbox-node"} == 0
+            or absent(vnstat_month_total_bytes{job="seedbox-node",interface="eno0"})
+            or (time() - vnstat_last_success_timestamp_seconds{job="seedbox-node"} > 3600)
+          for: 1h
           labels:
             severity: warning
         # Both rules below were STRUCTURALLY DEAD until 2026-07-30. They selected
@@ -460,3 +511,99 @@ spec:
           for: 10m
           labels:
             severity: warning
+        # --- Metadata backup and the collector behind it (added 2026-09-05) ---
+        #
+        # apps/torrent-backup keeps a format-independent copy of every .torrent
+        # plus a manifest, because qBittorrent 5 stores torrent metadata ONLY in
+        # torrents.db and a corrupt database would leave no way to re-add ~2,900
+        # torrents. These alerts exist because a backup nobody watches is a
+        # backup nobody has.
+        - alert: SeedboxTorrentBackupFailing
+          annotations:
+            summary: "Seedbox .torrent export failing - the metadata backup is not being updated."
+          expr: |-
+            qbt_torrent_export_exit_code{job="seedbox-node"} != 0
+          for: 2h
+          labels:
+            severity: warning
+        # missing > 0 means a torrent in the client has NO .torrent on disk, i.e.
+        # it is genuinely uncovered. Transient during a backfill or when a cull
+        # lands mid-run, which is why this waits 6h rather than firing on the
+        # single-run value.
+        - alert: SeedboxTorrentBackupIncomplete
+          annotations:
+            summary: "{{ $value }} seedbox torrents have no exported .torrent - metadata backup incomplete."
+          expr: |-
+            qbt_torrent_export_missing_total{job="seedbox-node"} > 0
+          for: 6h
+          labels:
+            severity: warning
+        # A stale backup that still reports exit_code 0 is the failure this
+        # catches: the process could be wedged rather than erroring.
+        - alert: SeedboxTorrentBackupStale
+          annotations:
+            summary: "Seedbox .torrent export has not succeeded for {{ $value | humanizeDuration }}."
+          expr: |-
+            time() - qbt_torrent_export_last_success_timestamp_seconds{job="seedbox-node"} > 21600
+          for: 30m
+          labels:
+            severity: warning
+        # --- The collector for qbit-manage / cross-seed / RecycleBin / tags ---
+        # Same three-term shape and for the same reason: a bare `== 0` yields an
+        # empty vector if the series disappears entirely, and a served-but-stale
+        # textfile keeps reporting 1. The node-exporter endpoint stays healthy
+        # throughout, so SeedboxScrapePathDegraded does not cover either case.
+        - alert: SeedboxMetricsCollectorDegraded
+          annotations:
+            summary: "Seedbox metrics collector unhealthy, missing or stale - qbit-manage/cross-seed/RecycleBin metrics frozen."
+          expr: |-
+            seedbox_metrics_up{job="seedbox-node"} == 0
+            or absent(seedbox_metrics_up{job="seedbox-node"})
+            or (time() - seedbox_metrics_last_success_timestamp_seconds{job="seedbox-node"} > 3600)
+          for: 1h
+          labels:
+            severity: warning
+        # qbit-manage runs hourly and takes ~13 minutes. Nothing in the log for
+        # three hours means it has stopped culling, which is how the array
+        # quietly fills. It had NO metrics at all before 2026-09-05.
+        - alert: SeedboxQbitManageStalled
+          annotations:
+            summary: "qbit-manage has logged nothing for {{ $value | humanizeDuration }} - culling may have stopped."
+          expr: |-
+            time() - qbm_last_log_timestamp_seconds{job="seedbox-node"} > 10800
+          for: 30m
+          labels:
+            severity: warning
+        # A tracker session that has expired fails EVERY snatch from it, silently
+        # — cross-seed logs it and nothing else noticed. Live example the day
+        # this shipped: MyAnonamouse returning 401 on every attempt.
+        #
+        # CALIBRATION MATTERS HERE, and the obvious threshold was wrong. A
+        # totally broken tracker produces only ~10 of these a day, because
+        # cross-seed retries a release five times and then gives up on that
+        # tracker for a while — the count is bounded by how many releases were
+        # announced, not by how broken the session is. A "2x observed" threshold
+        # of 20 would therefore never fire for the exact fault it exists to
+        # catch. A healthy day is 0, so the floor is what matters, not the
+        # ceiling. The counter is per-day and resets at midnight.
+        - alert: SeedboxCrossSeedTrackerAuthFailing
+          annotations:
+            summary: "cross-seed has hit {{ $value }} tracker auth failures today - a session has likely expired."
+          expr: |-
+            cross_seed_errors_today{job="seedbox-node", kind="unauthorized"} > 3
+          # 15m, NOT hours. This counter only rises until it resets at midnight,
+          # so a long `for` does not establish that failures are ongoing — it
+          # just delays the alert, and worse, a threshold crossed late in the
+          # evening would have its pending alert wiped by the midnight reset
+          # before it ever fired. The threshold itself is the condition; this is
+          # only debounce against a scrape blip.
+          for: 15m
+          labels:
+            severity: warning
+            # Deliberately NOT alerting on kind="rate_limited": 429s are a tracker
+            # throttling a sweep, not a fault, and 30 in a day is normal here.
+            # Deliberately NOT alerting on RecycleBin size either: it is on a 3-day
+            # timer by design, and the number that matters
+            # (recyclebin_reclaimable_bytes) is only ~45% of the footprint because
+            # cross-seed hardlinks pin the rest into live content. Graph it, do not
+            # page on it.
