@@ -2067,6 +2067,93 @@
       ],
       "title": "Prowlarr \u2014 indexer failures and latency",
       "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "description": "Per-task outcome from backrest itself: 0 is success, 1 is failure. The textfile leg only ever reported the BACKUP operation, so this is the only place a failing forget, prune or check shows up \u2014 the failure mode where backups keep landing and green while retention quietly stops being applied.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "unit": "short",
+          "max": 1,
+          "min": 0
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 72
+      },
+      "id": 25,
+      "options": {},
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "backrest_last_task_status{job=\"seedbox-backrest\"}",
+          "legendFormat": "{{ repo_id }}/{{ plan_id }} {{ task_type }}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "backrest \u2014 task outcome (1 = failed)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "description": "What each backup leg actually wrote. bytes_added is new data committed to the repository and is what drives repository growth and the R2 bill; bytes_processed is what was read to produce it. A sustained collapse in bytes_added while processed stays flat means deduplication is doing the work \u2014 a jump in both means something large entered the backup set.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 72
+      },
+      "id": 26,
+      "options": {},
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "backrest_backup_bytes_added{job=\"seedbox-backrest\"}",
+          "legendFormat": "{{ repo_id }} added",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "backrest_backup_bytes_processed{job=\"seedbox-backrest\"}",
+          "legendFormat": "{{ repo_id }} processed",
+          "range": true,
+          "refId": "B"
+        }
+      ],
+      "title": "backrest \u2014 bytes added and processed",
+      "type": "timeseries"
     }
   ],
   "refresh": "30s",

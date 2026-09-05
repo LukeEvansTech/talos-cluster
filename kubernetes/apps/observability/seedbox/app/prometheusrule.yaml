@@ -638,3 +638,33 @@ spec:
           for: 30m
           labels:
             severity: warning
+        # --- backrest (job seedbox-backrest, added 2026-09-05) -----------------
+        # The node-exporter textfile leg publishes the BACKUP operation's exit
+        # code and last-success time and nothing else, so a failing forget,
+        # prune or check was invisible by construction: backups kept landing,
+        # every existing metric stayed green, and retention silently stopped
+        # being applied. That is not hypothetical — wiring this endpoint up
+        # found exactly that state in progress, a stale restic lock that had
+        # failed all three against one repo for four hours.
+        #
+        # The threshold needs no guessing: 0 is success and 1 is failure, for
+        # every task type. Both the value and the status label are matched on
+        # purpose. They are redundant today, which is the point: if upstream
+        # ever changes one encoding, this stops matching rather than quietly
+        # inverting into an alert that fires on healthy tasks.
+        #
+        # 2h is chosen against the schedules, not picked round. forget runs
+        # hourly, so 2h means two consecutive failures rather than one blip;
+        # check and prune run weekly, so a real failure there persists and
+        # fires at 2h regardless. ⚠️ A failed check or prune does NOT retry for
+        # 7 days — backrest schedules them from the last run time, failed or
+        # not — so this alert staying up is the only thing between a failure
+        # and a week of an unverified, unpruned repository.
+        - alert: SeedboxBackrestTaskFailing
+          annotations:
+            summary: "backrest {{ $labels.task_type }} failing for {{ $labels.plan_id }} on repo {{ $labels.repo_id }} - backups may still succeed while retention and integrity checks do not."
+          expr: |-
+            backrest_last_task_status{job="seedbox-backrest", status="failed"} == 1
+          for: 2h
+          labels:
+            severity: warning

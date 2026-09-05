@@ -220,3 +220,41 @@ spec:
     # into metric labels. `instance` above already names the source.
     - action: labeldrop
       regex: url
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/scrapeconfig_v1alpha1.json
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: ScrapeConfig
+metadata:
+  name: &name seedbox-backrest
+spec:
+  # backrest's own metrics (:9898). This is the only source of per-task outcome
+  # for the backup engine: the node-exporter textfile leg publishes the BACKUP
+  # operation's exit code and last-success time, and nothing else, so a failing
+  # forget, prune or check was invisible by construction. Wiring this up
+  # immediately surfaced a stale restic lock that had been failing all three
+  # against one repo for four hours, with backups still succeeding and every
+  # existing metric still green.
+  #
+  # The endpoint is auth-gated, hence basicAuth below. Reaching it also has a
+  # host-side prerequisite that this repository deliberately does not describe;
+  # it is documented in the private repository that provisions the host.
+  staticConfigs:
+    - targets:
+        - seedbox.observability.svc.cluster.local:9898
+  metricsPath: /metrics
+  basicAuth:
+    username:
+      name: seedbox-backrest-secret
+      key: username
+    password:
+      name: seedbox-backrest-secret
+      key: password
+  scrapeInterval: 60s
+  scrapeTimeout: 30s # tailnet-egress scrapes are slow; 30s stops false up=0 (see node job)
+  relabelings:
+    - action: replace
+      targetLabel: job
+      replacement: *name
+    - action: replace
+      targetLabel: instance
+      replacement: seedbox
