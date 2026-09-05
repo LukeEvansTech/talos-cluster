@@ -1,11 +1,11 @@
-# KB-020: App Returns 404 Through the Gateway (HTTPRoute Drifted to Placeholder Hostnames)
+# KB-020: App returns 404 through the gateway (HTTPRoute drifted to placeholder hostnames)
 
 **Status:** Structurally fixed 2026-08-03: the placeholder Secret now carries
 `kustomize.toolkit.fluxcd.io/ssa: IfNotPresent`, which stops the **recurring**,
 every-reconcile version of the race below. A narrower window is still open on a fresh
 bootstrap, a newly-added namespace, or an existing namespace whose `cluster-secrets`
 Secret has been deleted (the next reconcile re-enters the same first-creation path),
-before ExternalSecret's first sync completes — only partly mitigated there by the
+before ExternalSecret's first sync completes, only partly mitigated there by the
 placeholder values (see Structural fix), not eliminated.
 Objects that drifted *before* the fix stay drifted until remediated per-app (see Fix).
 
@@ -107,7 +107,7 @@ ExternalSecret's first sync, so a fresh bootstrap, a newly-added namespace, or a
 whose `cluster-secrets` Secret was deleted can still render the placeholder into an app's
 manifests in the window before ESO writes the real values. The newer placeholder values
 are deliberately dead (TEST-NET-1 addresses) so that window *fails loudly* if it is ever
-hit — but that is not true of all of them: the older service-address placeholders are
+hit. That is not true of all of them: the older service-address placeholders are
 ordinary RFC1918 values and the hostnames are `example.com`, both of which are routable
 and can quietly select a plausible wrong destination (an external-dns target, a
 load-balancer address, an outbound policy). Treat the fail-loud property as partial until

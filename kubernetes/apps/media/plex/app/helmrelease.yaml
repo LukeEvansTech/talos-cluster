@@ -40,7 +40,7 @@ spec:
               TZ: "${TIMEZONE}"
               PLEX_NO_AUTH_NETWORKS: "${CR_LAN_CIDR:-0.0.0.0/0},${GH_LAN_CIDR:-0.0.0.0/0}"
               # Note: everything here is published to plex.tv as a candidate connection
-              # (KB-003) — the svc URL is unresolvable off-cluster and skipped fast by
+              # (KB-003). The svc URL is unresolvable off-cluster and skipped fast by
               # clients, but gives the ~10 in-cluster companions a direct, non-hairpin path.
               PLEX_ADVERTISE_URL: "http://${SVC_PLEX_ADDR:-127.0.0.1}:32400,https://plex.${SECRET_DOMAIN:-local}:443,http://plex.media.svc.cluster.local:32400"
               PLEX_PREFERENCE_1: "AllowMediaDeletion=0"
@@ -95,7 +95,7 @@ spec:
               limits:
                 nvidia.com/gpu: 1
                 memory: 16Gi
-          # Plex only logs to files, never stdout — tail the main log so the
+          # Plex only logs to files, never stdout, tail the main log so the
           # VictoriaLogs collector ships it like every other app. The Logs dir is
           # an emptyDir (config-logs) already globalMounted into all containers.
           logs:
@@ -168,7 +168,7 @@ spec:
           - name: envoy-external
             namespace: network
         rules:
-          # Strip Range on external-subtitle fetches — SRT subtitles break through a
+          # Strip Range on external-subtitle fetches, SRT subtitles break through a
           # reverse proxy otherwise.
           # Ref: https://forums.plex.tv/t/external-srt-subtitles-are-not-working-w-reverse-proxy/886540
           - matches:
@@ -188,7 +188,7 @@ spec:
               backendRequest: 0s
           # Plex needs long-lived connections beyond Envoy's default route timeout:
           # transcode decisions can take >15s, streams run for hours, and
-          # /:/eventsource/notifications is an SSE stream held open all session —
+          # /:/eventsource/notifications is an SSE stream held open all session.
           # Envoy otherwise returns 504 "upstream request timeout". 0s disables it.
           - matches:
               - path:

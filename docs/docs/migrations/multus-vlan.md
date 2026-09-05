@@ -1,11 +1,11 @@
-# Multus VLAN Migration Guide
+# Multus VLAN migration guide
 
 !!! note "Completed migration"
     This page is a record of a migration that is already complete. The steps below are preserved as history; some current-state paths, names, and commands have since drifted. Commands and paths flagged in review are corrected inline: see the Architecture and Operations sections for the present-day setup.
 
 This guide documents the process of migrating Home Assistant from the management network (<mgmt-net>/24) to a dedicated IoT VLAN for network isolation.
 
-## Current State
+## Current state
 
 - **Primary Network**: Cilium (10.42.0.0/16 pods, 10.43.0.0/16 services)
 - **Management Network**: <mgmt-net>/24
@@ -13,7 +13,7 @@ This guide documents the process of migrating Home Assistant from the management
 - **Physical Interface**: enp1s0np0
 - **VLAN Configuration**: None (direct macvlan on physical interface)
 
-## Target State
+## Target state
 
 - **Primary Network**: Cilium (unchanged)
 - **Management Network**: <mgmt-net>/24 (unchanged)
@@ -23,7 +23,7 @@ This guide documents the process of migrating Home Assistant from the management
 
 ## Prerequisites
 
-### Network Switch Configuration
+### Network switch configuration
 
 1. **Create VLAN 70** on your managed switch
 2. **Configure trunk port** to Kubernetes nodes:
@@ -49,7 +49,7 @@ This guide documents the process of migrating Home Assistant from the management
     - ALLOW: IoT → IoT (devices can communicate with each other)
     ```
 
-### Verify Switch Configuration
+### Verify switch configuration
 
 Before proceeding, verify VLAN configuration:
 
@@ -61,9 +61,9 @@ ping <iot-gateway>  # Should reach gateway
 ping <iot-gateway>  # Should reach gateway
 ```
 
-## Migration Steps
+## Migration steps
 
-### Step 1: Update Talos Configuration
+### Step 1: Update Talos configuration
 
 Add VLAN interface configuration to all nodes.
 
@@ -99,7 +99,7 @@ nodes:
 - <node2>: `<node2-mac>`
 - <node3>: (add the MAC address)
 
-### Step 2: Generate and Apply Talos Configuration
+### Step 2: Generate and apply Talos configuration
 
 ```bash
 # Generate new Talos configs
@@ -118,7 +118,7 @@ talosctl -n <node3-ip> get links | grep "enp1s0np0.70"
 
 **Expected output**: You should see the VLAN interface listed with VLAN ID 70.
 
-### Step 3: Update Cilium Device Configuration (Optional)
+### Step 3: Update Cilium device configuration (optional)
 
 If you want Cilium to also be aware of the VLAN interface (recommended for better routing):
 
@@ -173,7 +173,7 @@ spec:
 
 - `master`: `enp1s0np0` → `enp1s0np0.70` (adds VLAN tagging)
 
-### Step 5: Update Home Assistant IP Configuration
+### Step 5: Update Home Assistant IP configuration
 
 **File**: `kubernetes/apps/home/homeassistant/app/helmrelease.yaml`
 
@@ -195,7 +195,7 @@ defaultPodOptions:
 
 - `ips`: `["<ha-mgmt-ip>/24"]` → `["<ha-iot-ip>/24"]`
 
-### Step 6: Apply Changes
+### Step 6: Apply changes
 
 Commit all changes and let Flux reconcile:
 
@@ -222,7 +222,7 @@ flux reconcile kustomization multus-networks -n kube-system
 flux reconcile kustomization homeassistant -n home
 ```
 
-### Step 7: Verify Migration
+### Step 7: Verify migration
 
 ```bash
 # 1. Check NetworkAttachmentDefinition is updated
@@ -251,7 +251,7 @@ kubectl exec -n home $HA_POD -- ping -c 3 8.8.8.8
 kubectl exec -n home $HA_POD -- nslookup kubernetes.default.svc.cluster.local
 ```
 
-### Step 8: Update DNS Records (if needed)
+### Step 8: Update DNS records (if needed)
 
 If you have DNS records pointing to the old IP:
 
@@ -263,9 +263,9 @@ homeassistant.${SECRET_INTERNAL_DOMAIN}  A  <ha-mgmt-ip>
 homeassistant.${SECRET_INTERNAL_DOMAIN}  A  <ha-iot-ip>
 ```
 
-## Validation Tests
+## Validation tests
 
-### Test 1: Dual Network Interfaces
+### Test 1: Dual network interfaces
 
 ```bash
 kubectl exec -n home $HA_POD -- ip route show
@@ -282,7 +282,7 @@ Access Home Assistant at:
 - Via HTTPRoute: <https://homeassistant.example.com>
 - Direct IP (from device on IoT VLAN): <http://<ha-iot-ip>:8123>
 
-### Test 3: Device Discovery
+### Test 3: Device discovery
 
 From Home Assistant UI:
 
@@ -291,7 +291,7 @@ From Home Assistant UI:
 3. Try to discover devices (Chromecast, HomeKit, etc.)
 4. Devices on IoT VLAN should be discovered
 
-### Test 4: MQTT Communication (if using Mosquitto)
+### Test 4: MQTT communication (if using Mosquitto)
 
 ```bash
 # If you deployed Mosquitto MQTT broker
@@ -301,7 +301,7 @@ kubectl exec -n home $HA_POD -- \
 
 ## Troubleshooting
 
-### Issue 1: Pod Stuck in Pending
+### Issue 1: Pod stuck in pending
 
 **Symptom**: Pod doesn't start after migration
 
@@ -328,7 +328,7 @@ talosctl -n $NODE get links | grep enp1s0np0.70
 talosctl apply-config -n $NODE -f talos/clusterconfig/kubernetes-$NODE.yaml
 ```
 
-### Issue 2: No Network Connectivity on net1
+### Issue 2: No network connectivity on net1
 
 **Symptom**: Can't ping gateway from pod
 
@@ -354,7 +354,7 @@ talosctl -n <node1-ip> get addresses | grep 192.168.70
 # If node can't reach VLAN, check switch configuration
 ```
 
-### Issue 3: Device Discovery Not Working
+### Issue 3: Device discovery not working
 
 **Symptom**: Home Assistant can't discover devices on IoT VLAN
 
@@ -370,7 +370,7 @@ talosctl -n <node1-ip> get addresses | grep 192.168.70
 2. Ensure multicast is allowed on IoT VLAN
 3. Check firewall rules allow Home Assistant → IoT devices
 
-### Issue 4: Can't Access Home Assistant Externally
+### Issue 4: Can't access Home Assistant externally
 
 **Symptom**: HTTPRoute / Gateway API not working after migration
 
@@ -385,11 +385,11 @@ kubectl get httproute -n home homeassistant
 
 **Solution**: HTTPRoute / Gateway API routing is independent of Multus networking and should not be affected.
 
-## Rollback Procedure
+## Rollback procedure
 
 If migration causes issues, you can rollback quickly:
 
-### Quick Rollback (Revert NetworkAttachmentDefinition Only)
+### Quick rollback (revert NetworkAttachmentDefinition only)
 
 ```bash
 # Revert iot.yaml to use management network
@@ -425,7 +425,7 @@ kubectl edit helmrelease -n home homeassistant
 kubectl delete pod -n home -l app.kubernetes.io/name=homeassistant
 ```
 
-### Full Rollback (Including Talos)
+### Full rollback (including Talos)
 
 ```bash
 # Revert git changes
@@ -444,7 +444,7 @@ talosctl apply-config -n <node2-ip> -f talos/clusterconfig/kubernetes-<node2>.ya
 talosctl apply-config -n <node3-ip> -f talos/clusterconfig/kubernetes-<node3>.yaml
 ```
 
-## Post-Migration Checklist
+## Post-migration checklist
 
 - [ ] VLAN 70 created on switch
 - [ ] Trunk ports configured for Kubernetes nodes
@@ -461,7 +461,7 @@ talosctl apply-config -n <node3-ip> -f talos/clusterconfig/kubernetes-<node3>.ya
 - [ ] DNS records updated (if needed)
 - [ ] Documentation updated
 
-## Additional VLAN Networks
+## Additional VLAN networks
 
 To add more VLANs (e.g., VLAN 80 for Cameras, VLAN 90 for VPN):
 

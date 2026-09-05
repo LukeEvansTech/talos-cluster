@@ -15,7 +15,7 @@ spec:
     # Note on absent(): the *_fallbacks_total series only materialise after the
     # first fallback event (LiteLLM registers them lazily). increase()>N over an
     # empty series simply yields nothing, so these alerts stay silent until a
-    # real fallback happens — no absent() liveness guard is added on them, since
+    # real fallback happens. No absent() liveness guard is added on them, since
     # their absence is the healthy steady state, not a fault.
     - name: litellm.rules
       rules:
@@ -26,7 +26,7 @@ spec:
             ) > 0
           annotations:
             summary: >-
-              LiteLLM {{ $labels.requested_model }} fallback chain exhausted — no working deployment
+              LiteLLM {{ $labels.requested_model }} fallback chain exhausted, no working deployment
               ({{ $labels.exception_status }} {{ $labels.exception_class }})
           labels:
             severity: critical
@@ -45,7 +45,7 @@ spec:
         - alert: LiteLLMDeploymentOutage
           # deployment_state latches at 2 via the cooldown callback's pool label and
           # never resets (success callbacks label by requested model). Require
-          # ongoing failures so a recovered deployment doesn't alert forever — the
+          # ongoing failures so a recovered deployment doesn't alert forever. The
           # rate() window is kept well under the for: duration on purpose: with a
           # window >= for:, a single isolated failure extrapolates rate()>0 across
           # the whole for: period and still fires the alert once it recovers. A
@@ -71,7 +71,7 @@ spec:
           annotations:
             summary: >-
               LiteLLM {{ $labels.litellm_model_name }} returning {{ $labels.exception_status }}
-              (auth/quota — check the upstream key or plan cap)
+              (auth/quota, check the upstream key or plan cap)
           labels:
             severity: warning
     # Direct backend-down signal for the llmkube InferenceServices that back
@@ -91,7 +91,7 @@ spec:
           for: 15m
           annotations:
             summary: >-
-              llmkube InferenceService {{ $labels.service }} is down — no llama.cpp scrape target
+              llmkube InferenceService {{ $labels.service }} is down, no llama.cpp scrape target
               reachable (self-hosted routing degrades to the cloud fallback)
           labels:
             severity: critical

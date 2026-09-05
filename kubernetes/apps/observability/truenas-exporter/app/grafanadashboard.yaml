@@ -1,16 +1,16 @@
 ---
 # COVERAGE NOTE (TrueNAS SCALE 25.10 "Goldeye", verified against live /metrics 2026-06-14):
 # 25.10's netdata emits a reduced, custom-named chart set vs the vanilla netdata the
-# upstream Supporterino dashboards target — so those render blank here. The bespoke
+# upstream Supporterino dashboards target, so those render blank here. The bespoke
 # `truenas-zfs` dashboard below (configMapRef → dashboards/truenas-zfs.json) consumes the
 # metrics this box ACTUALLY emits and supersedes the three partial upstream dashboards:
-#   • truenas_scale      — retired (system/disk/nfs/interface now in truenas-zfs; ARC via the
+#   • truenas_scale, retired (system/disk/nfs/interface now in truenas-zfs; ARC via the
 #                          zfs_arc_* recording rules; memory via the mangled meminfo series)
-#   • truenas_scale_disk_insights — retired (disk_io/io_ops/busy covered; await/util/qops absent)
-#   • truenas_scale_temperatures  — retired (cpu_temperature covered; disk temps via smartctl)
-#   • truenas_scale_cgroups       — KEPT below (the one upstream dashboard that fully populates;
+#   • truenas_scale_disk_insights, retired (disk_io/io_ops/busy covered; await/util/qops absent)
+#   • truenas_scale_temperatures, retired (cpu_temperature covered; disk temps via smartctl)
+#   • truenas_scale_cgroups, KEPT below (the one upstream dashboard that fully populates;
 #                                    gives friendly per-container cgroup detail truenas-zfs cannot)
-# applications_k3s was removed earlier (queries k3s_pod_* — this box runs Talos separately).
+# applications_k3s was removed earlier (queries k3s_pod_*; this box runs Talos separately).
 # Pool state / scrub has no metric anywhere on the box → stays on TrueNAS-native alerting +
 # the SMART-health table. See docs/docs/operations/truenas-monitoring.md and the spec in dashboards/.
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/grafana.integreatly.org/grafanadashboard_v1beta1.json

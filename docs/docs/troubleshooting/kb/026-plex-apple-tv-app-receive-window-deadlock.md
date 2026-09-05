@@ -1,4 +1,4 @@
-# KB-026: Plex Apple TV App Freezes on One Frame (Client Receive-Window Deadlock)
+# KB-026: Plex Apple TV app freezes on one frame (client receive-window deadlock)
 
 **Status:** Understood; **server-side clean: this is a Plex-for-Apple-TV client bug**, isolated by an Infuse control (same device/network/server/file plays fine in Infuse). Root cause narrowed same-day to **EAC3 direct play on tvOS 26.5** (see Cause); community-corroborated, no fixed app version as of 2026-07-12. A server-side `Profiles/tvOS.xml` override (transcode EAC3 audio → ac3 for tvOS clients only) is deployed as a workaround: see Fix.
 
@@ -41,7 +41,7 @@ Re-examining the test matrix, the discriminating variable is the **audio codec**
 | Silo S3E1/E2 | 4K HEVC DV P8.1 | **EAC3** Atmos 5.1 | freezes |
 | 500 Days of Summer | 4K HEVC HDR10 (no DV) | **EAC3** 5.1 | freezes |
 | Pokémon: The First Movie | 1080p HEVC SDR | **Opus** 2.0 | plays fine |
-| any of the above via Infuse | — | EAC3 | plays fine (own decoder, not the tvOS pipeline) |
+| any of the above via Infuse | n/a | EAC3 | plays fine (own decoder, not the tvOS pipeline) |
 
 Community reports match exactly: video freezes on a frame during **EAC3 direct play on tvOS 26.5**, with the same files fine on **tvOS 26.4** and on other platforms
 (<https://forums.plex.tv/t/eac3-audio-apple-tv-direct-play-broken-video-freezes-audio-continues-tvos-26-5-synology-ds152/938778>). Plex staff engaged but could not

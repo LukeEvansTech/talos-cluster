@@ -32,7 +32,7 @@ spec:
         - alert: VeeamBackupStale
           annotations:
             summary: >-
-              No successful run of Veeam job "{{ $labels.veeam_job }}" in over 36h —
+              No successful run of Veeam job "{{ $labels.veeam_job }}" in over 36h.
               backups are stale.
           expr: |-
             time() - veeam_backup_last_success_timestamp_seconds{job="veeam-windows-exporter"} > 129600
@@ -41,7 +41,7 @@ spec:
             severity: critical
         # A run finished Failed. Veeam's own email covers the detail; this exists
         # so a failure still pages when mail is broken. Warning (1) is not
-        # alerted here on purpose — it still wrote a restore point, and it
+        # alerted here on purpose. It still wrote a restore point, and it
         # already goes out by email.
         - alert: VeeamBackupFailed
           annotations:
@@ -54,14 +54,14 @@ spec:
             severity: critical
         # The complement: the series vanishing, which the rules above cannot see
         # because they have nothing left to evaluate. Exporter removed, textfile
-        # deleted, scheduled task disabled — box otherwise fine. Bare absent()
+        # deleted, scheduled task disabled, box otherwise fine. Bare absent()
         # is right here: one box, one exporter. 2h fuse and warning severity
         # because a genuine box outage already pages via VeeamServerGuestDown
         # and LanProbeFailed; this is for the box-up-but-metric-gone case.
         - alert: VeeamBackupMetricsMissing
           annotations:
             summary: >-
-              Veeam backup metrics absent for 2h — cannot tell whether backups are running.
+              Veeam backup metrics absent for 2h. Cannot tell whether backups are running.
           expr: |-
             absent(veeam_backup_last_success_timestamp_seconds{job="veeam-windows-exporter"})
           for: 2h

@@ -15,8 +15,8 @@ spec:
     # consecutive runs, roughly +310 per run and monotonic, with kopia
     # warning "too many index blobs" on every operation.
     #
-    # Maintenance was already running and succeeding — the problem was rate,
-    # not failure — and each run compacts only a bounded number of epochs, so
+    # Maintenance was already running and succeeding. The problem was rate,
+    # not failure, and each run compacts only a bounded number of epochs, so
     # more runs is the lever that does not touch backup retention. Runs take
     # 125-456s, so they fit inside an hourly window with wide margin
     # (activeDeadlineSeconds is 10800).

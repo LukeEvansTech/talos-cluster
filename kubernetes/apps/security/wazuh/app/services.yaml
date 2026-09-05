@@ -19,7 +19,7 @@ spec:
 ---
 # Indexer REST API. Consumed in-cluster by the manager's Filebeat and by the
 # dashboard. Upstream makes this a LoadBalancer, which would spend a LAN address
-# publishing the raw indexer API — nothing outside the cluster needs it.
+# publishing the raw indexer API. Nothing outside the cluster needs it.
 apiVersion: v1
 kind: Service
 metadata:
@@ -103,7 +103,7 @@ spec:
   type: LoadBalancer
   # Cluster, not Local. Cilium's L2 announcement elects a lease-holder node without
   # regard to backend locality, so under Local the LB address is ARP'd by a node
-  # that then refuses the traffic whenever the pod sits elsewhere — external senders
+  # that then refuses the traffic whenever the pod sits elsewhere, external senders
   # get TCP RST or silent UDP loss while in-cluster socket-LB keeps working. That
   # cost days of missing firewall logs on the sentinel-syslog service (2026-08-02).
   # The cost of Cluster is SNAT: senders arrive as a node address, which is why

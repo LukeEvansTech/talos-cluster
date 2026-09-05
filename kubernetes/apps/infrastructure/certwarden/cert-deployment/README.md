@@ -1,8 +1,8 @@
-# Certwarden Certificate Deployment
+# Certwarden certificate deployment
 
 Automated certificate deployment to network devices via Certwarden post-processing.
 
-## Supported Devices
+## Supported devices
 
 ### ✅ Supermicro IPMI (X12/X13/H13)
 
@@ -14,7 +14,7 @@ Automated certificate deployment to network devices via Certwarden post-processi
 
 - **Status**: Coming Soon
 
-## How It Works
+## How it works
 
 ```mermaid
 sequenceDiagram
@@ -30,7 +30,7 @@ sequenceDiagram
     Job->>Job: Auto-cleanup (5min TTL)
 ```
 
-## Directory Structure
+## Directory structure
 
 ```text
 cert-deployment/
@@ -46,9 +46,9 @@ cert-deployment/
     └── README.md
 ```
 
-## Quick Start
+## Quick start
 
-### Supermicro IPMI Setup
+### Supermicro IPMI setup
 
 1. **Add IPMI credentials to 1Password**:
    - Item name: `{hostname}` (e.g., `<device-ipmi>`)

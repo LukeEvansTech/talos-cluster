@@ -10,7 +10,7 @@ metadata:
     checkov.io/skip4: "CKV_K8S_40=uid is baked into the upstream images (1000 indexer/dashboard, 101 manager). Raising it means rebuilding the vendor's containers. These pods mount no host paths and set no hostPID/hostIPC/hostNetwork, so host uid collision is not a live risk."
     # Scoped deliberately, NOT reloader auto. Auto would also watch the
     # `wazuh` Secret, which carries both the client passwords AND the
-    # internal_users.yml hashes — so a credential rotation would restart
+    # internal_users.yml hashes, so a credential rotation would restart
     # every pod onto the new plaintext passwords the moment the
     # ExternalSecret refreshed, while the indexer security index still
     # held the old hashes. That race takes the stack down and cannot be
@@ -103,8 +103,8 @@ spec:
           # in a loop (observed: 128 restarts in 11h, while the app was serving the
           # UI throughout). A probe cannot read a Secret, so there is no credential
           # to give it. /app/login is served unauthenticated and returns 200 only
-          # once the plugins — including the security plugin that issues the 401
-          # above — have finished loading, so it is a stronger readiness signal than
+          # once the plugins, including the security plugin that issues the 401
+          # above. Have finished loading, so it is a stronger readiness signal than
           # the 302 on /. Verified against the running pod:
           #   /api/status 401 | /status 401 | / 302 | /app/login 200
           readinessProbe:

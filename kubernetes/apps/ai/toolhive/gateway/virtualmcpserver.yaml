@@ -23,7 +23,7 @@ spec:
     # dedicated CPU toolhiveembed pod, ../embed/helmrelease.yaml) rather than
     # LiteLLM's existing all-minilm model. all-minilm is all-MiniLM-L6-v2, a
     # BERT model with a hard 512-token absolute-position limit, and some
-    # kubectl tool descriptions exceed it — the optimizer previously
+    # kubectl tool descriptions exceed it. The optimizer previously
     # terminated every VMCP session with an OpenAI 400 "input larger than max
     # context size" error trying to embed them. all-minilm stays in place for
     # memini and LiteLLM's own semantic tool filter

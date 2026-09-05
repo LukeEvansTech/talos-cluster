@@ -25,7 +25,7 @@ Application container images and Helm charts auto-merge under **two** rules, spl
 
 ```json5
 {
-  description: "Auto-merge apps — minor/patch (denylist model; protected guard below)",
+  description: "Auto-merge apps, minor/patch (denylist model; protected guard below)",
   matchDatasources: ["docker", "helm"],
   matchUpdateTypes: ["minor", "patch"],
   automerge: true,
@@ -35,7 +35,7 @@ Application container images and Helm charts auto-merge under **two** rules, spl
   minimumReleaseAge: "2 days",
 },
 {
-  description: "Auto-merge apps — digest + pins, no age gate (denylist model; protected guard below)",
+  description: "Auto-merge apps, digest + pins, no age gate (denylist model; protected guard below)",
   matchDatasources: ["docker", "helm"],
   matchUpdateTypes: ["digest", "pin", "pinDigest"],
   automerge: true,

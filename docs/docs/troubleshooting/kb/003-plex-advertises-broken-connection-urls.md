@@ -1,4 +1,4 @@
-# KB-003: Plex Advertises Broken Connection URLs To plex.tv
+# KB-003: Plex advertises broken connection URLs to plex.tv
 
 **Status:** Fix 1 applied and stable: removes the broken `https://<fqdn>:32400` entry. Zero `location=unknown` / `expected MediaContainer element, found html` / `TranscodeUniversalRequest` errors in `Plex Media Server.log` since the pod rolled. Fix 2 (pod-IP suppression) not applied: still in reserve if Apple TVs ever resume stalling on pod-CIDR `:32400` connection attempts.
 

@@ -15,8 +15,8 @@ spec:
   #
   # Fleet draw is taken from idrac_power_control_consumed_watts (the system-level
   # reading) rather than by summing idrac_power_supply_output_watts. On these
-  # H13 boards the two disagree by an order of magnitude — a node drawing 95W at
-  # the system level reports ~450W per PSU — so the PSU figure is shown on its
+  # H13 boards the two disagree by an order of magnitude: a node drawing 95W at
+  # the system level reports ~450W per PSU, so the PSU figure is shown on its
   # own panel, labelled as reported, and is not to be read as consumption.
   json: |-
     {

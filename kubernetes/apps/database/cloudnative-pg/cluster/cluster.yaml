@@ -8,7 +8,7 @@ spec:
   instances: 3
   # Digest seeded by hand once (2026-07-19): the preset's CNPG imageName custom
   # manager can SUBSTITUTE an existing digest but has no autoReplaceStringTemplate
-  # to APPEND a first one — a first-time pinDigest throws update-failure and
+  # to APPEND a first one. A first-time pinDigest throws update-failure and
   # aborts Renovate's whole combined pin branch (renovate#24942; confirmed via
   # local dry-run). With the digest present, Renovate maintains it normally.
   imageName: ghcr.io/cloudnative-pg/postgresql:18.6@sha256:899d3ed526b659d77935dde0e6bf2d69dbbf17d3d8c6486ca8cfd04bd3c18533

@@ -22,7 +22,7 @@ spec:
     namespace: flux-system
   targetNamespace: *namespace
   timeout: 5m
-  # CR-only app — the backups run on the Docker boxes themselves and are scraped
+  # CR-only app. The backups run on the Docker boxes themselves and are scraped
   # through their existing node-exporters, so there is nothing in-cluster to
   # health-check. Same shape as nut-appliance and truenas-exporter.
   #

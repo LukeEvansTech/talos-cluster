@@ -7,14 +7,14 @@ synthesises least-privilege **NetworkPolicy**, **CiliumNetworkPolicy**, and
 
 > **Why this lives in `docs/spikes/` and not `kubernetes/`:** the controller is a
 > privileged, `hostNetwork`, host-mounting eBPF DaemonSet. It should be run by
-> hand, vetted, used to harvest policies, then removed — not committed to the
+> hand, vetted, used to harvest policies, then removed. Do not commit it to the
 > auto-reconciling Flux tree. Nothing here is picked up by Flux.
 
 ## Result (2026-06-07): ❌ blocked on Talos kernel 6.18
 
 Ran live against this cluster (chart 1.12.0, controller 1.8.1, amd64,
 kernel 6.18.29-talos). Broker, database, evaluator, and frontend all came up
-healthy — but **the eBPF controller crash-loops on every node**: the kernel
+healthy, but **the eBPF controller crash-loops on every node**: the kernel
 verifier rejects its network-probe program at load:
 
 ```text
@@ -26,17 +26,17 @@ Error: Failed to load network probe eBPF: Invalid argument (os error 22)
 
 `trace_udp_send` is an fentry/BTF tracing program (`BPF_PROG(... struct sock
 *sk ...)`), and tracing-type programs may not call the legacy `bpf_probe_read`
-helper — they must use `bpf_probe_read_kernel`. Talos's 6.18 kernel enforces
+helper. They must use `bpf_probe_read_kernel`. Talos's 6.18 kernel enforces
 this strictly, so the program never loads and no traffic/syscall data is ever
 captured. **No policies can be generated.** This is an upstream kguardian/libbpf
-defect against newer kernels, not a Talos misconfiguration — the prerequisites
+defect against newer kernels, not a Talos misconfiguration. The prerequisites
 below are all satisfied.
 
 **Verdict:** not usable on this cluster until upstream fixes the helper usage.
 Filed for follow-up; recheck on a newer chart/controller release, or test
 against a node pinned to an older (6.2–6.11) kernel.
 
-## Prerequisites (all met — failure is at eBPF load, not setup)
+## Prerequisites (all met; failure is at eBPF load, not setup)
 
 | Requirement                                                                 | This cluster                                       | Verdict                                                  |
 | --------------------------------------------------------------------------- | -------------------------------------------------- | -------------------------------------------------------- |
@@ -48,10 +48,10 @@ against a node pinned to an older (6.2–6.11) kernel.
 | PostgreSQL backend                                                          | bundled PG18 on `ceph-block` (spike) / CNPG (prod) | ✅                                                       |
 | Tolerates `node-role.kubernetes.io/control-plane:NoSchedule`                | 3× control-plane nodes                             | ✅ runs on all nodes                                     |
 
-**The one real risk** — `hostNetwork: true`. We've had a `hostNetwork`
+**The one real risk** is `hostNetwork: true`. We've had a `hostNetwork`
 conntrack-flood incident on this cluster before (scanopy). kguardian is
 _passive_ eBPF observation (not active scanning), so it should not flood
-conntrack — but watch node conntrack while it runs:
+conntrack, but watch node conntrack while it runs:
 `talosctl -n <node> read /proc/sys/net/netfilter/nf_conntrack_count`.
 
 **Licensing note:** BSL 1.1 (converts to Apache-2.0 on 2029-01-01), not OSI-OSS today.
@@ -69,7 +69,7 @@ helm install kguardian oci://ghcr.io/kguardian-dev/charts/kguardian \
   --values docs/spikes/kguardian/values.yaml \
   --wait
 
-# 3. Verify — controller (DaemonSet, 1/node), broker, db, frontend
+# 3. Verify controller (DaemonSet, 1/node), broker, db, frontend
 kubectl get pods -n kguardian -o wide
 
 # 4. Install the kubectl plugin
@@ -80,12 +80,12 @@ kubectl kguardian --version
 ## Harvest policies for one namespace
 
 kguardian learns from observed behaviour, so **let the target workload run
-5–15 min** after install before generating. `--dry-run=true` is the default —
+5–15 min** after install before generating. `--dry-run=true` is the default, so
 it writes YAML to `--output-dir` and applies nothing.
 
 ```bash
 # Pick a self-contained app to profile, e.g. it-tools in `default`.
-# Generate a Cilium policy (this cluster's CNI) — dry-run, written to ./policies
+# Generate a Cilium policy (this cluster's CNI), dry-run, written to ./policies
 kubectl kguardian gen ciliumnetworkpolicy -n default --output-dir ./policies
 
 # Or a single workload + a plain NetworkPolicy / seccomp profile
@@ -118,6 +118,6 @@ kubectl delete -f docs/spikes/kguardian/namespace.yaml   # also removes the bund
 
 ## Status
 
-Run live on 2026-06-07 and **torn down** — see the Result section above. The
+Run live on 2026-06-07 and **torn down**. See the Result section above. The
 install + runbook here are kept as a vetted, ready-to-run reference for a recheck
 once upstream fixes the eBPF helper usage (or against an older-kernel node).

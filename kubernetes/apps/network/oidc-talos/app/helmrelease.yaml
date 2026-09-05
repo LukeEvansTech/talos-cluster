@@ -19,12 +19,12 @@ spec:
       strategy: rollback
   values:
     # Publishes THIS cluster's OIDC discovery doc + JWKS publicly so Entra (and any other cloud) can
-    # federate the cluster's service-account tokens — no apiserver exposure, just two JSON files. The
+    # federate the cluster's service-account tokens, no apiserver exposure, just two JSON files. The
     # apiserver's `service-account-issuer` (talos/patches/controller/cluster.yaml) must equal
-    # https://oidc-talos.${SECRET_DOMAIN}. Only PUBLIC keys are served — the private SA signing key
+    # https://oidc-talos.${SECRET_DOMAIN}. Only PUBLIC keys are served. The private SA signing key
     # never leaves the apiserver. The JWKS is fetched LIVE from the apiserver's discovery endpoint at
     # pod start (init container) and refreshed hourly (sidecar), so there is no committed,
-    # cluster-specific key material — this bootstraps clean on any cluster reusing the name. The
+    # cluster-specific key material, so this bootstraps clean on any cluster reusing the name. The
     # discovery doc is static (URLs only). Cluster-scoped name so other clusters get their own.
     defaultPodOptions:
       # The init/refresh containers authenticate to the apiserver with this token (app-template
@@ -81,7 +81,7 @@ spec:
               limits:
                 memory: 32Mi
           # Native sidecar: re-fetch hourly so a cluster SA-key rotation is picked up without a pod
-          # restart. Failures are non-fatal — the last good JWKS keeps being served.
+          # restart. Failures are non-fatal. The last good JWKS keeps being served.
           refresh-jwks:
             restartPolicy: Always
             image: *curlImage

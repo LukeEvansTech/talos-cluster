@@ -1,7 +1,7 @@
 ---
 # Hand-built dashboard for mm503/tautulli-exporter (image mm404/tautulli-exporter).
 # The exporter ships no dashboard and emits bespoke `plex_*` gauges (active streams,
-# transcodes, LAN/WAN bandwidth) — every public "Tautulli" dashboard targets a
+# transcodes, LAN/WAN bandwidth), every public "Tautulli" dashboard targets a
 # different metric schema and would render blank. Queries are pinned to
 # job="tautulli-exporter" so they don't collide with the PPE Plex exporter's
 # `plex_*` series. The DS_PROMETHEUS __input is mapped to the cluster Prometheus

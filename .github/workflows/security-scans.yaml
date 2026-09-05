@@ -43,13 +43,13 @@ jobs:
       #
       # PR runs scan ONLY the files the PR changes (--diff-base HEAD^1): the
       # merge ref includes all of main, and a full scan there let a transient
-      # bad state on main fail every open PR — the stale FAILURE check-run then
+      # bad state on main fail every open PR. The stale FAILURE check-run then
       # blocked Renovate self-merge forever (rebaseWhen:conflicted never makes
       # a new SHA). Push-to-main + nightly runs still scan everything.
       - name: Scan tracked files for internal infrastructure identifiers
         env:
           DIFF_BASE: ${{ github.event_name == 'pull_request' && 'HEAD^1' || '' }}
-          # Internal zone regex supplied out-of-band — see the script docstring.
+          # Internal zone regex supplied out-of-band, see the script docstring.
           # A dedicated GitHub Environment would gate this behind approval
           # rules, which is wrong for an always-on lint check that must run
           # unattended on every PR. The value is a low-sensitivity regex, not

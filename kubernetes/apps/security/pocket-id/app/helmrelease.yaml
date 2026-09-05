@@ -58,7 +58,7 @@ spec:
               #
               # Not a lockout risk: EmailVerified feeds only the OIDC
               # email_verified claim and is never used to gate login. Existing
-              # rows are untouched — the flag is written only at signup or on an
+              # rows are untouched. The flag is written only at signup or on an
               # email change.
               EMAIL_VERIFICATION_ENABLED: "true"
               KEYS_STORAGE: database

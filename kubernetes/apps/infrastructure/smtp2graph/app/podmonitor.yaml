@@ -9,7 +9,7 @@ apiVersion: monitoring.coreos.com/v1
 #
 # prometheus-operator matches podMetricsEndpoints[].port by port NAME, so the
 # container declares `metrics` in helmrelease.yaml; a bare number resolves no
-# target. No `release: kube-prometheus-stack` label — this cluster's Prometheus
+# target. No `release: kube-prometheus-stack` label. This cluster's Prometheus
 # selects monitors without it.
 kind: PodMonitor
 metadata:

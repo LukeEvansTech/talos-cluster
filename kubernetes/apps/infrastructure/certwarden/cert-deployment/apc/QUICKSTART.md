@@ -1,4 +1,4 @@
-# APC NMC Certificate Deployment - Quick Start
+# APC NMC certificate deployment - quick start
 
 Get your APC UPS certificate deployment up and running in 5 minutes.
 
@@ -9,9 +9,9 @@ Get your APC UPS certificate deployment up and running in 5 minutes.
 - Admin credentials
 - 1Password with External Secrets configured in your cluster
 
-## Quick Setup
+## Quick setup
 
-### 1. Get SSH Fingerprint
+### 1. Get SSH fingerprint
 
 For APC devices (which use cryptlib SSH), use this command:
 
@@ -30,7 +30,7 @@ debug1: Server host key: ssh-rsa SHA256:4sd7MpvwhQrOEhAIjlL5Cr2s6ml0c22KX0rxYClw
 
 Copy the fingerprint (the part after `SHA256:`).
 
-### 2. Create 1Password Item
+### 2. Create 1Password item
 
 Create a new item named `apc-ups-main` with these fields:
 
@@ -44,7 +44,7 @@ Create a new item named `apc-ups-main` with these fields:
 
 **Note**: Set `APC_INSECURE_CIPHER` to `true` for older APC devices that use legacy SSH ciphers (cryptlib).
 
-### 3. Edit External Secret (if needed)
+### 3. Edit external secret (if needed)
 
 Edit `externalsecret.yaml` if your 1Password item has a different name:
 
@@ -133,7 +133,7 @@ JOB=$(kubectl get jobs -n infrastructure -l app.kubernetes.io/name=certwarden-ap
 kubectl logs -n infrastructure job/$JOB
 ```
 
-## Your Specific Configuration
+## Your specific configuration
 
 For your APC device at `<device-ip>`:
 
@@ -141,7 +141,7 @@ For your APC device at `<device-ip>`:
 - **Insecure Cipher**: Required (set to `true`)
 - Device uses cryptlib SSH server (legacy)
 
-## Next Steps
+## Next steps
 
 - Add additional APC devices by creating more ExternalSecret resources
 - Configure certificate auto-renewal schedules in Certwarden

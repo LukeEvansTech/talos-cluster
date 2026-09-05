@@ -15,11 +15,11 @@ rescan just the changed paths.
 
 ## Design decisions
 
-- **Jellyfin is the only target — Plex is deliberately absent.** Sonarr and
+- **Jellyfin is the only target. Plex is deliberately absent.** Sonarr and
   Radarr both already carry a native "Plex Media Server" Connect notification
   (`updateLibrary: true`, on import and upgrade), so a Plex target here would
   double-scan. Jellyfin has no such native notifier in either app and, with the
-  library mounted over NFS, receives no filesystem events — that is the gap
+  library mounted over NFS, receives no filesystem events. That is the gap
   autopulse closes.
 - **No `rewrite:` blocks.** The Sonarr/Radarr root folders are `/media/tv` and
   `/media/movies`, and autopulse, Sonarr, Radarr and Jellyfin all mount the same

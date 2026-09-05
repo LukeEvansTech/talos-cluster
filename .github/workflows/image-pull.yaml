@@ -4,7 +4,7 @@ name: "Image Pull"
 
 # Runs post-merge on push to main (not pull_request): the `pull` job executes
 # on a self-hosted runner that mounts an os:admin talosconfig, so it must only
-# ever run code that has already been reviewed and merged — never untrusted
+# ever run code that has already been reviewed and merged, never untrusted
 # PR-head code on a public repo.
 on:
   push:
@@ -73,7 +73,7 @@ jobs:
       - name: Install flate
         run: |
           # goreleaser strips the leading v from the asset filename but keeps it
-          # in the tag path — flate_v0.5.0_… 404s, flate_0.5.0_… exists.
+          # in the tag path. flate_v0.5.0_… 404s, flate_0.5.0_… exists.
           curl -fsSL "https://github.com/home-operations/flate/releases/download/${FLATE_VERSION}/flate_${FLATE_VERSION#v}_linux_amd64.tar.gz" \
             | sudo tar -xz -C /usr/local/bin flate
 

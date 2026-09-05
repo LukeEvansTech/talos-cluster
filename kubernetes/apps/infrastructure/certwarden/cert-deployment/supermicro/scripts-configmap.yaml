@@ -132,8 +132,8 @@ data:
     #
     # This is the step that was missing. The comment above the secret creation
     # used to claim ownerReferences handled cleanup, but nothing ever set one:
-    # ttlSecondsAfterFinished removed the Job while the Secret — which holds the
-    # certificate's PRIVATE KEY — stayed in the namespace forever. Every renewal
+    # ttlSecondsAfterFinished removed the Job while the Secret, which holds the
+    # certificate's PRIVATE KEY, stayed in the namespace forever. Every renewal
     # since the first deployment left one behind; 40 had accumulated by
     # 2026-07-31 and were cleared out alongside this fix.
     #

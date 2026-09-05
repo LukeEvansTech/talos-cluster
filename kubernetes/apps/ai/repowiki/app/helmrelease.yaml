@@ -28,7 +28,7 @@ spec:
           # First-boot race: on a fresh PVC /app-data/repository doesn't exist
           # until repowiki-gen has run once, and mkdocs refuses to start
           # ("Config value 'docs_dir': The path '/app-data/repository' isn't
-          # an existing directory") — observed as 5 crash-loops on a new PVC.
+          # an existing directory"), observed as 5 crash-loops on a new PVC.
           # Seed a placeholder index.md so mkdocs has something to serve;
           # generate.py unconditionally rewrites REPO/index.md at the end of
           # every run (mkdocs.yml's docs_dir points straight at the repo root,
@@ -48,7 +48,7 @@ spec:
                 mkdir -p /app-data/repository
                 f=/app-data/repository/index.md
                 [ -f "$f" ] && exit 0
-                printf '# repowiki\n\nNo pages yet — runs every 12h.\n' > "$f"
+                printf '# repowiki\n\nNo pages yet. Runs every 12h.\n' > "$f"
             securityContext:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: true
@@ -89,7 +89,7 @@ spec:
           successfulJobsHistory: 1
           failedJobsHistory: 1
         pod:
-          # The data PVC is RWO — pin the generator pod to the same node as
+          # The data PVC is RWO. Pin the generator pod to the same node as
           # the mkdocs pod so both can mount it.
           affinity:
             podAffinity:

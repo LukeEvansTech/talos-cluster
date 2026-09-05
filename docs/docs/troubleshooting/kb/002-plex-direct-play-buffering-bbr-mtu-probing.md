@@ -1,4 +1,4 @@
-# KB-002: Plex Direct-Play Buffering on LAN Apple TVs (BBR + MTU Probing)
+# KB-002: Plex direct-play buffering on LAN Apple TVs (BBR + MTU probing)
 
 **Status:** Permanent fix applied via Option 1 (Cilium egress annotation, `kubernetes.io/egress-bandwidth: "200M"`). Plex pod stable since: no restarts, no user-reported flaps, no MSS-collapse signal. Option 2 (pod sysctls via `allowed-unsafe-sysctls`) kept documented as a fallback if Cilium's BandwidthManager is ever disabled.
 
@@ -46,7 +46,7 @@ Root cause is a two-part interaction:
 
 ## Fix
 
-### Permanent fix Option 1 (recommended): Cilium pod-egress bandwidth annotation
+### Permanent fix option 1 (recommended): Cilium pod-egress bandwidth annotation
 
 Caps the pod's egress at the BPF EDT layer, which neutralizes BBR's LAN burst pacing without touching TCP config. Treats the symptom at exactly the right layer. Add to `kubernetes/apps/media/plex/app/helmrelease.yaml`:
 
@@ -64,7 +64,7 @@ spec:
 
 Requires Cilium's `bandwidth-manager`, which is already enabled in this cluster (`BandwidthManager: EDT with BPF [BBR]` per `cilium status`).
 
-### Permanent fix Option 2: Pod-level safeSysctls
+### Permanent fix option 2: pod-level safeSysctls
 
 Set the two sysctls at pod spec level so they survive restarts. Requires adding these to the kubelet's `allowed-unsafe-sysctls` (Talos machine config `.machine.kubelet.extraArgs`), more invasive.
 

@@ -31,14 +31,14 @@ endpoints:
   # outside config.xml, so the firewall's backup/restore path does not carry
   # them: the 2026-07-29 rebuild imported config.xml and came up complete
   # apart from these, silently losing the imgur redirect and the Firefox DoH
-  # canary for 28 days. (Point upgrades do NOT remove them — verified across
-  # 26.7.1 -> 26.7.3 — so a rebuild or restore is the trigger to watch.)
+  # canary for 28 days. (Point upgrades do NOT remove them, verified across
+  # 26.7.1 -> 26.7.3, so a rebuild or restore is the trigger to watch.)
   # Nothing else notices: the resolver stays healthy and simply answers from
   # the public internet instead. Source of truth for the includes is
   # LukeEvansTech/network-ops -> ansible/vars/unbound-includes.yml.
   #
   # ${OPNSENSE_ADDR} and ${SVC_IMGUR_PROXY_ADDR} are expanded by gatus from
-  # its own environment (see extraEnv in helmrelease.yaml), NOT by Flux — this
+  # its own environment (see extraEnv in helmrelease.yaml), NOT by Flux. This
   # ConfigMap sets kustomize.toolkit.fluxcd.io/substitute: disabled, which is
   # what keeps real addresses out of this public repository.
   - name: imgur-proxy-dns
@@ -54,8 +54,8 @@ endpoints:
 
   # Returning NXDOMAIN here is what stops Firefox auto-enabling DNS-over-HTTPS
   # and bypassing the on-box resolver entirely. Same include mechanism, same
-  # blast radius, so it fails at exactly the same moment as the check above —
-  # the pair together identify "the includes were wiped" rather than "imgur
+  # blast radius, so it fails at exactly the same moment as the check above.
+  # The pair together identify "the includes were wiped" rather than "imgur
   # changed something".
   - name: firefox-doh-canary
     group: split-dns
@@ -69,7 +69,7 @@ endpoints:
 
   # End-to-end through the proxy: resolves via cluster DNS (which forwards to
   # the same redirect), connects to the nginx SNI relay, and out through the
-  # gluetun tunnel. Covers the half the DNS checks cannot see — the nginx
+  # gluetun tunnel. Covers the half the DNS checks cannot see. The nginx
   # probes are tcpSocket only, so a dead VPN tunnel leaves the pod Ready and
   # serving nothing.
   - name: imgur-proxy

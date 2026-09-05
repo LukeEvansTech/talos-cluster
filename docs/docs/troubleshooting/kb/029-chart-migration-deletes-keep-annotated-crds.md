@@ -1,4 +1,4 @@
-# KB-029: Chart Migration Deletes Keep-Annotated CRDs (postRenderer Removal Races the Chart Swap)
+# KB-029: Chart migration deletes keep-annotated CRDs (postRenderer removal races the chart swap)
 
 **Status:** Incident during the snapshot-controller migration off the piraeus chart (#4187, 2026-08-10); fully recovered, no primary data loss. The mechanism is general: it applies to any migration off a chart that *templates* its CRDs when the protective postRenderer is removed in the same commit as the chart swap.
 
@@ -24,10 +24,10 @@ The rollback-loop shape looks like KB-015, but the driver is missing CRDs, not i
 
 The migration PR changed two things in one commit: the OCIRepository (piraeus chart → home-operations chart) and the HelmRelease spec (removed the postRenderer that stamped `helm.sh/resource-policy: keep` onto the piraeus chart's *templated* CRDs). helm-controller reconciled those as **two upgrades, one second apart**:
 
-1. The HelmRelease spec change reconciled first, against the **old** chart (the new OCI artifact had not been fetched yet). Re-rendering the old chart *without* the postRenderer meant the release manifest no longer carried the keep annotation — and Helm's three-way apply **stripped the annotation from the live CRD objects**.
-2. One second later the artifact swap upgraded to the new chart, whose manifest contains no CRDs (it ships them in `crds/`). Helm diffed six CRDs out of the release, found no keep policy on them any more, and deleted them all — taking every `VolumeSnapshotClass`/`VolumeSnapshotContent` with them.
+1. The HelmRelease spec change reconciled first, against the **old** chart (the new OCI artifact had not been fetched yet). Re-rendering the old chart *without* the postRenderer meant the release manifest no longer carried the keep annotation, and Helm's three-way apply **stripped the annotation from the live CRD objects**.
+2. One second later the artifact swap upgraded to the new chart, whose manifest contains no CRDs (it ships them in `crds/`). Helm diffed six CRDs out of the release, found no keep policy on them any more, and deleted them all, taking every `VolumeSnapshotClass`/`VolumeSnapshotContent` with them.
 
-The subtlety: **Helm's keep decision reads the *previous release's stored manifest*, and the postRenderer output is part of that manifest.** The protection therefore dies at the first reconcile after the postRenderer's removal — one step *before* the chart swap it was guarding against.
+The subtlety: **Helm's keep decision reads the *previous release's stored manifest*, and the postRenderer output is part of that manifest.** The protection therefore dies at the first reconcile after the postRenderer's removal, one step *before* the chart swap it was guarding against.
 
 ## Fix
 
@@ -43,9 +43,9 @@ Recovery, in the order that worked:
     ```
 
     Without `--version`, `helm show crds` resolves to whatever the registry currently reports as
-    latest — not necessarily the version the wedged release was mid-upgrade to. Get `<deployed-tag>`
+    latest, not necessarily the version the wedged release was mid-upgrade to. Get `<deployed-tag>`
     from the app's `ocirepository.yaml` (`spec.ref.tag`), or from the pending/failed revision in
-    `helm history -n <namespace> snapshot-controller` — but note its `CHART` column prints
+    `helm history -n <namespace> snapshot-controller`, but note its `CHART` column prints
     `<chart>-<version>` (e.g. `snapshot-controller-0.1.0`); `--version` wants only the bare
     version suffix (`0.1.0`), and the registry has no tag by the combined name.
 
@@ -69,7 +69,7 @@ Impact boundary: source PVCs and the Kopia repositories (the real backups) are u
     kubectl annotate crd <each snapshot CRD> helm.sh/resource-policy=keep
     ```
 
-    An annotation set by kubectl's field manager is not part of Helm's manifests, so no Helm apply will strip it — unlike the postRenderer, which lives and dies with the release.
+    An annotation set by kubectl's field manager is not part of Helm's manifests, so no Helm apply will strip it, unlike the postRenderer, which lives and dies with the release.
 
 - Keep a local copy of the new chart's CRDs (`helm show crds …`) *before* merging; recovery is one `kubectl apply` when the copy already exists.
-- The end state is the safe one: with CRDs shipped in `crds/`, Helm never deletes them again. Plain Helm would also never *upgrade* them, but that is not what runs here: the root Kustomization patches every HelmRelease with `install.crds: CreateReplace` and `upgrade.crds: CreateReplace` (`kubernetes/flux/cluster/ks.yaml`), so helm-controller server-side applies the chart's `crds/` on every install and upgrade. The `monitoring.coreos.com` CRDs show this in their `managedFields` — updated by `helm-controller` on the 87.17.0 and 88.5.4 kube-prometheus-stack bumps with no manual step. A manual `kubectl apply --server-side --force-conflicts` is only the break-glass if a HelmRelease wedges before its CRD pass.
+- The end state is the safe one: with CRDs shipped in `crds/`, Helm never deletes them again. Plain Helm would also never *upgrade* them, but that is not what runs here: the root Kustomization patches every HelmRelease with `install.crds: CreateReplace` and `upgrade.crds: CreateReplace` (`kubernetes/flux/cluster/ks.yaml`), so helm-controller server-side applies the chart's `crds/` on every install and upgrade. The `monitoring.coreos.com` CRDs show this in their `managedFields`, updated by `helm-controller` on the 87.17.0 and 88.5.4 kube-prometheus-stack bumps with no manual step. A manual `kubectl apply --server-side --force-conflicts` is only the break-glass if a HelmRelease wedges before its CRD pass.

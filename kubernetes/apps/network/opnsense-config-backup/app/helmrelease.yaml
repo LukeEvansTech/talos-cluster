@@ -14,7 +14,7 @@ spec:
       opnsense-config-backup:
         type: cronjob
         cronjob:
-          # Daily at 03:30 — pulls the full OPNsense config.xml over the API,
+          # Daily at 03:30, pulls the full OPNsense config.xml over the API,
           # age-encrypts it, and commits the ciphertext to network-configs.
           # Replaces the plaintext dump Oxidized used to push (removed in
           # #3775): the raw config.xml carries secrets (ddclient token, cert
@@ -75,7 +75,7 @@ spec:
                 git config user.name "opnsense-config-backup"
                 git add opnsense.xml.age
                 if git diff --cached --quiet; then
-                  echo "config unchanged since last backup — nothing to commit"
+                  echo "config unchanged since last backup, nothing to commit"
                 else
                   git commit -m "opnsense: encrypted config backup"
                   git push origin HEAD:main
@@ -85,7 +85,7 @@ spec:
               TZ: UTC
               HOME: /work
               REPO_URL: git@github.com:LukeEvansTech/network-configs.git
-              # age public recipient — not a secret; the matching identity
+              # age public recipient, not a secret; the matching identity
               # lives only in 1Password (op://Talos/opnsense-config-backup).
               AGE_RECIPIENT: age1l3w3p2aljz77zmgd54tccg88tryynuu4h54cgxd3w9eux85e6cvs63gzt5
             resources:

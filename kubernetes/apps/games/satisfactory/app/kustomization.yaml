@@ -8,7 +8,7 @@ resources:
   - ./pvc.yaml
 patches:
   # ks.yaml already pulls in ../../../../components/volsync, so the
-  # ReplicationSources exist — but the component templates sourcePVC as ${APP},
+  # ReplicationSources exist, but the component templates sourcePVC as ${APP},
   # which resolves to "satisfactory". That is the empty 5Gi PVC the component
   # creates, NOT this app's save data: the helmrelease mounts existingClaim
   # "sf-gamedata" (30Gi, ./pvc.yaml).

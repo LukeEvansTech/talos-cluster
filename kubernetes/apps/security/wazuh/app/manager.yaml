@@ -12,7 +12,7 @@ metadata:
     checkov.io/skip6: "CKV_K8S_23=The manager entrypoint must start as root to chroot and fix ownership on the data volume before stepping the daemons down to the wazuh user."
     # Scoped deliberately, NOT reloader auto. Auto would also watch the
     # `wazuh` Secret, which carries both the client passwords AND the
-    # internal_users.yml hashes — so a credential rotation would restart
+    # internal_users.yml hashes, so a credential rotation would restart
     # every pod onto the new plaintext passwords the moment the
     # ExternalSecret refreshed, while the indexer security index still
     # held the old hashes. That race takes the stack down and cannot be
@@ -56,7 +56,7 @@ spec:
         - name: wazuh-manager
           image: docker.io/wazuh/wazuh-manager:4.14.7@sha256:80cada6a192fcb8caa8b415a5b64e2155138dd8df1da3a7b227d7e5e4e7460c0
           # Upstream ships 400m/512Mi for a container running analysisd, remoted,
-          # wazuh-db, the Python API AND Filebeat together — the documented cause of
+          # wazuh-db, the Python API AND Filebeat together, the documented cause of
           # repeated OOMKill reports. Sized here for full-fidelity syslog ingest
           # (~14M events/day observed on the existing collector) rather than a demo.
           resources:
@@ -76,7 +76,7 @@ spec:
               #
               # The list is empirically determined, not guessed: the entrypoint
               # chroots, chowns and chmods files it does not own, and steps down
-              # to the wazuh user itself. A smaller set was tested and FAILED —
+              # to the wazuh user itself. A smaller set was tested and FAILED,
               # without FOWNER, wazuh-clusterd dies on os.chmod of cluster.log,
               # and trimming further leaves "wazuh-apid did not start correctly"
               # while an unrestricted control run of the same image is clean.
@@ -231,7 +231,7 @@ spec:
       spec:
         accessModes:
           - "ReadWriteOnce"
-        # RWO block only — wazuh-db is SQLite. Upstream's default here is 500Mi.
+        # RWO block only. wazuh-db is SQLite. Upstream's default here is 500Mi.
         storageClassName: ceph-block
         resources:
           requests:

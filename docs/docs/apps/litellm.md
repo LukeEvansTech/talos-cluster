@@ -17,8 +17,8 @@ See the [AI / LLM stack](../architecture/ai-llm-stack.md) page for how it fits t
   a second replica during a rollout is a theoretical (not yet observed) risk worth watching if this
   is ever scaled up.
 - State lives in the shared CloudNativePG `postgres18` cluster (its own `litellm` database + role).
-  The database/role are provisioned once, out of band — there is no init container recreating them on
-  every reconcile — so the app is PVC-less and needs no VolSync.
+  The database/role are provisioned once, out of band, with no init container recreating them on
+  every reconcile, so the app is PVC-less and needs no VolSync.
 - Response cache in the shared Dragonfly over `*.svc.cluster.local`, with a deliberately short TTL so
   usage tracking stays accurate.
 - `generalSettings.store_model_in_db: false`: the `LiteLLMModel` CRs are the model source of truth,
@@ -27,7 +27,7 @@ See the [AI / LLM stack](../architecture/ai-llm-stack.md) page for how it fits t
 - Prometheus success/failure callbacks enabled for metrics.
 - Auth is the built-in master key (`apiAccess.masterKeyRef`) + UI credentials (no external SSO for an
   internal-only service). Existing DB-stored virtual keys (created before this migration) keep
-  working unchanged — they authenticate against the DB, independent of `store_model_in_db`.
+  working unchanged. They authenticate against the DB, independent of `store_model_in_db`.
 - Routing is an internal-only HTTPRoute (operator-managed via `spec.route`) on the `envoy-internal`
   listener at `litellm.${SECRET_DOMAIN}`; the API (`/v1/*`) and admin UI (`/ui`) share one port.
 - Secrets come from an ExternalSecret pulling the `litellm` 1Password item (Talos vault).
@@ -73,7 +73,7 @@ See the [AI / LLM stack](../architecture/ai-llm-stack.md) page for how it fits t
   ```
 
 - Add models via a `LiteLLMModel` CR under `litellm/app/models/` (`proxyRef: litellm`). The
-  operator hashes the rendered config into a pod annotation and rolls the Deployment automatically
-  — no manual restart or Reloader annotation needed.
+  operator hashes the rendered config into a pod annotation and rolls the Deployment automatically,
+  with no manual restart or Reloader annotation needed.
 - The Grafana "LiteLLM" / "LiteLLM Detail" dashboards and the Gatus check confirm health and metrics
   flow.

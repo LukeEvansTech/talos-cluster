@@ -8,7 +8,7 @@ spec:
   # Scrapes the ToolHive proxy pods (one Deployment per MCPServer: kubectl, flux,
   # talos, github, grafana), which expose Prometheus metrics on the proxy port
   # once the MCPTelemetryConfig above enables them. No `release:
-  # kube-prometheus-stack` label — this cluster's Prometheus selects monitors
+  # kube-prometheus-stack` label. This cluster's Prometheus selects monitors
   # without it, so copying that selector would silently drop the target.
   selector:
     matchLabels:

@@ -6,14 +6,14 @@ name: "Renovate Assign On Failure"
 # auto-merge PR stays open and needs a human. Auto-merge PRs are intentionally NOT
 # assigned (assignAutomerge:false in .renovaterc.json5), so they don't reach my
 # "Participating" notifications on a quiet watch level. This workflow closes that
-# gap: when a CI workflow fails on a Renovate PR, assign me — assignment notifies
+# gap: when a CI workflow fails on a Renovate PR, assign me, assignment notifies
 # regardless of repo Watch level, so a broken bump emails me while clean ones stay
-# silent. (Manual PRs — protected-infra + major — are already assigned at creation.)
+# silent. (Manual PRs, protected-infra + major, are already assigned at creation.)
 
 on:
   # zizmor: ignore[dangerous-triggers]
   # workflow_run runs in the base-repo context with a write token, but this
-  # workflow never checks out PR code or runs PR-supplied commands — it only
+  # workflow never checks out PR code or runs PR-supplied commands. It only
   # calls gh to assign the repo owner, so the code-injection risk this audit
   # flags does not apply.
   workflow_run:
@@ -50,13 +50,13 @@ jobs:
         run: |-
           # Resolve the open PR for this run's head branch, and only act if it is a
           # Renovate PR. gh reports the bot author as "app/renovate" (the webhook
-          # payload calls it "renovate[bot]" — see renovate-review.yaml).
+          # payload calls it "renovate[bot]", see renovate-review.yaml).
           pr=$(gh pr list --head "$HEAD_BRANCH" --state open \
             --json number,author \
             --jq '.[] | select(.author.login == "app/renovate") | .number' | head -n1)
 
           if [[ -z "$pr" ]]; then
-            echo "No open Renovate PR for branch ${HEAD_BRANCH} — nothing to do."
+            echo "No open Renovate PR for branch ${HEAD_BRANCH}. Nothing to do."
             exit 0
           fi
 

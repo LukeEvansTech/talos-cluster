@@ -9,7 +9,7 @@
 #   - the lefthook `lint-yamllint` hook can point at the SAME file with `-c`,
 #     so local pre-commit and CI run identical rules (no local-pass/CI-fail
 #     drift). yamllint is NOT run in strict mode (matching super-linter), so
-#     `level: warning` problems are reported but do not fail — only the
+#     `level: warning` problems are reported but do not fail, only the
 #     error-level rules (key-duplicates, new-lines) fail a commit.
 #
 # If you bump the super-linter pin in shared-workflows, re-sync this file.

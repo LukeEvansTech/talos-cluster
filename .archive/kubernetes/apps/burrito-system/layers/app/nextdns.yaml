@@ -1,5 +1,5 @@
 ---
-# NextDNS profile-as-code stack — OpenTofu, R2 s3 backend. profile_ids are committed in
+# NextDNS profile-as-code stack, OpenTofu, R2 s3 backend. profile_ids are committed in
 # inventory.auto.tfvars (non-secret); only the API key + R2 backend creds are injected.
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret

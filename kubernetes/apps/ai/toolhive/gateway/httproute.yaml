@@ -7,7 +7,7 @@ metadata:
   annotations:
     # vmcp's own /health is unauthenticated (pkg/vmcp/server/server.go), but the
     # SecurityPolicy below (../gateway/securitypolicy.yaml) requires x-api-key on
-    # every path matched by this route, including /health — an unauthenticated
+    # every path matched by this route, including /health. An unauthenticated
     # Gatus probe would get 401, not 200. Disable auto-monitoring rather than
     # carve out an unauthenticated path just for the health check.
     gatus.home-operations.com/enabled: "false"

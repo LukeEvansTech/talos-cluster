@@ -1,7 +1,7 @@
 ---
 # Tailscale-operator egress: the operator replaces `externalName` with a proxy
 # pod that joins the tailnet, giving cluster workloads a route to the seedbox
-# (tailnet address injected via SEEDBOX_TAILNET_ADDR — pods cannot reach
+# (tailnet address injected via SEEDBOX_TAILNET_ADDR, because pods cannot reach
 # tailnet IPs directly). One Service covers every seedbox port. First use of
 # this operator feature in the cluster.
 apiVersion: v1

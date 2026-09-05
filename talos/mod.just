@@ -17,13 +17,13 @@ gen-config:
     # Never committed: this repo is public and the rendered configs are gitignored.
     export TALOS_LUKS_FALLBACK=$(op read "op://Talos/talos-luks-fallback/password")
     if [[ -z "${TALOS_LUKS_FALLBACK}" ]]; then
-        just log error "TALOS_LUKS_FALLBACK is empty — refusing to generate config without the LUKS fallback key" "stage" "{{ recipe_name() }}"
+        just log error "TALOS_LUKS_FALLBACK is empty, refusing to generate config without the LUKS fallback key" "stage" "{{ recipe_name() }}"
         exit 1
     fi
     # etcd encryption key for patches/controller/etcd-encryption.yaml (see the note there).
     export TALOS_SECRETBOX_SECRET=$(yq -r '.secrets.secretboxencryptionsecret' "${TALSECRET}")
     if [[ -z "${TALOS_SECRETBOX_SECRET}" || "${TALOS_SECRETBOX_SECRET}" == "null" ]]; then
-        just log error "TALOS_SECRETBOX_SECRET is empty — talsecret has no secretboxencryptionsecret" "stage" "{{ recipe_name() }}"
+        just log error "TALOS_SECRETBOX_SECRET is empty, talsecret has no secretboxencryptionsecret" "stage" "{{ recipe_name() }}"
         exit 1
     fi
     # Render into a scratch directory first: a rejected render must never reach clusterconfig/,
@@ -32,7 +32,7 @@ gen-config:
     # Guard: a render whose secretbox key is not "key2" would stop every apiserver decrypting Secrets.
     for f in "${OUTDIR}"/kubernetes-*.yaml; do
         if [[ "$(yq 'select(.kind == "KubeEtcdEncryptionConfig") | ((.config.resources | length) == 1 and .config.resources[0].providers[0].secretbox.keys[0].name == "key2")' "${f}")" != "true" ]]; then
-            just log error "etcd encryption key is not a single secretbox key named key2 in ${f} — refusing, clusterconfig/ left untouched" "stage" "{{ recipe_name() }}"
+            just log error "etcd encryption key is not a single secretbox key named key2 in ${f}, refusing, clusterconfig/ left untouched" "stage" "{{ recipe_name() }}"
             exit 1
         fi
     done

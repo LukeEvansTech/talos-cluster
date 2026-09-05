@@ -12,7 +12,7 @@ spec:
     # Every app Kustomization is a child of the `cluster-apps` root, so it
     # carries this label. Cross-repo syncs (e.g. home/shelly-fleet-sync, applied
     # by the `shelly-fleet` Kustomization from a separate private GitRepository)
-    # do not — their revision SHAs don't exist in talos-cluster, so the commit
+    # do not. Their revision SHAs don't exist in talos-cluster, so the commit
     # status POST would 422 forever. Scoping here stops that noise at the source.
     - kind: Kustomization
       name: "*"

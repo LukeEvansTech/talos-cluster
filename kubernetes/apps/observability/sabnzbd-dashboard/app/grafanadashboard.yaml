@@ -1,7 +1,7 @@
 ---
 # Dedicated SABnzbd view, lifted from the exportarr "Media Dashboard"
 # (kubernetes/apps/observability/exportarr/app/dashboards/exportarr.json). Every
-# panel queries exportarr's own `sabnzbd_*` series, so it is metric-native — unlike
+# panel queries exportarr's own `sabnzbd_*` series, so it is metric-native, unlike
 # every public grafana.com SABnzbd dashboard, which targets the incompatible
 # msroest/sabnzbd_exporter and would render blank. The DS_PROMETHEUS __input is
 # mapped to the cluster Prometheus datasource via spec.datasources below; the

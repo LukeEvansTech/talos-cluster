@@ -8,11 +8,11 @@ spec:
   groups:
     - name: nut-exporter
       rules:
-        # UPS monitoring is blind — nut-exporter returns no metrics for >3m.
+        # UPS monitoring is blind. nut-exporter returns no metrics for >3m.
         # When the NUT server is down/unreachable the exporter fails its whole
         # scrape, so up == 0 (verified); `absent()` covers the target vanishing
         # entirely. 3m (not the 15m built-in TargetDown) because the main UPS
-        # battery measures only ~13m at present load — see UPSBatteryRuntimeLow.
+        # battery measures only ~13m at present load, see UPSBatteryRuntimeLow.
         #
         # The NUT server is now an appliance OUTSIDE the cluster, so this alert
         # additionally covers the LAN path to it, not just a pod.
@@ -28,7 +28,7 @@ spec:
         # Caveat: no Zincati UPGRADE reboot has occurred since the appliance became
         # the only NUT server (last upgrade 07-20, Phase C landed 07-22), so that
         # case is unmeasured. On FCOS the new deployment is staged before reboot,
-        # so it should be comparable — but if this ever does false-fire, measure
+        # so it should be comparable, but if this ever does false-fire, measure
         # the actual window before changing the number.
         - alert: UPSUnreachable
           annotations:
@@ -36,20 +36,20 @@ spec:
               nut-exporter has had no successful scrape for over 3 minutes (up == 0 or
               target absent). The external NUT appliance is likely down or unreachable,
               so UPS state is invisible during a power event.
-            summary: UPS monitoring is blind — nut-exporter is not returning UPS metrics.
+            summary: UPS monitoring is blind. nut-exporter is not returning UPS metrics.
           expr: up{job="nut-exporter"} == 0 or absent(up{job="nut-exporter"})
           for: 3m
           labels:
             severity: critical
             pushover_priority: emergency
-        # Mains lost — fires within ~1m. `max by (ups)` collapses the ServiceMonitor's
+        # Mains lost. Fires within ~1m. `max by (ups)` collapses the ServiceMonitor's
         # instance cross-product to one alert per real UPS.
         - alert: UPSOnBattery
           annotations:
             description: >-
               UPS {{ $labels.ups }} switched to battery (status OB). Mains input is lost
-              and battery runtime is finite — investigate immediately.
-            summary: UPS {{ $labels.ups }} is on battery — mains power lost.
+              and battery runtime is finite, investigate immediately.
+            summary: UPS {{ $labels.ups }} is on battery, mains power lost.
           expr: max by (ups) (nut_ups_status{status="OB"}) == 1
           for: 30s
           labels:
@@ -64,12 +64,12 @@ spec:
         # rather than an escalation of it. 300s is below any plausible full-charge
         # runtime for either UPS, so it once again means what it says.
         #
-        # That 780s is a measured figure, not an estimate — a runtime calibration
+        # That 780s is a measured figure, not an estimate. A runtime calibration
         # discharged the pack 100%->25% in ~10-11min at 27% load. It is roughly 40%
         # of what this frame should deliver, and the leading theory is a half-seated
         # battery tray rather than worn cells (the pack is ~17 months old). If that
         # is found and fixed, runtime roughly doubles and this threshold should be
-        # revisited — 300s would then be too twitchy to be a useful escalation.
+        # revisited. 300s would then be too twitchy to be a useful escalation.
         - alert: UPSBatteryRuntimeLow
           annotations:
             description: >-
@@ -103,14 +103,14 @@ spec:
             severity: critical
         # A UPS can shut its output down during an outage and never restart it
         # (seen 2026-07-14: mains restored, battery 100%, output 0V, downstream
-        # devices dark) — no other rule covers status OFF.
+        # devices dark), no other rule covers status OFF.
         - alert: UPSOutputOff
           annotations:
             description: >-
-              UPS {{ $labels.ups }} reports status OFF — its output is switched off
+              UPS {{ $labels.ups }} reports status OFF. Its output is switched off
               and everything downstream is unpowered. It will not restart output by
               itself; power it back on at the front panel.
-            summary: UPS {{ $labels.ups }} output is OFF — downstream load is dark.
+            summary: UPS {{ $labels.ups }} output is OFF. Downstream load is dark.
           expr: max by (ups) (nut_ups_status{status="OFF"}) == 1
           for: 2m
           labels:

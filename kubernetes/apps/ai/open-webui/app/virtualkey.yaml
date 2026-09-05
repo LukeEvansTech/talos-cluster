@@ -15,5 +15,5 @@ spec:
     - self-hosted-uncensored
     - openrouter/auto
     # Embedding model used by RAG_OPENAI_API_KEY/RAG_EMBEDDING_MODEL in
-    # helmrelease.yaml — must be in scope or web-search/file-upload embedding fails.
+    # helmrelease.yaml. Must be in scope or web-search/file-upload embedding fails.
     - all-minilm

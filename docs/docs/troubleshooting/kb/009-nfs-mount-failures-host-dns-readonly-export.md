@@ -1,4 +1,4 @@
-# KB-009: NFS Mount Failures (Host DNS / Read-Only Export)
+# KB-009: NFS mount failures (host DNS / read-only export)
 
 **Status:** Two distinct causes with different error strings: read the pod event before
 acting.

@@ -1,4 +1,4 @@
-# KB-004: Talos Patch Rollout Gotchas (TUPPR v0.1.27 at incident time, now v0.2.6 / Talos v1.13.0 → v1.13.2)
+# KB-004: Talos patch rollout gotchas (TUPPR v0.1.27 at incident time, now v0.2.6 / Talos v1.13.0 → v1.13.2)
 
 **Status:** Workarounds documented; root causes not yet fixed. Open items below.
 

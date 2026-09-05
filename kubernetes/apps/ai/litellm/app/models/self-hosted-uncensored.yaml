@@ -9,8 +9,8 @@ spec:
   # Alias for the SAME llama-nvidia backend (the model is abliterated, so the
   # dedicated uncensored InferenceService is gone). Kept as its own group
   # because existing clients (opencode etc.) keep working and because its
-  # fallback semantics differ: deliberately NOT in routerSettings.fallbacks —
-  # a cloud fallback would reintroduce refusals and defeat the point.
+  # fallback semantics differ: deliberately NOT in routerSettings.fallbacks.
+  # A cloud fallback would reintroduce refusals and defeat the point.
   modelName: self-hosted-uncensored
   proxyRef: litellm
   params:

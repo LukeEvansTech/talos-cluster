@@ -1,4 +1,4 @@
-# Volsync Kopia Migration Guide
+# Volsync Kopia migration guide
 
 !!! note "Completed migration"
     This page is a record of a migration that is already complete. The steps below are preserved as history; some current-state paths, names, and commands have since drifted. Commands and paths flagged in review are corrected inline: see the Architecture and Operations sections for the present-day setup.
@@ -12,12 +12,12 @@ This guide documents the migration from restic to kopia as the backup backend fo
 - **Modern backup tool**: Kopia is actively developed with better performance than restic
 - **Community support**: perfectra1n/volsync fork provides kopia CRDs
 - **Proven pattern**: Following onedr0p's home-ops implementation
-- **Web UI**: Native web interface for browsing and managing snapshots
+- **Web UI**: browse and manage snapshots without the CLI
 - **Better deduplication**: More efficient storage usage
 
-## What Was Implemented
+## What was implemented
 
-### 1. Volsync Upgrade
+### 1. Volsync upgrade
 
 **Location:** `kubernetes/apps/volsync-system/volsync/app/`
 
@@ -56,7 +56,7 @@ spec:
     url: oci://ghcr.io/home-operations/charts-mirror/volsync-perfectra1n
 ```
 
-### 2. Kopia Server Deployment
+### 2. Kopia server deployment
 
 **Location:** `kubernetes/apps/volsync-system/kopia/`
 
@@ -142,7 +142,7 @@ kopia/
 └── ks.yaml                    # Flux Kustomization
 ```
 
-### 3. Component Templates Migration
+### 3. Component templates migration
 
 **Location:** `kubernetes/components/volsync/nfs/`
 
@@ -198,7 +198,7 @@ spec:
 - Added `sourceIdentity.sourceName` for restore operations
 - Same retention policies maintained
 
-### 4. Backup Strategy
+### 4. Backup strategy
 
 **Current Architecture:**
 
@@ -221,9 +221,9 @@ flowchart TB
 - Simplified to NFS-only after user feedback
 - TrueNAS handles offsite replication more reliably
 
-## Migration Steps
+## Migration steps
 
-### Step 1: Update Volsync to Kopia-Enabled Fork
+### Step 1: Update Volsync to Kopia-enabled fork
 
 1. Created OCIRepository for perfectra1n fork (mirrored via home-operations):
 
@@ -270,7 +270,7 @@ spec:
 # spec.enabled: true, trigger.schedule: 30 * * * *
 ```
 
-### Step 2: Deploy Kopia Server
+### Step 2: Deploy Kopia server
 
 1. Created kopia application structure
 1. Configured repository.config with consistent identity
@@ -281,13 +281,13 @@ spec:
 flux reconcile kustomization cluster-apps --with-source
 ```
 
-### Step 3: Migrate Component Templates
+### Step 3: Migrate component templates
 
 1. Updated volsync components from restic to kopia
 2. Changed environment variable naming
 3. Updated all 35+ app configurations automatically via component substitution
 
-### Step 4: Verify Migration
+### Step 4: Verify migration
 
 1. Check ReplicationSources created:
 
@@ -304,7 +304,7 @@ kubectl get replicationsource smokeping-nfs -n default -o yaml
 1. Access web UI at `kopia.${SECRET_DOMAIN}`
 1. Use "All Snapshots" dropdown to view all app snapshots
 
-## Key Differences: Restic vs Kopia
+## Key differences: Restic vs Kopia
 
 | Aspect                    | Restic                                 | Kopia                                |
 | ------------------------- | -------------------------------------- | ------------------------------------ |
@@ -316,13 +316,13 @@ kubectl get replicationsource smokeping-nfs -n default -o yaml
 | **Restore**               | Direct PVC reference                   | Requires `sourceIdentity.sourceName` |
 | **Maintenance**           | Manual                                 | KopiaMaintenance CRD (live, hourly)  |
 
-## Web UI Usage
+## Web UI usage
 
 ### Accessing the Web UI
 
 Navigate to `kopia.${SECRET_DOMAIN}` in your browser.
 
-### Viewing All Snapshots
+### Viewing all snapshots
 
 **Important**: By default, the web UI shows only the server's own snapshots. To see backups from all applications:
 
@@ -336,13 +336,13 @@ Example snapshot identities:
 - `plex-nfs@media:/data`
 - `ollama-nfs@ai:/data`
 
-### Browsing Snapshots
+### Browsing snapshots
 
 1. Click on any snapshot path to browse files
 2. View snapshot history with retention tags (hourly, daily, weekly, etc.)
 3. Download or restore files directly from the UI
 
-### Repository Information
+### Repository information
 
 The **Repository** tab shows:
 
@@ -352,7 +352,7 @@ The **Repository** tab shows:
 
 ## Troubleshooting
 
-### Web UI Shows No Snapshots
+### Web UI shows no snapshots
 
 **Symptom**: Web UI loads but shows empty snapshot list
 
@@ -360,7 +360,7 @@ The **Repository** tab shows:
 
 **Why**: By default, kopia shows only snapshots for the current user/host identity. The server runs as `volsync@volsync.volsync-system.svc.cluster.local`, but backups are created with identities like `actual-nfs@default`.
 
-### HTTPRoute Returns 500 Error
+### HTTPRoute returns 500 error
 
 **Symptom**: `kopia.${SECRET_DOMAIN}` returns HTTP 500
 
@@ -377,7 +377,7 @@ spec:
                 port: 80
 ```
 
-### Repository Path Mismatch
+### Repository path mismatch
 
 **Symptom**: CLI shows snapshots, web UI doesn't
 
@@ -389,7 +389,7 @@ spec:
 - ExternalSecret: `KOPIA_REPOSITORY: filesystem:///repository`
 - Both must use same path
 
-### Backups Failing After Migration
+### Backups failing after migration
 
 **Symptom**: ReplicationSource shows errors
 
@@ -406,30 +406,30 @@ kubectl logs -n {namespace} -l volsync.backube/replicationSource={app}-nfs
 - Missing `sourceIdentity.sourceName` in ReplicationDestination
 - Volume snapshot class not available
 
-## CLI Operations
+## CLI operations
 
-### List All Snapshots
+### List all snapshots
 
 ```bash
 kubectl exec -n volsync-system deployment/kopia -- \
   kopia snapshot list --all
 ```
 
-### View Specific App Snapshots
+### View specific app snapshots
 
 ```bash
 kubectl exec -n volsync-system deployment/kopia -- \
   kopia snapshot list actual-nfs@default
 ```
 
-### Repository Status
+### Repository status
 
 ```bash
 kubectl exec -n volsync-system deployment/kopia -- \
   kopia repository status
 ```
 
-### Restore Snapshot (Manual)
+### Restore snapshot (manual)
 
 ```bash
 kubectl exec -n volsync-system deployment/kopia -- \
@@ -446,9 +446,9 @@ The migration reuses the existing `volsync-template` secret in 1Password:
 
 **Note**: The same password is used for both backup operations and the kopia server to connect to the repository.
 
-## Post-Migration Status
+## Post-migration status
 
-### Deployed Resources
+### Deployed resources
 
 **volsync-system namespace**:
 
@@ -462,7 +462,7 @@ The migration reuses the existing `volsync-template` secret in 1Password:
 - 1 × ReplicationDestination (restore configuration)
 - 1 × {app}-volsync-nfs-secret (repository credentials)
 
-### Snapshot Statistics
+### Snapshot statistics
 
 - **Total applications**: 35+
 - **Namespaces**: default, media, downloads, ai, games, infrastructure
@@ -481,7 +481,7 @@ f06cb24e - fix(volsync): update kopia repository path to use kopia subdirectory
 bc773e4e - fix(volsync): correct service name in kopia-nfs HTTPRoute
 ```
 
-## Future Enhancements
+## Future enhancements
 
 ### KopiaMaintenance (completed)
 
@@ -503,7 +503,7 @@ spec:
         repository: volsync-maintenance-secret
 ```
 
-### Monitoring Integration
+### Monitoring integration
 
 Consider adding:
 
@@ -511,7 +511,7 @@ Consider adding:
 - Grafana dashboard for backup health
 - Alerts for failed backups
 
-### Restore Testing
+### Restore testing
 
 Periodically test restore operations:
 
@@ -527,12 +527,12 @@ Periodically test restore operations:
 - **Kopia documentation**: <https://kopia.io/docs/>
 - **Volsync documentation**: <https://volsync.readthedocs.io/>
 
-## Lessons Learned
+## Lessons learned
 
-1. **Use ConfigMap for repository.config**: Ensures consistent identity across pod restarts
-2. **Follow proven patterns**: onedr0p's configuration saved hours of troubleshooting
-3. **Repository path must match**: Server and backup paths must be identical
-4. **Web UI dropdown matters**: "All Snapshots" dropdown is crucial for cross-user visibility
-5. **Simplify architecture**: NFS-only is cleaner than dual NFS+R2 when TrueNAS handles offsite
-6. **Test incrementally**: Started with smokeping before migrating all 35 apps
-7. **perfectra1n fork essential**: Official volsync chart doesn't have kopia CRDs yet
+1. Put `repository.config` in a ConfigMap so the repository identity survives pod restarts.
+2. Copy onedr0p's configuration rather than deriving one; it saved hours of troubleshooting.
+3. Server and backup repository paths must be identical.
+4. Set the Web UI dropdown to "All Snapshots", or it lists only one user's snapshots.
+5. NFS-only is cleaner than dual NFS+R2 when TrueNAS already handles offsite.
+6. Migrate one app first (smokeping) before taking on all 35.
+7. The perfectra1n fork is required: the official volsync chart has no Kopia CRDs yet.

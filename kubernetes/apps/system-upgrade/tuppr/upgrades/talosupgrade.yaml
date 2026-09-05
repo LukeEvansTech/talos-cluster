@@ -12,14 +12,14 @@ spec:
     rebootMode: default
   # Drain each node before its reboot. With Rook-Ceph (ceph-block) this lets the
   # node flush/unmount its Ceph volumes while the mons on the other two nodes are
-  # still alive — avoiding the shutdown-time unmount stall that wedges the node
+  # still alive, avoiding the shutdown-time unmount stall that wedges the node
   # half-down and requires an IPMI reset (GH #2728). Combined with the default
   # parallelism: 1 (one node at a time) and the CephCluster HEALTH_OK gate below,
   # this is the "drain-first, one-node-at-a-time" mitigation #2728 identified.
   drain:
     enabled: true
   # A rolling Talos upgrade reboots each node in turn, and every alert below is
-  # the expected consequence of a node being deliberately absent — not a signal
+  # the expected consequence of a node being deliberately absent, not a signal
   # anyone should be paged for at 1am. Alertmanager's root route sends all
   # severities to Pushover, so without this each run pages several times per
   # node. Ceph and node-absence alerts are silenced; an alertname not listed
@@ -28,13 +28,13 @@ spec:
   # Know the scope before adding a name: tuppr's matchers are static, with no
   # way to bind a silence to the node currently rebooting, so every name below
   # is silenced CLUSTER-WIDE for the run. A second node failing while the first
-  # is down is therefore masked under these names — deliberately survivable,
+  # is down is therefore masked under these names, deliberately survivable,
   # because the alerts that say quorum is actually going are not silenced
   # anywhere here: etcdInsufficientMembers, etcdMembersDown, etcdNoLeader,
   # CephMonDownQuorumAtRisk, MiroirVolumeQuorumLost. Note CephMonDown IS
   # silenced below and CephMonDownQuorumAtRisk is not; that pairing is the
   # whole design, so keep any new name on the "expected consequence" side of
-  # it. TargetDown is the widest of them and has no such backstop — it covers
+  # it. TargetDown is the widest of them and has no such backstop. It covers
   # every scrape target, not just the rebooting node's.
   #
   # maxDuration is the safety catch: a run still holding a silence past it
@@ -42,12 +42,12 @@ spec:
   # comfortably covers one node (drain + reboot + Ceph re-converge) while
   # parallelism is 1, and the budget re-arms once the hold is released.
   # Every name below was checked against the rules actually loaded in the
-  # cluster — a silence on an alertname that does not exist is a no-op that
+  # cluster. A silence on an alertname that does not exist is a no-op that
   # looks like it is working.
   silences:
     # Ceph: one node down takes its OSDs and a mon with it, degrades PGs and
     # puts the cluster into HEALTH_WARN until it re-converges. CephHealthError
-    # and the full/near-full alerts are deliberately NOT silenced — those are
+    # and the full/near-full alerts are deliberately NOT silenced. Those are
     # not expected consequences of a reboot.
     - maxDuration: 1h
       matchers:

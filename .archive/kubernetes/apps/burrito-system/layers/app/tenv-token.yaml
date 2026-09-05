@@ -1,5 +1,5 @@
 ---
-# Shared GitHub token for the runners' `tenv` binary downloader — without it, tenv hits
+# Shared GitHub token for the runners' `tenv` binary downloader, without it, tenv hits
 # GitHub's anonymous API rate limit (60/h) when fetching the OpenTofu binary and runs fail.
 # Reuses the github-terraform PAT (public-read is all tenv needs).
 apiVersion: external-secrets.io/v1

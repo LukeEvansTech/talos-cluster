@@ -3,7 +3,7 @@
 apiVersion: kustomize.config.k8s.io/v1alpha1
 kind: Component
 resources:
-  # Placeholder cluster-secrets so CI (flate) can render ${VAR} substitutions —
+  # Placeholder cluster-secrets so CI (flate) can render ${VAR} substitutions,
   # load-bearing: charts with values.schema.json or LB IPs reject empty values.
   # ExternalSecret overwrites it with real values in-cluster.
   - ./cluster-secrets.yaml

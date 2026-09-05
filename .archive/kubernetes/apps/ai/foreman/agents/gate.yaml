@@ -1,5 +1,5 @@
 ---
-# No published JSON schema for foreman.llmkube.dev — the chart is a defilantech
+# No published JSON schema for foreman.llmkube.dev. The chart is a defilantech
 # CRD, not one k8s-schemas.home-operations.com catalogs.
 apiVersion: foreman.llmkube.dev/v1alpha1
 kind: Agent

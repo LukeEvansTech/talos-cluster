@@ -1,4 +1,4 @@
-# KB-012: JVM / Logstash Container RSS OOM Despite a Bounded Heap (`MALLOC_ARENA_MAX`)
+# KB-012: JVM / Logstash container RSS OOM despite a bounded heap (`MALLOC_ARENA_MAX`)
 
 **Status:** Resolved. The fix (`MALLOC_ARENA_MAX=2`) is a reusable first move for **any**
 Java/JRuby/Logstash workload that OOMs on these many-core nodes.

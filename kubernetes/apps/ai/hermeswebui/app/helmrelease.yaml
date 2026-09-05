@@ -27,17 +27,17 @@ spec:
               HERMES_WEBUI_HOST: 0.0.0.0
               HERMES_WEBUI_PORT: &port 8787
               # Sessions, settings, the auth signing key, and attachments live
-              # here. It is the ONLY stateful path — persisted on the volsync PVC
+              # here. It is the ONLY stateful path, persisted on the volsync PVC
               # (mounted at /data below); losing it logs every user out.
               HERMES_WEBUI_STATE_DIR: /data
               # Chat through hermes-app's OpenAI-compatible gateway API server
               # rather than the WebUI's own legacy backend.
               HERMES_WEBUI_CHAT_BACKEND: gateway
-              # Base URL only — the WebUI appends /v1/* and /api/* itself, so no
+              # Base URL only. The WebUI appends /v1/* and /api/* itself, so no
               # /v1 suffix here (matches upstream's default of http://127.0.0.1:8642).
               HERMES_WEBUI_GATEWAY_BASE_URL: http://hermes-app.ai.svc.cluster.local:8642
               # REQUIRED: the gateway runs approvals.mode: manual, and without the
-              # runs API the approval cards never surface — tool calls would hang
+              # runs API the approval cards never surface. Tool calls would hang
               # invisibly. Truthy value opts into the runs-API approval path.
               HERMES_WEBUI_GATEWAY_USE_RUNS_API: "true"
             envFrom:
@@ -58,7 +58,7 @@ spec:
                   timeoutSeconds: 5
                   failureThreshold: 3
               readiness: *probe
-              # First boot (and every pod start — the venv lives on the ephemeral
+              # First boot (and every pod start, since the venv lives on the ephemeral
               # image layer, not the PVC) builds a Python venv via `uv pip install`
               # before /health answers, so gate liveness/readiness on a generous
               # startup probe (~5 min) instead of a long initialDelaySeconds.
@@ -96,7 +96,7 @@ spec:
         # the runtime UID/GID with mounted volumes, then execs the server as 1024.
         # Started directly as 1024 it detects the non-root start, skips that root
         # branch, seeds /app + builds the venv as 1024, and asserts UID/GID == 1024
-        # — so we bypass the root init entirely (no self-chown needed). fsGroup
+        #, so we bypass the root init entirely (no self-chown needed). fsGroup
         # 1024 makes the /data PVC group-writable so HERMES_WEBUI_STATE_DIR persists.
         runAsNonRoot: true
         runAsUser: 1024

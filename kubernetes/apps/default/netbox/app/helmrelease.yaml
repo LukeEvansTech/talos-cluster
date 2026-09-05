@@ -61,7 +61,7 @@ spec:
         # GRANIAN_WORKERS=2 (below) halves the footprint; 1.5Gi gives headroom.
         memory: 1536Mi
     extraEnvs:
-      # Default is 4 (`${GRANIAN_WORKERS:-4}` in launch-netbox.sh) — overkill for this
+      # Default is 4 (`${GRANIAN_WORKERS:-4}` in launch-netbox.sh), overkill for this
       # low-concurrency homelab instance and the main driver of the OOM. Drop to 2.
       - name: GRANIAN_WORKERS
         value: "2"

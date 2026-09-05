@@ -1,5 +1,5 @@
 ---
-# GitHub repositories stack — OpenTofu, R2 s3 backend. Provider token + R2 backend creds
+# GitHub repositories stack, OpenTofu, R2 s3 backend. Provider token + R2 backend creds
 # injected from the github-creds Secret. (owner vars are defaulted in the repo's variables.tf)
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret

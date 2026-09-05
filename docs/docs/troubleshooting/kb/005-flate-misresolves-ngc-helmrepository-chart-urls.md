@@ -1,4 +1,4 @@
-# KB-005: flate Mis-Resolves NGC HelmRepository Chart URLs (gpu-operator Skipped In CI)
+# KB-005: flate mis-resolves NGC HelmRepository chart URLs (gpu-operator skipped in CI)
 
 > **Status: Resolved.** gpu-operator was migrated to an OCI community mirror,
 > eliminating the flate bug and the CI workaround. Preserved as a resolved-incident record.
@@ -43,7 +43,7 @@ resolved it against the **host root**, requesting
 source-controller resolved the same `HelmRepository` correctly (so deployments
 were unaffected), but flate-based CI always failed on the chart pull.
 
-## Fix (Resolution)
+## Fix (resolution)
 
 gpu-operator was migrated from the NGC `HelmRepository` to an OCI community
 mirror (`ghcr.io/home-operations/charts-mirror/nvidia-gpu-operator`). The

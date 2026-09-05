@@ -1,4 +1,4 @@
-# KB-001: 1Password Connect PushSecret False 400 Errors
+# KB-001: 1Password Connect PushSecret false 400 errors
 
 **Status:** Pending upstream fix: monitoring [external-secrets#3631](https://github.com/external-secrets/external-secrets/issues/3631) for resolution from the 1Password Connect team.
 

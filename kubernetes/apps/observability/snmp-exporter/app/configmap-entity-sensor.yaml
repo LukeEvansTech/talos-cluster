@@ -1,10 +1,10 @@
 ---
-# Custom snmp_exporter module for ENTITY-SENSOR-MIB (RFC 3433) — temperature,
+# Custom snmp_exporter module for ENTITY-SENSOR-MIB (RFC 3433), temperature,
 # fan, voltage and PSU sensors exposed by the core switch (and any
 # device implementing the standard MIB). Merged with the image's bundled
 # snmp.yml via a second --config.file (see helmrelease extraArgs).
-# Auths live in the snmp-exporter-auth Secret (external-secrets), never here —
-# this ConfigMap is git-tracked in a public repo and carries modules only.
+# Auths live in the snmp-exporter-auth Secret (external-secrets), never here.
+# This ConfigMap is git-tracked in a public repo and carries modules only.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -15,7 +15,7 @@ data:
     modules:
       entity_sensor:
         # This agent serves the entPhysicalTable slowly and drops GETBULK
-        # responses under the default max_repetitions of 25 — measured at 5/8
+        # responses under the default max_repetitions of 25, measured at 5/8
         # successful walks, avg 11.3s against 0.3s for if_mib on the same box
         # (2026-08-27). Smaller bulk requests are gentler on a constrained
         # agent at the cost of more round trips, which the 5m scrape interval

@@ -24,7 +24,7 @@ spec:
               # In-pod collector disabled: collection is handled uniformly by the
               # scrutiny-collector DaemonSet, keeping this server unprivileged.
               COLLECTOR_RUN_STARTUP: "false"
-              COLLECTOR_CRON_SCHEDULE: "0 0 30 2 *" # 30 February — never fires
+              COLLECTOR_CRON_SCHEDULE: "0 0 30 2 *" # 30 February. Never fires
               # v1.67.0 migrates the embedded InfluxDB 2.2 → 2.9.1 and refuses
               # to start on existing data without this acknowledgement
               # (Starosdev/scrutiny#662). Pre-migration VolSync snapshots taken

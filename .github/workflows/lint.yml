@@ -21,7 +21,7 @@ jobs:
     with:
       # Kubeconform validates raw YAML source. On this Flux GitOps repo the
       # source is meaningless until kustomize substitutes vars
-      # (${SECRET_DOMAIN}, ${SVC_*_ADDR}, ...) and merges components — so it
+      # (${SECRET_DOMAIN}, ${SVC_*_ADDR}, ...) and merges components, so it
       # false-positives on every CRD-shaped file regardless of schema config.
       # Real K8s validation lives in flate (kustomize build pipeline).
       validate-kubernetes-kubeconform: false

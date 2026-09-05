@@ -10,7 +10,7 @@ spec:
     matchLabels:
       grafana.internal/instance: grafana
   # Fleet view for the 4 Brother printers (device_class=printer). Supply % is
-  # drum/belt only — Brother reports toner level as -3 (present, no number), so
+  # drum/belt only. Brother reports toner level as -3 (present, no number), so
   # the panel filters to MaxCapacity>0 and Level>=0. Status/pages/reachability
   # cover all 4. No template var: small fixed fleet, shown all at once.
   json: |-

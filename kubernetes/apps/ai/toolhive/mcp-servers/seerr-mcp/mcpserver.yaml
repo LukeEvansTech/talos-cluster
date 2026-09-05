@@ -7,7 +7,7 @@ metadata:
 spec:
   # Official multi-arch GHCR image for overseerr-mcp (github.com/jhomen368/overseerr-mcp),
   # digest-pinned. The Dockerfile bakes HTTP_MODE=true PORT=8085, so the container runs
-  # native streamable-HTTP (MCP endpoint /mcp, health /health) — no stdio proxy hop. This
+  # native streamable-HTTP (MCP endpoint /mcp, health /health), no stdio proxy hop. This
   # is the same project jory runs via npx; our convention pins the container by digest.
   image: ghcr.io/jhomen368/overseerr-mcp:2.3.0@sha256:53dc6c79701b91801309cbfe9108fcb8d7e7bd06f97e937d88c5eb50ab81c8cb
   transport: streamable-http
