@@ -229,12 +229,20 @@ spec:
         # The cap metric going stale is itself a fault: without it the rules
         # above silently stop evaluating rather than firing. clamp_min above
         # guards the first hour of a month; this guards the collector.
+        #
+        # NOTE the freshness term is load-bearing, not belt-and-braces.
+        # node-exporter keeps serving a textfile after whatever writes it has
+        # died, so vnstat_up would sit at its last value of 1 and
+        # vnstat_month_total_bytes would stay present — the two obvious
+        # conditions both stay false for ever while the cap counter is frozen.
+        # The exported success timestamp is the only term that actually notices.
         - alert: SeedboxVnstatCollectorDown
           annotations:
-            summary: "Seedbox vnstat collector unhealthy - the 100 TB cap metric is stale."
+            summary: "Seedbox vnstat collector unhealthy or stale - the 100 TB cap metric is frozen."
           expr: |-
             vnstat_up{job="seedbox-node"} == 0
             or absent(vnstat_month_total_bytes{job="seedbox-node",interface="eno0"})
+            or (time() - vnstat_last_success_timestamp_seconds{job="seedbox-node"} > 3600)
           for: 1h
           labels:
             severity: warning
@@ -541,11 +549,17 @@ spec:
           labels:
             severity: warning
         # --- The collector for qbit-manage / cross-seed / RecycleBin / tags ---
+        # Same three-term shape and for the same reason: a bare `== 0` yields an
+        # empty vector if the series disappears entirely, and a served-but-stale
+        # textfile keeps reporting 1. The node-exporter endpoint stays healthy
+        # throughout, so SeedboxScrapePathDegraded does not cover either case.
         - alert: SeedboxMetricsCollectorDegraded
           annotations:
-            summary: "Seedbox metrics collector has an unhealthy source - some seedbox metrics are stale."
+            summary: "Seedbox metrics collector unhealthy, missing or stale - qbit-manage/cross-seed/RecycleBin metrics frozen."
           expr: |-
             seedbox_metrics_up{job="seedbox-node"} == 0
+            or absent(seedbox_metrics_up{job="seedbox-node"})
+            or (time() - seedbox_metrics_last_success_timestamp_seconds{job="seedbox-node"} > 3600)
           for: 1h
           labels:
             severity: warning
@@ -577,7 +591,13 @@ spec:
             summary: "cross-seed has hit {{ $value }} tracker auth failures today - a session has likely expired."
           expr: |-
             cross_seed_errors_today{job="seedbox-node", kind="unauthorized"} > 3
-          for: 2h
+          # 15m, NOT hours. This counter only rises until it resets at midnight,
+          # so a long `for` does not establish that failures are ongoing — it
+          # just delays the alert, and worse, a threshold crossed late in the
+          # evening would have its pending alert wiped by the midnight reset
+          # before it ever fired. The threshold itself is the condition; this is
+          # only debounce against a scrape blip.
+          for: 15m
           labels:
             severity: warning
             # Deliberately NOT alerting on kind="rate_limited": 429s are a tracker
