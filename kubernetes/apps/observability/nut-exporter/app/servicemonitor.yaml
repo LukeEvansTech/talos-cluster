@@ -4,7 +4,7 @@ apiVersion: monitoring.coreos.com/v1
 # nut-exporter is a PROXY: the scrape target is the exporter's own Service, and
 # the NUT server it reads is passed per-endpoint in `params.target`. That NUT
 # server is now the external appliance (${NUT_SERVER_ADDR}), not the retired
-# in-cluster upsd — the appliance has to outlive the cluster it shuts down.
+# in-cluster upsd. The appliance has to outlive the cluster it shuts down.
 # Reading NUT variables is anonymous, so no credential is involved here.
 kind: ServiceMonitor
 metadata:

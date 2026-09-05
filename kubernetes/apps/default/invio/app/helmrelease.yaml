@@ -74,7 +74,7 @@ spec:
           # The image ships /app/backend root-owned with a stale deno.lock that
           # deno 2.6.8 insists on rewriting at startup. User 1000 can't write the
           # root-owned dir, so `deno task start` fails ("Failed writing lockfile
-          # ... Permission denied") and the backend crash-loops into FATAL —
+          # ... Permission denied") and the backend crash-loops into FATAL,
           # which makes the frontend return 500 ("Unable to connect"). Copy
           # /app/backend into a writable emptyDir (cp runs as uid 1000, so the
           # copies become user-owned) and mount it over /app/backend so deno can
@@ -89,7 +89,7 @@ spec:
               - -c
               # cp -r (not -a): cp as uid 1000 can't preserve timestamps on the
               # emptyDir mount root, and we don't want to preserve the source's
-              # root ownership anyway — files copied as uid 1000 are what makes
+              # root ownership anyway. Files copied as uid 1000 are what makes
               # deno.lock writable.
               - cp -r /app/backend/. /writable-backend/
 

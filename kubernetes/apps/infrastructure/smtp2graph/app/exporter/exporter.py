@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """Prometheus exporter and delivery canary for smtp2graph.
 
-smtp2graph exposes no metrics of its own — it listens on :25 and nothing else,
+smtp2graph exposes no metrics of its own. It listens on :25 and nothing else,
 and its config schema has no metrics or health options. This sidecar therefore
 reads the relay's own on-disk queue directories and, separately, proves the
 whole SMTP -> Graph path still works by sending a message through it.
 
 It exists because between 2026-08-10 and 2026-08-19 every Graph send failed
-with ErrorSendAsDenied — 353 messages lost, zero delivered — while the SMTP
+with ErrorSendAsDenied, 353 messages lost and zero delivered, while the SMTP
 listener stayed perfectly healthy. Liveness was never the problem; delivery
 was. Everything here measures delivery outcome.
 
@@ -89,7 +89,7 @@ def _submit(marker):
     msg["To"] = CANARY_TO
     msg["Subject"] = "[canary] smtp2graph delivery check"
     msg.set_content(
-        "Automated smtp2graph delivery canary — safe to delete.\n"
+        "Automated smtp2graph delivery canary, safe to delete.\n"
         "It exists because a silent Graph-side failure went unnoticed for nine days\n"
         "in Aug 2026 while the SMTP listener stayed perfectly healthy.\n"
         f"marker={marker}\n"
@@ -123,7 +123,7 @@ def canary_once():
     deadline = time.time() + CANARY_TIMEOUT
     while time.time() < deadline:
         if has_marker("failed", marker):
-            log("canary: message landed in failed/ — Graph rejected it")
+            log("canary: message landed in failed/, Graph rejected it")
             STATE["ok"] = 0
             STATE["failures"] += 1
             return

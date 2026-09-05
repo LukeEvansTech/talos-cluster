@@ -103,7 +103,7 @@ spec:
   # expiry monitoring of any kind until 2026-07-29. In-cluster certificates are
   # deliberately not listed: cert-manager owns those and reports on them itself.
   #
-  # 5m, not 1m — a certificate's expiry does not change minute to minute, and
+  # 5m, not 1m. A certificate's expiry does not change minute to minute, and
   # these are handshakes against boxes whose job is something else.
   jobName: tls_cert
   interval: 5m
@@ -113,10 +113,10 @@ spec:
   targets:
     staticConfig:
       static:
-        # cr-nut — the box whose rebuild exposed the broken token.
+        # cr-nut, the box whose rebuild exposed the broken token.
         - peanut.${SECRET_DOMAIN}:443
         # TrueNAS. Every host here is served by the one Traefik from a single
-        # acme.json, so in principle one target would do — they are listed
+        # acme.json, so in principle one target would do. They are listed
         # individually because a per-host issuance failure is exactly the kind
         # of partial breakage a single sampled target would hide.
         #
@@ -130,7 +130,7 @@ spec:
         - s3-nas.${SECRET_DOMAIN}:443
         - scrutiny-nas.${SECRET_DOMAIN}:443
         - syncthing.${SECRET_DOMAIN}:443
-        # Main UPS NMC3 — Certwarden deploys via apc-p15-tool, which embeds
+        # Main UPS NMC3. Certwarden deploys via apc-p15-tool, which embeds
         # the full chain in the p15, so this device verifies cleanly and
         # belongs on the strict probe (unlike the BMCs below). First
         # successful deployment 2026-08-02; the name resolves via an Unbound
@@ -148,13 +148,13 @@ metadata:
   name: lan-tls-cert-device
 spec:
   # Certificate expiry for device management endpoints whose certificates
-  # Certwarden renews and pushes via deploy Jobs — a chain with two failure
+  # Certwarden renews and pushes via deploy Jobs, a chain with two failure
   # modes seen in production: the Job fails outright (CertDeployJobFailed
   # covers that, but only for ~5 minutes per failure), and the upload
   # "succeeds" while the device keeps serving the old certificate until
   # reboot. Probing what the socket actually serves catches both, weeks
   # before expiry. One BMC served an expired certificate for 3.5 months
-  # with nothing anywhere to say so — these targets close that gap.
+  # with nothing anywhere to say so. These targets close that gap.
   #
   # Separate Probe from lan-tls-cert because these BMCs serve a chainless
   # leaf, and that is a FIRMWARE constraint, not a deploy-tool choice:
@@ -162,13 +162,13 @@ spec:
   # rejects any multi-cert PEM and the standard ReplaceCertificate only
   # pairs with its own GenerateCSR flow (full evidence in the
   # supermicro-ipmi-cert container source). The verifying tls_connect
-  # module therefore can never pass here — see tls_connect_noverify in the
+  # module therefore can never pass here, see tls_connect_noverify in the
   # HelmRelease. Same jobName, so dashboards and the expiry alerts treat
   # both probes as one fleet.
   jobName: tls_cert
   interval: 5m
   # Without this the scrape timeout defaults to 10s, and blackbox clamps its
-  # own module timeout to that minus 0.5s — so the module's 30s became 9.5s
+  # own module timeout to that minus 0.5s, so the module's 30s became 9.5s
   # and the storage BMC failed ~83% of scrapes for a week while serving its
   # certificate perfectly. Measured handshakes on that BMC: 1-3s warm, but
   # 6.6s, 15s and 20s on the first connection after an idle gap, which is
@@ -203,7 +203,7 @@ metadata:
 spec:
   # Veeam B&R REST API (:9419) on the backup server. Complements
   # VeeamServerGuestDown (vmware-exporter): that one sees a dead guest OS, this
-  # one sees "OS up but the Veeam services are not" — the service stopping or
+  # one sees "OS up but the Veeam services are not", the service stopping or
   # failing to start after a reboot. Alerted by the generic LanProbeFailed rule
   # (probe_success == 0 for 15m, critical).
   jobName: veeam_probe

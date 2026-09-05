@@ -1,4 +1,4 @@
-# KB-022: Container Won't Start as Non-Root (s6 / LinuxServer Image `CreateContainerConfigError`)
+# KB-022: Container won't start as non-root (s6 / LinuxServer image `CreateContainerConfigError`)
 
 **Status:** Image-class gotcha. Fix is one explicit securityContext line.
 
@@ -31,7 +31,7 @@ Set the full root securityContext **explicitly** on the app-template values:
 securityContext:
   runAsUser: 0
   runAsGroup: 0
-  runAsNonRoot: false   # REQUIRED — the chart blocks runAsUser: 0 without it
+  runAsNonRoot: false   # REQUIRED; the chart blocks runAsUser: 0 without it
 ```
 
 Always set `runAsNonRoot: false` when you intentionally run root on this chart. `runAsUser: 0`

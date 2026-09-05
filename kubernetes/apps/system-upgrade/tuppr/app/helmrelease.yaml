@@ -25,7 +25,7 @@ spec:
     # silences is authored per-resource in upgrades/talosupgrade.yaml.
     #
     # The silence is a short lease re-extended on every reconcile, so it lapses
-    # on its own if the controller stops driving the run — a crashed operator
+    # on its own if the controller stops driving the run. A crashed operator
     # un-silences rather than leaving the estate permanently muted.
     silences:
       enabled: true

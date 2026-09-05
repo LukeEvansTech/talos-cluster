@@ -1,4 +1,4 @@
-# joryirving/home-ops Adoption Roadmap
+# joryirving/home-ops adoption roadmap
 
 **Status:** Largely SHIPPED 2026-07-10. PRs A-E landed as #3480-#3484 (+ follow-up
 fixes #3488 mcp-searxng bind / arr telemetry, #3492 cache-prep securityContext), seerr
@@ -6,7 +6,7 @@ MCP as #3491, and PR G as the staged #3489 (operator 0.9.3) → #3490 (shared ca
 abliterated model) → #3493 (vision, first-class mmproj) with both models verified on the shared
 CephFS cache (text + vision end-to-end). The CephFS RWX smoke test passed on 2026-07-10.
 Still open: **ha MCP** (awaiting a user-created read-only Home Assistant token in 1Password),
-**PR F** (optional CPU auxiliary model), and **foreman** (trialled 2026-08-25, then archived —
+**PR F** (optional CPU auxiliary model), and **foreman** (trialled 2026-08-25, then archived,
 see below). Planned 2026-07-09 via multi-agent gap analysis + adversarial review.
 
 A survey of [joryirving/home-ops](https://github.com/joryirving/home-ops) (`kubernetes/apps/base/llm`
@@ -216,14 +216,14 @@ the `litellm-key-foreman` virtual key and the GitHub token generator. What the o
 `Workload` trial showed:
 
 - The local coder (`self-hosted`, Qwen3.8-27B on a single L4) managed about 30 model turns an
-  hour — roughly 178k prompt tokens in the hour without producing a diff. A real issue needs
+  hour, roughly 178k prompt tokens in the hour without producing a diff. A real issue needs
   100+ turns, so one attempt is a multi-hour affair on this hardware.
 - The first attempt died with a one-off agent Deployment rollout (its claim expired with the
-  pod) — a fragility of Job-mode execution that the retry budget does not cover.
+  pod). That is a fragility of Job-mode execution the retry budget does not cover.
 - Foreman reads `GITHUB_TOKEN` once at pod start, so the hourly installation tokens the
   `GithubAccessToken` generator mints expire mid-attempt; a long-lived PAT (jory runs a bot user
   with one) is the only token shape that survives a full attempt.
-- There is no queue of well-specified mechanical issues here for it to work through — work in
+- There is no queue of well-specified mechanical issues here for it to work through. Work in
   this repository arrives as "look at this and figure out what is wrong", which an unattended
   issue → pull request loop cannot do.
 
@@ -251,28 +251,28 @@ has no bearing on a hand-applied `Workload`, which carries its gate command inli
 `spec.gateProfile` instead (see below).
 
 **What the draft PR installs**: the `foreman` chart (operator + CRDs: `Workload`,
-`AgenticTask`, `Agent`, `FleetNode`, `AgentRelease`, `ModelProfile`) and three `Agent` CRs —
+`AgenticTask`, `Agent`, `FleetNode`, `AgentRelease`, `ModelProfile`) and three `Agent` CRs:
 `coder` (role `coder`, model `self-hosted` via LiteLLM, Job-mode execution), `gate` (role
-`verifier`, deterministic — no LLM, runs `run_gate_job`), `reviewer` (role `reviewer`, model
+`verifier`, deterministic, with no LLM, runs `run_gate_job`), `reviewer` (role `reviewer`, model
 `openrouter/auto`, read-only tools). All three inference through LiteLLM's `cloud-proxy`
 provider (`spec.providerConfig`), pointed at the `litellm-key-foreman` Secret the
-`LiteLLMVirtualKey` operator manages directly — no LiteLLM key is duplicated into the
+`LiteLLMVirtualKey` operator manages directly, so no LiteLLM key is duplicated into the
 `foreman-agent` 1Password-sourced Secret.
 
 **Prerequisites the owner must create before the trial can run** (not automated by the PR):
 
 - A GitHub App (the trial used `foreman-lukeevanstech`, id 4718328: Contents RW / Pull requests
-  RW / Issues R / Metadata R, webhook off — deleted 2026-08-26 together with its 1Password item)
+  RW / Issues R / Metadata R, webhook off, deleted 2026-08-26 together with its 1Password item)
   installed on the account; its private key lives on the `foreman-github` 1Password item (Talos
   vault, fields `APP_ID`, `INSTALLATION_ID`, `PRIVATE_KEY`). An
   external-secrets `GithubAccessToken` generator (`foreman/app/githubaccesstoken.yaml`, now under `.archive/`) mints
-  hourly installation tokens scoped to the `repositories` listed there — add a repo to that list
-  to let foreman work on it.
+  hourly installation tokens scoped to the `repositories` listed there. Add a repository to that
+  list to let foreman work on it.
 - The `litellm` `LiteLLMProxy` cutover PR must land (or be otherwise verified) before the
-  `LiteLLMVirtualKey` in this PR can resolve — see that PR's Verification section for what was
+  `LiteLLMVirtualKey` in this PR can resolve. See that PR's Verification section for what was
   actually observed against the litellm-operator's validating webhook.
 
-**Trial procedure** — apply one `Workload` by hand against a real issue in a repo the generator's `repositories` list
+**Trial procedure.** Apply one `Workload` by hand against a real issue in a repo the generator's `repositories` list
 covers:
 
 ```yaml
@@ -291,7 +291,7 @@ spec:
     name: gate
   reviewerAgentRefs:
     - name: reviewer
-  # Only needed for a non-Go repo — an omitted gateProfile resolves to the Go
+  # Only needed for a non-Go repository. An omitted gateProfile resolves to the Go
   # preset (gofmt/govet/golangci-lint/go test), byte-identical to no field at
   # all. See LLMKube's docs/site/foreman/language-gates.md for the built-in
   # presets (python, rust, node, generic) and the `commands` overrides.
@@ -306,7 +306,7 @@ kubectl get workload,agentictask,fleetnode -n ai -w
 ```
 
 A review `GO` opens the pull request itself (`Workload.spec.openPullRequest` defaults to true
-for an issue-batch Workload) — no dispatch bridge involved. Flux does not own these hand-applied
+for an issue-batch Workload), with no dispatch bridge involved. Flux does not own these hand-applied
 objects, so clean up by name afterward: `kubectl delete workload foreman-trial-issue-<N> -n ai`,
 plus any decomposed `AgenticTask`s that linger as terminal objects
 (`kubectl get agentictask -n ai`).
@@ -316,7 +316,7 @@ plus any decomposed `AgenticTask`s that linger as terminal objects
 - [ ] hermes: the web chat surface is already live via `hermeswebui`; the open question is only
       which bot-token platforms (Discord/Slack/etc.), if any, to enable next (each needs a bot
       token in 1Password)
-- [x] hermes: MCP wiring — resolved: ToolHive VMCP aggregate (#4594)
+- [x] hermes: MCP wiring, resolved by the ToolHive VMCP aggregate (#4594)
 - [ ] hermes: keep `approvals.mode: manual` (default) or `smart`?
 - [ ] hermes: image tag to pin (jory runs v2026.7.7; newer exists) + digest.
 - [ ] CephFS: StorageClass name (`ceph-filesystem` proposed), MDS memory limit, snapshot class now or later?
@@ -331,7 +331,7 @@ Deferred (right idea, wrong time): ToolHive `VirtualMCPServer` aggregate (litell
 aggregates + semantically filters; revisit if external agents need one URL: hermes could be
 that trigger), litellm complexity auto-router + cost economics (need a paid cloud roster),
 `memini-summary` dedicated model (GPU pressure; PR F could host it on CPU instead), repo-wiki,
-speculative decoding, HF-token ExternalSecret, foreman (trialled and archived 2026-08-26 — the
+speculative decoding, HF-token ExternalSecret, foreman (trialled and archived 2026-08-26; the
 Foreman section above carries the reinstatement recipe).
 
 Skipped with reasons: openclaw + hermes-parallel runtimes as *always-on personas* (hermes is

@@ -1,8 +1,8 @@
-# KB-031: VolSync Restore Destinations Silently Frozen at Creation-Time Values
+# KB-031: VolSync restore destinations silently frozen at creation-time values
 
 **Status:** Resolved. The `kustomize.toolkit.fluxcd.io/ssa: IfNotPresent` label was removed from both
 `ReplicationDestination` templates in `kubernetes/components/volsync/`, so Flux now reconciles all
-198 of them instead of only creating them. Backups were never affected — this only ever broke
+198 of them instead of only creating them. Backups were never affected. This only ever broke
 restores.
 
 ## Symptom
@@ -30,9 +30,9 @@ Three separate failures were live at once:
 
 | Drift | Count | What a restore does |
 | --- | --- | --- |
-| `cacheStorageClassName: openebs-hostpath` | 42 | Hangs forever — that StorageClass was deleted with OpenEBS |
+| `cacheStorageClassName: openebs-hostpath` | 42 | Hangs forever; that StorageClass was deleted with OpenEBS |
 | `capacity` smaller than the data | 7 | Fails to provision; `plex` offered 200Gi for 290G of data |
-| `cacheCapacity` below the 8Gi floor | 163 | ENOSPC on `/cache` — the KB-030 failure, during the restore |
+| `cacheCapacity` below the 8Gi floor | 163 | ENOSPC on `/cache`, the KB-030 failure, during the restore |
 
 ## Cause
 
@@ -47,9 +47,9 @@ metadata:
 
 `IfNotPresent` tells kustomize-controller to **create the object if it is absent and never update it
 again**. Each destination therefore froze at whatever `VOLSYNC_CAPACITY` /
-`VOLSYNC_CACHE_CAPACITY` happened to be on the day the app was first deployed. Every later change —
-the Kopia migration's move to `miroir-local`, the OpenEBS decommission, the KB-030 8Gi floor, every
-`VOLSYNC_CAPACITY` bump — landed on the `ReplicationSource` and was silently dropped on the
+`VOLSYNC_CACHE_CAPACITY` happened to be on the day the app was first deployed. Every later change,
+the Kopia migration's move to `miroir-local`, the OpenEBS decommission, the KB-030 8Gi floor and
+every `VOLSYNC_CAPACITY` bump, landed on the `ReplicationSource` and was silently dropped on the
 destination.
 
 The label exists upstream so that a hand-bumped `spec.trigger.manual` is not reverted mid-restore.
@@ -70,7 +70,7 @@ bumped:
 $ flux suspend ks <app> -n flux-system
 $ kubectl patch replicationdestination <app>-nfs-dst -n <ns> --type=merge \
     -p '{"spec":{"trigger":{"manual":"restore-'"$(date +%s)"'"}}}'
-# ... restore, then hand spec.trigger back to Flux BEFORE resuming — the one-off
+# ... restore, then hand spec.trigger back to Flux BEFORE resuming. This is the one-off
 # --server-side --field-manager=kustomize-controller --force-conflicts apply of the
 # rendered ReplicationDestination described under "Two traps" below. Only then:
 $ flux resume ks <app> -n flux-system
@@ -80,7 +80,7 @@ Note the quoting. One destination in this cluster was found holding the **litera
 `restore-$(date +%s)`, because the shell never expanded it inside single quotes.
 
 Handing ownership back matters as much as the quoting. A merge patch always records an
-**`Update`** managed-fields entry for `spec.trigger.manual`, whatever manager name it uses —
+**`Update`** managed-fields entry for `spec.trigger.manual`, whatever manager name it uses.
 `--field-manager=kustomize-controller` only relabels that entry, it does not become Flux's
 **`Apply`** entry (the two operations are distinct in `managedFields`). Flux's next server-side
 apply therefore still conflicts, exactly as in the next section, until a real server-side apply
@@ -99,7 +99,7 @@ Error from server (Conflict): Apply failed with 1 conflict:
 ```
 
 The Flux `Kustomization` does not set `spec.force`, so that one app wedges while the other 197
-apply cleanly. Find them before merging — `kubectl get` hides this unless you ask:
+apply cleanly. Find them before merging, because `kubectl get` hides this unless you ask:
 
 ```console
 $ kubectl get replicationdestination -A -o json --show-managed-fields \
@@ -114,7 +114,7 @@ apply, which hands ownership back.
 **Reconciling changes `spec.trigger.manual`, which fires one sync.** Any destination whose
 `status.lastManualSync` does not match the rendered `restore-once` runs a restore as soon as Flux
 owns it. This is safe: the templates set `copyMethod: Snapshot` and no `destinationPVC`, so the
-mover restores into a temporary volume and snapshots it — the app's live PVC is never touched. It
+mover restores into a temporary volume and snapshots it, so the app's live PVC is never touched. It
 costs a mover run and refreshes a stale `latestImage`.
 
 ## Verification
@@ -129,5 +129,5 @@ No destination should report `openebs-hostpath`, and no `cacheCapacity` below `8
 
 ## Related
 
-- [KB-030](030-volsync-kopia-cache-pvc-too-small.md) — the same ENOSPC, on the backup side
-- [Backups](../../operations/backups.md) — the `8Gi` cache floor and the restore procedure
+- [KB-030](030-volsync-kopia-cache-pvc-too-small.md) covers the same ENOSPC, on the backup side
+- [Backups](../../operations/backups.md) covers the `8Gi` cache floor and the restore procedure

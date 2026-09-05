@@ -40,7 +40,7 @@ spec:
                   name: prowler-ui-secret
             probes:
               # /api/auth/session is a standard NextAuth endpoint that returns
-              # {} with HTTP 200 for unauthenticated requests — no redirect.
+              # {} with HTTP 200 for unauthenticated requests, no redirect.
               liveness: &uiProbe
                 enabled: true
                 custom: true

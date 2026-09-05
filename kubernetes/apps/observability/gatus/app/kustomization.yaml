@@ -7,7 +7,7 @@ resources:
   - ./ocirepository.yaml
   - ./helmrelease.yaml
   - ./prometheusrule.yaml
-  # Backups only — deliberately NOT the ../../../../components/volsync component.
+  # Backups only, deliberately NOT the ../../../../components/volsync component.
   # That component also ships pvc.yaml, which declares a PVC named ${APP} with a
   # dataSourceRef pointing at ${APP}-dst. Here the gatus PVC already exists and is
   # created by the gatus-sidecar Helm chart (persistence.enabled), so pulling in

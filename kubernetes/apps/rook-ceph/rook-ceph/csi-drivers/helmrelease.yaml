@@ -15,11 +15,11 @@ spec:
     # CephFS (ceph-filesystem, the cluster's RWX StorageClass) are enabled;
     # NFS/NVMeoF disabled.
     # The earlier "Talos has no `ceph` kernel module, so CephFS can't be
-    # kernel-mounted" note was a misdiagnosis — see KB-025
+    # kernel-mounted" note was a misdiagnosis, see KB-025
     # (docs/docs/troubleshooting/kb/025-cephfs-modprobe-builtin-misdiagnosis.md):
     # CONFIG_CEPH_FS=y is built into the Talos v1.13.5+ kernel, so `modprobe ceph`
     # reports "module not found" even though the in-kernel CephFS client is
-    # present. It mounts natively — no FUSE mounter or ceph-module image needed.
+    # present. It mounts natively, no FUSE mounter or ceph-module image needed.
     drivers:
       rbd:
         enabled: true

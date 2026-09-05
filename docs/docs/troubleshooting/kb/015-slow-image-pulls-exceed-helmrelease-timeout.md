@@ -1,4 +1,4 @@
-# KB-015: Slow Image Pulls Exceed the HelmRelease Timeout (Rollback Loop)
+# KB-015: Slow image pulls exceed the HelmRelease timeout (rollback loop)
 
 **Status:** Recurring pattern; the `spec.timeout: 15m` fields it leaves behind are
 load-bearing. Don't strip them.

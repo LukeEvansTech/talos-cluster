@@ -6,7 +6,7 @@ metadata:
   namespace: ai
 ---
 # Read: reuses the two broad read ClusterRoles from kubectl-mcp (secrets
-# excluded — see kubectl/rbac.yaml for why the aggregated role is split from
+# excluded, see kubectl/rbac.yaml for why the aggregated role is split from
 # its explicit-rules counterpart) so the flux MCP can inspect Flux state.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -34,7 +34,7 @@ subjects:
     name: flux-mcp
     namespace: ai
 ---
-# Write: limited to Flux API groups (never core "" — no Secret access is
+# Write: limited to Flux API groups (never core "", so no Secret access is
 # granted here), enabling the MCP reconcile/suspend/resume/apply/delete
 # tools against Flux objects. Enabled per "flux-mcp write access (enabled)"
 # in docs/docs/architecture/ai-llm-stack.md; revoke by deleting this
@@ -42,12 +42,12 @@ subjects:
 #
 # Resources are enumerated explicitly per apiGroup (not `resources: ["*"]`)
 # so Trivy KSV-0046 and Checkov's "minimize wildcard use in Roles and
-# ClusterRoles" stay quiet — a wildcard here reads identically to
+# ClusterRoles" stay quiet. A wildcard here reads identically to
 # cluster-admin-over-Flux to both scanners even though it's group-scoped.
 # Generated from `kubectl api-resources --api-group=<group> -o name` against
 # the live cluster; add new Flux kinds here by hand when a Flux component is
 # upgraded to introduce one (subresources like `<kind>/status` are
-# deliberately excluded — flux-operator-mcp's write tools only ever patch
+# deliberately excluded. flux-operator-mcp's write tools only ever patch
 # spec/annotations on the main object, never status).
 #
 # `image.toolkit.fluxcd.io` (imagepolicies, imagerepositories,

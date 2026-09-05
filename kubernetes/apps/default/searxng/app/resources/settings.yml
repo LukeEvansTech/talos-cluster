@@ -22,7 +22,7 @@ search:
     - html
     - json
 server:
-  # server.secret_key comes from the SEARXNG_SECRET env var (searx/settings_defaults.py) —
+  # server.secret_key comes from the SEARXNG_SECRET env var (searx/settings_defaults.py),
   # SearXNG does not expand env-style placeholders in this file, so no key is set here.
   limiter: false
   image_proxy: true

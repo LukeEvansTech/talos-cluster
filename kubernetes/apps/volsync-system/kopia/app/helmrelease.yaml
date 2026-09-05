@@ -68,8 +68,8 @@ spec:
           #   xs* single-epoch compacted
           #   xr* range-compacted
           # Split by kind rather than summed because a rising total is only
-          # worth paging on when it is the uncompacted set doing the rising —
-          # that is the signal that compaction is losing to snapshot creation.
+          # worth paging on when it is the uncompacted set doing the rising.
+          # That is the signal that compaction is losing to snapshot creation.
           #
           # Counted on a slow loop and cached, NOT per scrape: this is a walk
           # over an NFS export shared with every backup in the estate.
@@ -122,7 +122,7 @@ spec:
                 # busybox httpd sets Content-Type from a built-in table that
                 # knows .txt (text/plain) but not .prom, and Prometheus 3
                 # refuses a target "sending blank Content-Type" unless a
-                # fallback_scrape_protocol is set — which this operator's
+                # fallback_scrape_protocol is set, which this operator's
                 # ServiceMonitor CRD does not expose. Renaming to .prom marks
                 # the target down.
                 #

@@ -5,13 +5,13 @@ kind: ScrapeConfig
 metadata:
   name: &name nut-appliance-node
 spec:
-  # node-exporter on the NUT appliance (:9100) — CPU/memory/disk/network, plus
+  # node-exporter on the NUT appliance (:9100), CPU/memory/disk/network, plus
   # RAPL package power. Same host as the ${NUT_SERVER_ADDR} the nut-exporter
   # ServiceMonitor already talks to on :3493; the exporters live in nut-apps
   # under apps/monitoring.
   #
   # Plain LAN scrape, no egress Service. This is the truenas-exporter shape, not
-  # the seedbox one — the seedbox needs egress.yaml because it is reached over
+  # the seedbox one. The seedbox needs egress.yaml because it is reached over
   # the tailnet, and this appliance is not.
   staticConfigs:
     - targets:
@@ -32,15 +32,15 @@ spec:
     # (`* on(cluster, instance) group_left(nodename) node_uname_info`), so
     # dropping the metric here breaks that join and keeps a 5-day predict_linear
     # on an appliance's filesystems from paging. The seedbox does the same for
-    # the same reason. Nothing else reads it — the dashboard deliberately does
+    # the same reason. Nothing else reads it. The dashboard deliberately does
     # not show a kernel-version panel.
     #
     # The other two unscoped ceph node alerts were checked against this box
     # rather than assumed, and are safe as-is:
-    #   CephNodeRootFilesystemFull — keys on mountpoint="/", which FCOS 44 does
+    #   CephNodeRootFilesystemFull. Keys on mountpoint="/", which FCOS 44 does
     #     not expose to node-exporter at all (/ is a 5 MB composefs overlay,
     #     permanently 100% full; the real xfs surfaces as /var, /etc, /sysroot).
-    #   CephNodeInconsistentMTU — compares each device against the cluster-wide
+    #   CephNodeInconsistentMTU, compares each device against the cluster-wide
     #     median for that device name. Verified: eno1 1500, docker0 1500 and
     #     tailscale0 1280 all match the existing medians, and the br-*/veth*
     #     names are unique to this host so each is its own median.
@@ -55,7 +55,7 @@ kind: ScrapeConfig
 metadata:
   name: &name nut-appliance-smartctl
 spec:
-  # smartctl-exporter on the NUT appliance (:9633) — NVMe health for the single
+  # smartctl-exporter on the NUT appliance (:9633), NVMe health for the single
   # boot/data drive. node-exporter cannot see SMART, and smartmontools is not in
   # the FCOS base image, so on an immutable OS a container is the only route.
   #
@@ -83,13 +83,13 @@ kind: ScrapeConfig
 metadata:
   name: &name nut-appliance-docker
 spec:
-  # docker_state_exporter on the appliance (:9419) — per-container state, health,
+  # docker_state_exporter on the appliance (:9419), per-container state, health,
   # restart count and OOM-kill, keyed by container NAME.
   #
   # Closes a real hole: upsd dying is covered by UPSUnreachable / UPSMetricsMissing
   # and the two host exporters are covered by their own scrapes failing, but
   # traefik, peanut and doco-cd dying were invisible. A dead doco-cd is the worst
-  # of those — GitOps silently stops and the box drifts from its repo with no
+  # of those, GitOps silently stops and the box drifts from its repo with no
   # symptom at all.
   staticConfigs:
     - targets:
@@ -117,7 +117,7 @@ kind: ScrapeConfig
 metadata:
   name: &name nut-appliance-doco-cd
 spec:
-  # doco-cd's own metrics (:9120) — GitOps poll and deploy status for the
+  # doco-cd's own metrics (:9120), GitOps poll and deploy status for the
   # appliance, matching the seedbox-doco-cd job.
   #
   # Strictly better than "the container is running", which docker_state_exporter
@@ -127,7 +127,7 @@ spec:
   #
   # The container always served these; they were simply never published. Exposing
   # them needed a `--publish` on the doco-cd systemd unit, declared in the Butane
-  # config under nut-apps provision/ignition/ — doco-cd deploys compose stacks, it
+  # config under nut-apps provision/ignition/, doco-cd deploys compose stacks, it
   # does not manage its own unit, so that change is NOT GitOps-applied and a live
   # box needs the unit updated by hand.
   staticConfigs:
@@ -149,7 +149,7 @@ kind: ScrapeConfig
 metadata:
   name: &name nut-appliance-traefik
 spec:
-  # Traefik metrics entrypoint (:8082) — per-router/service request stats for
+  # Traefik metrics entrypoint (:8082), per-router/service request stats for
   # the two dashboards, matching the seedbox-traefik job. The entrypoint landed
   # with the 2026-07-30 fleet convergence (nut-apps), bound to the LAN address
   # like the exporters above.

@@ -27,8 +27,8 @@ spec:
         # UnauthorizedAccessException before a single step executes.
         # miroir's CSIDriver is fsGroupPolicy: ReadWriteOnceWithFSType and this
         # claim is RWO + ext4, so kubelet honours fsGroup and chowns the volume.
-        # This dind runner is affected too — its live _work is root:root 0755 —
-        # it just fails silently: the kubernetes-mode runners failed visibly
+        # This dind runner is affected too: its live _work is root:root 0755. It
+        # just fails silently: the kubernetes-mode runners failed visibly
         # because jobs ran, while this one's only consumer (image-pull) has kept
         # skipping, so no job has exercised _work/_tool since the flip.
         securityContext:
@@ -73,7 +73,7 @@ spec:
           - name: talos-secrets
             secret:
               # The os:admin talosconfig minted by the talos.dev ServiceAccount
-              # in rbac.yaml (Secret `talos-cluster-runner`) — NOT the GitHub App
+              # in rbac.yaml (Secret `talos-cluster-runner`), NOT the GitHub App
               # creds (`talos-cluster-runner-secret`), which was wired here by
               # mistake and carries no talosconfig.
               secretName: talos-cluster-runner

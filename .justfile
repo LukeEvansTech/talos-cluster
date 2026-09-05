@@ -29,12 +29,12 @@ template file *args:
     minijinja-cli "{{ file }}" {{ args }} | vals eval -f -
 
 # Run super-linter locally with the same env flags as the shared CI workflow.
-# slim-v8 is amd64-only — `--platform linux/amd64` enables Rosetta emulation
+# slim-v8 is amd64-only, so `--platform linux/amd64` enables Rosetta emulation
 # on Apple Silicon. RUN_LOCAL=true lints the working tree (skips git-diff logic).
 # FILTER_REGEX_EXCLUDE mirrors the `filter-regex-exclude` input in
 # .github/workflows/lint.yml (the shared workflow maps it to this same env var).
 # Keep the two in sync: without it, local lints the docs/ tree that CI excludes
-# — docs/ is owned by the canonical .markdownlint.yml + docs-standard-check.
+# docs/ is owned by the canonical .markdownlint.yml + docs-standard-check.
 # VALIDATE_ALL_CODEBASE stays true here on purpose: CI defaults it to false
 # (changed files only), but locally we want the whole working tree checked.
 lint *args:

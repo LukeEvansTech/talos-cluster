@@ -76,7 +76,7 @@ def sync_radarr():
     for name, url, key in instances:
         data = api_get(url, key, "api/v3/exclusions")
         if data is None:
-            log(f"  {name}: FAILED to fetch — skipping sync")
+            log(f"  {name}: FAILED to fetch, skipping sync")
             return
         all_data[name] = data
         log(f"  {name}: {len(data)} exclusions")
@@ -123,7 +123,7 @@ def sync_sonarr():
     for name, url, key in instances:
         data = api_get(url, key, "api/v3/importlistexclusion")
         if data is None:
-            log(f"  {name}: FAILED to fetch — skipping sync")
+            log(f"  {name}: FAILED to fetch, skipping sync")
             return
         all_data[name] = data
         log(f"  {name}: {len(data)} exclusions")
@@ -138,7 +138,7 @@ def sync_sonarr():
 
     log(f"  Combined: {len(combined)} unique series exclusions")
 
-    # Push missing to each instance (no bulk endpoint — individual POSTs)
+    # Push missing to each instance (no bulk endpoint, so individual POSTs)
     for name, url, key in instances:
         existing = {item.get("tvdbId", 0) for item in all_data[name]}
         missing = [v for k, v in combined.items() if k not in existing]

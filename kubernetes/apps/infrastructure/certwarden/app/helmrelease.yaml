@@ -58,7 +58,7 @@ spec:
     defaultPodOptions:
       # The device cert-deploy post-process scripts run kubectl in-pod (create Secret +
       # spawn deploy Job) with the certwarden SA's RBAC. app-template disables the token
-      # automount by default, which strands kubectl on localhost:8080 — mount it back.
+      # automount by default, which strands kubectl on localhost:8080, mount it back.
       automountServiceAccountToken: true
     service:
       app:

@@ -1,5 +1,5 @@
 ---
-# Bespoke because there is no upstream smtp2graph dashboard — the application
+# Bespoke because there is no upstream smtp2graph dashboard. The application
 # exposes no metrics at all; everything here comes from the sidecar in
 # helmrelease.yaml. Panels deliberately mirror the alert rules, so what pages
 # you is what you can see.

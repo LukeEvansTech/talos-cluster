@@ -10,11 +10,11 @@ spec:
   # cluster-wide policies allow same-namespace, kube-apiserver and Prometheus
   # only. External senders arrive with Cilium's `world` identity, so without this
   # rule every LoadBalancer'd port is dropped at pod ingress ("Policy denied",
-  # bpf_lxc) — the manager would come up healthy and simply receive nothing,
+  # bpf_lxc). The manager would come up healthy and simply receive nothing,
   # which is the worst possible failure mode for a log collector.
   #
   # Same shape and rationale as sentinel-syslog's policy. Scoped tightly: only the
-  # manager pod, and only the ingest ports — NOT the :55000 API, which stays
+  # manager pod, and only the ingest ports, NOT the :55000 API, which stays
   # cluster-internal for the dashboard. The LB address is RFC1918, so `world`
   # here is effectively the on-prem LAN; using the entity keeps LAN CIDRs out of
   # this public repository.

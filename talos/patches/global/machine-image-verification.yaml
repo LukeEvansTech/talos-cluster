@@ -3,7 +3,7 @@
 #
 # As of 2026-07 Sidero signs ALL of ghcr.io/siderolabs/* and the Image Factory
 # boot path (factory.talos.dev/installer{,-secureboot}/*) with stable Google
-# service accounts (image-factory#417, talos#13178) — verified live with
+# service accounts (image-factory#417, talos#13178). Verified live with
 # cosign v3.1.1 against kubelet/flannel/extensions/installer and both factory
 # installer paths. Mirrors hack/test/patches/image-verification.yaml upstream.
 #

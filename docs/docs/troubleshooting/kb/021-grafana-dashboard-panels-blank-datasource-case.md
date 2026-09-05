@@ -1,4 +1,4 @@
-# KB-021: Grafana Dashboard Panels All Blank ("Datasource … was not found")
+# KB-021: Grafana dashboard panels all blank ("Datasource … was not found")
 
 **Status:** Convention bug. Fix is a one-character case change; one upstream-import variant
 needs vendoring.

@@ -8,7 +8,7 @@
 
 controller:
   # privileged: true / CAP_BPF / hostNetwork / hostPath are chart defaults and
-  # are REQUIRED for eBPF — do not override. The Talos CRI containerd socket is
+  # are REQUIRED for eBPF. Do not override. The Talos CRI containerd socket is
   # at the chart's default path, so containerdSockPath / containerdBundlePath
   # need no change (unlike k3s).
   resources:
@@ -43,5 +43,5 @@ database:
     enabled: true
     size: 10Gi
     storageClassName: ceph-block
-# Frontend/UI: no Gateway route for the spike — reach it over port-forward (see
-# README). Keeps a throwaway eval off the public/internal gateways.
+    # Frontend/UI: no Gateway route for the spike, reach it over port-forward (see
+    # README). Keeps a throwaway eval off the public/internal gateways.
