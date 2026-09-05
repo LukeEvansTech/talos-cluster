@@ -607,3 +607,34 @@ spec:
             # (recyclebin_reclaimable_bytes) is only ~45% of the footprint because
             # cross-seed hardlinks pin the rest into live content. Graph it, do not
             # page on it.
+        # --- Prowlarr (exportarr, job seedbox-prowlarr, added 2026-09-05) -------
+        # Deliberately ONE alert, not a set. The existing SeedboxScrapePathDegraded
+        # keys on `avg(up{instance="seedbox"}) < 1`, so this new target being down
+        # is already covered for free — a second "exporter down" rule would only
+        # duplicate it under a new name.
+        #
+        # An indexer failing AUTH is the one Prowlarr signal that is categorically
+        # a fault rather than weather. A failed query usually means the tracker is
+        # flaky and is graphed, not paged; a failed auth query means the stored
+        # credential or session no longer works, which fails every subsequent
+        # search against that tracker silently. It is the Prowlarr-side twin of
+        # SeedboxCrossSeedTrackerAuthFailing, and the two together cover both
+        # halves of the search path.
+        #
+        # ⚠️ THRESHOLD IS PROVISIONAL. Every active indexer read 0 across the
+        # observation window when this shipped, but that window was ~3 minutes, so
+        # 0 is a true floor and not yet a characterised baseline. 5-in-6h is set
+        # low on purpose: as with the cross-seed rule, the failure this catches is
+        # bounded by how many searches ran, not by how broken the credential is,
+        # so a threshold picked as a multiple of "normal" would never fire.
+        # Retune against a week of data rather than raising it after one page.
+        - alert: SeedboxProwlarrIndexerAuthFailing
+          annotations:
+            summary: "Prowlarr indexer {{ $labels.indexer }} has failed {{ $value }} auth queries in 6h - stored credential or session likely expired."
+          expr: |-
+            sum by (indexer) (
+              increase(prowlarr_indexer_failed_auth_queries_total{job="seedbox-prowlarr"}[6h])
+            ) > 5
+          for: 30m
+          labels:
+            severity: warning

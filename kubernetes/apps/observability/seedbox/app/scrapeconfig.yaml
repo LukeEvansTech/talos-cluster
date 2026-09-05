@@ -186,3 +186,37 @@ spec:
     # containers instead of 0, i.e. worse than the bug it fixed.
     - action: labelkeep
       regex: __name__|job|instance|name|status|health_status|container_label_cd_doco_metadata_manager|container_label_alerts_oneshot
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/scrapeconfig_v1alpha1.json
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: ScrapeConfig
+metadata:
+  name: &name seedbox-prowlarr
+spec:
+  # exportarr against the seedbox's Prowlarr (:9707). Prowlarr serves no metrics
+  # of its own — its :9696/metrics returns the SPA's HTML, which reads as a
+  # broken exporter rather than an absent feature — so this is the only source of
+  # per-indexer query/grab/failure counts on that box. Same exporter and pinned
+  # version the cluster runs as a sidecar for the home Prowlarr, so the two
+  # instances share one metric vocabulary; they stay separate jobs because this
+  # one arrives over the tailnet egress and needs that path's slower timeout.
+  staticConfigs:
+    - targets:
+        - seedbox.observability.svc.cluster.local:9707
+  metricsPath: /metrics
+  scrapeInterval: 60s
+  scrapeTimeout: 30s # tailnet-egress scrapes are slow; 30s stops false up=0 (see node job)
+  relabelings:
+    - action: replace
+      targetLabel: job
+      replacement: *name
+    - action: replace
+      targetLabel: instance
+      replacement: seedbox
+  metricRelabelings:
+    # exportarr v2 stamps the target URL onto every series. It is the same
+    # single value for every sample of this job, so it adds a label to each
+    # series while distinguishing nothing, and it publishes an internal address
+    # into metric labels. `instance` above already names the source.
+    - action: labeldrop
+      regex: url
