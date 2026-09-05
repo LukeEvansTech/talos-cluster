@@ -1932,6 +1932,141 @@
       ],
       "title": "Torrents by qbit-manage tag",
       "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "description": "Per-indexer traffic from Prowlarr's own stats endpoint, which nothing collected before 2026-09-05. Queries with no grabs behind them is the shape to look for: it means an indexer is being asked and returning nothing usable, so it costs announce budget and yields no ratio. Counters start at zero when the exporter restarts, hence rate() rather than the raw totals.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 64
+      },
+      "id": 23,
+      "options": {},
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "sum by (indexer) (rate(prowlarr_indexer_queries_total{job=\"seedbox-prowlarr\"}[5m])) * 3600",
+          "legendFormat": "{{ indexer }} queries/h",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "sum by (indexer) (rate(prowlarr_indexer_grabs_total{job=\"seedbox-prowlarr\"}[5m])) * 3600",
+          "legendFormat": "{{ indexer }} grabs/h",
+          "range": true,
+          "refId": "B"
+        }
+      ],
+      "title": "Prowlarr \u2014 indexer queries and grabs",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "description": "Failures split by kind, because they mean different things. A failed AUTH query is a credential or session problem and is never normal; a failed query is usually the tracker being flaky. Response time is the third signal: an indexer that is slow but succeeding still eats the search window that cross-seed runs in.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*response.*"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "ms"
+              },
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 64
+      },
+      "id": 24,
+      "options": {},
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "sum by (indexer) (increase(prowlarr_indexer_failed_auth_queries_total{job=\"seedbox-prowlarr\"}[1h]))",
+          "legendFormat": "{{ indexer }} auth failures/h",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "sum by (indexer) (increase(prowlarr_indexer_failed_queries_total{job=\"seedbox-prowlarr\"}[1h]))",
+          "legendFormat": "{{ indexer }} query failures/h",
+          "range": true,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "sum by (indexer) (increase(prowlarr_indexer_failed_grabs_total{job=\"seedbox-prowlarr\"}[1h]))",
+          "legendFormat": "{{ indexer }} grab failures/h",
+          "range": true,
+          "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "prowlarr_indexer_average_response_time_ms{job=\"seedbox-prowlarr\"}",
+          "legendFormat": "{{ indexer }} response time",
+          "range": true,
+          "refId": "D"
+        }
+      ],
+      "title": "Prowlarr \u2014 indexer failures and latency",
+      "type": "timeseries"
     }
   ],
   "refresh": "30s",
