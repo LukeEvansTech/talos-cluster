@@ -34,8 +34,8 @@ spec:
           # Long-context CPU embedder for the VMCP tool optimizer (see
           # ../virtualmcpserver.yaml). LiteLLM's existing all-minilm model
           # (served by the CPU llama-embed pod, ../../../memini/models/llama-embed.yaml)
-          # is all-MiniLM-L6-v2 — a BERT model with a hard 512-token absolute
-          # position limit — and some kubectl tool descriptions exceed that,
+          # is all-MiniLM-L6-v2, a BERT model with a hard 512-token absolute
+          # position limit, and some kubectl tool descriptions exceed that,
           # which previously terminated every VMCP session with an OpenAI 400
           # "input larger than max context size" error. Qwen3-Embedding-0.6B
           # supports 32k context; we run it at 8k here, well above the 512-token
@@ -114,7 +114,7 @@ spec:
               # ~100k tokens) when a session starts; at 4 threads that took
               # minutes and the optimizer's request timed out, then retried while
               # the first batch was still queued (2026-08-25). Nodes have 24
-              # cores — give it 12 threads and a matching CPU request.
+              # cores. Give it 12 threads and a matching CPU request.
               - --threads
               - "12"
               # llama-server keeps a RAM prompt cache (--cache-ram, default 8192

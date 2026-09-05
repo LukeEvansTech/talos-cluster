@@ -57,13 +57,20 @@ spec:
     routing_strategy: simple-shuffle
     cooldown_time: 30
     enable_pre_call_checks: true
+    # Timeouts get one attempt, not three. num_retries (litellm_settings) still
+    # applies to every other exception class — only Timeout is overridden here.
+    # Retrying a timeout against this group is near-useless anyway: it has a
+    # single deployment (llama-nvidia), so each retry re-queues the same prompt
+    # onto the same saturated GPU.
+    retry_policy:
+      TimeoutErrorRetries: 0
     # If the local model is cooling-down / unhealthy, spill to cloud.
     fallbacks:
       - self-hosted:
           - "openrouter/auto"
-        # No context_window_fallbacks: both aliases resolve to the same backend
-        # with the same 64k-per-request window, so there is no larger local model
-        # to spill into.
+          # No context_window_fallbacks: both aliases resolve to the same backend
+          # with the same 64k-per-request window, so there is no larger local model
+          # to spill into.
   litellmSettings:
     success_callback:
       - "prometheus"
@@ -85,13 +92,21 @@ spec:
     # (LiteLLMModel spec.params.dropParams) instead of re-enabling this globally.
     num_retries: 2
     retry_after: 5
-    request_timeout: 1200
+    # 1500s must stay inside the tightest caller budget (repowiki's LLM_TIMEOUT
+    # is 1800s) — and that only holds because TimeoutErrorRetries below makes a
+    # timeout a single attempt. With the default num_retries a timing-out call
+    # burned 3 x request_timeout before the fallback was even reached, so the
+    # caller had already hung up and the retries just re-queued a doomed 30k-token
+    # prompt onto the 2 GPU slots that were causing the timeout.
+    request_timeout: 1500
     set_verbose: false
-    # Surfaces only the top-k relevant MCP tools per request (9 servers) using
-    # the all-minilm embedding model below.
+    # Surfaces only the top-k relevant MCP tools per request (9 servers).
+    # Embeds via qwen3-embedding, not all-minilm: the registry payload is 625
+    # tokens and all-MiniLM-L6-v2 hard-caps at 512, which made this filter fail
+    # to initialise on every startup and left it silently inactive.
     mcp_semantic_tool_filter:
       enabled: true
-      embedding_model: all-minilm
+      embedding_model: qwen3-embedding
       top_k: 8
       similarity_threshold: 0.3
   generalSettings:

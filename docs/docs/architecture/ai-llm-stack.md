@@ -16,7 +16,7 @@ re-targeted to this cluster: **NVIDIA L4 GPUs + llama.cpp (llmkube)**.
 | `hermes`      | NousResearch hermes-agent gateway + dashboard (memini-backed, ToolHive VMCP-wired) | live   |
 | `hermeswebui` | chat web frontend for hermes (via its API server)                                  | live   |
 | `repowiki`    | AI-generated per-repository wiki (mkdocs-material + CronJob)                       | live   |
-| `foreman`     | LLMKube coder/gate/reviewer control plane — trialled, manifests in `.archive/`     | archived |
+| `foreman`     | LLMKube coder/gate/reviewer control plane. Trialled, manifests in `.archive/`      | archived |
 
 LiteLLM persists to CNPG `postgres18` (`litellm` db) and caches in Dragonfly. Internal-only route
 (`litellm.${SECRET_DOMAIN}` on envoy-internal).
@@ -27,7 +27,7 @@ LiteLLM persists to CNPG `postgres18` (`litellm` db) and caches in Dragonfly. In
 declared as a `Model` CR (weights source + hardware) plus an `InferenceService` CR (the serving
 pod), one file per model under `kubernetes/apps/ai/llmkube/models/`.
 
-**Active model** — one GPU model serves both LiteLLM groups:
+**Active model.** One GPU model serves both LiteLLM groups:
 
 | LiteLLM model name       | InferenceService | Notes                                  |
 | ------------------------ | ---------------- | -------------------------------------- |
@@ -38,7 +38,7 @@ The model is **Qwen3.8-27B Heretic-abliterated** (0bserverx RVN Q4_K_S, MTP head
 picked as the closest-to-vanilla uncensored build (KL ~0.0085 vs base, refusals 0–1/100,
 official chat template). Its hybrid Gated-DeltaNet layout keeps KV at ~32KB/token (q8_0), so
 one 24GB L4 serves 128k of context across 2 slots alongside the weights and the vision
-projector — no YaRN, no `--override-kv`. `--kv-unified` (#4579) pools that context rather than
+projector, with no YaRN and no `--override-kv`. `--kv-unified` (#4579) pools that context rather than
 splitting it statically, so one request may use the whole 128k window while the other slot is
 idle, instead of a fixed 64k-per-slot cap.
 
@@ -87,7 +87,7 @@ gets an operator-issued **scoped** key instead of the account-wide master key: a
 `self-hosted` + `openrouter/auto`) mints the key and writes it to an in-namespace Secret; a
 paired `PushSecret` then writes that key back to the `litellm` 1Password item as property
 `LITELLM_<APP>_API_KEY` (`updatePolicy: Replace`, `refreshInterval: 1h`). The consumer's own
-ExternalSecret extracts that property like any other `litellm`-item field — no cross-namespace
+ExternalSecret extracts that property like any other `litellm`-item field, with no cross-namespace
 Secret access required. See the consumer's own `externalsecret.yaml` for the exact template line.
 
 ## Rollout (staged)
@@ -99,7 +99,7 @@ Secret access required. See the consumer's own `externalsecret.yaml` for the exa
 3. **memini**: agent memory; embeddings + rerank via tiny CPU llama.cpp servers, consolidation via
    LiteLLM.
 4. **llmkube**: operator + CephFS modelCache; 2 active models at the time (`self-hosted`,
-   `self-hosted-uncensored` — since consolidated onto one backend, see "Active model" above).
+   `self-hosted-uncensored`, since consolidated onto one backend, see "Active model" above).
 5. **Ollama decommission**: Ollama removed; contracthound/subspy/loupe repointed to LiteLLM.
 
 Each layer is a separate commit on one branch (one PR). `mcp_servers` and
@@ -117,8 +117,8 @@ group's fallback. The remaining cloud-provider stubs are commented reference in
 The gateway is `litellm-operator`-managed: a `LiteLLMProxy` CR (`litellm/app/litellmproxy.yaml`,
 `applyMode: file`) plus `LiteLLMModel` and `LiteLLMMCPServer` CRs the operator adopts via
 `proxyRef: litellm` and renders into `config.yaml`, rolling the Deployment on change. There is no
-`litellm/app/configmap.yaml` any more — `store_model_in_db: false` in the proxy's
-`generalSettings`, so the rendered CRs (not the Postgres-backed admin UI) are the model source of
+`litellm/app/configmap.yaml` any more. `store_model_in_db: false` in the proxy's
+`generalSettings` makes the rendered CRs, not the Postgres-backed admin UI, the model source of
 truth.
 
 - **Add a backend to a group**: add a `LiteLLMModel` CR under `litellm/app/models/` with an
@@ -138,7 +138,7 @@ truth.
   `memini/app/virtualkey.yaml`.
 - **A consumer's scoped key (cross-namespace)**: a consumer outside `ai` can't mount an `ai`
   Secret directly. Add the `LiteLLMVirtualKey` CR (`ai` namespace) plus a paired `PushSecret`
-  under `litellm/app/virtualkeys/<app>.yaml` instead — the `PushSecret` writes the operator-minted
+  under `litellm/app/virtualkeys/<app>.yaml` instead. The `PushSecret` writes the operator-minted
   key back to the `litellm` 1Password item as `LITELLM_<APP>_API_KEY`, and the consumer's existing
   ExternalSecret extracts it like any other field on that item. See "In-cluster consumers" above.
 
@@ -158,7 +158,7 @@ Any OpenAI-compatible client can drive the self-hosted models through the gatewa
   bloats every request (heavy on the small-context local models, so prefer a frontier model for
   tool-heavy work).
 - **Gotchas**: the self-hosted model is a Qwen _thinking_ model (send `think: false` /
-  `enable_thinking: false`, or lower `reasoning_effort`, for non-reasoning output — Qwen3.8
+  `enable_thinking: false`, or lower `reasoning_effort`, for non-reasoning output, since Qwen3.8
   defaults to heavy reasoning). Both group names hit the same backend, so there is no
   model-swap cost for switching between them. See the context-budget note below for opencode's
   window requirements.
@@ -180,7 +180,7 @@ The YaRN + `--override-kv` workaround the previous Qwen3-30B-A3B uncensored mode
 pinned server hard-capped slots to the trained context even with correct YaRN args,
 [llama.cpp#22140](https://github.com/ggml-org/llama.cpp/issues/22140)) is retired with it. The
 verification habit it taught still stands: a `Ready` phase and a clean `kustomize build` do
-**not** prove the served window — confirm with `/props`
+**not** prove the served window. Confirm with `/props`
 (`.default_generation_settings.n_ctx == 131072`, the full unified `contextSize`, not a per-slot
 share) after any context change.
 
@@ -206,9 +206,11 @@ kubectl + flux share one read-only `ClusterRole` (`kubectl-mcp-readonly`) built 
 API groups with core `secrets` omitted. Keep it in sync with `kubectl api-resources` as you add
 CRDs. The talos MCP mounts a `talos.dev` `ServiceAccount`-minted `os:reader` talosconfig.
 
-The `mcp_semantic_tool_filter` is **on** (top_k 8, embeddings via the `all-minilm` model on the
-CPU `llama-embed` pod): with 9 servers' worth of tools it trims each request to the most
-relevant ones. `github` + `grafana` are read-only, via a fine-grained PAT (`toolhive-github`) and a
+The `mcp_semantic_tool_filter` is **on** (top_k 8, embeddings via the `qwen3-embedding` model on
+the CPU `toolhiveembed` pod): with 9 servers' worth of tools it trims each request to the most
+relevant ones. It ran on `all-minilm` until that model's 512-token cap was found to be failing
+the filter's own 625-token registry payload on every startup, leaving it silently inactive.
+`github` + `grafana` are read-only, via a fine-grained PAT (`toolhive-github`) and a
 Grafana Viewer service-account token (`toolhive-grafana`).
 
 ### MCP gateway (VirtualMCPServer)
@@ -220,21 +222,23 @@ wiring. Tool names are namespaced `{workload}_<tool>` (e.g. `searxng_search`) to
 collisions across backends. Because 9 backends' worth of raw tool definitions is too large for
 most client context windows, the built-in optimizer exposes only `find_tool`/`call_tool` to
 clients and resolves the right backend tool semantically. It embeds via `qwen3-embedding`
-(Qwen3-Embedding-0.6B, 8k context; `toolhive/gateway/embed/`), a dedicated CPU llama.cpp server,
+(Qwen3-Embedding-0.6B, 8k context; `toolhive/embed/`), a dedicated CPU llama.cpp server,
 rather than LiteLLM's `all-minilm` (all-MiniLM-L6-v2): MiniLM's BERT architecture has a hard
 512-token limit and some kubectl tool descriptions exceed it, which used to terminate every VMCP
-session with an OpenAI 400 "input larger than max context size" error. `all-minilm` stays in
-place for memini and LiteLLM's own `mcp_semantic_tool_filter` above, neither of which hits that
-limit. Sessions are stored in Dragonfly so the Deployment can scale beyond one replica.
+session with an OpenAI 400 "input larger than max context size" error. The same cap turned out
+to be breaking LiteLLM's own `mcp_semantic_tool_filter` above, which now embeds here too;
+`all-minilm` stays in place for memini alone. Sessions are stored in Dragonfly so the
+Deployment can scale beyond one replica.
 
 - **External URL**: `https://mcp.${SECRET_DOMAIN}/mcp`, header `x-api-key: <key>`. Keys live as
   fields on the `toolhive` 1Password item; the workstation's key is
   `TOOLHIVE_WORKSTATION_API_KEY`. Add a client by adding a field to that item plus a matching
-  template key in `toolhive/gateway/externalsecret.yaml`'s `mcp-gateway-api-keys` ExternalSecret —
-  any key's value in the resulting Secret is accepted (Envoy Gateway's `SecurityPolicy` doesn't
+  template key in `toolhive/gateway/externalsecret.yaml`'s `mcp-gateway-api-keys` ExternalSecret.
+  Any key's value in the resulting Secret is accepted (Envoy Gateway's `SecurityPolicy` doesn't
   distinguish which one matched).
 - **In-cluster URL**: `http://vmcp-mcp-gateway.ai.svc.cluster.local:4483/mcp`, no auth (anonymous
-  `incomingAuth` — the API-key gate lives at the Envoy Gateway edge, not in the vmcp app itself).
+  `incomingAuth`, because the API-key gate lives at the Envoy Gateway edge, not in the vmcp app
+  itself).
 - Metrics are scraped from the same port via the existing `prometheus` `MCPTelemetryConfig`; a
   Grafana dashboard is imported from ToolHive's upstream OTEL-scrape dashboard JSON.
 
@@ -243,19 +247,19 @@ limit. Sessions are stored in Dragonfly so the Deployment can scale beyond one r
 The flux MCP has had write access to Flux CRDs since this was enabled: `flux-mcp-write`, a
 `ClusterRole` + `ClusterRoleBinding` in `toolhive/mcp-servers/flux/rbac.yaml`, grants the
 `flux-mcp` ServiceAccount `create`/`patch`/`update`/`delete` on every Flux kind installed on this
-cluster — one rule per apiGroup (`fluxcd.controlplane.io`, `helm.toolkit.fluxcd.io`,
+cluster, one rule per apiGroup (`fluxcd.controlplane.io`, `helm.toolkit.fluxcd.io`,
 `kustomize.toolkit.fluxcd.io`, `notification.toolkit.fluxcd.io`, `source.toolkit.fluxcd.io`),
-each listing its resources by name rather than `resources: ["*"]` — a wildcard trips Trivy
+each listing its resources by name rather than `resources: ["*"]`, because a wildcard trips Trivy
 KSV-0046 and Checkov's wildcard-RBAC check even when the apiGroups are this narrow. Nothing
 outside Flux CRDs, and no `secrets` access (core `""` is never included). `image.toolkit.fluxcd.io`
-has no rule because this cluster doesn't run the Flux image-automation controller — add one
+has no rule because this cluster doesn't run the Flux image-automation controller. Add one
 (`imagepolicies`, `imagerepositories`, `imageupdateautomations`) if that ever changes, and add
 any other new Flux kind by hand when a component upgrade introduces one. This lets it (and
 therefore any model behind LiteLLM) reconcile, suspend, resume, apply, and delete Flux objects.
 
 The `flux-operator-mcp` image's own `--read-only` flag defaults to `false` and this deployment
 has never set it, so the write tools were already registered at the MCP layer before this
-change — RBAC was, and remains, the only enforcement boundary.
+change. RBAC was, and remains, the only enforcement boundary.
 
 This grants an LLM mutate access to the cluster's GitOps controller; the owner has accepted
 that blast radius. **To revoke**, delete the `flux-mcp-write` `ClusterRole` and
@@ -321,15 +325,15 @@ account and serves it as a static site. Two controllers share one RWO `ceph-bloc
 
 Ported from Jory's [`repo-wiki`](https://github.com/joryirving/home-ops/tree/main/kubernetes/apps/base/llm/repo-wiki);
 `generate.py` (in `kubernetes/apps/ai/repowiki/app/configmap.yaml`) is otherwise unmodified from
-upstream — only the git commit identity and env values changed for this cluster.
+upstream. Only the Git commit identity and env values changed for this cluster.
 
-**Adding or removing a repository**: edit `repos.txt` in `configmap.yaml` and commit — no
+**Adding or removing a repository**: edit `repos.txt` in `configmap.yaml` and commit, with no
 Helm/Kustomize change needed. The generator only regenerates a repository once its `HEAD` SHA
 changes since the last successful run, so a new entry is picked up on the CronJob's next
 occurrence.
 
 **Pacing**: `MAX_REPOS_PER_RUN: "2"` caps each run to two repositories (whichever are most stale),
-so a full pass over a large `repos.txt` takes several days, not one run. This is deliberate —
+so a full pass over a large `repos.txt` takes several days, not one run. This is deliberate.
 `MAX_PAGES_PER_REPO: "20"` pages per repository through an LLM planning + writing pass is not
 cheap, and the CronJob shares the `self-hosted` LiteLLM model with every other consumer.
 Increase `MAX_REPOS_PER_RUN` only if the model has headroom.
@@ -345,12 +349,12 @@ Increase `MAX_REPOS_PER_RUN` only if the model has headroom.
   volume at a time). The `ceph-filesystem` storage class is provisioned by Rook-Ceph.
 - **Config changes roll the pod automatically**: litellm-operator hashes the rendered
   `config.yaml` into a `litellm.home-operations.com/config-hash` pod annotation, so editing a
-  `LiteLLMModel`/`LiteLLMMCPServer`/`LiteLLMProxy` CR rolls the Deployment on its own — no
+  `LiteLLMModel`/`LiteLLMMCPServer`/`LiteLLMProxy` CR rolls the Deployment on its own, with no
   Reloader annotation or manual restart needed.
 - **open-webui's database is still SQLite**: on a `ReadWriteOnce` ceph-block PVC, with `strategy:
 Recreate` and `TIMER_POLL_INTERVAL: "30"` working around a full-table-scan bug in the unused
   scheduler loop (see the HelmRelease comments). Web search, RAG embeddings, and Dragonfly-backed
-  websockets are independent of this — Postgres migration is a separate, not-yet-scheduled
+  websockets are independent of this. Postgres migration is a separate, not-yet-scheduled
   decision.
 - **Cross-namespace netpol**: `kubernetes/apps/ai/netpol.yaml` allows ingress to the `ai`
   namespace from the `network` namespace (gateway), plus a second `CiliumNetworkPolicy`
@@ -362,7 +366,7 @@ Recreate` and `TIMER_POLL_INTERVAL: "30"` working around a full-table-scan bug i
   the `openai/` provider entry), which defeats disabling Qwen3.8's thinking mode (verified
   2026-08-25). If a real `UnsupportedParamsError` 400 ever shows up, scope the drop with a
   `params.dropParams` on that model's `LiteLLMModel` CR instead of re-enabling this globally.
-  Turning `drop_params` off alone did not forward the param either — LiteLLM's
+  Turning `drop_params` off alone did not forward the param either, because LiteLLM's
   `UnsupportedParamsError` check runs independently of it, so the `self-hosted` and
   `self-hosted-uncensored` `LiteLLMModel` CRs also list `reasoning_effort` in
   `params.additional.allowed_openai_params` (rendered into `litellm_params.allowed_openai_params`),
