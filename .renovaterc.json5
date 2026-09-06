@@ -170,7 +170,15 @@
   // To change auto-merge behaviour, change the preset, and every repo benefits.
   packageRules: [
     {
-      description: "Protected infra: never auto-merge, manual review only",
+      // Load-bearing string, not prose. renovate-review.yaml sets
+      // `blast-from-renovaterc: true`, and the shared workflow finds this entry
+      // by byte-matching its `protected-rule-description` input, whose default
+      // is this exact text. The em dash is part of the contract: replacing it
+      // with a colon in #4925 made the lookup fail, and because the workflow
+      // refuses to fall back to an empty blast-radius regex it failed closed,
+      // taking the claude/renovate-review status down on every open Renovate PR
+      // at once. Do not "tidy" the punctuation here.
+      description: "Protected infra — never auto-merge, manual review only",
       // The datasource list must cover every datasource the preset auto-merges,
       // or a tier-0 component tracked through another one slips past the guard
       // entirely. github-releases was exactly that gap (#3869).
