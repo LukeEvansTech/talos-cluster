@@ -1,4 +1,4 @@
-# KB-016: Kopia Repo Server OOM = Repo Size, Not a Maintenance Failure
+# KB-016: Kopia repo server OOM = repo size, not a maintenance failure
 
 **Status:** Resolved (raised to 2Gi); revisit as the repo grows.
 

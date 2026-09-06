@@ -1,8 +1,8 @@
 ---
 # etcd has no multi-document form yet and stays in v1alpha1.
 cluster:
-  # Every node is a control plane that also runs workloads. KubeNodeConfig is
-  # the 1.14 home for this, but talhelper 3.1.17 does not know it yet.
+  # KubeNodeConfig is the 1.14 home for this, but talhelper 3.1.17 does not
+  # know it yet, so it stays v1alpha1 (deprecated, still supported).
   allowSchedulingOnControlPlanes: true
   # CoreDNS is Flux-managed. talhelper 3.1.17 (machinery 1.14.0-alpha.2) does
   # not know KubeCoreDNSConfig yet, so this stays v1alpha1 (deprecated, still
@@ -40,7 +40,7 @@ extraArgs:
   # See KB-024.
   feature-gates: HPAScaleToZero=true
   # Public OIDC issuer so Entra (and other clouds) can federate the cluster's service-account
-  # tokens — backs the sentinel-syslog workload identity (no secrets). Served as static OIDC
+  # tokens, backs the sentinel-syslog workload identity (no secrets). Served as static OIDC
   # discovery + JWKS by the `network/oidc-talos` app at this exact URL. MUST match byte-for-byte:
   # the oidc-talos openid-configuration `issuer` + terraform-entra var.sentinel_syslog_oidc_issuer.
   # ── OPS: control-plane change (rolling apiserver restart). Apply in a maintenance window;

@@ -25,7 +25,7 @@ jobs:
   scan-pr-text:
     name: Scan PR title and body
     runs-on: ubuntu-latest
-    # Renovate bodies are machine-generated upstream release notes — they can
+    # Renovate bodies are machine-generated upstream release notes. They can
     # legitimately quote an example IP from a changelog and carry no narrative
     # about this network. Skip them rather than grow an allowlist forever.
     if: >-

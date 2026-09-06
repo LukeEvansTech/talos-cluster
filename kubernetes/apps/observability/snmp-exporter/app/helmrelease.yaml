@@ -41,7 +41,7 @@ spec:
         configMap: snmp-exporter-mikrotik
         mountPath: /run/snmp-mikrotik
         readOnly: true
-    # Credentials only (auths:) — templated by the snmp-exporter ExternalSecret
+    # Credentials only (auths:), templated by the snmp-exporter ExternalSecret
     # so no community string lives in git (public repo).
     extraSecretMounts:
       - name: auth
@@ -172,7 +172,7 @@ spec:
               targetLabel: instance
             - targetLabel: device_class
               replacement: printer
-        # APC rack PDU fleet — power telemetry only (config drift/compliance is
+        # APC rack PDU fleet. Power telemetry only (config drift/compliance is
         # the apc-fleet exporter's job). NMC2 cards speak SNMPv1/v3 only; apc_ro
         # is the v1 read-only community from the ExternalSecret. The two 2G PDUs
         # use the rPDU2 MIB, the legacy comms PDU the classic rPDU MIB. The
@@ -227,14 +227,14 @@ spec:
         #
         # Split into a health target and an interface target per switch, for the
         # reason the core switch had to be split: the walks are wildly unequal.
-        # Measured 2026-08-28 on the PoE switch — mtxrHealth + mtxrPOE together
+        # Measured 2026-08-28 on the PoE switch, mtxrHealth + mtxrPOE together
         # are ~1.5s, while if_mib's ifTable + ifXTable are ~15.4s. Combining
         # them would make `up` track the slow walk instead of the device.
         #
         # The health target is the reachability signal (fast, so a failure here
         # really does mean the switch): device_class=switch keeps it in the
         # critical SnmpTargetDown alert. It also carries per-port PoE, which is
-        # how a dead access point or PoE device is detected — the AP ports are
+        # how a dead access point or PoE device is detected. The AP ports are
         # the only heavy PoE draws on the estate.
         - name: mikrotik-poe
           target: ${MIKROTIK_POE_ADDR}
