@@ -32,6 +32,13 @@ spec:
             env:
               TZ: ${TIMEZONE}
               Authentication__Enabled: "true"
+              # Gmail caps IMAP downloads at 2500 MB/day. Tracking per-account
+              # usage lets the initial full sync pause at the quota and resume
+              # from its checkpoint (upstream doc/GmailBestPractices.md).
+              BandwidthTracking__Enabled: "true"
+              BandwidthTracking__DailyLimitMb: "2500"
+              BandwidthTracking__WarningThresholdPercent: "80"
+              BandwidthTracking__PauseHoursOnLimit: "24"
               MailSync__IntervalMinutes: "120"
             envFrom:
               - secretRef:

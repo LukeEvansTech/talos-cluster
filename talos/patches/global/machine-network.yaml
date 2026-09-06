@@ -5,3 +5,7 @@ nameservers:
   - address: 10.32.8.10
 searchDomains:
   domains: []
+hostDNS:
+  enabled: true
+  resolveMemberNames: true
+  forwardKubeDNSToHost: true # Requires Cilium socketLB features

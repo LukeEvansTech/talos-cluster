@@ -10,16 +10,35 @@ set shell := ['bash', '-euo', 'pipefail', '-c']
 gen-config:
     just log info "Generating Talos configuration..." "stage" "{{ recipe_name() }}"
     TALSECRET=$(mktemp)
-    trap 'rm -f "${TALSECRET}"' EXIT
+    OUTDIR=$(mktemp -d)
+    trap 'rm -f "${TALSECRET}"; rm -rf "${OUTDIR}"' EXIT
     op document get talsecret --vault Talos > "${TALSECRET}"
     # LUKS2 slot-1 fallback passphrase, substituted into talconfig.yaml as ${TALOS_LUKS_FALLBACK}.
     # Never committed: this repo is public and the rendered configs are gitignored.
     export TALOS_LUKS_FALLBACK=$(op read "op://Talos/talos-luks-fallback/password")
     if [[ -z "${TALOS_LUKS_FALLBACK}" ]]; then
-        just log error "TALOS_LUKS_FALLBACK is empty — refusing to generate config without the LUKS fallback key" "stage" "{{ recipe_name() }}"
+        just log error "TALOS_LUKS_FALLBACK is empty, refusing to generate config without the LUKS fallback key" "stage" "{{ recipe_name() }}"
         exit 1
     fi
-    talhelper genconfig --config-file "{{ source_directory() }}/talconfig.yaml" --secret-file "${TALSECRET}" --out-dir "{{ source_directory() }}/clusterconfig"
+    # etcd encryption key for patches/controller/etcd-encryption.yaml (see the note there).
+    export TALOS_SECRETBOX_SECRET=$(yq -r '.secrets.secretboxencryptionsecret' "${TALSECRET}")
+    if [[ -z "${TALOS_SECRETBOX_SECRET}" || "${TALOS_SECRETBOX_SECRET}" == "null" ]]; then
+        just log error "TALOS_SECRETBOX_SECRET is empty, talsecret has no secretboxencryptionsecret" "stage" "{{ recipe_name() }}"
+        exit 1
+    fi
+    # Render into a scratch directory first: a rejected render must never reach clusterconfig/,
+    # which apply-node consumes as-is.
+    talhelper genconfig --config-file "{{ source_directory() }}/talconfig.yaml" --secret-file "${TALSECRET}" --out-dir "${OUTDIR}"
+    # Guard: a render whose secretbox key is not "key2" would stop every apiserver decrypting Secrets.
+    for f in "${OUTDIR}"/kubernetes-*.yaml; do
+        if [[ "$(yq 'select(.kind == "KubeEtcdEncryptionConfig") | ((.config.resources | length) == 1 and .config.resources[0].providers[0].secretbox.keys[0].name == "key2")' "${f}")" != "true" ]]; then
+            just log error "etcd encryption key is not a single secretbox key named key2 in ${f}, refusing, clusterconfig/ left untouched" "stage" "{{ recipe_name() }}"
+            exit 1
+        fi
+    done
+    mkdir -p "{{ source_directory() }}/clusterconfig"
+    rm -f "{{ source_directory() }}"/clusterconfig/kubernetes-*.yaml
+    cp -R "${OUTDIR}"/. "{{ source_directory() }}/clusterconfig/"
 
 [doc('Generate secret if missing (stored as the talsecret document in 1Password)')]
 gen-secret:
@@ -37,6 +56,7 @@ gen-secret:
 apply-node node *args:
     just log info "Applying Talos config to node..." "stage" "{{ recipe_name() }}" "node" "{{ node }}"
     export TALOS_LUKS_FALLBACK=$(op read "op://Talos/talos-luks-fallback/password")
+    export TALOS_SECRETBOX_SECRET=$(op document get talsecret --vault Talos | yq -r '.secrets.secretboxencryptionsecret')
     talhelper gencommand apply --config-file "{{ source_directory() }}/talconfig.yaml" --out-dir "{{ source_directory() }}/clusterconfig" --node {{ node }} --extra-flags "{{ args }}" | bash
 
 [confirm('Upgrade Talos on node? [y|N]')]

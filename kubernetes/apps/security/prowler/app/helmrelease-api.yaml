@@ -46,10 +46,10 @@ spec:
               DJANGO_LOGGING_FORMATTER: ndjson
               DJANGO_LOGGING_LEVEL: INFO
               DJANGO_MANAGE_DB_PARTITIONS: "True"
-              # Cap gunicorn workers — defaults to (CPU*2+1) which on a
+              # Cap gunicorn workers, defaults to (CPU*2+1) which on a
               # 24-core node was 49 workers * ~80MB each = 4GB just for api.
               DJANGO_WORKERS: "4"
-              # Same story for Celery's prefork pool — defaults to
+              # Same story for Celery's prefork pool, defaults to
               # os.cpu_count() (24 here), and 24 Django children idle at ~4GB.
               DJANGO_CELERY_WORKER_CONCURRENCY: "4"
             envFrom: *envFrom
@@ -145,7 +145,7 @@ spec:
             port: *port
 
     persistence:
-      # Shared scan-output volume — written by `worker`, served by `api`.
+      # Shared scan-output volume, written by `worker`, served by `api`.
       output:
         type: emptyDir
         globalMounts:
