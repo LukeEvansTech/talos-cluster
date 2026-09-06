@@ -6,7 +6,7 @@ kind: Component
 # `gateway: true`); it never reads Service annotations, which is where this
 # component used to put them. app-template renders the route under
 # spec.values.route.app, so every consumer must define its route there.
-# `gethomepage.dev/app` pins the pod selector to the release name — some
+# `gethomepage.dev/app` pins the pod selector to the release name, some
 # HTTPRoutes are named `<app>-app`, which would otherwise match no pods.
 patches:
   - target:

@@ -61,7 +61,7 @@ data:
         here directly. The LoadBalancer in front of this uses
         externalTrafficPolicy: Cluster (Local breaks Cilium L2 announcement, see
         the syslog Service), so kube-proxy SNATs and every sender arrives as a
-        node address — hence a CIDR here rather than per-device entries.
+        node address, hence a CIDR here rather than per-device entries.
       -->
       <remote>
         <connection>syslog</connection>
@@ -80,7 +80,7 @@ data:
 
       <!--
         rootcheck and syscheck are DISABLED on the manager. Upstream leaves them
-        scanning /etc, /bin, /usr/bin, /boot — which inside this container is the
+        scanning /etc, /bin, /usr/bin, /boot, which inside this container is the
         image's own filesystem, not a host. They produce noise about a read-only
         layer that is replaced wholesale on every image bump. Endpoint FIM is the
         agents' job, where those paths mean something.
