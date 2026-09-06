@@ -1,10 +1,10 @@
 ---
-# Custom snmp_exporter module for Brother network printers — Printer-MIB
+# Custom snmp_exporter module for Brother network printers, Printer-MIB
 # (RFC 3805) supplies/marker + Host-Resources-MIB (RFC 2790) printer/device
 # status. Covers the estate's 4 Brother units (2 lasers, 2 label printers) on
 # PRINT VLAN 72. Merged with the image's bundled snmp.yml via an extra
 # --config.file (see helmrelease extraArgs). Auths (SNMPv3) live in the
-# snmp-exporter-auth Secret (external-secrets), never here — this ConfigMap is
+# snmp-exporter-auth Secret (external-secrets), never here. This ConfigMap is
 # git-tracked in a public repo and carries modules only.
 #
 # Telemetry notes (verified against the live fleet, community-RO walk 2026-07):
@@ -12,7 +12,7 @@
 #     percentage only exists for Drum/Belt units (prtMarkerSuppliesMaxCapacity>0).
 #     Alert on the ratio only where MaxCapacity>0 (see prometheusrule).
 #   - hrDeviceStatus (2=running 3=warning 5=down) is the reliable numeric fault
-#     signal — Brother raises it to warning(3) on low-supply/cover/paper. Alert
+#     signal. Brother raises it to warning(3) on low-supply/cover/paper. Alert
 #     on that, not on the OCTET-STRING hrPrinterDetectedErrorState bitfield
 #     (kept as a labelled info metric for dashboards).
 apiVersion: v1
@@ -55,14 +55,14 @@ data:
           - name: hrPrinterDetectedErrorState
             oid: 1.3.6.1.2.1.25.3.5.1.2
             type: OctetString
-            help: HOST-RESOURCES-MIB hrPrinterDetectedErrorState bitfield (lowPaper/noPaper/lowToner/noToner/doorOpen/jammed/offline/serviceRequested) — 00 == no error
+            help: HOST-RESOURCES-MIB hrPrinterDetectedErrorState bitfield (lowPaper/noPaper/lowToner/noToner/doorOpen/jammed/offline/serviceRequested), 00 == no error
             indexes:
               - labelname: hrDeviceIndex
                 type: gauge
           - name: prtMarkerLifeCount
             oid: 1.3.6.1.2.1.43.10.2.1.4
             type: counter
-            help: Printer-MIB prtMarkerLifeCount — total marks (pages) made over the marker's life
+            help: Printer-MIB prtMarkerLifeCount, total marks (pages) made over the marker's life
             indexes:
               - labelname: hrDeviceIndex
                 type: gauge
@@ -85,7 +85,7 @@ data:
           - name: prtMarkerSuppliesMaxCapacity
             oid: 1.3.6.1.2.1.43.11.1.1.8
             type: gauge
-            help: Printer-MIB prtMarkerSuppliesMaxCapacity (>0 max level; -2 unknown/unrestricted) — divide Level by this for a real percentage where >0
+            help: Printer-MIB prtMarkerSuppliesMaxCapacity (>0 max level; -2 unknown/unrestricted), divide Level by this for a real percentage where >0
             indexes:
               - labelname: hrDeviceIndex
                 type: gauge
