@@ -20,18 +20,22 @@ spec:
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
-  name: allow-arr-mcp-from-ai
+  name: allow-arrmcp-from-ai
 spec:
-  # The `arr` ToolHive MCP server (ai namespace) queries Prowlarr over its API.
-  # Additive to the namespace-wide policy above (Cilium unions allows), scoped to
-  # the prowlarr endpoint and to the arr MCP pod as the source. Prowlarr runs
-  # behind a gluetun sidecar whose firewall already admits cluster ingress on :80.
-  description: "Allow the arr MCP server (ai) to reach prowlarr"
+  # The `arrmcp` app (ai namespace) queries Prowlarr, SABnzbd and qBittorrent
+  # over their APIs. All three run behind a gluetun sidecar whose firewall
+  # already admits cluster ingress on their API port.
+  description: "Allow the arrmcp app (ai) to reach prowlarr/sabnzbd/qbittorrent"
   endpointSelector:
-    matchLabels:
-      app.kubernetes.io/name: prowlarr
+    matchExpressions:
+      - key: app.kubernetes.io/name
+        operator: In
+        values:
+          - prowlarr
+          - sabnzbd
+          - qbittorrent
   ingress:
     - fromEndpoints:
         - matchLabels:
             io.kubernetes.pod.namespace: ai
-            toolhive-name: arr
+            app.kubernetes.io/name: arrmcp
