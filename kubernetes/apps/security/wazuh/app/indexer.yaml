@@ -10,7 +10,7 @@ metadata:
     checkov.io/skip4: "CKV_K8S_25=Capabilities are added back only after dropping ALL, which is tighter than upstream (drops nothing). The sets are empirically verified against the images; a smaller set crashes the manager."
     # Scoped deliberately, NOT reloader auto. Auto would also watch the
     # `wazuh` Secret, which carries both the client passwords AND the
-    # internal_users.yml hashes — so a credential rotation would restart
+    # internal_users.yml hashes, so a credential rotation would restart
     # every pod onto the new plaintext passwords the moment the
     # ExternalSecret refreshed, while the indexer security index still
     # held the old hashes. That race takes the stack down and cannot be
@@ -70,7 +70,7 @@ spec:
         #   talosctl -n <node> read /proc/sys/vm/max_map_count   # expect 262144
         # (discovery.type single-node happens to skip OpenSearch's bootstrap check
         # for this value, so the symptom is mmap exhaustion under load later
-        # rather than a clean refusal at startup — do not rely on that.)
+        # rather than a clean refusal at startup. Do not rely on that.)
         - name: chown-data
           image: docker.io/library/busybox:1.38.0@sha256:dc2d74b28e4cf8984fa52af1f39bc7c3d9c73760b41a74d629f5d11b1ab28616
           command:
@@ -99,7 +99,7 @@ spec:
           env:
             # Heap is HALF the container limit, per OpenSearch's own guidance.
             # Upstream ships -Xmx1g inside a 1564Mi limit (65%), leaving ~540Mi for
-            # Lucene mmap, Netty direct buffers, metaspace and thread stacks — so the
+            # Lucene mmap, Netty direct buffers, metaspace and thread stacks, so the
             # kernel OOM-kills the pod with no OutOfMemoryError in the log, which is
             # the "crash loop without providing error message" report (#879).
             - name: OPENSEARCH_JAVA_OPTS

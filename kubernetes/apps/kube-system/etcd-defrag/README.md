@@ -1,4 +1,4 @@
-# etcd Defragmentation CronJob
+# etcd defragmentation CronJob
 
 Automated defragmentation for etcd cluster running on Talos Linux control plane nodes.
 
@@ -8,14 +8,14 @@ This CronJob runs weekly to defragment the etcd database on all control plane no
 
 ## Features
 
-- **Safe Sequential Defragmentation**: Defrags one node at a time to maintain quorum
-- **Weekly Schedule**: Runs Sunday at 2 AM UTC
-- **Health Checks**: Verifies cluster health before and after defragmentation
-- **Detailed Logging**: Shows defragmentation progress and database size changes
+- **Safe sequential defragmentation**: defrags one node at a time to maintain quorum
+- **Weekly schedule**: runs Sunday at 2 AM UTC
+- **Health checks**: checks cluster health before and after defragmentation
+- **Detailed logging**: shows defragmentation progress and database size changes
 
 ## Prerequisites
 
-### 1Password Secrets (Certificate Components)
+### 1Password Secrets (certificate components)
 
 The CronJob requires Talos client certificates to authenticate with Talos nodes. For security, we store only the individual certificate components (not the full talosconfig).
 
@@ -64,7 +64,7 @@ The ExternalSecret will automatically sync these components to Kubernetes as `et
 
 **Security Note:** This approach follows the principle of least privilege by storing only the necessary certificate components instead of the full talosconfig file.
 
-## Manual Defragmentation
+## Manual defragmentation
 
 To defragment immediately without waiting for the CronJob:
 
@@ -96,7 +96,7 @@ kubectl get jobs -n kube-system -l app.kubernetes.io/name=etcd-defrag
 kubectl logs -n kube-system -l app.kubernetes.io/name=etcd-defrag --tail=100
 ```
 
-## Schedule Modification
+## Schedule modification
 
 To change the defragmentation schedule, edit `app/helmrelease.yaml`:
 

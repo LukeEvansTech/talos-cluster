@@ -15,7 +15,7 @@ MD007:
   indent: 4 # Match .editorconfig [*.md] indent_size = 4
 MD013:
   line_length: 1000 # Line length 80 is far too short; raised to 1000 so long planning-doc paragraphs and table rows aren't flagged
-MD028: false # Blank line inside blockquote — adjacent callout-style blockquotes separated by a blank are intentional in planning docs
+MD028: false # Blank line inside blockquote. Adjacent callout-style blockquotes separated by a blank are intentional in planning docs
 MD024:
   siblings_only: true # Allow repeated subheadings under different parents
 MD026:
