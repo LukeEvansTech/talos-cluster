@@ -7,11 +7,11 @@ metadata:
 spec:
   groups:
     # ------------------------------------------------------------------
-    # Recording rules — bridge TrueNAS SCALE 25.10's raw netdata arcstats
+    # Recording rules, bridge TrueNAS SCALE 25.10's raw netdata arcstats
     # into conventional zfs_arc_* series. 25.10 emits `truenas_arcstats{type=...}`
     # (a rawer chart than vanilla netdata's zfs.arc_size), so the upstream
     # dashboard's zfs_arc_size panel is otherwise empty. Verified against live
-    # /metrics 2026-06-14 — see docs/docs/operations/truenas-monitoring.md "metric reality".
+    # /metrics 2026-06-14, see docs/docs/operations/truenas-monitoring.md "metric reality".
     # ------------------------------------------------------------------
     - name: truenas-exporter.recording
       rules:
@@ -67,7 +67,7 @@ spec:
             # for its impact on the TrueNAS Reporting UI).
 
     # ------------------------------------------------------------------
-    # Docker container lifecycle alerts — fed by docker_state_exporter on
+    # Docker container lifecycle alerts, fed by docker_state_exporter on
     # the NAS (:9419, scraped as job=truenas-docker-exporter). Container
     # CPU/mem already come from the graphite bridge's cgroup_* series (by
     # ID); these add up/down, health, restart and OOM by container NAME.
@@ -88,12 +88,12 @@ spec:
         # The declarative restore inits (apps/*/compose.yaml, service
         # restore-<app>) are one-shots: they run, exit 0 and STAY exited. That
         # is their steady state, so they are excluded from TrueNASContainerDown
-        # above — without the exclusion every one of them pages forever, which
+        # above, without the exclusion every one of them pages forever, which
         # is exactly what happened when they first landed (13 across the fleet).
         #
         # A restore init that FAILS is still caught, just not here. It exits
         # non-zero, so compose never starts the app it gates, and the app is
-        # left in `created` rather than `exited` — which is why `created` was
+        # left in `created` rather than `exited`, which is why `created` was
         # added to the status list above. Nothing sits in `created` for
         # 5m in normal operation; a deploy moves through it in seconds.
         - alert: TrueNASContainerDown
@@ -139,8 +139,8 @@ spec:
 
     # ------------------------------------------------------------------
     # Off-site ZFS replication health. The netdata graphite bridge exports no
-    # replication (or pool) series — same reason there is no pool-state alert
-    # above — so the signal is produced host-side: a cron collector on the NAS
+    # replication (or pool) series. Same reason there is no pool-state alert
+    # above, so the signal is produced host-side: a cron collector on the NAS
     # writes zfs_replication_*.prom and node-exporter's textfile collector
     # re-exposes it. Metrics are generic over every replication task (labelled by
     # task name); the DR task is the load-bearing one.
@@ -156,13 +156,13 @@ spec:
       rules:
         # THE load-bearing alert: the off-site copy is stale. 36h gives a daily
         # replication one full missed cycle plus slack. Guards: last_success > 0
-        # (never fires before the first completion — silent through the initial
+        # (never fires before the first completion, silent through the initial
         # seed and for any deliberately-disabled task, both at 0); state != 1 so a
         # long in-progress run is not called stale.
         - alert: TrueNASReplicationStale
           annotations:
             summary: >-
-              No successful off-site replication of {{ $labels.task }} in over 36h —
+              No successful off-site replication of {{ $labels.task }} in over 36h.
               the DR copy is stale.
           expr: |-
             (time() - zfs_replication_last_success_timestamp_seconds{box="truenas"} > 129600)
@@ -171,21 +171,21 @@ spec:
           for: 30m
           labels:
             severity: critical
-        # A run that errored — fires well before Stale would, when the cause is
+        # A run that errored. Fires well before Stale would, when the cause is
         # fixable now (off-site box unreachable, credentials, a full destination).
         # zettarepl retries within a run, so a brief blip stays RUNNING; only a
         # terminal ERROR reaches this, and the 15m fuse rides out the retry window.
         - alert: TrueNASReplicationFailing
           annotations:
             summary: >-
-              Replication task {{ $labels.task }} is in ERROR — check its log on the
+              Replication task {{ $labels.task }} is in ERROR, check its log on the
               NAS and whether the off-site target is reachable.
           expr: |-
             zfs_replication_state{box="truenas"} == 2
           for: 15m
           labels:
             severity: warning
-        # The DR task silently disabled — an absence-of-success mode with no error
+        # The DR task silently disabled, an absence-of-success mode with no error
         # to catch. Scoped to the DR task by its middleware id (11), so a second
         # replication task that is deliberately disabled never pages. This and the
         # MetricsMissing selector below are the only task-specific ones; update
@@ -193,7 +193,7 @@ spec:
         - alert: TrueNASReplicationDisabled
           annotations:
             summary: >-
-              DR replication task {{ $labels.task }} is DISABLED — the off-site copy
+              DR replication task {{ $labels.task }} is DISABLED. The off-site copy
               is not running.
           expr: |-
             zfs_replication_enabled{box="truenas", id="11"} == 0
@@ -207,7 +207,7 @@ spec:
         - alert: TrueNASReplicationMetricsMissing
           annotations:
             summary: >-
-              DR replication metrics absent for 2h — cannot tell whether the
+              DR replication metrics absent for 2h, cannot tell whether the
               off-site copy is running.
           expr: |-
             absent(zfs_replication_last_success_timestamp_seconds{box="truenas", id="11"})
@@ -222,7 +222,7 @@ spec:
           annotations:
             summary: >-
               The ZFS-replication metrics collector on the NAS has not run in over
-              1h — replication alerts may be blind.
+              1h. Replication alerts may be blind.
           expr: |-
             time() - zfs_replication_scrape_timestamp_seconds{box="truenas"} > 3600
           for: 15m
@@ -234,7 +234,7 @@ spec:
         # one stuck in RUNNING and never completing. Both keep last_success at
         # 0 forever, so Stale's `last_success > 0` guard and Failing's
         # `state == 2` guard both stay quiet indefinitely. Deliberately does
-        # NOT exclude any state — a run wedged in RUNNING is exactly what this
+        # NOT exclude any state. A run wedged in RUNNING is exactly what this
         # is for. 168h (7d) stays well clear of the multi-day initial-seed
         # window noted above; an enabled task still at last_success=0 after a
         # week is stuck, not seeding. Tune the window if real seed durations
@@ -243,7 +243,7 @@ spec:
           annotations:
             summary: >-
               Replication task {{ $labels.task }} has never completed a
-              successful run in over 7 days — it may be stuck, or its
+              successful run in over 7 days. It may be stuck, or its
               schedule never launched.
           expr: |-
             (zfs_replication_last_success_timestamp_seconds{box="truenas"} == 0)

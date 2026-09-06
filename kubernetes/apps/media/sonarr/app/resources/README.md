@@ -1,4 +1,4 @@
-# Sonarr Custom Scripts
+# Sonarr custom scripts
 
 Custom scripts triggered via Sonarr's Connect settings (Settings → Connect → Custom Script).
 
