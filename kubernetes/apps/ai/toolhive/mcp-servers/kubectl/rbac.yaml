@@ -11,12 +11,12 @@ metadata:
 #
 # The split is mandatory, not stylistic: a ClusterRole that carries an
 # aggregationRule has its `rules` field owned by the aggregation controller,
-# which overwrites anything written alongside it — any rules on a role like
+# which overwrites anything written alongside it, any rules on a role like
 # that are dead on arrival. Both roles below are bound to the same
-# ServiceAccount (and, for flux-mcp, a second SA — see flux/rbac.yaml).
+# ServiceAccount (and, for flux-mcp, a second SA, see flux/rbac.yaml).
 #
 # - kubectl-mcp-readonly: aggregation only, `rules: []`. Same selector as the
-#   built-in "view" ClusterRole — expands automatically as operators ship
+#   built-in "view" ClusterRole. Expands automatically as operators ship
 #   rbac.authorization.k8s.io/aggregate-to-view ClusterRoles (CRDs, etc.).
 # - kubectl-mcp-readonly-explicit: the rules the aggregation does not cover.
 #   - Core group "": explicit resource list with `secrets` omitted (and no
@@ -53,7 +53,7 @@ rules:
       - /version/
     verbs:
       - get
-  # Core v1 — everything except secrets.
+  # Core v1, everything except secrets.
   - apiGroups:
       - ""
     resources:

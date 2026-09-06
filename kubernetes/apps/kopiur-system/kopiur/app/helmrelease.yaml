@@ -12,7 +12,7 @@ spec:
   values:
     installScope: cluster
     # 0.6.0 folded metrics.serviceMonitor / metrics.prometheusRule /
-    # grafanaDashboard.* under a single `monitoring:` umbrella — the only
+    # grafanaDashboard.* under a single `monitoring:` umbrella, the only
     # breaking values change in the 0.4.8 -> 0.7.0 jump (0.7.0's breaks are
     # Rust-dep churn + replication-mover credentials, neither used here).
     monitoring:

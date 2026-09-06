@@ -35,7 +35,7 @@ spec:
           # leaves through the tunnel from the first byte. Cluster and LAN
           # traffic (Dragonfly, the gateway, Plex/Jellyfin pulling streams)
           # stays off the tunnel via FIREWALL_OUTBOUND_SUBNETS below. Shape
-          # copied from downloads/prowlarr — see that file for the full
+          # copied from downloads/prowlarr, see that file for the full
           # rationale behind the settings repeated here.
           gluetun:
             image:
@@ -53,7 +53,7 @@ spec:
               # OFF, so gluetun owns resolv.conf and every external lookup goes
               # to its DoT resolver *inside* the tunnel. This is deliberate and
               # load-bearing: estate DNS forwards to NextDNS, whose ddns rule
-              # sinkholes dynamic-DNS hostnames to 0.0.0.0 — and the IPTV panel
+              # sinkholes dynamic-DNS hostnames to 0.0.0.0, and the IPTV panel
               # 302s every stream to a rotating No-IP hostname. Six such domains
               # were in use at last count and the set keeps moving, so
               # allowlisting them one at a time is a treadmill whose failure mode
@@ -79,7 +79,7 @@ spec:
               # below are disabled, so this in-process health check is the
               # only thing left that notices a degraded tunnel and
               # reconnects it. Flipping this to `on` leaves no recovery
-              # path at all — the tunnel stays down, and with it every
+              # path at all. The tunnel stays down, and with it every
               # stream, until the pod is recreated by hand.
               HEALTH_SERVER_DISABLE_LOOP: off
               HEALTH_VPN_DURATION_INITIAL: 60s
@@ -134,7 +134,7 @@ spec:
               # health server only answers 200 once the tunnel and firewall are
               # actually up. Without it "started" means merely "the process is
               # running", so dispatcharr could fetch a playlist over the pod's
-              # default route before the kill switch existed — the exact leak
+              # default route before the kill switch existed, the exact leak
               # this app is meant to prevent. 5m of headroom before it gives up.
               startup:
                 enabled: true
@@ -302,8 +302,8 @@ spec:
               - identifier: app
                 port: *port
             # 0.29.0 prefers a client-supplied X-Real-IP over the XFF walk for
-            # throttling/ACLs/audit, and nothing on the uwsgi path strips it —
-            # drop it at the gateway so clients cannot spoof their identity.
+            # throttling/ACLs/audit, and nothing on the uwsgi path strips it.
+            # Drop it at the gateway so clients cannot spoof their identity.
             filters:
               - type: RequestHeaderModifier
                 requestHeaderModifier:
@@ -338,7 +338,7 @@ spec:
               - path: /tmp
                 subPath: tmp
       # gluetun creates its status directory with os.MkdirAll("/tmp/gluetun",
-      # 0644) — a directory with no execute bit, untraversable without
+      # 0644), a directory with no execute bit, untraversable without
       # CAP_DAC_OVERRIDE. Pre-creating it as an emptyDir (mode 1777) makes that
       # MkdirAll a no-op, so the public-IP file stays writable with all
       # capabilities dropped. Paired with PUID/PGID 0 above.

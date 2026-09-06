@@ -18,7 +18,7 @@ spec:
     substitute:
       APP: *app
       VOLSYNC_CAPACITY: 15Gi
-      # 8Gi cluster floor — the Kopia cache tracks the shared repository, not
+      # 8Gi cluster floor. The Kopia cache tracks the shared repository, not
       # VOLSYNC_CAPACITY (KB-030).
       VOLSYNC_CACHE_CAPACITY: 8Gi
       HOMEPAGE_NAME: Homebox
