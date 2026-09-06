@@ -20,48 +20,6 @@ spec:
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
-  name: allow-arr-mcp-from-ai
-spec:
-  # The `arr` ToolHive MCP server (ai namespace) queries Sonarr and Radarr over
-  # their APIs. Additive to the namespace-wide policy above (Cilium unions
-  # allows), scoped to the two arr endpoints and to the arr MCP pod as the source.
-  description: "Allow the arr MCP server (ai) to reach sonarr/radarr"
-  endpointSelector:
-    matchExpressions:
-      - key: app.kubernetes.io/name
-        operator: In
-        values:
-          - sonarr
-          - radarr
-  ingress:
-    - fromEndpoints:
-        - matchLabels:
-            io.kubernetes.pod.namespace: ai
-            toolhive-name: arr
----
-# yaml-language-server: $schema=https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/cilium.io/ciliumnetworkpolicy_v2.json
-apiVersion: cilium.io/v2
-kind: CiliumNetworkPolicy
-metadata:
-  name: allow-seerr-mcp-from-ai
-spec:
-  # The `seerr` ToolHive MCP server (ai namespace) queries Seerr over its API.
-  # Additive to the namespace-wide policy above (Cilium unions allows), scoped to
-  # the seerr endpoint and to the seerr MCP pod as the source.
-  description: "Allow the seerr MCP server (ai) to reach seerr"
-  endpointSelector:
-    matchLabels:
-      app.kubernetes.io/name: seerr
-  ingress:
-    - fromEndpoints:
-        - matchLabels:
-            io.kubernetes.pod.namespace: ai
-            toolhive-name: seerr
----
-# yaml-language-server: $schema=https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/cilium.io/ciliumnetworkpolicy_v2.json
-apiVersion: cilium.io/v2
-kind: CiliumNetworkPolicy
-metadata:
   name: allow-arrmcp-from-ai
 spec:
   # The `arrmcp` app (ai namespace) queries the media services over their APIs.
