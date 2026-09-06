@@ -49,14 +49,14 @@ spec:
               # Web search (RAG citations from live search results), backed by the
               # in-cluster SearXNG instance's JSON API. v0.11.0 renamed these from
               # RAG_WEB_SEARCH_* / ENABLE_RAG_WEB_SEARCH to WEB_SEARCH_* / ENABLE_WEB_SEARCH
-              # (backend/open_webui/config.py:1129,1138,1147,1164,1185) — the old names are
+              # (backend/open_webui/config.py:1129,1138,1147,1164,1185). The old names are
               # not read by this version.
               #
               # ENABLE_WEB_SEARCH is a PersistentConfig value: it only seeds the SQLite
               # `web.search.enable` row on that row's first-ever write, and is ignored once
               # the row exists (models/config.py's seed_defaults() docstring: "Existing DB
               # values take precedence over defaults"). This app previously ran with web
-              # search off, so the row is already seeded false on the live PVC — flipping
+              # search off, so the row is already seeded false on the live PVC, flipping
               # this env var does not retroactively flip it. After deploying, enable web
               # search by hand in Admin Settings → Web Search.
               - name: ENABLE_WEB_SEARCH

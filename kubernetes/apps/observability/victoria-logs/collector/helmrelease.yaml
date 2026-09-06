@@ -36,7 +36,7 @@ spec:
       - url: http://victoria-logs-server.observability.svc.cluster.local:9428
         maxDiskUsagePerURL: 10GB
     collector:
-      # Stream fields define VictoriaLogs stream cardinality — keep this set small
+      # Stream fields define VictoriaLogs stream cardinality. Keep this set small
       # and low-cardinality for efficient storage/querying.
       streamFields:
         - kubernetes.pod_name
