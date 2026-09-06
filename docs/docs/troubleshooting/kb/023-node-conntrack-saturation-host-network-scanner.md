@@ -1,4 +1,4 @@
-# KB-023: Node Conntrack Table Saturates from a Host-Network Scanner
+# KB-023: Node conntrack table saturates from a host-network scanner
 
 **Status:** Resolved for scanopy (scoped to the LAN NIC + single Deployment); the **rule
 generalizes to any host-network sweeper**.

@@ -18,14 +18,14 @@ spec:
       refreshInterval: 15m
       logFormat: json
       # Post the native `Konflate` commit status + PR summary comment per
-      # render (replaced the deleted flate.yaml/konflate.yaml CI workflows —
+      # render (replaced the deleted flate.yaml/konflate.yaml CI workflows;
       # PR validation now happens entirely in-cluster). statusCheckName left
       # unset → defaults to "Konflate".
       statusChecks: true
       prComments: true
       publicUrl: "https://konflate.${SECRET_DOMAIN}"
     secret:
-      # KONFLATE_PUSH_TOKEN — bearer for POST /api/prs/{n}/refresh, forcing a
+      # KONFLATE_PUSH_TOKEN, bearer for POST /api/prs/{n}/refresh, forcing a
       # re-render of a PR's new head ahead of the 15m poll. With the CI
       # workflows gone the webhook is the primary trigger; the token remains
       # for manual/scripted refreshes.
@@ -45,7 +45,7 @@ spec:
       # KubePersistentVolumeInodesFillingUp). The caches are bounded by bytes
       # + TTL, not inodes, so emptyDir on Talos /var (xfs, dynamic inodes) is
       # the right home. Tradeoff: open-PR diffs re-render and the merged-PR
-      # shelf is lost on a konflate restart — acceptable for a diff UI.
+      # shelf is lost on a konflate restart, acceptable for a diff UI.
       enabled: false
     monitoring:
       serviceMonitor:

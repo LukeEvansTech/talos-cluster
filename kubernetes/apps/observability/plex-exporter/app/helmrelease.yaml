@@ -16,7 +16,7 @@ spec:
         # The exporter treats a Plex websocket read failure as fatal and exits
         # ("cannot listen to plex server events") rather than reconnecting, so
         # the Kubernetes restart IS its reconnect. It has no backoff for "Plex
-        # is not there yet", so while Plex is down — a Plex image update, say —
+        # is not there yet", so while Plex is down, during a Plex image update say,
         # it hot-loops and the count jumps in bursts of 5-12 an hour, then sits
         # still for days. Measured impact is small: 99.75% scrape availability
         # over 7 days. Deliberately no extra alert: those bursts are fast enough
