@@ -1,4 +1,4 @@
-# KB-010: Rook-Ceph v1.20 CSI Driver Split Gotchas
+# KB-010: Rook-Ceph v1.20 CSI driver split gotchas
 
 **Status:** Resolved (PRs landed). Two runtime-only failures that `flate`/CI cannot catch.
 Both render fine and only break on a live cluster. Read before any future Rook upgrade or

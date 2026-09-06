@@ -1,15 +1,15 @@
 ---
 # Custom snmp_exporter modules for the APC rack PDU fleet (PowerNet-MIB).
 # Two module generations, verified against the live devices 2026-08-01:
-#   apc_rpdu2 — Rack PDU 2G (AP8659EU3, NMC2 AOS 7.2.x): rPDU2 device +
+#   apc_rpdu2. Rack PDU 2G (AP8659EU3, NMC2 AOS 7.2.x): rPDU2 device +
 #     phase status tables. Power is reported in hundredths of kilowatts
 #     (multiply by 10 for watts), current in tenths of amps, energy in
 #     tenths of kWh. The pdu_name label is looked up from the device's own
 #     rPDU2DeviceStatusName, so no internal hostname lives in this repo.
-#   apc_rpdu — legacy Rack PDU (AP7921B): rPDUIdentDevicePowerWatts is a
+#   apc_rpdu. Legacy Rack PDU (AP7921B): rPDUIdentDevicePowerWatts is a
 #     plain watts scalar; rPDULoadStatusLoad is tenths of amps.
-# Config drift/compliance for these devices is the apc-fleet exporter's job —
-# these modules carry power telemetry only. Auths (community) live in the
+# Config drift/compliance for these devices is the apc-fleet exporter's job.
+# These modules carry power telemetry only. Auths (community) live in the
 # snmp-exporter-auth Secret (external-secrets), never here (public repo).
 apiVersion: v1
 kind: ConfigMap

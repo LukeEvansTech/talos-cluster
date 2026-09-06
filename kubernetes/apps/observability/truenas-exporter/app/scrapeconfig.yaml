@@ -23,7 +23,7 @@ kind: ScrapeConfig
 metadata:
   name: &name truenas-docker-exporter
 spec:
-  # docker_state_exporter on the NAS (truenas-apps apps/monitoring) — per-container
+  # docker_state_exporter on the NAS (truenas-apps apps/monitoring), per-container
   # state/health/restartcount/oomkilled keyed by container name on :9419. Drives the
   # truenas-docker.rules lifecycle alerts (the graphite bridge's cgroup_* series are
   # keyed by container ID and disappear once a container stops, so they can't).
@@ -48,13 +48,13 @@ spec:
 # under the `node-exporter` and `smartctl-exporter` job names, so every series
 # from this host arrived TWICE and every alert on it fired twice.
 #
-# The premise they were added on — "the NAS is the only Docker box in the estate
-# with no host metrics at all" — was simply wrong. It had them; they were just
+# The premise they were added on. "the NAS is the only Docker box in the estate
+# with no host metrics at all". Was simply wrong. It had them; they were just
 # under the cluster's job names rather than a truenas-* one.
 #
 # The duplication was not merely cosmetic. Only the truenas-node copy dropped
 # node_uname_info, so the unfiltered `node-exporter` copy kept publishing it and
-# the unscoped ceph-mixin rules went on adopting this host anyway — the drop
+# the unscoped ceph-mixin rules went on adopting this host anyway. The drop
 # protected nothing while both existed. That drop now lives on the surviving
 # `node-exporter` ScrapeConfig, where it actually bites.
 #
@@ -78,7 +78,7 @@ kind: ScrapeConfig
 metadata:
   name: &name truenas-traefik
 spec:
-  # Traefik metrics entrypoint (:8082) — per-router/service request stats for
+  # Traefik metrics entrypoint (:8082), per-router/service request stats for
   # the NAS dashboards and the Garage S3 routes, matching the seedbox-traefik
   # job. Traefik always had --metrics.prometheus on this box, but until the
   # 2026-07-30 fleet convergence (truenas-apps) there was no reachable metrics
@@ -105,7 +105,7 @@ kind: ScrapeConfig
 metadata:
   name: &name truenas-doco-cd
 spec:
-  # doco-cd's own metrics (:9120) — GitOps poll and deploy status for the NAS,
+  # doco-cd's own metrics (:9120), GitOps poll and deploy status for the NAS,
   # matching the seedbox-doco-cd and nut-appliance-doco-cd jobs.
   #
   # Strictly better than "the container is running", which the
@@ -113,7 +113,7 @@ spec:
   # signal that the repo is actually being polled. A doco-cd that is up but has
   # stopped polling deploys nothing, and the box drifts from truenas-apps with
   # no other symptom. Unlike the appliance, publishing the port IS
-  # GitOps-adjacent here — it lives in bootstrap/compose.yaml, applied by the
+  # GitOps-adjacent here. It lives in bootstrap/compose.yaml, applied by the
   # NAS's hourly bootstrap cron rather than by doco-cd itself.
   staticConfigs:
     - targets:

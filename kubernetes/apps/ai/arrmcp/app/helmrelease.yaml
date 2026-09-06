@@ -1,0 +1,103 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: arrmcp
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: arrmcp
+  values:
+    defaultPodOptions:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+    controllers:
+      arrmcp:
+        annotations:
+          # config.yaml is a subPath secret mount, and subPath mounts do not
+          # receive updates in place — a 1Password rotation only lands on a
+          # pod restart, which this provides.
+          reloader.stakater.com/auto: "true"
+        # One RWO volume: a rolling update would start the replacement before
+        # the old pod releases the RBD attach and stall.
+        strategy: Recreate
+        containers:
+          app:
+            image:
+              repository: ghcr.io/bardesss/arr-mcp
+              tag: 1.21.2@sha256:6f1fbd06fac4a1cadfb09c2879ce18e01bcb74d266fe4a43bb42fb7330c72913
+            env:
+              ARR_MCP_PORT: &port 6060
+              TZ: ${TIMEZONE}
+            probes:
+              liveness: &probe
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /healthz
+                    port: *port
+                  initialDelaySeconds: 10
+                  periodSeconds: 30
+                  failureThreshold: 3
+              readiness: *probe
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop:
+                  - ALL
+            resources:
+              requests:
+                cpu: 25m
+                memory: 128Mi
+              limits:
+                memory: 512Mi
+    persistence:
+      # Holds only the SQLite log and write-audit databases: LogStore.open()
+      # and WriteAudit.open() both open a database inside the config dir, and
+      # WriteAudit throws if it cannot, so this directory has to be writable
+      # even though config.yaml itself is not. Deliberately not VolSync-backed
+      # — nothing here is irreplaceable, and keeping it out of the backups is
+      # what keeps the media stack's API keys out of them too.
+      config:
+        type: persistentVolumeClaim
+        storageClass: ceph-block
+        accessMode: ReadWriteOnce
+        size: 1Gi
+        globalMounts:
+          - path: /config
+      # Overlaid read-only on top of the volume above. arr-mcp writes
+      # config.yaml only when it is absent or missing `bearer_token`
+      # (src/config/load.ts), and the ExternalSecret seeds both, so startup
+      # performs no write and the credentials never reach the PVC.
+      config-file:
+        type: secret
+        name: arrmcp-secret
+        globalMounts:
+          - path: /config/config.yaml
+            subPath: config.yaml
+            readOnly: true
+      tmp:
+        type: emptyDir
+        globalMounts:
+          - path: /tmp
+    route:
+      app:
+        hostnames:
+          - "{{ .Release.Name }}.${SECRET_DOMAIN}"
+        parentRefs:
+          - name: envoy-internal
+            namespace: network
+    service:
+      app:
+        controller: arrmcp
+        ports:
+          http:
+            port: *port

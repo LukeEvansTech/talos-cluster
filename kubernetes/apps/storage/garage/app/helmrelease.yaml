@@ -123,7 +123,7 @@ spec:
     route:
       app:
         annotations:
-          # garage S3 API answers anonymous GET with 403 — treat 200/403 as healthy
+          # garage S3 API answers anonymous GET with 403. Treat 200/403 as healthy
           gatus.home-operations.com/endpoint: |
             conditions: ["[STATUS] == any(200, 403)"]
         hostnames:
