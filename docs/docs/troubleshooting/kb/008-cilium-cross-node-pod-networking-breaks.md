@@ -1,4 +1,4 @@
-# KB-008: Cross-Node Pod Networking Breaks (Cilium)
+# KB-008: Cross-node pod networking breaks (Cilium)
 
 **Status:** Two distinct causes, each with a different fix. Identify the cause before acting:
 the fixes do not overlap.
@@ -23,7 +23,7 @@ Tell the two variants apart by **route stability** and **recent changes**:
 | Trigger | A node was **down/cordoned for hours** (e.g. a failed upgrade), then rejoined | A recent **Talos minor/patch bump** |
 | Routes | Peer pod-CIDR routes are wrong but **stable** | Peer pod-CIDR routes **flap** (count oscillates 0↔1↔2) |
 | Where the bad state lives | On the **long-running peer** nodes, about the churned node | On the upgraded node itself, **load-triggered** |
-| agent log | — | spams `"Fallback node addresses updated" ... device=*` ~2-3/min |
+| agent log | quiet | spams `"Fallback node addresses updated" ... device=*` ~2-3/min |
 
 ### Variant A: stale Cilium datapath state on the peers
 

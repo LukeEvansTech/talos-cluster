@@ -1,5 +1,5 @@
 ---
-# Cloudflare DNS stack — OpenTofu, R2 s3 backend. Runner creds (R2 backend + Cloudflare
+# Cloudflare DNS stack, OpenTofu, R2 s3 backend. Runner creds (R2 backend + Cloudflare
 # provider token) are injected from the cloudflare-creds Secret below.
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret

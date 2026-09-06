@@ -8,16 +8,16 @@ global talconfig patch.
 
 ## What is verified
 
-| Image pattern | OIDC issuer | Signing identity |
-| --- | --- | --- |
-| `ghcr.io/siderolabs/*` | `https://accounts.google.com` | regex: `@siderolabs.com` emails **or** `releasemgr-svc@talos-production.iam.gserviceaccount.com` |
-| `factory.talos.dev/*` | `https://accounts.google.com` | `image-factory-signing@talos-production.iam.gserviceaccount.com` |
+| Image pattern          | OIDC issuer                   | Signing identity                                                                                          |
+| ---------------------- | ----------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `ghcr.io/siderolabs/*` | `https://accounts.google.com` | regular expression: `@siderolabs.com` emails or `releasemgr-svc@talos-production.iam.gserviceaccount.com` |
+| `factory.talos.dev/*`  | `https://accounts.google.com` | `image-factory-signing@talos-production.iam.gserviceaccount.com`                                          |
 
 Rule semantics (Talos v1.13):
 
-- Rules are evaluated in order; **first matching rule applies**. Matching is on registry +
+- Rules are evaluated in order and the first matching rule applies. Matching is on registry and
   repository only, never tag or digest.
-- An image matching **no** rule is pulled unverified, exactly as before this config existed. There
+- An image that matches no rule is pulled unverified, exactly as before this config existed. There
   are no `deny` rules, so this setup cannot block third-party images.
 - The `subjectRegex` on the `ghcr.io/siderolabs/*` rule keeps the legacy personal-email identities
   as a fallback: images published before Sidero's cutover to service-account signing (including
@@ -26,18 +26,19 @@ Rule semantics (Talos v1.13):
 
 ## Design decisions
 
-- **Sidero-only scope.** Talos's verifier chokes on the newer OCI-referrers/bundle-tag signature
-  format (siderolabs/talos#13639), which registries like `quay.io/cilium` use. Sidero's own images
-  use the legacy `.sig`-tag scheme, which works. Third-party rules stay out until upstream settles.
-- **The factory boot path is the point.** The nodes boot from
+- The rules cover Sidero images only. Talos's verifier chokes on the newer OCI-referrers/bundle-tag
+  signature format (siderolabs/talos#13639), which registries like `quay.io/cilium` use. Sidero's
+  own images use the legacy `.sig`-tag scheme, which works. Third-party rules stay out until
+  upstream settles.
+- The factory boot path is what this protects. The nodes boot from
   `factory.talos.dev/installer-secureboot/<schematic>` (the schematic is pinned in
-  `talos/talconfig.yaml`). Since Talos v1.14 drops `ghcr.io/siderolabs/installer` from releases
-  entirely, the factory path is the sole installer route: its signing coverage is what makes this
-  config worthwhile.
-- **History.** A first attempt (PR #2315/#2337) was rolled back (#2339) in April 2026 because
-  Sidero then signed only three images, with rotating personal-email identities, and did not sign
-  the factory images at all. Issue #2340 tracked the revisit triggers; by 2026-07 all of them had
-  flipped (image-factory#417, talos#13178) and the config was re-landed in #3462.
+  `talos/talconfig.yaml`). Talos v1.14 dropped `ghcr.io/siderolabs/installer` from releases
+  entirely, so the factory path is the only installer route, and its signing coverage is what makes
+  this config worth having.
+- A first attempt (PR #2315/#2337) was rolled back (#2339) in April 2026 because Sidero then signed
+  only three images, with rotating personal-email identities, and did not sign the factory images
+  at all. Issue #2340 tracked the revisit triggers. By 2026-07 all of them had flipped
+  (image-factory#417, talos#13178) and the config was re-landed in #3462.
 
 ## Verifying / testing
 
@@ -52,11 +53,11 @@ mise exec "aqua:sigstore/cosign@latest" -- cosign verify \
 
 On-node pull-test matrix (run against any node with `talosctl image pull -n <node>`):
 
-| Test image | Expected |
-| --- | --- |
+| Test image                                                             | Expected                                                                               |
+| ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
 | `factory.talos.dev/installer-secureboot/<schematic>:<current-version>` | pulled, signature verifies (`ghcr.io/siderolabs/installer` is not published for 1.14+) |
-| `docker.io/library/busybox:<tag>` | pulled, no matching rule, unaffected |
-| `ghcr.io/siderolabs/installer:v1.0.0` | **rejected**, pre-dates signing, proves enforcement |
+| `docker.io/library/busybox:<tag>`                                      | pulled, no matching rule, unaffected                                                   |
+| `ghcr.io/siderolabs/installer:v1.0.0`                                  | rejected, predates signing, proves enforcement                                         |
 
 The rejection looks like:
 
@@ -67,12 +68,12 @@ legacy signature tag not found
 
 ## Operational notes
 
-- Applying the config is a **no-reboot** machine-config change (`just talos apply-node <ip>`;
-  `--dry-run` first shows the document diff and confirms no reboot).
+- Applying the config is a machine-config change with no reboot (`just talos apply-node <ip>`;
+  `--dry-run` first shows the document diff and confirms that).
 - If a Talos upgrade or image pull fails with `image verification failed`, see the
   [upgrade troubleshooting page](../operations/talos-upgrades.md#image-verification-failures):
   diagnose whether Sidero's signing identity changed before suspecting anything else.
-- **Emergency bypass:** remove
+- To bypass it in an emergency, remove
   `"@./patches/global/machine-image-verification.yaml"` from the `patches` list in
   `talos/talconfig.yaml`, regenerate (`just talos gen-config`), and apply to the affected node.
   Restore it once the upstream identity question is resolved.
