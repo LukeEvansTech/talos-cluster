@@ -9,7 +9,5 @@ resources:
   - ./searxng
   - ./github
   - ./grafana
-  - ./arr-mcp
-  - ./seerr-mcp
   - ./hamcp
   - ./arrmcp
