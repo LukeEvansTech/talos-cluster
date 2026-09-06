@@ -21,7 +21,7 @@ spec:
     # llmkube-model-cache PVC and stages remote model sources into it itself,
     # so any node can serve any model without re-staging. The old per-model RWO
     # ceph-block PVCs + curl staging Jobs existed only because of the "Talos has
-    # no ceph kernel module" misdiagnosis (KB-025) — CephFS mounts natively.
+    # no ceph kernel module" misdiagnosis (KB-025), CephFS mounts natively.
     # 100Gi: ~35Gi of GGUFs today + headroom; weights are re-downloadable, so
     # the cache carries no VolSync.
     modelCache:

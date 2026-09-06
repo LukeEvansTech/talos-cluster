@@ -33,7 +33,7 @@ spec:
 
                   # Job folders that survive this long in complete/ were never
                   # imported by an arr (blocked import, queue item removed
-                  # without client cleanup, ...) and are dead weight — SAB's own
+                  # without client cleanup, ...) and are dead weight, SAB's own
                   # history retention is 7d, so nothing this old is in flight.
                   ROOT = "/complete"
                   CUTOFF = time.time() - 7 * 86400

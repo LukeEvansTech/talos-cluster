@@ -7,7 +7,7 @@ resources:
   - ./pvc.yaml
   - ./ocirepository.yaml
   - ./helmrelease.yaml
-  # Backups only — deliberately NOT the whole ../../../../components/volsync component: its
+  # Backups only, deliberately NOT the whole ../../../../components/volsync component: its
   # pvc.yaml would redeclare the existing `lurcher` PVC with a dataSourceRef and try to
   # re-provision it from a ReplicationDestination that has no snapshot yet (the gatus pattern).
   # sourcePVC is ${APP} = lurcher, exactly this PVC's name, so no patch is needed.
