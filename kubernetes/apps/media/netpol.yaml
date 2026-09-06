@@ -20,12 +20,14 @@ spec:
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
-  name: allow-arr-mcp-from-ai
+  name: allow-arrmcp-from-ai
 spec:
-  # The `arr` ToolHive MCP server (ai namespace) queries Sonarr and Radarr over
-  # their APIs. Additive to the namespace-wide policy above (Cilium unions
-  # allows), scoped to the two arr endpoints and to the arr MCP pod as the source.
-  description: "Allow the arr MCP server (ai) to reach sonarr/radarr"
+  # The `arrmcp` app (ai namespace) queries the media services over their APIs.
+  # Additive to the namespace-wide policy above (Cilium unions allows), scoped
+  # to those endpoints and to the arrmcp pod as the source. Unlike the ToolHive
+  # servers above it is a plain app-template workload, so the source label is
+  # `app.kubernetes.io/name` rather than `toolhive-name`.
+  description: "Allow the arrmcp app (ai) to reach the media services"
   endpointSelector:
     matchExpressions:
       - key: app.kubernetes.io/name
@@ -33,27 +35,11 @@ spec:
         values:
           - sonarr
           - radarr
+          - bazarr
+          - plex
+          - seerr
   ingress:
     - fromEndpoints:
         - matchLabels:
             io.kubernetes.pod.namespace: ai
-            toolhive-name: arr
----
-# yaml-language-server: $schema=https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/cilium.io/ciliumnetworkpolicy_v2.json
-apiVersion: cilium.io/v2
-kind: CiliumNetworkPolicy
-metadata:
-  name: allow-seerr-mcp-from-ai
-spec:
-  # The `seerr` ToolHive MCP server (ai namespace) queries Seerr over its API.
-  # Additive to the namespace-wide policy above (Cilium unions allows), scoped to
-  # the seerr endpoint and to the seerr MCP pod as the source.
-  description: "Allow the seerr MCP server (ai) to reach seerr"
-  endpointSelector:
-    matchLabels:
-      app.kubernetes.io/name: seerr
-  ingress:
-    - fromEndpoints:
-        - matchLabels:
-            io.kubernetes.pod.namespace: ai
-            toolhive-name: seerr
+            app.kubernetes.io/name: arrmcp

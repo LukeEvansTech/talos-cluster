@@ -30,7 +30,7 @@ spec:
           app:
             image:
               # Custom image: Logstash + microsoft-sentinel output plugin (LukeEvansTech/containers).
-              # 9.5.2 carries plugin 2.5.0 — the 2.1.0 pin installed but failed to LOAD under the
+              # 9.5.2 carries plugin 2.5.0. The 2.1.0 pin installed but failed to LOAD under the
               # JRuby 10 runtime Logstash 9.4+ ships, crashlooping every rebuilt digest since
               # 2026-08-17 while the (mis-tagged) 9.1.10 builds moved their base to 9.4/9.5.
               repository: ghcr.io/lukeevanstech/logstash-sentinel
@@ -44,12 +44,12 @@ spec:
               # Cap glibc malloc arenas. On a 24-core node glibc defaults to up to
               # 8*ncpu per-thread arenas (~64MB each) for native allocs (JRuby, the
               # Azure SDK's token churn, Netty native) and never returns them to the OS
-              # — smaps showed 6x ~64MB arenas creeping ~138Mi/h past the 1536Mi limit,
+              #, smaps showed 6x ~64MB arenas creeping ~138Mi/h past the 1536Mi limit,
               # which Xmx/MaxDirectMemorySize don't bound. Pin to 2.
               MALLOC_ARENA_MAX: "2"
               # Workload identity (federated, NO secret). The plugin's managed_identity mode
               # auto-detects these. Identifiers are sourced from cluster-secrets (1Password) because
-              # this repo is public — populate after terraform-entra + -azure-platform apply.
+              # this repo is public. Populate after terraform-entra + -azure-platform apply.
               AZURE_CLIENT_ID: "${SECRET_SENTINEL_SYSLOG_CLIENT_ID}"
               AZURE_TENANT_ID: "${SECRET_AZURE_TENANT_ID}"
               AZURE_AUTHORITY_HOST: "https://login.microsoftonline.com/"
@@ -110,14 +110,14 @@ spec:
         controller: sentinel-syslog
         type: LoadBalancer
         annotations:
-          # The shared LAN syslog endpoint — any source ships here. The real address is in
+          # The shared LAN syslog endpoint. Any source ships here. The real address is in
           # cluster-secrets (SVC_SYSLOG_ADDR, 1Password), with a CI placeholder in
-          # components/global-vars/cluster-secrets.yaml — kept out of this PUBLIC repo per the
+          # components/global-vars/cluster-secrets.yaml, kept out of this PUBLIC repo per the
           # internal-identifier scan, same pattern as the other SVC_*_ADDR LB services.
           lbipam.cilium.io/ips: ${SVC_SYSLOG_ADDR}
         # Cluster, not Local: Cilium's L2 announcement elects a lease-holder node
         # without regard to backend locality, so with Local the LB IP is ARP'd by a
-        # node that then refuses the traffic whenever the pod lands elsewhere —
+        # node that then refuses the traffic whenever the pod lands elsewhere,
         # external senders got TCP RST / silent UDP loss while in-cluster socket-LB
         # kept working (found 2026-08-02: the firewall had been refused on every
         # syslog write for days). Client source IP is SNAT'd under Cluster, which
@@ -140,14 +140,14 @@ spec:
           logstash.conf: |-
             input {
               # Logstash syslog input listens on TCP+UDP 514. Senders should use RFC3164.
-              # This is the generic ingestion point — any syslog source can target it.
+              # This is the generic ingestion point. Any syslog source can target it.
               syslog {
                 port => 514
                 # Emit CLASSIC flat fields (program, logsource, facility_label, severity_label,
                 # host, timestamp) that the DCR's Custom-SyslogStream + transformKql expect and
                 # that the per-source filters below key on. Logstash 8/9 default this input to
                 # ECS v8, which nests them ([log][syslog][appname] ...) and leaves [program]
-                # empty — so the filters never matched and Computer/Facility/ProcessName/Severity
+                # empty, so the filters never matched and Computer/Facility/ProcessName/Severity
                 # landed blank in the Syslog table. Verified against real OPNsense data 2026-06-23.
                 ecs_compatibility => "disabled"
               }
@@ -182,25 +182,25 @@ spec:
               }
 
               # --- Source: OPNsense Unbound DNS resolver ---
-              # Very high volume — sample to ~10% to protect the budget. Promote to keep-all later
+              # Very high volume, sample to ~10% to protect the budget. Promote to keep-all later
               # if DNS threat-hunting needs full fidelity.
               if [program] == "unbound" {
                 drop { percentage => 90 }
               }
 
               # --- Source: OPNsense Suricata/IDS ---
-              # Kept whole (security-relevant, low volume) — no rule needed.
+              # Kept whole (security-relevant, low volume), no rule needed.
 
               # --- Future sources (Mikrotik, switches, Linux hosts) ---
               # Add per-source filter blocks here; otherwise they ingest verbatim.
             }
 
             output {
-              # Federated workload identity — no secret. The plugin auto-detects the AKS-style
+              # Federated workload identity, no secret. The plugin auto-detects the AKS-style
               # AZURE_* env + projected token (AZURE_FEDERATED_TOKEN_FILE) and does the OIDC exchange.
               microsoft-sentinel-log-analytics-logstash-output-plugin {
                 # plugin v2.1.0 option names: dcr_id / stream_name (NOT dcr_immutable_id /
-                # dcr_stream_name). No managed_identity/client_app_* option — with none set, the
+                # dcr_stream_name). No managed_identity/client_app_* option, with none set, the
                 # plugin uses Azure DefaultAzureCredential, which auto-detects the federated
                 # workload identity from the AZURE_* env + projected token (no secret).
                 # $$ escapes Flux postBuild substitution so these reach Logstash as $${DCE_URI} /
@@ -214,8 +214,8 @@ spec:
       settings:
         data:
           logstash.yml: |-
-            # Logstash 9.x: the monitoring API bind settings moved under api.* —
-            # plain `http.host` was removed and makes Logstash exit on startup.
+            # Logstash 9.x: the monitoring API bind settings moved under api.*.
+            # Plain `http.host` was removed and makes Logstash exit on startup.
             api.http.host: 0.0.0.0
             log.level: info
             # The node has 24 cores and the container sets no CPU limit, so Logstash
@@ -226,7 +226,7 @@ spec:
             pipeline.workers: 2
 
     persistence:
-      # Projected SA token Azure federates against (no webhook — projected manually).
+      # Projected SA token Azure federates against (no webhook; projected manually).
       # audience api://AzureADTokenExchange is what Entra expects for the client assertion.
       azure-token:
         type: custom

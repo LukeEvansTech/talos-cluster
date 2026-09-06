@@ -77,7 +77,7 @@ spec:
       automountServiceAccountToken: false
       securityContext:
         runAsNonRoot: true
-        runAsUser: 65532 # the CronJob's uid — the PVC's files are owned by it
+        runAsUser: 65532 # the CronJob's uid; the PVC's files are owned by it
         runAsGroup: 65532
         fsGroup: 65532
         seccompProfile:
