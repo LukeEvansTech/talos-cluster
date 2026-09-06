@@ -1,4 +1,4 @@
-# Envoy Gateway Migration Guide
+# Envoy Gateway migration guide
 
 !!! note "Completed migration"
     This page is a record of a migration that is already complete. The steps below are preserved as history; some current-state paths, names, and commands have since drifted. Commands and paths flagged in review are corrected inline. See the Architecture and Operations sections for the present-day setup.
@@ -7,9 +7,9 @@
 
 This guide documents the implementation of Envoy Gateway v1.8.x in the Talos cluster and provides instructions for migrating applications from nginx ingress to Gateway API HTTPRoutes.
 
-## What Was Implemented
+## What was implemented
 
-### 1. Envoy Gateway Deployment
+### 1. Envoy Gateway deployment
 
 **Location:** `kubernetes/apps/network/envoy-gateway/`
 
@@ -20,7 +20,7 @@ This guide documents the implementation of Envoy Gateway v1.8.x in the Talos clu
   - 2 external proxy replicas
   - 2 internal proxy replicas
 
-### 2. Certificate Management
+### 2. Certificate management
 
 **Location:** `kubernetes/apps/network/certificates/`
 
@@ -44,7 +44,7 @@ network/
   `Certificate` + `PushSecret`) is today the live source of the wildcard TLS certificate that the
   `network/certificates` ExternalSecret above pulls in for Envoy Gateway
 
-### 3. Gateway Resources
+### 3. Gateway resources
 
 **Location:** `kubernetes/apps/network/envoy-gateway/app/envoy.yaml`
 
@@ -64,7 +64,7 @@ Two Gateway instances configured:
 - Advanced buffer management
 - X-Forwarded-For client IP detection
 
-### 4. IP Allocation Strategy
+### 4. IP allocation strategy
 
 **Current Allocation (Phased Migration):**
 
@@ -79,9 +79,9 @@ When ready to decommission nginx, update Envoy Gateway IPs to:
 - Envoy external: `<envoy-external-ip>`
 - Envoy internal: `<envoy-internal-ip>`
 
-## Migrating Applications to Envoy Gateway
+## Migrating applications to Envoy Gateway
 
-### Step 1: Choose Gateway Type
+### Step 1: Choose gateway type
 
 **Internal Gateway** (`envoy-internal`):
 
@@ -93,7 +93,7 @@ When ready to decommission nginx, update Envoy Gateway IPs to:
 - Use for publicly accessible services
 - Examples: Public sites, external APIs
 
-### Step 2: Add Route Configuration
+### Step 2: Add route configuration
 
 #### For apps using bjw-s app-template chart (RECOMMENDED)
 
@@ -169,7 +169,7 @@ resources:
     - ./httproute.yaml
 ```
 
-### Step 3: Commit and Deploy
+### Step 3: Commit and deploy
 
 ```bash
 git add -A
@@ -192,7 +192,7 @@ kubectl run -it --rm debug --image=curlimages/curl --restart=Never -- \
   curl -I -k -H "Host: <hostname>" https://<gateway-ip>
 ```
 
-### Step 5: Verify and Monitor
+### Step 5: Verify and monitor
 
 ```bash
 # Check Gateway status
@@ -208,11 +208,11 @@ kubectl logs -n network -l app.kubernetes.io/name=envoy-gateway
 kubectl logs -n network -l gateway.envoyproxy.io/owning-gateway-name=envoy-internal
 ```
 
-## Advanced HTTPRoute Patterns
+## Advanced HTTPRoute patterns
 
 **Note:** These patterns are for standalone HTTPRoute files (apps not using app-template). For app-template apps, advanced routing requires creating a separate HTTPRoute file alongside the HelmRelease.
 
-### Path-Based Routing
+### Path-based routing
 
 ```yaml
 rules:
@@ -232,7 +232,7 @@ rules:
             port: 80
 ```
 
-### Header-Based Routing
+### Header-based routing
 
 ```yaml
 rules:
@@ -245,7 +245,7 @@ rules:
             port: 80
 ```
 
-### Multiple Hostnames
+### Multiple hostnames
 
 ```yaml
 hostnames:
@@ -254,7 +254,7 @@ hostnames:
     - "legacy-app.${SECRET_DOMAIN}"
 ```
 
-## External-DNS Integration
+## External-DNS integration
 
 External-DNS is configured to automatically create DNS records for HTTPRoutes attached to the external Gateway:
 
@@ -272,7 +272,7 @@ sources:
 - Uses `external-dns.alpha.kubernetes.io/target` annotation from Gateway
 - HTTPRoutes require no additional annotations
 
-## Migration Checklist
+## Migration checklist
 
 ### For app-template apps
 
@@ -311,7 +311,7 @@ sources:
 | Backend                | Automatic from service       | Automatic from service       |
 | TLS                    | Per-ingress config           | Configured on Gateway        |
 
-## Example Migration
+## Example migration
 
 ### Before (Nginx Ingress in HelmRelease)
 
@@ -341,7 +341,7 @@ spec:
                                 port: http
 ```
 
-### After (Gateway API Route in HelmRelease)
+### After (Gateway API route in HelmRelease)
 
 ```yaml
 apiVersion: helm.toolkit.fluxcd.io/v2
@@ -368,7 +368,7 @@ spec:
 
 ## Troubleshooting
 
-### HTTPRoute Not Accepted
+### HTTPRoute not accepted
 
 ```bash
 kubectl describe httproute <name> -n <namespace>
@@ -380,7 +380,7 @@ Common issues:
 - Parent Gateway not found
 - Certificate issues (check Gateway status)
 
-### Gateway Not Programmed
+### Gateway not programmed
 
 ```bash
 kubectl describe gateway -n network
@@ -392,7 +392,7 @@ Common issues:
 - Certificate secret missing
 - CRDs not installed
 
-### Application Not Responding
+### Application not responding
 
 ```bash
 # Check service endpoints
@@ -402,7 +402,7 @@ kubectl get endpoints <service-name> -n <namespace>
 kubectl logs -n network -l gateway.envoyproxy.io/owning-gateway-name=<gateway-name>
 ```
 
-## Migration Status
+## Migration status
 
 The migration is complete. nginx ingress has been fully decommissioned; no `kind: Ingress` resources or ingress-nginx controllers remain in the cluster. All applications now use Gateway API HTTPRoutes attached to `envoy-external` or `envoy-internal`. The phased plan below is preserved as historical context only.
 

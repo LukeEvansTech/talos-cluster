@@ -5,12 +5,12 @@ kind: ScrapeConfig
 metadata:
   name: &name opnsense-node
 spec:
-  # node-exporter (os-node_exporter plugin, :9100) on the firewall — kernel-level
+  # node-exporter (os-node_exporter plugin, :9100) on the firewall, kernel-level
   # CPU/memory/ZFS/disk/netdev that the API-based opnsense-exporter above cannot
   # see. Added 2026-08-02: the WAN-wedge outage that day had to be reconstructed
   # from cluster-side probes because the box exposed no OS-level metrics.
   #
-  # Plain LAN scrape, no egress Service — the nut-appliance shape, not the
+  # Plain LAN scrape, no egress Service, the nut-appliance shape, not the
   # seedbox one (nothing here crosses the tailnet).
   staticConfigs:
     - targets:

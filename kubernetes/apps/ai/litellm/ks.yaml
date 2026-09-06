@@ -18,6 +18,9 @@ spec:
       namespace: ai
     - name: onepassword-connect
       namespace: external-secrets
+    # mcp_semantic_tool_filter resolves its embedding model once at startup.
+    - name: toolhive-embed
+      namespace: ai
   interval: 1h
   path: ./kubernetes/apps/ai/litellm/app
   postBuild:
