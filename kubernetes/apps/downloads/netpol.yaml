@@ -22,12 +22,10 @@ kind: CiliumNetworkPolicy
 metadata:
   name: allow-arrmcp-from-ai
 spec:
-  # The `arrmcp` app (ai namespace) queries Prowlarr and SABnzbd over their
-  # APIs. Both run behind a gluetun sidecar whose firewall already admits
-  # cluster ingress on their API port. qBittorrent is not listed because
-  # arr-mcp cannot authenticate to qBittorrent 5.2.x — see the note in the
-  # arrmcp ExternalSecret; add it back alongside that config block.
-  description: "Allow the arrmcp app (ai) to reach prowlarr/sabnzbd"
+  # The `arrmcp` app (ai namespace) queries Prowlarr, SABnzbd and qBittorrent
+  # over their APIs. All three run behind a gluetun sidecar whose firewall
+  # already admits cluster ingress on their API port.
+  description: "Allow the arrmcp app (ai) to reach prowlarr/sabnzbd/qbittorrent"
   endpointSelector:
     matchExpressions:
       - key: app.kubernetes.io/name
@@ -35,6 +33,7 @@ spec:
         values:
           - prowlarr
           - sabnzbd
+          - qbittorrent
   ingress:
     - fromEndpoints:
         - matchLabels:
