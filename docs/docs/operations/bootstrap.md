@@ -1,4 +1,4 @@
-# Bootstrap Process
+# Bootstrap process
 
 This document describes the bootstrap process for the Talos Kubernetes cluster using the `just` task runner.
 
@@ -8,14 +8,14 @@ The bootstrap process uses a modular, stage-based approach powered by [just](htt
 
 ## Architecture
 
-### Task Runner Structure
+### Task runner structure
 
 ```text
 .justfile                    # Root task runner with common utilities
 └── bootstrap/mod.just       # Bootstrap-specific tasks
 ```
 
-### Helmfile Structure
+### Helmfile structure
 
 ```text
 bootstrap/
@@ -33,7 +33,7 @@ bootstrap/
 
 ## Prerequisites
 
-### Required Tools
+### Required tools
 
 All tools are automatically installed via `mise`:
 
@@ -57,7 +57,7 @@ mise install
 - `gum` - Beautiful shell logging
 - `minijinja-cli` - Jinja2 template rendering
 
-### Required Files
+### Required files
 
 - `talos/clusterconfig/talosconfig` - Talos configuration
 - `talos/clusterconfig/talos-cluster-*.yaml` - Per-node Talos configs
@@ -76,11 +76,11 @@ If not authenticated:
 eval $(op signin)
 ```
 
-## Bootstrap Stages
+## Bootstrap stages
 
 The bootstrap process consists of 8 sequential stages:
 
-### Stage 1: Talos OS Installation
+### Stage 1: Talos OS installation
 
 **Command:** `just bootstrap talos`
 
@@ -100,7 +100,7 @@ Applies Talos configuration to all nodes in the cluster.
 2025-11-04T15:00:05Z INFO Talos already configured, skipping apply of config stage=talos node=10.1.1.11
 ```
 
-### Stage 2: Kubernetes Bootstrap
+### Stage 2: Kubernetes bootstrap
 
 **Command:** `just bootstrap kube`
 
@@ -119,7 +119,7 @@ Initializes the Kubernetes control plane.
 2025-11-04T15:01:05Z INFO Kubernetes bootstrap in progress. Retrying in 5 seconds... stage=kube
 ```
 
-### Stage 3: Kubeconfig Retrieval
+### Stage 3: Kubeconfig retrieval
 
 **Command:** `just bootstrap kubeconfig [lb]`
 
@@ -143,7 +143,7 @@ Downloads cluster credentials and configures kubectl.
 2025-11-04T15:02:00Z INFO Running stage... stage=kubeconfig
 ```
 
-### Stage 4: Node Readiness Wait
+### Stage 4: Node readiness wait
 
 **Command:** `just bootstrap wait`
 
@@ -162,7 +162,7 @@ Waits for cluster nodes to be available.
 2025-11-04T15:03:05Z INFO Nodes not available, waiting for nodes to be available. Retrying in 5 seconds... stage=wait
 ```
 
-### Stage 5: Namespace Creation
+### Stage 5: Namespace creation
 
 **Command:** `just bootstrap namespaces`
 
@@ -180,7 +180,7 @@ Creates Kubernetes namespaces for all applications.
 2025-11-04T15:04:00Z INFO Running stage... stage=namespaces
 ```
 
-### Stage 6: Bootstrap Resources
+### Stage 6: Bootstrap resources
 
 **Command:** `just bootstrap resources`
 
@@ -203,7 +203,7 @@ Deploys critical bootstrap secrets and resources.
 2025-11-04T15:05:00Z INFO Running stage... stage=resources
 ```
 
-### Stage 7: CRD Installation
+### Stage 7: CRD installation
 
 **Command:** `just bootstrap crds`
 
@@ -228,7 +228,7 @@ Installs Custom Resource Definitions from Helm charts.
 2025-11-04T15:06:00Z INFO Running stage... stage=crds
 ```
 
-### Stage 8: Application Deployment
+### Stage 8: Application deployment
 
 **Command:** `just bootstrap apps`
 
@@ -269,7 +269,7 @@ Deploys bootstrap applications via Helmfile.
 
 ## Usage
 
-### Full Bootstrap
+### Full bootstrap
 
 `just bootstrap` on its own only **lists** the module's recipes (`set default-list`
 in `bootstrap/mod.just`). It no longer arms a bootstrap by itself. Run the full
@@ -301,7 +301,7 @@ IP. Cilium's LoadBalancer doesn't exist yet at this point in the bootstrap, so
 there's no LB IP to route through. The final `kubeconfig` call (default `cilium`)
 re-fetches it pointed at the Cilium LB once Cilium is up and running.
 
-### Partial Bootstrap
+### Partial bootstrap
 
 Run individual stages as needed:
 
@@ -316,13 +316,13 @@ just bootstrap kubeconfig
 just bootstrap namespaces
 ```
 
-### List Available Commands
+### List available commands
 
 ```bash
 just --list
 ```
 
-## Dependency Management
+## Dependency management
 
 Applications are deployed with explicit dependency chains using Helmfile's `needs` directive:
 
@@ -344,11 +344,11 @@ graph TD
 - Automatic retry on failures
 - Clear dependency visualization
 
-## Post-Sync Hooks
+## Post-sync hooks
 
 Certain applications use post-sync hooks to ensure dependent resources are ready:
 
-### Cilium Hooks
+### Cilium hooks
 
 Cilium has two `postsync` hooks in `bootstrap/helmfile.d/01-apps.yaml`:
 
@@ -372,7 +372,7 @@ Cilium has two `postsync` hooks in `bootstrap/helmfile.d/01-apps.yaml`:
       --filename=../../kubernetes/apps/kube-system/cilium/app/networks.yaml
     ```
 
-### OnePassword Connect Hooks
+### OnePassword connect hooks
 
 OnePassword Connect also has two `postsync` hooks:
 
@@ -393,7 +393,7 @@ OnePassword Connect also has two `postsync` hooks:
       --filename=../../kubernetes/apps/external-secrets/onepassword-connect/app/clustersecretstore.yaml
     ```
 
-## Values Template (DRY Principle)
+## Values template (DRY principle)
 
 The bootstrap uses a Go template to source Helm values from HelmRelease files:
 
@@ -418,7 +418,7 @@ The bootstrap uses a Go template to source Helm values from HelmRelease files:
 
 ## Troubleshooting
 
-### Check Bootstrap Status
+### Check bootstrap status
 
 ```bash
 # Check if Talos nodes are ready
@@ -437,7 +437,7 @@ kubectl get pods -n flux-system
 flux get kustomizations
 ```
 
-### Common Issues
+### Common issues
 
 #### 1. "Failed to fetch kubeconfig"
 
@@ -491,7 +491,7 @@ eval $(op signin)
 op whoami
 ```
 
-### Debug Mode
+### Debug mode
 
 Run just with debug output:
 
@@ -505,11 +505,11 @@ Run helmfile with debug output:
 helmfile -f bootstrap/helmfile.d/01-apps.yaml sync --debug
 ```
 
-## Advanced Usage
+## Advanced usage
 
-### Customizing the Bootstrap
+### Customizing the bootstrap
 
-#### Adding New CRDs
+#### Adding new CRDs
 
 Edit `bootstrap/helmfile.d/00-crds.yaml`:
 
@@ -521,7 +521,7 @@ releases:
       version: 1.0.0
 ```
 
-#### Adding New Bootstrap Apps
+#### Adding new bootstrap apps
 
 Edit `bootstrap/helmfile.d/01-apps.yaml`:
 
@@ -537,7 +537,7 @@ releases:
           - flux-system/flux-instance # Depends on Flux
 ```
 
-#### Modifying Bootstrap Resources
+#### Modifying bootstrap resources
 
 Add secrets or resources under `bootstrap/kustomize/apps/<namespace>/` and reference them from the namespace's `kustomization.yaml`. Use `ref+op://` notation for 1Password-backed values:
 
@@ -552,23 +552,23 @@ stringData:
     value: ref+op://vault/item/field
 ```
 
-## Migration from Bash Scripts
+## Migration from bash scripts
 
 The old bash-based bootstrap system (`scripts/bootstrap-apps.sh`) has been removed. If you're migrating from the old system:
 
-### Old Command
+### Old command
 
 ```bash
 ./scripts/bootstrap-apps.sh
 ```
 
-### New Command
+### New command
 
 ```bash
 just bootstrap cluster
 ```
 
-### Key Differences
+### Key differences
 
 | Feature          | Old (Bash)         | New (Just)             |
 | ---------------- | ------------------ | ---------------------- |
@@ -589,7 +589,7 @@ just bootstrap cluster
 
 ## Changelog
 
-### 2025-11-04 - Bootstrap Modernization
+### 2025-11-04 - Bootstrap modernization
 
 - Migrated from Bash scripts to just task runner
 - Implemented modular helmfile structure

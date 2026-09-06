@@ -1,4 +1,4 @@
-# KB-018: Plex Remote 4K Transcode-Decision Crash (`bad lexical cast`)
+# KB-018: Plex remote 4K transcode-decision crash (`bad lexical cast`)
 
 **Status:** Understood; the fix is client-side or library-side, not a server change.
 

@@ -1,4 +1,4 @@
-# KB-017: `mise` + lefthook Symlink Race Blocks the First Commit After a Tool Bump
+# KB-017: `mise` + lefthook symlink race blocks the first commit after a tool bump
 
 **Status:** Known race; one-line workaround. Hits once per tool-version bump.
 
@@ -26,7 +26,7 @@ Install the tool **once** (serial), which settles the symlinks, then retry the c
 
 ```bash
 mise install
-git commit ...     # retry — now passes
+git commit ...     # retry, now passes
 ```
 
 In a fresh worktree you may also need `mise trust` before the first commit.

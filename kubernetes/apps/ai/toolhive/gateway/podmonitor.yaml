@@ -9,7 +9,7 @@ spec:
   # the ToolHive operator source (labelsForVirtualMCPServer in
   # cmd/thv-operator/controllers/virtualmcpserver_controller.go): every vmcp pod
   # gets app.kubernetes.io/name=virtualmcpserver + app.kubernetes.io/instance=<CR
-  # name>. No `release: kube-prometheus-stack` label — this cluster's Prometheus
+  # name>. No `release: kube-prometheus-stack` label. This cluster's Prometheus
   # selects monitors without it (see the sibling ../app/podmonitor.yaml).
   selector:
     matchLabels:
@@ -21,7 +21,7 @@ spec:
   podMetricsEndpoints:
     # vmcp exposes one container port named `http` (buildContainerPortsForVmcp in
     # virtualmcpserver_deployment.go), unlike the "8080" numeric port some
-    # upstream examples use — prometheus-operator matches podMetricsEndpoints[].
+    # upstream examples use, prometheus-operator matches podMetricsEndpoints[].
     # port by NAME, so a numeric value here would resolve no target. /metrics is
     # served on that same port once telemetryConfigRef is set (../gateway/virtualmcpserver.yaml).
     - port: http

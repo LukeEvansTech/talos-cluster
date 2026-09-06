@@ -1,6 +1,6 @@
-# Supermicro Certificate Deployment - Containerized Approach
+# Supermicro certificate deployment - containerized approach
 
-## Current Setup (ACTIVE)
+## Current setup (ACTIVE)
 
 This deployment now uses a **pre-built container** for faster and more reliable certificate deployment:
 
@@ -20,7 +20,7 @@ This deployment now uses a **pre-built container** for faster and more reliable 
 - **certwarden-supermicro-deploy.sh.OLD** - Backup of old script (runtime installation)
 - **supermicro_updater.py** - Python script (kept for reference, baked into container)
 
-## How It Works
+## How it works
 
 1. Certwarden calls `certwarden-supermicro-deploy.sh` after certificate renewal
 2. Script creates a Kubernetes Job using the pre-built container
@@ -41,7 +41,7 @@ Test the deployment through the Certwarden UI:
 4. Monitor the job: `kubectl get jobs -n infrastructure -l app.kubernetes.io/name=certwarden-supermicro-deploy -w`
 5. Check logs: `kubectl logs -n infrastructure job/<job-name>`
 
-## Rollback to Old Method
+## Rollback to old method
 
 If you need to rollback to the old runtime-installation method:
 
@@ -69,7 +69,7 @@ If you need to rollback to the old runtime-installation method:
 
 3. Restart Certwarden to pick up the new ConfigMap
 
-## Container Source
+## Container source
 
 The container is built from: `https://github.com/LukeEvansTech/containers/tree/main/apps/supermicro-ipmi-cert`
 
@@ -94,7 +94,7 @@ Updates are automatically built and pushed to GHCR when changes are committed to
 - Verify Redfish API is enabled on IPMI
 - Check network connectivity from cluster to IPMI
 
-## Supported Models
+## Supported models
 
 - Supermicro X12 series (Redfish)
 - Supermicro X13 series (Redfish)

@@ -1,4 +1,4 @@
-# KB-011: konflate Render Failures (Cache Inode Fill / Phantom Mirror)
+# KB-011: konflate render failures (cache inode fill / phantom mirror)
 
 **Status:** Both resolved; the operational lessons (never grow a GitOps PVC imperatively;
 restart to wipe the emptyDir mirror) are durable.
