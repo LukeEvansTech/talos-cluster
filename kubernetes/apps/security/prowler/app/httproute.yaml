@@ -11,7 +11,7 @@ spec:
   hostnames:
     - "prowler.${SECRET_DOMAIN}"
   rules:
-    # Prowler REST API — longest-prefix wins, so this beats `/` for /api/v1/*.
+    # Prowler REST API. longest-prefix wins, so this beats `/` for /api/v1/*.
     - matches:
         - path:
             type: PathPrefix

@@ -17,7 +17,7 @@ spec:
           labels:
             severity: critical
         # The no_route signal is set from the routing table when a gateway loses
-        # its default route — independent of dpinger, so it stays as the
+        # its default route. Independent of dpinger, so it stays as the
         # belt-and-braces down signal alongside the loss alert below.
         - alert: OPNsenseGatewayDown
           annotations:
@@ -39,17 +39,17 @@ spec:
           labels:
             severity: critical
         # The 2026-08-02 outage signature: both WAN counters froze to exactly
-        # zero for 15 minutes while the link stayed up and no watchdog logged —
+        # zero for 15 minutes while the link stayed up and no watchdog logged,
         # dpinger's monitor traffic rides this interface, so a healthy WAN can
         # never legitimately read zero-in-both-directions for 5 minutes.
         # The 5m rate() window is the debounce: it must hold at least several
         # scrapes (the ServiceMonitor scrapes every 60s, and rate() needs two
-        # samples in range — a 1m window would usually see one and the alert
+        # samples in range: a 1m window would usually see one and the alert
         # could never sustain). So `for` is kept short (1m) rather than stacking
         # another 5m on top, which would double effective detection to ~10m.
         - alert: OPNsenseWanTrafficFrozen
           annotations:
-            summary: "WAN has passed zero bytes in BOTH directions for 5m — NIC/modem wedge, likely needs a link bounce."
+            summary: "WAN has passed zero bytes in BOTH directions for 5m, NIC/modem wedge, likely needs a link bounce."
           expr: |-
             rate(opnsense_interfaces_received_bytes_total{job="opnsense-exporter", interface="WAN"}[5m]) == 0
             and
@@ -58,24 +58,24 @@ spec:
           labels:
             severity: critical
         # Backup WAN tiers (2026-08-02) feed a failover gateway group. A dead
-        # backup tier is invisible in daily use — it only matters mid-outage,
+        # backup tier is invisible in daily use. It only matters mid-outage,
         # which is exactly when it must not be discovered broken.
         #
-        # Gated on opnsense_gateways_status != 6 ("offline forced" — the
+        # Gated on opnsense_gateways_status != 6 ("offline forced", the
         # exporter's own state for a gateway an admin has explicitly forced
         # down in OPNsense), not on time. A tier being wired up or
         # deliberately retired stays silent by forcing it down in OPNsense;
         # anything not force-down alerts on sustained 100% loss with no
-        # expiry. The previous gate — min_over_time(...[24h]) < 100 — used
+        # expiry. The previous gate, min_over_time(...[24h]) < 100, used
         # the same rolling window to both arm on first success AND disarm
         # after 24h, so once a REAL outage ran past 24h the window filled
         # entirely with 100%-loss samples and the alert silently resolved
-        # while the failure was still active — indistinguishable from a
+        # while the failure was still active, indistinguishable from a
         # deliberate decommission, and self-silencing during the one case
         # this alert exists to catch.
         - alert: OPNsenseBackupWanTierDown
           annotations:
-            summary: "Backup WAN tier {{ $labels.name }} is at 100% loss — the failover path is dead while the primary is fine."
+            summary: "Backup WAN tier {{ $labels.name }} is at 100% loss. The failover path is dead while the primary is fine."
           expr: |-
             opnsense_gateways_loss_percentage{job="opnsense-exporter", name=~"WAN[23]_5G_.+"} == 100
             and
@@ -105,7 +105,7 @@ spec:
         #
         # The absent() half is not decoration. If the connection is removed,
         # renamed, or simply stops being returned by the API, the series
-        # VANISHES — and `== 0` can never fire on an empty vector. Same blind
+        # VANISHES, and `== 0` can never fire on an empty vector. Same blind
         # spot that left mktxp unmonitored for 8 days. Verified against live
         # Prometheus: the expression is empty while healthy, and fires when
         # pointed at a description that does not exist.
@@ -114,7 +114,7 @@ spec:
         # transient upstream blip, and paging on a two-minute reconnect is noise.
         - alert: OPNsenseIPsecTunnelDown
           annotations:
-            summary: "IPsec tunnel {{ $labels.description }} is down or no longer reported — check the WAN address against the far-end gateway pin."
+            summary: "IPsec tunnel {{ $labels.description }} is down or no longer reported, check the WAN address against the far-end gateway pin."
           expr: |-
             opnsense_ipsec_phase1_status{job="opnsense-exporter", description="azure-hub-vpngw"} == 0
             or
@@ -123,7 +123,7 @@ spec:
           labels:
             severity: critical
         # Phase 1 up but no child SA means IKE negotiated and the traffic path
-        # is still dead — invisible to the alert above. Scoped with `and on()`
+        # is still dead, invisible to the alert above. Scoped with `and on()`
         # to phase1 being up so a full outage pages once, not twice.
         #
         # Existence is the only usable signal here. There is no phase2_status
@@ -134,7 +134,7 @@ spec:
         # rekey ~1500s) without flapping.
         - alert: OPNsenseIPsecChildSAMissing
           annotations:
-            summary: "IPsec phase 2 (azure-hub-traffic) has no child SA while phase 1 is up — traffic path down."
+            summary: "IPsec phase 2 (azure-hub-traffic) has no child SA while phase 1 is up, traffic path down."
           expr: |-
             absent(opnsense_ipsec_phase2_install_time{job="opnsense-exporter", description="azure-hub-traffic"})
             and on()
