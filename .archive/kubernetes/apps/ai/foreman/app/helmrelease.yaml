@@ -27,7 +27,7 @@ spec:
     operator:
       # Audit-record ConfigMaps (foreman.llmkube.dev/audit) accumulate one per
       # task and are only GC'd by the operator's reaper. Trim the chart's 168h
-      # default the same way this cluster trims other audit trails — a bare
+      # default the same way this cluster trims other audit trails. A bare
       # trial does not need a week of history.
       audit:
         retention: 48h
@@ -38,7 +38,7 @@ spec:
       image:
         # Upstream's coder-capable image, confirmed present at this tag via
         # `docker manifest inspect` (multi-arch amd64/arm64). NOT
-        # `llmkube-coder` (that repository does not exist) — the real
+        # `llmkube-coder` (that repository does not exist). The real
         # repository name is `llmkube-foreman-agent-coder`. Jory's fleet
         # builds its own fork (ghcr.io/misospace/llmkube-coder) because it
         # predates this upstream image; this cluster uses upstream instead.
@@ -52,7 +52,7 @@ spec:
       default:
         enabled: true
         # One task per FleetNode, and Job-mode coders hold theirs for the
-        # whole Job — 2 replicas is enough to try a coder + gate run
+        # whole Job. 2 replicas is enough to try a coder + gate run
         # concurrently without reserving capacity this cluster doesn't have
         # spare. No second (fork) agent pool: this is a bare trial with no
         # dispatch bridge, see docs/docs/operations/jory-homeops-adoption.md.

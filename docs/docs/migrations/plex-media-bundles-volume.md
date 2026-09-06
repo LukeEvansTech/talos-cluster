@@ -1,4 +1,4 @@
-# Plex Media Bundles Volume Migration
+# Plex media bundles volume migration
 
 !!! danger "Not performed yet. Do not merge the manifests on their own."
     The manifest change and the data move are one operation. Landing the mount without first
@@ -72,7 +72,7 @@ One literal exclude, no interpolation, no environment variable, no `--exclude-fi
 `ReplicationSourceResticSpec` field list is `accessModes`, `cacheAccessModes`, `cacheCapacity`,
 `cacheStorageClassName`, `capacity`, `copyMethod`, `customCA`, `moverAffinity`, `moverPodLabels`,
 `moverResources`, `moverSecurityContext`, `moverServiceAccount`, `moverVolumes`, `pruneIntervalDays`,
-`repository`, `retain`, `storageClassName`, `unlock`, `volumeSnapshotClassName` — byte identical to
+`repository`, `retain`, `storageClassName`, `unlock`, `volumeSnapshotClassName`, byte identical to
 upstream `backube/volsync`, and containing no exclusion field and no additional-arguments
 pass-through. Whatever is done on the Kopia side, 247G keeps going to R2 every night.
 
@@ -93,7 +93,7 @@ isolation. Worse, every source mounts its data at the same `/data` root, so a ru
 identically against all of them; the merge is a union rather than a replace, so no per-path policy
 can subtract it; and the mover only ever issues `--add-ignore`, never `--clear-ignore`, so a rule
 added once persists for every source until someone removes it by hand against the repository. The
-failure mode is silent — files simply stop appearing in everybody's snapshots, and it surfaces at
+failure mode is silent. Files simply stop appearing in everybody's snapshots, and it surfaces at
 restore time.
 
 `spec.kopia.additionalArgs` is not an escape hatch either. It reaches `kopia snapshot create`, but
@@ -112,7 +112,7 @@ It still loses on two counts:
 
 - It does nothing about R2. Half the problem, and the more expensive half, remains.
 - It does not reclaim any space. The 247G stays on the `plex` claim, still counts toward
-  `VOLSYNC_CAPACITY`, and the volume keeps filling at 7.5G a week — which is what triggered this
+  `VOLSYNC_CAPACITY`, and the volume keeps filling at 7.5G a week, which is what triggered this
   work, since the volume hit 290G of 294G before being expanded.
 
 Moving the data is the only option that fixes both targets and the disk at once. Its cost is a
@@ -139,8 +139,8 @@ of it. The estimate assumed the copy would be metadata bound rather than through
 cluster's NVMe-backed `ceph-block` it was not.
 
 Measured on the 2026-08-23 run: **Plex was offline for 14 minutes 30 seconds**. The copy itself moved
-248G in 410,266 entries in about nine minutes, averaging 525 MB/s. Keep the wide window booked — it
-costs nothing and the failure modes below all want unhurried attention — but do not plan the day
+248G in 410,266 entries in about nine minutes, averaging 525 MB/s. Keep the wide window booked. It
+costs nothing and the failure modes below all want unhurried attention, but do not plan the day
 around four hours.
 
 Confirm the starting state:
@@ -321,7 +321,7 @@ re-run; `-aH` preserves everything Plex actually depends on.
 ### 5. Verify the copy
 
 Read the tail of the Job log. **One signal is authoritative and two are advisory**, which is a
-correction to the original wording — as written, two of the three fail on a perfectly good copy.
+correction to the original wording. As written, two of the three fail on a perfectly good copy.
 
 The authoritative check:
 
@@ -535,7 +535,7 @@ to compare against later.
 
 #### 11b. Choose the cutoff
 
-Any snapshot taken before step 10 finished still contains the bundles — including ones taken between
+Any snapshot taken before step 10 finished still contains the bundles, including ones taken between
 the rename in step 6 and the reclaim in step 10, because `Media.pre-migration` was still on the
 volume and is the same 247G. So the cutoff is **the date of the first snapshot that shows the reduced
 size**, not the date of the cutover.
@@ -558,7 +558,7 @@ reports what Kopia itself resolved, not what the selection script thinks it sele
 
 The script selects on `--manifest-id`, and that is not cosmetic. If an argument to `snapshot delete`
 is not a manifest ID, Kopia retries it as a **root object ID** and deletes every snapshot sharing
-that root — and because identical trees deduplicate to the same root, that can reach snapshots
+that root, and because identical trees deduplicate to the same root, that can reach snapshots
 belonging to **other sources**. Manifest IDs are unique per snapshot and cannot do this. Never hand
 this command an object ID.
 
@@ -664,9 +664,9 @@ Check three things in the log before going further:
 
 - Every `Would delete …` line names `plex-nfs@media:/data`. **If any other source or any other path
   appears, stop.** Kopia resolves a source argument by walking up parent paths, so a listing is not
-  guaranteed to stay on `/data` by construction — this line is the check that it did.
+  guaranteed to stay on `/data` by construction. This line is the check that it did.
 - The newest selected snapshot is older than the first ~44G one.
-- The count is in the low hundreds, not thousands — retention caps this source at roughly 344
+- The count is in the low hundreds, not thousands. Retention caps this source at roughly 344
   snapshots, so a four-figure count means the selection is wrong.
 
 #### 11d. Delete
@@ -689,7 +689,7 @@ empty and `CUTOFF` unchanged:
 - The `=== every snapshot for …` listing should now show **only** snapshots dated on or after
   `CUTOFF`, all of them at roughly 44G.
 - The selection stanza should find nothing, so the Job prints `nothing selected - check CUTOFF` and
-  ends `Failed`. **Here that failure is the pass condition** — it means no pre-cutover snapshot is
+  ends `Failed`. **Here that failure is the pass condition.** It means no pre-cutover snapshot is
   left to delete. Any other outcome means the purge was incomplete; read the listing before
   re-running 11d.
 
@@ -708,7 +708,7 @@ intended:
 
 | Gate | Default | Effect |
 | --- | --- | --- |
-| Snapshot GC runs only in the **full** cycle | — | Quick maintenance contributes nothing to this, however often it runs. This cluster is fine here: the mover runs quick *and* `maintenance run --full` on every hourly invocation. |
+| Snapshot GC runs only in the **full** cycle | n/a | Quick maintenance contributes nothing to this, however often it runs. This cluster is fine here: the mover runs quick *and* `maintenance run --full` on every hourly invocation. |
 | `RequireTwoGCCycles` | true | Deleted contents are not dropped from the index until **two** successful snapshot-GC runs have happened. |
 | `MarginBetweenSnapshotGC` | 4h | Those two runs must be more than four hours apart. |
 | `MinContentAgeSubjectToGC` and `PackDeleteMinAge` | 24h each | Unreferenced content younger than a day is skipped, and the pack blob is kept for a further day after that. |
@@ -716,7 +716,7 @@ intended:
 The hourly full cycle clears the first three gates quickly; the two 24-hour age gates are what
 actually set the pace. **Expect the space back 24 to 48 hours after 11d**, not the same day.
 
-That last gate is already visible in the log line from 11a — `GC found 1606 unused contents that are
+That last gate is already visible in the log line from 11a. `GC found 1606 unused contents that are
 too recent to delete` is exactly this mechanism, on content unrelated to this migration.
 
 Do not try to hurry it. `kopia maintenance run --full` by hand will refuse anyway, because
@@ -755,7 +755,7 @@ gone from the rendered HelmRelease, then resume. Delete the `plex-bundles` PVC o
 Plex returns to the original layout with every thumbnail in place.
 
 **After step 10** there is no local rollback, but a VolSync restore of the `plex` PVC from a
-pre-migration snapshot still works — which is exactly why step 9 insists on the 48-hour soak and why
+pre-migration snapshot still works, which is exactly why step 9 insists on the 48-hour soak and why
 the pre-flight checks confirm both backups are current. **After step 11** even that is gone: step 11
 deletes the snapshots those restores would come from. Do not start it until Plex has been healthy
 for the full soak.

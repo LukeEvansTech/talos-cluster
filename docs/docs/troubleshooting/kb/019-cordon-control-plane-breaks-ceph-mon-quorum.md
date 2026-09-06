@@ -1,4 +1,4 @@
-# KB-019: Cordoning a Control-Plane Node Breaks Ceph Mon Quorum
+# KB-019: Cordoning a control-plane node breaks Ceph mon quorum
 
 **Status:** Known footgun. The fix (uncordon) is instant; the lesson is *don't cordon to
 steer a pod* on this cluster.
