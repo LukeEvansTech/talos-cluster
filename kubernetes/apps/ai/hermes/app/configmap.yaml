@@ -9,7 +9,7 @@ data:
   # NOTE: `$${VAR}` is intentional. Flux postBuild collapses it to a literal
   # `${VAR}`, which Hermes' own config loader (_expand_env_vars) then resolves
   # against the pod environment (populated by envFrom the `hermes` Secret) at
-  # startup. A single `${VAR}` would be consumed — and blanked — by Flux first.
+  # startup. A single `${VAR}` would be consumed, and blanked, by Flux first.
   config.yaml: |-
     model:
       default: self-hosted
@@ -46,7 +46,7 @@ data:
       # Ceiling on tool-calling iterations per conversation before a turn
       # gives up.
       max_turns: 90
-      # Inactivity timeout (seconds) for gateway agent runs — only fires once
+      # Inactivity timeout (seconds) for gateway agent runs, only fires once
       # the agent goes idle this long; active tool calls / API responses
       # don't count against it.
       gateway_timeout: 1800
@@ -61,7 +61,7 @@ data:
     approvals:
       # manual: every flagged terminal command is queued for approval. Hermes
       # has a terminal + cluster-adjacent MCP tools, so the Pod is the only
-      # trust boundary — no unattended actions.
+      # trust boundary, no unattended actions.
       mode: manual
     security:
       redact_secrets: true
@@ -73,6 +73,6 @@ data:
       # /mcp aggregate. Tool names are namespaced `{workload}_<tool>`; the
       # built-in semantic optimizer (find_tool/call_tool) trims the list
       # before it reaches the agent. flux's tools include write verbs since
-      # #4578 — approvals.mode: manual above still queues those for approval.
+      # #4578, approvals.mode: manual above still queues those for approval.
       toolhive:
         url: http://vmcp-mcp-gateway.ai.svc.cluster.local:4483/mcp

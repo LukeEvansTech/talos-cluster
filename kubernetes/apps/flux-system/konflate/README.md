@@ -3,7 +3,7 @@
 Read-only **Flux PR rendered-diff** review UI ([home-operations/konflate](https://github.com/home-operations/konflate)).
 Renders this repository's Flux config at each open PR's merge-base vs head and
 shows the _rendered_ Kubernetes diff (blast radius, image changes, render
-failures) — the impact a one-line HelmRelease bump actually has, which a
+failures), the impact a one-line HelmRelease bump actually has, which a
 file-level diff hides.
 
 Reached at `https://konflate.${SECRET_DOMAIN}` (envoy-internal).

@@ -1,4 +1,4 @@
-# Device & Infrastructure Monitoring
+# Device & infrastructure monitoring
 
 How the cluster scrapes external infrastructure (storage, hypervisor, firewall,
 switches) into Prometheus, and (the important part) **how to change the
@@ -12,14 +12,14 @@ cross-cutting "what lives where and how to update it" reference.
 
 | Target         | Exporter                          | App (`kubernetes/apps/observability/`)        | Address source               | Credentials (1Password, vault `Talos`) |
 | -------------- | --------------------------------- | --------------------------------------------- | ---------------------------- | -------------------------------------- |
-| TrueNAS host   | node-exporter / smartctl-exporter | `kube-prometheus-stack` (`scrapeconfig.yaml`) | `${SECRET_STORAGE_SERVER}`   | — (Docker apps on TrueNAS)             |
-| TrueNAS ZFS    | graphite bridge                   | `truenas-exporter`                            | `${SECRET_STORAGE_SERVER}`   | — (Custom App on TrueNAS)              |
-| TrueNAS Docker | docker_state_exporter (port 9419) | `truenas-exporter` (`scrapeconfig.yaml`)      | `${SECRET_STORAGE_SERVER}`   | — (Docker app on TrueNAS)              |
+| TrueNAS host   | node-exporter / smartctl-exporter | `kube-prometheus-stack` (`scrapeconfig.yaml`) | `${SECRET_STORAGE_SERVER}`   | None (Docker apps on TrueNAS)          |
+| TrueNAS ZFS    | graphite bridge                   | `truenas-exporter`                            | `${SECRET_STORAGE_SERVER}`   | None (Custom App on TrueNAS)           |
+| TrueNAS Docker | docker_state_exporter (port 9419) | `truenas-exporter` (`scrapeconfig.yaml`)      | `${SECRET_STORAGE_SERVER}`   | None (Docker app on TrueNAS)           |
 | vCenter / ESXi | `pryorda/vmware_exporter`         | `vmware-exporter`                             | `${SECRET_VSPHERE_ENDPOINT}` | `vsphere-monitoring`                   |
 | Firewall       | `AthennaMind/opnsense-exporter`   | `opnsense-exporter`                           | `host` field in item         | `opnsense-exporter`                    |
-| Core switch    | `prometheus/snmp_exporter`        | `snmp-exporter`                               | `${ONYX_ADDR}`               | — (SNMP community `<community>`)       |
+| Core switch    | `prometheus/snmp_exporter`        | `snmp-exporter`                               | `${ONYX_ADDR}`               | None (SNMP community `<community>`)    |
 | Access switches | `prometheus/snmp_exporter`       | `snmp-exporter`                               | `${MIKROTIK_POE_ADDR}`, `${MIKROTIK_NONPOE_ADDR}` | `snmp-exporter` (`MIKROTIK_COMMUNITY`) |
-| UPS (NUT)      | `hon95/prometheus-nut-exporter`   | `nut-exporter`                                | `${NUT_SERVER_ADDR}`         | — (anonymous NUT protocol read)        |
+| UPS (NUT)      | `hon95/prometheus-nut-exporter`   | `nut-exporter`                                | `${NUT_SERVER_ADDR}`         | None (anonymous NUT protocol read)     |
 | Server BMCs    | `mrlhansen/idrac_exporter`        | `bmc-exporter`                                | ExternalSecret (`/discover`) | one item per BMC (shared with certwarden) |
 | Workstation BMC | `mrlhansen/idrac_exporter`       | `bmc-exporter-workstation`                    | ExternalSecret (`/discover`) | `workstation-ipmi`                     |
 
@@ -35,13 +35,13 @@ NUT variables is anonymous, so no credential is involved.
 
 The `peanut` web UI moved onto that same appliance in PR #3775 and is no longer
 deployed here. It was the last piece of UPS monitoring still hosted on the
-cluster — which a power event is precisely what shuts down, so the dashboard
+cluster, which a power event is precisely what shuts down, so the dashboard
 went dark at the one moment it was wanted. `nut-exporter` stays: its value is
 history in Prometheus, which is a cluster concern either way.
 
 ### The two MikroTik CRS354 access switches
 
-Covered again since 2026-08-28, over **SNMP** — closing the gap left when the
+Covered again since 2026-08-28, over **SNMP**, closing the gap left when the
 `mktxp` exporter was **retired on 2026-07-19** (archived to
 `.archive/kubernetes/apps/observability/mktxp`) and network-ops issue #112.
 
@@ -65,7 +65,7 @@ Measured on the PoE switch, 2026-08-28:
 The bundled `mikrotik` module is therefore unusable, and
 `configmap-mikrotik.yaml` defines a custom module walking only the two subtrees
 that carry anything actionable. Combining health and interfaces into one target
-would make `up` track the slow walk instead of the device — the same failure
+would make `up` track the slow walk instead of the device, the same failure
 that made the core switch's sensor target flap. So `device_class=switch` (fast,
 health + PoE) is the reachability signal and stays in the critical
 `SnmpTargetDown` alert, while `device_class=switch-if` is excluded from it and
@@ -75,7 +75,7 @@ from the generic `TargetDown` ratio, and carries
 !!! tip "Per-port PoE is how the wireless estate is monitored"
 
     The access points and the Zigbee coordinator have no exporter, agent or
-    probe of their own, and sit on DHCP addresses that move — so there is
+    probe of their own, and sit on DHCP addresses that move, so there is
     nothing stable to point a check at. The switch's own PoE meter is the only
     signal that says they are alive, and it is a good one: the AP ports draw an
     order of magnitude more than anything else on the switch and every unused
@@ -180,7 +180,7 @@ with the image's bundled `snmp.yml` via the two `--config.file` `extraArgs`.
 ### Add a BMC to Redfish monitoring
 
 `bmc-exporter` is a multi-target Redfish exporter for the Supermicro BMC fleet,
-added by PR #4022. Everything about a BMC — hostname, username, password — lives
+added by PR #4022. Everything about a BMC, meaning hostname, username and password, lives
 in `app/externalsecret.yaml`, which templates the exporter's whole `idrac.yml`
 and mounts it via the chart's `existingSecret`. There is no second target list:
 Prometheus discovers targets from the exporter's own `/discover` endpoint, so
@@ -194,7 +194,7 @@ To add one:
 2. Add a `data:` pair pointing at that item, and a matching entry under `hosts:`
    in the templated `idrac.yml`.
 3. Add the same host to the `lan-icmp` Probe in
-   `blackbox-exporter/lan/probes.yaml` if it is not already there — see below
+   `blackbox-exporter/lan/probes.yaml` if it is not already there. See below
    for why both exist.
 
 Credentials are **not** uniform across the fleet: it shares one username but
@@ -203,7 +203,7 @@ needs its own entry.
 
 **A BMC with no DNS record** is keyed by an address held in its 1Password item
 (`IPMI_ADDR`) and templated into the rendered Secret, so the address never
-reaches git. Two hosts use this today. Prefer a DNS name where one exists — the
+reaches Git. Two hosts use this today. Prefer a DNS name where one exists. The
 address form exists because `network-ops` owns internal DNS and adding a record
 there is a separate change against the firewall. If a record is created later,
 switch the host to its name and drop `IPMI_ADDR`.
@@ -216,7 +216,7 @@ Sweep the management VLAN for the IPMI port rather than trusting any inventory:
 nmap -Pn -p 623,443 --open -oG - <mgmt-vlan>/24 | awk '/623\/open/ {print $2}'
 ```
 
-Then check each hit for Redfish with `curl -sk https://<addr>/redfish/v1/` — the
+Then check each hit for Redfish with `curl -sk https://<addr>/redfish/v1/`. The
 unauthenticated root returns the vendor and Redfish version, which is enough to
 tell a real Redfish BMC from something else listening on 623. Recorded addresses
 drift: one BMC's 1Password URL pointed at an address that was firewalled off,
@@ -227,7 +227,7 @@ while the board itself answered elsewhere on the VLAN.
 `bmc-exporter-workstation` is a second single-target instance of the same chart,
 and it exists purely to give that BMC a distinct `job` label. The workstation is
 a desk machine that is powered off most of the time, so it must be exempt from
-`BmcHostPoweredOff` while staying covered by every other rule — and excluding one
+`BmcHostPoweredOff` while staying covered by every other rule, and excluding one
 host from one rule needs something in the PromQL to match on. Nothing else works
 here: `instance` is the raw address and would leak into this public repository,
 the `model` label does not discriminate (that board and the storage node both
@@ -315,21 +315,21 @@ kubectl exec -n observability deploy/snmp-exporter -- \
   yields a partial scrape rather than an obvious error, so `bmc-exporter` sets
   `timeout: 45` against a 60s interval and 55s scrape timeout.
 - **A powered-off host drops every sensor series.** Only `idrac_system_power_on
-  0` remains — no temperatures, no fans, no PSU readings. Any alert on those
+  0` remains, with no temperatures, no fans, no PSU readings. Any alert on those
   sensors therefore cannot fire for a machine that is off, which is why
   `BmcFanStopped` is guarded on `idrac_system_power_on == 1` rather than relying
   on the series being absent.
 - **Supermicro exposes no storage metrics over Redfish** on either board
-  generation here — the tree exists but is not populated. Drive health stays
+  generation here. The tree exists but is not populated. Drive health stays
   with `smartctl-exporter`; do not expect `idrac_storage_*` to appear.
 - **Do not read `idrac_power_supply_output_watts` as consumption.** Measured
   across the fleet, the PSU figure sums to ~7000W against ~1100W of
-  `idrac_power_control_consumed_watts` — roughly 6x. It is not capacity being
+  `idrac_power_control_consumed_watts`, roughly 6x. It is not capacity being
   mislabelled either, since `idrac_power_supply_capacity_watts` is a separate
   series reporting the real ~2kW rating. Dashboards use the system-level metric
   for draw; the PSU figure is shown separately and labelled as reported.
 - **Temperature thresholds must be split by sensor class.** CPU packages run far
-  hotter than anything else here — `max by (name)` over the running fleet gives
+  hotter than anything else here. `max by (name)` over the running fleet gives
   CPU Temp 77C against 68C for the hottest NIC and =<53C for every other rail.
   One blanket threshold either sits a few degrees off a perfectly normal CPU or
   lets a NIC cook unnoticed, so the rules band CPUs at 90/95C and everything
@@ -343,7 +343,7 @@ kubectl exec -n observability deploy/snmp-exporter -- \
   Check `/redfish/v1/Chassis/1/Sensors/ChassisIntru` before hunting hardware: if
   `Reading` is 1 the switch is asserted right now, meaning the case is open or
   the switch has failed, while CPU and memory can both still report OK. It is
-  also worth distinguishing from a stale latch — a SEL entry from months ago is
+  also worth distinguishing from a stale latch. A SEL entry from months ago is
   history, a sensor reading 1 is current. These boards expose no intrusion-reset
   action over Redfish, so clearing it is a physical job.
 - **Certwarden's cert-deploy Secrets are adopted by their Job after creation,
