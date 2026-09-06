@@ -2,7 +2,7 @@
 # Bespoke dashboard rather than the upstream "Node Exporter Full" (grafana.com
 # 1860). Two reasons: 1860 has no RAPL panel, and RAPL is the reason this box's
 # node-exporter runs as root at all; and its rootfs panels key on mountpoint="/",
-# which on FCOS 44 is a 5 MB composefs overlay reporting a permanent 100% full —
+# which on FCOS 44 is a 5 MB composefs overlay reporting a permanent 100% full,
 # so the headline disk panel would be wrong rather than merely empty.
 #
 # Every query here was validated against live data before merge; there are no
@@ -11,7 +11,7 @@
 # The rate() panels use an explicit [5m] window rather than $__rate_interval.
 # That macro is NOT safe for a 60s-scraped job here: it expands to
 # max($__interval + scrape, 4 * scrape) where `scrape` is the DATASOURCE's
-# scrape-interval setting — 15s by default, regardless of what this job actually
+# scrape-interval setting, 15s by default, regardless of what this job actually
 # uses. Grafana was observed sending rate(...[1m15s]) against a 60s scrape, which
 # rarely catches two samples, so all three rate panels rendered "No data" while
 # every other panel was fine. Setting the panel Min step does not fix it: it

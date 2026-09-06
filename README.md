@@ -1,6 +1,6 @@
 <div align="center">
 
-### My Home Operations Repository :octocat:
+### My home operations repository :octocat:
 
 _... managed with Flux, Renovate, and GitHub Actions_ 🤖
 
@@ -40,7 +40,7 @@ There is a template over at [onedr0p/cluster-template](https://github.com/onedr0
 
 My clusters run [Talos Linux](https://www.talos.dev) immutable Kubernetes OS. This is a semi-hyper-converged cluster, workloads and block storage are sharing the same available resources on my nodes while I have a separate NAS server running TrueNAS with NFS/SMB shares, bulk file storage and backups.
 
-#### Bootstrap Process
+#### Bootstrap process
 
 The cluster uses `just` as a task runner for bootstrapping and management. The bootstrap process is modular and consists of the following stages:
 
@@ -76,7 +76,7 @@ just bootstrap apps
 - [1Password CLI](https://developer.1password.com/docs/cli/) - Secret injection
 - Tools are automatically installed via mise: `mise install`
 
-### Core Components
+### Core components
 
 - [actions-runner-controller](https://github.com/actions/actions-runner-controller): self-hosted GitHub runners
 - [cilium](https://github.com/cilium/cilium): internal Kubernetes networking plugin
@@ -109,7 +109,7 @@ This Git repository contains the following directories under [Kubernetes](./kube
 └── 📁 ...             # other clusters
 ```
 
-### Flux Workflow
+### Flux workflow
 
 This is a high-level look how Flux deploys my applications with dependencies. In most cases a `HelmRelease` will depend on other `HelmRelease`'s, in other cases a `Kustomization` will depend on other `Kustomization`'s, and in rare situations an app can depend on a `HelmRelease` and a `Kustomization`. The example below shows that `atuin` won't be deployed or upgrade until the `rook-ceph-cluster` Helm release is installed or in a healthy state.
 
@@ -122,7 +122,7 @@ graph TD
     E>HelmRelease: atuin] -->|Depends on| C>HelmRelease: rook-ceph-cluster]
 ```
 
-## ☁️ Cloud Dependencies
+## ☁️ Cloud dependencies
 
 While most of my infrastructure and workloads are self-hosted I do rely upon the cloud for certain key parts of my setup. This saves me from having to worry about three things. (1) Dealing with chicken/egg scenarios, (2) services I critically need whether my cluster is online or not and (3) The "hit by a bus factor" - what happens to critical apps (e.g. email, password manager, photos) that my family relies on when I no longer around.
 

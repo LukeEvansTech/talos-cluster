@@ -42,7 +42,7 @@ spec:
         tcp_connect:
           prober: tcp
           timeout: 5s
-        # TLS handshake only — deliberately NOT http_2xx. Several of the probed
+        # TLS handshake only, deliberately NOT http_2xx. Several of the probed
         # endpoints are auth-gated and answer 401/403, which http_2xx scores as
         # probe_success=0 and would spuriously fire the critical LanProbeFailed
         # alert below. A bare handshake yields probe_ssl_earliest_cert_expiry
@@ -57,7 +57,7 @@ spec:
             tls: true
             preferred_ip_protocol: ip4
         # Device management endpoints (BMCs, the UPS NMC) serve a chainless
-        # leaf — the Certwarden device deploy paths install only the server
+        # leaf. The Certwarden device deploy paths install only the server
         # certificate, so Go's verifier has no intermediate to chain with and
         # a verifying probe scores every device probe_success=0. These probes
         # exist to harvest expiry, not to validate trust; skip verification
@@ -67,7 +67,7 @@ spec:
         # its TLS private-key operation, so its handshake blows a 5s budget.
         # Probes run every 5m; a generous timeout costs nothing.
         #
-        # This value is only half the setting — blackbox clamps it to the
+        # This value is only half the setting, blackbox clamps it to the
         # scrape timeout Prometheus sends in X-Prometheus-Scrape-Timeout-
         # Seconds, minus a 0.5s offset. Against the 10s default that is 9.5s,
         # so the 15s set here on 2026-08-02 never applied and the probe kept
@@ -89,7 +89,7 @@ spec:
       enabled: true
       rules:
         # job="ap_probe" is excluded because every target here is critical by
-        # nature — a BMC, the firewall, the NAS — whereas the access points are
+        # nature (a BMC, the firewall, the NAS), whereas the access points are
         # four overlapping radios where losing one is degraded coverage, not an
         # outage. They get the two rules below instead, split by blast radius.
         - alert: LanProbeFailed
@@ -108,7 +108,7 @@ spec:
         # This complements rather than duplicates MikrotikPoeDeviceLostPower:
         # that one watches the switch's PoE meter and so sees an AP that has
         # lost power, while this sees an AP that still has power but has stopped
-        # answering — a hung AP draws its ~26W as happily as a healthy one.
+        # answering. A hung AP draws its ~26W as happily as a healthy one.
         # Both firing together points at power; this one alone points at the AP.
         - alert: AccessPointDown
           expr: |-
@@ -118,11 +118,11 @@ spec:
             severity: warning
           annotations:
             summary: |-
-              Access point {{ $labels.instance }} is not answering ICMP — powered but off the network, or dead.
+              Access point {{ $labels.instance }} is not answering ICMP, powered but off the network, or dead.
         # Every AP down at once. That is the whole wireless estate, so it earns
         # the critical the individual rule deliberately does not take. Usually
         # means the comms-rack switch or its power rather than the APs
-        # themselves — check SnmpTargetDown on the access switch first.
+        # themselves, check SnmpTargetDown on the access switch first.
         - alert: AllAccessPointsDown
           expr: |-
             sum(probe_success{job="ap_probe"}) == 0
@@ -131,7 +131,7 @@ spec:
             severity: critical
           annotations:
             summary: |-
-              All wireless access points are unreachable — wireless is down estate-wide.
+              All wireless access points are unreachable. Wireless is down estate-wide.
         # ── Why these exist ──────────────────────────────────────────────────
         # Added 2026-07-29 after an incident that was invisible for weeks. Two
         # hand-made Cloudflare DNS-01 tokens carried an IP allowlist that no
@@ -147,7 +147,7 @@ spec:
         # loud, independent of what caused it.
         #
         # Let's Encrypt issues for 90d and renews at 30d remaining, so 21d means
-        # renewal has already been failing for about nine days — early enough to
+        # renewal has already been failing for about nine days, early enough to
         # fix calmly, late enough not to fire on a renewal that is merely due.
         # Bounded at the bottom by the critical threshold below. There are no
         # inhibit_rules in this Alertmanager, so an unbounded warning would page
@@ -169,7 +169,7 @@ spec:
           annotations:
             summary: >-
               TLS certificate for {{ $labels.instance }} expires in
-              {{ $value | humanize }} days — ACME renewal is probably failing
+              {{ $value | humanize }} days, ACME renewal is probably failing
         - alert: CertificateExpiringCritical
           expr: |-
             (

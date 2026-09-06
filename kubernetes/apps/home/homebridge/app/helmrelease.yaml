@@ -21,7 +21,7 @@ spec:
               tag: "2026-09-02@sha256:77c685a40911b3b95448f3550be0c8b94cd7b4e66daecc1cc39a8285be75b245"
             env:
               TZ: ${TIMEZONE}
-              # Must be explicitly "0" — the image bakes in ENV ENABLE_AVAHI=1,
+              # Must be explicitly "0". The image bakes in ENV ENABLE_AVAHI=1,
               # so merely omitting this falls back to the image default and the
               # daemon still starts. /etc/s6-overlay/s6-rc.d/avahi/run gates on
               # `[ "$ENABLE_AVAHI" = "1" ]`.
@@ -36,7 +36,7 @@ spec:
               #
               # Not worth chasing: config.json sets `advertiser: bonjour-hap`,
               # so Avahi was never used for HomeKit advertisement anyway. Note
-              # that HAP still cannot work over Cilium pod networking — pairing
+              # that HAP still cannot work over Cilium pod networking, pairing
               # needs LAN presence (see the Multus attachment used by scrypted).
               ENABLE_AVAHI: "0"
             probes:

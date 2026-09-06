@@ -1,4 +1,4 @@
-# KB-028: Talos Upgrade Installs Successfully but the Node Boots the Old Version (NVRAM Wipe → `LoaderEntryDefault`)
+# KB-028: Talos upgrade installs successfully but the node boots the old version (NVRAM wipe → `LoaderEntryDefault`)
 
 **Status:** Fix proven on seven nodes across three upgrades (v1.13.6 → v1.13.7, v1.13.7 → v1.13.8 where all three needed it, and v1.13.8 → v1.13.9 where two of three did). The v1.13.9 run corrected several claims below; see [What the v1.13.9 run changed](#what-the-v1139-run-changed). The trigger is the BIOS flash off the buggy line, not a Talos regression. `BootOrder` is not the lever (see [that section](#bootorder-is-not-the-lever-it-looks-like)), so recurrence depends entirely on whether `LoaderEntryDefault` comes back.
 
