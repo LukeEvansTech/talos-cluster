@@ -32,7 +32,7 @@ spec:
       enabled: true
     cephClusterSpec:
       resources:
-        # NOTE: mgr resources must live here (spec.resources.mgr) — the CephCluster
+        # NOTE: mgr resources must live here (spec.resources.mgr). The CephCluster
         # CRD has no spec.mgr.resources field, so a block there is silently pruned
         # and the chart default (1Gi limit) applies instead.
         # 3Gi limit: with diskprediction_local/insights/pg_autoscaler modules
@@ -86,7 +86,7 @@ spec:
       # keys is what clears both HEALTH_ERR items, AUTH_INSECURE_SERVICE_KEY_TYPE and
       # AUTH_INSECURE_SERVICE_TICKETS. keyGeneration: 2 per upstream's guide.
       #
-      # keyGeneration is APPEND-ONLY — the CRD enforces "keyGeneration cannot be removed
+      # keyGeneration is APPEND-ONLY. The CRD enforces "keyGeneration cannot be removed
       # once set", so deleting this field makes the API server reject every later
       # CephCluster update and the HelmRelease stops reconciling. Raise the number to
       # rotate again; never remove it.
@@ -108,7 +108,7 @@ spec:
       # later health changes: CLIENT_KEY_TYPE needs those CSI keys rotated, and
       # KEYS_ALLOWED/KEYS_CREATABLE need allowedCiphers restricted to aes256k, which
       # would lock the same clients out. AUTH_INSECURE_ROTATING_SERVICE_KEY_TYPE is
-      # deliberately not muted — it clears itself once the daemons re-key.
+      # deliberately not muted. It clears itself once the daemons re-key.
       healthCheck:
         muteHealthWarning:
           AUTH_INSECURE_CLIENT_KEY_TYPE:
@@ -176,7 +176,7 @@ spec:
     # CephFS provides the cluster's RWX StorageClass (ceph-filesystem). The kernel
     # CephFS client is built into the Talos v1.13.5+ kernel (CONFIG_CEPH_FS=y);
     # the earlier "Talos ships no `ceph` kernel module" claim was a modprobe-vs-
-    # builtin misdiagnosis — see KB-025
+    # builtin misdiagnosis, see KB-025
     # (docs/docs/troubleshooting/kb/025-cephfs-modprobe-builtin-misdiagnosis.md).
     # The cephfs CSI driver must also be enabled in the ceph-csi-drivers
     # HelmRelease (msgr2 kernel mount options live there).
@@ -237,5 +237,5 @@ spec:
       name: csi-ceph-filesystem
       isDefault: false
       deletionPolicy: Delete
-    # Object storage (RGW) removed — migrated to Garage (storage/garage).
+    # Object storage (RGW) removed, migrated to Garage (storage/garage).
     cephObjectStores: []

@@ -11,7 +11,7 @@ kind: Kustomization
 # of that would put the fixes somewhere no reviewer can see them.
 #
 # Renovate tracks the images directly. The marker below tracks upstream's own
-# manifest releases so a new tag raises a PR to come back and re-vendor — no
+# manifest releases so a new tag raises a PR to come back and re-vendor, no
 # manager can diff manifest SHAPE, so that step stays manual on purpose.
 # renovate: datasource=github-tags depName=wazuh/wazuh-kubernetes
 # upstream-manifests: v4.14.7
