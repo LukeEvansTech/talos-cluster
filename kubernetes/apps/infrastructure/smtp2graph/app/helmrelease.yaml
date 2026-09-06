@@ -33,19 +33,19 @@ spec:
                 cpu: 10m
               limits:
                 memory: 256Mi
-          # smtp2graph v1.1.5 exposes NO metrics of its own — it listens on :25
+          # smtp2graph v1.1.5 exposes NO metrics of its own. It listens on :25
           # and nothing else, and its config schema has no metrics or health
           # options. This sidecar is the only source of delivery telemetry.
           #
           # It exists because between 2026-08-10 and 2026-08-19 every Graph send
-          # failed with ErrorSendAsDenied — 353 messages lost, zero delivered —
+          # failed with ErrorSendAsDenied, 353 messages lost and zero delivered,
           # and nothing noticed for nine days, because the SMTP listener stayed
           # healthy throughout. Liveness was never the problem; delivery was.
           #
           # It reads the queue directories (see persistence.data below) and runs
           # a 6-hourly end-to-end canary through the relay's own :25. Script is
           # a real file under exporter/, not inline YAML, so it can be unit
-          # tested — its three scenarios (delivered / rejected by Graph / relay
+          # tested. Its three scenarios (delivered / rejected by Graph / relay
           # down) were each exercised against a stub SMTP server before merge.
           metrics:
             image:
@@ -58,7 +58,7 @@ spec:
             # Container port, NOT a second Service. app-template 5.x renames EVERY
             # service the moment there is more than one (smtp2graph ->
             # smtp2graph-app), which NXDOMAINs
-            # smtp2graph.infrastructure.svc.cluster.local — the address
+            # smtp2graph.infrastructure.svc.cluster.local, the address
             # pocket-id, tandoor, epicgames and scanopy all use, and it takes
             # the LoadBalancer VIP down with it. `primary: true` does not opt
             # out. So metrics are scraped straight off the pod by podmonitor.yaml
@@ -73,7 +73,7 @@ spec:
               SMTP_HOST: 127.0.0.1
               SMTP_PORT: "25"
               CANARY_ENABLED: "true"
-              # 6h. The canary sends REAL mail to CANARY_TO — a mailbox rule on
+              # 6h. The canary sends REAL mail to CANARY_TO. A mailbox rule on
               # the "[canary] smtp2graph" subject keeps it out of the way.
               # Shorten for a tighter detection window at the cost of more mail.
               CANARY_INTERVAL_SECONDS: "21600"
@@ -129,7 +129,7 @@ spec:
     persistence:
       # WORKDIR is /data: config.yml is read from here and the disk queue
       # (queue/ temp/ failed/) is created alongside it. emptyDir matches the
-      # maddy smtp-relay's queue durability — acceptable at estate volume.
+      # maddy smtp-relay's queue durability, acceptable at estate volume.
       # advancedMounts, not globalMounts: the sidecar must NOT see client.key.
       # globalMounts would hand the Graph signing key to a container whose only
       # job is counting files, so each mount is now targeted at the container

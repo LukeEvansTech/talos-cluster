@@ -13,8 +13,8 @@ spec:
   values:
     installCRDs: true
     leaderElect: true
-    # Expose controller/webhook/cert-controller metrics (:8080) and scrape them —
-    # the bundled Grafana dashboard (grafanaDashboard below) is blank without this.
+    # Expose controller/webhook/cert-controller metrics (:8080) and scrape them.
+    # The bundled Grafana dashboard (grafanaDashboard below) is blank without this.
     serviceMonitor:
       enabled: true
       interval: 1m
