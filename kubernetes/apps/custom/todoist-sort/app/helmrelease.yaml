@@ -15,7 +15,7 @@ spec:
         type: cronjob
         cronjob:
           # Every 15 min during the dry-run week (was */5). Sorting is
-          # log-only for now, so latency is free — fewer runs = fewer chances
+          # log-only for now, so latency is free. Fewer runs = fewer chances
           # to hit a transient Todoist blip and page. Revisit at the flip,
           # where faster capture-to-file matters.
           schedule: "*/15 7-22 * * *"
@@ -30,7 +30,7 @@ spec:
           # in-pod retry (seen 2026-07-12: ~6s of 503 on GET /user) fails the
           # pod; a single respawn ~10s later usually lands after recovery,
           # turning a self-healing blip into a silent success instead of a
-          # page. Safe here — the sort pass is idempotent (moved items leave
+          # page. Safe here: the sort pass is idempotent (moved items leave
           # the Inbox, flagged items carry the skip label) and the common
           # failure is pre-LLM (GET /user), so a respawn re-spends no LLM.
           backoffLimit: 1
@@ -75,7 +75,7 @@ spec:
           # the [llm] retry_backoff between them (35s) + Todoist I/O headroom:
           # 300+35+300 = 635 < 660.
           activeDeadlineSeconds: 660
-          # backoffLimit STAYS 0 — do not raise it. The promotion budget
+          # backoffLimit STAYS 0. Do not raise it. The promotion budget
           # (max_today) is per-process, so a k8s job retry (a new process)
           # could promote up to 5 MORE tasks, breaking the <=max_today
           # invariant. Transient LLM blips (e.g. the 2026-07-24 07:00 miss: a
@@ -87,7 +87,7 @@ spec:
           failedJobsHistory: 1
         containers:
           app:
-            # Duplicated from sort-inbox on purpose — see the comment there.
+            # Duplicated from sort-inbox on purpose, see the comment there.
             image:
               repository: ghcr.io/lukeevanstech/todoist-sort
               tag: 0.2.5@sha256:2d30c860c645f7e5921d50016dcf91284d39cfaaa29adbc797bb81f1aec2a26c
