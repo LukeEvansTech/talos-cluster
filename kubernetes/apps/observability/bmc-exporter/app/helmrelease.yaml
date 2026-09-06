@@ -14,7 +14,7 @@
 # than assumed from the schema:
 #   - temperatures, fan RPM/health, voltages, PSU health/watts/input voltage,
 #     per-DIMM health, per-CPU health, BMC manager health, system power state
-#   - NO storage metrics on either board generation — Supermicro does not
+#   - NO storage metrics on either board generation. Supermicro does not
 #     populate that Redfish tree, so drive health stays with smartctl-exporter
 #   - a powered-off host drops all of its sensor series and reports only
 #     idrac_system_power_on 0, which is what the alert rules key off
@@ -44,7 +44,7 @@ spec:
     # deployment annotation directly, so no postRenderer is needed here.
     deploymentAnnotations:
       reloader.stakater.com/auto: "true"
-    # Nothing here talks to the Kubernetes API — it reads a mounted config and
+    # Nothing here talks to the Kubernetes API. It reads a mounted config and
     # makes outbound HTTPS calls to the BMCs.
     serviceAccount:
       automount: false

@@ -27,7 +27,7 @@ spec:
             severity: warning
         - alert: PlexHostCPUHigh
           annotations:
-            summary: "Plex host CPU is above 90% — likely transcode overload."
+            summary: "Plex host CPU is above 90%, likely transcode overload."
           expr: |-
             host_cpu_util{job="plex-exporter"} > 90
           for: 15m

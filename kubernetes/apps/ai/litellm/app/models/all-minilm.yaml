@@ -6,8 +6,8 @@ metadata:
   name: all-minilm
   namespace: ai
 spec:
-  # Embedding — served by the CPU llama-embed pod (all-MiniLM-L6-v2, 384-dim,
-  # OpenAI /v1). Used by memini. NOT the MCP semantic tool filter — its
+  # Embedding, served by the CPU llama-embed pod (all-MiniLM-L6-v2, 384-dim,
+  # OpenAI /v1). Used by memini. NOT the MCP semantic tool filter. Its
   # 512-token cap silently broke that; see qwen3-embedding.yaml.
   modelName: all-minilm
   proxyRef: litellm

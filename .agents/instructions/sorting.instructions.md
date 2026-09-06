@@ -26,7 +26,7 @@ Within the `metadata` section, sort the items in this order:
 
 This section gives instructions specifically for HelmReleases based on the bjw-s `app-template` chart.
 
-In this repository, app-template apps do **not** share a single chart. Each app has its own `app/ocirepository.yaml` whose `url` ends in `bjw-s-labs/helm/app-template`, and the HelmRelease references it via `spec.chartRef.kind: OCIRepository` with `spec.chartRef.name: <app>` (the app's own name). Identify an app-template HelmRelease by that per-app `OCIRepository` source — **not** by a shared `chartRef.name: app-template`.
+In this repository, app-template apps do **not** share a single chart. Each app has its own `app/ocirepository.yaml` whose `url` ends in `bjw-s-labs/helm/app-template`, and the HelmRelease references it via `spec.chartRef.kind: OCIRepository` with `spec.chartRef.name: <app>` (the app's own name). Identify an app-template HelmRelease by that per-app `OCIRepository` source, **not** by a shared `chartRef.name: app-template`.
 
 ### Sorting rules
 
@@ -45,7 +45,7 @@ Within the `spec` section, sort the items in this order (this repository orders 
 
 Within the `spec.values` section, place `defaultPodOptions` first (if present), then sort all sibling keys alphabetically (e.g. `controllers`, `persistence`, `route`, `service`).
 
-Note: Sibling keys within `persistence.*`, `service.*`, `route.*`, `configMaps.*`, etc. are NOT required to be sorted — only the keys within each individual item. For example, if `persistence` has `config`, `data`, and `tmpfs` as children, they can be in any order. Only the keys within `persistence.config`, `persistence.data`, etc. should be sorted.
+Note: Sibling keys within `persistence.*`, `service.*`, `route.*`, `configMaps.*`, etc. are NOT required to be sorted. Only the keys within each individual item are. For example, if `persistence` has `config`, `data`, and `tmpfs` as children, they can be in any order. Only the keys within `persistence.config`, `persistence.data`, etc. should be sorted.
 
 **Important:** The sorting rules apply to the HelmRelease structure itself. Do NOT sort arbitrary YAML content embedded within string fields (e.g. `configMap.data.*` values containing YAML configurations).
 
@@ -66,7 +66,7 @@ Within `spec.values.controllers.*`, sort keys in this order:
 3. `labels` (if present)
 4. controller-specific fields such as `cronjob` or `statefulset` (if present)
 5. `pod`
-6. any other fields, alphabetically — except `initContainers` then `containers`, which come last (in that order)
+6. any other fields, alphabetically, except `initContainers` then `containers`, which come last (in that order)
 
 Within `spec.values.controllers.*.containers.*`, sort keys in this order:
 
@@ -90,7 +90,7 @@ Within `persistence.*`, sort keys in this order:
 1. `type` (if present)
 2. `annotations` (if present)
 3. `labels` (if present)
-4. any other fields, alphabetically — except `globalMounts` then `advancedMounts`, which come last (in that order)
+4. any other fields, alphabetically, except `globalMounts` then `advancedMounts`, which come last (in that order)
 
 ### Quick reference
 
