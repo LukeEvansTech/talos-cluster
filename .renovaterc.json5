@@ -631,6 +631,16 @@
       allowedVersions: "<1.0.0",
     },
     {
+      // garage v2.4.0 panics at startup when kubernetes-discovery is on:
+      // rustls ClientConfig::builder_with_protocol_versions finds no crypto
+      // provider installed in the kube client. Only that release is blocked so
+      // the next patch flows through Renovate normally.
+      description: "Block garage v2.4.0: startup panic in kube discovery client",
+      matchDatasources: ["docker"],
+      matchPackageNames: ["docker.io/dxflrs/garage"],
+      allowedVersions: "!/^v?2\\.4\\.0$/",
+    },
+    {
       // Paper lists new Minecraft versions before any STABLE build exists
       // (e.g. 26.2 shipped ALPHA/BETA only, PR #3533); the itzg image
       // defaults PAPER_CHANNEL to stable-only, so merging early crash-loops
