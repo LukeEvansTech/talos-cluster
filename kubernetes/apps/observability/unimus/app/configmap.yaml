@@ -30,28 +30,52 @@ data:
     ]
   seed.py: |-
     #!/usr/bin/env python3
-    """Reconcile Unimus credentials, devices and bindings from mounted secrets.
+    """Reconcile Unimus credentials, devices and enable passwords from mounted secrets.
 
-    Idempotent and additive: creates what is missing, repairs descriptions and
-    bindings, rotates a credential when its secret changed (create, rebind,
-    delete the old one), and never deletes devices. Standard library only.
+    Idempotent and additive: creates what is missing, repairs device descriptions
+    and the managed flag, rotates a credential when its secret changed (create the
+    replacement, then delete the old one), and never deletes devices. Standard
+    library only.
 
-    Credentials and devices are both data. Only credentials referenced by a
-    device that has a host are touched; a credential whose secret is empty is
-    skipped, and so is every device that wanted it, because a device without a
-    credential is worse than no device.
+    API surface observed on Unimus 2.9.1 (2026-09-07). This build serves only part
+    of API v3, so the script speaks both versions:
+
+        v3   /credentials, /cli_mode_change_passwords, /zones, /tags
+        v2   /devices, /devices/findByAddress/<address>, /devices/<id> (PATCH)
+        404  every /api/v3/devices* and /api/v3/jobs* path, answering
+            {"code":404,"error":"Not Found","message":"URL is not supported by the API"}
+            -- including devices:bind_credentials, devices:bind_enable_password
+            and devices:manage. GET /api/v2/zones is absent too, so zones stay v3.
+
+    That gap is the vendor's plan, not a broken install: APIv3 "focuses on covering
+    what isn't available in APIv2 first", and endpoints already covered by v2 are
+    added to v3 only after GUI parity. The v3 device endpoints this script was
+    first written against come from the api-v3-preview Swagger, which labels itself
+    a draft of *planned* endpoints. v2 is therefore the supported path for devices
+    until v3 device endpoints ship; when they do, ensure_device moves back to v3
+    and per-device credential binding becomes possible again.
+
+    Binding a credential to a device is impossible here -- v3's bind endpoints are
+    absent and v2 has no equivalent -- and is not needed. Unimus discovers a device
+    against the whole credential pool and remembers what worked, so seeding the
+    credentials and the devices is sufficient for backups to run. The `credential`
+    and `enable` keys in the two lists are kept even though nothing binds them:
+    they record intent, are logged per device, and become bindings again later.
+
+    Credentials and devices are both data. Only credentials referenced by a device
+    that has a host are touched; a credential whose secret is empty is skipped, and
+    so is every device that wanted it, because a device whose credential never
+    reached the pool is worse than no device.
 
     A credential is recognised by the description "<name> fp=<12 hex>". The
-    fingerprint is HMAC-SHA256 of the secret keyed by the API token, so a
-    reader of this ConfigMap or of the device list cannot brute-force a secret
-    offline. Rotating the API token changes every fingerprint and therefore
-    recreates every credential once, which is harmless. Anything else sharing a
-    name is left alone: this script deletes only what it can prove it made.
+    fingerprint is HMAC-SHA256 of the secret keyed by the API token, so a reader of
+    this ConfigMap or of the device list cannot brute-force a secret offline.
+    Rotating the API token changes every fingerprint and therefore recreates every
+    credential once, which is harmless. Anything else sharing a name is left alone:
+    this script deletes only what it can prove it made.
 
-    Two limits worth knowing. Rebinding covers only the devices seeded in this
-    run, so a device whose host later empties keeps the binding it already has;
-    and a run that fails partway leaves stale credentials behind for the next
-    run to prune.
+    One limit worth knowing: a run that fails partway leaves stale credentials
+    behind for the next run to prune.
 
     Environment:
       UNIMUS_URL        base URL, e.g. http://unimus:8085
@@ -72,6 +96,10 @@ data:
     log = logging.getLogger("seed")
 
     FP_RE = r" fp=[0-9a-f]{12}"
+
+    NO_V3_DEVICES = (
+        "v3 device endpoints unsupported on this Unimus build; devices seeded through v2, "
+        "credential bindings skipped (Unimus tries the credential pool)")
 
     class ApiError(RuntimeError):
         def __init__(self, message, code):
@@ -111,12 +139,14 @@ data:
         return sorted(out, key=len, reverse=True)
 
     class Api:
+        """One client for both API versions; `version` picks the base path."""
+
         def __init__(self, base, token):
-            self.base = base.rstrip("/") + "/api/v3"
+            self.base = base.rstrip("/")
             self.token = token
 
-        def call(self, method, path, body=None, params=None, redact=()):
-            url = self.base + path
+        def call(self, method, path, body=None, params=None, redact=(), version="v3"):
+            url = f"{self.base}/api/{version}{path}"
             if params:
                 url += "?" + urllib.parse.urlencode(params, doseq=True)
             data = json.dumps(body).encode() if body is not None else None
@@ -136,12 +166,14 @@ data:
                     for variant in redactions(secret):
                         if variant:
                             detail = detail.replace(variant, "<redacted>")
-                raise ApiError(f"{method} {path} -> {e.code}: {detail[:300]}", e.code) from None
+                raise ApiError(f"{method} /api/{version}{path} -> {e.code}: {detail[:300]}", e.code) from None
 
-        def list_all(self, path, key):
+        def list_all(self, path, key, version="v3"):
+            """Page through a list endpoint. v3 names the list after the resource,
+            v2 always calls it `data`; the paginator is the same shape in both."""
             items, page = [], 0
             while True:
-                _, body = self.call("GET", path, params={"page": page, "size": 100})
+                _, body = self.call("GET", path, params={"page": page, "size": 100}, version=version)
                 chunk = body.get(key, [])
                 items.extend(chunk)
                 pg = body.get("paginator") or {}
@@ -197,39 +229,66 @@ data:
         return r["uuid"], stale
 
     def default_zone(api):
+        """The default zone's number. v2 wants "the zone ID as seen in the UI", and
+        `number` is the only field the v3 zone object exposes that could be it."""
         for z in api.list_all("/zones", "zones"):
             if z.get("isDefault"):
-                return z["uuid"]
+                return z.get("number")
         raise RuntimeError("no default zone")
 
-    def ensure_device(api, zone_uuid, name, host, cred_uuid):
-        """Return (uuid, state). Matches by address; repairs description and managed flag."""
-        _, body = api.call("GET", "/devices", params={"addresses": host, "size": 100})
-        found = [d for d in body.get("devices", []) if d.get("address") == host]
-        if not found:
-            payload = {
-                "address": host,
-                "description": name,
-                "zone": {"uuid": zone_uuid},
-                "credentials": {"uuid": cred_uuid},
-            }
-            try:
-                _, r = api.call("POST", "/devices", payload, redact=(host,))
-            except ApiError as e:
-                if e.code == 409:
-                    log.error("device %s: address already exists in Unimus under a "
-                              "different spelling; not created", name)
+    def find_device(api, host):
+        """The device at `host`, or None. v2 answers a missing address with 404, so
+        that one call absorbs a 404; every other path treats one as a failure."""
+        quoted = urllib.parse.quote(host, safe="")
+        try:
+            _, body = api.call(
+                "GET", f"/devices/findByAddress/{quoted}", redact=(host,), version="v2")
+        except ApiError as e:
+            if e.code == 404:
+                return None
+            raise
+        return body.get("data") or None
+
+    def create_device(api, zone_id, name, host):
+        """POST /api/v2/devices per the v2 docs: address, description, zoneId, managed."""
+        body = {"address": host, "description": name, "managed": True}
+        if zone_id:
+            body["zoneId"] = zone_id
+        try:
+            _, r = api.call("POST", "/devices", body, redact=(host,), version="v2")
+        except ApiError as e:
+            if e.code == 422:
+                # v2's "Device already exist": Unimus canonicalises an address on
+                # the way in but matches findByAddress literally, so a device can be
+                # invisible to the lookup and still collide here.
+                log.error("device %s: address already exists in Unimus under a "
+                          "different spelling; not created", name)
                 raise
-            return r["uuid"], "created"
-        d = found[0]
-        state = "unchanged"
-        if d.get("description") != name:
-            api.call("PUT", f"/devices/{d['uuid']}", {"address": host, "description": name})
-            state = "updated"
-        if d.get("managed") is False:
-            api.call("POST", "/devices:manage", {"uuids": [d["uuid"]], "manage": True})
-            state = "updated"
-        return d["uuid"], state
+            if not zone_id or not 400 <= e.code < 500:
+                raise
+            # zoneId is documented only as "Zone ID (as seen in UI)" and the v3 zone
+            # object names no field that way, so `number` is an informed guess.
+            # Omitting zoneId is documented to use the default zone -- where these
+            # devices belong anyway -- so a rejection retries without it.
+            log.warning("device %s: create rejected with zoneId=%s (HTTP %d); "
+                        "retrying in the default zone", name, zone_id, e.code)
+            body.pop("zoneId")
+            _, r = api.call("POST", "/devices", body, redact=(host,), version="v2")
+        return r["data"]["id"]
+
+    def ensure_device(api, zone_id, name, host):
+        """Return (device id, state). Matches by address; repairs description and managed."""
+        found = find_device(api, host)
+        if found is None:
+            return create_device(api, zone_id, name, host), "created"
+        if found.get("description") == name and found.get("managed") is not False:
+            return found["id"], "unchanged"
+        # v2 PATCH always writes description -- omitting it REMOVES it -- so the
+        # repair carries the description whichever of the two fields drifted.
+        api.call(
+            "PATCH", f"/devices/{found['id']}", {"description": name, "managed": True},
+            redact=(host,), version="v2")
+        return found["id"], "updated"
 
     def credential_secret(spec):
         """Return the secret for `spec`, or None when it is not usable."""
@@ -291,7 +350,9 @@ data:
                 enables[name], e = ensure_enable_password(api, token, spec["enable"], secret)
                 stale_enable += e
 
-        zone, by_cred = None, {}
+        if live:
+            log.warning("%s", NO_V3_DEVICES)
+        zone, seeded = None, []
         for dev, host in live:
             name = dev["credential"]
             if name not in creds:
@@ -299,22 +360,16 @@ data:
                 continue
             if zone is None:
                 zone = default_zone(api)
-            uuid_, state = ensure_device(api, zone, dev["name"], host, creds[name])
-            log.info("%s %s", dev["name"], state)
-            by_cred.setdefault(name, []).append(uuid_)
+            _, state = ensure_device(api, zone, dev["name"], host)
+            seeded.append(dev["name"])
+            # Nothing binds this any more, so say which credential the pool must
+            # carry for the device: that is the only record of the intent left.
+            log.info("%s %s; expects credential %s from the pool", dev["name"], state, name)
 
-        if devices and not by_cred:
+        if devices and not creds and not seeded:
             log.error("no devices seeded: every entry skipped "
                       "(check the Secret's host fields)")
             return 3
-
-        # Bind every run: a rotated credential must be re-bound before the old one goes.
-        for name, uuids in by_cred.items():
-            body = {"credentialsUuid": creds[name], "deviceUuids": uuids}
-            api.call("POST", "/devices:bind_credentials", body)
-            if name in enables:
-                body = {"cliModeChangePasswordUuid": enables[name], "deviceUuids": uuids}
-                api.call("POST", "/devices:bind_enable_password", body)
 
         if stale:
             api.call("DELETE", "/credentials", params={"uuids": stale})
