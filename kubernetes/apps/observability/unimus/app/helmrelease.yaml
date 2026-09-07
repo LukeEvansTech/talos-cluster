@@ -123,7 +123,7 @@ spec:
             # there is nothing to install and nothing to publish.
             image:
               repository: docker.io/library/python
-              tag: 3.13-slim@sha256:9d2e5553305c7c7b0097999bb17187c69b921ccd6bc9d40e4bb5ebe652c00285
+              tag: 3.14-slim@sha256:cad9a2c871761c413caa6fdd6441c783451e740a48aaeba60ae62a8b53525ef6
             command:
               - python3
               - /scripts/seed.py
