@@ -4,16 +4,27 @@ kind: ConfigMap
 metadata:
   name: unimus-seed
 data:
+  # Credential definitions: names and the secret keys they read, never values.
+  # username_field reads the username from the Secret too; enable names an
+  # enable password created from the same secret and bound to the devices that
+  # use this credential.
+  credentials.json: |
+    [
+      {"name": "unimus-ssh",     "type": "USERNAME_SSH",      "username": "unimus", "secret_field": "UNIMUS_SSH_KEY"},
+      {"name": "unimus-ssh-rsa", "type": "USERNAME_SSH",      "username": "unimus", "secret_field": "UNIMUS_RSA_SSH_KEY"},
+      {"name": "ruckus-admin",   "type": "USERNAME_PASSWORD", "username_field": "RUCKUS_USERNAME", "secret_field": "RUCKUS_PASSWORD", "enable": "ruckus-enable"}
+    ]
   # Device list: descriptions only. Every address arrives through the Secret
   # (this repository is public); a device whose host field is empty is skipped.
+  # core-switch takes the RSA key: its firmware negotiates no other SSH key type.
   devices.json: |
     [
-      {"name": "core-switch",          "host_field": "ONYX_HOST",            "credential": "unimus-ssh"},
+      {"name": "core-switch",          "host_field": "ONYX_HOST",            "credential": "unimus-ssh-rsa"},
       {"name": "access-switch-poe",    "host_field": "MIKROTIK_POE_HOST",    "credential": "unimus-ssh"},
       {"name": "access-switch-nonpoe", "host_field": "MIKROTIK_NONPOE_HOST", "credential": "unimus-ssh"},
       {"name": "firewall",             "host_field": "OPNSENSE_HOST",        "credential": "unimus-ssh"},
       {"name": "nas",                  "host_field": "TRUENAS_HOST",         "credential": "unimus-ssh"},
-      {"name": "wifi-controller",      "host_field": "RUCKUS_HOST",          "credential": "ruckus-admin", "enable": "ruckus-enable"},
+      {"name": "wifi-controller",      "host_field": "RUCKUS_HOST",          "credential": "ruckus-admin"},
       {"name": "oob-router",           "host_field": "CHATEAU_HOST",         "credential": "unimus-ssh"}
     ]
   seed.py: |-
@@ -24,15 +35,34 @@ data:
     bindings, rotates a credential when its secret changed (create, rebind,
     delete the old one), and never deletes devices. Standard library only.
 
+    Credentials and devices are both data. Only credentials referenced by a
+    device that has a host are touched; a credential whose secret is empty is
+    skipped, and so is every device that wanted it, because a device without a
+    credential is worse than no device.
+
+    A credential is recognised by the description "<name> fp=<12 hex>". The
+    fingerprint is HMAC-SHA256 of the secret keyed by the API token, so a
+    reader of this ConfigMap or of the device list cannot brute-force a secret
+    offline. Rotating the API token changes every fingerprint and therefore
+    recreates every credential once, which is harmless. Anything else sharing a
+    name is left alone: this script deletes only what it can prove it made.
+
+    Two limits worth knowing. Rebinding covers only the devices seeded in this
+    run, so a device whose host later empties keeps the binding it already has;
+    and a run that fails partway leaves stale credentials behind for the next
+    run to prune.
+
     Environment:
       UNIMUS_URL        base URL, e.g. http://unimus:8085
       SEED_SECRETS_DIR  directory of one-file-per-key secrets (default /secrets)
-      SEED_DEVICES      JSON list of {name, host_field, credential, enable?}
+      SEED_CREDENTIALS  JSON list of credential definitions
+      SEED_DEVICES      JSON list of {name, host_field, credential}
     """
-    import hashlib
+    import hmac
     import json
     import logging
     import os
+    import re
     import sys
     import urllib.error
     import urllib.parse
@@ -40,31 +70,51 @@ data:
 
     log = logging.getLogger("seed")
 
-    CRED_SSH = "unimus-ssh"
-    CRED_RUCKUS = "ruckus-admin"
-    ENABLE_RUCKUS = "ruckus-enable"
+    FP_RE = r" fp=[0-9a-f]{12}"
+
+    class ApiError(RuntimeError):
+        def __init__(self, message, code):
+            super().__init__(message)
+            self.code = code
 
     def read_secret(name, required=False):
         p = os.path.join(os.environ.get("SEED_SECRETS_DIR", "/secrets"), name)
         try:
             with open(p) as f:
                 v = f.read()
-        except FileNotFoundError:
+        except OSError:
             v = ""
         if required and not v.strip():
             log.error("required secret %s is empty", name)
             return None
         return v
 
-    def fingerprint(secret):
-        return hashlib.sha256(secret.encode()).hexdigest()[:12]
+    def load_json_env(name):
+        try:
+            return json.loads(os.environ[name])
+        except KeyError:
+            log.error("%s is not set", name)
+        except ValueError as e:
+            log.error("%s is not valid JSON: %s", name, e)
+        return None
+
+    def fingerprint(token, secret):
+        return hmac.new(token.encode(), secret.encode(), "sha256").hexdigest()[:12]
+
+    def redactions(secret):
+        """The secret as it may appear in a response: raw, and JSON-escaped once or twice."""
+        out, cur = [], secret
+        for _ in range(3):
+            out.append(cur)
+            cur = json.dumps(cur)[1:-1]
+        return sorted(out, key=len, reverse=True)
 
     class Api:
         def __init__(self, base, token):
             self.base = base.rstrip("/") + "/api/v3"
             self.token = token
 
-        def call(self, method, path, body=None, params=None):
+        def call(self, method, path, body=None, params=None, redact=()):
             url = self.base + path
             if params:
                 url += "?" + urllib.parse.urlencode(params, doseq=True)
@@ -79,8 +129,13 @@ data:
                     raw = r.read()
                     return r.status, (json.loads(raw) if raw else {})
             except urllib.error.HTTPError as e:
-                detail = e.read().decode(errors="replace")[:300]
-                raise RuntimeError(f"{method} {path} -> {e.code}: {detail}") from None
+                # Redact before truncating: a secret must not survive in a tail.
+                detail = e.read().decode(errors="replace")
+                for secret in redact:
+                    for variant in redactions(secret):
+                        if variant:
+                            detail = detail.replace(variant, "<redacted>")
+                raise ApiError(f"{method} {path} -> {e.code}: {detail[:300]}", e.code) from None
 
         def list_all(self, path, key):
             items, page = [], 0
@@ -93,37 +148,49 @@ data:
                     return items
                 page += 1
 
-    def split_desc(desc):
-        name, _, fp = (desc or "").partition(" fp=")
-        return name, fp
+    def triage(items, name, fp):
+        """Split same-named entries into (managed at fp, stale, unmanaged descriptions)."""
+        managed = re.compile(re.escape(name) + FP_RE + "$")
+        match, stale, ignored = [], [], []
+        for c in items:
+            desc = c.get("description") or ""
+            if desc.partition(" fp=")[0] != name:
+                continue
+            if not managed.match(desc):
+                ignored.append(desc)
+            elif desc == f"{name} fp={fp}":
+                match.append(c)
+            else:
+                stale.append(c["uuid"])
+        for desc in ignored:
+            log.info("credential %s ignored: not managed by seed", desc)
+        # Two entries at the same fingerprint: keep the first, retire the rest.
+        stale += [m["uuid"] for m in match[1:]]
+        return (match[0]["uuid"] if match else None), stale
 
-    def ensure_credential(api, name, ctype, username, secret):
-        """Return (uuid, stale_uuids) for the credential named `name` at the current fingerprint; create it if absent."""
-        fp = fingerprint(secret)
-        current = [c for c in api.list_all("/credentials", "credentials") if split_desc(c.get("description"))[0] == name]
-        match = [c for c in current if split_desc(c["description"])[1] == fp]
-        stale = [c["uuid"] for c in current if c["uuid"] not in {m["uuid"] for m in match}]
-        if match:
+    def ensure_credential(api, token, spec, secret, username):
+        name = spec["name"]
+        fp = fingerprint(token, secret)
+        found, stale = triage(api.list_all("/credentials", "credentials"), name, fp)
+        if found:
             log.info("credential %s unchanged", name)
-            return match[0]["uuid"], stale
-        body = {"type": ctype, "username": username, "description": f"{name} fp={fp}", "highSecurityMode": False}
-        if ctype == "USERNAME_SSH":
-            body["sshKey"] = secret
-        else:
-            body["password"] = secret
-        _, r = api.call("POST", "/credentials", body)
+            return found, stale
+        body = {"type": spec["type"], "username": username,
+                "description": f"{name} fp={fp}", "highSecurityMode": False}
+        body["sshKey" if spec["type"] == "USERNAME_SSH" else "password"] = secret
+        _, r = api.call("POST", "/credentials", body, redact=(secret,))
         log.info("credential %s created", name)
         return r["uuid"], stale
 
-    def ensure_enable_password(api, name, secret):
-        fp = fingerprint(secret)
-        current = [c for c in api.list_all("/cli_mode_change_passwords", "cliModeChangePasswords") if split_desc(c.get("description"))[0] == name]
-        match = [c for c in current if split_desc(c["description"])[1] == fp]
-        stale = [c["uuid"] for c in current if c["uuid"] not in {m["uuid"] for m in match}]
-        if match:
+    def ensure_enable_password(api, token, name, secret):
+        fp = fingerprint(token, secret)
+        found, stale = triage(api.list_all("/cli_mode_change_passwords", "cliModeChangePasswords"), name, fp)
+        if found:
             log.info("enable password %s unchanged", name)
-            return match[0]["uuid"], stale
-        _, r = api.call("POST", "/cli_mode_change_passwords", {"password": secret, "description": f"{name} fp={fp}", "highSecurityMode": False})
+            return found, stale
+        _, r = api.call("POST", "/cli_mode_change_passwords",
+                        {"password": secret, "description": f"{name} fp={fp}", "highSecurityMode": False},
+                        redact=(secret,))
         log.info("enable password %s created", name)
         return r["uuid"], stale
 
@@ -138,7 +205,19 @@ data:
         _, body = api.call("GET", "/devices", params={"addresses": host, "size": 100})
         found = [d for d in body.get("devices", []) if d.get("address") == host]
         if not found:
-            _, r = api.call("POST", "/devices", {"address": host, "description": name, "zone": {"uuid": zone_uuid}, "credentials": {"uuid": cred_uuid}})
+            payload = {
+                "address": host,
+                "description": name,
+                "zone": {"uuid": zone_uuid},
+                "credentials": {"uuid": cred_uuid},
+            }
+            try:
+                _, r = api.call("POST", "/devices", payload)
+            except ApiError as e:
+                if e.code == 409:
+                    log.error("device %s: address already exists in Unimus under a "
+                              "different spelling; not created", name)
+                raise
             return r["uuid"], "created"
         d = found[0]
         state = "unchanged"
@@ -150,51 +229,85 @@ data:
             state = "updated"
         return d["uuid"], state
 
+    def credential_secret(spec):
+        """Return the secret for `spec`, or None when it is not usable."""
+        secret = read_secret(spec["secret_field"]) or ""
+        if spec["type"] == "USERNAME_SSH":
+            if not secret.strip():
+                return None
+            return secret if secret.endswith("\n") else secret + "\n"
+        secret = secret.rstrip("\r\n")
+        return secret or None
+
     def main():
         logging.basicConfig(level=logging.INFO, format="%(message)s", stream=sys.stdout)
         token = read_secret("UNIMUS_API_TOKEN", required=True)
-        ssh_key = read_secret("UNIMUS_SSH_KEY", required=True)
-        if token is None or ssh_key is None:
+        if token is None:
             return 2
         token = token.strip()
-        if not ssh_key.endswith("\n"):
-            ssh_key += "\n"
-        devices = json.loads(os.environ["SEED_DEVICES"])
-        api = Api(os.environ.get("UNIMUS_URL", "http://unimus:8085"), token)
+        cred_specs = load_json_env("SEED_CREDENTIALS")
+        devices = load_json_env("SEED_DEVICES")
+        if cred_specs is None or devices is None:
+            return 2
+        specs = {c["name"]: c for c in cred_specs}
 
-        needs_ruckus = any(d["credential"] == CRED_RUCKUS for d in devices)
-        creds, stale = {}, []
-        creds[CRED_SSH], s = ensure_credential(api, CRED_SSH, "USERNAME_SSH", "unimus", ssh_key)
-        stale += s
-        enable_uuid, stale_enable = None, []
-        if needs_ruckus:
-            ru = (read_secret("RUCKUS_USERNAME") or "").strip()
-            rp = (read_secret("RUCKUS_PASSWORD") or "").rstrip("\n")
-            if not ru or not rp:
-                log.error("ruckus credential fields are empty")
-                return 2
-            creds[CRED_RUCKUS], s = ensure_credential(api, CRED_RUCKUS, "USERNAME_PASSWORD", ru, rp)
-            stale += s
-            enable_uuid, stale_enable = ensure_enable_password(api, ENABLE_RUCKUS, rp)
+        unknown = False
+        for dev in devices:
+            if dev["credential"] not in specs:
+                log.error("device %s wants unknown credential %s", dev["name"], dev["credential"])
+                unknown = True
+        if unknown:
+            return 2
 
-        zone = default_zone(api)
-        by_cred, with_enable = {}, []
+        # Resolve hosts first: only credentials a live device needs are touched.
+        live = []
         for dev in devices:
             host = (read_secret(dev["host_field"]) or "").strip()
             if not host:
                 log.info("%s skipped: no host", dev["name"])
                 continue
-            uuid_, state = ensure_device(api, zone, dev["name"], host, creds[dev["credential"]])
+            live.append((dev, host))
+        needed = {dev["credential"] for dev, _ in live}
+
+        api = Api(os.environ.get("UNIMUS_URL", "http://unimus:8085"), token)
+        creds, enables, stale, stale_enable = {}, {}, [], []
+        for spec in cred_specs:
+            name = spec["name"]
+            if name not in needed:
+                continue
+            secret = credential_secret(spec)
+            if secret is None:
+                log.info("credential %s skipped: no secret", name)
+                continue
+            username = spec.get("username") or (read_secret(spec.get("username_field", "")) or "").strip()
+            if not username:
+                log.info("credential %s skipped: no username", name)
+                continue
+            creds[name], s = ensure_credential(api, token, spec, secret, username)
+            stale += s
+            if spec.get("enable"):
+                enables[name], e = ensure_enable_password(api, token, spec["enable"], secret)
+                stale_enable += e
+
+        zone, by_cred = None, {}
+        for dev, host in live:
+            name = dev["credential"]
+            if name not in creds:
+                log.info("%s skipped: credential %s unavailable", dev["name"], name)
+                continue
+            if zone is None:
+                zone = default_zone(api)
+            uuid_, state = ensure_device(api, zone, dev["name"], host, creds[name])
             log.info("%s %s", dev["name"], state)
-            by_cred.setdefault(dev["credential"], []).append(uuid_)
-            if dev.get("enable") == ENABLE_RUCKUS:
-                with_enable.append(uuid_)
+            by_cred.setdefault(name, []).append(uuid_)
 
         # Bind every run: a rotated credential must be re-bound before the old one goes.
-        for cred_name, uuids in by_cred.items():
-            api.call("POST", "/devices:bind_credentials", {"credentialsUuid": creds[cred_name], "deviceUuids": uuids})
-        if enable_uuid and with_enable:
-            api.call("POST", "/devices:bind_enable_password", {"cliModeChangePasswordUuid": enable_uuid, "deviceUuids": with_enable})
+        for name, uuids in by_cred.items():
+            body = {"credentialsUuid": creds[name], "deviceUuids": uuids}
+            api.call("POST", "/devices:bind_credentials", body)
+            if name in enables:
+                body = {"cliModeChangePasswordUuid": enables[name], "deviceUuids": uuids}
+                api.call("POST", "/devices:bind_enable_password", body)
 
         if stale:
             api.call("DELETE", "/credentials", params={"uuids": stale})
