@@ -4,6 +4,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: unimus-seed
+  namespace: observability
 data:
   # Credential definitions: names and the secret keys they read, never values.
   # username_field reads the username from the Secret too; enable names an
