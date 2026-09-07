@@ -27,8 +27,8 @@ spec:
               # presents an Envoy pod address -- which is RFC1918, so the local
               # exemption applied to all traffic regardless of the real client.
               # Set explicitly rather than dropped: with no override Radarr
-              # falls back to config.xml, which is not in Git. Sonarr is the
-              # same posture by way of its stored config.
+              # falls back to config.xml, which is not in Git. Sonarr and
+              # prowlarr now declare the same for the same reason.
               RADARR__AUTH__REQUIRED: Enabled
               RADARR__LOG__DBENABLED: "False"
               RADARR__LOG__LEVEL: info
