@@ -182,11 +182,15 @@ data:
                 # Redact the body BEFORE truncating: a secret must not survive in a
                 # tail. Then redact the assembled message too -- the address lives
                 # in the PATH, which no amount of body redaction would ever reach.
+                # Redact the two fields that can carry a secret, then assemble.
+                # Redacting the finished string instead let a one-character address
+                # match inside the status code ("-> 500" became "-> <redacted>00"),
+                # so method, version and code are never candidates. The body is
+                # redacted before truncation, so nothing survives in a tail.
                 for v in variants:
                     detail = detail.replace(v, "<redacted>")
+                    path = path.replace(v, "<redacted>")
                 message = f"{method} /api/{version}{path} -> {e.code}: {detail[:300]}"
-                for v in variants:
-                    message = message.replace(v, "<redacted>")
                 raise ApiError(message, e.code) from None
 
         def list_all(self, path, key, hide_body=False):
@@ -412,10 +416,10 @@ data:
             return 3
 
         if stale:
-            api.call("DELETE", "/credentials", params={"uuids": stale})
+            api.call("DELETE", "/credentials", params={"uuids": stale}, hide_body=True)
             log.info("deleted %d stale credential(s)", len(stale))
         if stale_enable:
-            api.call("DELETE", "/cli_mode_change_passwords", params={"uuids": stale_enable})
+            api.call("DELETE", "/cli_mode_change_passwords", params={"uuids": stale_enable}, hide_body=True)
             log.info("deleted %d stale enable password(s)", len(stale_enable))
         return 0
 
