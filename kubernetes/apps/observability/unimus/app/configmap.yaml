@@ -1,4 +1,5 @@
 ---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/v1/configmap.json
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -148,7 +149,7 @@ data:
                     return items
                 page += 1
 
-    def triage(items, name, fp):
+    def triage(items, name, fp, noun="credential"):
         """Split same-named entries into (managed at fp, stale, unmanaged descriptions)."""
         managed = re.compile(re.escape(name) + FP_RE + "$")
         match, stale, ignored = [], [], []
@@ -163,7 +164,7 @@ data:
             else:
                 stale.append(c["uuid"])
         for desc in ignored:
-            log.info("credential %s ignored: not managed by seed", desc)
+            log.info("%s %s ignored: not managed by seed", noun, desc)
         # Two entries at the same fingerprint: keep the first, retire the rest.
         stale += [m["uuid"] for m in match[1:]]
         return (match[0]["uuid"] if match else None), stale
@@ -184,7 +185,8 @@ data:
 
     def ensure_enable_password(api, token, name, secret):
         fp = fingerprint(token, secret)
-        found, stale = triage(api.list_all("/cli_mode_change_passwords", "cliModeChangePasswords"), name, fp)
+        found, stale = triage(api.list_all("/cli_mode_change_passwords", "cliModeChangePasswords"),
+                              name, fp, noun="enable password")
         if found:
             log.info("enable password %s unchanged", name)
             return found, stale
@@ -212,7 +214,7 @@ data:
                 "credentials": {"uuid": cred_uuid},
             }
             try:
-                _, r = api.call("POST", "/devices", payload)
+                _, r = api.call("POST", "/devices", payload, redact=(host,))
             except ApiError as e:
                 if e.code == 409:
                     log.error("device %s: address already exists in Unimus under a "
@@ -300,6 +302,11 @@ data:
             uuid_, state = ensure_device(api, zone, dev["name"], host, creds[name])
             log.info("%s %s", dev["name"], state)
             by_cred.setdefault(name, []).append(uuid_)
+
+        if devices and not by_cred:
+            log.error("no devices seeded: every entry skipped "
+                      "(check the Secret's host fields)")
+            return 3
 
         # Bind every run: a rotated credential must be re-bound before the old one goes.
         for name, uuids in by_cred.items():
