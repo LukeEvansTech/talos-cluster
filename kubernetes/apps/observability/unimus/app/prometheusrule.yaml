@@ -1,0 +1,47 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: unimus
+spec:
+  groups:
+    - name: unimus-seed
+      rules:
+        # The nightly seed CronJob reconciles device credentials and devices
+        # into Unimus from 1Password (the seed controller in helmrelease.yaml,
+        # schedule 0 4 * * *). A failed reconcile is otherwise invisible: it
+        # leaves only a line in the Job's log, so a broken ExternalSecret or a
+        # rotated credential silently stops new devices and credential changes
+        # from ever reaching Unimus.
+        #
+        # Follows the repo's "alert on the absence of success, not the presence
+        # of errors" principle (see docker-backup.rules): time since the last
+        # successful run, not a count of failed Jobs. That fires whether the Job
+        # is failing, crash-looping, or not being scheduled at all.
+        #
+        # 86400s (24h, one full schedule interval) in the expr plus for: 2h of
+        # slack fires at ~26h, so a single missed nightly run is tolerated and
+        # self-heals the moment the next run succeeds. lastSuccessfulTime is
+        # unset until the first success, so the expr falls back to the CronJob's
+        # creation time: a seed that fails from its very first run (never setting
+        # lastSuccessfulTime) still alerts ~26h after deploy rather than never.
+        - alert: UnimusSeedStale
+          annotations:
+            summary: >-
+              The Unimus seed CronJob (observability/unimus-seed) has not
+              succeeded in over 24h - device and credential reconcile is stale.
+            description: >-
+              No successful run of the unimus-seed CronJob in over 24h. New
+              devices and credential changes from 1Password are no longer
+              reaching Unimus. Check the most recent unimus-seed Job's logs and
+              the unimus-seed ExternalSecret, fix the cause, then trigger a run.
+          expr: |-
+            time() - (
+              kube_cronjob_status_last_successful_time{namespace="observability", cronjob="unimus-seed"}
+              or
+              kube_cronjob_created{namespace="observability", cronjob="unimus-seed"}
+            ) > 86400
+          for: 2h
+          labels:
+            severity: warning
