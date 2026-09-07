@@ -89,6 +89,78 @@ spec:
                 memory: 512Mi
               limits:
                 memory: 1536Mi
+      # Daily reconcile of credentials and devices into Unimus from 1Password
+      # (ExternalSecret unimus-seed): credentials and enable passwords through
+      # API v3, devices through API v2 (this Unimus build serves no v3 device
+      # endpoints). Additive and idempotent; see the seed.py docstring in
+      # configmap.yaml.
+      seed:
+        type: cronjob
+        cronjob:
+          schedule: "0 4 * * *"
+          timeZone: "${TIMEZONE}"
+          concurrencyPolicy: Forbid
+          successfulJobsHistory: 3
+          failedJobsHistory: 3
+          backoffLimit: 2
+        # Set here rather than in defaultPodOptions: the controller above runs
+        # as root by necessity, and a shared default would have to be widened
+        # to accommodate it. The job has no such constraint.
+        pod:
+          automountServiceAccountToken: false
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            runAsGroup: 65534
+            fsGroup: 65534
+            fsGroupChangePolicy: OnRootMismatch
+            seccompProfile:
+              type: RuntimeDefault
+        containers:
+          app:
+            # Stock upstream python and no build step: seed.py is standard
+            # library only and is mounted from the unimus-seed ConfigMap, so
+            # there is nothing to install and nothing to publish.
+            image:
+              repository: docker.io/library/python
+              tag: 3.13-slim@sha256:9d2e5553305c7c7b0097999bb17187c69b921ccd6bc9d40e4bb5ebe652c00285
+            command:
+              - python3
+              - /scripts/seed.py
+            env:
+              TZ: ${TIMEZONE}
+              # Nothing is writable, and the log is the only output that
+              # matters, so no .pyc files and no buffering.
+              PYTHONDONTWRITEBYTECODE: "1"
+              PYTHONUNBUFFERED: "1"
+              # The in-cluster Service the controller above publishes.
+              UNIMUS_URL: http://unimus:8085
+              SEED_SECRETS_DIR: /secrets
+              # The two lists are data, not secrets: descriptions and the names
+              # of the keys to read, so they live in the ConfigMap beside the
+              # script that consumes them.
+              SEED_DEVICES:
+                valueFrom:
+                  configMapKeyRef:
+                    name: unimus-seed
+                    key: devices.json
+              SEED_CREDENTIALS:
+                valueFrom:
+                  configMapKeyRef:
+                    name: unimus-seed
+                    key: credentials.json
+            resources:
+              requests:
+                cpu: 10m
+                memory: 32Mi
+              limits:
+                memory: 128Mi
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop:
+                  - ALL
     persistence:
       # Unimus keeps its configuration, the embedded HSQLDB, and the device
       # credentials it connects with all under /etc/unimus. Unlike oxidized,
@@ -96,8 +168,31 @@ spec:
       # disk, here they live on the volume, so this is VolSync-backed.
       config:
         existingClaim: unimus
-        globalMounts:
-          - path: /etc/unimus
+        # Scoped rather than global: the claim is ReadWriteOnce, and a global
+        # mount would attach it to the seed job's pod as well, which stalls the
+        # job whenever it is scheduled anywhere but the node already holding
+        # the attachment. The job needs no access to it.
+        advancedMounts:
+          unimus:
+            app:
+              - path: /etc/unimus
+      seed-secrets:
+        type: secret
+        name: unimus-seed-secret
+        defaultMode: 0400
+        advancedMounts:
+          seed:
+            app:
+              - path: /secrets
+                readOnly: true
+      seed-script:
+        type: configMap
+        name: unimus-seed
+        advancedMounts:
+          seed:
+            app:
+              - path: /scripts
+                readOnly: true
     route:
       app:
         hostnames:
