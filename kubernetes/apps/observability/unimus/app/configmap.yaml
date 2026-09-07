@@ -41,7 +41,9 @@ data:
     API surface observed on Unimus 2.9.1 (2026-09-07). This build serves only part
     of API v3, so the script speaks both versions:
 
-        v3   /credentials, /cli_mode_change_passwords, /zones, /tags
+        v3   /credentials, /cli_mode_change_passwords, /zones, /tags. The credential
+            create field is typeEnum; a listed credential exposes typeEnum and
+            typeString, never type.
         v2   /devices, /devices/findByAddress/<address>, /devices/<id> (PATCH)
         404  every /api/v3/devices* and /api/v3/jobs* path, answering
             {"code":404,"error":"Not Found","message":"URL is not supported by the API"}
@@ -236,7 +238,11 @@ data:
         if found:
             log.info("credential %s unchanged", name)
             return found, stale
-        body = {"type": spec["type"], "username": username,
+        # The wire field is typeEnum, not type: the 2.9.1 build rejects `type`
+        # (and credentialsType, and typeString) with "Type must not be null", which
+        # is how the first live run died. `type` stays the key in credentials.json,
+        # where it is our own data name; only the request field is typeEnum.
+        body = {"typeEnum": spec["type"], "username": username,
                 "description": f"{name} fp={fp}", "highSecurityMode": False}
         body["sshKey" if spec["type"] == "USERNAME_SSH" else "password"] = secret
         _, r = api.call("POST", "/credentials", body, redact=(secret,))
