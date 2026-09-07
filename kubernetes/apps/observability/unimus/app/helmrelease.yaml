@@ -98,6 +98,7 @@ spec:
         type: cronjob
         cronjob:
           schedule: "0 4 * * *"
+          timeZone: "${TIMEZONE}"
           concurrencyPolicy: Forbid
           successfulJobsHistory: 3
           failedJobsHistory: 3
