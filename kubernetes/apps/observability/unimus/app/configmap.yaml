@@ -45,7 +45,8 @@ data:
         404  every /api/v3/devices* and /api/v3/jobs* path, answering
             {"code":404,"error":"Not Found","message":"URL is not supported by the API"}
             -- including devices:bind_credentials, devices:bind_enable_password
-            and devices:manage. GET /api/v2/zones is absent too, so zones stay v3.
+            and devices:manage. GET /api/v2/zones 404s the same way (probed
+            2026-09-07), so zones are read from v3 and devices from v2.
 
     That gap is the vendor's plan, not a broken install: APIv3 "focuses on covering
     what isn't available in APIv2 first", and endpoints already covered by v2 are
@@ -73,6 +74,12 @@ data:
     Rotating the API token changes every fingerprint and therefore recreates every
     credential once, which is harmless. Anything else sharing a name is left alone:
     this script deletes only what it can prove it made.
+
+    A listed credential is read for its description and uuid and nothing else.
+    That matters because GET /credentials returns every entry's sshKey and
+    password in cleartext, so the pool is one careless log line from stdout; an
+    error from that endpoint is reported by status code with its body withheld,
+    since it could carry secrets this run never held and so cannot redact.
 
     One limit worth knowing: a run that fails partway leaves stale credentials
     behind for the next run to prune.
@@ -131,12 +138,16 @@ data:
         return hmac.new(token.encode(), secret.encode(), "sha256").hexdigest()[:12]
 
     def redactions(secret):
-        """The secret as it may appear in a response: raw, and JSON-escaped once or twice."""
+        """Every spelling the secret may take in an error message: raw, JSON-escaped
+        once or twice (a response body echoing it back), and URL-quoted, because
+        find_device puts the address in the PATH and the path is part of the
+        message. Longest first, so a shorter variant cannot mask a longer one."""
         out, cur = [], secret
         for _ in range(3):
             out.append(cur)
             cur = json.dumps(cur)[1:-1]
-        return sorted(out, key=len, reverse=True)
+        out.append(urllib.parse.quote(secret, safe=""))
+        return sorted(set(out), key=lambda s: (-len(s), s))
 
     class Api:
         """One client for both API versions; `version` picks the base path."""
@@ -145,7 +156,7 @@ data:
             self.base = base.rstrip("/")
             self.token = token
 
-        def call(self, method, path, body=None, params=None, redact=(), version="v3"):
+        def call(self, method, path, body=None, params=None, redact=(), version="v3", hide_body=False):
             url = f"{self.base}/api/{version}{path}"
             if params:
                 url += "?" + urllib.parse.urlencode(params, doseq=True)
@@ -160,20 +171,32 @@ data:
                     raw = r.read()
                     return r.status, (json.loads(raw) if raw else {})
             except urllib.error.HTTPError as e:
-                # Redact before truncating: a secret must not survive in a tail.
-                detail = e.read().decode(errors="replace")
-                for secret in redact:
-                    for variant in redactions(secret):
-                        if variant:
-                            detail = detail.replace(variant, "<redacted>")
-                raise ApiError(f"{method} /api/{version}{path} -> {e.code}: {detail[:300]}", e.code) from None
+                raw = e.read().decode(errors="replace")
+                # A successful GET /credentials returns every entry's sshKey and
+                # password in cleartext, so an error body from that endpoint could
+                # carry OTHER credentials' secrets -- ones this run has no way to
+                # redact, because it never held them. The only safe handling is to
+                # quote no part of it; the status code still says what went wrong.
+                detail = "<response body withheld: endpoint returns credential material>" if hide_body else raw
+                variants = [v for s in redact for v in redactions(s) if v]
+                # Redact the body BEFORE truncating: a secret must not survive in a
+                # tail. Then redact the assembled message too -- the address lives
+                # in the PATH, which no amount of body redaction would ever reach.
+                for v in variants:
+                    detail = detail.replace(v, "<redacted>")
+                message = f"{method} /api/{version}{path} -> {e.code}: {detail[:300]}"
+                for v in variants:
+                    message = message.replace(v, "<redacted>")
+                raise ApiError(message, e.code) from None
 
-        def list_all(self, path, key, version="v3"):
-            """Page through a list endpoint. v3 names the list after the resource,
-            v2 always calls it `data`; the paginator is the same shape in both."""
+        def list_all(self, path, key, hide_body=False):
+            """Page through a v3 list endpoint. Every list this script reads lives
+            on v3; devices are looked up one address at a time on v2, never listed.
+            Pass hide_body for a list whose entries carry secrets."""
             items, page = [], 0
             while True:
-                _, body = self.call("GET", path, params={"page": page, "size": 100}, version=version)
+                _, body = self.call("GET", path, params={"page": page, "size": 100},
+                                    hide_body=hide_body)
                 chunk = body.get(key, [])
                 items.extend(chunk)
                 pg = body.get("paginator") or {}
@@ -204,7 +227,7 @@ data:
     def ensure_credential(api, token, spec, secret, username):
         name = spec["name"]
         fp = fingerprint(token, secret)
-        found, stale = triage(api.list_all("/credentials", "credentials"), name, fp)
+        found, stale = triage(api.list_all("/credentials", "credentials", hide_body=True), name, fp)
         if found:
             log.info("credential %s unchanged", name)
             return found, stale
@@ -217,8 +240,9 @@ data:
 
     def ensure_enable_password(api, token, name, secret):
         fp = fingerprint(token, secret)
-        found, stale = triage(api.list_all("/cli_mode_change_passwords", "cliModeChangePasswords"),
-                              name, fp, noun="enable password")
+        listed = api.list_all("/cli_mode_change_passwords", "cliModeChangePasswords",
+                              hide_body=True)
+        found, stale = triage(listed, name, fp, noun="enable password")
         if found:
             log.info("enable password %s unchanged", name)
             return found, stale
@@ -230,10 +254,14 @@ data:
 
     def default_zone(api):
         """The default zone's number. v2 wants "the zone ID as seen in the UI", and
-        `number` is the only field the v3 zone object exposes that could be it."""
+        `number` is the only field the v3 zone object exposes that could be it.
+        The live default zone reports "0", so a missing number is an error, not a
+        zero -- silently defaulting it would put devices in an unintended zone."""
         for z in api.list_all("/zones", "zones"):
             if z.get("isDefault"):
-                return z.get("number")
+                if z.get("number") is None:
+                    raise RuntimeError("default zone reports no number")
+                return z["number"]
         raise RuntimeError("no default zone")
 
     def find_device(api, host):
@@ -252,43 +280,52 @@ data:
     def create_device(api, zone_id, name, host):
         """POST /api/v2/devices per the v2 docs: address, description, zoneId, managed."""
         body = {"address": host, "description": name, "managed": True}
-        if zone_id:
+        # `is not None`, not truthiness: the default zone's number is "0".
+        if zone_id is not None:
             body["zoneId"] = zone_id
+
+        def post():
+            try:
+                api.call("POST", "/devices", body, redact=(host,), version="v2")
+            except ApiError as e:
+                if e.code == 422:
+                    # v2's "Device already exist": Unimus canonicalises an address
+                    # on the way in but matches findByAddress literally, so a
+                    # device can be invisible to the lookup and still collide here.
+                    log.error("device %s: address already exists in Unimus under a "
+                              "different spelling; not created", name)
+                raise
+
         try:
-            _, r = api.call("POST", "/devices", body, redact=(host,), version="v2")
+            post()
         except ApiError as e:
-            if e.code == 422:
-                # v2's "Device already exist": Unimus canonicalises an address on
-                # the way in but matches findByAddress literally, so a device can be
-                # invisible to the lookup and still collide here.
-                log.error("device %s: address already exists in Unimus under a "
-                          "different spelling; not created", name)
-                raise
-            if not zone_id or not 400 <= e.code < 500:
-                raise
             # zoneId is documented only as "Zone ID (as seen in UI)" and the v3 zone
-            # object names no field that way, so `number` is an informed guess.
-            # Omitting zoneId is documented to use the default zone -- where these
-            # devices belong anyway -- so a rejection retries without it.
+            # object names no field that way, so `number` is an informed guess. Only
+            # a rejection OF THE REFERENCE retries without it -- 400 or 404, never
+            # 422 (the address already exists, so a retry would say the same thing)
+            # and never a 5xx (the server is unwell; a retry that then succeeded
+            # would risk a second device). The retry keeps the same 422 handling.
+            if "zoneId" not in body or e.code not in (400, 404):
+                raise
             log.warning("device %s: create rejected with zoneId=%s (HTTP %d); "
                         "retrying in the default zone", name, zone_id, e.code)
             body.pop("zoneId")
-            _, r = api.call("POST", "/devices", body, redact=(host,), version="v2")
-        return r["data"]["id"]
+            post()
 
     def ensure_device(api, zone_id, name, host):
-        """Return (device id, state). Matches by address; repairs description and managed."""
+        """Return the state word. Matches by address; repairs description and managed."""
         found = find_device(api, host)
         if found is None:
-            return create_device(api, zone_id, name, host), "created"
+            create_device(api, zone_id, name, host)
+            return "created"
         if found.get("description") == name and found.get("managed") is not False:
-            return found["id"], "unchanged"
+            return "unchanged"
         # v2 PATCH always writes description -- omitting it REMOVES it -- so the
         # repair carries the description whichever of the two fields drifted.
         api.call(
             "PATCH", f"/devices/{found['id']}", {"description": name, "managed": True},
             redact=(host,), version="v2")
-        return found["id"], "updated"
+        return "updated"
 
     def credential_secret(spec):
         """Return the secret for `spec`, or None when it is not usable."""
@@ -331,7 +368,7 @@ data:
         needed = {dev["credential"] for dev, _ in live}
 
         api = Api(os.environ.get("UNIMUS_URL", "http://unimus:8085"), token)
-        creds, enables, stale, stale_enable = {}, {}, [], []
+        creds, stale, stale_enable = {}, [], []
         for spec in cred_specs:
             name = spec["name"]
             if name not in needed:
@@ -347,7 +384,7 @@ data:
             creds[name], s = ensure_credential(api, token, spec, secret, username)
             stale += s
             if spec.get("enable"):
-                enables[name], e = ensure_enable_password(api, token, spec["enable"], secret)
+                _, e = ensure_enable_password(api, token, spec["enable"], secret)
                 stale_enable += e
 
         if live:
@@ -360,13 +397,16 @@ data:
                 continue
             if zone is None:
                 zone = default_zone(api)
-            _, state = ensure_device(api, zone, dev["name"], host)
+            state = ensure_device(api, zone, dev["name"], host)
             seeded.append(dev["name"])
-            # Nothing binds this any more, so say which credential the pool must
-            # carry for the device: that is the only record of the intent left.
-            log.info("%s %s; expects credential %s from the pool", dev["name"], state, name)
+            # Nothing binds these any more, so say which pool entries the device is
+            # meant to match on: that is the only record of the intent left.
+            enable = specs[name].get("enable")
+            log.info(
+                "%s %s; expects credential %s%s from the pool", dev["name"], state, name,
+                f" and enable password {enable}" if enable else "")
 
-        if devices and not creds and not seeded:
+        if devices and not seeded:
             log.error("no devices seeded: every entry skipped "
                       "(check the Secret's host fields)")
             return 3
