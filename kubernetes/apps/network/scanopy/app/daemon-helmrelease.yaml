@@ -33,7 +33,7 @@ spec:
           app:
             image:
               repository: ghcr.io/scanopy/scanopy/daemon
-              tag: v0.17.13@sha256:06189554391f360ec3923bc5e8b5f83fa411c1a546cbef50d0e3898cf17ccfd4
+              tag: v0.17.14@sha256:ad2e7c645d93f9b7c84e1346331c678e93be31cb149ab15f01449b9f81cdafcb
             env:
               TZ: ${TIMEZONE}
               SCANOPY_LOG_LEVEL: info
