@@ -22,6 +22,16 @@ spec:
             env:
               SONARR__APP__INSTANCENAME: Sonarr
               SONARR__APP__THEME: dark
+              # Enabled, not DisabledForLocalAddresses. Sonarr resolves "local"
+              # from the address it sees, and every request through the gateway
+              # presents an Envoy pod address -- which is RFC1918, so the local
+              # exemption would apply to all traffic regardless of the real
+              # client. Already the live posture via config.xml, which is not in
+              # Git; declaring it here is what stops a config reset or a UI
+              # change from silently reverting to the insecure default. Mirrors
+              # radarr. API-key clients (the exportarr sidecar, prowlarr sync)
+              # authenticate separately and are unaffected.
+              SONARR__AUTH__REQUIRED: Enabled
               SONARR__LOG__DBENABLED: "False"
               SONARR__LOG__LEVEL: info
               # Host header allowlist (Sonarr >= 4.0.19). localhost, loopback
