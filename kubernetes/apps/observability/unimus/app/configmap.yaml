@@ -41,9 +41,13 @@ data:
     API surface observed on Unimus 2.9.1 (2026-09-07). This build serves only part
     of API v3, so the script speaks both versions:
 
-        v3   /credentials, /cli_mode_change_passwords, /zones, /tags. The credential
-            create field is typeEnum; a listed credential exposes typeEnum and
-            typeString, never type.
+        v3   /credentials, /cli_mode_change_passwords, /zones, /tags. Two field
+            names on this build differ from the published spec, and both cost a
+            failed run: the credential create field is typeEnum, not type (a
+            listed credential exposes typeEnum and typeString), and the
+            enable-password list is keyed cliPasswords, not after its own path.
+            Every list key below is what the running build returned, not what the
+            spec documents: credentials, zones, cliPasswords, and v2's data.
         v2   /devices, /devices/findByAddress/<address>, /devices/<id> (PATCH)
         404  every /api/v3/devices* and /api/v3/jobs* path, answering
             {"code":404,"error":"Not Found","message":"URL is not supported by the API"}
@@ -251,8 +255,11 @@ data:
 
     def ensure_enable_password(api, token, name, secret):
         fp = fingerprint(token, secret)
-        listed = api.list_all("/cli_mode_change_passwords", "cliModeChangePasswords",
-                              hide_body=True)
+        # The list is keyed cliPasswords -- not after its own path, and not the
+        # spec's cliModeChangePasswords. Under the wrong key list_all returns []
+        # every run, so the script never found the password it had just made and
+        # recreated it: 409 ENTITY_ALREADY_EXISTS on the second live run.
+        listed = api.list_all("/cli_mode_change_passwords", "cliPasswords", hide_body=True)
         found, stale = triage(listed, name, fp, noun="enable password")
         if found:
             log.info("enable password %s unchanged", name)
