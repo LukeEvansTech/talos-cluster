@@ -30,8 +30,23 @@ spec:
         server:
           DOMAIN: "forgejo.${SECRET_DOMAIN}"
           ROOT_URL: "https://forgejo.${SECRET_DOMAIN}"
-          SSH_DOMAIN: "forgejo.${SECRET_DOMAIN}"
-          SSH_PORT: 22
+          # The SSH service is ClusterIP-only and nothing clones over it, so
+          # stop the UI advertising an ssh:// clone URL that cannot connect.
+          DISABLE_SSH: true
+
+        service:
+          # This instance holds mirrors of private repositories: no
+          # self-registration, and nothing is browsable without signing in.
+          DISABLE_REGISTRATION: true
+          REQUIRE_SIGNIN_VIEW: true
+
+        git.timeout:
+          # gickup registers each mirror through the synchronous migrate
+          # endpoint. The largest starred repository is ~4 GB, which the 600s
+          # default cannot clone; a failed migrate is deleted and retried daily,
+          # so it would never land.
+          MIGRATE: 3600
+          MIRROR: 900
 
         database:
           DB_TYPE: sqlite3
