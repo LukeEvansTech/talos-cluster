@@ -10,6 +10,7 @@ misconfigurations:
       - "kubernetes/apps/infrastructure/certwarden/cert-deployment/supermicro/scripts-configmap.yaml"
       - "kubernetes/apps/ai/repowiki/app/configmap.yaml"
       - "kubernetes/apps/observability/unimus/app/configmap.yaml"
+      - "kubernetes/apps/default/gickup/app/configmap.yaml"
     statement: |
       False positive. oxidized/configmap.yaml: the YAML schema requires
       top-level 'username' and 'password' keys; the values here are literal
@@ -34,6 +35,13 @@ misconfigurations:
       matched strings (`secret`, `self.token`, `token`) are Python variable
       and parameter names, and credentials.json holds only the NAMES of the
       Secret keys to read, never values.
+      gickup/app/configmap.yaml: the embedded mint_token.py reads the Forgejo
+      admin credentials from environment variables that the HelmRelease
+      populates from forgejo-secret, and writes the token it mints to an
+      emptyDir; the matched strings (`token`, `TOKEN_PATH`, `PASSWORD`) are
+      variable names. conf.yml points gickup at token FILES
+      (`token_file: /secrets/GITHUB_TOKEN`, `/token/forgejo`) and holds no
+      values.
 
   - id: KSV-01010
     paths:
@@ -43,6 +51,7 @@ misconfigurations:
       - "kubernetes/apps/infrastructure/certwarden/cert-deployment/supermicro/scripts-configmap.yaml"
       - "kubernetes/apps/ai/repowiki/app/configmap.yaml"
       - "kubernetes/apps/observability/unimus/app/configmap.yaml"
+      - "kubernetes/apps/default/gickup/app/configmap.yaml"
     statement: |-
       False positive. oxidized/configmap.yaml: flagged keys (username, email,
       remote_repo) are config field names, not sensitive content. The git
@@ -62,6 +71,10 @@ misconfigurations:
       mounted Secret at runtime), and the `sorted(set(out), key=lambda s`
       line is the redaction helper that deduplicates strings to mask in
       error messages, not content.
+      gickup/app/configmap.yaml: `user: LukeEvansTech` in conf.yml is the
+      public GitHub login whose repositories are mirrored, and `USER` in
+      mint_token.py is the variable holding the admin username read from the
+      environment at runtime; neither is sensitive content.
 
   - id: KSV-0046
     paths:
