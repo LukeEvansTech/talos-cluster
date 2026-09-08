@@ -9,30 +9,42 @@ spec:
     kind: OCIRepository
     name: gha-runner-scale-set-codelooks-org
   interval: 1h
+  # ARC generates the Docker sidecar; patch its resources after chart rendering.
+  postRenderers:
+    - kustomize:
+        patches:
+          - target:
+              group: actions.github.com
+              version: v1alpha1
+              kind: AutoscalingRunnerSet
+              name: codelooks-org
+            patch: |-
+              - op: test
+                path: /spec/template/spec/initContainers/1/name
+                value: dind
+              - op: add
+                path: /spec/template/spec/initContainers/1/resources
+                value:
+                  requests:
+                    cpu: "1"
+                    memory: 2Gi
+                    ephemeral-storage: 8Gi
+                  limits:
+                    cpu: "4"
+                    memory: 8Gi
+                    ephemeral-storage: 20Gi
   values:
     fullnameOverride: *name
-    # ORG-scoped, not repo-scoped: one scale set serves every repo in
-    # codelooks-com via the Default runner group, instead of the one-scale-set-
-    # per-repo pattern the other runners here use. Personal-account repos can't
-    # do this — GitHub has no user-level runner scope (`users/<u>/actions/runners`
-    # and `user/actions/runners` both 404), only repository and organisation —
-    # which is why LukeEvansTech repos still need one scale set each.
+    # Shared pool for private codelooks-com repositories.
     githubConfigUrl: https://github.com/codelooks-com
     githubConfigSecret: codelooks-org-runner-secret
     runnerGroup: Default
     runnerScaleSetName: codelooks-org
-    # 12 private repos share this pool and Renovate lands PRs in batches, so
-    # some parallelism matters; 6 concurrent runners is well inside the cluster
-    # (3 x 24 cores) while bounding the blast radius of a runaway workflow.
-    maxRunners: 6
+    # Start with two concurrent jobs; increase after measuring the pilot.
+    maxRunners: 2
     minRunners: 0
     containerMode:
-      # dind, NOT kubernetes mode. super-linter and checkov-action are Docker
-      # CONTAINER actions (`using: docker`, `image: docker://...`), which need a
-      # Docker daemon. kubernetes mode would have to translate them via the
-      # container hooks, and the two other runners here that use kubernetes mode
-      # only ever run plain `run:` steps. dind is the mode already proven for
-      # container workloads by talos-cluster-runner.
+      # Docker actions used by lint and security workflows need a daemon.
       type: dind
     template:
       spec:
@@ -48,7 +60,14 @@ spec:
           - name: runner
             # Same digest as talos-cluster-runner / terraform-vsphere-runner.
             # Renovate manages this.
-            image: ghcr.io/home-operations/actions-runner:2.336.0@sha256:281a9a090522fafbf4967f158b8c97d03552b1978b688893c5f7cb1944bc5fe5
+            image: ghcr.io/home-operations/actions-runner:2.337.0@sha256:8b8e8326b5a08e658a0a41cfd2867afab69ca4194a152f986aa6fcd5430d09e7
+            resources:
+              requests:
+                cpu: 250m
+                memory: 512Mi
+              limits:
+                cpu: "2"
+                memory: 4Gi
             command:
               - "/home/runner/run.sh"
             volumeMounts:
