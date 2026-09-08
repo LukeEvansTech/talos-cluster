@@ -7,9 +7,10 @@ Forgejo directly and nothing clones from it: it is a backup, not a second forge.
 
 ## What is mirrored
 
-- Repositories owned by the personal account, private ones included.
-- Repositories in the `codelooks-com` organisation.
-- Every starred repository (a few hundred, around 25 GB of git data).
+- Everything the account can reach, private ones included: its own repositories, the
+  organisations it belongs to (`codelooks-com` among them), and repositories other people
+  share with it as a collaborator.
+- Every starred repository (a few hundred, around 45 GB of git data).
 - The wiki of each of the above, where one exists.
 
 Forks are skipped. Each upstream owner becomes a private Forgejo organisation, so the
@@ -20,12 +21,11 @@ cannot collide.
 
 - **Issues, pull requests, releases and other metadata.** gickup can only dump issues to a
   local directory, and the decision was that git data plus wiki is the backup.
-- **Private repositories other people share with the account.** The token lists
-  everything it can reach, which includes a paid theme organisation, collaborators'
-  private repositories and GitHub preview organisations. gickup's `includeorgs` keeps
-  only the two owners above. To add another organisation the account belongs to, add it
-  to that list in `configmap.yaml`.
 - **Gists and LFS objects.**
+
+To narrow the private pass to particular owners, add an `includeorgs` list of GitHub
+logins to the first source entry in `configmap.yaml`. It filters starred repositories
+too, which is why the stars are a separate entry.
 
 ## How it works
 
