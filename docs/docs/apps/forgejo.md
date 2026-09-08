@@ -70,10 +70,15 @@ curl -su "$USER:$PASS" 'http://localhost:3000/api/v1/repos/search?limit=1' | jq 
 
 ## Gotchas
 
-- **gickup exits 0 when individual repositories fail.** A migrate that errors is logged,
-  the half-created repository is deleted, and the next run retries it. The stale alert
-  only catches a run that fails outright, so skim the `app` container log after changing
-  the configuration.
+- **One failed repository fails the whole run.** gickup logs each migrate error, deletes
+  the half-created repository, carries on, and exits non-zero at the end, so the Job
+  fails, retries once (`backoffLimit: 1`, every existing mirror just gets a sync request)
+  and the stale alert fires if the night ends without a success. Read the `app` container
+  log for the `ERR` lines; the usual cause is upstream, not Forgejo.
+- **Forgejo needs memory for the clones, not the web process.** Migrations run `git`
+  inside the Forgejo container, and the first pass OOM-killed it at the original 256Mi on
+  a small repository, which turned into hundreds of connection-refused errors in gickup's
+  log. The limit is 2Gi for that reason; the steady state is about 110Mi.
 - **The first run is long.** Forgejo's migrate endpoint clones inline, so registering
   several hundred repositories takes hours; `activeDeadlineSeconds` allows six. Later runs
   are minutes, because existing mirrors only receive a sync request.
