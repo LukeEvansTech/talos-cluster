@@ -36,6 +36,11 @@ data:
           starred: true
           excludeorgs:
             - LukeEvansTech
+          # Forgejo rejects an org name that ends in a hyphen, and gickup
+          # fails the whole run on any repository it cannot register, so
+          # stars whose GitHub owner login has that shape are skipped by name.
+          exclude:
+            - deluge-unrar # owner Dutchy-
           wiki: true
           filter:
             excludeforks: true
