@@ -68,6 +68,7 @@ data:
     import json
     import os
     import sys
+    import time
     import urllib.error
     import urllib.request
 
@@ -92,13 +93,20 @@ data:
                 "Content-Type": "application/json",
             },
         )
-        try:
-            with urllib.request.urlopen(req, timeout=30) as resp:
-                raw = resp.read()
-                return resp.status, (json.loads(raw) if raw else None)
-        except urllib.error.HTTPError as err:
-            # Error bodies can echo the request, so only the status is kept.
-            return err.code, None
+        # Forgejo may still be coming up (it restarts under a rolling update
+        # and after an OOM kill); wait for it rather than crash the Job.
+        for attempt in range(1, 25):
+            try:
+                with urllib.request.urlopen(req, timeout=30) as resp:
+                    raw = resp.read()
+                    return resp.status, (json.loads(raw) if raw else None)
+            except urllib.error.HTTPError as err:
+                # Error bodies can echo the request, so only the status is kept.
+                return err.code, None
+            except (urllib.error.URLError, TimeoutError, ConnectionError) as err:
+                print(f"{method} {endpoint}: unreachable ({err.__class__.__name__}), attempt {attempt}")
+                time.sleep(5)
+        sys.exit(f"{method} {endpoint}: Forgejo unreachable after 2 minutes")
 
     def existing_tokens():
         page = 1

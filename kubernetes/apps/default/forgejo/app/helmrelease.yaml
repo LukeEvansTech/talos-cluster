@@ -14,9 +14,14 @@ spec:
     resources:
       requests:
         cpu: 10m
-        memory: 128Mi
-      limits:
         memory: 256Mi
+      limits:
+        # Mirror migrations run git clone inside this container, and the
+        # first gickup pass OOM-killed the pod at 256Mi on a small private
+        # repository (steady state is ~110Mi). The starred set includes
+        # multi-GB repositories, so the ceiling has to cover index-pack on
+        # those, not the web process.
+        memory: 2Gi
 
     strategy:
       type: Recreate
