@@ -1,0 +1,130 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: gickup
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: gickup
+  values:
+    controllers:
+      # Nightly: list GitHub (own repositories, the codelooks-com org and
+      # starred repositories) and register each one as a Forgejo pull mirror.
+      # Forgejo then fetches on its own 24h timer, so this job only has to
+      # discover new repositories and stars; see conf.yml in configmap.yaml.
+      gickup:
+        type: cronjob
+        cronjob:
+          schedule: "0 2 * * *"
+          timeZone: "${TIMEZONE}"
+          concurrencyPolicy: Forbid
+          successfulJobsHistory: 3
+          failedJobsHistory: 3
+          backoffLimit: 1
+          # Forgejo's migrate endpoint is synchronous, so the first pass over
+          # ~480 repositories is measured in hours; later runs are minutes.
+          activeDeadlineSeconds: 21600
+        pod:
+          automountServiceAccountToken: false
+        initContainers:
+          # Mints the Forgejo API token for this run (mint_token.py in the
+          # ConfigMap). Forgejo shows a token exactly once, at creation, and
+          # only the basic-auth token endpoints create one, so nothing durable
+          # holds it: the admin credentials in forgejo-secret mint a fresh
+          # token named "gickup" each night and hand it over on an emptyDir.
+          token:
+            image:
+              repository: docker.io/library/python
+              tag: 3.14-slim@sha256:cad9a2c871761c413caa6fdd6441c783451e740a48aaeba60ae62a8b53525ef6
+            command:
+              - python3
+              - /config/mint_token.py
+            env:
+              PYTHONDONTWRITEBYTECODE: "1"
+              PYTHONUNBUFFERED: "1"
+              # The in-cluster Service the forgejo chart publishes.
+              FORGEJO_URL: http://forgejo-http:3000
+              TOKEN_NAME: gickup
+              # read:misc covers the /version probe the Gitea SDK makes on
+              # connect, which REQUIRE_SIGNIN_VIEW otherwise rejects.
+              TOKEN_SCOPES: read:misc,read:user,write:organization,write:repository
+              TOKEN_PATH: /token/forgejo
+              FORGEJO_ADMIN_USERNAME:
+                valueFrom:
+                  secretKeyRef:
+                    name: forgejo-secret
+                    key: username
+              FORGEJO_ADMIN_PASSWORD:
+                valueFrom:
+                  secretKeyRef:
+                    name: forgejo-secret
+                    key: password
+            resources:
+              requests:
+                cpu: 10m
+                memory: 32Mi
+              limits:
+                memory: 128Mi
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop:
+                  - ALL
+        containers:
+          app:
+            image:
+              repository: docker.io/buddyspencer/gickup
+              tag: 0.10.45@sha256:b4a84f04163099d9f41c648e78a8402d8e6dfe1ece07ccdb3d439543aec5f378
+            args:
+              - /config/conf.yml
+            env:
+              TZ: ${TIMEZONE}
+            resources:
+              requests:
+                cpu: 10m
+                memory: 64Mi
+              limits:
+                memory: 256Mi
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop:
+                  - ALL
+    defaultPodOptions:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+    persistence:
+      config:
+        type: configMap
+        name: gickup
+        globalMounts:
+          - path: /config
+            readOnly: true
+      secrets:
+        type: secret
+        name: gickup-secret
+        defaultMode: 0400
+        globalMounts:
+          - path: /secrets
+            readOnly: true
+      # Hand-off from the token init container to gickup; lives and dies with
+      # the pod.
+      token:
+        type: emptyDir
+        globalMounts:
+          - path: /token
+      tmp:
+        type: emptyDir
+        globalMounts:
+          - path: /tmp

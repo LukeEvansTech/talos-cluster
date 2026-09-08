@@ -1,0 +1,42 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: gickup
+spec:
+  groups:
+    - name: gickup
+      rules:
+        # The nightly gickup CronJob registers new GitHub repositories and
+        # stars as Forgejo pull mirrors (schedule 0 2 * * *). Existing mirrors
+        # keep syncing on Forgejo's own timer, so a broken run is otherwise
+        # invisible: only newly created or newly starred repositories stop
+        # arriving, and nothing else changes.
+        #
+        # Same shape as UnimusSeedStale: time since the last successful run,
+        # not a count of failed Jobs, so it fires whether the Job is failing,
+        # not being scheduled, or stuck. 86400s plus for: 2h fires at ~26h, so
+        # one missed night is tolerated; the fallback to the CronJob's
+        # creation time means a run that has never succeeded still alerts.
+        - alert: GickupBackupStale
+          annotations:
+            summary: >-
+              The gickup CronJob (default/gickup) has not succeeded in over
+              24h - GitHub to Forgejo mirror registration is stale.
+            description: >-
+              No successful run of the gickup CronJob in over 24h. New GitHub
+              repositories and stars are no longer being registered as Forgejo
+              mirrors (existing mirrors keep syncing on Forgejo's own schedule).
+              Check the latest gickup Job's token init container and app logs,
+              fix the cause, then trigger a run with
+              kubectl -n default create job --from=cronjob/gickup.
+          expr: |-
+            time() - (
+              kube_cronjob_status_last_successful_time{namespace="default", cronjob="gickup"}
+              or
+              kube_cronjob_created{namespace="default", cronjob="gickup"}
+            ) > 86400
+          for: 2h
+          labels:
+            severity: warning

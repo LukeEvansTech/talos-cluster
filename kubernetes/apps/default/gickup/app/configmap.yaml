@@ -1,0 +1,131 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/v1/configmap.json
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gickup
+  namespace: default
+  annotations:
+    checkov.io/skip1: CKV_K8S_21=Application intentionally deployed in default namespace
+data:
+  # gickup runs once per Job (no cron key) and exits; the CronJob is the timer.
+  # Forgejo does the fetching: each repository is registered as a pull mirror
+  # (MigrateRepo with mirror=true) and Forgejo refreshes it every
+  # mirrorinterval, so a run here is API calls only, no clones.
+  conf.yml: |
+    source:
+      github:
+        # Own repositories, private ones included, plus the company org. The
+        # token lists everything the account can reach, which includes ~60
+        # private repositories other people share with it, so includeorgs
+        # keeps only these two owners. includeorgs also filters starred
+        # repositories, which is why stars are the separate entry below.
+        - token_file: /secrets/GITHUB_TOKEN
+          user: LukeEvansTech
+          includeorgs:
+            - LukeEvansTech
+            - codelooks-com
+          wiki: true
+          filter:
+            excludeforks: true
+        # Starred repositories. Public by definition, so no token: Forgejo then
+        # stores no credential on these mirrors, and the ~10 API calls a run
+        # sit well inside the unauthenticated limit. excludeorgs drops the
+        # account's own public repositories, which the entry above covers.
+        - user: LukeEvansTech
+          starred: true
+          excludeorgs:
+            - LukeEvansTech
+          wiki: true
+          filter:
+            excludeforks: true
+    destination:
+      gitea:
+        - token_file: /token/forgejo
+          url: http://forgejo-http:3000
+          # One private org per upstream owner (LukeEvansTech, codelooks-com,
+          # and one per starred repository's owner), mirroring GitHub's own
+          # layout so two starred repositories with the same name cannot
+          # collide.
+          createorg: true
+          mirror:
+            mirrorinterval: 24h0m0s
+          visibility:
+            repositories: private
+            organizations: private
+  mint_token.py: |-
+    #!/usr/bin/env python3
+    """Mint the Forgejo access token gickup uses for this run.
+
+    Forgejo shows a token once, at creation, and only the basic-auth
+    /users/{name}/tokens endpoints create one, so nothing durable holds it.
+    Every run deletes the token named TOKEN_NAME if it exists, creates a fresh
+    one with TOKEN_SCOPES, and writes it to TOKEN_PATH for the gickup
+    container. Prints HTTP statuses only. Standard library only.
+    """
+
+    import base64
+    import json
+    import os
+    import sys
+    import urllib.error
+    import urllib.request
+
+    URL = os.environ["FORGEJO_URL"].rstrip("/") + "/api/v1"
+    USER = os.environ["FORGEJO_ADMIN_USERNAME"]
+    NAME = os.environ.get("TOKEN_NAME", "gickup")
+    SCOPES = [s for s in os.environ.get("TOKEN_SCOPES", "").split(",") if s]
+    PATH = os.environ["TOKEN_PATH"]
+    AUTH = "Basic " + base64.b64encode(
+        f"{USER}:{os.environ['FORGEJO_ADMIN_PASSWORD']}".encode()
+    ).decode()
+
+    def call(method, endpoint, body=None):
+        data = None if body is None else json.dumps(body).encode()
+        req = urllib.request.Request(
+            URL + endpoint,
+            data=data,
+            method=method,
+            headers={
+                "Authorization": AUTH,
+                "Accept": "application/json",
+                "Content-Type": "application/json",
+            },
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                raw = resp.read()
+                return resp.status, (json.loads(raw) if raw else None)
+        except urllib.error.HTTPError as err:
+            # Error bodies can echo the request, so only the status is kept.
+            return err.code, None
+
+    def existing_tokens():
+        page = 1
+        found = []
+        while True:
+            status, tokens = call("GET", f"/users/{USER}/tokens?page={page}&limit=50")
+            if status != 200:
+                sys.exit(f"list tokens: HTTP {status}")
+            if not tokens:
+                return found
+            found.extend(tokens)
+            page += 1
+
+    for token in existing_tokens():
+        if token.get("name") != NAME:
+            continue
+        status, _ = call("DELETE", f"/users/{USER}/tokens/{token['id']}")
+        print(f"delete token {NAME} (id {token['id']}): HTTP {status}")
+        if status != 204:
+            sys.exit(1)
+
+    status, created = call("POST", f"/users/{USER}/tokens", {"name": NAME, "scopes": SCOPES})
+    print(f"create token {NAME} scopes={','.join(SCOPES)}: HTTP {status}")
+    if status != 201 or not created or not created.get("sha1"):
+        sys.exit(1)
+
+    fd = os.open(PATH, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w") as handle:
+        handle.write(created["sha1"])
+    print(f"wrote {PATH}")

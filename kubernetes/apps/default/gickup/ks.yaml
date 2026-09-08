@@ -3,23 +3,19 @@
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
-  name: &app forgejo
+  name: &app gickup
   namespace: &namespace default
 spec:
   commonMetadata:
     labels:
       app.kubernetes.io/name: *app
-  components:
-    - ../../../../components/volsync
+  dependsOn:
+    - name: forgejo
+    - name: onepassword-connect
+      namespace: external-secrets
   interval: 1h
-  path: ./kubernetes/apps/default/forgejo/app
-  postBuild:
-    substitute:
-      APP: *app
-      # ~25 GB of starred-repository mirrors plus own repositories and wikis;
-      # ceph-block expands in place, so this is headroom rather than a cost.
-      VOLSYNC_CAPACITY: 100Gi
-      VOLSYNC_CACHE_CAPACITY: 10Gi
+  path: ./kubernetes/apps/default/gickup/app
+  postBuild: {}
   prune: true
   retryInterval: 2m
   sourceRef:
