@@ -15,16 +15,13 @@ data:
   conf.yml: |
     source:
       github:
-        # Own repositories, private ones included, plus the company org. The
-        # token lists everything the account can reach, which includes ~60
-        # private repositories other people share with it, so includeorgs
-        # keeps only these two owners. includeorgs also filters starred
-        # repositories, which is why stars are the separate entry below.
+        # Everything the account can reach, private ones included: its own
+        # repositories, the organisations it belongs to, and repositories
+        # other people share with it as a collaborator. To narrow this again,
+        # add an includeorgs list of owner logins; it filters starred
+        # repositories too, which is why stars are the separate entry below.
         - token_file: /secrets/GITHUB_TOKEN
           user: LukeEvansTech
-          includeorgs:
-            - LukeEvansTech
-            - codelooks-com
           wiki: true
           filter:
             excludeforks: true
