@@ -1,7 +1,7 @@
 # Troubleshooting
 
 This section tracks known issues and their workarounds in the cluster, split into one
-knowledge-base entry per issue. Each entry follows the same shape: **Symptom → Cause → Fix**.
+knowledge-base entry per issue. Each entry follows the same shape: symptom, cause, fix.
 
 ## Symptom ladder
 
@@ -24,6 +24,7 @@ Work down from what you observe to the most likely entry:
     - `CephMonDownQuorumAtRisk` (critical) fires minutes after cordoning a control-plane node → [KB-019](kb/019-cordon-control-plane-breaks-ceph-mon-quorum.md)
     - Snapshot CRDs vanish minutes after merging a chart migration; controller crash-loops on "failure to ensure CRDs exist"; HelmRelease rollback loop re-deletes them each retry → [KB-029](kb/029-chart-migration-deletes-keep-annotated-crds.md)
     - One app's `volsync-src-<app>-nfs-*` mover pods sit in `Error` while every other app backs up fine; the log ends `write /cache/CACHEDIR.TAG: no space left on device` then `found existing data in storage location` → [KB-030](kb/030-volsync-kopia-cache-pvc-too-small.md)
+    - A restore hangs on an unbindable cache PVC, is offered less capacity than the data, or hits ENOSPC on `/cache`, while every backup is green → [KB-031](kb/031-volsync-restore-destinations-never-updated.md)
 - **Workloads / pods**
     - A JVM/Logstash pod OOMKills on a cadence despite a bounded heap → [KB-012](kb/012-jvm-container-rss-oom-malloc-arena-max.md)
     - A pure-Go pod SIGSEGVs (`exit 139`) on a large fraction of starts, before any logs → [KB-013](kb/013-go-1264-binary-startup-sigsegv.md)
@@ -39,7 +40,8 @@ Work down from what you observe to the most likely entry:
     - Apple TV shows one frame of a 4K title then the Plex app freezes (force-quit to recover); the same file plays fine in Infuse → [KB-026](kb/026-plex-apple-tv-app-receive-window-deadlock.md)
 - **Talos upgrades**
     - TUPPR patch rollout stuck after drain; node cordoned and still on the old version → [KB-004](kb/004-talos-patch-rollout-gotchas-tuppr.md)
-    - Upgrade reports success but the node comes back Ready, uncordoned, and still on the old version (after a BIOS flash) → [KB-028](kb/028-talos-upgrade-boots-old-version-loaderentrydefault.md)
+    - Upgrade reports success but the node comes back Ready, uncordoned, and still on the old version; it rebooted promptly → [KB-028](kb/028-talos-upgrade-boots-old-version-loaderentrydefault.md) (NVRAM wipe left a stale `LoaderEntryDefault`)
+    - Same, but the node took about 5 minutes to go down after the install completed → the reboot-sequence teardown revert in [Talos upgrades](../operations/talos-upgrades.md#upgrade-didnt-take-node-reboots-into-the-old-version)
 - **CI / validation / local dev**
     - `Flate - Test` fails or skips on the `gpu-operator` namespace → [KB-005](kb/005-flate-misresolves-ngc-helmrepository-chart-urls.md)
     - Checkov CKV_K8S_21 flags a namespaced resource as `default` → [KB-006](kb/006-checkov-ckv-k8s-21-namespaced-resources.md)
@@ -59,7 +61,7 @@ Work down from what you observe to the most likely entry:
 - [KB-010: Rook-Ceph v1.20 CSI Driver Split Gotchas](kb/010-rook-ceph-v120-csi-driver-split.md)
 - [KB-011: konflate Render Failures (Cache Inode Fill / Phantom Mirror)](kb/011-konflate-render-failures.md)
 - [KB-012: JVM / Logstash Container RSS OOM Despite a Bounded Heap (`MALLOC_ARENA_MAX`)](kb/012-jvm-container-rss-oom-malloc-arena-max.md)
-- [KB-013: Go 1.26.4 Binary SIGSEGV at Startup (Before Any Logging)](kb/013-go-1264-binary-startup-sigsegv.md)
+- [KB-013: Go Pod Startup SIGSEGV Was a UPX Stub vs. Service-Link Env Vars, Not a Go Regression](kb/013-go-1264-binary-startup-sigsegv.md)
 - [KB-014: GPU Device-Plugin Handover Leaves `allocatable.nvidia.com/gpu = 0`](kb/014-gpu-device-plugin-handover-allocatable-zero.md)
 - [KB-015: Slow Image Pulls Exceed the HelmRelease Timeout (Rollback Loop)](kb/015-slow-image-pulls-exceed-helmrelease-timeout.md)
 - [KB-016: Kopia Repo Server OOM = Repo Size, Not a Maintenance Failure](kb/016-kopia-repo-server-oom-repo-size.md)
@@ -77,3 +79,4 @@ Work down from what you observe to the most likely entry:
 - [KB-028: Talos Upgrade Installs Successfully but the Node Boots the Old Version (NVRAM Wipe)](kb/028-talos-upgrade-boots-old-version-loaderentrydefault.md)
 - [KB-029: Chart Migration Deletes Keep-Annotated CRDs (postRenderer Removal Races the Chart Swap)](kb/029-chart-migration-deletes-keep-annotated-crds.md)
 - [KB-030: VolSync Kopia Backups Fail with `no space left on device` on `/cache`](kb/030-volsync-kopia-cache-pvc-too-small.md)
+- [KB-031: VolSync Restore Destinations Silently Frozen at Creation-Time Values](kb/031-volsync-restore-destinations-never-updated.md)

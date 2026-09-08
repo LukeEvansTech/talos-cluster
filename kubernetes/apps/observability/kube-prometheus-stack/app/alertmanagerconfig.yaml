@@ -31,7 +31,7 @@ spec:
           - name: alertname
             value: Watchdog
             matchType: =
-      # UPS emergencies — page at Pushover priority 2 (retry/expire) until acknowledged.
+      # UPS emergencies, page at Pushover priority 2 (retry/expire) until acknowledged.
       # Placed before the generic critical route (first match wins) so only alerts
       # labelled pushover_priority=emergency escalate; every other critical still routes
       # to the normal pushover receiver unchanged.
@@ -59,13 +59,47 @@ spec:
         - name: severity
           value: warning
           matchType: =
+    # CephHealthWarning is a catch-all on ceph_health_status == 1 -- it says the
+    # cluster is in HEALTH_WARN without saying why, so it duplicates whichever
+    # specific Ceph alert already describes the condition. Ceph's own rules give
+    # the specific alert a short "for" and the catch-all 15m, so one event
+    # arrives as two pages a quarter of an hour apart and then two resolves.
+    # Suppress the catch-all whenever a specific Ceph alert is firing for the
+    # same cluster; a HEALTH_WARN with no specific alert behind it still pages.
+    # The source deliberately excludes both catch-alls rather than relying on
+    # Alertmanager's two-sided-match handling, so source and target are disjoint
+    # by construction. CephHealthError is never a target: HEALTH_ERR pages.
+    - equal:
+        - "cluster"
+        - "namespace"
+      sourceMatch:
+        - name: alertname
+          value: "Ceph.+"
+          matchType: "=~"
+        - name: alertname
+          value: "CephHealth(Warning|Error)"
+          matchType: "!~"
+      targetMatch:
+        - name: alertname
+          value: CephHealthWarning
+          matchType: =
   receivers:
     - name: "null"
+    # sendResolved is false here, and it is load-bearing rather than tidiness.
+    # Healthchecks.io treats any request to the ping URL as a success ping and
+    # never reads the body, so a "resolved" notification is indistinguishable
+    # from "still alive". That is the one notification a dead man's switch must
+    # not send: it arrives at the exact moment the signal died and pushes the
+    # check's clock forward by a repeatInterval, delaying the alarm by the
+    # length of time it took to notice. Watchdog resolving is not hypothetical.
+    # alertmanagerSpec sets resolveTimeout 5m, so a Prometheus outage would
+    # otherwise buy itself one last ping on the way down.
     - name: heartbeat
       webhookConfigs:
         - urlSecret:
             name: &secret alertmanager-secret
             key: ALERTMANAGER_HEARTBEAT_URL
+          sendResolved: false
     - name: pushover
       pushoverConfigs:
         - html: true

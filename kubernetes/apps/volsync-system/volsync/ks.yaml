@@ -6,11 +6,6 @@ metadata:
   name: volsync
   namespace: volsync-system
 spec:
-  dependsOn:
-    - name: miroir
-      namespace: miroir-system
-    - name: snapshot-controller
-      namespace: kube-system
   interval: 1h
   path: ./kubernetes/apps/volsync-system/volsync/app
   prune: true

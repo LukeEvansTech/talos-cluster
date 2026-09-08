@@ -39,7 +39,7 @@ spec:
         containers:
           app:
             image:
-              # Open Home Foundation matter.js server — drop-in replacement for
+              # Open Home Foundation matter.js server. drop-in replacement for
               # the archived python-matter-server (same ws API on :5580, same
               # CLI flags), and what HA's Matter integration targets going
               # forward.
@@ -69,7 +69,7 @@ spec:
     defaultPodOptions:
       annotations:
         # Temporary legacy flat-LAN attachment (L2 adjacency with the
-        # coordinator's on-device OTBR) — move to the `iot` NAD when the
+        # coordinator's on-device OTBR), move to the `iot` NAD when the
         # coordinator re-homes to VLAN 68.
         k8s.v1.cni.cncf.io/networks: |-
           [{

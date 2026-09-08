@@ -9,10 +9,13 @@ components:
 resources:
   - ./namespace.yaml
   - ./netpol.yaml
+  - ./arrmcp/ks.yaml
   - ./hermes/ks.yaml
   - ./hermeswebui/ks.yaml
   - ./litellm/ks.yaml
+  - ./litellm-operator/ks.yaml
   - ./llmkube/ks.yaml
   - ./memini/ks.yaml
   - ./open-webui/ks.yaml
+  - ./repowiki/ks.yaml
   - ./toolhive/ks.yaml

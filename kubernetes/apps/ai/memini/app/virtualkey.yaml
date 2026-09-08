@@ -1,0 +1,17 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/litellm.home-operations.com/litellmvirtualkey_v1alpha1.json
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMVirtualKey
+metadata:
+  name: memini
+  namespace: ai
+spec:
+  # The operator mints this key on the litellm proxy and writes it to the
+  # named Secret; scope is limited to the consolidation model group so a leak
+  # can't reach the master key's full account access.
+  proxyRef: litellm
+  keyAlias: memini
+  secretName: litellm-key-memini
+  secretKey: api-key
+  models:
+    - self-hosted

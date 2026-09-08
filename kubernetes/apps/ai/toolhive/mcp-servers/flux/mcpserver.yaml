@@ -5,7 +5,7 @@ kind: MCPServer
 metadata:
   name: flux
 spec:
-  image: ghcr.io/controlplaneio-fluxcd/flux-operator-mcp:v0.58.0@sha256:8121d827053a4e26945d56ba6dcd017db38fd7bc94cd9b7343bc3ad9102a5bbf
+  image: ghcr.io/controlplaneio-fluxcd/flux-operator-mcp:v0.59.0@sha256:ca1b36b93bb8fa22eb941af690c1788c5eddc12497eff645452f9710b2c389c0
   transport: streamable-http
   proxyMode: streamable-http
   proxyPort: 8080
@@ -21,6 +21,12 @@ spec:
     spec:
       containers:
         - name: mcp
+          # flux-operator-mcp defaults --read-only to false (confirmed via
+          # `flux-operator-mcp --help` and upstream docs/mcp/mcp-config.md);
+          # this deployment has never passed the flag, so the
+          # reconcile/suspend/resume/apply/delete tools have always been
+          # registered here. RBAC in rbac.yaml is the actual, and only,
+          # enforcement layer, both before and after enabling flux-mcp-write.
           args:
             - serve
             - --transport=http

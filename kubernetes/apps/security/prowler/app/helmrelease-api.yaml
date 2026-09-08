@@ -36,7 +36,7 @@ spec:
           api:
             image: &image
               repository: prowlercloud/prowler-api
-              tag: 5.39.0@sha256:9b2032e3495fa5763b43912b4cf43c3dc4fcaf74ba8eb851243f16b9f4eb40f2
+              tag: 5.41.0@sha256:0869bf6efdfefeb86722fbac4d64cc2bf826435c6b814ae64adb254670b8fedb
             env: &commonEnv
               TZ: ${TIMEZONE}
               DJANGO_SETTINGS_MODULE: config.django.production
@@ -46,10 +46,10 @@ spec:
               DJANGO_LOGGING_FORMATTER: ndjson
               DJANGO_LOGGING_LEVEL: INFO
               DJANGO_MANAGE_DB_PARTITIONS: "True"
-              # Cap gunicorn workers — defaults to (CPU*2+1) which on a
+              # Cap gunicorn workers, defaults to (CPU*2+1) which on a
               # 24-core node was 49 workers * ~80MB each = 4GB just for api.
               DJANGO_WORKERS: "4"
-              # Same story for Celery's prefork pool — defaults to
+              # Same story for Celery's prefork pool, defaults to
               # os.cpu_count() (24 here), and 24 Django children idle at ~4GB.
               DJANGO_CELERY_WORKER_CONCURRENCY: "4"
             envFrom: *envFrom
@@ -145,7 +145,7 @@ spec:
             port: *port
 
     persistence:
-      # Shared scan-output volume — written by `worker`, served by `api`.
+      # Shared scan-output volume, written by `worker`, served by `api`.
       output:
         type: emptyDir
         globalMounts:

@@ -18,13 +18,13 @@ spec:
           app:
             image:
               repository: ghcr.io/starosdev/scrutiny
-              tag: 1.68.0-omnibus@sha256:8a899178c94f8d1e668f376c9bc103575cf524de76abd057fdd880912dbb4ad0
+              tag: 1.73.0-omnibus@sha256:0cfd3d6346b8a8af0b5fe2711a79f337e26631242d68dac61c4d89f1fb06539a
             env:
               TZ: ${TIMEZONE:=UTC}
               # In-pod collector disabled: collection is handled uniformly by the
               # scrutiny-collector DaemonSet, keeping this server unprivileged.
               COLLECTOR_RUN_STARTUP: "false"
-              COLLECTOR_CRON_SCHEDULE: "0 0 30 2 *" # 30 February — never fires
+              COLLECTOR_CRON_SCHEDULE: "0 0 30 2 *" # 30 February. Never fires
               # v1.67.0 migrates the embedded InfluxDB 2.2 → 2.9.1 and refuses
               # to start on existing data without this acknowledgement
               # (Starosdev/scrutiny#662). Pre-migration VolSync snapshots taken

@@ -13,8 +13,8 @@ spec:
     - ../../../../components/homepage
     - ../../../../components/volsync
   dependsOn:
-    - name: rook-ceph-cluster
-      namespace: rook-ceph
+    - name: onepassword-connect
+      namespace: external-secrets
   interval: 1h
   path: ./kubernetes/apps/media/recommendarr/app
   postBuild:

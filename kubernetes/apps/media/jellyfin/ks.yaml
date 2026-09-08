@@ -14,10 +14,8 @@ spec:
     - ../../../../components/volsync
     - ../../../../components/zeroscaler
   dependsOn:
-    - name: gpu-operator
-      namespace: gpu-operator
-    - name: rook-ceph-cluster
-      namespace: rook-ceph
+    - name: onepassword-connect
+      namespace: external-secrets
   interval: 1h
   path: ./kubernetes/apps/media/jellyfin/app
   postBuild:

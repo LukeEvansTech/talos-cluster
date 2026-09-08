@@ -16,7 +16,9 @@ spec:
   postBuild:
     substitute:
       APP: *app
-      VOLSYNC_CAPACITY: 50Gi
+      # ~25 GB of starred-repository mirrors plus own repositories and wikis;
+      # ceph-block expands in place, so this is headroom rather than a cost.
+      VOLSYNC_CAPACITY: 100Gi
       VOLSYNC_CACHE_CAPACITY: 10Gi
   prune: true
   retryInterval: 2m

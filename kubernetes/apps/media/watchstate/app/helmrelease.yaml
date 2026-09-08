@@ -18,7 +18,7 @@ spec:
           app:
             image:
               repository: ghcr.io/arabcoders/watchstate
-              tag: v1.10.2@sha256:5dc9a6e719e7ea0632aa44cf4e911c70acb1c01807925c2b91b4e936ade55d6b
+              tag: v1.10.4@sha256:040e22c566e0d7190d26fbe7a08b2b9e19a2f26188c562d59196abaa642238aa
             env:
               TZ: ${TIMEZONE}
             probes:

@@ -1,11 +1,29 @@
 ---
+# Separate PVC for cache, to keep regenerable cache files out of the backup.
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: plex-cache
 spec:
-  accessModes: ["ReadWriteOnce"]
+  accessModes:
+    - "ReadWriteOnce"
   resources:
     requests:
       storage: 100Gi
+  storageClassName: ceph-block
+---
+# Plex's "Media" directory: generated trickplay / BIF preview bundles. ~247G of
+# the ~291G on the config volume, regenerable from the library, and shipped to
+# both VolSync targets for no benefit. Same reasoning as plex-cache, far larger.
+# Cutover runbook: docs/docs/migrations/plex-media-bundles-volume.md
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: plex-bundles
+spec:
+  accessModes:
+    - "ReadWriteOnce"
+  resources:
+    requests:
+      storage: 500Gi
   storageClassName: ceph-block

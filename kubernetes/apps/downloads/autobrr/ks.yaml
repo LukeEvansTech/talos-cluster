@@ -23,7 +23,7 @@ spec:
       VOLSYNC_CAPACITY: 1Gi
       HOMEPAGE_NAME: Autobrr
       HOMEPAGE_GROUP: Downloads
-      HOMEPAGE_ICON: autobrr
+      HOMEPAGE_ICON: autobrr.svg
       HOMEPAGE_DESCRIPTION: Torrent automation
   prune: true
   retryInterval: 2m

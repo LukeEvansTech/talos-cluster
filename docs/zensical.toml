@@ -3,7 +3,7 @@
 
 [project]
 site_name = "Talos Cluster"
-site_description = "Home Kubernetes cluster (Talos + Flux) — architecture, operations, and knowledge base."
+site_description = "Home Kubernetes cluster (Talos + Flux): architecture, operations, and knowledge base."
 site_author = "Luke Evans"
 site_url = "https://lukeevanstech.github.io/talos-cluster/"
 copyright = "Copyright (c) 2026 Luke Evans"
@@ -48,6 +48,7 @@ nav = [
   { "Migrations" = [
     { "Envoy Gateway" = "migrations/envoy-gateway.md" },
     { "Multus VLAN" = "migrations/multus-vlan.md" },
+    { "Plex media bundles volume" = "migrations/plex-media-bundles-volume.md" },
     { "VolSync / Kopia" = "migrations/volsync-kopia.md" },
   ] },
   { "Apps" = [
@@ -62,6 +63,7 @@ nav = [
     { "iSponsorBlockTV" = "apps/isponsorblocktv.md" },
     { "changedetection.io" = "apps/changedetection.md" },
     { "Scrypted" = "apps/scrypted.md" },
+    { "Forgejo" = "apps/forgejo.md" },
   ] },
   { "Troubleshooting" = [
     { "Symptom ladder" = "troubleshooting/index.md" },
@@ -96,6 +98,7 @@ nav = [
       { "028: Talos upgrade boots old version" = "troubleshooting/kb/028-talos-upgrade-boots-old-version-loaderentrydefault.md" },
       { "029: Chart migration deletes keep-annotated CRDs" = "troubleshooting/kb/029-chart-migration-deletes-keep-annotated-crds.md" },
       { "030: VolSync Kopia cache PVC too small" = "troubleshooting/kb/030-volsync-kopia-cache-pvc-too-small.md" },
+      { "031: VolSync restore destinations never updated" = "troubleshooting/kb/031-volsync-restore-destinations-never-updated.md" },
     ] },
   ] },
   { "FAQ" = "faq.md" },

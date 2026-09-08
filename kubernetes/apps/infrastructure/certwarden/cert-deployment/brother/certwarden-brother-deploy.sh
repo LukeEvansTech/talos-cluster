@@ -63,8 +63,10 @@ kubectl create secret generic "${CERT_SECRET_NAME}" \
     --from-literal=cert.pem="${CERTIFICATE_PEM}" \
     --from-literal=key.pem="${PRIVATE_KEY_PEM}"
 
-# Note: Secret cleanup is handled by the Job's ownerReferences
-# The secret will be garbage collected when the Job is deleted via ttlSecondsAfterFinished
+# The Secret is adopted by the Job further down, once the Job exists and has
+# a UID to point at. It cannot be created with an ownerReference here
+# because the owner does not exist yet, and a stale/incorrect ownerReference
+# would have the Secret garbage-collected immediately.
 
 # Create the deployment Job
 echo "Creating deployment Job: ${JOB_NAME}"
@@ -127,6 +129,21 @@ spec:
           secret:
             secretName: ${CERT_SECRET_NAME}
 EOF
+
+# Make the Job the owner of the cert Secret so the two are deleted together.
+# blockOwnerDeletion is false so the Secret can never hold up deletion of
+# the Job, and a failure here is not fatal: the deployment itself has
+# already been submitted, and a Secret that outlives its Job is the old
+# (bad) behaviour rather than a new one.
+echo "Binding Secret ${CERT_SECRET_NAME} to Job ${JOB_NAME} for cleanup"
+JOB_UID=$(kubectl get job "${JOB_NAME}" -n "${NAMESPACE}" -o jsonpath='{.metadata.uid}' 2>/dev/null || true)
+if [[ -n "${JOB_UID}" ]]; then
+    kubectl patch secret "${CERT_SECRET_NAME}" -n "${NAMESPACE}" --type merge -p \
+        "{\"metadata\":{\"ownerReferences\":[{\"apiVersion\":\"batch/v1\",\"kind\":\"Job\",\"name\":\"${JOB_NAME}\",\"uid\":\"${JOB_UID}\",\"controller\":false,\"blockOwnerDeletion\":false}]}}" ||
+        echo "WARNING: could not set ownerReference on ${CERT_SECRET_NAME}; it will need manual cleanup"
+else
+    echo "WARNING: could not read Job UID; ${CERT_SECRET_NAME} will need manual cleanup"
+fi
 
 # Wait for the job to complete
 echo "Waiting for Job to complete..."

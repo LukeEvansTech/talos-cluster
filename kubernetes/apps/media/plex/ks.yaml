@@ -14,16 +14,16 @@ spec:
     - ../../../../components/volsync
     - ../../../../components/zeroscaler
   dependsOn:
-    - name: gpu-operator
-      namespace: gpu-operator
-    - name: rook-ceph-cluster
-      namespace: rook-ceph
+    - name: onepassword-connect
+      namespace: external-secrets
   interval: 1h
   path: ./kubernetes/apps/media/plex/app
   postBuild:
     substitute:
       APP: *app
-      VOLSYNC_CAPACITY: 300Gi
+      # 290G of 294G used and growing ~7.5G/week, almost all of it generated
+      # trickplay thumbnails under Media/. 500Gi buys ~6 months.
+      VOLSYNC_CAPACITY: 500Gi
       VOLSYNC_CACHE_CAPACITY: 100Gi
       HOMEPAGE_NAME: Plex
       HOMEPAGE_GROUP: Media

@@ -10,6 +10,7 @@ spec:
     labels:
       app.kubernetes.io/name: *app
   components:
+    - ../../../../components/homepage
     - ../../../../components/volsync
   interval: 1h
   path: ./kubernetes/apps/default/privatebin/app
@@ -17,6 +18,10 @@ spec:
     substitute:
       APP: *app
       VOLSYNC_CAPACITY: 2Gi
+      HOMEPAGE_NAME: PrivateBin
+      HOMEPAGE_GROUP: Tools
+      HOMEPAGE_ICON: privatebin.svg
+      HOMEPAGE_DESCRIPTION: Encrypted paste
   prune: true
   retryInterval: 2m
   sourceRef:

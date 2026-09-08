@@ -18,13 +18,13 @@ spec:
           app:
             image:
               repository: itzg/minecraft-server
-              tag: java21@sha256:87dc76bc668aff03c09df2a8d20f6aa05b884e3ee1ed62b1fdabe9a3e0ec51ae
+              tag: java25@sha256:8672e335dbef2699e2813e97ec2d4a7cbee26f7b64ec17e98c761d2eead3b968
             env:
               TZ: "${TIMEZONE}"
               # Server type and version
               TYPE: "PAPER"
               # renovate: datasource=custom.minecraft-release
-              VERSION: "1.21.11"
+              VERSION: "26.2"
               # Server settings
               EULA: "TRUE"
               SERVER_NAME: "Minecraft Server"

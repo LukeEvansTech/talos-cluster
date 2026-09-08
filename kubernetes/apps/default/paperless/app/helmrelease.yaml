@@ -34,7 +34,7 @@ spec:
           app:
             image:
               repository: docker.io/paperlessngx/paperless-ngx
-              tag: 3.0.5@sha256:65a4cabf0169ea7fbd90ab7bb28ba3f8b5909613635acda1a03ad606f34b456b
+              tag: 3.1.3@sha256:aa810a36942c63d4ee70d00eda7236cd3d6acfb7eb3f7987fb568ed14df8817a
             env:
               TZ: ${TIMEZONE}
               PAPERLESS_TIME_ZONE: ${TIMEZONE}
@@ -60,7 +60,7 @@ spec:
               PAPERLESS_URL: "https://paperless.${SECRET_DOMAIN}"
               # Namespace every broker/cache key (kombu global_keyprefix).
               # Dragonfly runs cluster_mode=emulated (db 0 only), and prowler's
-              # Celery worker also consumes the default "celery" queue there —
+              # Celery worker also consumes the default "celery" queue there,
               # without a prefix it steals paperless tasks (observed as
               # KeyError: paperless_mail.tasks.process_mail_accounts in the
               # prowler worker once it finally started consuming).

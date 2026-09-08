@@ -125,12 +125,6 @@ spec:
             port: *serverPort
       web:
         controller: web
-        annotations:
-          gethomepage.dev/enabled: "true"
-          gethomepage.dev/name: YourSpotify
-          gethomepage.dev/group: Media
-          gethomepage.dev/icon: spotify.svg
-          gethomepage.dev/description: Spotify stats
         ports:
           http:
             port: *webPort
@@ -151,6 +145,15 @@ spec:
               - name: "{{ .Release.Name }}-server"
                 port: *serverPort
       web:
+        # Homepage discovers annotated HTTPRoutes (not Services). The route is
+        # named yourspotify-web, so pin the pod selector to the release name.
+        annotations:
+          gethomepage.dev/enabled: "true"
+          gethomepage.dev/app: yourspotify
+          gethomepage.dev/name: YourSpotify
+          gethomepage.dev/group: Media
+          gethomepage.dev/icon: spotify.svg
+          gethomepage.dev/description: Spotify stats
         hostnames:
           - "{{ .Release.Name }}.${SECRET_DOMAIN}"
         parentRefs:

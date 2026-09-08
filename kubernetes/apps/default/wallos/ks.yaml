@@ -13,8 +13,8 @@ spec:
     - ../../../../components/homepage
     - ../../../../components/volsync
   dependsOn:
-    - name: rook-ceph-cluster
-      namespace: rook-ceph
+    - name: onepassword-connect
+      namespace: external-secrets
   interval: 1h
   path: ./kubernetes/apps/default/wallos/app
   postBuild:
@@ -23,7 +23,7 @@ spec:
       VOLSYNC_CAPACITY: 1Gi
       HOMEPAGE_NAME: Wallos
       HOMEPAGE_GROUP: Tools
-      HOMEPAGE_ICON: wallos.svg
+      HOMEPAGE_ICON: wallos.png
       HOMEPAGE_DESCRIPTION: Subscription tracker
   prune: true
   retryInterval: 2m

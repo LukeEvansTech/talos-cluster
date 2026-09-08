@@ -6,8 +6,35 @@ metadata:
   name: allow-cross-namespace-ingress
 spec:
   description: "Allow ingress from gateway (network namespace)"
-  endpointSelector: {}
+  endpointSelector:
+    matchExpressions:
+      - key: app.kubernetes.io/name
+        operator: NotIn
+        values:
+          # Holds a signed-in mail session behind no authentication of its own,
+          # and is reached only by `kubectl port-forward`. allow-kube-apiserver
+          # still grants it host ingress, which is that path.
+          - thunderbird
   ingress:
     - fromEndpoints:
         - matchLabels:
             io.kubernetes.pod.namespace: network
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/cilium.io/ciliumnetworkpolicy_v2.json
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: allow-searxng-from-ai
+spec:
+  # open-webui and mcp-searxng (both in `ai`) call SearXNG directly by its
+  # ClusterIP DNS name for web search rather than through the envoy-internal
+  # route. Additive to the namespace-wide policy above (Cilium unions
+  # allows), scoped to the searxng endpoint only.
+  description: "Allow ai namespace pods to reach searxng"
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: searxng
+  ingress:
+    - fromEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: ai

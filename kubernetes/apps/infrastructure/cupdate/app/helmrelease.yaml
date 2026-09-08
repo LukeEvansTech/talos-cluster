@@ -63,8 +63,9 @@ spec:
               requests:
                 cpu: 10m
                 memory: 256Mi
+              # Scan-pass bursts peaked at the old 512Mi ceiling (five OOM kills 2026-09-03..07); steady state is ~200Mi.
               limits:
-                memory: 512Mi
+                memory: 1Gi
             securityContext:
               allowPrivilegeEscalation: false
               capabilities:

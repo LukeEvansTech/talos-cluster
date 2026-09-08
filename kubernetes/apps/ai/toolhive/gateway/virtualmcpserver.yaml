@@ -1,0 +1,85 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/toolhive.stacklok.dev/virtualmcpserver_v1beta1.json
+apiVersion: toolhive.stacklok.dev/v1beta1
+kind: VirtualMCPServer
+metadata:
+  name: mcp-gateway
+spec:
+  # Aggregates every MCPServer/MCPServerEntry in the mcp-tools MCPGroup (see
+  # ../app/mcpgroup.yaml) behind one endpoint. Tool names collide across
+  # backends (e.g. multiple "search" tools), so conflicts are resolved by
+  # prefixing every tool with its backend workload name.
+  config:
+    aggregation:
+      conflictResolution: prefix
+      conflictResolutionConfig:
+        prefixFormat: "{workload}_"
+    # With 9 backends the raw tool list is too large for most client context
+    # windows. The optimizer exposes only find_tool/call_tool to clients and
+    # resolves the right backend tool semantically via embeddings, instead of
+    # advertising every tool up front.
+    #
+    # Uses qwen3-embedding (Qwen3-Embedding-0.6B, 8k context; served by the
+    # dedicated CPU toolhiveembed pod, ../embed/helmrelease.yaml) rather than
+    # LiteLLM's existing all-minilm model. all-minilm is all-MiniLM-L6-v2, a
+    # BERT model with a hard 512-token absolute-position limit, and some
+    # kubectl tool descriptions exceed it. The optimizer previously
+    # terminated every VMCP session with an OpenAI 400 "input larger than max
+    # context size" error trying to embed them. all-minilm stays in place for
+    # memini and LiteLLM's own semantic tool filter
+    # (../../litellm/app/litellmproxy.yaml `mcp_semantic_tool_filter`),
+    # neither of which hits that limit. Mirrors Jory's dedicated
+    # toolhive-embed llama.cpp server
+    # (docs/docs/operations/jory-homeops-adoption.md), but on CPU since the
+    # cluster's GPUs are already spoken for.
+    optimizer:
+      embeddingModel: qwen3-embedding
+      embeddingProvider: openai
+      embeddingService: http://litellm.ai.svc.cluster.local:4000/v1
+      # A fresh session embeds every tool description through the CPU embedder;
+      # measured ~2 min for the full set, so 60s (Jory's GPU-sized value) timed
+      # out and stacked retries. 600s leaves headroom without hiding a real hang.
+      embeddingServiceTimeout: 600s
+  groupRef:
+    name: mcp-tools
+  # No client-facing auth at the vmcp layer itself: the Envoy Gateway
+  # SecurityPolicy (../gateway/securitypolicy.yaml) enforces the x-api-key
+  # requirement in front of this HTTPRoute, and the in-cluster Service has no
+  # route at all, so anonymous here does not mean unauthenticated in practice.
+  incomingAuth:
+    type: anonymous
+  outgoingAuth:
+    source: discovered
+  podTemplateSpec:
+    spec:
+      containers:
+        - name: vmcp
+          env:
+            # LiteLLM virtual key scoped to all-minilm + qwen3-embedding (see
+            # ../gateway/virtualkey.yaml); read by the optimizer's OpenAI-
+            # compatible embedding client.
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: litellm-key-toolhive
+                  key: api-key
+          resources:
+            requests:
+              memory: 256Mi
+            limits:
+              memory: 2Gi
+  # Redis-backed sessions so the vmcp Deployment can scale beyond one replica
+  # without pinning MCP clients to a specific pod.
+  sessionStorage:
+    provider: redis
+    address: dragonfly.database.svc.cluster.local:6379
+    db: 0
+    keyPrefix: "toolhive:vmcp:"
+    passwordRef:
+      name: toolhive-gateway-redis
+      key: password
+  # Enables the unauthenticated /metrics endpoint on the same port as the MCP
+  # traffic; scraped by ../gateway/podmonitor.yaml. Reuses the MCPTelemetryConfig
+  # already created by the toolhive Kustomization (../app/mcptelemetryconfig.yaml).
+  telemetryConfigRef:
+    name: prometheus

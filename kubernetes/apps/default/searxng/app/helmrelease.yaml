@@ -17,17 +17,17 @@ spec:
         containers:
           app:
             image:
-              repository: docker.io/searxng/searxng
-              tag: 2026.1.2-3d88876a3@sha256:472dd0c84b8e2a05bca773b4a430b9fc9e4e92cd4fa0afaa223efab925ab752a
+              repository: ghcr.io/searxng/searxng
+              tag: 2026.9.8-3fdc6d753@sha256:3547509b419cd6a67333d6d68bd1ffad8d46d3669d82e7a7bd538f7b45827432
             env:
               TZ: ${TIMEZONE}
               SEARXNG_BASE_URL: "https://search.${SECRET_DOMAIN}"
               SEARXNG_URL: "https://search.${SECRET_DOMAIN}"
-              SEARXNG_SECRET_KEY:
+              SEARXNG_SECRET:
                 valueFrom:
                   secretKeyRef:
                     name: searxng-secret
-                    key: SEARXNG_SECRET_KEY
+                    key: SEARXNG_SECRET
             envFrom:
               - secretRef:
                   name: searxng-secret

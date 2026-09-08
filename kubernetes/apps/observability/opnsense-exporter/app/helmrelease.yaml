@@ -18,18 +18,18 @@ spec:
           app:
             image:
               repository: ghcr.io/athennamind/opnsense-exporter
-              tag: 0.0.16@sha256:64469206eb955b6c87ec2737cd4884b0bec01b518408cf1ac6d5c153f6c0cf1f
+              tag: 0.0.17@sha256:04a28ad984a091ea1e8371cf515da8b38b1d00416f53e6b5c9d68fec39d92ce0
             env:
               # OPS_API / OPS_API_KEY / OPS_API_SECRET come from the secret (envFrom).
               OPNSENSE_EXPORTER_OPS_PROTOCOL: https
-              # OPNsense ships a self-signed cert by default — skip verification.
+              # OPNsense ships a self-signed cert by default, skip verification.
               OPNSENSE_EXPORTER_OPS_INSECURE: "true"
               OPNSENSE_EXPORTER_INSTANCE_LABEL: opnsense
               OPNSENSE_EXPORTER_WEB_LISTEN_ADDRESS: :8080
               # api/unbound/diagnostics/stats returns an empty body on this
               # OPNsense version (the collector errors `parsing '' to int` every
               # scrape; enabling unbound extended-statistics did not change it).
-              # No metrics are lost — the endpoint yields nothing either way — so
+              # No metrics are lost; the endpoint yields nothing either way, so
               # disable the broken collector to keep the logs clean.
               OPNSENSE_EXPORTER_DISABLE_UNBOUND: "true"
             envFrom:

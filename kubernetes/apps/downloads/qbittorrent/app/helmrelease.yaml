@@ -19,7 +19,7 @@ spec:
           app:
             nameOverride: qbittorrent
             image:
-              # libtorrent v1.2.x build (vs the default libtorrent v2) — better
+              # libtorrent v1.2.x build (vs the default libtorrent v2), better
               # private-tracker compatibility and fewer libtorrent-v2 disk/memory
               # quirks; matches the onedr0p/home-ops reference.
               repository: ghcr.io/home-operations/qbittorrent-libtorrentv1
@@ -33,7 +33,7 @@ spec:
               # unauthenticated localhost bypass.
               QBT_Preferences__WebUI__LocalHostAuth: true
               # libtorrent-v1 auto-sizes its disk cache from *detected* host RAM,
-              # which inside a container is the whole node — so the cache (and RSS)
+              # which inside a container is the whole node, so the cache (and RSS)
               # balloon until the cgroup OOMKills it mid-download. Pin the cache to
               # 256 MiB to keep memory flat (~330Mi steady-state). Set as a QBT_ env
               # (GitOps) so it survives a PVC recreate, not just the live PVC config.
@@ -88,7 +88,7 @@ spec:
             dependsOn: app
             image:
               repository: ghcr.io/martabal/qbittorrent-exporter
-              tag: v2.0.1@sha256:ddf2bff9b357e50be4ddb699b6489ac5a49e4fac8c7dc5d4ca2abe1e5855f4dd
+              tag: v2.0.3@sha256:bc4fa09481634ee894ebfb4d47c8aa239a32a12567b043afa01fa42a3075d1a5
             env:
               # Authenticate to the qBittorrent WebUI with real credentials from the
               # ExternalSecret (the localhost-auth bypass is disabled on the app container).

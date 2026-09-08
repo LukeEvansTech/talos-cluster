@@ -2,6 +2,26 @@
 apiVersion: v1alpha1
 kind: TimeSyncConfig
 ntp:
+  # UK pool, using the numbered names: each resolves to a disjoint set of
+  # servers, which is how the pool intends multiple sources to be requested.
+  # A bare uk.pool.ntp.org repeated would just re-roll the same rotation.
+  #
+  # Talos runs a single-server SNTP client, not chrony: it sticks to the last
+  # server that synced successfully (stored as the resolved IP) and only walks
+  # the list on failure. There is no averaging or outlier rejection across
+  # servers, so these five entries buy redundancy rather than accuracy -- if
+  # one operator has a bad day, time sync survives, but the clock is only ever
+  # as good as whichever single source it is currently pinned to.
+  #
+  # The trailing literal is deliberate: every name above needs DNS, and Talos
+  # gates boot on time sync, so a resolver outage at boot would otherwise leave
+  # a node with no reachable source at all. Cloudflare by address needs no
+  # lookup and is the floor under that. (Nothing here uses NTS -- Talos skips
+  # raw IPs for NTS, and the previous all-literal config never used it either,
+  # so moving to hostnames gives up nothing.)
   servers:
+    - 0.uk.pool.ntp.org
+    - 1.uk.pool.ntp.org
+    - 2.uk.pool.ntp.org
+    - 3.uk.pool.ntp.org
     - 162.159.200.1
-    - 162.159.200.123

@@ -19,7 +19,7 @@ spec:
           app:
             image:
               repository: ghcr.io/starosdev/scrutiny
-              tag: 1.68.0-collector@sha256:a3e3d7ea82714ad34476cc68a999f954dde5dda7d4cb43219b54ac67885fa720
+              tag: 1.73.0-collector@sha256:0ad0537d87aed53054b3794db53eaec3da9efd6f5ad2bc914643e34038e16271
             env:
               TZ: ${TIMEZONE:=UTC}
               COLLECTOR_API_ENDPOINT: http://scrutiny.observability.svc.cluster.local:8080

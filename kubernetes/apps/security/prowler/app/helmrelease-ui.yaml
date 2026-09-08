@@ -26,7 +26,7 @@ spec:
           app:
             image:
               repository: prowlercloud/prowler-ui
-              tag: 5.39.0@sha256:1f302bddade6942add57e182953746956b4a5e67b82e27fdab69b30a063bacee
+              tag: 5.41.0@sha256:f8ee0baa0ebd185797db2ea2a8df623c5795900397d139e952baf85728dae100
             env:
               TZ: ${TIMEZONE}
               UI_PORT: "3000"
@@ -40,7 +40,7 @@ spec:
                   name: prowler-ui-secret
             probes:
               # /api/auth/session is a standard NextAuth endpoint that returns
-              # {} with HTTP 200 for unauthenticated requests — no redirect.
+              # {} with HTTP 200 for unauthenticated requests, no redirect.
               liveness: &uiProbe
                 enabled: true
                 custom: true

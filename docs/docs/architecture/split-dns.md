@@ -1,4 +1,4 @@
-# Split DNS Architecture with Cloudflare and OPNsense
+# Split DNS architecture with Cloudflare and OPNsense
 
 ## Overview
 
@@ -17,9 +17,9 @@ This means the same name can resolve differently depending on where the query co
 !!! note "Records come from HTTPRoutes, not per-app CRDs"
     Both instances derive their records from `HTTPRoute` resources via external-dns's `gateway-httproute` source. There are **no** per-app `DNSEndpoint` CRDs. An earlier revision of this cluster required a `DNSEndpoint` for every app (~40 `dnsendpoint.yaml` files); that is no longer the case. See [How records are created](#how-records-are-created).
 
-## Architecture Diagrams
+## Architecture diagrams
 
-### High-Level Architecture
+### High-level architecture
 
 ```mermaid
 graph TB
@@ -54,7 +54,7 @@ graph TB
 
 > Example IPs only. The gateways' LoadBalancer addresses are static LAN IPs assigned literally in `envoy.yaml` (an allowlisted functional config); `${ENVOY_INTERNAL_IP}` in `cluster-secrets` supplies the internal gateway's external-dns target annotation.
 
-### External DNS Flow (Internet Access)
+### External DNS flow (internet access)
 
 ```mermaid
 sequenceDiagram
@@ -76,7 +76,7 @@ sequenceDiagram
     App-->>User: Response
 ```
 
-### Internal DNS Flow (Local Network)
+### Internal DNS flow (local network)
 
 ```mermaid
 sequenceDiagram
@@ -93,7 +93,7 @@ sequenceDiagram
     App-->>User: Response
 ```
 
-### DNS Controller Architecture
+### DNS controller architecture
 
 ```mermaid
 graph TB
@@ -129,9 +129,9 @@ graph TB
     CRD --> OPN_CRD --> OPN_Provider
 ```
 
-## DNS Controller Configurations
+## DNS controller configurations
 
-### cloudflare-dns (External)
+### cloudflare-dns (external)
 
 **Location**: `kubernetes/apps/network/cloudflare-dns/`
 
@@ -165,7 +165,7 @@ domainFilters:
 
 **Key Design Decision**: `--cloudflare-proxied` is **enabled**. See [Why `--cloudflare-proxied` is enabled](#why-cloudflare-proxied-is-enabled).
 
-### opnsense-dns (Internal)
+### opnsense-dns (internal)
 
 **Location**: `kubernetes/apps/network/opnsense-dns/`
 
@@ -251,7 +251,7 @@ Proxying external apps gives Cloudflare's CDN/WAF/DDoS protection in front of th
 !!! info "Historical note: this used to be the opposite"
     When every app had a `DNSEndpoint` (including ~35 internal A records pointing at RFC1918 IPs), cloudflare-dns processed all of them. With `--cloudflare-proxied` **on**, Cloudflare rejected the proxied RFC1918 A records and the controller crashed before it could create the external CNAMEs. The result was **Cloudflare Error 1016**. The workaround at the time was to *remove* `--cloudflare-proxied`. Moving record creation to the gateway-scoped `gateway-httproute` source removed the internal records from cloudflare-dns entirely, so proxying could be turned back on.
 
-## DNS Record Types by Controller
+## DNS record types by controller
 
 ```mermaid
 graph LR
@@ -272,9 +272,9 @@ graph LR
     style OPN3 fill:#ccffcc
 ```
 
-## Gateway Labels and Filters
+## Gateway labels and filters
 
-### External Gateway (`envoy-external`)
+### External gateway (`envoy-external`)
 
 ```yaml
 metadata:
@@ -291,7 +291,7 @@ spec:
 
 HTTPRoutes attached to this gateway create **proxied CNAME records in Cloudflare**.
 
-### Internal Gateway (`envoy-internal`)
+### Internal gateway (`envoy-internal`)
 
 ```yaml
 metadata:
@@ -412,7 +412,7 @@ graph TD
 
 ## Maintenance
 
-### Adding a New Internal App
+### Adding a new internal app
 
 1. Add an `HTTPRoute` (app-template `route:`) with `parentRefs` pointing at `envoy-internal`:
 
@@ -430,7 +430,7 @@ graph TD
 
 No `DNSEndpoint` is required.
 
-### Adding a New External App
+### Adding a new external app
 
 1. Add an `HTTPRoute` with `parentRefs` pointing at `envoy-external` (same shape as above, `name: envoy-external`).
 
@@ -460,7 +460,7 @@ If you recreate the Cloudflare Tunnel:
 
 3. Wait 1-2 minutes for DNS propagation.
 
-## OPNsense Host-Override Record Ceiling
+## OPNsense host-override record ceiling
 
 `opnsense-dns` reads and writes every record through OPNsense's `searchHostOverride`
 API endpoint, which has an operational ceiling this cluster has already hit once.
@@ -503,6 +503,108 @@ API endpoint, which has an operational ceiling this cluster has already hit once
   signature in `opnsense-dns` logs as the early warning before the ceiling trips
   again.
 
+## Unbound include files do not survive a rebuild
+
+Not every internal DNS answer comes from a host override. A few need raw Unbound
+directives, whole-zone redirects in particular, which a host override cannot
+express because it matches one exact name. Those live as `.conf` files in
+Unbound's local override directory on the firewall, dropped over SSH and managed
+declaratively from `LukeEvansTech/network-ops`
+(`ansible/vars/unbound-includes.yml`, applied with `mise run
+opnsense-unbound-includes`).
+
+!!! danger "They are not in `config.xml`, so a restore does not bring them back"
+    The firewall's whole backup and restore path is `config.xml`. Everything
+    configured through the GUI or the API, meaning host overrides, NAT rules,
+    interfaces, syslog targets and IPsec, lives there and returns on restore.
+    These include files do not. A fresh install that imports `config.xml`
+    therefore comes up looking complete while silently missing every one of
+    them.
+
+That is exactly what happened. The firewall was rebuilt on new hardware on
+2026-07-29 with a fresh install, ZFS-on-root and `config.xml` imported, and the three
+managed includes were never restored, because nothing in the restore path
+carries them. **Nothing noticed for 28 days.** It is the same class of loss as
+the plugin set that the same migration silently dropped.
+
+- **`imgur-proxy`.** The whole-zone redirect that points `imgur.com` and every
+  subdomain at `${SVC_IMGUR_PROXY_ADDR}`, the in-cluster SNI relay in
+  `downloads/imgur-proxy`. Losing it does not break DNS; it just makes the
+  resolver answer from the public internet again, so clients quietly stop using
+  the proxy.
+- **`firefox-canary`.** Returns NXDOMAIN for the Mozilla canary domain, which
+  is what stops Firefox auto-enabling DNS-over-HTTPS and bypassing the on-box
+  resolver entirely. Losing it is a silent hole in the DNS lockdown.
+- **`statistics`.** Unbound extended statistics.
+
+### Routine upgrades are not the cause
+
+Worth stating plainly, because the timing invites the wrong conclusion and did
+once already. The override directory is owned by the `opnsense` package, and a
+point upgrade rewrites the four files the package ships into it, which updates
+the directory's mtime and makes it look as though the directory was emptied at
+that moment. It was not. Verified directly: the 2026-08-28 upgrade from
+26.7.1_1 to 26.7.3_8 left all three restored includes untouched, with their
+original mtimes, still copied into the chroot. `pkg` removes only files it owns.
+
+So the trigger to watch for is a **rebuild or a restore**, not an upgrade.
+
+### Why it presents as "nothing is wrong"
+
+Every signal an operator would normally check stays green. Unbound keeps running
+and keeps serving its host-override table correctly, so a spot check against the
+resolver looks healthy. On the Kubernetes side the affected app is untouched:
+`imgur-proxy` stayed `2/2 Running` with zero restarts, its HelmRelease Ready, its
+LoadBalancer IP assigned and reachable, and its VPN tunnel up. It simply received
+no traffic at all. The only direct evidence was its own access log. Every
+connection in it came from the kubelet probe, and not one carried a real SNI.
+
+The general lesson: **an app that depends on out-of-band DNS to be reached cannot
+be diagnosed from its own health.** Read its access log, and prove the service
+independently by forcing a client at it
+(`curl --resolve <host>:443:<service IP>`) before touching anything.
+
+### Detection
+
+`observability/gatus` carries a `split-dns` endpoint group that asserts these
+answers directly: the redirect resolves to the proxy address, and the canary
+domain returns NXDOMAIN. Both fail the moment the includes go missing, and
+`GatusEndpointDown` pages after five minutes. A third endpoint drives a real
+request through the proxy, covering the half the DNS checks cannot see: the
+relay's probes are `tcpSocket` only, so a dead VPN tunnel leaves the pod Ready
+and serving nothing.
+
+The addresses those checks compare against reach gatus as environment variables
+from a `cluster-secrets` ExternalSecret, not through Flux substitution. The
+gatus ConfigMap is generated with
+`kustomize.toolkit.fluxcd.io/substitute: disabled` so that gatus's own `${VAR}`
+expansion survives, which conveniently also keeps real addresses out of this
+public repository.
+
+### After a rebuild or a config restore
+
+Re-apply the includes. The playbook is idempotent, so running it when nothing is
+missing is a no-op:
+
+```bash
+mise run opnsense-unbound-includes-check   # confirm what is missing
+mise run opnsense-unbound-includes         # restore and restart Unbound
+```
+
+Then confirm the answers, rather than trusting the run:
+
+```bash
+dig +short imgur.com A @<resolver>              # expect the proxy address
+dig use-application-dns.net @<resolver>         # expect NXDOMAIN
+```
+
+An audit of the firewall on 2026-08-29 confirmed these three files are the
+**only** hand-managed configuration outside `config.xml`. Every other
+non-package file in the config trees is either generated by OPNsense's configd
+templates from `config.xml`, or written by the system itself (Suricata's rules
+database, the IPsec CA exports, the pkg repository definitions). Nothing else
+needs re-applying after a rebuild.
+
 ## References
 
 - [External DNS Documentation](https://kubernetes-sigs.github.io/external-dns/)
@@ -512,5 +614,5 @@ API endpoint, which has an operational ceiling this cluster has already hit once
 
 ---
 
-**Last Updated**: 2026-06-16
+**Last Updated**: 2026-08-27
 **Cluster**: talos-cluster

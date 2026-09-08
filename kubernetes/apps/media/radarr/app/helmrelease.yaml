@@ -18,14 +18,29 @@ spec:
           app:
             image:
               repository: ghcr.io/home-operations/radarr
-              tag: 6.4.1.10545@sha256:260469d707617f4b5be1cd11a40be7e4889c63c5e7cdbc6a429626dc05863b6b
+              tag: 6.4.3.10645@sha256:0ebb4ae26ee9522674a4ad1855e926fd6b97c534ff982644c9c9a87bca740077
             env:
               RADARR__APP__INSTANCENAME: Radarr
               RADARR__APP__THEME: dark
-              RADARR__AUTH__REQUIRED: DisabledForLocalAddresses
+              # Enabled, not DisabledForLocalAddresses. Radarr resolves "local"
+              # from the address it sees, and every request through the gateway
+              # presents an Envoy pod address -- which is RFC1918, so the local
+              # exemption applied to all traffic regardless of the real client.
+              # Set explicitly rather than dropped: with no override Radarr
+              # falls back to config.xml, which is not in Git. Sonarr and
+              # prowlarr now declare the same for the same reason.
+              RADARR__AUTH__REQUIRED: Enabled
               RADARR__LOG__DBENABLED: "False"
               RADARR__LOG__LEVEL: info
+              # Host header allowlist. localhost, loopback and the pod hostname
+              # are always accepted, so the exportarr sidecar (http://localhost:80)
+              # needs no entry; every other in-cluster client uses the FQDN
+              # service name. Mirrors sonarr.
+              RADARR__SERVER__ALLOWEDHOSTS: radarr.${SECRET_DOMAIN},radarr.media.svc.cluster.local
               RADARR__SERVER__PORT: &port 80
+              # Trust X-Forwarded-* from the Envoy Gateway proxies (pod network)
+              # so the real client address is what Radarr sees and logs.
+              RADARR__SERVER__TRUSTEDNETWORKS: ${CLUSTER_PODS_CIDR}
               RADARR__UPDATE__BRANCH: develop
               TZ: ${TIMEZONE}
             envFrom:
@@ -39,6 +54,11 @@ spec:
                   httpGet:
                     path: /ping
                     port: *port
+                    # kubelet sends the pod IP as Host, which the allowlist
+                    # above rejects; localhost is always accepted.
+                    httpHeaders:
+                      - name: Host
+                        value: localhost
                   initialDelaySeconds: 0
                   periodSeconds: 10
                   timeoutSeconds: 1
@@ -104,6 +124,16 @@ spec:
     persistence:
       config:
         existingClaim: "{{ .Release.Name }}"
+      # Radarr runs with a read-only root filesystem, and ASP.NET's data
+      # protection layer writes a new key ring entry through
+      # Path.GetTempFileName(), i.e. into /tmp. Without a writable /tmp that
+      # write throws (IOException: Read-only file system : '/tmp/'), so no new
+      # key can be created once the existing ones expire, and cookie
+      # encryption fails: forms login returns 401 and no session is ever
+      # issued. Sonarr and prowlarr already carry this mount; radarr did not,
+      # and its newest key expired 2025-11-10.
+      tmp:
+        type: emptyDir
       config-cache:
         existingClaim: "{{ .Release.Name }}-cache"
         globalMounts:

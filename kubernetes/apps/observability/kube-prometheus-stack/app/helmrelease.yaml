@@ -68,11 +68,11 @@ spec:
           enabled: true
           annotations:
             gethomepage.dev/enabled: "true"
-            gethomepage.dev/icon: prometheus.png
+            gethomepage.dev/icon: prometheus.svg
             gethomepage.dev/name: Prometheus
-            gethomepage.dev/group: Observability
+            gethomepage.dev/group: Monitoring
             gethomepage.dev/app: prometheus
-            gethomepage.dev/description: Monitoring Scrape Service
+            gethomepage.dev/description: Metrics
             gethomepage.dev/widget.type: prometheus
             gethomepage.dev/widget.url: http://kube-prometheus-stack-prometheus.observability:9090
           hostnames:
@@ -88,7 +88,7 @@ spec:
         scrapeConfigSelectorNilUsesHelmValues: false
         serviceMonitorSelectorNilUsesHelmValues: false
         retention: 14d
-        # ~80% of the 50Gi PVC — leaves headroom for the WAL and compaction
+        # ~80% of the 50Gi PVC. Leaves headroom for the WAL and compaction
         # churn, which retentionSize does not account for.
         retentionSize: 40GiB
         resources:
@@ -178,17 +178,19 @@ spec:
                 expr: node_zfs_zpool_state{state!="online"} > 0
                 labels:
                   severity: critical
-  # Teach the chart's generic TargetDown about the label printers.
+  # Teach the chart's generic TargetDown about targets whose `up` is not a
+  # reachability signal: the label printers, two slow SNMP walks, and the
+  # seedbox's tailnet-egress scrapes.
   #
   # The Brother label printers power themselves off by design, so snmp-exporter's
   # own SnmpTargetDown already excludes device_class="printer" (see
   # observability/snmp-exporter). But TargetDown aggregates by job, so one
-  # sleeping printer out of five snmp targets is 20% > 10% and fires anyway —
+  # sleeping printer out of five snmp targets is 20% > 10% and fires anyway,
   # defeating that deliberate exclusion and training us to ignore TargetDown,
   # which is the alert that would catch a real switch outage.
   #
   # Absent labels satisfy a != matcher in PromQL, so this drops only targets
-  # explicitly labelled device_class="printer" — verified live: 173 up series,
+  # explicitly labelled device_class="printer". Verified live: 173 up series,
   # 169 kept, exactly the 4 printers excluded. Every other job still alerts.
   postRenderers:
     - kustomize:
@@ -203,9 +205,69 @@ spec:
               - op: test
                 path: /spec/groups/0/rules/0/alert
                 value: TargetDown
+              # device_class=sensors is excluded alongside printers. That target
+              # walks the whole entPhysicalTable on an agent that serves it
+              # slowly, so its `up` tracks agent load rather than reachability,
+              # snmp-exporter.rules excludes it from SnmpTargetDown for the same
+              # reason. Excluding it there but not here would leave the ratio to
+              # fire instead: this rule groups by job, and one failed sensor
+              # target is 1 of 5 remaining SNMP series (interface + 3 PDUs), so
+              # 20% against a 10% threshold. Reachability for that box is still
+              # covered by its own interface target, which stays in scope here.
+              #
+              # device_class=switch-if is excluded on identical grounds: the
+              # MikroTik interface walk is ~15.4s against a ~1.5s health walk on
+              # the same device, so it is the walk that is slow, not the switch.
+              # Its own target carries MikrotikInterfaceScrapeDegraded, and the
+              # health target, which stays in scope here, is the reachability
+              # signal for those two switches.
+              #
+              # instance="seedbox" is excluded for the same reason, but harder:
+              # EVERY seedbox metric scrape rides one tailnet egress that is
+              # DERP-relayed (no UDP path), so `up` there tracks relay health,
+              # not the box. seedbox/app/scrapeconfig.yaml already pushed
+              # scrapeTimeout to 30s to absorb the slow-but-alive scrapes; what
+              # is left is genuine multi-minute relay outages, and each one
+              # fired TargetDown once PER JOB. Measured over the 7d to
+              # 2026-08-30: 20 separate firing episodes spread across 7 of the
+              # 8 seedbox jobs (every one but seedbox-smartctl), i.e. ~40
+              # Pushover messages a week counting resolves, for blips that
+              # never touched the box. The public probe stayed up throughout.
+              #
+              # Single-target jobs make this unavoidable at the chart's
+              # threshold: one target down is 100%, so the 10% ratio does
+              # nothing and the 10m `for` is the entire rule. Most of those
+              # episodes ran 1-4 minutes PAST that 10m, so riding them out
+              # in-band would mean a `for` of 30m+ on a rule that also guards
+              # the rest of the estate. Where it earns its keep: the same
+              # window caught a genuine 5-DAY veeam-windows-exporter outage
+              # (Aug 23-28). Excluding the one noisy instance is the change
+              # that keeps both properties.
+              #
+              # Nothing is lost, because seedbox.rules already covers all three
+              # failure modes with signals that DON'T ride the tailnet:
+              #   SeedboxDown (critical, 5m), blackbox TCP to the box's PUBLIC
+              #     IP, off the tailnet entirely. This is the real box-down page.
+              #   SeedboxScrapePathDegraded (warning, 20m), avg(up) < 1 gated on
+              #     the public probe being up. This is TargetDown's job for the
+              #     seedbox, aggregated to ONE alert and with a `for` long enough
+              #     to outlast a relay flap. A genuinely dead exporter is still
+              #     caught: it holds avg(up) < 1 indefinitely.
+              #   SeedboxContainerDown (critical, 10m), per-container state from
+              #     docker_state_exporter, which names the failed service.
+              #
+              # Matching on instance, not job=~"seedbox-.*", is deliberate: every
+              # seedbox scrape relabels instance=seedbox (scrapeconfig.yaml and
+              # servicemonitor.yaml), so a new seedbox exporter inherits this
+              # exclusion instead of quietly re-introducing the noise. It also
+              # leaves job="seedbox-public" in scope. That probe carries
+              # instance=<public IP>, does not traverse the tailnet, and does not
+              # flap, so the one target that means "box down" still alerts here.
               - op: replace
                 path: /spec/groups/0/rules/0/expr
                 value: >-
                   100 * (count by (cluster, job, namespace, service)
-                  (up{device_class!="printer"} == 0) / count by (cluster, job,
-                  namespace, service) (up{device_class!="printer"})) > 10
+                  (up{device_class!~"printer|sensors|switch-if",instance!="seedbox"}
+                  == 0) / count by (cluster, job, namespace, service)
+                  (up{device_class!~"printer|sensors|switch-if",instance!="seedbox"}))
+                  > 10

@@ -1,0 +1,27 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wazuh-dashboard-conf
+  namespace: security
+data:
+  opensearch_dashboards.yml: |-
+    server.host: 0.0.0.0
+    server.port: 5601
+
+    # Plain HTTP inside the cluster; Envoy Gateway terminates TLS at the edge with
+    # a cert-manager certificate, as it does for every other app here. This also
+    # removes upstream's separate dashboard_http cert pair, which existed only to
+    # serve the browser directly from the pod.
+    server.ssl.enabled: false
+
+    opensearch.hosts: https://wazuh-indexer:9200
+    opensearch.ssl.verificationMode: none
+    opensearch.ssl.certificateAuthorities: ["/usr/share/wazuh-dashboard/certs/root-ca.pem"]
+    opensearch.requestHeadersWhitelist: [authorization, securitytenant]
+    opensearch_security.multitenancy.enabled: false
+    opensearch_security.readonly_mode.roles: ["kibana_read_only"]
+    uiSettings.overrides.defaultRoute: /app/wz-home
+    opensearch_security.cookie.ttl: 900000
+    opensearch_security.session.ttl: 900000
+    opensearch_security.session.keepalive: true

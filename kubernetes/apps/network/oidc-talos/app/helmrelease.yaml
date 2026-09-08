@@ -19,12 +19,12 @@ spec:
       strategy: rollback
   values:
     # Publishes THIS cluster's OIDC discovery doc + JWKS publicly so Entra (and any other cloud) can
-    # federate the cluster's service-account tokens — no apiserver exposure, just two JSON files. The
+    # federate the cluster's service-account tokens, no apiserver exposure, just two JSON files. The
     # apiserver's `service-account-issuer` (talos/patches/controller/cluster.yaml) must equal
-    # https://oidc-talos.${SECRET_DOMAIN}. Only PUBLIC keys are served — the private SA signing key
+    # https://oidc-talos.${SECRET_DOMAIN}. Only PUBLIC keys are served. The private SA signing key
     # never leaves the apiserver. The JWKS is fetched LIVE from the apiserver's discovery endpoint at
     # pod start (init container) and refreshed hourly (sidecar), so there is no committed,
-    # cluster-specific key material — this bootstraps clean on any cluster reusing the name. The
+    # cluster-specific key material, so this bootstraps clean on any cluster reusing the name. The
     # discovery doc is static (URLs only). Cluster-scoped name so other clusters get their own.
     defaultPodOptions:
       # The init/refresh containers authenticate to the apiserver with this token (app-template
@@ -54,7 +54,7 @@ spec:
           fetch-jwks:
             image: &curlImage
               repository: docker.io/curlimages/curl
-              tag: 8.21.0@sha256:7c12af72ceb38b7432ab85e1a265cff6ae58e06f95539d539b654f2cfa64bb13
+              tag: 8.22.0@sha256:58adaa4e8dca9c988bae2aba4ab3434a0bb2da16bbe3f92dec39ec7785166777
             command:
               - /bin/sh
               - -c
@@ -81,7 +81,7 @@ spec:
               limits:
                 memory: 32Mi
           # Native sidecar: re-fetch hourly so a cluster SA-key rotation is picked up without a pod
-          # restart. Failures are non-fatal — the last good JWKS keeps being served.
+          # restart. Failures are non-fatal. The last good JWKS keeps being served.
           refresh-jwks:
             restartPolicy: Always
             image: *curlImage
@@ -115,7 +115,7 @@ spec:
           app:
             image:
               repository: docker.io/nginxinc/nginx-unprivileged
-              tag: 1.31-alpine@sha256:f972e5322b9797dc2a6b830030094426437b1ae7032e4644496395336ac6fdac
+              tag: 1.31-alpine@sha256:2ddec616f1cb58bcac057aa388f28cb81e35137641ef4226d321714499329bd1
             env:
               TZ: ${TIMEZONE}
             probes:

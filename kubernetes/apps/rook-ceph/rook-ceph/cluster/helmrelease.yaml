@@ -11,6 +11,17 @@ spec:
     kind: OCIRepository
     name: rook-ceph-cluster
   values:
+    # No cephImage pin: the CHART governs the Ceph version, and it moves with the
+    # chart (v1.20.4 shipped v20.2.2, v1.20.6 ships v20.2.4). The pin that held
+    # v20.2.2 through the v1.20.6 chart move has done its job and is removed here,
+    # which is what performs the v20.2.2 -> v20.2.4 data-plane upgrade.
+    #
+    # An explicit pin is deliberately NOT kept: no Renovate manager in this
+    # repository tracks an inline cephImage tag, so it would be hand-maintained and
+    # would silently go stale. Instead, rook-ceph sits in the "Protected infra"
+    # packageRules entry, so every chart bump gets a human review -- and that
+    # reviewer must check whether the chart's default Ceph version has moved,
+    # because a chart bump alone will roll every mon, mgr, OSD and MDS.
     monitoring:
       enabled: true
       createPrometheusRules: true
@@ -21,10 +32,10 @@ spec:
       enabled: true
     cephClusterSpec:
       resources:
-        # NOTE: mgr resources must live here (spec.resources.mgr) — the CephCluster
+        # NOTE: mgr resources must live here (spec.resources.mgr). The CephCluster
         # CRD has no spec.mgr.resources field, so a block there is silently pruned
         # and the chart default (1Gi limit) applies instead.
-        # 3Gi limit: with diskprediction_local/insights/pg_autoscaler/rook modules
+        # 3Gi limit: with diskprediction_local/insights/pg_autoscaler modules
         # plus the prometheus + dashboard endpoints enabled, the active mgr working
         # set climbs past 2Gi and gets OOMKilled (~twice daily), failing over to the
         # standby each time. 3Gi holds it with headroom (mon is already 4Gi).
@@ -49,6 +60,19 @@ spec:
           mon_data_avail_warn: "15" # quote - mons live on OS disk, not OSD disk
         mon:
           mon_cluster_log_level: info # default debug floods the cluster log
+          # 0.3s, up from the 0.05s default. The nodes discipline their clocks
+          # against public NTP over the WAN, and the kernel offset wanders in a
+          # sawtooth between polls: peak |offset| over a 30-day window was
+          # 111ms, with 27 excursions past 30ms spread evenly across all three
+          # nodes and unrelated to boots. That routinely crossed the 50ms
+          # default, so CephMonClockSkew fired and self-cleared on the next
+          # 300s mon_timecheck_interval -- and because the skew also puts the
+          # cluster in HEALTH_WARN, CephHealthWarning fired 15m behind it for
+          # the same event. 0.3s sits 2.7x above the observed peak and is 6% of
+          # mon_lease (5s), so a real time fault -- which shows up as seconds of
+          # drift, not tens of milliseconds -- still trips it. Runtime-settable,
+          # so Rook applies it without restarting the mons.
+          mon_clock_drift_allowed: "0.3" # quote
       cleanupPolicy:
         wipeDevicesFromOtherClusters: true
       crashCollector:
@@ -58,6 +82,41 @@ spec:
         urlPrefix: /
         ssl: false
         prometheusEndpoint: http://prometheus-operated.observability.svc.cluster.local:9090
+      # Ceph v20.2.4 asserts on cephx key ciphers (CVE-2025-30156). Rotating the DAEMON
+      # keys is what clears both HEALTH_ERR items, AUTH_INSECURE_SERVICE_KEY_TYPE and
+      # AUTH_INSECURE_SERVICE_TICKETS. keyGeneration: 2 per upstream's guide.
+      #
+      # keyGeneration is APPEND-ONLY. The CRD enforces "keyGeneration cannot be removed
+      # once set", so deleting this field makes the API server reject every later
+      # CephCluster update and the HelmRelease stops reconciling. Raise the number to
+      # rotate again; never remove it.
+      #
+      # csi keys are pinned to aes rather than left to the chart default: AES256K
+      # needs a 7.0+ kernel, the fleet is on 6.18 even after Talos v1.13.9, and both
+      # storage paths here are kernel clients (krbd, and the built-in CephFS kernel
+      # client per KB-025). Rook's rotation guide says to always set the type so a
+      # default flip upstream can't hand CSI a key the nodes can't use. No csi
+      # keyRotationPolicy is set, so existing PV connections are untouched.
+      security:
+        cephx:
+          csi:
+            keyType: aes
+          daemon:
+            keyRotationPolicy: KeyGeneration
+            keyGeneration: 2
+      # These three cannot be cleared here, so they are muted rather than left to mask
+      # later health changes: CLIENT_KEY_TYPE needs those CSI keys rotated, and
+      # KEYS_ALLOWED/KEYS_CREATABLE need allowedCiphers restricted to aes256k, which
+      # would lock the same clients out. AUTH_INSECURE_ROTATING_SERVICE_KEY_TYPE is
+      # deliberately not muted. It clears itself once the daemons re-key.
+      healthCheck:
+        muteHealthWarning:
+          AUTH_INSECURE_CLIENT_KEY_TYPE:
+            policy: mute
+          AUTH_INSECURE_KEYS_ALLOWED:
+            policy: mute
+          AUTH_INSECURE_KEYS_CREATABLE:
+            policy: mute
       mgr:
         modules:
           - name: diskprediction_local
@@ -66,8 +125,12 @@ spec:
             enabled: true
           - name: pg_autoscaler
             enabled: true
+          # Disabled: leaks mgr memory on Ceph v20.2.2 (rook#17786) and crash-loops
+          # the mgr every ~15s on v20.2.3/v20.2.4 (rook#18124). Rook v1.20.6 force-
+          # disables it, but only for Extra in [2,4] - leaving this true would
+          # silently re-enable it on v20.2.5.
           - name: rook
-            enabled: true
+            enabled: false
       network:
         provider: host
         connections:
@@ -113,7 +176,7 @@ spec:
     # CephFS provides the cluster's RWX StorageClass (ceph-filesystem). The kernel
     # CephFS client is built into the Talos v1.13.5+ kernel (CONFIG_CEPH_FS=y);
     # the earlier "Talos ships no `ceph` kernel module" claim was a modprobe-vs-
-    # builtin misdiagnosis — see KB-025
+    # builtin misdiagnosis, see KB-025
     # (docs/docs/troubleshooting/kb/025-cephfs-modprobe-builtin-misdiagnosis.md).
     # The cephfs CSI driver must also be enabled in the ceph-csi-drivers
     # HelmRelease (msgr2 kernel mount options live there).
@@ -174,5 +237,5 @@ spec:
       name: csi-ceph-filesystem
       isDefault: false
       deletionPolicy: Delete
-    # Object storage (RGW) removed — migrated to Garage (storage/garage).
+    # Object storage (RGW) removed, migrated to Garage (storage/garage).
     cephObjectStores: []

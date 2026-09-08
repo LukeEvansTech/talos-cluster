@@ -34,7 +34,7 @@ spec:
           app:
             image:
               repository: ghcr.io/pocket-id/pocket-id
-              tag: v2.13.0@sha256:c9c1d7b70006968d673a1073df048a3fdec73ccb54e182320b56bb911340f6f1
+              tag: v2.14.0@sha256:01540977dcf4c7b41b1159f34d68e4632f2658d62790e460ca65a42722b13c4a
             env:
               TZ: ${TIMEZONE}
               ALLOW_USER_SIGNUPS: "withToken" # Can be: disabled, withToken, open
@@ -58,7 +58,7 @@ spec:
               #
               # Not a lockout risk: EmailVerified feeds only the OIDC
               # email_verified claim and is never used to gate login. Existing
-              # rows are untouched — the flag is written only at signup or on an
+              # rows are untouched. The flag is written only at signup or on an
               # email change.
               EMAIL_VERIFICATION_ENABLED: "true"
               KEYS_STORAGE: database
@@ -83,8 +83,12 @@ spec:
               SESSION_DURATION: "43800"
               TRUST_PROXY: "true"
               UPLOAD_PATH: /app/data/uploads
-              # TODO: Enable when MaxMind is configured
-              # GEOLITE_DB_PATH: /app/data/GeoLite2-City.mmdb
+              # GeoLite2-City is a cache of a public artifact, not state:
+              # pocket-id downloads it on start when missing and refreshes it
+              # every 14 days (temp file + rename in the same directory). Keep
+              # it on the geolite emptyDir below rather than the default
+              # data/GeoLite2-City.mmdb, which sits on the VolSync-backed PVC.
+              GEOLITE_DB_PATH: /app/geolite/GeoLite2-City.mmdb
             envFrom: *envFrom
             probes:
               liveness: &probes
@@ -148,3 +152,11 @@ spec:
             app:
               - path: /tmp
                 subPath: tmp
+      geolite:
+        # ~60 MiB mmdb plus its in-flight replacement during a refresh.
+        type: emptyDir
+        sizeLimit: 256Mi
+        advancedMounts:
+          pocket-id:
+            app:
+              - path: /app/geolite

@@ -24,7 +24,7 @@ spec:
         # ceph-block `scanopy` PVC, so a surge pod landing on another node would
         # deadlock on multi-attach. Recreate tears the old pod down first.
         # Caveat: if the old pod gets stuck Terminating, helm's 5m timeout can
-        # thrash upgrade<->rollback — recovery is suspend HR, force-delete the
+        # thrash upgrade<->rollback. Recovery is suspend HR, force-delete the
         # pod, resume (cleanupOnFail + remediation below bound the blast radius).
         strategy: Recreate
         annotations:
@@ -41,7 +41,7 @@ spec:
           app:
             image:
               repository: ghcr.io/scanopy/scanopy/server
-              tag: v0.17.11@sha256:e2c1b0ae624c68ce45dfe2035a6b58c1d6614f034fbfde35ff3f3369991de73e
+              tag: v0.17.14@sha256:5759259d825f53a05145cb08cee9a993ae0fba1f3437a17cfa3ec47aaad4ed8d
             env:
               TZ: ${TIMEZONE}
               SCANOPY_LOG_LEVEL: info

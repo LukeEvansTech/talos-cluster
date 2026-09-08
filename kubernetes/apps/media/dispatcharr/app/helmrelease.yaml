@@ -6,6 +6,9 @@ metadata:
   name: &app dispatcharr
 spec:
   interval: 1h
+  # Gluetun's tunnel handshake lands inside the install/upgrade window, so the
+  # helm 5m default can expire mid-connect and start a rollback/upgrade thrash.
+  timeout: 10m
   chartRef:
     kind: OCIRepository
     name: dispatcharr
@@ -27,11 +30,143 @@ spec:
                 mkdir -p /data/db && chmod 0750 /data/db
             securityContext:
               runAsUser: 0
+          # Native sidecar (restartPolicy: Always): starts before the app
+          # container, so every playlist fetch, EPG refresh and stream pull
+          # leaves through the tunnel from the first byte. Cluster and LAN
+          # traffic (Dragonfly, the gateway, Plex/Jellyfin pulling streams)
+          # stays off the tunnel via FIREWALL_OUTBOUND_SUBNETS below. Shape
+          # copied from downloads/prowlarr, see that file for the full
+          # rationale behind the settings repeated here.
+          gluetun:
+            image:
+              repository: ghcr.io/qdm12/gluetun
+              tag: v3.41.3@sha256:fa19cc76b2af13d57a8d3dc3066f2ada061b1c761b8aecf989b3877c0486e027
+            env:
+              # DNS_KEEP_NAMESERVER below leaves resolution with CoreDNS, so
+              # gluetun's own resolver is never in the path and its blocklist
+              # would be ~300MB of RAM for nothing.
+              # https://github.com/qdm12/gluetun/issues/2054
+              BLOCK_MALICIOUS: off
+              DOT: "on"
+              DOT_CACHING: "on"
+              DOT_IPV6: off
+              # OFF, so gluetun owns resolv.conf and every external lookup goes
+              # to its DoT resolver *inside* the tunnel. This is deliberate and
+              # load-bearing: estate DNS forwards to NextDNS, whose ddns rule
+              # sinkholes dynamic-DNS hostnames to 0.0.0.0, and the IPTV panel
+              # 302s every stream to a rotating No-IP hostname. Six such domains
+              # were in use at last count and the set keeps moving, so
+              # allowlisting them one at a time is a treadmill whose failure mode
+              # (playlist fine, auth fine, player spins forever) is
+              # indistinguishable from a dead provider.
+              #
+              # Taking this pod off estate DNS fixes the whole class permanently
+              # and leaves NextDNS fully enforced for every other device. The
+              # OPNsense :53 redirect does not interfere: it matches plaintext
+              # port 53 to public destinations, while this is DoT (853) carried
+              # inside WireGuard, which the firewall cannot see.
+              #
+              # The cost is that .cluster.local stops resolving here, so the one
+              # in-cluster dependency (dragonfly) is pinned via hostAliases below.
+              DNS_KEEP_NAMESERVER: off
+              FIREWALL: true
+              FIREWALL_DEBUG: on
+              # dispatcharr (9191), gluetun-webui (3000), health server (9999)
+              FIREWALL_INPUT_PORTS: 9191,3000,9999
+              FIREWALL_OUTBOUND_SUBNETS: '"${CLUSTER_PODS_CIDR},${CLUSTER_SVCS_CIDR},${CR_LAN_CIDR},${GH_LAN_CIDR}"'
+              HEALTH_SERVER_ADDRESS: ":9999"
+              # `off` means "do not disable the loop". Both kubelet probes
+              # below are disabled, so this in-process health check is the
+              # only thing left that notices a degraded tunnel and
+              # reconnects it. Flipping this to `on` leaves no recovery
+              # path at all. The tunnel stays down, and with it every
+              # stream, until the pod is recreated by hand.
+              HEALTH_SERVER_DISABLE_LOOP: off
+              HEALTH_VPN_DURATION_INITIAL: 60s
+              LOG_LEVEL: info
+              # Run as root (0) rather than gluetun's default 1000: gluetun
+              # chowns its public-IP status file to PUID:PGID after every
+              # write, which needs CAP_CHOWN, and this container drops ALL
+              # capabilities. Chowning to the file's existing owner is a
+              # permitted no-op instead.
+              PGID: 0
+              # gluetun only accepts "ipinfo" or "ip2location"; ipinfo
+              # rate-limits (HTTP 429) on its free tier.
+              PUBLICIP_API: ip2location
+              PUID: 0 # see PGID above
+              TZ: ${TIMEZONE}
+              UPDATER_PERIOD: 12h
+              VERSION_INFORMATION: off
+              VPN_INTERFACE: wg0
+              VPN_IPV6_SERVER: off
+              VPN_TYPE: wireguard
+            # WireGuard creds + exit location come from the per-app
+            # `gluetun-dispatcharr` 1Password item (its own AirVPN device key /
+            # internal IP, SERVER_COUNTRIES=United Kingdom).
+            envFrom:
+              - secretRef:
+                  name: dispatcharr-secret
+            # Both kubelet probes stay disabled, matching every other gluetun
+            # sidecar here. A probe restarts the *container* but the pod netns
+            # survives, so gluetun re-appends its firewall rules on each start
+            # and one transient failure becomes a self-sustaining restart loop
+            # (imgur-proxy sat in exactly that for 4+ days / 1352 restarts).
+            # HEALTH_SERVER_DISABLE_LOOP keeps gluetun's in-process tunnel
+            # restart, which recovers the same faults without touching the netns.
+            probes:
+              # Liveness stays OFF. It restarts the *container*, but the pod
+              # netns survives and gluetun re-appends its firewall rules on
+              # every start, so one transient failure compounds into a
+              # self-sustaining loop. The health loop above recovers the same
+              # faults in-process instead.
+              liveness:
+                enabled: false
+                custom: true
+                spec:
+                  httpGet:
+                    path: /
+                    port: 9999
+                  timeoutSeconds: 10
+                  periodSeconds: 30
+                  failureThreshold: 5
+              # Startup, by contrast, is ON and load-bearing. Kubernetes gates
+              # the app container on a sidecar's startup probe, and gluetun's
+              # health server only answers 200 once the tunnel and firewall are
+              # actually up. Without it "started" means merely "the process is
+              # running", so dispatcharr could fetch a playlist over the pod's
+              # default route before the kill switch existed, the exact leak
+              # this app is meant to prevent. 5m of headroom before it gives up.
+              startup:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /
+                    port: 9999
+                  initialDelaySeconds: 5
+                  periodSeconds: 10
+                  failureThreshold: 30
+            restartPolicy: Always
+            securityContext:
+              runAsUser: 0
+              runAsNonRoot: false
+              capabilities:
+                add:
+                  - NET_ADMIN
+                drop:
+                  - ALL
+              allowPrivilegeEscalation: false
+            resources:
+              limits:
+                # No memory limit: gluetun's startup spike lands inside one
+                # scrape interval and cannot be sized from metrics, and a limit
+                # turns it into an OOMKill loop. Matches prowlarr/qbittorrent.
+                kernel.org/tun: 1
         containers:
           app:
             image:
               repository: ghcr.io/dispatcharr/dispatcharr
-              tag: 0.29.0@sha256:3ce081119e5a4da3cf2f398719f35d0987bcf4067440454a34e3d36cd0ab3bbb
+              tag: 0.30.0@sha256:0ba8e97c2a711f3df757f65d21e9fc36f871ff3198f59b68e5987fa7e529d8a6
             env:
               TZ: ${TIMEZONE}
               DISPATCHARR_ENV: aio
@@ -43,6 +178,14 @@ spec:
               # stops at the real LAN client.
               DISPATCHARR_TRUSTED_PROXIES: ${CLUSTER_PODS_CIDR}
               REDIS_HOST: dragonfly.database.svc.cluster.local
+              # Own Dragonfly db, isolating this app's Celery queue from
+              # prowler's worker (-Q celery on db 0), which was consuming and
+              # discarding dispatcharr's EPG/M3U tasks. REDIS_DB is the lever
+              # that works: uwsgi spawns the workers via attach-daemon, and
+              # that child does not inherit CELERY_BROKER_URL, so celery falls
+              # back to the URL it builds from REDIS_*. Verified by connection
+              # state (CLIENT LIST db=3), not by reading the env back.
+              REDIS_DB: "3"
             envFrom:
               - secretRef:
                   name: dispatcharr-secret
@@ -54,9 +197,71 @@ spec:
               limits:
                 memory: 3Gi
                 nvidia.com/gpu: 1
+          gluetun-webui:
+            dependsOn: app
+            image:
+              repository: docker.io/scuzza/gluetun-webui
+              tag: latest@sha256:a7c2b4c77f26bb690debe6879cd7149d69710578b13e0dcdc08f6b9b6c7a7a14
+            env:
+              GLUETUN_CONTROL_URL: http://localhost:8000
+              PORT: &gluetun-webui-port 3000
+            probes:
+              liveness:
+                enabled: true
+                custom: true
+                spec:
+                  tcpSocket:
+                    port: *gluetun-webui-port
+                  periodSeconds: 60
+                  timeoutSeconds: 5
+                  failureThreshold: 5
+              readiness:
+                enabled: true
+                custom: true
+                spec:
+                  tcpSocket:
+                    port: *gluetun-webui-port
+                  periodSeconds: 30
+                  timeoutSeconds: 5
+                  failureThreshold: 5
+              startup:
+                enabled: true
+                custom: true
+                spec:
+                  tcpSocket:
+                    port: *gluetun-webui-port
+                  periodSeconds: 5
+                  failureThreshold: 30
+            securityContext:
+              runAsUser: 1000
+              runAsGroup: 1000
+              runAsNonRoot: true
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+              capabilities:
+                drop:
+                  - ALL
+            resources:
+              requests:
+                cpu: 10m
+                memory: 50Mi
+              limits:
+                memory: 128Mi
     defaultPodOptions:
+      # gluetun owns resolv.conf (DNS_KEEP_NAMESERVER: off), so cluster DNS is
+      # not available in this pod. dragonfly is its only in-cluster dependency,
+      # pinned here by ClusterIP so both REDIS_HOST and the templated
+      # CELERY_BROKER_URL keep working with the service name they already use.
+      # If the dragonfly Service is ever recreated its ClusterIP changes and
+      # this must be updated: kubectl -n database get svc dragonfly
+      hostAliases:
+        - ip: 10.43.92.110
+          hostnames:
+            - dragonfly.database.svc.cluster.local
+            - dragonfly.database.svc
       labels:
         gpu-workload: "true"
+        gluetun: "true"
       runtimeClassName: nvidia
       affinity:
         nodeAffinity:
@@ -80,6 +285,11 @@ spec:
         ports:
           http:
             port: *port
+      gluetun-webui:
+        controller: dispatcharr
+        ports:
+          http:
+            port: *gluetun-webui-port
     route:
       app:
         hostnames:
@@ -92,13 +302,23 @@ spec:
               - identifier: app
                 port: *port
             # 0.29.0 prefers a client-supplied X-Real-IP over the XFF walk for
-            # throttling/ACLs/audit, and nothing on the uwsgi path strips it —
-            # drop it at the gateway so clients cannot spoof their identity.
+            # throttling/ACLs/audit, and nothing on the uwsgi path strips it.
+            # Drop it at the gateway so clients cannot spoof their identity.
             filters:
               - type: RequestHeaderModifier
                 requestHeaderModifier:
                   remove:
                     - "X-Real-IP"
+      gluetun-webui:
+        hostnames:
+          - "{{ .Release.Name }}-gluetun.${SECRET_DOMAIN}"
+        parentRefs:
+          - name: envoy-internal
+            namespace: network
+        rules:
+          - backendRefs:
+              - identifier: gluetun-webui
+                port: *gluetun-webui-port
     persistence:
       config:
         existingClaim: *app
@@ -117,3 +337,16 @@ spec:
             app:
               - path: /tmp
                 subPath: tmp
+      # gluetun creates its status directory with os.MkdirAll("/tmp/gluetun",
+      # 0644), a directory with no execute bit, untraversable without
+      # CAP_DAC_OVERRIDE. Pre-creating it as an emptyDir (mode 1777) makes that
+      # MkdirAll a no-op, so the public-IP file stays writable with all
+      # capabilities dropped. Paired with PUID/PGID 0 above.
+      gluetun-tmp:
+        type: emptyDir
+        medium: Memory
+        sizeLimit: 1Mi
+        advancedMounts:
+          dispatcharr:
+            gluetun:
+              - path: /tmp/gluetun

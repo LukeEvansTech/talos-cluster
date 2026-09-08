@@ -21,7 +21,7 @@ spec:
           app:
             image:
               repository: ghcr.io/home-operations/home-assistant
-              tag: 2026.8.2@sha256:84f5b1b26e1597a3d5a19a7b6e2ed085ec8e3fffcbe46049acf62f9e25ea400e
+              tag: 2026.9.1@sha256:1bcf770d15bd91a55491d04f12494febb35da68b025e1f6612a167a2e190a8c7
             env:
               TZ: ${TIMEZONE}
               # Install HACS at startup (built-in to the home-operations image).
@@ -40,7 +40,7 @@ spec:
                 custom: true
                 spec:
                   httpGet:
-                    # Unauthenticated 200 on stock HA — /healthz 404s on this
+                    # Unauthenticated 200 on stock HA, /healthz 404s on this
                     # instance (it is not a core endpoint) and wedged every
                     # upgrade in a readiness-timeout rollback loop.
                     path: /manifest.json

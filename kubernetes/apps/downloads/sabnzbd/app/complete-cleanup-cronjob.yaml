@@ -23,7 +23,7 @@ spec:
           automountServiceAccountToken: false
           containers:
             - name: cleanup
-              image: docker.io/python:3.14-alpine@sha256:05b2b8b732ecd268fee8727a369f936f022d1321b59befd13c30ede22769dcdc
+              image: docker.io/python:3.14-alpine@sha256:c6ead215bfd31f1e433d968853b7a769989117115b728874824e6c0a27cb96fc
               command:
                 - "python3"
                 - "-c"
@@ -33,7 +33,7 @@ spec:
 
                   # Job folders that survive this long in complete/ were never
                   # imported by an arr (blocked import, queue item removed
-                  # without client cleanup, ...) and are dead weight — SAB's own
+                  # without client cleanup, ...) and are dead weight, SAB's own
                   # history retention is 7d, so nothing this old is in flight.
                   ROOT = "/complete"
                   CUTOFF = time.time() - 7 * 86400

@@ -13,10 +13,8 @@ spec:
     - ../../../../components/homepage
     - ../../../../components/volsync
   dependsOn:
-    - name: gpu-operator
-      namespace: gpu-operator
-    - name: rook-ceph-cluster
-      namespace: rook-ceph
+    - name: onepassword-connect
+      namespace: external-secrets
   interval: 1h
   path: ./kubernetes/apps/media/tdarr/app
   postBuild:
@@ -25,7 +23,7 @@ spec:
       VOLSYNC_CAPACITY: 10Gi
       HOMEPAGE_NAME: Tdarr
       HOMEPAGE_GROUP: Media
-      HOMEPAGE_ICON: tdarr.svg
+      HOMEPAGE_ICON: tdarr.png
       HOMEPAGE_DESCRIPTION: Media transcoding
   prune: true
   retryInterval: 2m

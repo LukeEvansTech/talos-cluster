@@ -1,0 +1,25 @@
+---
+# Mints short-lived installation tokens for the `foreman-lukeevanstech`
+# GitHub App (installed account-wide; the token itself is narrowed to the
+# repositories + permissions below). Add a repository here to let foreman
+# open pull requests against it.
+apiVersion: generators.external-secrets.io/v1alpha1
+kind: GithubAccessToken
+metadata:
+  name: foreman-github
+  namespace: ai
+spec:
+  appID: "4718328"
+  installID: "156586919"
+  repositories:
+    - talos-cluster
+  permissions:
+    contents: write
+    issues: read
+    metadata: read
+    pull_requests: write
+  auth:
+    privateKey:
+      secretRef:
+        name: foreman-github-app
+        key: private-key

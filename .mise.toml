@@ -2,7 +2,7 @@
 # Pin exact tool versions + checksums + provenance in mise.lock for
 # reproducible, verified installs across machines and CI.
 lockfile = true
-# Required by the [hooks] block below — mise gates hooks behind experimental.
+# Required by the [hooks] block below; mise gates hooks behind experimental.
 # Scoped to this config, so it does not change mise behaviour in other repos.
 experimental = true
 
@@ -18,36 +18,36 @@ _.python.venv = {path = "{{config_root}}/.venv", create = true}
 
 [hooks]
 # `mise install` fetches the lefthook binary but does NOT materialise
-# .git/hooks — which is how this repo ran for months with an empty hooks dir
+# .git/hooks, which is how this repo ran for months with an empty hooks dir
 # and none of the documented pre-commit checks firing (see #3804). Wiring the
 # install here closes the fresh-clone gap: one `mise install` and the hooks are
 # live. lefthook install is idempotent, so re-running costs nothing.
 postinstall = "lefthook install"
 
 [tasks.deps]
-description = "Install Python dependencies"
-run = "uv pip install -r requirements.txt"
+description = "Install the docs toolchain (zensical, CI-pinned) into the repo venv"
+run = "uv pip install -r docs/requirements.txt"
 
 [tools]
-"aqua:budimanjojo/talhelper" = "3.1.16"
+"aqua:budimanjojo/talhelper" = "3.1.17"
 # ≥1.52 required by the justfiles (default-list/default-script settings;
 # recipe_name() needs 1.53). Explicit pin so Renovate manages bumps.
 "aqua:casey/just" = "1.58.0"
 "aqua:charmbracelet/gum" = "latest"
-"aqua:cli/cli" = "2.97.0"
-"aqua:cloudflare/cloudflared" = "2026.8.2"
+"aqua:cli/cli" = "2.100.0"
+"aqua:cloudflare/cloudflared" = "2026.8.3"
 "aqua:cue-lang/cue" = "0.17.1"
 # editorconfig-checker / yamllint / codespell / markdownlint-cli mirror the
 # linters super-linter v8 bundles, so lefthook catches their findings locally
 # before CI. Versions pinned to match super-linter@9e863354 (v8): bumping
 # super-linter may require bumping these in lockstep to avoid local/CI drift.
-"aqua:editorconfig-checker/editorconfig-checker" = "3.11.1"
+"aqua:editorconfig-checker/editorconfig-checker" = "3.11.3"
 # The hook runner itself. It was referenced by .lefthook.toml and the comment
 # above long before it was ever a pinned tool, so `.git/hooks/` sat empty and
 # none of the "pre-commit" checks actually ran locally. Run `lefthook install`
 # once per clone to materialise the hooks.
-"aqua:evilmartians/lefthook" = "2.1.10"
-"aqua:fluxcd/flux2" = "2.9.4"
+"aqua:evilmartians/lefthook" = "2.1.12"
+"aqua:fluxcd/flux2" = "2.9.5"
 "aqua:google/yamlfmt" = "0.21.0"
 "aqua:helm/helm" = "4.2.4"
 "aqua:helmfile/helmfile" = "1.7.4"
@@ -55,23 +55,23 @@ run = "uv pip install -r requirements.txt"
 "aqua:jqlang/jq" = "1.7.1"
 "aqua:koalaman/shellcheck" = "latest"
 "aqua:kubernetes-sigs/kustomize" = "5.6.0"
-"aqua:kubernetes/kubernetes/kubectl" = "1.36.3"
+"aqua:kubernetes/kubernetes/kubectl" = "1.37.0"
 "aqua:mitsuhiko/minijinja" = "latest"
-"aqua:mikefarah/yq" = "4.53.3"
+"aqua:mikefarah/yq" = "4.53.6"
 "aqua:rhysd/actionlint" = "latest"
-"aqua:siderolabs/talos" = "1.13.8"
+"aqua:siderolabs/talos" = "1.14.0"
 "aqua:yannh/kubeconform" = "0.8.0"
-"aqua:zizmorcore/zizmor" = "1.29.0"
+"aqua:zizmorcore/zizmor" = "1.30.0"
 "github:home-operations/flate" = "latest"
 "github:home-operations/yayamlls" = "latest"
 python = "3.14.7"
-uv = "0.12.5"
+uv = "0.12.10"
 # Exact pins (not ranges): an in-range update is LOCKFILE-ONLY for Renovate,
-# and that artifact path fails on Mend hosted — the node/prettier
+# and that artifact path fails on Mend hosted. The node/prettier
 # "-lockfile" branches errored on every dashboard tick while ordinary
 # bump-toml+lock updates (e.g. just 1.57.0, #3601) work fine. Every other
 # tool here is exact-pinned already; keep it that way.
-node = "24.19.0"
+node = "24.20.0"
 "npm:markdownlint-cli" = "0.49.1"
 "npm:prettier" = "3.9.6"
 "pipx:codespell" = "2.4.3"

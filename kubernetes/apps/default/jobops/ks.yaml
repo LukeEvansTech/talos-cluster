@@ -14,15 +14,16 @@ spec:
   dependsOn:
     - name: onepassword-connect
       namespace: external-secrets
-    - name: rook-ceph-cluster
-      namespace: rook-ceph
   interval: 1h
   path: ./kubernetes/apps/default/jobops/app
   postBuild:
     substitute:
       APP: *app
       VOLSYNC_CAPACITY: 5Gi
-      VOLSYNC_CACHE_CAPACITY: 5Gi
+      # Kopia's /cache holds the SHARED repository index + metadata, not this app's
+      # data, so it does not scale with VOLSYNC_CAPACITY. 8Gi is the cluster floor
+      # (KB-030); this app was at 80% of 5Gi.
+      VOLSYNC_CACHE_CAPACITY: 8Gi
   prune: true
   retryInterval: 2m
   sourceRef:

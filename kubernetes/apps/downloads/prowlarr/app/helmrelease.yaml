@@ -98,13 +98,35 @@ spec:
           app:
             image:
               repository: ghcr.io/home-operations/prowlarr
-              tag: 2.6.1.5509@sha256:ce5d6bdd5be6529f503df77aa9d2bad20239031d7c660406e8fb1c6d621dd020
+              tag: 2.6.3.5592@sha256:8c9ee448bb6de0e3e8b9c2f536b7a3455ec6ff5e184c2fb2a8602791b2757442
             env:
               TZ: ${TIMEZONE}
               PROWLARR__APP__INSTANCENAME: Prowlarr
               PROWLARR__APP__THEME: dark
+              # Enabled, not DisabledForLocalAddresses. Prowlarr resolves "local"
+              # from the address it sees, and every request through the gateway
+              # presents an Envoy pod address -- which is RFC1918, so the local
+              # exemption would apply to all traffic regardless of the real
+              # client. Already the live posture via config.xml, which is not in
+              # Git; declaring it here is what stops a config reset or a UI
+              # change from silently reverting to the insecure default. Mirrors
+              # radarr. API-key clients (the exportarr sidecar, the *arr apps
+              # syncing indexers) authenticate separately and are unaffected.
+              PROWLARR__AUTH__REQUIRED: Enabled
               PROWLARR__LOG__LEVEL: info
+              # Host header allowlist. localhost, loopback and the pod hostname
+              # are always accepted, so the exportarr sidecar (http://localhost:80)
+              # needs no entry. The other *arr apps reach Prowlarr on the FQDN
+              # baked into the indexer definitions Prowlarr syncs to them, which
+              # is the service name and NOT the release name -- this app exposes
+              # two services, so the HTTP one is prowlarr-app. Verified against
+              # the live indexer list on both consumers.
+              PROWLARR__SERVER__ALLOWEDHOSTS: prowlarr.${SECRET_DOMAIN},prowlarr-app.downloads.svc.cluster.local
               PROWLARR__SERVER__PORT: &port 80
+              # Trust X-Forwarded-* from the Envoy Gateway proxies (pod network)
+              # so the real client address is what Prowlarr sees and logs.
+              # Requires Prowlarr >= 2.6.3, where the setting was added.
+              PROWLARR__SERVER__TRUSTEDNETWORKS: ${CLUSTER_PODS_CIDR}
               PROWLARR__UPDATE__BRANCH: develop
             envFrom: *envFrom
             probes:

@@ -10,6 +10,7 @@ spec:
     labels:
       app.kubernetes.io/name: *app
   components:
+    - ../../../../components/homepage
     - ../../../../components/volsync
   interval: 1h
   path: ./kubernetes/apps/default/uptimekuma/app
@@ -17,6 +18,10 @@ spec:
     substitute:
       APP: *app
       VOLSYNC_CAPACITY: 5Gi
+      HOMEPAGE_NAME: Uptime Kuma
+      HOMEPAGE_GROUP: Monitoring
+      HOMEPAGE_ICON: uptime-kuma.svg
+      HOMEPAGE_DESCRIPTION: Uptime monitoring
   prune: true
   retryInterval: 2m
   sourceRef:

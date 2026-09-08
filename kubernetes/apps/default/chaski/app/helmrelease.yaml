@@ -26,6 +26,11 @@ spec:
         sonarr:
           apprise:
             url: pover://{{ env "PUSHOVER_USER_KEY" }}@{{ env "SONARR_PUSHOVER_TOKEN" }}
+        # Reuses the Radarr Pushover application; swap the token here if the
+        # digest ever earns its own app.
+        triage:
+          apprise:
+            url: pover://{{ env "PUSHOVER_USER_KEY" }}@{{ env "RADARR_PUSHOVER_TOKEN" }}
       routes:
         radarr-download:
           target: radarr
@@ -77,6 +82,20 @@ spec:
             url: "{{ .payload.applicationUrl }}/activity/queue"
             url_title: View Queue
           whenExpr: payload.eventType == "ManualInteractionRequired"
+        # Free-text digest from the daily queue-triage routine. That sender is
+        # on the tailnet rather than in-cluster, so this route carries its own
+        # token -- the global CHASKI_WEBHOOK_TOKEN would 401 the arr webhooks,
+        # which are configured in each arr's UI outside Git.
+        queue-triage:
+          target: triage
+          title: "{{ .payload.title }}"
+          message: "{{ .payload.message }}"
+          params:
+            format: html
+          verify:
+            token:
+              header: X-Chaski-Token
+              secret: '{{ env "TRIAGE_WEBHOOK_TOKEN" }}'
     monitoring:
       serviceMonitor:
         enabled: true

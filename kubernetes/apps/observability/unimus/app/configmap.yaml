@@ -1,0 +1,445 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/v1/configmap.json
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: unimus-seed
+  namespace: observability
+data:
+  # Credential definitions: names and the secret keys they read, never values.
+  # username_field reads the username from the Secret too; enable names an
+  # enable password created from the same secret and bound to the devices that
+  # use this credential.
+  credentials.json: |
+    [
+      {"name": "unimus-ssh",     "type": "USERNAME_SSH",      "username": "unimus", "secret_field": "UNIMUS_SSH_KEY"},
+      {"name": "unimus-ssh-rsa", "type": "USERNAME_SSH",      "username": "unimus", "secret_field": "UNIMUS_RSA_SSH_KEY"},
+      {"name": "ruckus-admin",   "type": "USERNAME_PASSWORD", "username_field": "RUCKUS_USERNAME", "secret_field": "RUCKUS_PASSWORD", "enable": "ruckus-enable"}
+    ]
+  # Device list: descriptions only. Every address arrives through the Secret
+  # (this repository is public); a device whose host field is empty is skipped.
+  # core-switch takes the RSA key: its firmware negotiates no other SSH key type.
+  devices.json: |
+    [
+      {"name": "core-switch",          "host_field": "ONYX_HOST",            "credential": "unimus-ssh-rsa"},
+      {"name": "access-switch-poe",    "host_field": "MIKROTIK_POE_HOST",    "credential": "unimus-ssh"},
+      {"name": "access-switch-nonpoe", "host_field": "MIKROTIK_NONPOE_HOST", "credential": "unimus-ssh"},
+      {"name": "firewall",             "host_field": "OPNSENSE_HOST",        "credential": "unimus-ssh"},
+      {"name": "nas",                  "host_field": "TRUENAS_HOST",         "credential": "unimus-ssh"},
+      {"name": "wifi-controller",      "host_field": "RUCKUS_HOST",          "credential": "ruckus-admin"},
+      {"name": "oob-router",           "host_field": "CHATEAU_HOST",         "credential": "unimus-ssh"}
+    ]
+  seed.py: |-
+    #!/usr/bin/env python3
+    """Reconcile Unimus credentials, devices and enable passwords from mounted secrets.
+
+    Idempotent and additive: creates what is missing, repairs device descriptions
+    and the managed flag, rotates a credential when its secret changed (create the
+    replacement, then delete the old one), and never deletes devices. Standard
+    library only.
+
+    API surface observed on Unimus 2.9.1 (2026-09-07). This build serves only part
+    of API v3, so the script speaks both versions:
+
+        v3   /credentials, /cli_mode_change_passwords, /zones, /tags. Two field
+            names on this build differ from the published spec, and both cost a
+            failed run: the credential create field is typeEnum, not type (a
+            listed credential exposes typeEnum and typeString), and the
+            enable-password list is keyed cliPasswords, not after its own path.
+            Every list key below is what the running build returned, not what the
+            spec documents: credentials, zones, cliPasswords, and v2's data.
+        v2   /devices, /devices/findByAddress/<address>, /devices/<id> (PATCH)
+        404  every /api/v3/devices* and /api/v3/jobs* path, answering
+            {"code":404,"error":"Not Found","message":"URL is not supported by the API"}
+            -- including devices:bind_credentials, devices:bind_enable_password
+            and devices:manage. GET /api/v2/zones 404s the same way (probed
+            2026-09-07), so zones are read from v3 and devices from v2.
+
+    That gap is the vendor's plan, not a broken install: APIv3 "focuses on covering
+    what isn't available in APIv2 first", and endpoints already covered by v2 are
+    added to v3 only after GUI parity. The v3 device endpoints this script was
+    first written against come from the api-v3-preview Swagger, which labels itself
+    a draft of *planned* endpoints. v2 is therefore the supported path for devices
+    until v3 device endpoints ship; when they do, ensure_device moves back to v3
+    and per-device credential binding becomes possible again.
+
+    Binding a credential to a device is impossible here -- v3's bind endpoints are
+    absent and v2 has no equivalent -- and is not needed. Unimus discovers a device
+    against the whole credential pool and remembers what worked, so seeding the
+    credentials and the devices is sufficient for backups to run. The `credential`
+    and `enable` keys in the two lists are kept even though nothing binds them:
+    they record intent, are logged per device, and become bindings again later.
+
+    Credentials and devices are both data. Only credentials referenced by a device
+    that has a host are touched; a credential whose secret is empty is skipped, and
+    so is every device that wanted it, because a device whose credential never
+    reached the pool is worse than no device.
+
+    A credential is recognised by the description "<name> fp=<12 hex>". The
+    fingerprint is HMAC-SHA256 of the secret keyed by the API token, so a reader of
+    this ConfigMap or of the device list cannot brute-force a secret offline.
+    Rotating the API token changes every fingerprint and therefore recreates every
+    credential once, which is harmless. Anything else sharing a name is left alone:
+    this script deletes only what it can prove it made.
+
+    A listed credential is read for its description and uuid and nothing else.
+    That matters because GET /credentials returns every entry's sshKey and
+    password in cleartext, so the pool is one careless log line from stdout; an
+    error from that endpoint is reported by status code with its body withheld,
+    since it could carry secrets this run never held and so cannot redact.
+
+    One limit worth knowing: a run that fails partway leaves stale credentials
+    behind for the next run to prune.
+
+    Environment:
+      UNIMUS_URL        base URL, e.g. http://unimus:8085
+      SEED_SECRETS_DIR  directory of one-file-per-key secrets (default /secrets)
+      SEED_CREDENTIALS  JSON list of credential definitions
+      SEED_DEVICES      JSON list of {name, host_field, credential}
+    """
+    import hmac
+    import json
+    import logging
+    import os
+    import re
+    import sys
+    import urllib.error
+    import urllib.parse
+    import urllib.request
+
+    log = logging.getLogger("seed")
+
+    FP_RE = r" fp=[0-9a-f]{12}"
+
+    NO_V3_DEVICES = (
+        "v3 device endpoints unsupported on this Unimus build; devices seeded through v2, "
+        "credential bindings skipped (Unimus tries the credential pool)")
+
+    class ApiError(RuntimeError):
+        def __init__(self, message, code):
+            super().__init__(message)
+            self.code = code
+
+    def read_secret(name, required=False):
+        p = os.path.join(os.environ.get("SEED_SECRETS_DIR", "/secrets"), name)
+        try:
+            with open(p) as f:
+                v = f.read()
+        except OSError:
+            v = ""
+        if required and not v.strip():
+            log.error("required secret %s is empty", name)
+            return None
+        return v
+
+    def load_json_env(name):
+        try:
+            return json.loads(os.environ[name])
+        except KeyError:
+            log.error("%s is not set", name)
+        except ValueError as e:
+            log.error("%s is not valid JSON: %s", name, e)
+        return None
+
+    def fingerprint(token, secret):
+        return hmac.new(token.encode(), secret.encode(), "sha256").hexdigest()[:12]
+
+    def redactions(secret):
+        """Every spelling the secret may take in an error message: raw, JSON-escaped
+        once or twice (a response body echoing it back), and URL-quoted, because
+        find_device puts the address in the PATH and the path is part of the
+        message. Longest first, so a shorter variant cannot mask a longer one."""
+        out, cur = [], secret
+        for _ in range(3):
+            out.append(cur)
+            cur = json.dumps(cur)[1:-1]
+        out.append(urllib.parse.quote(secret, safe=""))
+        return sorted(set(out), key=lambda s: (-len(s), s))
+
+    class Api:
+        """One client for both API versions; `version` picks the base path."""
+
+        def __init__(self, base, token):
+            self.base = base.rstrip("/")
+            self.token = token
+
+        def call(self, method, path, body=None, params=None, redact=(), version="v3", hide_body=False):
+            url = f"{self.base}/api/{version}{path}"
+            if params:
+                url += "?" + urllib.parse.urlencode(params, doseq=True)
+            data = json.dumps(body).encode() if body is not None else None
+            req = urllib.request.Request(url, data=data, method=method)
+            req.add_header("Authorization", "Bearer " + self.token)
+            req.add_header("Accept", "application/json")
+            if data is not None:
+                req.add_header("Content-Type", "application/json")
+            try:
+                with urllib.request.urlopen(req, timeout=30) as r:
+                    raw = r.read()
+                    return r.status, (json.loads(raw) if raw else {})
+            except urllib.error.HTTPError as e:
+                raw = e.read().decode(errors="replace")
+                # A successful GET /credentials returns every entry's sshKey and
+                # password in cleartext, so an error body from that endpoint could
+                # carry OTHER credentials' secrets -- ones this run has no way to
+                # redact, because it never held them. The only safe handling is to
+                # quote no part of it; the status code still says what went wrong.
+                detail = "<response body withheld: endpoint returns credential material>" if hide_body else raw
+                variants = [v for s in redact for v in redactions(s) if v]
+                # Redact the body BEFORE truncating: a secret must not survive in a
+                # tail. Then redact the assembled message too -- the address lives
+                # in the PATH, which no amount of body redaction would ever reach.
+                # Redact the two fields that can carry a secret, then assemble.
+                # Redacting the finished string instead let a one-character address
+                # match inside the status code ("-> 500" became "-> <redacted>00"),
+                # so method, version and code are never candidates. The body is
+                # redacted before truncation, so nothing survives in a tail.
+                for v in variants:
+                    detail = detail.replace(v, "<redacted>")
+                    path = path.replace(v, "<redacted>")
+                message = f"{method} /api/{version}{path} -> {e.code}: {detail[:300]}"
+                raise ApiError(message, e.code) from None
+
+        def list_all(self, path, key, hide_body=False):
+            """Page through a v3 list endpoint. Every list this script reads lives
+            on v3; devices are looked up one address at a time on v2, never listed.
+            Pass hide_body for a list whose entries carry secrets."""
+            items, page = [], 0
+            while True:
+                _, body = self.call("GET", path, params={"page": page, "size": 100},
+                                    hide_body=hide_body)
+                chunk = body.get(key, [])
+                items.extend(chunk)
+                pg = body.get("paginator") or {}
+                if not chunk or page + 1 >= (pg.get("totalPages") or 1):
+                    return items
+                page += 1
+
+    def triage(items, name, fp, noun="credential"):
+        """Split same-named entries into (managed at fp, stale, unmanaged descriptions)."""
+        managed = re.compile(re.escape(name) + FP_RE + "$")
+        match, stale, ignored = [], [], []
+        for c in items:
+            desc = c.get("description") or ""
+            if desc.partition(" fp=")[0] != name:
+                continue
+            if not managed.match(desc):
+                ignored.append(desc)
+            elif desc == f"{name} fp={fp}":
+                match.append(c)
+            else:
+                stale.append(c["uuid"])
+        for desc in ignored:
+            log.info("%s %s ignored: not managed by seed", noun, desc)
+        # Two entries at the same fingerprint: keep the first, retire the rest.
+        stale += [m["uuid"] for m in match[1:]]
+        return (match[0]["uuid"] if match else None), stale
+
+    def ensure_credential(api, token, spec, secret, username):
+        name = spec["name"]
+        fp = fingerprint(token, secret)
+        found, stale = triage(api.list_all("/credentials", "credentials", hide_body=True), name, fp)
+        if found:
+            log.info("credential %s unchanged", name)
+            return found, stale
+        # The wire field is typeEnum, not type: the 2.9.1 build rejects `type`
+        # (and credentialsType, and typeString) with "Type must not be null", which
+        # is how the first live run died. `type` stays the key in credentials.json,
+        # where it is our own data name; only the request field is typeEnum.
+        body = {"typeEnum": spec["type"], "username": username,
+                "description": f"{name} fp={fp}", "highSecurityMode": False}
+        body["sshKey" if spec["type"] == "USERNAME_SSH" else "password"] = secret
+        _, r = api.call("POST", "/credentials", body, redact=(secret,))
+        log.info("credential %s created", name)
+        return r["uuid"], stale
+
+    def ensure_enable_password(api, token, name, secret):
+        fp = fingerprint(token, secret)
+        # The list is keyed cliPasswords -- not after its own path, and not the
+        # spec's cliModeChangePasswords. Under the wrong key list_all returns []
+        # every run, so the script never found the password it had just made and
+        # recreated it: 409 ENTITY_ALREADY_EXISTS on the second live run.
+        listed = api.list_all("/cli_mode_change_passwords", "cliPasswords", hide_body=True)
+        found, stale = triage(listed, name, fp, noun="enable password")
+        if found:
+            log.info("enable password %s unchanged", name)
+            return found, stale
+        _, r = api.call("POST", "/cli_mode_change_passwords",
+                        {"password": secret, "description": f"{name} fp={fp}", "highSecurityMode": False},
+                        redact=(secret,))
+        log.info("enable password %s created", name)
+        return r["uuid"], stale
+
+    def default_zone(api):
+        """The default zone's number. v2 wants "the zone ID as seen in the UI", and
+        `number` is the only field the v3 zone object exposes that could be it.
+        The live default zone reports "0", so a missing number is an error, not a
+        zero -- silently defaulting it would put devices in an unintended zone."""
+        for z in api.list_all("/zones", "zones"):
+            if z.get("isDefault"):
+                if z.get("number") is None:
+                    raise RuntimeError("default zone reports no number")
+                return z["number"]
+        raise RuntimeError("no default zone")
+
+    def find_device(api, host):
+        """The device at `host`, or None. v2 answers a missing address with 404, so
+        that one call absorbs a 404; every other path treats one as a failure."""
+        quoted = urllib.parse.quote(host, safe="")
+        try:
+            _, body = api.call(
+                "GET", f"/devices/findByAddress/{quoted}", redact=(host,), version="v2")
+        except ApiError as e:
+            if e.code == 404:
+                return None
+            raise
+        return body.get("data") or None
+
+    def create_device(api, zone_id, name, host):
+        """POST /api/v2/devices per the v2 docs: address, description, zoneId, managed."""
+        body = {"address": host, "description": name, "managed": True}
+        # `is not None`, not truthiness: the default zone's number is "0".
+        if zone_id is not None:
+            body["zoneId"] = zone_id
+
+        def post():
+            try:
+                api.call("POST", "/devices", body, redact=(host,), version="v2")
+            except ApiError as e:
+                if e.code == 422:
+                    # v2's "Device already exist": Unimus canonicalises an address
+                    # on the way in but matches findByAddress literally, so a
+                    # device can be invisible to the lookup and still collide here.
+                    log.error("device %s: address already exists in Unimus under a "
+                              "different spelling; not created", name)
+                raise
+
+        try:
+            post()
+        except ApiError as e:
+            # zoneId is documented only as "Zone ID (as seen in UI)" and the v3 zone
+            # object names no field that way, so `number` is an informed guess. Only
+            # a rejection OF THE REFERENCE retries without it -- 400 or 404, never
+            # 422 (the address already exists, so a retry would say the same thing)
+            # and never a 5xx (the server is unwell; a retry that then succeeded
+            # would risk a second device). The retry keeps the same 422 handling.
+            if "zoneId" not in body or e.code not in (400, 404):
+                raise
+            log.warning("device %s: create rejected with zoneId=%s (HTTP %d); "
+                        "retrying in the default zone", name, zone_id, e.code)
+            body.pop("zoneId")
+            post()
+
+    def ensure_device(api, zone_id, name, host):
+        """Return the state word. Matches by address; repairs description and managed."""
+        found = find_device(api, host)
+        if found is None:
+            create_device(api, zone_id, name, host)
+            return "created"
+        if found.get("description") == name and found.get("managed") is not False:
+            return "unchanged"
+        # v2 PATCH always writes description -- omitting it REMOVES it -- so the
+        # repair carries the description whichever of the two fields drifted.
+        api.call(
+            "PATCH", f"/devices/{found['id']}", {"description": name, "managed": True},
+            redact=(host,), version="v2")
+        return "updated"
+
+    def credential_secret(spec):
+        """Return the secret for `spec`, or None when it is not usable."""
+        secret = read_secret(spec["secret_field"]) or ""
+        if spec["type"] == "USERNAME_SSH":
+            if not secret.strip():
+                return None
+            return secret if secret.endswith("\n") else secret + "\n"
+        secret = secret.rstrip("\r\n")
+        return secret or None
+
+    def main():
+        logging.basicConfig(level=logging.INFO, format="%(message)s", stream=sys.stdout)
+        token = read_secret("UNIMUS_API_TOKEN", required=True)
+        if token is None:
+            return 2
+        token = token.strip()
+        cred_specs = load_json_env("SEED_CREDENTIALS")
+        devices = load_json_env("SEED_DEVICES")
+        if cred_specs is None or devices is None:
+            return 2
+        specs = {c["name"]: c for c in cred_specs}
+
+        unknown = False
+        for dev in devices:
+            if dev["credential"] not in specs:
+                log.error("device %s wants unknown credential %s", dev["name"], dev["credential"])
+                unknown = True
+        if unknown:
+            return 2
+
+        # Resolve hosts first: only credentials a live device needs are touched.
+        live = []
+        for dev in devices:
+            host = (read_secret(dev["host_field"]) or "").strip()
+            if not host:
+                log.info("%s skipped: no host", dev["name"])
+                continue
+            live.append((dev, host))
+        needed = {dev["credential"] for dev, _ in live}
+
+        api = Api(os.environ.get("UNIMUS_URL", "http://unimus:8085"), token)
+        creds, stale, stale_enable = {}, [], []
+        for spec in cred_specs:
+            name = spec["name"]
+            if name not in needed:
+                continue
+            secret = credential_secret(spec)
+            if secret is None:
+                log.info("credential %s skipped: no secret", name)
+                continue
+            username = spec.get("username") or (read_secret(spec.get("username_field", "")) or "").strip()
+            if not username:
+                log.info("credential %s skipped: no username", name)
+                continue
+            creds[name], s = ensure_credential(api, token, spec, secret, username)
+            stale += s
+            if spec.get("enable"):
+                _, e = ensure_enable_password(api, token, spec["enable"], secret)
+                stale_enable += e
+
+        if live:
+            log.warning("%s", NO_V3_DEVICES)
+        zone, seeded = None, []
+        for dev, host in live:
+            name = dev["credential"]
+            if name not in creds:
+                log.info("%s skipped: credential %s unavailable", dev["name"], name)
+                continue
+            if zone is None:
+                zone = default_zone(api)
+            state = ensure_device(api, zone, dev["name"], host)
+            seeded.append(dev["name"])
+            # Nothing binds these any more, so say which pool entries the device is
+            # meant to match on: that is the only record of the intent left.
+            enable = specs[name].get("enable")
+            log.info(
+                "%s %s; expects credential %s%s from the pool", dev["name"], state, name,
+                f" and enable password {enable}" if enable else "")
+
+        if devices and not seeded:
+            log.error("no devices seeded: every entry skipped "
+                      "(check the Secret's host fields)")
+            return 3
+
+        if stale:
+            api.call("DELETE", "/credentials", params={"uuids": stale}, hide_body=True)
+            log.info("deleted %d stale credential(s)", len(stale))
+        if stale_enable:
+            api.call("DELETE", "/cli_mode_change_passwords", params={"uuids": stale_enable}, hide_body=True)
+            log.info("deleted %d stale enable password(s)", len(stale_enable))
+        return 0
+
+    if __name__ == "__main__":
+        try:
+            sys.exit(main())
+        except RuntimeError as e:
+            log.error("%s", e)
+            sys.exit(1)

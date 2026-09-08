@@ -31,9 +31,7 @@ resources:
   - ./forgejo/ks.yaml
   - ./gotify/ks.yaml
   - ./fusion/ks.yaml
-  # - ./gitea/ks.yaml
-  - ./giteamirror/ks.yaml
-  - ./gitsave/ks.yaml
+  - ./gickup/ks.yaml
   - ./guacamole/ks.yaml
   - ./homebox/ks.yaml
   - ./homepage/ks.yaml
@@ -64,6 +62,7 @@ resources:
   - ./bentopdf/ks.yaml
   - ./tandoor/ks.yaml
   - ./termix/ks.yaml
+  - ./thunderbird/ks.yaml
   - ./universal/ks.yaml
   - ./uptimekuma/ks.yaml
   - ./wallos/ks.yaml

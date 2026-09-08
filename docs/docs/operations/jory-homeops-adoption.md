@@ -1,4 +1,4 @@
-# joryirving/home-ops Adoption Roadmap
+# joryirving/home-ops adoption roadmap
 
 **Status:** Largely SHIPPED 2026-07-10. PRs A-E landed as #3480-#3484 (+ follow-up
 fixes #3488 mcp-searxng bind / arr telemetry, #3492 cache-prep securityContext), seerr
@@ -6,8 +6,8 @@ MCP as #3491, and PR G as the staged #3489 (operator 0.9.3) → #3490 (shared ca
 abliterated model) → #3493 (vision, first-class mmproj) with both models verified on the shared
 CephFS cache (text + vision end-to-end). The CephFS RWX smoke test passed on 2026-07-10.
 Still open: **ha MCP** (awaiting a user-created read-only Home Assistant token in 1Password),
-**PR F** (optional CPU auxiliary model), and **foreman** (parked; re-evaluate now CephFS is
-proven). Planned 2026-07-09 via multi-agent gap analysis + adversarial review.
+**PR F** (optional CPU auxiliary model), and **foreman** (trialled 2026-08-25, then archived,
+see below). Planned 2026-07-09 via multi-agent gap analysis + adversarial review.
 
 A survey of [joryirving/home-ops](https://github.com/joryirving/home-ops) (`kubernetes/apps/base/llm`
 and `.agents`) against this cluster. Most of his stack was already ported (open-webui, litellm,
@@ -152,8 +152,9 @@ disagrees with research snapshots on ports).
 Proposed defaults, changeable later; see the decision checklist below for the open ones:
 no chat platforms at first boot; MCP wired directly per ToolHive proxy; `approvals.mode:
 manual` (hermes gets kubectl/flux/talos tools and a local terminal, the Pod is the only
-boundary, so no unattended cluster actions until it has earned trust); reuse
-`LITELLM_MASTER_KEY` (open-webui precedent) with a scoped virtual key as later hardening;
+boundary, so no unattended cluster actions until it has earned trust); a scoped LiteLLM
+virtual key from the start, matching the operator-issued `LiteLLMVirtualKey` pattern
+open-webui and memini already use, rather than reusing the master key;
 `MEMINI_NAMESPACE: hermes`.
 
 ### PR F: (optional) CPU-served auxiliary model
@@ -206,7 +207,36 @@ What it buys: no staging Jobs or immutability hacks, operator-managed model life
 shared weights copy, and any node can serve any model without re-staging: model switching and
 failover stop being a re-download event. The `llm-gpu-model` anti-affinity spread stays.
 
-## Foreman: unblocked, parked
+## Foreman: trialled (#4585), archived 2026-08-26
+
+**Outcome: archived.** The manifests moved to `.archive/kubernetes/apps/ai/foreman/` and the
+`./foreman/ks.yaml` line left the `ai` namespace kustomization, so Flux pruned the operator, the
+three `Agent` CRs, the `foreman-gate-cache` PVC (a rebuildable gate cache, nothing to snapshot),
+the `litellm-key-foreman` virtual key and the GitHub token generator. What the one hand-applied
+`Workload` trial showed:
+
+- The local coder (`self-hosted`, Qwen3.8-27B on a single L4) managed about 30 model turns an
+  hour, roughly 178k prompt tokens in the hour without producing a diff. A real issue needs
+  100+ turns, so one attempt is a multi-hour affair on this hardware.
+- The first attempt died with a one-off agent Deployment rollout (its claim expired with the
+  pod). That is a fragility of Job-mode execution the retry budget does not cover.
+- Foreman reads `GITHUB_TOKEN` once at pod start, so the hourly installation tokens the
+  `GithubAccessToken` generator mints expire mid-attempt; a long-lived PAT (jory runs a bot user
+  with one) is the only token shape that survives a full attempt.
+- There is no queue of well-specified mechanical issues here for it to work through. Work in
+  this repository arrives as "look at this and figure out what is wrong", which an unattended
+  issue → pull request loop cannot do.
+
+To reinstate: `git mv` the directory back, re-add the `ks.yaml` line, and before the next trial
+(a) point the `coder` Agent at a cloud model (`openrouter/auto`) and keep `reviewer` local,
+(b) add a `self-hosted` alias with `reasoning_effort: none` for any local coding lane, and
+(c) recreate the `foreman-github` 1Password item with a fine-grained PAT and flip the
+`foreman-agent` ExternalSecret from the generator back to `extract`. The `foreman-lukeevanstech`
+GitHub App was deleted on 2026-08-26 and the `foreman-github` item with it (a private key for a
+deleted App is a liability, not a spare), so the generator path needs a fresh App registration
+(`github.com/settings/apps/new`: Contents RW / Pull requests RW / Issues R / Metadata R, webhook
+off, installed on this repository only) before it works again. The rest of this section is the
+trial-time write-up, kept for the pick-up.
 
 foreman + dispatch + foreman-dispatch-bridge is jory's autonomous "GitHub issues in → pull
 requests out" pipeline: dispatch grooms and lanes issues with a small local model, the bridge
@@ -214,18 +244,79 @@ CronJob claims one ready issue per lane and creates a foreman `Workload`, and fo
 pods (per-language coders → deterministic lint/test gate → read-only reviewer, all inferencing
 through litellm) open the PR, with a big-context cloud model as the escalation lane.
 
-Its hard blocker here was the `gateCache` RWX volume, gone once PR D lands. The remaining
-question is a soft one: whether local-model coding PRs earn their GPU slices when Claude Code
-is the primary agent. Re-evaluate after PRs D + G have proven CephFS in anger. If pursued, his
-`GATEPROFILE_MAP` (per-repository lint/build/test commands) must be rebuilt for this account's
-repositories, and dispatch needs CNPG + an OIDC story.
+Its hard blocker here was the `gateCache` RWX volume, gone once PR D landed. The dispatch +
+foreman-dispatch-bridge half is still deliberately skipped (this trial hand-applies one
+`Workload` at a time); jory's `GATEPROFILE_MAP` is the bridge's own repo→gate-command table and
+has no bearing on a hand-applied `Workload`, which carries its gate command inline via
+`spec.gateProfile` instead (see below).
+
+**What the draft PR installs**: the `foreman` chart (operator + CRDs: `Workload`,
+`AgenticTask`, `Agent`, `FleetNode`, `AgentRelease`, `ModelProfile`) and three `Agent` CRs:
+`coder` (role `coder`, model `self-hosted` via LiteLLM, Job-mode execution), `gate` (role
+`verifier`, deterministic, with no LLM, runs `run_gate_job`), `reviewer` (role `reviewer`, model
+`openrouter/auto`, read-only tools). All three inference through LiteLLM's `cloud-proxy`
+provider (`spec.providerConfig`), pointed at the `litellm-key-foreman` Secret the
+`LiteLLMVirtualKey` operator manages directly, so no LiteLLM key is duplicated into the
+`foreman-agent` 1Password-sourced Secret.
+
+**Prerequisites the owner must create before the trial can run** (not automated by the PR):
+
+- A GitHub App (the trial used `foreman-lukeevanstech`, id 4718328: Contents RW / Pull requests
+  RW / Issues R / Metadata R, webhook off, deleted 2026-08-26 together with its 1Password item)
+  installed on the account; its private key lives on the `foreman-github` 1Password item (Talos
+  vault, fields `APP_ID`, `INSTALLATION_ID`, `PRIVATE_KEY`). An
+  external-secrets `GithubAccessToken` generator (`foreman/app/githubaccesstoken.yaml`, now under `.archive/`) mints
+  hourly installation tokens scoped to the `repositories` listed there. Add a repository to that
+  list to let foreman work on it.
+- The `litellm` `LiteLLMProxy` cutover PR must land (or be otherwise verified) before the
+  `LiteLLMVirtualKey` in this PR can resolve. See that PR's Verification section for what was
+  actually observed against the litellm-operator's validating webhook.
+
+**Trial procedure.** Apply one `Workload` by hand against a real issue in a repo the generator's `repositories` list
+covers:
+
+```yaml
+apiVersion: foreman.llmkube.dev/v1alpha1
+kind: Workload
+metadata:
+  name: foreman-trial-issue-<N>
+  namespace: ai
+spec:
+  intent: "<one-line description of the fix>"
+  repo: <owner>/<repo>
+  issues: [<N>]
+  coderAgentRef:
+    name: coder
+  verifierAgentRef:
+    name: gate
+  reviewerAgentRefs:
+    - name: reviewer
+  # Only needed for a non-Go repository. An omitted gateProfile resolves to the Go
+  # preset (gofmt/govet/golangci-lint/go test), byte-identical to no field at
+  # all. See LLMKube's docs/site/foreman/language-gates.md for the built-in
+  # presets (python, rust, node, generic) and the `commands` overrides.
+  # gateProfile:
+  #   language: python
+```
+
+Watch it decompose and run:
+
+```bash
+kubectl get workload,agentictask,fleetnode -n ai -w
+```
+
+A review `GO` opens the pull request itself (`Workload.spec.openPullRequest` defaults to true
+for an issue-batch Workload), with no dispatch bridge involved. Flux does not own these hand-applied
+objects, so clean up by name afterward: `kubectl delete workload foreman-trial-issue-<N> -n ai`,
+plus any decomposed `AgenticTask`s that linger as terminal objects
+(`kubectl get agentictask -n ai`).
 
 ## Decision checklist (pick-up point)
 
 - [ ] hermes: the web chat surface is already live via `hermeswebui`; the open question is only
       which bot-token platforms (Discord/Slack/etc.), if any, to enable next (each needs a bot
       token in 1Password)
-- [ ] hermes: MCP wiring: direct per-proxy entries (default) or litellm's `/mcp` aggregate?
+- [x] hermes: MCP wiring, resolved by the ToolHive VMCP aggregate (#4594)
 - [ ] hermes: keep `approvals.mode: manual` (default) or `smart`?
 - [ ] hermes: image tag to pin (jory runs v2026.7.7; newer exists) + digest.
 - [ ] CephFS: StorageClass name (`ceph-filesystem` proposed), MDS memory limit, snapshot class now or later?
@@ -240,12 +331,18 @@ Deferred (right idea, wrong time): ToolHive `VirtualMCPServer` aggregate (litell
 aggregates + semantically filters; revisit if external agents need one URL: hermes could be
 that trigger), litellm complexity auto-router + cost economics (need a paid cloud roster),
 `memini-summary` dedicated model (GPU pressure; PR F could host it on CPU instead), repo-wiki,
-speculative decoding, HF-token ExternalSecret.
+speculative decoding, HF-token ExternalSecret, foreman (trialled and archived 2026-08-26; the
+Foreman section above carries the reinstatement recipe).
 
 Skipped with reasons: openclaw + hermes-parallel runtimes as *always-on personas* (hermes is
 being adopted deliberately instead), comfyui + miso-gallery + comfyui-mcp (AMD ROCm hardware),
 llama-strix / llama-ryzen / llama-vision serving (AMD/Vulkan + DRA on hardware we lack),
-toolhive-embed (redundant with all-minilm), memory-mcp (fragments memini), litellm
-HA/public/OIDC/ChatGPT deltas (his conventions, not ours), `.agents` foreman + pr-review
-instructions (document infrastructure we don't run; our sorting + add-app files verified
-better than his), dispatch (pointless without foreman; revisit only together).
+memory-mcp (fragments memini), litellm HA/public/OIDC/ChatGPT deltas (his conventions, not
+ours), `.agents` foreman + pr-review instructions (document infrastructure we don't run; our
+sorting + add-app files verified better than his), dispatch (pointless without foreman; revisit
+only together).
+
+`toolhive-embed (redundant with all-minilm)` above no longer holds: the VMCP tool optimizer's
+`all-minilm` embeddings failed on kubectl tool descriptions over MiniLM's 512-token limit, so a
+CPU `qwen3-embedding` server (`toolhive/embed/`) was adopted after all. See
+`docs/docs/architecture/ai-llm-stack.md` § "MCP gateway (VirtualMCPServer)" (#4595).

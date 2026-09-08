@@ -24,13 +24,13 @@ spec:
           app:
             image:
               repository: docker.io/isokoliuk/mcp-searxng
-              tag: 1.15.0@sha256:a1479fd040f54d977df0d2426924723a4f58742bcf1a037e7e098ff22d0b25dc
+              tag: 2.1.0@sha256:b4cf227a6459a5071a9b455c060bdd6912ee4fd4d2275abfdb30bc4f9e539136
             env:
               SEARXNG_URL: http://searxng.default.svc.cluster.local:8080
               MCP_HTTP_PORT: &port 3000
               # Upstream flipped the default bind to 127.0.0.1 (localhost-only)
-              # after v1.2.1, which silently broke every in-cluster consumer —
-              # the ClusterIP Service needs the pod to listen on all interfaces.
+              # after v1.2.1, which silently broke every in-cluster consumer.
+              # The ClusterIP Service needs the pod to listen on all interfaces.
               MCP_HTTP_HOST: 0.0.0.0
               TZ: ${TIMEZONE}
             resources:

@@ -1,0 +1,112 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: lurcher
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: lurcher
+  values:
+    controllers:
+      lurcher:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        # RWO ceph-block PVC: single replica, recreate on rollout to avoid a
+        # multi-attach deadlock (the new pod can't mount until the old releases).
+        strategy: Recreate
+        containers:
+          app:
+            image:
+              repository: ghcr.io/lukeevanstech/lurcher
+              tag: 2.1.0@sha256:c6f594018671e9a1c06c3ca17e6cdaba0d94f6351ef2b2d94823ea94cd7fbcec
+            env:
+              TZ: ${TIMEZONE}
+              HOME: /tmp # apprise/node need a writable home under readOnlyRootFilesystem
+              LURCHER_DB: /data/lurcher.db
+              # The CronJob's schedule: source publishes its daily batch ~06:00-08:00 UTC,
+              # so 10:00 London lands after it and catches new roles same-morning.
+              LURCHER_SCHEDULE: "0 10 * * *"
+              LURCHER_TZ: Europe/London
+              LURCHER_PUBLIC_URL: https://lurcher.${SECRET_DOMAIN}
+              # Description formatting: OpenAI-compatible endpoint -> the in-cluster LiteLLM
+              # gateway. "self-hosted" routes to llama.cpp (llmkube) with LiteLLM's
+              # openrouter/auto cloud fallback. LLM_API_KEY arrives via lurcher-secret.
+              LLM_BASE_URL: http://litellm.ai.svc.cluster.local:4000/v1
+              LLM_MODEL: self-hosted
+            envFrom:
+              - secretRef:
+                  name: lurcher-secret
+            probes:
+              liveness:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /health
+                    port: &port 8080
+                  initialDelaySeconds: 10
+                  periodSeconds: 30
+                  timeoutSeconds: 5
+                  failureThreshold: 3
+              readiness:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /health
+                    port: *port
+                  initialDelaySeconds: 5
+                  periodSeconds: 10
+                  timeoutSeconds: 10
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop:
+                  - ALL
+            resources:
+              requests:
+                cpu: 25m
+                memory: 128Mi
+              limits:
+                memory: 512Mi
+    defaultPodOptions:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532 # the CronJob's uid; the PVC's files are owned by it
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+    service:
+      app:
+        controller: lurcher
+        ports:
+          http:
+            port: *port
+    route:
+      app:
+        annotations:
+          gatus.home-operations.com/endpoint: |-
+            name: lurcher
+            group: internal
+            url: http://lurcher.default.svc.cluster.local:8080/health
+            conditions: ["[STATUS] == 200"]
+        hostnames:
+          - "lurcher.${SECRET_DOMAIN}"
+        parentRefs:
+          - name: envoy-internal
+            namespace: network
+    persistence:
+      data:
+        existingClaim: lurcher
+        globalMounts:
+          - path: /data
+      tmp:
+        type: emptyDir
+        globalMounts:
+          - path: /tmp

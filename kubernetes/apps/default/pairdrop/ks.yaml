@@ -18,7 +18,7 @@ spec:
       APP: *app
       HOMEPAGE_NAME: PairDrop
       HOMEPAGE_GROUP: Tools
-      HOMEPAGE_ICON: pairdrop.svg
+      HOMEPAGE_ICON: pairdrop.png
       HOMEPAGE_DESCRIPTION: Local file sharing
   prune: true
   retryInterval: 2m

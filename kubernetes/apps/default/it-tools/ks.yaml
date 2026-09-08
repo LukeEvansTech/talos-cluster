@@ -9,11 +9,17 @@ spec:
   commonMetadata:
     labels:
       app.kubernetes.io/name: *app
+  components:
+    - ../../../../components/homepage
   interval: 1h
   path: ./kubernetes/apps/default/it-tools/app
   postBuild:
     substitute:
       APP: *app
+      HOMEPAGE_NAME: IT-Tools
+      HOMEPAGE_GROUP: Tools
+      HOMEPAGE_ICON: it-tools.svg
+      HOMEPAGE_DESCRIPTION: Developer utilities
   prune: true
   retryInterval: 2m
   sourceRef:

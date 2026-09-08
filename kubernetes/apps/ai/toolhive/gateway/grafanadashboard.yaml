@@ -1,0 +1,18 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/grafana.integreatly.org/grafanadashboard_v1beta1.json
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  name: toolhive-mcp-gateway
+spec:
+  allowCrossNamespaceImport: true
+  instanceSelector:
+    matchLabels:
+      grafana.internal/instance: grafana
+  # No `datasources:` remap: the upstream JSON has no `__inputs` block and
+  # hardcodes datasource uid "prometheus" directly rather than a ${DS_...}
+  # placeholder, so grafana-operator's string-substitution mechanism has
+  # nothing to replace. If panels show "datasource not found" after import,
+  # this cluster's provisioned Prometheus datasource UID doesn't match the
+  # literal "prometheus" the dashboard expects.
+  url: https://raw.githubusercontent.com/stacklok/toolhive/main/examples/otel/grafana-dashboards/toolhive-mcp-grafana-dashboard-otel-scrape.json

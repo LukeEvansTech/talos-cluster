@@ -1,0 +1,172 @@
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: toolhiveembed
+spec:
+  accessModes:
+    - "ReadWriteOnce"
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: ceph-block
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: toolhiveembed
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: toolhiveembed
+  values:
+    controllers:
+      toolhiveembed:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        initContainers:
+          # Qwen3-Embedding-0.6B is a public GGUF (no HF token needed). Downloaded
+          # once into the RWO model PVC, reused on restart. Mirrors the
+          # llama-embed / llama-rerank pattern (../../../memini/models/).
+          #
+          # Long-context CPU embedder for the VMCP tool optimizer (see
+          # ../virtualmcpserver.yaml). LiteLLM's existing all-minilm model
+          # (served by the CPU llama-embed pod, ../../../memini/models/llama-embed.yaml)
+          # is all-MiniLM-L6-v2, a BERT model with a hard 512-token absolute
+          # position limit, and some kubectl tool descriptions exceed that,
+          # which previously terminated every VMCP session with an OpenAI 400
+          # "input larger than max context size" error. Qwen3-Embedding-0.6B
+          # supports 32k context; we run it at 8k here, well above the 512-token
+          # ceiling. all-minilm stays in place for memini and LiteLLM's own
+          # semantic tool filter, which never hit that limit. Mirrors Jory's
+          # dedicated toolhive-embed llama.cpp server (see
+          # docs/docs/operations/jory-homeops-adoption.md), but on CPU since
+          # the cluster's GPUs are already spoken for.
+          model-download:
+            image:
+              repository: python
+              tag: 3.14-slim@sha256:cad9a2c871761c413caa6fdd6441c783451e740a48aaeba60ae62a8b53525ef6
+            command:
+              - /bin/sh
+              - -ec
+              - |
+                set -euo pipefail
+                if [ ! -s /models/Qwen3-Embedding-0.6B/Qwen3-Embedding-0.6B-Q8_0.gguf ]; then
+                  pip install --no-cache-dir "huggingface_hub[hf_transfer]"
+                  mkdir -p /models/Qwen3-Embedding-0.6B
+                  hf download \
+                    Qwen/Qwen3-Embedding-0.6B-GGUF \
+                    Qwen3-Embedding-0.6B-Q8_0.gguf \
+                    --local-dir /models/Qwen3-Embedding-0.6B
+                  echo "Qwen3-Embedding-0.6B download complete"
+                else
+                  echo "Qwen3-Embedding-0.6B already present, skipping"
+                fi
+            env:
+              HF_HUB_ENABLE_HF_TRANSFER: "1"
+            resources:
+              requests:
+                cpu: 250m
+                memory: 512Mi
+              limits:
+                memory: 2Gi
+        containers:
+          app:
+            image:
+              repository: ghcr.io/ggml-org/llama.cpp
+              tag: server@sha256:8cbb24c55af02ccd2542b56851c65efff93151c8d6442da660b366d4971c5404
+            args:
+              - --host
+              - 0.0.0.0
+              - --port
+              - "8080"
+              - --alias
+              - Qwen3-Embedding-0.6B
+              - --model
+              - /models/Qwen3-Embedding-0.6B/Qwen3-Embedding-0.6B-Q8_0.gguf
+              - --embeddings
+              - --pooling
+              - last
+              # --ctx-size is the TOTAL KV budget and llama.cpp divides it evenly
+              # across --parallel slots, so 8192/4 gave each input only 2048 tokens
+              # and a batched tool-description upsert still 400'd
+              # (exceed_context_size_error, 2026-08-25). Two slots = 4096 tokens per
+              # input, well above the longest MCP tool description seen (~650),
+              # while keeping the 0.6B model's KV within the 2Gi memory limit.
+              - --ctx-size
+              - "8192"
+              - --parallel
+              - "2"
+              - --cont-batching
+              # llama.cpp cannot split one pooled-embedding sequence across
+              # micro-batches, so --ubatch-size must be >= the longest single
+              # input. It also sizes the attention scratch buffers quadratically:
+              # 8192 OOM-killed this pod at 2Gi on the first multi-input request
+              # (2026-08-25). The longest MCP tool description seen is ~650
+              # tokens, so 2048 is ample; --batch-size 4096 matches the slot ctx.
+              - --batch-size
+              - "4096"
+              - --ubatch-size
+              - "2048"
+              # The VMCP optimizer embeds every tool description (~540 inputs,
+              # ~100k tokens) when a session starts; at 4 threads that took
+              # minutes and the optimizer's request timed out, then retried while
+              # the first batch was still queued (2026-08-25). Nodes have 24
+              # cores. Give it 12 threads and a matching CPU request.
+              - --threads
+              - "12"
+              # llama-server keeps a RAM prompt cache (--cache-ram, default 8192
+              # MiB) of every processed sequence's KV so later prompts sharing a
+              # prefix can reuse it. Embedding inputs never share prefixes, so the
+              # cache only grows: the pod was OOM-killed at 3Gi after ~180
+              # tool-description inputs from the VMCP optimizer (2026-08-25).
+              # Disable prompt caching entirely (both flags verified in this
+              # image's --help).
+              - --cache-ram
+              - "0"
+              - --no-cache-prompt
+              - --metrics
+              - --mmap
+            resources:
+              requests:
+                cpu: "4"
+                memory: 2Gi
+              limits:
+                # llama-server RSS grows ~2Gi transiently while it works through
+                # the optimizer ~540-input batch (measured 2026-08-25 with prompt
+                # caching off) and returns to ~1Gi afterwards; 3Gi OOM-killed it
+                # mid-batch three times. Nodes have ~190Gi allocatable.
+                memory: 6Gi
+            probes:
+              liveness: &probe
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /health
+                    port: 8080
+                  initialDelaySeconds: 30
+                  periodSeconds: 30
+                  failureThreshold: 6
+              readiness: *probe
+              startup:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /health
+                    port: 8080
+                  failureThreshold: 60
+                  periodSeconds: 10
+    persistence:
+      models:
+        existingClaim: toolhiveembed
+        globalMounts:
+          - path: /models
+    service:
+      app:
+        ports:
+          http:
+            port: 8080

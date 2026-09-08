@@ -21,7 +21,7 @@ spec:
             nameOverride: nginx
             image:
               repository: docker.io/library/nginx
-              tag: 1.31-alpine@sha256:4a73073bd557c65b759505da037898b61f1be6cbcc3c2c3aeac22d2a470c1752
+              tag: 1.31-alpine@sha256:72ba65eb42c10344912a84ff42408db7d34f2feb642204570ab8fc5ffd29f1d3
             command:
               - "nginx"
             args:
@@ -92,7 +92,15 @@ spec:
               FIREWALL_INPUT_PORTS: "8443,9999"
               FIREWALL_OUTBOUND_SUBNETS: '"${CLUSTER_PODS_CIDR},${CLUSTER_SVCS_CIDR},${CR_LAN_CIDR},${GH_LAN_CIDR}"'
               HEALTH_SERVER_ADDRESS: ":9999"
-              HEALTH_SERVER_DISABLE_LOOP: on
+              # Keep gluetun's internal health-check loop running (`off` means
+              # "do not disable it"). With the kubelet probe below turned off,
+              # this loop is the only thing left that notices a degraded
+              # tunnel and restarts it in-process, without touching the pod
+              # netns the way a kubelet-triggered container restart would.
+              # Leave this `off`: flipping it back to `on` silently removes
+              # that recovery path again while the comment on the probes
+              # below still claims it is active.
+              HEALTH_SERVER_DISABLE_LOOP: off
               HEALTH_VPN_DURATION_INITIAL: 60s
               LOG_LEVEL: info
               # Run as root (0) rather than gluetun's default 1000. gluetun
@@ -134,9 +142,10 @@ spec:
             # 1352 restarts, ending in OOMKills against the limit below, and
             # only a pod recreation could break it. gluetun's own internal
             # healthcheck loop already restarts the *tunnel* in-process on
-            # failure, which recovers the same faults without touching the
-            # netns, so the kubelet probe adds a failure mode without adding
-            # a recovery path.
+            # failure (kept enabled via HEALTH_SERVER_DISABLE_LOOP above),
+            # which recovers the same faults without touching the netns, so
+            # the kubelet probe adds a failure mode without adding a
+            # recovery path.
             probes:
               liveness:
                 enabled: false
@@ -211,11 +220,11 @@ spec:
           # Pin the LB IP from the Cilium pool. Add SVC_IMGUR_PROXY_ADDR
           # to cluster-secrets in 1Password before applying.
           lbipam.cilium.io/ips: ${SVC_IMGUR_PROXY_ADDR}
-        # externalTrafficPolicy: Cluster (default) — Cilium L2 picks any
+        # externalTrafficPolicy: Cluster (default). Cilium L2 picks any
         # node as announcer; with Local the announcer must coincide with
         # the pod's node, which Cilium L2 doesn't currently guarantee
         # (announcer is hash-selected from the policy's nodeSelector).
-        # Source IP visibility isn't useful here — the proxy is
+        # Source IP visibility isn't useful here. The proxy is
         # SNI-allowlisted and doesn't do per-client policy.
         externalTrafficPolicy: Cluster
         ports:
@@ -250,7 +259,7 @@ spec:
 
               # SNI allowlist: leading-dot `.imgur.com` matches the apex
               # AND any subdomain in nginx's `hostnames;` map syntax.
-              # Empty default drops other SNI (open-relay protection — only
+              # Empty default drops other SNI (open-relay protection: only
               # Imgur-owned hosts are relayed).
               map $$ssl_preread_server_name $$upstream {
                 hostnames;

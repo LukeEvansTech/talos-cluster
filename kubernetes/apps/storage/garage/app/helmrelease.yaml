@@ -30,6 +30,11 @@ spec:
           app:
             image:
               repository: docker.io/dxflrs/garage
+              # HELD at v2.3.0: v2.4.0 panics at startup on this config -- its
+              # kube-client (kubernetes-discovery) builds a rustls ClientConfig
+              # with no crypto provider installed, so garage-2 crashlooped and
+              # the Helm rollback stalled. Blocked in .renovaterc.json5 until a
+              # fixed release lands.
               tag: v2.3.0@sha256:866bd13ed2038ba7e7190e840482bc27234c4afaf77be8cfa439ae088c1e4690
             env:
               TZ: ${TIMEZONE}
@@ -123,7 +128,7 @@ spec:
     route:
       app:
         annotations:
-          # garage S3 API answers anonymous GET with 403 — treat 200/403 as healthy
+          # garage S3 API answers anonymous GET with 403. Treat 200/403 as healthy
           gatus.home-operations.com/endpoint: |
             conditions: ["[STATUS] == any(200, 403)"]
         hostnames:
