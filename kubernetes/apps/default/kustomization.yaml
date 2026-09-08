@@ -33,7 +33,6 @@ resources:
   - ./fusion/ks.yaml
   # - ./gitea/ks.yaml
   - ./gickup/ks.yaml
-  - ./giteamirror/ks.yaml
   - ./gitsave/ks.yaml
   - ./guacamole/ks.yaml
   - ./homebox/ks.yaml
