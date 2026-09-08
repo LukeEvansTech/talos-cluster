@@ -57,3 +57,23 @@ spec:
     ttlSecondsAfterFinished: 86400
   maintenance:
     enabled: true
+    schedule:
+      # Hourly quick maintenance so closed epochs get compacted promptly and
+      # live index blob growth stays bounded as the trial widens (default is
+      # 6-hourly / 30m jitter). `full` restates the operator default because
+      # the CRD requires both halves of `schedule` once either is set.
+      # No `timezone` here on purpose: maintenance crons fall back to the
+      # controller default (UTC), and `scheduleDefaults.timezone` above governs
+      # SnapshotSchedules only, so naming one would move `full` an hour.
+      quick:
+        cron: "0 * * * *"
+        jitter: 10m
+      full:
+        cron: "0 3 * * *"
+        jitter: 1h
+  parameters:
+    epoch:
+      # Pairs with the hourly quick maintenance above: a 1h floor (kopia's
+      # default is 24h) lets an epoch close and be compacted the same day
+      # rather than accumulating a day of index blobs first.
+      minDuration: 1h
