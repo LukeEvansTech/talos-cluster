@@ -21,7 +21,7 @@ spec:
           app:
             image:
               repository: ghcr.io/lukeevanstech/lurcher
-              tag: 2.2.0@sha256:392e1534723fc27d708cc3fb3f1acce8a6c407d20ace92ca2dd9fc6cef5126ec
+              tag: 2.2.1@sha256:2284edd601d0aec5f4965fb38e613cd51bbb2e25b953ee15bf07e8afe147ba3e
             env:
               TZ: ${TIMEZONE}
               HOME: /tmp # apprise/node need a writable home under readOnlyRootFilesystem
