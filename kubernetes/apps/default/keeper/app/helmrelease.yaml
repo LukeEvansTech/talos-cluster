@@ -26,7 +26,7 @@ spec:
           app:
             image:
               repository: ghcr.io/ridafkih/keeper-services
-              tag: 2.23@sha256:e7ff663dffbd6792caa182dd5b1c5b086e4d1d6aa4838f417a52f53dd66bdd57
+              tag: 2.23@sha256:102113fc5d8a2a8e43e35c318fea5ee0b6e3b6d2710036c9a101d4447e148f11
             env:
               TZ: ${TIMEZONE}
               BETTER_AUTH_URL: "https://keeper.${SECRET_DOMAIN}"
