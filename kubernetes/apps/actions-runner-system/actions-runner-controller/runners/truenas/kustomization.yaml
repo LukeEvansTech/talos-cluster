@@ -3,10 +3,6 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  - ./codelooks-org
-  - ./nut
-  - ./packer
-  - ./seedbox
-  - ./talos-cluster
-  - ./terraform-vsphere
-  - ./truenas
+  - ./externalsecret.yaml
+  - ./helmrelease.yaml
+  - ./ocirepository.yaml
