@@ -19,8 +19,6 @@ jobs:
       pull-requests: write
     uses: LukeEvansTech/shared-workflows/.github/workflows/super-linter.yml@4ad6729e601bf0b89eb08d8bf6ebc0e9cf91b775 # v1
     with:
-      # Use hosted runners for fork pull requests.
-      runner: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && 'ubuntu-latest' || 'talosci' }}
       # Kubeconform validates raw YAML source. On this Flux GitOps repo the
       # source is meaningless until kustomize substitutes vars
       # (${SECRET_DOMAIN}, ${SVC_*_ADDR}, ...) and merges components, so it

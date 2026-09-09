@@ -8,6 +8,5 @@ resources:
   - ./packer
   - ./seedbox
   - ./talos-cluster
-  - ./talosci
   - ./terraform-vsphere
   - ./truenas
