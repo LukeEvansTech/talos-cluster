@@ -96,6 +96,21 @@ spec:
             token:
               header: X-Chaski-Token
               secret: '{{ env "TRIAGE_WEBHOOK_TOKEN" }}'
+        # Free-text digest from the weekly Radarr library-cleanup routine. Same
+        # off-cluster sender as queue-triage so it reuses that token, but kept as
+        # its own route: a deletion digest and a stuck queue need to be tellable
+        # apart at a glance on a phone, and this one wants high priority.
+        library-cleanup:
+          target: triage
+          title: "{{ .payload.title }}"
+          message: "{{ .payload.message }}"
+          params:
+            format: html
+            priority: high
+          verify:
+            token:
+              header: X-Chaski-Token
+              secret: '{{ env "TRIAGE_WEBHOOK_TOKEN" }}'
     monitoring:
       serviceMonitor:
         enabled: true
