@@ -18,4 +18,4 @@ permissions:
 
 jobs:
   drift:
-    uses: LukeEvansTech/shared-workflows/.github/workflows/zensical-drift-check.yml@4ad6729e601bf0b89eb08d8bf6ebc0e9cf91b775 # v1
+    uses: LukeEvansTech/shared-workflows/.github/workflows/zensical-drift-check.yml@239610499ad65c397d8d90b1a139d041bf28598a # v1
