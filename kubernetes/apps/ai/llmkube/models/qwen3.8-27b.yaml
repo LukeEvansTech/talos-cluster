@@ -149,7 +149,12 @@ spec:
     - "2"
     - --alias
     - self-hosted
-    - --no-mmap
+    # --no-mmap was removed upstream alongside --mmap; --load-mode
+    # replaces both. "none" is the equivalent of --no-mmap: no special
+    # loading mode, so the model is not memory-mapped. Fixed here too
+    # because the pinned server-cuda build still accepts the old flag.
+    - --load-mode
+    - none
     - --temp
     - "1.0"
     - --top-p

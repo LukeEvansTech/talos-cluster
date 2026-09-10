@@ -128,7 +128,12 @@ spec:
               - "0"
               - --no-cache-prompt
               - --metrics
-              - --mmap
+              # --mmap was removed upstream; --load-mode replaces it.
+              # Passing --mmap now makes the server exit with
+              # "invalid argument: --mmap" before it binds a port.
+              # --load-mode works on both the old and new builds.
+              - --load-mode
+              - mmap
             resources:
               requests:
                 cpu: "4"
