@@ -34,7 +34,19 @@ spec:
     httpGet:
       path: /health/liveliness
       port: 4000
-    initialDelaySeconds: 30
+    # 180s, not the 30s default, to cover the mcp_semantic_tool_filter boot
+    # step below: it embeds the whole MCP tool registry synchronously on every
+    # start into a LocalIndex that is never persisted, so a cold start is only
+    # ~17s when the embedding backend is idle but was measured at 104s when it
+    # was not. The old 30s + 6x10s killed the container at ~90s, before it had
+    # served a single request, and because the proxy handles SIGTERM cleanly it
+    # exited 0/Completed - never CrashLoopBackOff, so only KubePodNotReady
+    # fired. Each kill re-queued the whole registry onto the embedding
+    # backend's two slots, making the next start slower still: 62 restarts in
+    # two hours. There is no startupProbe field on the LiteLLMProxy CRD, so
+    # this is the available knob; initialDelaySeconds only delays the FIRST
+    # check, so steady-state detection stays at 6x10s.
+    initialDelaySeconds: 180
     periodSeconds: 10
     failureThreshold: 6
   readinessProbe:
