@@ -48,9 +48,7 @@ class _Http:
                     raise SourceError(f"GET {path} returned {response.status}")
                 return json.loads(response.read())
         except urllib.error.HTTPError as exc:
-            raise SourceError(
-                f"GET {path} returned {exc.code}", status=exc.code
-            ) from exc
+            raise SourceError(f"GET {path} returned {exc.code}", status=exc.code) from exc
         except (urllib.error.URLError, TimeoutError, OSError) as exc:
             raise SourceError(f"GET {path} failed: {exc}") from exc
         except json.JSONDecodeError as exc:
@@ -68,9 +66,7 @@ class _Http:
         all_headers = dict(headers or {})
         if payload:
             all_headers["Content-Type"] = "application/json"
-        request = urllib.request.Request(
-            f"{self.base_url}{path}", data=payload, headers=all_headers, method=method
-        )
+        request = urllib.request.Request(f"{self.base_url}{path}", data=payload, headers=all_headers, method=method)
         try:
             with self._opener.open(request, timeout=self.timeout) as response:
                 raw = response.read()
@@ -141,14 +137,10 @@ class Radarr:
 
     def movie_history(self, movie_id: int) -> list[dict]:
         """Full history for one film: grabs, imports, deletions, renames."""
-        data = self.http.get_json(
-            f"/api/v3/history/movie?movieId={movie_id}", self.headers
-        )
+        data = self.http.get_json(f"/api/v3/history/movie?movieId={movie_id}", self.headers)
         return data if isinstance(data, list) else []
 
-    def import_events(
-        self, page_size: int = 1000, max_pages: int = 200
-    ) -> dict[int, list[dict]]:
+    def import_events(self, page_size: int = 1000, max_pages: int = 200) -> dict[int, list[dict]]:
         """Every retained import event, grouped by movie id.
 
         One paged sweep rather than a request per film: the library is thousands
@@ -160,8 +152,7 @@ class Radarr:
         page = 1
         while page <= max_pages:
             payload = self.http.get_json(
-                f"/api/v3/history?page={page}&pageSize={page_size}"
-                "&sortKey=date&sortDirection=ascending&eventType=3",
+                f"/api/v3/history?page={page}&pageSize={page_size}" "&sortKey=date&sortDirection=ascending&eventType=3",
                 self.headers,
             )
             records = (payload or {}).get("records") or []
@@ -201,18 +192,12 @@ class Radarr:
 
     def create_tag(self, label: str) -> tuple[int, Any]:
         """Create a tag by label."""
-        return self.http.request_json(
-            "POST", "/api/v3/tag", self.headers, {"label": label}
-        )
+        return self.http.request_json("POST", "/api/v3/tag", self.headers, {"label": label})
 
-    def delete_movie(
-        self, movie_id: int, add_exclusion: bool = True
-    ) -> tuple[int, Any]:
+    def delete_movie(self, movie_id: int, add_exclusion: bool = True) -> tuple[int, Any]:
         """Delete a film and its files, optionally excluding it from re-import."""
         query = f"?deleteFiles=true&addImportExclusion={'true' if add_exclusion else 'false'}"
-        return self.http.request_json(
-            "DELETE", f"/api/v3/movie/{movie_id}{query}", self.headers
-        )
+        return self.http.request_json("DELETE", f"/api/v3/movie/{movie_id}{query}", self.headers)
 
 
 class Tautulli:
@@ -228,9 +213,7 @@ class Tautulli:
         payload = self.http.get_json("/api/v2", params=query)
         response = (payload or {}).get("response") or {}
         if response.get("result") != "success":
-            raise SourceError(
-                f"Tautulli {cmd} returned result={response.get('result')!r}"
-            )
+            raise SourceError(f"Tautulli {cmd} returned result={response.get('result')!r}")
         return response.get("data")
 
     def preflight(self) -> str:
@@ -240,9 +223,7 @@ class Tautulli:
             raise SourceError("Tautulli preflight returned no usable payload")
         return data
 
-    def movie_history(
-        self, page_size: int = 500, max_pages: int = 200
-    ) -> tuple[list[dict], dict]:
+    def movie_history(self, page_size: int = 500, max_pages: int = 200) -> tuple[list[dict], dict]:
         """Every ungrouped movie play, with the metadata to judge completeness.
 
         Two deliberate choices. ``grouping=0`` because a grouped row hides the
@@ -267,9 +248,7 @@ class Tautulli:
                 length=page_size,
             )
             if not isinstance(data, dict) or "data" not in data:
-                raise SourceError(
-                    "Tautulli get_history returned an unexpected structure"
-                )
+                raise SourceError("Tautulli get_history returned an unexpected structure")
             declared = data.get("recordsFiltered") if declared is None else declared
             page = data.get("data") or []
             for row in page:
@@ -342,9 +321,7 @@ class RequestSystem:  # pylint: disable=too-few-public-methods
         self.http = _Http(base_url, timeout=timeout, opener=opener)
         self.headers = {"X-Api-Key": api_key}
 
-    def movie_requests(
-        self, page_size: int = 100, max_pages: int = 100
-    ) -> dict[int, dict]:
+    def movie_requests(self, page_size: int = 100, max_pages: int = 100) -> dict[int, dict]:
         """Every movie request, keyed by tmdbId.
 
         Absence here is not evidence of anything: the request system is lightly

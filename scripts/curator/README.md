@@ -81,7 +81,7 @@ Recoverable while the recycle bin still holds the file. In order:
 
 1. Re-add the movie in Radarr. The intent record written before the delete holds
    what you need to recreate it: `tmdbId`, `titleSlug`, `path`, `rootFolderPath`,
-   `qualityProfileId`, `minimumAvailability`, `monitored` and the tag ids.
+   `qualityProfileId`, `minimumAvailability`, `monitored` and the tag IDs.
 2. Restore the file from the recycle bin to the film's folder and run a rescan so
    Radarr re-imports it.
 3. Remove the import-list exclusion — `DELETE /api/v3/exclusions/<id>`, found by

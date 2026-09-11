@@ -52,15 +52,11 @@ def make_availability(days: int = 120, source: str = "radarr-history") -> Availa
     return Availability(first_playable=days_ago(days), source=source, has_file=True)
 
 
-def make_viewing(
-    completers: int = 0, status: HistoryStatus = HistoryStatus.OK, plays: int = 0
-) -> Viewing:
+def make_viewing(completers: int = 0, status: HistoryStatus = HistoryStatus.OK, plays: int = 0) -> Viewing:
     """Viewing evidence with ``completers`` distinct finishers."""
     return Viewing(
         status=status,
-        completions=tuple(
-            Completion(user_id=100 + i, percent=95) for i in range(completers)
-        ),
+        completions=tuple(Completion(user_id=100 + i, percent=95) for i in range(completers)),
         play_count=plays or completers,
         identity_via="tmdb",
         rating_keys=(5000,),
@@ -74,9 +70,7 @@ def feed_provenance() -> Provenance:
 
 def unknown_provenance() -> Provenance:
     """Provenance that establishes nothing."""
-    return Provenance(
-        origin=Origin.UNKNOWN, evidence=("no request record and no provenance tag",)
-    )
+    return Provenance(origin=Origin.UNKNOWN, evidence=("no request record and no provenance tag",))
 
 
 def import_event(when: datetime, **extra) -> dict:
@@ -84,9 +78,7 @@ def import_event(when: datetime, **extra) -> dict:
     return {"eventType": "downloadFolderImported", "date": when.isoformat(), **extra}
 
 
-def play_row(
-    rating_key: int, user_id: int, percent: int, row_id: int, date: int = 1_780_000_000
-) -> dict:
+def play_row(rating_key: int, user_id: int, percent: int, row_id: int, date: int = 1_780_000_000) -> dict:
     """One ungrouped Tautulli history row."""
     return {
         "row_id": row_id,
@@ -172,9 +164,7 @@ class FakeRadarr:
         """Tag definitions."""
         return [{"id": i, "label": label} for i, label in self.tags_by_id.items()]
 
-    def delete_movie(
-        self, movie_id: int, add_exclusion: bool = True
-    ):  # pylint: disable=unused-argument
+    def delete_movie(self, movie_id: int, add_exclusion: bool = True):  # pylint: disable=unused-argument
         """Delete, honouring any behaviour injected for this id."""
         behaviour = self.delete_behaviour.get(movie_id)
         if isinstance(behaviour, Exception):

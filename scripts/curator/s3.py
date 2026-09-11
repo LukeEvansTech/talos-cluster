@@ -63,9 +63,7 @@ class S3Client:
     ``InvalidRequest`` rather than as a proxy problem.
     """
 
-    def __init__(
-        self, config: S3Config, opener: urllib.request.OpenerDirector | None = None
-    ):
+    def __init__(self, config: S3Config, opener: urllib.request.OpenerDirector | None = None):
         self.config = config
         self._opener = opener or urllib.request.build_opener()
         parsed = urllib.parse.urlsplit(config.endpoint.rstrip("/"))
@@ -94,14 +92,8 @@ class S3Client:
         datestamp: str,
     ) -> str:
         """Build the SigV4 Authorization header for one request."""
-        canonical_headers = (
-            f"host:{self.host}\n"
-            f"x-amz-content-sha256:{payload_hash}\n"
-            f"x-amz-date:{amz_date}\n"
-        )
-        canonical_request = "\n".join(
-            [method, uri, query, canonical_headers, _SIGNED_HEADERS, payload_hash]
-        )
+        canonical_headers = f"host:{self.host}\n" f"x-amz-content-sha256:{payload_hash}\n" f"x-amz-date:{amz_date}\n"
+        canonical_request = "\n".join([method, uri, query, canonical_headers, _SIGNED_HEADERS, payload_hash])
         scope = f"{datestamp}/{self.config.region}/s3/aws4_request"
         string_to_sign = "\n".join(
             [
@@ -134,9 +126,7 @@ class S3Client:
         datestamp = now.strftime("%Y%m%d")
         payload_hash = hashlib.sha256(body).hexdigest() if body else _EMPTY_SHA256
         uri = self._canonical_uri(key)
-        canonical_query = urllib.parse.urlencode(
-            sorted((query or {}).items()), quote_via=urllib.parse.quote
-        )
+        canonical_query = urllib.parse.urlencode(sorted((query or {}).items()), quote_via=urllib.parse.quote)
 
         url = f"{self._scheme}://{self.host}{uri}"
         if canonical_query:
@@ -147,9 +137,7 @@ class S3Client:
         request.add_header("x-amz-content-sha256", payload_hash)
         request.add_header(
             "Authorization",
-            self._authorization(
-                method, uri, canonical_query, payload_hash, amz_date, datestamp
-            ),
+            self._authorization(method, uri, canonical_query, payload_hash, amz_date, datestamp),
         )
         if body:
             request.add_header("Content-Type", "application/json")
@@ -198,23 +186,15 @@ class S3Client:
                 query["continuation-token"] = token
             raw = self._request("GET", "", query=query)
             root = ET.fromstring(raw)
-            namespace = (
-                {"s3": root.tag.split("}")[0].strip("{")} if "}" in root.tag else {}
-            )
+            namespace = {"s3": root.tag.split("}")[0].strip("{")} if "}" in root.tag else {}
             path = "s3:Contents/s3:Key" if namespace else "Contents/Key"
             keys.extend(node.text or "" for node in root.findall(path, namespace))
-            truncated = root.find(
-                "s3:IsTruncated" if namespace else "IsTruncated", namespace
-            )
+            truncated = root.find("s3:IsTruncated" if namespace else "IsTruncated", namespace)
             token_node = root.find(
                 "s3:NextContinuationToken" if namespace else "NextContinuationToken",
                 namespace,
             )
-            if (
-                truncated is None
-                or (truncated.text or "").lower() != "true"
-                or token_node is None
-            ):
+            if truncated is None or (truncated.text or "").lower() != "true" or token_node is None:
                 break
             token = token_node.text
         return keys

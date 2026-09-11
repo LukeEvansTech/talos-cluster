@@ -119,11 +119,7 @@ def build_sources() -> Sources:
     return Sources(
         radarr=Radarr(env("RADARR_URL"), env("RADARR_API_KEY")),
         tautulli=Tautulli(env("TAUTULLI_URL"), env("TAUTULLI_API_KEY")),
-        seerr=(
-            RequestSystem(seerr_url, env("SEERR_API_KEY", required=False))
-            if seerr_url
-            else None
-        ),
+        seerr=(RequestSystem(seerr_url, env("SEERR_API_KEY", required=False)) if seerr_url else None),
         ledger=Ledger(
             S3Client(
                 S3Config(
@@ -206,9 +202,7 @@ def resolve_identities(
         ledger.write_crosswalk(crosswalk)
 
     unattributed_keys = {k for k, v in crosswalk.items() if v.get("unresolved")}
-    unattributed = [
-        row for key in unattributed_keys for row in rows_by_key.get(key, [])
-    ]
+    unattributed = [row for key in unattributed_keys for row in rows_by_key.get(key, [])]
     if unattributed:
         log(
             f"{len(unattributed)} play(s) across {len(unattributed_keys)} retired Plex items "
@@ -269,11 +263,7 @@ def build_snapshot(
     """The population figures anomaly detection compares between runs."""
     return {
         "library_size": len(movies),
-        "keep_tag_count": sum(
-            1
-            for m in movies
-            if TAG_KEEP in {tag_labels.get(t) for t in m.get("tags", [])}
-        ),
+        "keep_tag_count": sum(1 for m in movies if TAG_KEEP in {tag_labels.get(t) for t in m.get("tags", [])}),
         "collection_count": len(collections),
         "monitored_collections": sum(1 for c in collections if c.get("monitored")),
         "exclusion_count": len(exclusions),
@@ -330,9 +320,7 @@ def gather_library(sources: Sources) -> Library:
     collections = radarr.collections()
     exclusions = radarr.exclusions()
     horizon = utc(radarr.history_horizon())
-    log(
-        f"library {len(movies)} films, {len(collections)} collections, {len(exclusions)} exclusions"
-    )
+    log(f"library {len(movies)} films, {len(collections)} collections, {len(exclusions)} exclusions")
     log(f"Radarr history reaches back to {horizon.date() if horizon else 'unknown'}")
 
     requests: dict[int, dict] = {}
@@ -341,9 +329,7 @@ def gather_library(sources: Sources) -> Library:
             requests = sources.seerr.movie_requests()
             log(f"request system: {len(requests)} movie requests")
         except SourceError as exc:
-            log(
-                f"request system unavailable: {exc} -- every origin will read as unknown"
-            )
+            log(f"request system unavailable: {exc} -- every origin will read as unknown")
 
     monitored = monitored_collection_ids(collections)
     log(
@@ -375,9 +361,7 @@ def build_plan_payload(
         "blocks": run["blocks"],
         "recycle_bin": run["recycle_bin"],
         "history": run["history"],
-        "history_coverage_start": (
-            coverage_start.isoformat() if coverage_start else None
-        ),
+        "history_coverage_start": (coverage_start.isoformat() if coverage_start else None),
         "unattributed_plays": run["unattributed"],
         "radarr_history_horizon": horizon.isoformat() if horizon else None,
         "keep_tag_additions": [
@@ -391,12 +375,8 @@ def build_plan_payload(
         ],
         "candidates": [a.to_json() for a in candidates],
         "review": [a.to_json() for a in assessments if a.outcome is Outcome.REVIEW],
-        "missing_file": [
-            a.to_json() for a in assessments if a.outcome is Outcome.MISSING_FILE
-        ],
-        "multi_user_completions": [
-            a.to_json() for a in assessments if a.viewing.distinct_completers >= 2
-        ],
+        "missing_file": [a.to_json() for a in assessments if a.outcome is Outcome.MISSING_FILE],
+        "multi_user_completions": [a.to_json() for a in assessments if a.viewing.distinct_completers >= 2],
         "expired_basis_keeps": expired_basis_keeps(assessments),
     }
 
@@ -428,22 +408,18 @@ def cmd_plan(args: argparse.Namespace) -> int:
     rows_by_key: dict[int, list[dict]] = {}
     for row in rows:
         key = row.get("rating_key")
-        if key not in (None, ""):
-            rows_by_key.setdefault(int(key), []).append(row)
+        if key is None or key == "":
+            continue
+        rows_by_key.setdefault(int(key), []).append(row)
     crosswalk, unattributed = resolve_identities(sources.tautulli, ledger, rows_by_key)
 
     stamps = [int(r["date"]) for r in rows if str(r.get("date", "")).isdigit()]
-    coverage_start = (
-        datetime.fromtimestamp(min(stamps), tz=timezone.utc) if stamps else None
-    )
-    log(
-        f"play history covers from {coverage_start.date() if coverage_start else 'unknown'}"
-    )
+    coverage_start = datetime.fromtimestamp(min(stamps), tz=timezone.utc) if stamps else None
+    log(f"play history covers from {coverage_start.date() if coverage_start else 'unknown'}")
 
     ctx = PlanContext(
         now=now,
-        scope_start=utc(os.environ.get("CLEANUP_SCOPE_START") or DEFAULT_SCOPE_START)
-        or now,
+        scope_start=utc(os.environ.get("CLEANUP_SCOPE_START") or DEFAULT_SCOPE_START) or now,
         monitored_collection_tmdb_ids=frozenset(monitored),
         coverage_start=coverage_start,
         history_ok=history_ok,
@@ -467,9 +443,7 @@ def cmd_plan(args: argparse.Namespace) -> int:
     counts = summarise(assessments)
     log(f"assessment: {counts}")
 
-    snapshot = build_snapshot(
-        movies, tag_labels, collections, exclusions, history_meta, history_ok, now
-    )
+    snapshot = build_snapshot(movies, tag_labels, collections, exclusions, history_meta, history_ok, now)
     blocks = check_anomalies(snapshot, ledger.read_baseline())
     if not bin_ok:
         blocks.append(bin_detail)
@@ -505,10 +479,7 @@ def cmd_plan(args: argparse.Namespace) -> int:
     )
     (out / "plan.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
     ledger.record_plan({k: v for k, v in payload.items() if k != "review"})
-    log(
-        f"wrote {out / 'plan.json'}: {len(payload['candidates'])} candidates, "
-        f"{len(blocks)} blocking issues"
-    )
+    log(f"wrote {out / 'plan.json'}: {len(payload['candidates'])} candidates, " f"{len(blocks)} blocking issues")
     for block in blocks:
         log(f"  BLOCK: {block}")
     return 0
@@ -523,9 +494,7 @@ def rehydrate(planned: dict, film: Film, reason: str = "") -> Assessment:
     return Assessment(
         film=film,
         outcome=Outcome.CANDIDATE,
-        provenance=Provenance(
-            Origin(planned["origin"]), tuple(planned.get("origin_evidence") or ())
-        ),
+        provenance=Provenance(Origin(planned["origin"]), tuple(planned.get("origin_evidence") or ())),
         availability=Availability(None, planned["availability_source"], film.has_file),
         viewing=Viewing(
             status=HistoryStatus(planned["history_status"]),
@@ -544,9 +513,7 @@ def rehydrate(planned: dict, film: Film, reason: str = "") -> Assessment:
     )
 
 
-def apply_keep_tags(
-    radarr: Radarr, additions: list[dict], dry_run: bool
-) -> dict[str, Any]:
+def apply_keep_tags(radarr: Radarr, additions: list[dict], dry_run: bool) -> dict[str, Any]:
     """Give the permanent allow-list tag to films that have earned it.
 
     Add-only. The editor endpoint answers 202, meaning queued and nothing more,
@@ -570,9 +537,7 @@ def apply_keep_tags(
 
     status, _ = radarr.add_tag(movie_ids, tag_id)
     wanted = set(movie_ids)
-    applied = sum(
-        1 for m in radarr.movies() if m["id"] in wanted and tag_id in m.get("tags", [])
-    )
+    applied = sum(1 for m in radarr.movies() if m["id"] in wanted and tag_id in m.get("tags", []))
     return {"requested": len(movie_ids), "applied": applied, "http": status}
 
 
@@ -637,24 +602,17 @@ def cmd_execute(args: argparse.Namespace) -> int:
             monitored,
             dry_run=ledger.dry_run,
         )
-        tagged = apply_keep_tags(
-            radarr, plan.get("keep_tag_additions") or [], ledger.dry_run
-        )
+        tagged = apply_keep_tags(radarr, plan.get("keep_tag_additions") or [], ledger.dry_run)
 
         now = datetime.now(timezone.utc)
         for item in accepted:
-            if (
-                item["verdict"] not in ("keep", "review")
-                or item["movie_id"] not in movies
-            ):
+            if item["verdict"] not in ("keep", "review") or item["movie_id"] not in movies:
                 continue
             film = to_film(movies[item["movie_id"]], tag_labels)
             ledger.write_decision(
                 build_decision_record(
                     rehydrate(by_id[item["movie_id"]], film),
-                    verdict=(
-                        "spared" if item["verdict"] == "keep" else "queued for review"
-                    ),
+                    verdict=("spared" if item["verdict"] == "keep" else "queued for review"),
                     reason=item["reason"],
                     run_id=sources.run_id,
                     now=now,

@@ -60,9 +60,7 @@ class PlanContext:
     collections_loaded: bool = True
 
 
-def fact_fingerprint(
-    film: Film, provenance: Provenance, viewing: Viewing, monitored: bool
-) -> str:
+def fact_fingerprint(film: Film, provenance: Provenance, viewing: Viewing, monitored: bool) -> str:
     """Hash the facts a spare decision rested on.
 
     A spare stands until one of these moves. Scores are bucketed so a rating
@@ -70,9 +68,7 @@ def fact_fingerprint(
     or a newly monitored collection does.
     """
     payload = {
-        "score_bucket": (
-            None if film.imdb_score is None else round(film.imdb_score * 2) / 2
-        ),
+        "score_bucket": (None if film.imdb_score is None else round(film.imdb_score * 2) / 2),
         "votes_bucket": None if film.imdb_votes is None else film.imdb_votes // 1000,
         "completers": viewing.distinct_completers,
         "origin": provenance.origin.value,
@@ -119,23 +115,17 @@ def _protection_gate(
 
     if monitored:
         result.outcome = Outcome.PROTECTED
-        result.protections.append(
-            "belongs to a monitored collection; completing that set is a standing instruction"
-        )
+        result.protections.append("belongs to a monitored collection; completing that set is a standing instruction")
         return True
 
     if not ctx.collections_loaded:
         result.outcome = Outcome.REVIEW
-        result.blockers.append(
-            "collection data unavailable, so collection protection cannot be checked"
-        )
+        result.blockers.append("collection data unavailable, so collection protection cannot be checked")
         return True
 
     if provenance.origin is Origin.REQUESTED:
         result.outcome = Outcome.PROTECTED
-        result.protections.append(
-            f"explicitly requested by {provenance.requested_by or 'a household member'}"
-        )
+        result.protections.append(f"explicitly requested by {provenance.requested_by or 'a household member'}")
         return True
     return False
 
@@ -160,16 +150,12 @@ def _scope_gate(
 
     if film.added < ctx.scope_start:
         result.outcome = Outcome.OUT_OF_SCOPE
-        result.reasons.append(
-            f"added {film.added.date()}, before the {ctx.scope_start.date()} scope boundary"
-        )
+        result.reasons.append(f"added {film.added.date()}, before the {ctx.scope_start.date()} scope boundary")
         return True
 
     if not film.has_file:
         result.outcome = Outcome.MISSING_FILE
-        result.reasons.append(
-            "no file on disk; nothing to reclaim and nobody could have watched it"
-        )
+        result.reasons.append("no file on disk; nothing to reclaim and nobody could have watched it")
         return True
 
     if available_for is None:
@@ -188,9 +174,7 @@ def _evidence_gate(viewing: Viewing, result: Assessment) -> bool:
     """Refuse to act on play evidence that cannot bear the weight."""
     if viewing.status is HistoryStatus.UNAVAILABLE:
         result.outcome = Outcome.REVIEW
-        result.blockers.append(
-            "play history unavailable; a zero here would not mean unwatched"
-        )
+        result.blockers.append("play history unavailable; a zero here would not mean unwatched")
         return True
 
     if viewing.status in (
@@ -199,16 +183,12 @@ def _evidence_gate(viewing: Viewing, result: Assessment) -> bool:
         HistoryStatus.AMBIGUOUS,
     ):
         result.outcome = Outcome.REVIEW
-        result.blockers.append(
-            f"play history {viewing.status.value}: " + "; ".join(viewing.notes)
-        )
+        result.blockers.append(f"play history {viewing.status.value}: " + "; ".join(viewing.notes))
         return True
 
     if viewing.distinct_completers >= 2:
         result.outcome = Outcome.REVIEW
-        result.reasons.append(
-            f"{viewing.distinct_completers} distinct users finished it; belongs in the human queue"
-        )
+        result.reasons.append(f"{viewing.distinct_completers} distinct users finished it; belongs in the human queue")
         return True
     return False
 
@@ -279,15 +259,11 @@ def assess(
         # decision outranking an automatic one.
         if not (stored and stored.get("fact_fingerprint") != fingerprint):
             result.outcome = Outcome.REVIEW
-            result.reasons.append(
-                "dismissed by a person; no relevant fact has changed since"
-            )
+            result.reasons.append("dismissed by a person; no relevant fact has changed since")
             return result
 
     result.outcome = Outcome.CANDIDATE
-    result.reasons.append(
-        f"eligible: authorised by {authorised_by}, past its {window}-day window"
-    )
+    result.reasons.append(f"eligible: authorised by {authorised_by}, past its {window}-day window")
     return result
 
 
@@ -375,18 +351,14 @@ def snapshot_valid(snapshot: dict[str, Any]) -> list[str]:
     return problems
 
 
-def check_anomalies(
-    snapshot: dict[str, Any], baseline: dict[str, Any] | None
-) -> list[str]:
+def check_anomalies(snapshot: dict[str, Any], baseline: dict[str, Any] | None) -> list[str]:
     """Compare this run against the last validated baseline.
 
     Returns the reasons deletion must not proceed; empty means the run looks
     ordinary.
     """
     if baseline is None:
-        return [
-            "no validated baseline yet; recording one and deleting nothing this run"
-        ]
+        return ["no validated baseline yet; recording one and deleting nothing this run"]
 
     blocks: list[str] = []
     checks = (
@@ -403,14 +375,10 @@ def check_anomalies(
         drop = _drop_pct(current, previous)
         if drop > ANOMALY_LIMITS[limit_key]:
             blocks.append(
-                f"{label} fell {drop:.1f}% ({previous} -> {current}), over the "
-                f"{ANOMALY_LIMITS[limit_key]}% limit"
+                f"{label} fell {drop:.1f}% ({previous} -> {current}), over the " f"{ANOMALY_LIMITS[limit_key]}% limit"
             )
 
-    if (
-        baseline.get("monitored_collections", 0) > 0
-        and snapshot.get("monitored_collections", 0) == 0
-    ):
+    if baseline.get("monitored_collections", 0) > 0 and snapshot.get("monitored_collections", 0) == 0:
         blocks.append("every collection lost its monitored flag since the last run")
 
     invalid = snapshot.get("invalid_added_count", 0)
@@ -419,9 +387,7 @@ def check_anomalies(
         blocks.append(f"{invalid} films have an unusable added date")
 
     if not snapshot.get("collections_loaded", True):
-        blocks.append(
-            "collection data did not load, so collection protection cannot be enforced"
-        )
+        blocks.append("collection data did not load, so collection protection cannot be enforced")
 
     return blocks
 
@@ -445,9 +411,7 @@ def build_decision_record(
         "decided_at": now.isoformat(),
         "run_id": run_id,
         "reconsider_after": (now + timedelta(days=reconsider_days)).isoformat(),
-        "fact_fingerprint": fact_fingerprint(
-            assessment.film, assessment.provenance, assessment.viewing, monitored
-        ),
+        "fact_fingerprint": fact_fingerprint(assessment.film, assessment.provenance, assessment.viewing, monitored),
     }
 
 

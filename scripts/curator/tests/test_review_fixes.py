@@ -74,9 +74,7 @@ class ReadFailureIsNotConfirmation(unittest.TestCase):
         radarr = FakeRadarr({}, TAGS)
         radarr.read_errors[7] = SourceError("500 from Radarr")
         ledger = Ledger(FakeS3(), "r2", dry_run=False)
-        resolved = reconcile(
-            [{"run_id": "r1", "movie": {"movie_id": 7}}], radarr, ledger
-        )
+        resolved = reconcile([{"run_id": "r1", "movie": {"movie_id": 7}}], radarr, ledger)
         self.assertEqual(resolved[0]["status"], "unresolved")
 
 
@@ -124,9 +122,7 @@ class IntentCarriesRestoreState(unittest.TestCase):
 
     def test_intent_records_path_profile_and_tags(self):
         live = movie_record()
-        live.update(
-            {"path": "/films/Test Film (2026)", "qualityProfileId": 10, "tags": [4]}
-        )
+        live.update({"path": "/films/Test Film (2026)", "qualityProfileId": 10, "tags": [4]})
         radarr = FakeRadarr({1: live}, TAGS)
         s3 = FakeS3()
         execute(
@@ -177,9 +173,7 @@ class DismissalWorksFromTheUiAlone(unittest.TestCase):
 
     def test_tag_alone_prevents_candidacy(self):
         film = make_film(tags={"cleanup-dismissed", "src-tmdb-popular"})
-        result = assess(
-            film, feed_provenance(), make_availability(), make_viewing(), context()
-        )
+        result = assess(film, feed_provenance(), make_availability(), make_viewing(), context())
         self.assertIs(result.outcome, Outcome.REVIEW)
         self.assertIn("dismissed by a person", result.reasons[0])
 
@@ -201,18 +195,14 @@ class UpgradeCannotRestartTheWindowViaTheLedger(unittest.TestCase):
 
     def test_ledger_observation_older_than_the_retained_import_wins(self):
         film = make_film(added=days_ago(900))
-        history = [
-            {"eventType": "downloadFolderImported", "date": days_ago(2).isoformat()}
-        ]
+        history = [{"eventType": "downloadFolderImported", "date": days_ago(2).isoformat()}]
         result = resolve_availability(film, history, days_ago(30), days_ago(300), NOW)
         self.assertEqual(result.first_playable, days_ago(300))
         self.assertEqual(result.source, "ledger")
 
     def test_a_genuinely_newer_ledger_entry_does_not_override_history(self):
         film = make_film()
-        history = [
-            {"eventType": "downloadFolderImported", "date": days_ago(200).isoformat()}
-        ]
+        history = [{"eventType": "downloadFolderImported", "date": days_ago(200).isoformat()}]
         result = resolve_availability(film, history, days_ago(400), days_ago(100), NOW)
         self.assertEqual(result.first_playable, days_ago(200))
 
@@ -256,9 +246,7 @@ class KeepTagsAreActuallyApplied(unittest.TestCase):
 
         def add_tag(movie_ids, tag_id):
             for movie_id in movie_ids:
-                radarr.movies_by_id[movie_id]["tags"] = sorted(
-                    set(radarr.movies_by_id[movie_id]["tags"]) | {tag_id}
-                )
+                radarr.movies_by_id[movie_id]["tags"] = sorted(set(radarr.movies_by_id[movie_id]["tags"]) | {tag_id})
             return 202, None
 
         radarr.add_tag = add_tag

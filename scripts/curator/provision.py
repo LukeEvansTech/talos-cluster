@@ -44,18 +44,14 @@ def plan_changes(radarr: Radarr) -> tuple[list[dict], list[str]]:
         if label not in existing and label not in wanted_tags:
             wanted_tags.append(label)
         if existing.get(label) not in (source.get("tags") or []):
-            changes.append(
-                {"list_id": source["id"], "list_name": source["name"], "tag": label}
-            )
+            changes.append({"list_id": source["id"], "list_name": source["name"], "tag": label})
     return changes, wanted_tags
 
 
 def main(argv: list[str] | None = None) -> int:
     """Create the tags and attach them to their import lists."""
     parser = argparse.ArgumentParser(prog="curator.provision", description=__doc__)
-    parser.add_argument(
-        "--apply", action="store_true", help="actually write the changes"
-    )
+    parser.add_argument("--apply", action="store_true", help="actually write the changes")
     args = parser.parse_args(argv)
 
     radarr = Radarr(os.environ["RADARR_URL"], os.environ["RADARR_API_KEY"])
@@ -66,9 +62,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"  list {change['list_id']} ({change['list_name']}) -> {change['tag']}")
     if not args.apply:
         print("\ndry run: nothing written. Re-run with --apply to make these changes.")
-        print(
-            "Note this is NOT retrospective -- only films added after this point get a tag."
-        )
+        print("Note this is NOT retrospective -- only films added after this point get a tag.")
         return 0
 
     for label in wanted_tags:
@@ -81,9 +75,7 @@ def main(argv: list[str] | None = None) -> int:
         source = lists[change["list_id"]]
         tag_id = tag_ids[change["tag"]]
         source["tags"] = sorted(set(source.get("tags") or []) | {tag_id})
-        status, _ = radarr.http.request_json(
-            "PUT", f"/api/v3/importlist/{source['id']}", radarr.headers, source
-        )
+        status, _ = radarr.http.request_json("PUT", f"/api/v3/importlist/{source['id']}", radarr.headers, source)
         print(f"  list {source['id']} tagged {change['tag']}: HTTP {status}")
     return 0
 

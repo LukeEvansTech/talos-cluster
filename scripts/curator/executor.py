@@ -55,19 +55,13 @@ def validate_recommendations(
             rejected.append({"item": item, "why": "movie_id missing or not an integer"})
             continue
         if movie_id not in candidates:
-            rejected.append(
-                {"movie_id": movie_id, "why": "not in this run's candidate set"}
-            )
+            rejected.append({"movie_id": movie_id, "why": "not in this run's candidate set"})
             continue
         if verdict not in ("delete", "keep", "review"):
-            rejected.append(
-                {"movie_id": movie_id, "why": f"unknown verdict {verdict!r}"}
-            )
+            rejected.append({"movie_id": movie_id, "why": f"unknown verdict {verdict!r}"})
             continue
         if verdict == "delete" and len(reason) < 12:
-            rejected.append(
-                {"movie_id": movie_id, "why": "delete without a stated reason"}
-            )
+            rejected.append({"movie_id": movie_id, "why": "delete without a stated reason"})
             continue
         accepted.append({"movie_id": movie_id, "verdict": verdict, "reason": reason})
     return accepted, rejected
@@ -199,9 +193,7 @@ def execute(
 
         if not activity_known:
             # An unavailable safety check is an unresolved safety check.
-            result.skipped.append(
-                {**record, "why": "could not confirm nobody is watching it"}
-            )
+            result.skipped.append({**record, "why": "could not confirm nobody is watching it"})
             continue
 
         try:
@@ -213,17 +205,13 @@ def execute(
                 now_playing,
             )
         except SourceError as exc:
-            result.skipped.append(
-                {**record, "why": f"could not re-read live state: {exc}"}
-            )
+            result.skipped.append({**record, "why": f"could not re-read live state: {exc}"})
             continue
         if not ok:
             result.skipped.append({**record, "why": why})
             continue
 
-        ledger.record_intent(
-            {**record, "restore": restore_snapshot(live or {})}, assessment.to_json()
-        )
+        ledger.record_intent({**record, "restore": restore_snapshot(live or {})}, assessment.to_json())
 
         if dry_run:
             result.deleted.append({**record, "simulated": True, "revalidation": why})
@@ -234,9 +222,7 @@ def execute(
     return result
 
 
-def _delete_one(
-    radarr: Radarr, ledger, movie_id: int, record: dict, result: ExecutionResult
-) -> None:
+def _delete_one(radarr: Radarr, ledger, movie_id: int, record: dict, result: ExecutionResult) -> None:
     """Issue one deletion and record an honest outcome for it."""
     try:
         status, _ = radarr.delete_movie(movie_id, add_exclusion=True)
@@ -246,18 +232,12 @@ def _delete_one(
         try:
             live = radarr.movie(movie_id)
         except SourceError as read_exc:
-            ledger.record_outcome(
-                movie_id, "uncertain", f"{exc}; re-read also failed: {read_exc}"
-            )
+            ledger.record_outcome(movie_id, "uncertain", f"{exc}; re-read also failed: {read_exc}")
             result.uncertain.append({**record, "why": f"{exc}; could not verify"})
             return
         if live is None:
-            ledger.record_outcome(
-                movie_id, "deleted", f"confirmed after transport error: {exc}"
-            )
-            result.deleted.append(
-                {**record, "note": "confirmed by re-read after a transport error"}
-            )
+            ledger.record_outcome(movie_id, "deleted", f"confirmed after transport error: {exc}")
+            result.deleted.append({**record, "note": "confirmed by re-read after a transport error"})
         else:
             ledger.record_outcome(movie_id, "uncertain", str(exc))
             result.uncertain.append({**record, "why": str(exc)})
@@ -271,20 +251,14 @@ def _delete_one(
     try:
         live = radarr.movie(movie_id)
     except SourceError as exc:
-        ledger.record_outcome(
-            movie_id, "uncertain", f"HTTP {status} but verification failed: {exc}"
-        )
-        result.uncertain.append(
-            {**record, "why": f"HTTP {status}, verification failed"}
-        )
+        ledger.record_outcome(movie_id, "uncertain", f"HTTP {status} but verification failed: {exc}")
+        result.uncertain.append({**record, "why": f"HTTP {status}, verification failed"})
         return
     if live is None:
         ledger.record_outcome(movie_id, "deleted", f"HTTP {status}, verified gone")
         result.deleted.append({**record, "http": status})
     else:
-        ledger.record_outcome(
-            movie_id, "uncertain", f"HTTP {status} but the record is still present"
-        )
+        ledger.record_outcome(movie_id, "uncertain", f"HTTP {status} but the record is still present")
         result.uncertain.append({**record, "why": f"HTTP {status} but still present"})
 
 
@@ -304,9 +278,7 @@ def reconcile(unreconciled: list[dict], radarr: Radarr, ledger) -> list[dict]:
         try:
             live = radarr.movie(movie_id)
         except SourceError as exc:
-            resolved.append(
-                {"movie_id": movie_id, "status": "unresolved", "detail": str(exc)}
-            )
+            resolved.append({"movie_id": movie_id, "status": "unresolved", "detail": str(exc)})
             continue
         status = "deleted" if live is None else "not-applied"
         ledger.record_outcome(

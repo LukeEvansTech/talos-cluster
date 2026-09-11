@@ -38,9 +38,7 @@ class _Opener:  # pylint: disable=too-few-public-methods
 
     def open(self, request, timeout=None):  # pylint: disable=unused-argument
         """Return the next scripted response; timeout matches urllib's signature."""
-        self.urls.append(
-            request.full_url if hasattr(request, "full_url") else str(request)
-        )
+        self.urls.append(request.full_url if hasattr(request, "full_url") else str(request))
         payload = self.responses.pop(0)
         if isinstance(payload, Exception):
             raise payload
@@ -65,9 +63,7 @@ class TautulliValidationTests(unittest.TestCase):
     """A 200 is not a success; the envelope has its own result field."""
 
     def test_result_error_raises(self):
-        opener = _Opener(
-            [{"response": {"result": "error", "message": "bad key", "data": None}}]
-        )
+        opener = _Opener([{"response": {"result": "error", "message": "bad key", "data": None}}])
         with self.assertRaises(SourceError):
             Tautulli("http://t", "k", opener=opener).preflight()
 
@@ -95,10 +91,7 @@ class TautulliPaginationTests(unittest.TestCase):
         total = 2600
         pages = []
         for start in range(0, total, page_size):
-            rows = [
-                play_row(5000, 10 + (i % 7), 95, row_id=i)
-                for i in range(start, min(start + page_size, total))
-            ]
+            rows = [play_row(5000, 10 + (i % 7), 95, row_id=i) for i in range(start, min(start + page_size, total))]
             pages.append(history_page(rows, total))
         pages.append(history_page([], total))
         client = Tautulli("http://t", "k", opener=_Opener(pages))

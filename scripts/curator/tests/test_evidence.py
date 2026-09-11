@@ -29,9 +29,7 @@ class ProvenanceTests(unittest.TestCase):
 
     def test_request_record_makes_it_requested(self):
         film = make_film(tmdb_id=42, tags=frozenset())
-        requests = {
-            42: {"requested_by": "Vf0rVend3tta", "created_at": "2026-05-16T00:00:00Z"}
-        }
+        requests = {42: {"requested_by": "Vf0rVend3tta", "created_at": "2026-05-16T00:00:00Z"}}
         result = resolve_provenance(film, requests)
         self.assertIs(result.origin, Origin.REQUESTED)
         self.assertEqual(result.requested_by, "Vf0rVend3tta")
@@ -80,9 +78,7 @@ class AvailabilityTests(unittest.TestCase):
     def test_old_record_with_a_file_that_arrived_yesterday(self):
         """A request placed pre-release gets its full window from the import."""
         film = make_film(added=days_ago(400))
-        result = resolve_availability(
-            film, [import_event(days_ago(1))], None, None, NOW
-        )
+        result = resolve_availability(film, [import_event(days_ago(1))], None, None, NOW)
         self.assertEqual(result.first_playable, days_ago(1))
 
     def test_missing_file_has_no_availability(self):
@@ -135,9 +131,7 @@ class ViewingTests(unittest.TestCase):
 
     def test_two_users_finishing_counts_two(self):
         rows = {5000: [play_row(5000, 11, 95, 1), play_row(5000, 12, 99, 2)]}
-        result = resolve_viewing(
-            make_film(), rows, self.crosswalk, days_ago(400), make_availability()
-        )
+        result = resolve_viewing(make_film(), rows, self.crosswalk, days_ago(400), make_availability())
         self.assertEqual(result.distinct_completers, 2)
         self.assertIs(result.status, HistoryStatus.OK)
 
@@ -150,24 +144,18 @@ class ViewingTests(unittest.TestCase):
                 play_row(5000, 11, 91, 3),
             ]
         }
-        result = resolve_viewing(
-            make_film(), rows, self.crosswalk, days_ago(400), make_availability()
-        )
+        result = resolve_viewing(make_film(), rows, self.crosswalk, days_ago(400), make_availability())
         self.assertEqual(result.distinct_completers, 1)
         self.assertEqual(result.play_count, 3)
 
     def test_partial_plays_are_not_completions(self):
         rows = {5000: [play_row(5000, 11, 40, 1), play_row(5000, 12, 84, 2)]}
-        result = resolve_viewing(
-            make_film(), rows, self.crosswalk, days_ago(400), make_availability()
-        )
+        result = resolve_viewing(make_film(), rows, self.crosswalk, days_ago(400), make_availability())
         self.assertEqual(result.distinct_completers, 0)
 
     def test_abandoned_plays_are_reported(self):
         rows = {5000: [play_row(5000, 11, 8, 1)]}
-        result = resolve_viewing(
-            make_film(), rows, self.crosswalk, days_ago(400), make_availability()
-        )
+        result = resolve_viewing(make_film(), rows, self.crosswalk, days_ago(400), make_availability())
         self.assertTrue(any("abandoned" in note for note in result.notes))
 
     def test_identity_falls_back_to_imdb_then_title(self):
@@ -179,22 +167,14 @@ class ViewingTests(unittest.TestCase):
                 "year": 2026,
             }
         }
-        result = resolve_viewing(
-            make_film(), {}, crosswalk, days_ago(400), make_availability()
-        )
+        result = resolve_viewing(make_film(), {}, crosswalk, days_ago(400), make_availability())
         self.assertEqual(result.identity_via, "imdb")
 
     def test_absence_from_a_fully_resolved_history_is_a_verified_zero(self):
         """The films worth deleting are exactly the ones history never mentions."""
-        crosswalk = {
-            8000: {"tmdb": 999, "imdb": "tt9", "title": "Something Else", "year": 2001}
-        }
-        film = make_film(
-            tmdb_id=1234, imdb_id="tt5555", title="Never Watched", year=2026
-        )
-        result = resolve_viewing(
-            film, {}, crosswalk, days_ago(400), make_availability()
-        )
+        crosswalk = {8000: {"tmdb": 999, "imdb": "tt9", "title": "Something Else", "year": 2001}}
+        film = make_film(tmdb_id=1234, imdb_id="tt5555", title="Never Watched", year=2026)
+        result = resolve_viewing(film, {}, crosswalk, days_ago(400), make_availability())
         self.assertIs(result.status, HistoryStatus.OK)
         self.assertTrue(result.trustworthy)
         self.assertEqual(result.distinct_completers, 0)
@@ -202,9 +182,7 @@ class ViewingTests(unittest.TestCase):
 
     def test_plays_on_a_retired_plex_item_taint_the_zero(self):
         """get_metadata 404s on a reissued key, but those plays were still real."""
-        film = make_film(
-            tmdb_id=1234, imdb_id="tt5555", title="Spirited Away", year=2001
-        )
+        film = make_film(tmdb_id=1234, imdb_id="tt5555", title="Spirited Away", year=2001)
         unattributed = [
             {
                 "title": "Spirited Away",
@@ -249,9 +227,7 @@ class ViewingTests(unittest.TestCase):
             }
         }
         rows = {9000: [play_row(9000, 11, 97, 1), play_row(9000, 12, 96, 2)]}
-        result = resolve_viewing(
-            make_film(), rows, crosswalk, days_ago(400), make_availability()
-        )
+        result = resolve_viewing(make_film(), rows, crosswalk, days_ago(400), make_availability())
         self.assertEqual(result.distinct_completers, 2)
         self.assertEqual(result.identity_via, "tmdb")
 
@@ -261,17 +237,13 @@ class ViewingTests(unittest.TestCase):
             2: {"tmdb": 222, "imdb": "tt222", "title": "The Thing", "year": 2025},
         }
         film = make_film(tmdb_id=None, imdb_id=None, title="The Thing", year=2026)
-        result = resolve_viewing(
-            film, {}, crosswalk, days_ago(400), make_availability()
-        )
+        result = resolve_viewing(film, {}, crosswalk, days_ago(400), make_availability())
         self.assertIs(result.status, HistoryStatus.AMBIGUOUS)
         self.assertFalse(result.trustworthy)
 
     def test_history_starting_after_the_film_is_incomplete(self):
         """Older completions may exist outside the retained window."""
-        result = resolve_viewing(
-            make_film(), {}, self.crosswalk, days_ago(100), make_availability(days=300)
-        )
+        result = resolve_viewing(make_film(), {}, self.crosswalk, days_ago(100), make_availability(days=300))
         self.assertIs(result.status, HistoryStatus.INCOMPLETE)
         self.assertFalse(result.trustworthy)
 
@@ -298,9 +270,7 @@ class ViewingTests(unittest.TestCase):
             "year": 2026,
         }
         rows = {4000: [play_row(4000, 11, 95, 1)], 5000: [play_row(5000, 12, 97, 2)]}
-        result = resolve_viewing(
-            make_film(), rows, crosswalk, days_ago(400), make_availability()
-        )
+        result = resolve_viewing(make_film(), rows, crosswalk, days_ago(400), make_availability())
         self.assertEqual(result.distinct_completers, 2)
 
 

@@ -59,9 +59,7 @@ class Ledger:
 
     def _write(self, key: str, payload: dict) -> None:
         """Write one JSON object."""
-        self.client.put(
-            self._key(key), json.dumps(payload, indent=2, sort_keys=True).encode()
-        )
+        self.client.put(self._key(key), json.dumps(payload, indent=2, sort_keys=True).encode())
 
     # --- baseline ---------------------------------------------------------
 
@@ -71,9 +69,7 @@ class Ledger:
 
     def write_baseline(self, snapshot: dict[str, Any]) -> None:
         """Record a validated snapshot as the new yardstick."""
-        self._write(
-            "baseline/current.json", {**snapshot, "recorded_by_run": self.run_id}
-        )
+        self._write("baseline/current.json", {**snapshot, "recorded_by_run": self.run_id})
 
     # --- standing human / routine decisions -------------------------------
 
@@ -105,9 +101,7 @@ class Ledger:
         out: dict[int, datetime] = {}
         for movie_id, stamp in record.items():
             try:
-                out[int(movie_id)] = datetime.fromisoformat(
-                    str(stamp).replace("Z", "+00:00")
-                )
+                out[int(movie_id)] = datetime.fromisoformat(str(stamp).replace("Z", "+00:00"))
             except (TypeError, ValueError):
                 continue
         return out
@@ -160,9 +154,7 @@ class Ledger:
             },
         )
 
-    def record_outcome(
-        self, movie_id: int, status: str, detail: str, run_id: str | None = None
-    ) -> None:
+    def record_outcome(self, movie_id: int, status: str, detail: str, run_id: str | None = None) -> None:
         """Write what actually happened, including "uncertain".
 
         ``run_id`` targets another run's directory, which is how a reconciliation
@@ -208,9 +200,7 @@ class Ledger:
             if record.get("status") != "deleted":
                 continue
             try:
-                when = datetime.fromisoformat(
-                    str(record.get("recorded_at")).replace("Z", "+00:00")
-                )
+                when = datetime.fromisoformat(str(record.get("recorded_at")).replace("Z", "+00:00"))
             except (TypeError, ValueError):
                 continue
             if when >= cutoff:
@@ -258,9 +248,7 @@ class Ledger:
         now = datetime.now(timezone.utc)
         if existing:
             try:
-                expires = datetime.fromisoformat(
-                    str(existing.get("expires_at")).replace("Z", "+00:00")
-                )
+                expires = datetime.fromisoformat(str(existing.get("expires_at")).replace("Z", "+00:00"))
             except (TypeError, ValueError):
                 expires = now - timedelta(seconds=1)
             if expires > now and existing.get("run_id") != self.run_id:

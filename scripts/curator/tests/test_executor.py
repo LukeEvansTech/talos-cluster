@@ -99,9 +99,7 @@ class RecommendationValidationTests(unittest.TestCase):
         self.assertIn("unknown verdict", rejected[0]["why"])
 
     def test_delete_without_a_reason_is_rejected(self):
-        _, rejected = validate_recommendations(
-            [{"movie_id": 1, "verdict": "delete", "reason": "bad"}], self.candidates
-        )
+        _, rejected = validate_recommendations([{"movie_id": 1, "verdict": "delete", "reason": "bad"}], self.candidates)
         self.assertIn("without a stated reason", rejected[0]["why"])
 
     def test_non_integer_id_is_rejected(self):
@@ -122,9 +120,7 @@ class RecycleBinTests(unittest.TestCase):
     """deleteFiles only means 'recoverable' when a bin is configured."""
 
     def test_configured_bin_is_ready(self):
-        ok, detail = recycle_bin_ready(
-            {"recycleBin": "/recycle", "recycleBinCleanupDays": 14}
-        )
+        ok, detail = recycle_bin_ready({"recycleBin": "/recycle", "recycleBinCleanupDays": 14})
         self.assertTrue(ok)
         self.assertIn("14", detail)
 
@@ -134,9 +130,7 @@ class RecycleBinTests(unittest.TestCase):
         self.assertIn("unrecoverable", detail)
 
     def test_zero_retention_blocks(self):
-        ok, _ = recycle_bin_ready(
-            {"recycleBin": "/recycle", "recycleBinCleanupDays": 0}
-        )
+        ok, _ = recycle_bin_ready({"recycleBin": "/recycle", "recycleBinCleanupDays": 0})
         self.assertFalse(ok)
 
     def test_missing_config_blocks(self):
@@ -213,9 +207,7 @@ class ExecutionTests(unittest.TestCase):
     def test_dry_run_writes_intent_but_never_an_outcome(self):
         radarr = FakeRadarr({1: movie_record()}, TAGS)
         ledger = self.ledger(dry_run=True)
-        result = execute(
-            [assessment()], radarr, FakeTautulli(), ledger, TAGS, set(), dry_run=True
-        )
+        result = execute([assessment()], radarr, FakeTautulli(), ledger, TAGS, set(), dry_run=True)
         self.assertEqual(len(result.deleted), 1)
         self.assertTrue(result.deleted[0]["simulated"])
         self.assertEqual(radarr.deleted, [], "dry run must not delete anything")
@@ -229,14 +221,10 @@ class ExecutionTests(unittest.TestCase):
     def test_act_deletes_and_records_the_outcome(self):
         radarr = FakeRadarr({1: movie_record()}, TAGS)
         ledger = self.ledger(dry_run=False)
-        result = execute(
-            [assessment()], radarr, FakeTautulli(), ledger, TAGS, set(), dry_run=False
-        )
+        result = execute([assessment()], radarr, FakeTautulli(), ledger, TAGS, set(), dry_run=False)
         self.assertEqual(radarr.deleted, [1])
         self.assertEqual(len(result.deleted), 1)
-        self.assertEqual(
-            self.s3.loads("runs/run-test/outcome/1.json")["status"], "deleted"
-        )
+        self.assertEqual(self.s3.loads("runs/run-test/outcome/1.json")["status"], "deleted")
 
     def test_http_error_is_a_failure_not_a_deletion(self):
         radarr = FakeRadarr({1: movie_record()}, TAGS)
@@ -299,9 +287,7 @@ class ExecutionTests(unittest.TestCase):
         )
         self.assertEqual(len(result.uncertain), 1)
         self.assertEqual(radarr.deleted, [])
-        self.assertEqual(
-            self.s3.loads("runs/run-test/outcome/1.json")["status"], "uncertain"
-        )
+        self.assertEqual(self.s3.loads("runs/run-test/outcome/1.json")["status"], "uncertain")
 
     def test_unavailable_activity_check_skips_rather_than_proceeds(self):
         radarr = FakeRadarr({1: movie_record()}, TAGS)
@@ -316,17 +302,10 @@ class ExecutionTests(unittest.TestCase):
             dry_run=False,
         )
         self.assertEqual(radarr.deleted, [])
-        self.assertTrue(
-            any(
-                "could not confirm nobody is watching" in s.get("why", "")
-                for s in result.skipped
-            )
-        )
+        self.assertTrue(any("could not confirm nobody is watching" in s.get("why", "") for s in result.skipped))
 
     def test_partial_failure_does_not_stop_the_batch(self):
-        radarr = FakeRadarr(
-            {1: movie_record(1), 2: movie_record(2, tmdb_id=2000)}, TAGS
-        )
+        radarr = FakeRadarr({1: movie_record(1), 2: movie_record(2, tmdb_id=2000)}, TAGS)
         radarr.delete_behaviour[1] = "http-500"
         result = execute(
             [assessment(1), assessment(2)],
@@ -349,22 +328,16 @@ class ReconcileTests(unittest.TestCase):
         s3 = FakeS3()
         ledger = Ledger(s3, run_id="run-2", dry_run=False)
         radarr = FakeRadarr({}, TAGS)
-        resolved = reconcile(
-            [{"run_id": "run-1", "movie": {"movie_id": 7}}], radarr, ledger
-        )
+        resolved = reconcile([{"run_id": "run-1", "movie": {"movie_id": 7}}], radarr, ledger)
         self.assertEqual(resolved[0]["status"], "deleted")
 
     def test_interrupted_delete_that_did_not_land_is_recorded_as_not_applied(self):
         s3 = FakeS3()
         ledger = Ledger(s3, run_id="run-2", dry_run=False)
         radarr = FakeRadarr({7: movie_record(7)}, TAGS)
-        resolved = reconcile(
-            [{"run_id": "run-1", "movie": {"movie_id": 7}}], radarr, ledger
-        )
+        resolved = reconcile([{"run_id": "run-1", "movie": {"movie_id": 7}}], radarr, ledger)
         self.assertEqual(resolved[0]["status"], "not-applied")
-        self.assertEqual(
-            radarr.deleted, [], "reconciliation must never re-issue the delete"
-        )
+        self.assertEqual(radarr.deleted, [], "reconciliation must never re-issue the delete")
 
 
 if __name__ == "__main__":

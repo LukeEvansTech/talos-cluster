@@ -48,9 +48,7 @@ class PlanTests(unittest.TestCase):
             [{"id": 9, "label": "src-stevenlu"}]
             + [
                 {"id": i, "label": t}
-                for i, t in enumerate(
-                    ("cleanup-keep", "cleanup-dismissed", "cleanup-eligible"), start=20
-                )
+                for i, t in enumerate(("cleanup-keep", "cleanup-dismissed", "cleanup-eligible"), start=20)
             ],
             [{"id": 1, "name": "StevenLu", "tags": [9]}],
         )

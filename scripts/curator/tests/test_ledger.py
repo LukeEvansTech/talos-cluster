@@ -80,9 +80,7 @@ class DecisionTests(unittest.TestCase):
     def test_round_trip(self):
         s3 = FakeS3()
         ledger = Ledger(s3, "r1", dry_run=False)
-        ledger.write_decision(
-            {"movie_id": 7, "verdict": "spared", "reason": "collection support"}
-        )
+        ledger.write_decision({"movie_id": 7, "verdict": "spared", "reason": "collection support"})
         self.assertEqual(ledger.read_decisions()[7]["verdict"], "spared")
 
     def test_corrupt_decision_is_skipped(self):
@@ -99,15 +97,11 @@ class OverlapTests(unittest.TestCase):
         ledger = Ledger(s3, "r2", dry_run=False)
         s3.put(
             "runs/r1/outcome/1.json",
-            json.dumps(
-                {"status": "deleted", "recorded_at": now().isoformat()}
-            ).encode(),
+            json.dumps({"status": "deleted", "recorded_at": now().isoformat()}).encode(),
         )
         s3.put(
             "runs/r1/outcome/2.json",
-            json.dumps(
-                {"status": "uncertain", "recorded_at": now().isoformat()}
-            ).encode(),
+            json.dumps({"status": "uncertain", "recorded_at": now().isoformat()}).encode(),
         )
         s3.put(
             "runs/r0/outcome/3.json",
@@ -176,17 +170,13 @@ class ReconciliationTests(unittest.TestCase):
         ledger = Ledger(s3, "r2", dry_run=False)
         s3.put(
             "runs/r1/intent/9.json",
-            json.dumps(
-                {"run_id": "r1", "movie": {"movie_id": 9}, "simulated": True}
-            ).encode(),
+            json.dumps({"run_id": "r1", "movie": {"movie_id": 9}, "simulated": True}).encode(),
         )
         self.assertEqual(ledger.unreconciled_intents(), [])
 
     def test_dry_run_records_no_outcome_at_all(self):
         s3 = FakeS3()
-        Ledger(s3, "r1", dry_run=True).record_outcome(
-            1, "deleted", "should not be written"
-        )
+        Ledger(s3, "r1", dry_run=True).record_outcome(1, "deleted", "should not be written")
         self.assertEqual(s3.store, {})
 
 

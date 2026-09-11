@@ -44,9 +44,7 @@ def resolve_provenance(film: Film, requests_by_tmdb: dict[int, dict]) -> Provena
         who = request.get("requested_by") or "unknown user"
         return Provenance(
             origin=Origin.REQUESTED,
-            evidence=(
-                f"request system: requested by {who} on {request.get('created_at', '?')}",
-            ),
+            evidence=(f"request system: requested by {who} on {request.get('created_at', '?')}",),
             requested_by=who,
         )
 
@@ -54,9 +52,7 @@ def resolve_provenance(film: Film, requests_by_tmdb: dict[int, dict]) -> Provena
     if tags:
         return Provenance(
             origin=Origin.FEED,
-            evidence=(
-                f"provenance tag(s) {', '.join(tags)} applied by the import list",
-            ),
+            evidence=(f"provenance tag(s) {', '.join(tags)} applied by the import list",),
         )
 
     return Provenance(
@@ -75,11 +71,7 @@ def first_import_from_history(history: list[dict]) -> datetime | None:
     and replaces ``movieFile.dateAdded`` -- cannot restart a window that has
     already run.
     """
-    stamps = [
-        utc(row.get("date"))
-        for row in history
-        if row.get("eventType") == IMPORT_EVENT and row.get("date")
-    ]
+    stamps = [utc(row.get("date")) for row in history if row.get("eventType") == IMPORT_EVENT and row.get("date")]
     real = [s for s in stamps if s is not None]
     return min(real) if real else None
 
@@ -135,16 +127,10 @@ def resolve_availability(
             first_playable=ledger_first_seen,
             source="ledger",
             has_file=True,
-            evidence=(
-                f"first observed playable by this routine at {ledger_first_seen.isoformat()}",
-            ),
+            evidence=(f"first observed playable by this routine at {ledger_first_seen.isoformat()}",),
         )
 
-    horizon = (
-        f" (Radarr history only reaches {history_horizon.isoformat()})"
-        if history_horizon
-        else ""
-    )
+    horizon = f" (Radarr history only reaches {history_horizon.isoformat()})" if history_horizon else ""
     return Availability(
         first_playable=now,
         source="ledger-bootstrap",
@@ -178,19 +164,11 @@ def build_crosswalk(metadata: dict[int, dict]) -> dict[int, dict]:
 
 def _match_rating_keys(film: Film, crosswalk: dict[int, dict]) -> tuple[list[int], str]:
     """Find the Plex items that are this film, preferring stable identifiers."""
-    by_tmdb = [
-        k
-        for k, v in crosswalk.items()
-        if film.tmdb_id and v.get("tmdb") == film.tmdb_id
-    ]
+    by_tmdb = [k for k, v in crosswalk.items() if film.tmdb_id and v.get("tmdb") == film.tmdb_id]
     if by_tmdb:
         return by_tmdb, "tmdb"
 
-    by_imdb = [
-        k
-        for k, v in crosswalk.items()
-        if film.imdb_id and v.get("imdb") == film.imdb_id
-    ]
+    by_imdb = [k for k, v in crosswalk.items() if film.imdb_id and v.get("imdb") == film.imdb_id]
     if by_imdb:
         return by_imdb, "imdb"
 
@@ -203,11 +181,7 @@ def _match_rating_keys(film: Film, crosswalk: dict[int, dict]) -> tuple[list[int
         for key, value in crosswalk.items()
         if not value.get("unresolved")
         and normalise_title(value.get("title")) == target
-        and (
-            film.year is None
-            or value.get("year") is None
-            or abs(value["year"] - film.year) <= 1
-        )
+        and (film.year is None or value.get("year") is None or abs(value["year"] - film.year) <= 1)
     ]
     if by_title:
         return by_title, "title-year"
@@ -244,9 +218,7 @@ def resolve_viewing(
 
     keys, via = _match_rating_keys(film, crosswalk)
 
-    distinct_targets = {
-        (crosswalk[k].get("tmdb"), crosswalk[k].get("imdb")) for k in keys
-    }
+    distinct_targets = {(crosswalk[k].get("tmdb"), crosswalk[k].get("imdb")) for k in keys}
     ambiguous = via == "title-year" and len(distinct_targets) > 1
 
     best: dict[int, int] = {}
@@ -267,52 +239,31 @@ def resolve_viewing(
         row
         for row in (unattributed_rows or [])
         if normalise_title(row.get("title") or row.get("full_title")) == target_title
-        and (
-            film.year is None
-            or not str(row.get("year", "")).isdigit()
-            or abs(int(row["year"]) - film.year) <= 1
-        )
+        and (film.year is None or not str(row.get("year", "")).isdigit() or abs(int(row["year"]) - film.year) <= 1)
     ]
 
     completions = tuple(
-        Completion(user_id=uid, percent=pct)
-        for uid, pct in sorted(best.items())
-        if pct >= COMPLETION_PERCENT
+        Completion(user_id=uid, percent=pct) for uid, pct in sorted(best.items()) if pct >= COMPLETION_PERCENT
     )
 
     notes: list[str] = []
     status = HistoryStatus.OK
     if ambiguous:
         status = HistoryStatus.AMBIGUOUS
-        notes.append(
-            f"{len(keys)} Plex items share this title/year; identity is not certain"
-        )
+        notes.append(f"{len(keys)} Plex items share this title/year; identity is not certain")
     elif tainting:
         status = HistoryStatus.UNRESOLVED
-        notes.append(
-            f"{len(tainting)} play(s) on a retired Plex item with this title could not be "
-            "attributed by id"
-        )
-    elif (
-        coverage_start
-        and availability.first_playable
-        and availability.first_playable < coverage_start
-    ):
+        notes.append(f"{len(tainting)} play(s) on a retired Plex item with this title could not be " "attributed by id")
+    elif coverage_start and availability.first_playable and availability.first_playable < coverage_start:
         status = HistoryStatus.INCOMPLETE
         notes.append(
             f"film was playable from {availability.first_playable.date()} but history only "
             f"starts {coverage_start.date()}"
         )
     elif not keys:
-        notes.append(
-            "no play record of any kind; every history row resolved to another film"
-        )
+        notes.append("no play record of any kind; every history row resolved to another film")
 
-    abandoned = [
-        f"user {uid} reached {pct}%"
-        for uid, pct in sorted(best.items())
-        if pct < ABANDONED_PERCENT
-    ]
+    abandoned = [f"user {uid} reached {pct}%" for uid, pct in sorted(best.items()) if pct < ABANDONED_PERCENT]
     if abandoned:
         notes.append("abandoned plays: " + ", ".join(abandoned))
 
