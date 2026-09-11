@@ -106,11 +106,24 @@ spec:
     worker:
       enabled: true
     housekeeping:
-      enabled: true
-      # The housekeeping CronJob mounts the RWO `media` PVC (ceph-block), which is
-      # attached to whichever node runs the netbox web/worker pods. Without affinity
-      # the job can schedule onto a different node and hang forever in
-      # ContainerCreating (multi-attach). Pin it to the node holding the volume.
+      # Disabled because the command this CronJob runs no longer exists. NetBox
+      # deprecated `manage.py housekeeping` in v4.6 and removed it in v4.7.0;
+      # the work now runs as an internal RQ system job that `manage.py rqworker`
+      # schedules itself (it sets `with_scheduler` and calls `enqueue_once` on
+      # startup), so the worker above is the only thing that has to be running.
+      # The chart has not caught up: 8.3.74 still defaults this to true with the
+      # removed command, so every run exits non-zero with
+      # `Unknown command: 'housekeeping'` and fires KubeJobFailed once a day.
+      # Tracked upstream as netbox-chart#1391; re-enable only if the chart gains
+      # a command that exists. There is no CLI equivalent to point it at in the
+      # meantime - the v4.7.0 image ships no management command for any of the
+      # constituent steps, despite the release note implying otherwise.
+      enabled: false
+      # Retained for a future re-enable: the CronJob mounts the RWO `media` PVC
+      # (ceph-block), which is attached to whichever node runs the netbox
+      # web/worker pods. Without affinity the job can schedule onto a different
+      # node and hang forever in ContainerCreating (multi-attach). Pin it to the
+      # node holding the volume.
       affinity:
         podAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
