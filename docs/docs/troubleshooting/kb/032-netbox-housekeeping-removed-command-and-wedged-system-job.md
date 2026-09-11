@@ -92,26 +92,44 @@ options['with_scheduler'] = True
 
 The actual defect is in `enqueue_once` (`netbox/jobs.py`): it returns the existing `core.models.Job`
 row whenever that row's `scheduled` time and `interval` match what is being asked for, and **never
-checks that the corresponding job still exists in the queue backend**. Lose the queue-side job — a
-Dragonfly restart or eviction, a Postgres restore, any window where the worker is down across the
-due time — and the row is left saying `scheduled` forever while nothing is enqueued. Every
-subsequent worker start reads that row as proof a schedule exists and does nothing.
+checks that the corresponding job still exists in the queue backend**. Lose the queue-side job and
+the row is left saying `scheduled` forever while nothing is enqueued, and every subsequent worker
+start reads that row as proof a schedule exists and does nothing.
 [netbox#22714](https://github.com/netbox-community/netbox/issues/22714) (open, accepted).
 
-Prove it by resolving the row's `job_id` against the queue, which is the check `enqueue_once` omits:
+It takes the two stores disagreeing, which narrows the causes usefully:
+
+- **The queue side lost the job** — a Dragonfly restart without persistence, or eviction.
+- **The two were restored independently** — upstream's repro is a Postgres restore to a point
+  before housekeeping ran, while Redis kept moving. The reverse works too.
+
+**Worker downtime alone is not one of them**, and assuming it is will send you to delete a row that
+did not need deleting. The scheduled entry lives in Redis, so it survives the worker being down
+across its due time; RQ's embedded scheduler enqueues the overdue job when a worker comes back. If
+the registry check below finds the job, it is merely pending — wait for it rather than reaching for
+the workaround.
+
+Prove it by looking for the row's own `job_id` in the scheduled registry, which is the check
+`enqueue_once` omits. Test for **that specific ID**, not for a non-zero count: any other scheduled
+NetBox task would satisfy a count and validate a wedged housekeeping job by accident.
 
 ```python
 from core.models import Job
-from rq.job import Job as RQJob
 from rq.registry import ScheduledJobRegistry
 import django_rq
 
 j = Job.objects.filter(name="System Housekeeping", status="scheduled").first()
-RQJob.fetch(str(j.job_id), connection=django_rq.get_connection("default"))
-# rq.exceptions.NoSuchJobError: No such job: rq:job:6f5fe296-...
-[len(ScheduledJobRegistry(queue=django_rq.get_queue(q))) for q in ("high", "default", "low")]
-# [0, 0, 0]
+for q in ("high", "default", "low"):
+    ids = ScheduledJobRegistry(queue=django_rq.get_queue(q)).get_job_ids()
+    print(q, str(j.job_id) in ids, ids)
+# high    False []
+# default False []          <- wedged: the row's job is in no registry
+# low     False []
 ```
+
+`RQJob.fetch(str(j.job_id), ...)` raising `NoSuchJobError` corroborates it, but it is the weaker
+test on its own — it only asks whether a job object exists, not whether anything is scheduled to
+run it.
 
 ## Fix
 
@@ -139,14 +157,22 @@ kubectl -n default rollout restart deploy/netbox-worker
 The worker runs housekeeping immediately on start and schedules the next occurrence.
 
 **Verify in both places.** The database row is exactly what lied for three weeks, so a `scheduled`
-row on its own is not evidence. Re-run the `ScheduledJobRegistry` check above and require a non-zero
-count on `default` whose job ID matches the row's `job_id`.
+row on its own is not evidence. Re-run the registry check above against the *new* row and require it
+to print `True` — the row's own `job_id` present in `default`'s `ScheduledJobRegistry`.
 
-Finally, delete the failed Jobs by name — `KubeJobFailed` latches on the Job object and keeps firing
-until it is gone, even once the cause is fixed (see
+Finally, clear the failed Jobs. `KubeJobFailed` latches on the Job object and keeps firing until
+that object is gone, so fixing the cause does not silence it (see
 [KB-007](007-flux-not-ready-artifact-failed-alert-storms.md) for the same latching behaviour in a
-different alert). Setting `enabled: false` prunes the CronJob and takes its Jobs with it, but any
-Job already rotated out of `failedJobsHistoryLimit` needs removing by hand.
+different alert). Pruning the CronJob deletes the Jobs it owns and clears them with it; delete them
+by name if you want the alerts gone before that reconcile lands, or for any Job that has outlived
+its owner:
+
+```bash
+kubectl -n default delete job netbox-housekeeping-29818080
+```
+
+Jobs that `failedJobsHistoryLimit` already rotated out need nothing — rotation *is* the controller
+deleting them, so they are gone and no longer alerting.
 
 ## Still open
 
