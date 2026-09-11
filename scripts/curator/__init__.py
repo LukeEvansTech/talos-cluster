@@ -8,7 +8,7 @@ The split matters because the two halves fail differently. A wrong judgement cos
 one film; a wrong protection check costs a film that somebody explicitly protected,
 silently, and the routine reports success either way.
 
-Entry point: ``python3 -m radarr_cleanup --help`` (run from ``scripts/``).
+Entry point: ``python3 -m curator --help`` (run from ``scripts/``).
 """
 
 __all__ = ["__version__"]

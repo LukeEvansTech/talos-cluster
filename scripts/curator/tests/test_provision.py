@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import unittest
 
-from radarr_cleanup.provision import plan_changes, slug
+from curator.provision import plan_changes, slug
 
 
-class _FakeRadarr:
+class _FakeRadarr:  # pylint: disable=too-few-public-methods
     """Enough of the Radarr surface for provisioning."""
 
     def __init__(self, tags, lists):
@@ -45,8 +45,13 @@ class PlanTests(unittest.TestCase):
 
     def test_already_tagged_list_needs_no_change(self):
         radarr = _FakeRadarr(
-            [{"id": 9, "label": "src-stevenlu"}] + [{"id": i, "label": t} for i, t in enumerate(
-                ("cleanup-keep", "cleanup-dismissed", "cleanup-eligible"), start=20)],
+            [{"id": 9, "label": "src-stevenlu"}]
+            + [
+                {"id": i, "label": t}
+                for i, t in enumerate(
+                    ("cleanup-keep", "cleanup-dismissed", "cleanup-eligible"), start=20
+                )
+            ],
             [{"id": 1, "name": "StevenLu", "tags": [9]}],
         )
         changes, wanted = plan_changes(radarr)

@@ -4,8 +4,17 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timedelta, timezone
+from typing import Any
 
-from radarr_cleanup.model import Availability, Film, HistoryStatus, Origin, Provenance, Viewing
+from curator.model import (
+    Availability,
+    Completion,
+    Film,
+    HistoryStatus,
+    Origin,
+    Provenance,
+    Viewing,
+)
 
 NOW = datetime(2026, 9, 11, 12, 0, tzinfo=timezone.utc)
 SCOPE_START = datetime(2026, 3, 1, tzinfo=timezone.utc)
@@ -18,7 +27,7 @@ def days_ago(count: int) -> datetime:
 
 def make_film(**overrides) -> Film:
     """A released, feed-tagged, unprotected film past its window by default."""
-    base = {
+    base: dict[str, Any] = {
         "movie_id": 1,
         "tmdb_id": 1000,
         "imdb_id": "tt0000001",
@@ -47,11 +56,11 @@ def make_viewing(
     completers: int = 0, status: HistoryStatus = HistoryStatus.OK, plays: int = 0
 ) -> Viewing:
     """Viewing evidence with ``completers`` distinct finishers."""
-    from radarr_cleanup.model import Completion
-
     return Viewing(
         status=status,
-        completions=tuple(Completion(user_id=100 + i, percent=95) for i in range(completers)),
+        completions=tuple(
+            Completion(user_id=100 + i, percent=95) for i in range(completers)
+        ),
         play_count=plays or completers,
         identity_via="tmdb",
         rating_keys=(5000,),
@@ -65,7 +74,9 @@ def feed_provenance() -> Provenance:
 
 def unknown_provenance() -> Provenance:
     """Provenance that establishes nothing."""
-    return Provenance(origin=Origin.UNKNOWN, evidence=("no request record and no provenance tag",))
+    return Provenance(
+        origin=Origin.UNKNOWN, evidence=("no request record and no provenance tag",)
+    )
 
 
 def import_event(when: datetime, **extra) -> dict:
@@ -73,7 +84,9 @@ def import_event(when: datetime, **extra) -> dict:
     return {"eventType": "downloadFolderImported", "date": when.isoformat(), **extra}
 
 
-def play_row(rating_key: int, user_id: int, percent: int, row_id: int, date: int = 1_780_000_000) -> dict:
+def play_row(
+    rating_key: int, user_id: int, percent: int, row_id: int, date: int = 1_780_000_000
+) -> dict:
     """One ungrouped Tautulli history row."""
     return {
         "row_id": row_id,
@@ -107,7 +120,8 @@ class FakeS3:
         self.store.pop(key, None)
 
     def list_keys(self, prefix: str, limit: int = 1000) -> list[str]:
-        """Keys under a prefix."""
+        """Keys under a prefix; ``limit`` mirrors the real client's signature."""
+        del limit
         return sorted(k for k in self.store if k.startswith(prefix))
 
     def loads(self, key: str):
@@ -123,10 +137,32 @@ class FakeRadarr:
         self.tags_by_id = tags or {}
         self.deleted: list[int] = []
         self.delete_behaviour: dict[int, object] = {}
+        self.read_errors: dict[int, Exception] = {}
+        self.read_errors_after: dict[int, tuple[int, Exception]] = {}
+        self.reads: dict[int, int] = {}
+        self.media_config: dict = {
+            "recycleBin": "/recycle",
+            "recycleBinCleanupDays": 14,
+        }
 
     def movie(self, movie_id: int):
-        """One live movie record, or None once deleted."""
+        """One live movie record, or None once deleted.
+
+        ``read_errors`` raises on every read; ``read_errors_after`` raises only
+        once that many reads have succeeded, which is how a failure *after* the
+        delete is modelled rather than one before it.
+        """
+        self.reads[movie_id] = self.reads.get(movie_id, 0) + 1
+        if movie_id in self.read_errors:
+            raise self.read_errors[movie_id]
+        after = self.read_errors_after.get(movie_id)
+        if after is not None and self.reads[movie_id] > after[0]:
+            raise after[1]
         return self.movies_by_id.get(movie_id)
+
+    def media_management(self) -> dict:
+        """Recycle-bin configuration."""
+        return self.media_config
 
     def movies(self) -> list[dict]:
         """The whole library."""
@@ -136,7 +172,9 @@ class FakeRadarr:
         """Tag definitions."""
         return [{"id": i, "label": label} for i, label in self.tags_by_id.items()]
 
-    def delete_movie(self, movie_id: int, add_exclusion: bool = True):
+    def delete_movie(
+        self, movie_id: int, add_exclusion: bool = True
+    ):  # pylint: disable=unused-argument
         """Delete, honouring any behaviour injected for this id."""
         behaviour = self.delete_behaviour.get(movie_id)
         if isinstance(behaviour, Exception):
@@ -156,12 +194,24 @@ class FakeRadarr:
 class FakeTautulli:
     """A Tautulli double for the activity check."""
 
-    def __init__(self, playing: set[int] | None = None, raise_error: Exception | None = None):
+    def __init__(
+        self,
+        playing: set[int] | None = None,
+        raise_error: Exception | None = None,
+        playing_ids: set[tuple[str, str]] | None = None,
+    ):
         self.playing = playing or set()
         self.raise_error = raise_error
+        self.playing_ids = playing_ids or set()
 
     def now_playing_rating_keys(self) -> set[int]:
         """Rating keys currently streaming."""
         if self.raise_error:
             raise self.raise_error
         return self.playing
+
+    def now_playing_ids(self) -> set[tuple[str, str]]:
+        """External ids currently streaming."""
+        if self.raise_error:
+            raise self.raise_error
+        return self.playing_ids

@@ -7,12 +7,12 @@ import json
 import unittest
 import urllib.error
 
-from radarr_cleanup.clients import SourceError, Tautulli
+from curator.clients import SourceError, Tautulli
 
 from .fixtures import play_row
 
 
-class _Response(io.BytesIO):
+class _Response(io.BytesIO):  # pylint: disable=too-few-public-methods
     """Just enough of an HTTP response for urllib's context-manager use."""
 
     def __init__(self, payload, status=200):
@@ -20,23 +20,27 @@ class _Response(io.BytesIO):
         self.status = status
 
     def __enter__(self):
+        """Enter the context manager."""
         return self
 
     def __exit__(self, *exc):
+        """Close the buffer on exit."""
         self.close()
         return False
 
 
-class _Opener:
+class _Opener:  # pylint: disable=too-few-public-methods
     """Replays scripted responses and records the URLs asked for."""
 
     def __init__(self, responses):
         self.responses = list(responses)
         self.urls: list[str] = []
 
-    def open(self, request, timeout=None):
-        """Return the next scripted response."""
-        self.urls.append(request.full_url if hasattr(request, "full_url") else str(request))
+    def open(self, request, timeout=None):  # pylint: disable=unused-argument
+        """Return the next scripted response; timeout matches urllib's signature."""
+        self.urls.append(
+            request.full_url if hasattr(request, "full_url") else str(request)
+        )
         payload = self.responses.pop(0)
         if isinstance(payload, Exception):
             raise payload
@@ -48,7 +52,11 @@ def history_page(rows, declared):
     return {
         "response": {
             "result": "success",
-            "data": {"data": rows, "recordsFiltered": declared, "recordsTotal": declared},
+            "data": {
+                "data": rows,
+                "recordsFiltered": declared,
+                "recordsTotal": declared,
+            },
         }
     }
 
@@ -57,7 +65,9 @@ class TautulliValidationTests(unittest.TestCase):
     """A 200 is not a success; the envelope has its own result field."""
 
     def test_result_error_raises(self):
-        opener = _Opener([{"response": {"result": "error", "message": "bad key", "data": None}}])
+        opener = _Opener(
+            [{"response": {"result": "error", "message": "bad key", "data": None}}]
+        )
         with self.assertRaises(SourceError):
             Tautulli("http://t", "k", opener=opener).preflight()
 
@@ -116,7 +126,11 @@ class TautulliPaginationTests(unittest.TestCase):
 
     def test_short_retrieval_is_reported_as_incomplete(self):
         """Fewer rows than declared must not read as a complete history."""
-        client = Tautulli("http://t", "k", opener=_Opener([history_page([play_row(1, 10, 95, 1)], 900)]))
+        client = Tautulli(
+            "http://t",
+            "k",
+            opener=_Opener([history_page([play_row(1, 10, 95, 1)], 900)]),
+        )
         _, meta = client.movie_history(page_size=500)
         self.assertFalse(meta["complete"])
 

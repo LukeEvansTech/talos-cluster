@@ -14,9 +14,11 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
+from dataclasses import dataclass
 
 _EMPTY_SHA256 = hashlib.sha256(b"").hexdigest()
 _ALGORITHM = "AWS4-HMAC-SHA256"
+_SIGNED_HEADERS = "host;x-amz-content-sha256;x-amz-date"
 
 
 def _sign(key: bytes, message: str) -> bytes:
@@ -26,7 +28,7 @@ def _sign(key: bytes, message: str) -> bytes:
 
 def _signing_key(secret: str, datestamp: str, region: str, service: str) -> bytes:
     """Derive the date/region/service-scoped signing key."""
-    key = _sign(f"AWS4{secret}".encode("utf-8"), datestamp)
+    key = _sign(f"AWS4{secret}".encode(), datestamp)
     key = _sign(key, region)
     key = _sign(key, service)
     return _sign(key, "aws4_request")
@@ -40,6 +42,18 @@ class S3Error(RuntimeError):
         self.status = status
 
 
+@dataclass(frozen=True)
+class S3Config:
+    """Connection settings for one bucket."""
+
+    endpoint: str
+    access_key: str
+    secret_key: str
+    bucket: str
+    region: str = "us-east-1"
+    timeout: int = 30
+
+
 class S3Client:
     """A small, explicit S3 client over urllib.
 
@@ -50,50 +64,45 @@ class S3Client:
     """
 
     def __init__(
-        self,
-        endpoint: str,
-        access_key: str,
-        secret_key: str,
-        bucket: str,
-        region: str = "us-east-1",
-        timeout: int = 30,
-        opener: urllib.request.OpenerDirector | None = None,
+        self, config: S3Config, opener: urllib.request.OpenerDirector | None = None
     ):
-        self.endpoint = endpoint.rstrip("/")
-        self.access_key = access_key
-        self.secret_key = secret_key
-        self.bucket = bucket
-        self.region = region
-        self.timeout = timeout
+        self.config = config
         self._opener = opener or urllib.request.build_opener()
-        parsed = urllib.parse.urlsplit(self.endpoint)
+        parsed = urllib.parse.urlsplit(config.endpoint.rstrip("/"))
         self.host = parsed.netloc
         self._scheme = parsed.scheme
 
-    def _request(
-        self, method: str, key: str, body: bytes = b"", query: dict[str, str] | None = None
-    ) -> bytes:
-        """Sign and send one request; return the body or raise S3Error."""
-        now = _dt.datetime.now(_dt.timezone.utc)
-        amz_date = now.strftime("%Y%m%dT%H%M%SZ")
-        datestamp = now.strftime("%Y%m%d")
-        payload_hash = hashlib.sha256(body).hexdigest() if body else _EMPTY_SHA256
+    @property
+    def bucket(self) -> str:
+        """The bucket this client is bound to."""
+        return self.config.bucket
 
-        canonical_uri = "/" + self.bucket
+    def _canonical_uri(self, key: str) -> str:
+        """Path-style bucket URI for one object."""
+        uri = "/" + self.config.bucket
         if key:
-            canonical_uri += "/" + urllib.parse.quote(key, safe="/")
-        canonical_query = urllib.parse.urlencode(sorted((query or {}).items()), quote_via=urllib.parse.quote)
+            uri += "/" + urllib.parse.quote(key, safe="/")
+        return uri
 
+    def _authorization(
+        self,
+        method: str,
+        uri: str,
+        query: str,
+        payload_hash: str,
+        amz_date: str,
+        datestamp: str,
+    ) -> str:
+        """Build the SigV4 Authorization header for one request."""
         canonical_headers = (
             f"host:{self.host}\n"
             f"x-amz-content-sha256:{payload_hash}\n"
             f"x-amz-date:{amz_date}\n"
         )
-        signed_headers = "host;x-amz-content-sha256;x-amz-date"
         canonical_request = "\n".join(
-            [method, canonical_uri, canonical_query, canonical_headers, signed_headers, payload_hash]
+            [method, uri, query, canonical_headers, _SIGNED_HEADERS, payload_hash]
         )
-        scope = f"{datestamp}/{self.region}/s3/aws4_request"
+        scope = f"{datestamp}/{self.config.region}/s3/aws4_request"
         string_to_sign = "\n".join(
             [
                 _ALGORITHM,
@@ -103,12 +112,33 @@ class S3Client:
             ]
         )
         signature = hmac.new(
-            _signing_key(self.secret_key, datestamp, self.region, "s3"),
+            _signing_key(self.config.secret_key, datestamp, self.config.region, "s3"),
             string_to_sign.encode("utf-8"),
             hashlib.sha256,
         ).hexdigest()
+        return (
+            f"{_ALGORITHM} Credential={self.config.access_key}/{scope}, "
+            f"SignedHeaders={_SIGNED_HEADERS}, Signature={signature}"
+        )
 
-        url = f"{self._scheme}://{self.host}{canonical_uri}"
+    def _request(
+        self,
+        method: str,
+        key: str,
+        body: bytes = b"",
+        query: dict[str, str] | None = None,
+    ) -> bytes:
+        """Sign and send one request; return the body or raise S3Error."""
+        now = _dt.datetime.now(_dt.timezone.utc)
+        amz_date = now.strftime("%Y%m%dT%H%M%SZ")
+        datestamp = now.strftime("%Y%m%d")
+        payload_hash = hashlib.sha256(body).hexdigest() if body else _EMPTY_SHA256
+        uri = self._canonical_uri(key)
+        canonical_query = urllib.parse.urlencode(
+            sorted((query or {}).items()), quote_via=urllib.parse.quote
+        )
+
+        url = f"{self._scheme}://{self.host}{uri}"
         if canonical_query:
             url += "?" + canonical_query
         request = urllib.request.Request(url, data=body or None, method=method)
@@ -117,19 +147,24 @@ class S3Client:
         request.add_header("x-amz-content-sha256", payload_hash)
         request.add_header(
             "Authorization",
-            f"{_ALGORITHM} Credential={self.access_key}/{scope}, "
-            f"SignedHeaders={signed_headers}, Signature={signature}",
+            self._authorization(
+                method, uri, canonical_query, payload_hash, amz_date, datestamp
+            ),
         )
         if body:
             request.add_header("Content-Type", "application/json")
 
         try:
-            with self._opener.open(request, timeout=self.timeout) as response:
+            with self._opener.open(request, timeout=self.config.timeout) as response:
                 return response.read()
         except urllib.error.HTTPError as exc:  # pragma: no cover - network shape
             detail = exc.read().decode("utf-8", "replace")[:400]
             raise S3Error(exc.code, detail) from exc
-        except (urllib.error.URLError, TimeoutError, OSError) as exc:  # pragma: no cover
+        except (
+            urllib.error.URLError,
+            TimeoutError,
+            OSError,
+        ) as exc:  # pragma: no cover
             raise S3Error(0, str(exc)) from exc
 
     def get(self, key: str) -> bytes | None:
@@ -154,19 +189,32 @@ class S3Client:
         keys: list[str] = []
         token: str | None = None
         while True:
-            query = {"list-type": "2", "prefix": prefix, "max-keys": str(min(limit, 1000))}
+            query = {
+                "list-type": "2",
+                "prefix": prefix,
+                "max-keys": str(min(limit, 1000)),
+            }
             if token:
                 query["continuation-token"] = token
             raw = self._request("GET", "", query=query)
             root = ET.fromstring(raw)
-            namespace = {"s3": root.tag.split("}")[0].strip("{")} if "}" in root.tag else {}
+            namespace = (
+                {"s3": root.tag.split("}")[0].strip("{")} if "}" in root.tag else {}
+            )
             path = "s3:Contents/s3:Key" if namespace else "Contents/Key"
             keys.extend(node.text or "" for node in root.findall(path, namespace))
-            truncated = root.find("s3:IsTruncated" if namespace else "IsTruncated", namespace)
-            token_node = root.find(
-                "s3:NextContinuationToken" if namespace else "NextContinuationToken", namespace
+            truncated = root.find(
+                "s3:IsTruncated" if namespace else "IsTruncated", namespace
             )
-            if truncated is None or (truncated.text or "").lower() != "true" or token_node is None:
+            token_node = root.find(
+                "s3:NextContinuationToken" if namespace else "NextContinuationToken",
+                namespace,
+            )
+            if (
+                truncated is None
+                or (truncated.text or "").lower() != "true"
+                or token_node is None
+            ):
                 break
             token = token_node.text
         return keys

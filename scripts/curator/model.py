@@ -23,7 +23,9 @@ TAG_HUMAN_DISMISSED = "cleanup-dismissed"
 TAG_HUMAN_ELIGIBLE = "cleanup-eligible"
 
 VETO_TAGS = frozenset({TAG_KEEP, TAG_KEEP_REVIEW, TAG_HUMAN_KEEP})
-HUMAN_DECISION_TAGS = frozenset({TAG_HUMAN_KEEP, TAG_HUMAN_DISMISSED, TAG_HUMAN_ELIGIBLE})
+HUMAN_DECISION_TAGS = frozenset(
+    {TAG_HUMAN_KEEP, TAG_HUMAN_DISMISSED, TAG_HUMAN_ELIGIBLE}
+)
 
 # Provenance tags are applied by Radarr itself when an import list adds a film.
 # They are the only durable evidence that a feed, not a person, chose a title.
@@ -211,7 +213,8 @@ class Assessment:
             "distinct_completers": self.viewing.distinct_completers,
             "rating_keys": list(self.viewing.rating_keys),
             "completions": [
-                {"user_id": c.user_id, "percent": c.percent} for c in self.viewing.completions
+                {"user_id": c.user_id, "percent": c.percent}
+                for c in self.viewing.completions
             ],
             "reasons": list(self.reasons),
             "blockers": list(self.blockers),

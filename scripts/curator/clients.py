@@ -18,6 +18,10 @@ from typing import Any
 class SourceError(RuntimeError):
     """A source could not be read in a way the caller must not paper over."""
 
+    def __init__(self, message: str, status: int | None = None):
+        super().__init__(message)
+        self.status = status
+
 
 class _Http:
     """Shared JSON-over-HTTP plumbing with explicit timeouts."""
@@ -27,7 +31,12 @@ class _Http:
         self.timeout = timeout
         self._opener = opener or urllib.request.build_opener()
 
-    def get_json(self, path: str, headers: dict[str, str] | None = None, params: dict | None = None) -> Any:
+    def get_json(
+        self,
+        path: str,
+        headers: dict[str, str] | None = None,
+        params: dict | None = None,
+    ) -> Any:
         """GET and decode JSON, raising SourceError on any failure."""
         url = f"{self.base_url}{path}"
         if params:
@@ -39,14 +48,20 @@ class _Http:
                     raise SourceError(f"GET {path} returned {response.status}")
                 return json.loads(response.read())
         except urllib.error.HTTPError as exc:
-            raise SourceError(f"GET {path} returned {exc.code}") from exc
+            raise SourceError(
+                f"GET {path} returned {exc.code}", status=exc.code
+            ) from exc
         except (urllib.error.URLError, TimeoutError, OSError) as exc:
             raise SourceError(f"GET {path} failed: {exc}") from exc
         except json.JSONDecodeError as exc:
             raise SourceError(f"GET {path} returned a non-JSON body") from exc
 
     def request_json(
-        self, method: str, path: str, headers: dict[str, str] | None = None, body: dict | None = None
+        self,
+        method: str,
+        path: str,
+        headers: dict[str, str] | None = None,
+        body: dict | None = None,
     ) -> tuple[int, Any]:
         """Send a non-GET request; return (status, decoded-body-or-None)."""
         payload = json.dumps(body).encode() if body is not None else None
@@ -92,11 +107,18 @@ class Radarr:
         return data
 
     def movie(self, movie_id: int) -> dict | None:
-        """One movie, or None when it is already gone."""
+        """One movie, or None when Radarr says it does not exist.
+
+        Only a 404 returns None. A timeout or a 500 is propagated, because the
+        callers read None as "confirmed gone" -- so swallowing a transient read
+        failure here would turn it into a false confirmed deletion.
+        """
         try:
             return self.http.get_json(f"/api/v3/movie/{movie_id}", self.headers)
-        except SourceError:
-            return None
+        except SourceError as exc:
+            if exc.status == 404:
+                return None
+            raise
 
     def tags(self) -> list[dict]:
         """Tag definitions, so labels can be resolved to ids at runtime."""
@@ -119,10 +141,14 @@ class Radarr:
 
     def movie_history(self, movie_id: int) -> list[dict]:
         """Full history for one film: grabs, imports, deletions, renames."""
-        data = self.http.get_json(f"/api/v3/history/movie?movieId={movie_id}", self.headers)
+        data = self.http.get_json(
+            f"/api/v3/history/movie?movieId={movie_id}", self.headers
+        )
         return data if isinstance(data, list) else []
 
-    def import_events(self, page_size: int = 1000, max_pages: int = 200) -> dict[int, list[dict]]:
+    def import_events(
+        self, page_size: int = 1000, max_pages: int = 200
+    ) -> dict[int, list[dict]]:
         """Every retained import event, grouped by movie id.
 
         One paged sweep rather than a request per film: the library is thousands
@@ -158,7 +184,8 @@ class Radarr:
         hard limit on what the routine can know. Read it, do not assume it.
         """
         page = self.http.get_json(
-            "/api/v3/history?page=1&pageSize=1&sortKey=date&sortDirection=ascending", self.headers
+            "/api/v3/history?page=1&pageSize=1&sortKey=date&sortDirection=ascending",
+            self.headers,
         )
         records = (page or {}).get("records") or []
         return records[0].get("date") if records else None
@@ -174,12 +201,18 @@ class Radarr:
 
     def create_tag(self, label: str) -> tuple[int, Any]:
         """Create a tag by label."""
-        return self.http.request_json("POST", "/api/v3/tag", self.headers, {"label": label})
+        return self.http.request_json(
+            "POST", "/api/v3/tag", self.headers, {"label": label}
+        )
 
-    def delete_movie(self, movie_id: int, add_exclusion: bool = True) -> tuple[int, Any]:
+    def delete_movie(
+        self, movie_id: int, add_exclusion: bool = True
+    ) -> tuple[int, Any]:
         """Delete a film and its files, optionally excluding it from re-import."""
         query = f"?deleteFiles=true&addImportExclusion={'true' if add_exclusion else 'false'}"
-        return self.http.request_json("DELETE", f"/api/v3/movie/{movie_id}{query}", self.headers)
+        return self.http.request_json(
+            "DELETE", f"/api/v3/movie/{movie_id}{query}", self.headers
+        )
 
 
 class Tautulli:
@@ -195,7 +228,9 @@ class Tautulli:
         payload = self.http.get_json("/api/v2", params=query)
         response = (payload or {}).get("response") or {}
         if response.get("result") != "success":
-            raise SourceError(f"Tautulli {cmd} returned result={response.get('result')!r}")
+            raise SourceError(
+                f"Tautulli {cmd} returned result={response.get('result')!r}"
+            )
         return response.get("data")
 
     def preflight(self) -> str:
@@ -205,7 +240,9 @@ class Tautulli:
             raise SourceError("Tautulli preflight returned no usable payload")
         return data
 
-    def movie_history(self, page_size: int = 500, max_pages: int = 200) -> tuple[list[dict], dict]:
+    def movie_history(
+        self, page_size: int = 500, max_pages: int = 200
+    ) -> tuple[list[dict], dict]:
         """Every ungrouped movie play, with the metadata to judge completeness.
 
         Two deliberate choices. ``grouping=0`` because a grouped row hides the
@@ -230,7 +267,9 @@ class Tautulli:
                 length=page_size,
             )
             if not isinstance(data, dict) or "data" not in data:
-                raise SourceError("Tautulli get_history returned an unexpected structure")
+                raise SourceError(
+                    "Tautulli get_history returned an unexpected structure"
+                )
             declared = data.get("recordsFiltered") if declared is None else declared
             page = data.get("data") or []
             for row in page:
@@ -276,15 +315,36 @@ class Tautulli:
                         continue
         return keys
 
+    def now_playing_ids(self) -> set[tuple[str, str]]:
+        """External ids of whatever is playing right now, as ``(source, id)``.
 
-class RequestSystem:
+        Resolved live rather than from the play-history crosswalk. A candidate is
+        by definition a film with no play history, so it has no historical rating
+        key -- matching active sessions against that crosswalk could never stop a
+        deletion for exactly the films at risk of a first viewing.
+        """
+        ids: set[tuple[str, str]] = set()
+        for key in self.now_playing_rating_keys():
+            meta = self.metadata(key)
+            if not meta:
+                continue
+            for guid in meta.get("guids") or []:
+                if guid.startswith(("tmdb://", "imdb://")):
+                    source, _, value = guid.partition("://")
+                    ids.add((source, value))
+        return ids
+
+
+class RequestSystem:  # pylint: disable=too-few-public-methods
     """Jellyseerr/Overseerr requests -- the only proof a person asked for a film."""
 
     def __init__(self, base_url: str, api_key: str, timeout: int = 60, opener=None):
         self.http = _Http(base_url, timeout=timeout, opener=opener)
         self.headers = {"X-Api-Key": api_key}
 
-    def movie_requests(self, page_size: int = 100, max_pages: int = 100) -> dict[int, dict]:
+    def movie_requests(
+        self, page_size: int = 100, max_pages: int = 100
+    ) -> dict[int, dict]:
         """Every movie request, keyed by tmdbId.
 
         Absence here is not evidence of anything: the request system is lightly

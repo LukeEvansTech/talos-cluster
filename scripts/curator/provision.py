@@ -9,8 +9,8 @@ This is a configuration change, so it does nothing without ``--apply``. It is al
 forever, and the only way to authorise one of those for cleanup is the
 ``cleanup-eligible`` tag applied by a person.
 
-    python3 -m radarr_cleanup.provision            # show what would change
-    python3 -m radarr_cleanup.provision --apply    # make the change
+    python3 -m curator.provision            # show what would change
+    python3 -m curator.provision --apply    # make the change
 """
 
 from __future__ import annotations
@@ -44,14 +44,18 @@ def plan_changes(radarr: Radarr) -> tuple[list[dict], list[str]]:
         if label not in existing and label not in wanted_tags:
             wanted_tags.append(label)
         if existing.get(label) not in (source.get("tags") or []):
-            changes.append({"list_id": source["id"], "list_name": source["name"], "tag": label})
+            changes.append(
+                {"list_id": source["id"], "list_name": source["name"], "tag": label}
+            )
     return changes, wanted_tags
 
 
 def main(argv: list[str] | None = None) -> int:
     """Create the tags and attach them to their import lists."""
-    parser = argparse.ArgumentParser(prog="radarr_cleanup.provision", description=__doc__)
-    parser.add_argument("--apply", action="store_true", help="actually write the changes")
+    parser = argparse.ArgumentParser(prog="curator.provision", description=__doc__)
+    parser.add_argument(
+        "--apply", action="store_true", help="actually write the changes"
+    )
     args = parser.parse_args(argv)
 
     radarr = Radarr(os.environ["RADARR_URL"], os.environ["RADARR_API_KEY"])
@@ -62,7 +66,9 @@ def main(argv: list[str] | None = None) -> int:
         print(f"  list {change['list_id']} ({change['list_name']}) -> {change['tag']}")
     if not args.apply:
         print("\ndry run: nothing written. Re-run with --apply to make these changes.")
-        print("Note this is NOT retrospective -- only films added after this point get a tag.")
+        print(
+            "Note this is NOT retrospective -- only films added after this point get a tag."
+        )
         return 0
 
     for label in wanted_tags:

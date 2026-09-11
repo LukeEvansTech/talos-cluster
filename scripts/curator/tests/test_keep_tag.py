@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from radarr_cleanup.planner import keep_tag_targets
+from curator.planner import keep_tag_targets
 
 from .fixtures import make_film
 

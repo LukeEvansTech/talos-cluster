@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import unittest
 from datetime import timedelta
+from typing import Any
 
-from radarr_cleanup.model import HistoryStatus, Origin, Outcome, Provenance
-from radarr_cleanup.planner import (
+from curator.model import HistoryStatus, Origin, Outcome, Provenance
+from curator.planner import (
     MAX_DELETIONS_PER_RUN,
     PlanContext,
     assess,
@@ -31,7 +32,7 @@ from .fixtures import (
 
 def context(**overrides) -> PlanContext:
     """A plan context with sane defaults for the fixed test clock."""
-    base = {
+    base: dict[str, Any] = {
         "now": NOW,
         "scope_start": SCOPE_START,
         "monitored_collection_tmdb_ids": frozenset(),
@@ -100,7 +101,9 @@ class ScopeTests(unittest.TestCase):
         self.assertIn("added date", result.blockers[0])
 
     def test_missing_file_has_its_own_outcome(self):
-        result = run(make_film(has_file=False), availability=make_availability(days=120))
+        result = run(
+            make_film(has_file=False), availability=make_availability(days=120)
+        )
         self.assertIs(result.outcome, Outcome.MISSING_FILE)
 
     def test_inside_the_window_is_not_due(self):
@@ -110,8 +113,13 @@ class ScopeTests(unittest.TestCase):
 
     def test_low_score_uses_the_short_window(self):
         film = make_film(imdb_score=4.2)
-        self.assertIs(run(film, availability=make_availability(days=40)).outcome, Outcome.CANDIDATE)
-        self.assertIs(run(film, availability=make_availability(days=20)).outcome, Outcome.NOT_DUE)
+        self.assertIs(
+            run(film, availability=make_availability(days=40)).outcome,
+            Outcome.CANDIDATE,
+        )
+        self.assertIs(
+            run(film, availability=make_availability(days=20)).outcome, Outcome.NOT_DUE
+        )
 
 
 class EvidenceGateTests(unittest.TestCase):
@@ -122,10 +130,16 @@ class EvidenceGateTests(unittest.TestCase):
         self.assertIs(result.outcome, Outcome.REVIEW)
 
     def test_incomplete_history_blocks(self):
-        self.assertIs(run(viewing=make_viewing(status=HistoryStatus.INCOMPLETE)).outcome, Outcome.REVIEW)
+        self.assertIs(
+            run(viewing=make_viewing(status=HistoryStatus.INCOMPLETE)).outcome,
+            Outcome.REVIEW,
+        )
 
     def test_unresolved_identity_blocks(self):
-        self.assertIs(run(viewing=make_viewing(status=HistoryStatus.UNRESOLVED)).outcome, Outcome.REVIEW)
+        self.assertIs(
+            run(viewing=make_viewing(status=HistoryStatus.UNRESOLVED)).outcome,
+            Outcome.REVIEW,
+        )
 
     def test_two_completions_go_to_the_human_queue(self):
         result = run(viewing=make_viewing(completers=2))
@@ -133,7 +147,9 @@ class EvidenceGateTests(unittest.TestCase):
         self.assertIn("2 distinct users", result.reasons[0])
 
     def test_one_completion_does_not_protect(self):
-        self.assertIs(run(viewing=make_viewing(completers=1)).outcome, Outcome.CANDIDATE)
+        self.assertIs(
+            run(viewing=make_viewing(completers=1)).outcome, Outcome.CANDIDATE
+        )
 
 
 class AuthorisationTests(unittest.TestCase):
@@ -156,7 +172,9 @@ class AuthorisationTests(unittest.TestCase):
 
     def test_human_eligible_still_loses_to_a_veto(self):
         film = make_film(tags={"cleanup-eligible", "keep"})
-        self.assertIs(run(film, provenance=unknown_provenance()).outcome, Outcome.PROTECTED)
+        self.assertIs(
+            run(film, provenance=unknown_provenance()).outcome, Outcome.PROTECTED
+        )
 
     def test_human_eligible_still_loses_to_a_monitored_collection(self):
         film = make_film(tmdb_id=77, tags={"cleanup-eligible"})
@@ -179,7 +197,9 @@ class StandingDecisionTests(unittest.TestCase):
             "reconsider_after": (NOW + timedelta(days=30)).isoformat(),
             "fact_fingerprint": fingerprint,
         }
-        result = run(film, viewing=viewing, ctx=context(decisions={film.movie_id: decision}))
+        result = run(
+            film, viewing=viewing, ctx=context(decisions={film.movie_id: decision})
+        )
         self.assertIs(result.outcome, Outcome.REVIEW)
         self.assertIn("already spared", result.reasons[0])
 
@@ -203,9 +223,13 @@ class StandingDecisionTests(unittest.TestCase):
             "verdict": "spared",
             "reason": "old call",
             "reconsider_after": (NOW - timedelta(days=1)).isoformat(),
-            "fact_fingerprint": fact_fingerprint(film, feed_provenance(), viewing, False),
+            "fact_fingerprint": fact_fingerprint(
+                film, feed_provenance(), viewing, False
+            ),
         }
-        result = run(film, viewing=viewing, ctx=context(decisions={film.movie_id: decision}))
+        result = run(
+            film, viewing=viewing, ctx=context(decisions={film.movie_id: decision})
+        )
         self.assertIs(result.outcome, Outcome.CANDIDATE)
 
     def test_dismissal_is_not_reopened_by_the_same_evidence(self):
@@ -214,13 +238,19 @@ class StandingDecisionTests(unittest.TestCase):
         decision = {
             "movie_id": film.movie_id,
             "verdict": "dismissed",
-            "fact_fingerprint": fact_fingerprint(film, feed_provenance(), viewing, False),
+            "fact_fingerprint": fact_fingerprint(
+                film, feed_provenance(), viewing, False
+            ),
         }
-        result = run(film, viewing=viewing, ctx=context(decisions={film.movie_id: decision}))
+        result = run(
+            film, viewing=viewing, ctx=context(decisions={film.movie_id: decision})
+        )
         self.assertIs(result.outcome, Outcome.REVIEW)
 
     def test_decision_record_carries_a_reconsideration_date(self):
-        record = build_decision_record(run(), "spared", "cult standing", "run-1", NOW, False)
+        record = build_decision_record(
+            run(), "spared", "cult standing", "run-1", NOW, False
+        )
         self.assertIn("reconsider_after", record)
         self.assertIn("fact_fingerprint", record)
 
@@ -230,7 +260,8 @@ class BatchTests(unittest.TestCase):
 
     def test_large_backlog_still_acts_on_the_cap(self):
         approved = [
-            run(make_film(movie_id=i, size_bytes=i * 1_000_000_000)) for i in range(1, 81)
+            run(make_film(movie_id=i, size_bytes=i * 1_000_000_000))
+            for i in range(1, 81)
         ]
         selected, deferred = select_batch(approved)
         self.assertEqual(len(selected), MAX_DELETIONS_PER_RUN)
@@ -275,7 +306,9 @@ class AnomalyTests(unittest.TestCase):
         self.assertIn("no validated baseline", blocks[0])
 
     def test_ordinary_run_is_not_blocked(self):
-        self.assertEqual(check_anomalies({**self.BASE, "library_size": 4990}, self.BASE), [])
+        self.assertEqual(
+            check_anomalies({**self.BASE, "library_size": 4990}, self.BASE), []
+        )
 
     def test_library_collapse_blocks(self):
         blocks = check_anomalies({**self.BASE, "library_size": 3000}, self.BASE)
@@ -298,7 +331,9 @@ class AnomalyTests(unittest.TestCase):
         self.assertTrue(any("unusable added date" in b for b in blocks))
 
     def test_growth_never_blocks(self):
-        self.assertEqual(check_anomalies({**self.BASE, "library_size": 9000}, self.BASE), [])
+        self.assertEqual(
+            check_anomalies({**self.BASE, "library_size": 9000}, self.BASE), []
+        )
 
     def test_malformed_snapshot_is_refused_as_a_baseline(self):
         problems = snapshot_valid({**self.BASE, "library_size": 0})

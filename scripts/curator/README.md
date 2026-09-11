@@ -1,4 +1,4 @@
-# radarr_cleanup
+# curator
 
 The deterministic half of the weekly Radarr library cleanup routine. Judgement —
 is this film worth keeping? — stays with Claude in the routine prompt. Everything
@@ -12,11 +12,11 @@ happens silently, and the run reports success either way.
 
 ```bash
 cd scripts
-python3 -m radarr_cleanup plan --out ./cleanup-plan      # read-only, always safe
-python3 -m radarr_cleanup execute --plan ./cleanup-plan/plan.json \
+python3 -m curator plan --out ./cleanup-plan      # read-only, always safe
+python3 -m curator execute --plan ./cleanup-plan/plan.json \
     --recommendations ./recommendations.json --out ./result.json
-python3 -m radarr_cleanup selftest                       # fixture tests, no network
-python3 -m radarr_cleanup.provision                      # show provenance-tag changes
+python3 -m curator selftest                       # fixture tests, no network
+python3 -m curator.provision                      # show provenance-tag changes
 ```
 
 `plan` writes nothing anywhere. `execute` is the only command that can change
@@ -79,13 +79,15 @@ the import lists.
 
 Recoverable while the recycle bin still holds the file. In order:
 
-1. Re-add the movie in Radarr (its tmdbId is in the ledger intent record, along
-   with its tags, profile, monitoring state and path).
+1. Re-add the movie in Radarr. The intent record written before the delete holds
+   what you need to recreate it: `tmdbId`, `titleSlug`, `path`, `rootFolderPath`,
+   `qualityProfileId`, `minimumAvailability`, `monitored` and the tag ids.
 2. Restore the file from the recycle bin to the film's folder and run a rescan so
    Radarr re-imports it.
 3. Remove the import-list exclusion — `DELETE /api/v3/exclusions/<id>`, found by
    **tmdbId**; that endpoint has no `imdbId` field at all, so matching on IMDb ID
    silently returns nothing and reads exactly like "it was never excluded".
 
-Retention is best-effort, not a guarantee: the bin is shared between arr instances
-and has been emptied by hand before.
+Retention is best-effort. A recycle bin can be shared with other tools and can be
+emptied early, so the engine reads the configured path and retention every run
+rather than assuming either.

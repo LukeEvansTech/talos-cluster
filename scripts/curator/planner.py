@@ -1,16 +1,16 @@
 """Scope, protection, batching and anomaly rules.
 
-This is the half of the routine that must never be wrong, so every rule is a pure
-function over already-fetched data and every one of them is covered by a fixture.
+Pure functions over already-fetched data, so every rule is covered by a fixture.
 """
 
 from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Any, Iterable
+from typing import Any
 
 from .evidence import days_available, window_days
 from .model import (
@@ -61,21 +61,22 @@ class PlanContext:
 
 
 def fact_fingerprint(
-    film: Film, provenance: Provenance, viewing: Viewing, in_monitored_collection: bool
+    film: Film, provenance: Provenance, viewing: Viewing, monitored: bool
 ) -> str:
     """Hash the facts a spare decision rested on.
 
-    A spare is allowed to stand until one of these moves. Scores are bucketed so
-    an IMDb rating drifting by 0.1 does not re-open a settled judgement, while a
-    real change -- a new completion, a collection becoming monitored, the film
-    gaining a provenance tag -- does.
+    A spare stands until one of these moves. Scores are bucketed so a rating
+    drifting by 0.1 does not reopen a settled judgement, while a new completion
+    or a newly monitored collection does.
     """
     payload = {
-        "score_bucket": None if film.imdb_score is None else round(film.imdb_score * 2) / 2,
+        "score_bucket": (
+            None if film.imdb_score is None else round(film.imdb_score * 2) / 2
+        ),
         "votes_bucket": None if film.imdb_votes is None else film.imdb_votes // 1000,
         "completers": viewing.distinct_completers,
         "origin": provenance.origin.value,
-        "monitored_collection": in_monitored_collection,
+        "monitored_collection": monitored,
         "collection": film.collection_title,
         "has_file": film.has_file,
     }
@@ -102,6 +103,116 @@ def in_monitored_collection(film: Film, ctx: PlanContext) -> bool:
     return bool(film.tmdb_id and film.tmdb_id in ctx.monitored_collection_tmdb_ids)
 
 
+def _protection_gate(
+    film: Film,
+    provenance: Provenance,
+    ctx: PlanContext,
+    result: Assessment,
+    monitored: bool,
+) -> bool:
+    """Apply the absolute protections. True when one of them fired."""
+    vetoes = sorted(film.tags & VETO_TAGS)
+    if vetoes:
+        result.outcome = Outcome.PROTECTED
+        result.protections.append(f"carries {', '.join(vetoes)}")
+        return True
+
+    if monitored:
+        result.outcome = Outcome.PROTECTED
+        result.protections.append(
+            "belongs to a monitored collection; completing that set is a standing instruction"
+        )
+        return True
+
+    if not ctx.collections_loaded:
+        result.outcome = Outcome.REVIEW
+        result.blockers.append(
+            "collection data unavailable, so collection protection cannot be checked"
+        )
+        return True
+
+    if provenance.origin is Origin.REQUESTED:
+        result.outcome = Outcome.PROTECTED
+        result.protections.append(
+            f"explicitly requested by {provenance.requested_by or 'a household member'}"
+        )
+        return True
+    return False
+
+
+def _scope_gate(
+    film: Film,
+    ctx: PlanContext,
+    result: Assessment,
+    available_for: int | None,
+    window: int,
+) -> bool:
+    """Apply scope, file presence and the viewing window. True when one fired."""
+    if film.status != "released":
+        result.outcome = Outcome.OUT_OF_SCOPE
+        result.reasons.append(f"status is {film.status}, not released")
+        return True
+
+    if film.added is None:
+        result.outcome = Outcome.REVIEW
+        result.blockers.append("record has no usable added date")
+        return True
+
+    if film.added < ctx.scope_start:
+        result.outcome = Outcome.OUT_OF_SCOPE
+        result.reasons.append(
+            f"added {film.added.date()}, before the {ctx.scope_start.date()} scope boundary"
+        )
+        return True
+
+    if not film.has_file:
+        result.outcome = Outcome.MISSING_FILE
+        result.reasons.append(
+            "no file on disk; nothing to reclaim and nobody could have watched it"
+        )
+        return True
+
+    if available_for is None:
+        result.outcome = Outcome.REVIEW
+        result.blockers.append("cannot establish when the film became playable")
+        return True
+
+    if available_for < window:
+        result.outcome = Outcome.NOT_DUE
+        result.reasons.append(f"playable for {available_for} of {window} days")
+        return True
+    return False
+
+
+def _evidence_gate(viewing: Viewing, result: Assessment) -> bool:
+    """Refuse to act on play evidence that cannot bear the weight."""
+    if viewing.status is HistoryStatus.UNAVAILABLE:
+        result.outcome = Outcome.REVIEW
+        result.blockers.append(
+            "play history unavailable; a zero here would not mean unwatched"
+        )
+        return True
+
+    if viewing.status in (
+        HistoryStatus.INCOMPLETE,
+        HistoryStatus.UNRESOLVED,
+        HistoryStatus.AMBIGUOUS,
+    ):
+        result.outcome = Outcome.REVIEW
+        result.blockers.append(
+            f"play history {viewing.status.value}: " + "; ".join(viewing.notes)
+        )
+        return True
+
+    if viewing.distinct_completers >= 2:
+        result.outcome = Outcome.REVIEW
+        result.reasons.append(
+            f"{viewing.distinct_completers} distinct users finished it; belongs in the human queue"
+        )
+        return True
+    return False
+
+
 def assess(
     film: Film,
     provenance: Provenance,
@@ -111,8 +222,8 @@ def assess(
 ) -> Assessment:
     """Decide what may be done with one film, before any question of taste.
 
-    Order matters: protections are evaluated before eligibility, so a film that
-    is both protected and technically past its window is reported as protected.
+    Order matters: protections come before eligibility, so a film that is both
+    protected and past its window reports as protected.
     """
     monitored = in_monitored_collection(film, ctx)
     window = window_days(film)
@@ -127,91 +238,16 @@ def assess(
         days_available=available_for,
     )
 
-    # --- absolute vetoes ---------------------------------------------------
-    vetoes = sorted(film.tags & VETO_TAGS)
-    if vetoes:
-        result.outcome = Outcome.PROTECTED
-        result.protections.append(f"carries {', '.join(vetoes)}")
+    if _protection_gate(film, provenance, ctx, result, monitored):
+        return result
+    if _scope_gate(film, ctx, result, available_for, window):
+        return result
+    if _evidence_gate(viewing, result):
         return result
 
-    if monitored:
-        result.outcome = Outcome.PROTECTED
-        result.protections.append(
-            "belongs to a monitored collection; completing that set is a standing instruction"
-        )
-        return result
-
-    if not ctx.collections_loaded:
-        result.outcome = Outcome.REVIEW
-        result.blockers.append("collection data unavailable, so collection protection cannot be checked")
-        return result
-
-    if provenance.origin is Origin.REQUESTED:
-        result.outcome = Outcome.PROTECTED
-        result.protections.append(
-            f"explicitly requested by {provenance.requested_by or 'a household member'}"
-        )
-        return result
-
-    # --- scope -------------------------------------------------------------
-    if film.status != "released":
-        result.outcome = Outcome.OUT_OF_SCOPE
-        result.reasons.append(f"status is {film.status}, not released")
-        return result
-
-    if film.added is None:
-        result.outcome = Outcome.REVIEW
-        result.blockers.append("record has no usable added date")
-        return result
-
-    if film.added < ctx.scope_start:
-        result.outcome = Outcome.OUT_OF_SCOPE
-        result.reasons.append(
-            f"added {film.added.date()}, before the {ctx.scope_start.date()} scope boundary"
-        )
-        return result
-
-    # --- availability ------------------------------------------------------
-    if not film.has_file:
-        result.outcome = Outcome.MISSING_FILE
-        result.reasons.append("no file on disk; nothing to reclaim and nobody could have watched it")
-        return result
-
-    if available_for is None:
-        result.outcome = Outcome.REVIEW
-        result.blockers.append("cannot establish when the film became playable")
-        return result
-
-    if available_for < window:
-        result.outcome = Outcome.NOT_DUE
-        result.reasons.append(
-            f"playable for {available_for} of {window} days"
-        )
-        return result
-
-    # --- viewing evidence --------------------------------------------------
-    if viewing.status is HistoryStatus.UNAVAILABLE:
-        result.outcome = Outcome.REVIEW
-        result.blockers.append("play history unavailable; a zero here would not mean unwatched")
-        return result
-
-    if viewing.status in (HistoryStatus.INCOMPLETE, HistoryStatus.UNRESOLVED, HistoryStatus.AMBIGUOUS):
-        result.outcome = Outcome.REVIEW
-        result.blockers.append(f"play history {viewing.status.value}: " + "; ".join(viewing.notes))
-        return result
-
-    if viewing.distinct_completers >= 2:
-        result.outcome = Outcome.REVIEW
-        result.reasons.append(
-            f"{viewing.distinct_completers} distinct users finished it; belongs in the human queue"
-        )
-        return result
-
-    # --- authorisation -----------------------------------------------------
-    # Delete-by-default needs an authorisation, and there are exactly two:
-    # established feed provenance, or an explicit human decision. A human tag is
-    # a PARALLEL authorisation, not a way of relabelling an unknown as a feed
-    # pull -- the origin below still reports "unknown" in the evidence.
+    # Delete-by-default needs an authorisation, and there are two: feed
+    # provenance, or an explicit human decision. The human tag is a parallel
+    # authorisation, not a relabelling -- the origin still reports "unknown".
     authorised_by = None
     if provenance.origin is Origin.FEED:
         authorised_by = "import-list provenance"
@@ -226,7 +262,6 @@ def assess(
         )
         return result
 
-    # --- standing human decisions -----------------------------------------
     fingerprint = fact_fingerprint(film, provenance, viewing, monitored)
     stored = ctx.decisions.get(film.movie_id)
     if stored and decision_still_binding(stored, fingerprint, ctx.now):
@@ -238,13 +273,21 @@ def assess(
         )
         return result
 
-    if TAG_HUMAN_DISMISSED in film.tags and stored and stored.get("fact_fingerprint") == fingerprint:
-        result.outcome = Outcome.REVIEW
-        result.reasons.append("dismissed by a person and no relevant fact has changed since")
-        return result
+    if TAG_HUMAN_DISMISSED in film.tags:
+        # A person applies this tag in the UI, which writes no ledger record, so
+        # requiring one would make the tag inert -- the opposite of a human
+        # decision outranking an automatic one.
+        if not (stored and stored.get("fact_fingerprint") != fingerprint):
+            result.outcome = Outcome.REVIEW
+            result.reasons.append(
+                "dismissed by a person; no relevant fact has changed since"
+            )
+            return result
 
     result.outcome = Outcome.CANDIDATE
-    result.reasons.append(f"eligible: authorised by {authorised_by}, past its {window}-day window")
+    result.reasons.append(
+        f"eligible: authorised by {authorised_by}, past its {window}-day window"
+    )
     return result
 
 
@@ -255,17 +298,16 @@ KEEP_BAR_SCORE = 6.5
 
 
 def keep_tag_targets(
-    films: Iterable[Film], bar_votes: int = KEEP_BAR_VOTES, bar_score: float = KEEP_BAR_SCORE
+    films: Iterable[Film],
+    bar_votes: int = KEEP_BAR_VOTES,
+    bar_score: float = KEEP_BAR_SCORE,
 ) -> list[Film]:
     """Films that should gain the ``keep`` tag this run.
 
-    Add-only, and with two exclusions that stop automatic maintenance quietly
-    overturning a person:
-
-    * a ``keep-review`` item is never promoted -- the whole point of that queue is
-      that a human decides, and applying ``keep`` decides it for them;
-    * a film a person marked ``cleanup-eligible`` is never re-protected, or the
-      rating rule silently reverses their override every single week.
+    Add-only, with two exclusions that stop maintenance overturning a person: a
+    ``keep-review`` item is never promoted, because that queue exists so a human
+    decides; and a film marked ``cleanup-eligible`` is never re-protected, or the
+    rating rule reverses the override every week.
     """
     targets = []
     for film in films:
@@ -290,10 +332,9 @@ def select_batch(
 ) -> tuple[list[Assessment], list[Assessment]]:
     """Take the largest files first, up to what remains of the run's budget.
 
-    There is deliberately no "too many candidates, abort everything" rule. That
-    rule counts spares as if they were deletions, and it can never drain a
-    backlog larger than its own threshold -- it stalls permanently, re-finding
-    the same films every week. Anomaly detection, not volume, is what stops a run.
+    There is no "too many candidates, abort everything" rule. It counts spares as
+    deletions and can never drain a backlog larger than its own threshold, so it
+    stalls permanently. Anomaly detection stops a run; volume does not.
     """
     remaining = max(cap - already_deleted_this_window, 0)
     ordered = sorted(approved, key=lambda a: a.film.size_bytes, reverse=True)
@@ -311,14 +352,19 @@ def _drop_pct(current: float, baseline: float) -> float:
 
 
 def snapshot_valid(snapshot: dict[str, Any]) -> list[str]:
-    """Reject a snapshot that is too malformed to be a baseline.
+    """Reject a snapshot too malformed to be a baseline.
 
-    A baseline recorded from a half-fetched run becomes the yardstick every later
-    run is measured against, so a bad one disables anomaly detection silently and
-    permanently. Refusing to record is always the safer failure.
+    A baseline from a half-fetched run becomes the yardstick for every later run,
+    so a bad one disables anomaly detection silently and permanently. Refusing to
+    record is the safer failure.
     """
     problems = []
-    for key in ("library_size", "keep_tag_count", "collection_count", "exclusion_count"):
+    for key in (
+        "library_size",
+        "keep_tag_count",
+        "collection_count",
+        "exclusion_count",
+    ):
         value = snapshot.get(key)
         if not isinstance(value, int) or value < 0:
             problems.append(f"{key} missing or not a non-negative integer")
@@ -329,14 +375,18 @@ def snapshot_valid(snapshot: dict[str, Any]) -> list[str]:
     return problems
 
 
-def check_anomalies(snapshot: dict[str, Any], baseline: dict[str, Any] | None) -> list[str]:
+def check_anomalies(
+    snapshot: dict[str, Any], baseline: dict[str, Any] | None
+) -> list[str]:
     """Compare this run against the last validated baseline.
 
-    Returns the reasons deletion must not proceed. An empty list means the run
-    looks ordinary.
+    Returns the reasons deletion must not proceed; empty means the run looks
+    ordinary.
     """
     if baseline is None:
-        return ["no validated baseline yet; recording one and deleting nothing this run"]
+        return [
+            "no validated baseline yet; recording one and deleting nothing this run"
+        ]
 
     blocks: list[str] = []
     checks = (
@@ -357,7 +407,10 @@ def check_anomalies(snapshot: dict[str, Any], baseline: dict[str, Any] | None) -
                 f"{ANOMALY_LIMITS[limit_key]}% limit"
             )
 
-    if baseline.get("monitored_collections", 0) > 0 and snapshot.get("monitored_collections", 0) == 0:
+    if (
+        baseline.get("monitored_collections", 0) > 0
+        and snapshot.get("monitored_collections", 0) == 0
+    ):
         blocks.append("every collection lost its monitored flag since the last run")
 
     invalid = snapshot.get("invalid_added_count", 0)
@@ -366,7 +419,9 @@ def check_anomalies(snapshot: dict[str, Any], baseline: dict[str, Any] | None) -
         blocks.append(f"{invalid} films have an unusable added date")
 
     if not snapshot.get("collections_loaded", True):
-        blocks.append("collection data did not load, so collection protection cannot be enforced")
+        blocks.append(
+            "collection data did not load, so collection protection cannot be enforced"
+        )
 
     return blocks
 
