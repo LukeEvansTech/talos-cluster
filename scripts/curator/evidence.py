@@ -254,6 +254,9 @@ def resolve_viewing(
     elif tainting:
         status = HistoryStatus.UNRESOLVED
         notes.append(f"{len(tainting)} play(s) on a retired Plex item with this title could not be " "attributed by id")
+    elif coverage_start is None and availability.first_playable is not None:
+        status = HistoryStatus.INCOMPLETE
+        notes.append("play history carries no dated records, so its coverage cannot be established")
     elif coverage_start and availability.first_playable and availability.first_playable < coverage_start:
         status = HistoryStatus.INCOMPLETE
         notes.append(

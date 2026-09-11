@@ -13,11 +13,11 @@ from typing import Any
 
 from curator.__main__ import apply_keep_tags, rehydrate
 from curator.clients import SourceError
-from curator.evidence import resolve_availability
+from curator.evidence import resolve_availability, resolve_viewing
 from curator.executor import execute, reconcile
 from curator.ledger import Ledger
 from curator.model import Completion, HistoryStatus, Outcome, Viewing
-from curator.planner import PlanContext, assess, fact_fingerprint
+from curator.planner import PlanContext, assess, fact_fingerprint, snapshot_valid
 
 from .fixtures import (
     NOW,
@@ -263,3 +263,39 @@ class KeepTagsAreActuallyApplied(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class EmptyHistoryIsNeverAVerifiedZero(unittest.TestCase):
+    """A wiped Tautulli answers healthily and declares nothing watched.
+
+    Left unchecked the baseline is self-ratifying: recorded once, the next run
+    sees no history-drop anomaly, has no coverage start to bound it, and reads
+    every film in the library as a verified zero.
+    """
+
+    LIBRARY = {
+        "library_size": 5000,
+        "keep_tag_count": 4000,
+        "collection_count": 700,
+        "exclusion_count": 2500,
+        "history_ok": True,
+        "collections_loaded": True,
+        "invalid_added_count": 0,
+    }
+
+    def test_zero_rows_is_refused_as_a_baseline(self):
+        problems = snapshot_valid({**self.LIBRARY, "history_rows": 0})
+        self.assertTrue(any("play history is empty" in p for p in problems))
+
+    def test_a_stocked_library_with_history_is_still_accepted(self):
+        self.assertEqual(snapshot_valid({**self.LIBRARY, "history_rows": 500}), [])
+
+    def test_unbounded_coverage_is_not_trustworthy(self):
+        result = resolve_viewing(make_film(), {}, {}, None, make_availability(), history_ok=True)
+        self.assertIs(result.status, HistoryStatus.INCOMPLETE)
+        self.assertFalse(result.trustworthy)
+
+    def test_a_film_blocked_this_way_never_becomes_a_candidate(self):
+        viewing = resolve_viewing(make_film(), {}, {}, None, make_availability(), history_ok=True)
+        result = assess(make_film(), feed_provenance(), make_availability(), viewing, context())
+        self.assertIs(result.outcome, Outcome.REVIEW)

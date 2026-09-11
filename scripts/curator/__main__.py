@@ -164,6 +164,12 @@ def fetch_history(tautulli: Tautulli) -> tuple[list[dict], dict, bool, str]:
     log(f"play history: {meta['retrieved']} rows (declared {meta['declared']})")
     if not meta["complete"]:
         return rows, meta, False, "retrieved fewer rows than the service declared"
+    if not rows:
+        # A wiped or freshly deployed Tautulli answers perfectly well and
+        # declares zero rows, so every check downstream reads "complete". Nobody
+        # has watched anything is not a state this library is ever in; treating
+        # it as one would mark the whole library unwatched at once.
+        return rows, meta, False, "history is healthy but empty, which is not a believable state"
     return rows, meta, True, ""
 
 

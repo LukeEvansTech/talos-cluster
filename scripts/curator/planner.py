@@ -348,6 +348,13 @@ def snapshot_valid(snapshot: dict[str, Any]) -> list[str]:
         problems.append("library_size is zero, which is never a valid baseline here")
     if not snapshot.get("history_ok", False):
         problems.append("history service was not healthy during this snapshot")
+    rows = snapshot.get("history_rows")
+    if isinstance(snapshot.get("library_size"), int) and snapshot["library_size"] > 0:
+        if not isinstance(rows, int) or rows <= 0:
+            # Recorded, this baseline is self-ratifying: the next run sees no
+            # history-drop anomaly (zero against zero), has no coverage start to
+            # bound it, and reads every film as a verified zero.
+            problems.append("play history is empty, which cannot be a baseline for a stocked library")
     return problems
 
 
