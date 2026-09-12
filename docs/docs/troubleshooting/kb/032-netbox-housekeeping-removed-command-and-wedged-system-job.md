@@ -109,27 +109,45 @@ across its due time; RQ's embedded scheduler enqueues the overdue job when a wor
 the registry check below finds the job, it is merely pending — wait for it rather than reaching for
 the workaround.
 
-Prove it by looking for the row's own `job_id` in the scheduled registry, which is the check
-`enqueue_once` omits. Test for **that specific ID**, not for a non-zero count: any other scheduled
-NetBox task would satisfy a count and validate a wedged housekeeping job by accident.
+Prove it by resolving the row's own `job_id` against RQ, which is the check `enqueue_once` omits.
+Two things need testing, because each alone gives a wrong answer in a different situation:
+
+- **Does a job object exist at all?** `NoSuchJobError` is the wedge, and it is the only definitive
+  signal. Absence from the *scheduled registry* is not, because a healthy job leaves that registry
+  the moment the scheduler promotes it into the queue. The Django row still reads `scheduled` until
+  a worker actually starts it, so a registry-only check reports the wedge signature for any job
+  merely waiting on a busy worker — and acting on that deletes a live row.
+- **Where is it?** A job object existing does not mean anything is scheduled to run it, and testing
+  for **this specific ID** matters: any other scheduled NetBox task would satisfy a bare count.
 
 ```python
 from core.models import Job
+from rq.job import Job as RQJob
 from rq.registry import ScheduledJobRegistry
+from rq.exceptions import NoSuchJobError
 import django_rq
 
 j = Job.objects.filter(name="System Housekeeping", status="scheduled").first()
+jid = str(j.job_id)
+try:
+    print("rq status:", RQJob.fetch(jid, connection=django_rq.get_connection("default")).get_status().value)
+except NoSuchJobError:
+    print("rq status: MISSING")
 for q in ("high", "default", "low"):
-    ids = ScheduledJobRegistry(queue=django_rq.get_queue(q)).get_job_ids()
-    print(q, str(j.job_id) in ids, ids)
-# high    False []
-# default False []          <- wedged: the row's job is in no registry
-# low     False []
+    queue = django_rq.get_queue(q)
+    print(q, "scheduled:", jid in ScheduledJobRegistry(queue=queue).get_job_ids(),
+             "queued:", jid in queue.get_job_ids())
 ```
 
-`RQJob.fetch(str(j.job_id), ...)` raising `NoSuchJobError` corroborates it, but it is the weaker
-test on its own — it only asks whether a job object exists, not whether anything is scheduled to
-run it.
+Read the result against these three shapes:
+
+| `rq status` | `scheduled` | `queued` | Verdict |
+| --- | --- | --- | --- |
+| `scheduled` | `True` on one queue | `False` | Healthy, waiting for its due time |
+| `queued` / `started` | `False` everywhere | `True` (or started) | Healthy, due and waiting on a busy worker — **do nothing** |
+| `MISSING` | `False` everywhere | `False` everywhere | Wedged |
+
+Only the third row justifies the workaround below.
 
 ## Fix
 
@@ -157,8 +175,16 @@ kubectl -n default rollout restart deploy/netbox-worker
 The worker runs housekeeping immediately on start and schedules the next occurrence.
 
 **Verify in both places.** The database row is exactly what lied for three weeks, so a `scheduled`
-row on its own is not evidence. Re-run the registry check above against the *new* row and require it
-to print `True` — the row's own `job_id` present in `default`'s `ScheduledJobRegistry`.
+row on its own is not evidence. Re-run the check above against the *new* row and require the healthy
+first shape — `rq status: scheduled`, and the row's own `job_id` present in `default`'s
+`ScheduledJobRegistry`:
+
+```console
+rq status: scheduled
+high scheduled: False queued: False
+default scheduled: True queued: False
+low scheduled: False queued: False
+```
 
 Finally, clear the failed Jobs. `KubeJobFailed` latches on the Job object and keeps firing until
 that object is gone, so fixing the cause does not silence it (see
