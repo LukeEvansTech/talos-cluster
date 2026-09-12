@@ -193,6 +193,8 @@ class FakeTautulli:
         self.playing = playing or set()
         self.raise_error = raise_error
         self.playing_ids = playing_ids or set()
+        self.history_rows: list[dict] = []
+        self.history_complete = True
 
     def now_playing_rating_keys(self) -> set[int]:
         """Rating keys currently streaming."""
@@ -205,3 +207,9 @@ class FakeTautulli:
         if self.raise_error:
             raise self.raise_error
         return self.playing_ids
+
+    def movie_history(self):
+        """Play history, re-read at execution time to catch late completions."""
+        if self.raise_error:
+            raise self.raise_error
+        return self.history_rows, {"complete": self.history_complete}

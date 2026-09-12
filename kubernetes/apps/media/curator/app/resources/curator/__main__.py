@@ -237,7 +237,9 @@ def count_owned_siblings(movies: list[dict], collections: list[dict]) -> dict[in
     "Collection support" is one of the three reasons to keep a film, and it is
     unanswerable from a collection name alone.
     """
-    owned = {m.get("tmdbId") for m in movies if m.get("tmdbId")}
+    # Only films on disk count. A collection entry Radarr is still looking for
+    # is not evidence that the library holds part of the set.
+    owned = {m.get("tmdbId") for m in movies if m.get("tmdbId") and m.get("hasFile")}
     by_movie: dict[int, int] = {}
     tmdb_to_id = {m["tmdbId"]: m["id"] for m in movies if m.get("tmdbId")}
     for collection in collections:
@@ -258,6 +260,8 @@ def count_genres(movies: list[dict]) -> dict[str, int]:
     """
     counts: dict[str, int] = {}
     for movie in movies:
+        if not movie.get("hasFile"):
+            continue
         for genre in movie.get("genres") or []:
             counts[genre] = counts.get(genre, 0) + 1
     return counts
@@ -296,10 +300,7 @@ def assess_library(
             history_ok=ctx.history_ok,
             unattributed_rows=evidence["unattributed"],
         )
-        result = assess(film, provenance, availability, viewing, ctx)
-        result.siblings_owned = evidence["siblings_owned"].get(film.movie_id, 0)
-        result.subject_counts = {g: evidence["genre_counts"].get(g, 0) for g in film.genres}
-        assessments.append(result)
+        assessments.append(assess(film, provenance, availability, viewing, ctx))
 
     if bootstrapped:
         ledger.write_first_seen(bootstrapped)
@@ -480,6 +481,8 @@ def cmd_plan(args: argparse.Namespace) -> int:
         history_ok=history_ok,
         decisions=ledger.read_decisions(),
         collections_loaded=bool(collections),
+        siblings_owned=count_owned_siblings(library.movies, collections),
+        genre_counts=count_genres(library.movies),
     )
     assessments = assess_library(
         movies,
@@ -492,8 +495,6 @@ def cmd_plan(args: argparse.Namespace) -> int:
             "rows_by_key": rows_by_key,
             "crosswalk": crosswalk,
             "unattributed": unattributed,
-            "siblings_owned": count_owned_siblings(library.movies, collections),
-            "genre_counts": count_genres(library.movies),
         },
         ledger,
     )
@@ -551,6 +552,10 @@ def rehydrate(planned: dict, film: Film, reason: str = "") -> Assessment:
     return Assessment(
         film=film,
         outcome=Outcome.CANDIDATE,
+        # Carried so the decision fingerprint covers the evidence a keep was
+        # actually granted on: losing the last owned sibling should reopen it.
+        siblings_owned=int(planned.get("siblings_owned") or 0),
+        subject_counts=dict(planned.get("subject_counts") or {}),
         provenance=Provenance(Origin(planned["origin"]), tuple(planned.get("origin_evidence") or ())),
         availability=Availability(None, planned["availability_source"], film.has_file),
         viewing=Viewing(
@@ -677,6 +682,12 @@ def cmd_execute(args: argparse.Namespace) -> int:
             for item in accepted
             if item["verdict"] == "delete" and item["movie_id"] in movies
         ]
+        # Before anything is deleted. Assessment now protects anything meeting
+        # the bar, so the two sets should not overlap -- applying first means a
+        # plan built before that rule still cannot delete a film it was about
+        # to permanently protect.
+        tagged = apply_keep_tags(radarr, plan.get("keep_tag_additions") or [], ledger.dry_run)
+
         already = ledger.deletions_in_window()
         selected, deferred = select_batch(approved, MAX_DELETIONS_PER_RUN, already)
         log(
@@ -692,8 +703,10 @@ def cmd_execute(args: argparse.Namespace) -> int:
             tag_labels,
             monitored,
             dry_run=ledger.dry_run,
+            seerr=sources.seerr,
+            crosswalk=ledger.read_crosswalk(),
+            planned_at=utc(plan.get("generated_at")),
         )
-        tagged = apply_keep_tags(radarr, plan.get("keep_tag_additions") or [], ledger.dry_run)
 
         now = datetime.now(timezone.utc)
         for item in accepted:
@@ -724,11 +737,18 @@ def cmd_execute(args: argparse.Namespace) -> int:
             f"deleted={len(result.deleted)} skipped={len(result.skipped)} "
             f"failed={len(result.failed)} uncertain={len(result.uncertain)}"
         )
-        # A failed or uncertain deletion is exactly the outcome someone needs to
-        # look at, and a Job that exits 0 is one nothing surfaces. Skips are not
-        # failures -- a protection firing is the system working.
-        if result.failed or result.uncertain:
-            log("exiting non-zero: some deletions failed or could not be confirmed")
+        # A failed deletion is safe to surface as a Job failure: nothing was
+        # destroyed, so a retry re-attempts a no-op. An *uncertain* one is not:
+        # the DELETE may have landed, and re-running the pipeline would issue it
+        # again -- exactly what _delete_one refuses to do. Those are left for
+        # the next run's reconciliation, which resolves them by looking.
+        if result.uncertain:
+            log(
+                f"{len(result.uncertain)} deletion(s) could not be confirmed; "
+                "left for the next run to reconcile rather than retried"
+            )
+        if result.failed:
+            log("exiting non-zero: some deletions failed outright")
             return 4
         return 0
     finally:

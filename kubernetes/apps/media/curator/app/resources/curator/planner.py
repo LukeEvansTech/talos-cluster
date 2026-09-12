@@ -58,9 +58,21 @@ class PlanContext:
     history_ok: bool
     decisions: dict[int, dict] = field(default_factory=dict)
     collections_loaded: bool = True
+    # Keep-reason evidence, computed once over the library. Held here rather
+    # than attached after assessment, because the decision fingerprint is taken
+    # during assessment and has to cover it.
+    siblings_owned: dict[int, int] = field(default_factory=dict)
+    genre_counts: dict[str, int] = field(default_factory=dict)
 
 
-def fact_fingerprint(film: Film, provenance: Provenance, viewing: Viewing, monitored: bool) -> str:
+def fact_fingerprint(
+    film: Film,
+    provenance: Provenance,
+    viewing: Viewing,
+    monitored: bool,
+    siblings_owned: int = 0,
+    subject_counts: dict[str, int] | None = None,
+) -> str:
     """Hash the facts a spare decision rested on.
 
     A spare stands until one of these moves. Scores are bucketed so a rating
@@ -75,6 +87,12 @@ def fact_fingerprint(film: Film, provenance: Provenance, viewing: Viewing, monit
         "monitored_collection": monitored,
         "collection": film.collection_title,
         "has_file": film.has_file,
+        # The evidence the keep reasons are stated in terms of. A spare granted
+        # on collection support must not survive the sibling being removed;
+        # subject counts are bucketed so ordinary library growth does not
+        # reopen every decision each week.
+        "siblings_owned": siblings_owned,
+        "subjects": {g: c // 25 for g, c in sorted((subject_counts or {}).items())},
     }
     blob = json.dumps(payload, sort_keys=True).encode()
     return hashlib.sha256(blob).hexdigest()[:16]
@@ -111,6 +129,15 @@ def _protection_gate(
     if vetoes:
         result.outcome = Outcome.PROTECTED
         result.protections.append(f"carries {', '.join(vetoes)}")
+        return True
+
+    # Qualifying for the allow list protects a film immediately, not once the
+    # tag has been written. Assessment runs before tag maintenance, so without
+    # this a film could be judged and deleted in the same run that was about to
+    # mark it permanently protected.
+    if meets_keep_bar(film):
+        result.outcome = Outcome.PROTECTED
+        result.protections.append(f"meets the allow-list bar ({film.imdb_votes} votes at {film.imdb_score})")
         return True
 
     if monitored:
@@ -216,6 +243,8 @@ def assess(
         viewing=viewing,
         window_days=window,
         days_available=available_for,
+        siblings_owned=ctx.siblings_owned.get(film.movie_id, 0),
+        subject_counts={g: ctx.genre_counts.get(g, 0) for g in film.genres},
     )
 
     if _protection_gate(film, provenance, ctx, result, monitored):
@@ -242,7 +271,7 @@ def assess(
         )
         return result
 
-    fingerprint = fact_fingerprint(film, provenance, viewing, monitored)
+    fingerprint = fact_fingerprint(film, provenance, viewing, monitored, result.siblings_owned, result.subject_counts)
     stored = ctx.decisions.get(film.movie_id)
     if stored and decision_still_binding(stored, fingerprint, ctx.now):
         result.outcome = Outcome.REVIEW
@@ -273,6 +302,13 @@ KEEP_BAR_VOTES = 5000
 KEEP_BAR_SCORE = 6.5
 
 
+def meets_keep_bar(film: Film, bar_votes: int = KEEP_BAR_VOTES, bar_score: float = KEEP_BAR_SCORE) -> bool:
+    """Whether a film clears the permanent allow-list bar on its ratings alone."""
+    if film.imdb_votes is None or film.imdb_score is None:
+        return False
+    return film.imdb_votes >= bar_votes and film.imdb_score >= bar_score
+
+
 def keep_tag_targets(
     films: Iterable[Film],
     bar_votes: int = KEEP_BAR_VOTES,
@@ -291,9 +327,7 @@ def keep_tag_targets(
             continue
         if TAG_HUMAN_ELIGIBLE in film.tags or TAG_HUMAN_DISMISSED in film.tags:
             continue
-        if film.imdb_votes is None or film.imdb_score is None:
-            continue
-        if film.imdb_votes >= bar_votes and film.imdb_score >= bar_score:
+        if meets_keep_bar(film, bar_votes, bar_score):
             targets.append(film)
     return targets
 
@@ -418,7 +452,14 @@ def build_decision_record(
         "decided_at": now.isoformat(),
         "run_id": run_id,
         "reconsider_after": (now + timedelta(days=reconsider_days)).isoformat(),
-        "fact_fingerprint": fact_fingerprint(assessment.film, assessment.provenance, assessment.viewing, monitored),
+        "fact_fingerprint": fact_fingerprint(
+            assessment.film,
+            assessment.provenance,
+            assessment.viewing,
+            monitored,
+            assessment.siblings_owned,
+            assessment.subject_counts,
+        ),
     }
 
 

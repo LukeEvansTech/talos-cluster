@@ -29,7 +29,11 @@ spec:
           concurrencyPolicy: Forbid
           successfulJobsHistory: 3
           failedJobsHistory: 3
-          backoffLimit: 1
+          # Never retry. This pipeline ends in DELETEs, and a retry would
+          # re-run judgement and execution against the same plan. Anything
+          # ambiguous is left for the next scheduled run, which reconciles it
+          # by looking at live state rather than by repeating the call.
+          backoffLimit: 0
           activeDeadlineSeconds: 3600
         pod:
           automountServiceAccountToken: false
@@ -165,10 +169,21 @@ spec:
         globalMounts:
           - path: /app/curator
             readOnly: true
+      # Deliberately NOT a globalMount. The judge container never sees the
+      # volume at all: with write access it could rewrite plan.json to insert a
+      # protected film into `candidates`, and the executor trusts that set --
+      # its live re-checks cover tags, collections, status, file presence and
+      # playback, not membership of the candidate list. The prompt builder gets
+      # it read-only; only the executor needs to write.
       state:
         existingClaim: curator
-        globalMounts:
-          - path: /state
+        advancedMounts:
+          curatorjudge:
+            prompt:
+              - path: /state
+                readOnly: true
+            app:
+              - path: /state
       # Hand-off between the three steps, and the only writable place the judge
       # has: npm prefix, npm cache and the CLI's own state all land here.
       work:
