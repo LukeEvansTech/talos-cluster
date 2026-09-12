@@ -20,7 +20,6 @@ spec:
       VOLSYNC_CAPACITY: 15Gi
       # 8Gi cluster floor. The Kopia cache tracks the shared repository, not
       # VOLSYNC_CAPACITY (KB-030).
-      VOLSYNC_CACHE_CAPACITY: 8Gi
       HOMEPAGE_NAME: Homebox
       HOMEPAGE_GROUP: Productivity
       HOMEPAGE_ICON: homebox.svg

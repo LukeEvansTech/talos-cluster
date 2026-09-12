@@ -125,9 +125,10 @@ $ kubectl get replicationdestination -A -o json \
 ["miroir-local"]
 ```
 
-No destination should report `openebs-hostpath`, and no `cacheCapacity` below `8Gi`.
+No destination should report `openebs-hostpath`, and no `cacheCapacity` below the component
+default (16Gi since 2026-09-12; see [KB-030](030-volsync-kopia-cache-pvc-too-small.md)).
 
 ## Related
 
 - [KB-030](030-volsync-kopia-cache-pvc-too-small.md) covers the same ENOSPC, on the backup side
-- [Backups](../../operations/backups.md) covers the `8Gi` cache floor and the restore procedure
+- [Backups](../../operations/backups.md) covers the cache-sizing rule and the restore procedure

@@ -20,7 +20,6 @@ spec:
   postBuild:
     substitute:
       APP: *app
-      VOLSYNC_CACHE_CAPACITY: 8Gi
       HOMEPAGE_NAME: Maintainerr
       HOMEPAGE_GROUP: Media
       HOMEPAGE_ICON: maintainerr.svg

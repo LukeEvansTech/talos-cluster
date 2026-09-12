@@ -22,7 +22,6 @@ spec:
     substitute:
       APP: *app
       VOLSYNC_CAPACITY: 5Gi
-      VOLSYNC_CACHE_CAPACITY: 8Gi
       HOMEPAGE_NAME: Bazarr
       HOMEPAGE_GROUP: Arrs
       HOMEPAGE_ICON: bazarr.svg

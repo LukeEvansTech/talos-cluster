@@ -12,7 +12,8 @@ spec:
       - ${VOLSYNC_ACCESSMODES:=ReadWriteOnce}
     cacheAccessModes:
       - ReadWriteOnce
-    cacheCapacity: ${VOLSYNC_CACHE_CAPACITY:=10Gi}
+    # See nfs/replicationsource.yaml for why 16Gi and not a per-app size.
+    cacheCapacity: ${VOLSYNC_CACHE_CAPACITY:=16Gi}
     cacheStorageClassName: miroir-local
     capacity: ${VOLSYNC_CAPACITY:=5Gi}
     cleanupCachePVC: true
