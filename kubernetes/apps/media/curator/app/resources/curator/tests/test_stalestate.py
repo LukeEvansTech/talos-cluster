@@ -191,7 +191,9 @@ class CachedOutageTests(unittest.TestCase):
 
     def test_a_timeout_is_not_written_into_the_crosswalk(self):
         ledger = _Crosswalk()
-        crosswalk, unattributed = resolve_identities(_Metadata({900: SourceError("timeout")}), ledger, self.rows())
+        crosswalk, unattributed = resolve_identities(
+            _metadata_client({900: SourceError("timeout")}), ledger, self.rows()
+        )
         # Tainted for this run, so films sharing the title go to review ...
         self.assertTrue(crosswalk[900]["unresolved"])
         self.assertEqual(len(unattributed), 1)
@@ -201,30 +203,29 @@ class CachedOutageTests(unittest.TestCase):
     def test_an_authoritative_absence_is_remembered(self):
         """A retired rating key really is gone; asking again every week is waste."""
         ledger = _Crosswalk()
-        crosswalk, _ = resolve_identities(_Metadata({900: None}), ledger, self.rows())
+        crosswalk, _ = resolve_identities(_metadata_client({900: None}), ledger, self.rows())
         self.assertTrue(crosswalk[900]["unresolved"])
         self.assertTrue(ledger.written[900]["unresolved"])
 
     def test_a_key_that_resolved_is_remembered(self):
         ledger = _Crosswalk()
-        resolve_identities(_Metadata({}), ledger, self.rows())
+        resolve_identities(_metadata_client({}), ledger, self.rows())
         self.assertEqual(ledger.written[901]["tmdb"], 555)
 
 
-class _Metadata:
-    """A Tautulli whose metadata lookups can fail per rating key."""
+RESOLVED = {"guids": ["tmdb://555", "imdb://tt0000555"], "title": "Elsewhere", "year": "2026"}
 
-    def __init__(self, behaviour: dict[int, Any]):
-        self.behaviour = behaviour
 
-    def metadata(self, rating_key: int):
-        """Raise, answer "no such item", or resolve, depending on the key."""
-        if rating_key in self.behaviour:
-            outcome = self.behaviour[rating_key]
-            if isinstance(outcome, Exception):
-                raise outcome
-            return outcome
-        return {"guids": ["tmdb://555", "imdb://tt0000555"], "title": "Elsewhere", "year": "2026"}
+def _metadata_client(behaviour: dict[int, Any]) -> SimpleNamespace:
+    """A Tautulli whose metadata lookups raise, or answer "no such item", per key."""
+
+    def metadata(rating_key: int):
+        outcome = behaviour.get(rating_key, RESOLVED)
+        if isinstance(outcome, Exception):
+            raise outcome
+        return outcome
+
+    return SimpleNamespace(metadata=metadata)
 
 
 class _Crosswalk:
