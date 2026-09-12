@@ -31,6 +31,7 @@ Work down from what you observe to the most likely entry:
     - HelmRelease `UpgradeFailed`/rollback loop, pod stuck `ContainerCreating` with a `Pulling` event (large image) → [KB-015](kb/015-slow-image-pulls-exceed-helmrelease-timeout.md)
     - `allocatable.nvidia.com/gpu = 0` for minutes after a device-plugin swap → [KB-014](kb/014-gpu-device-plugin-handover-allocatable-zero.md)
     - `CreateContainerConfigError: runAsUser breaks non-root policy` on a fresh render of an s6/LinuxServer image → [KB-022](kb/022-s6-image-createcontainerconfigerror-non-root.md)
+    - One `KubeJobFailed` a day for `netbox-housekeeping` (`Unknown command: 'housekeeping'`), or NetBox housekeeping silently stopped with a `scheduled` job stuck in the past → [KB-032](kb/032-netbox-housekeeping-removed-command-and-wedged-system-job.md)
 - **Monitoring / Grafana**
     - Every panel on one dashboard shows "No data" / "Datasource Prometheus was not found" → [KB-021](kb/021-grafana-dashboard-panels-blank-datasource-case.md)
 - **Plex playback**
@@ -80,3 +81,4 @@ Work down from what you observe to the most likely entry:
 - [KB-029: Chart Migration Deletes Keep-Annotated CRDs (postRenderer Removal Races the Chart Swap)](kb/029-chart-migration-deletes-keep-annotated-crds.md)
 - [KB-030: VolSync Kopia Backups Fail with `no space left on device` on `/cache`](kb/030-volsync-kopia-cache-pvc-too-small.md)
 - [KB-031: VolSync Restore Destinations Silently Frozen at Creation-Time Values](kb/031-volsync-restore-destinations-never-updated.md)
+- [KB-032: NetBox Housekeeping Fails Two Ways at Once (Removed Command, Wedged System Job)](kb/032-netbox-housekeeping-removed-command-and-wedged-system-job.md)
