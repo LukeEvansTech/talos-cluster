@@ -1,0 +1,101 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: curator
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: curator
+  values:
+    controllers:
+      # Assesses the whole film library and writes cleanup-plan/plan.json to the
+      # volume. Reads only: it never deletes and never changes a tag. The
+      # judgement half is the separate curator-judge app, which runs half an
+      # hour later against the plan this leaves behind.
+      curator:
+        type: cronjob
+        cronjob:
+          schedule: "0 8 * * 6"
+          timeZone: "${TIMEZONE}"
+          concurrencyPolicy: Forbid
+          successfulJobsHistory: 3
+          failedJobsHistory: 3
+          backoffLimit: 1
+          # A cold run resolves every new Plex rating key one at a time; warm it
+          # is about fifteen seconds.
+          activeDeadlineSeconds: 1800
+        pod:
+          automountServiceAccountToken: false
+        containers:
+          app:
+            image:
+              repository: docker.io/library/python
+              tag: 3.14-alpine@sha256:c6ead215bfd31f1e433d968853b7a769989117115b728874824e6c0a27cb96fc
+            command:
+              - python3
+              - -m
+              - curator
+              - plan
+              - --out
+              - /state/cleanup-plan
+            env:
+              PYTHONPATH: /app
+              PYTHONDONTWRITEBYTECODE: "1"
+              PYTHONUNBUFFERED: "1"
+              TZ: "${TIMEZONE}"
+              # In-cluster Services: no gateway, no proxy, no tailnet.
+              RADARR_URL: http://radarr.media.svc.cluster.local
+              TAUTULLI_URL: http://tautulli.media.svc.cluster.local
+              SEERR_URL: http://seerr.media.svc.cluster.local
+              # Presence of LEDGER_DIR selects the filesystem backend, so the
+              # ledger is snapshotted with the volume.
+              LEDGER_DIR: /state/ledger
+              # Films added before this are the never-reviewed backlog and are
+              # out of scope; see the app README.
+              CLEANUP_SCOPE_START: "2026-03-01"
+              # plan makes no writes in either mode. The value is carried so the
+              # ledger namespaces its records the same way execute will.
+              CLEANUP_MODE: dry-run
+            envFrom:
+              - secretRef:
+                  name: curator-secret
+            resources:
+              requests:
+                cpu: 25m
+                memory: 128Mi
+              limits:
+                memory: 512Mi
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop:
+                  - ALL
+    defaultPodOptions:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+    persistence:
+      code:
+        type: configMap
+        name: curator-code
+        globalMounts:
+          - path: /app/curator
+            readOnly: true
+      # Created by the volsync component from the APP substitution in ks.yaml.
+      state:
+        existingClaim: curator
+        globalMounts:
+          - path: /state
+      tmp:
+        type: emptyDir
+        globalMounts:
+          - path: /tmp

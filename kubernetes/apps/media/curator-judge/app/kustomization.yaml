@@ -1,0 +1,18 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ./ocirepository.yaml
+  - ./externalsecret.yaml
+  - ./helmrelease.yaml
+configMapGenerator:
+  - name: curator-judge-prompt
+    files:
+      - ./resources/judge.sh
+      - ./resources/taste.md
+generatorOptions:
+  disableNameSuffixHash: true
+  annotations:
+    # taste.md and judge.sh both contain ${...}; Flux must not substitute them.
+    kustomize.toolkit.fluxcd.io/substitute: disabled

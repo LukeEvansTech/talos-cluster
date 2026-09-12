@@ -1,0 +1,31 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ./ocirepository.yaml
+  - ./externalsecret.yaml
+  - ./helmrelease.yaml
+configMapGenerator:
+  # The engine package, mounted at /app/curator and run as `python3 -m curator`.
+  # curator-judge mounts this same ConfigMap to run `execute`, which is why the
+  # name is fixed rather than hashed. Tests are deliberately not shipped.
+  - name: curator-code
+    files:
+      - ./resources/curator/__init__.py
+      - ./resources/curator/__main__.py
+      - ./resources/curator/clients.py
+      - ./resources/curator/evidence.py
+      - ./resources/curator/executor.py
+      - ./resources/curator/ledger.py
+      - ./resources/curator/model.py
+      - ./resources/curator/planner.py
+      - ./resources/curator/provision.py
+      - ./resources/curator/s3.py
+      - ./resources/curator/store.py
+generatorOptions:
+  disableNameSuffixHash: true
+  annotations:
+    # The engine's Python contains ${...} in f-strings; Flux must not try to
+    # substitute them.
+    kustomize.toolkit.fluxcd.io/substitute: disabled

@@ -51,6 +51,7 @@ from .planner import (
     summarise,
 )
 from .s3 import S3Client, S3Config
+from .store import FileStore
 
 DEFAULT_SCOPE_START = "2026-03-01"
 
@@ -110,6 +111,26 @@ class Sources:
     run_id: str
 
 
+def build_store():
+    """Pick the ledger backend from the environment.
+
+    ``LEDGER_DIR`` is a mounted volume, which is how this runs in the cluster --
+    the volume is snapshotted, so the ledger is backed up with everything else.
+    Falling back to S3 keeps the engine runnable somewhere without one.
+    """
+    directory = env("LEDGER_DIR", required=False)
+    if directory:
+        return FileStore(directory)
+    return S3Client(
+        S3Config(
+            endpoint=env("LEDGER_ENDPOINT"),
+            access_key=env("LEDGER_ACCESS_KEY_ID"),
+            secret_key=env("LEDGER_SECRET_ACCESS_KEY"),
+            bucket=env("LEDGER_BUCKET"),
+        )
+    )
+
+
 def build_sources() -> Sources:
     """Construct every client from the environment."""
     run_id = os.environ.get("CLEANUP_RUN_ID") or (
@@ -121,14 +142,7 @@ def build_sources() -> Sources:
         tautulli=Tautulli(env("TAUTULLI_URL"), env("TAUTULLI_API_KEY")),
         seerr=(RequestSystem(seerr_url, env("SEERR_API_KEY", required=False)) if seerr_url else None),
         ledger=Ledger(
-            S3Client(
-                S3Config(
-                    endpoint=env("LEDGER_ENDPOINT"),
-                    access_key=env("LEDGER_ACCESS_KEY_ID"),
-                    secret_key=env("LEDGER_SECRET_ACCESS_KEY"),
-                    bucket=env("LEDGER_BUCKET"),
-                )
-            ),
+            build_store(),
             run_id=run_id,
             dry_run=os.environ.get("CLEANUP_MODE", "dry-run").lower() != "act",
         ),
