@@ -82,6 +82,12 @@ class RecommendationValidationTests(unittest.TestCase):
         self.assertEqual(len(accepted), 1)
         self.assertEqual(rejected, [])
 
+    def test_a_scalar_in_place_of_a_recommendation_is_rejected(self):
+        """A syntactically valid array can still hold `[null]` or `["review"]`."""
+        accepted, rejected = validate_recommendations([None, "review", 7], self.candidates)
+        self.assertEqual(accepted, [])
+        self.assertEqual(len(rejected), 3)
+
     def test_unknown_movie_id_is_rejected(self):
         _, rejected = validate_recommendations(
             [

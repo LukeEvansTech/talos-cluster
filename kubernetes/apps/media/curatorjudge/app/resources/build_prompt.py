@@ -53,7 +53,13 @@ def main() -> int:
     if not PLAN.is_file():
         return skip(f"no plan at {PLAN}; did the curator job run?")
 
-    plan = json.loads(PLAN.read_text(encoding="utf-8"))
+    try:
+        plan = json.loads(PLAN.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        # An interrupted planner leaves a half-written file. Raising here stops
+        # the pod at the first init container, so the reporting step never runs
+        # and a failed plan produces silence instead of the promised digest.
+        return skip(f"plan at {PLAN} could not be read: {exc}")
 
     # A plan left behind by a failed earlier schedule describes a library that
     # has moved on. The executor checks this too; checking here as well means

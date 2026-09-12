@@ -69,6 +69,10 @@ spec:
           #    because the root filesystem is read-only and this runs as a
           #    non-root user. The version is pinned so it is visible in git.
           judge:
+            # The chart topologically sorts initContainers and falls back to key
+            # order, which is alphabetical -- so without this, `judge` ran first
+            # and read a prompt file that did not exist yet, every time.
+            dependsOn: prompt
             image:
               repository: docker.io/library/node
               tag: 24-alpine@sha256:50c8e8ca1d27439048670df5883f32d57cf81cff6233222c893fd0d9884cbd81

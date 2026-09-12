@@ -80,7 +80,7 @@ committed here maps the private network.
 | `executor.py`  | recommendation validation, live re-checks, deletion, reconciliation                    |
 | `provision.py` | one-off: per-list provenance tags and the decision tags                                |
 
-## Four things that are easy to get wrong
+## Five things that are easy to get wrong
 
 **A zero play count has four meanings.** Only one of them is "nobody watched it".
 The others are history that does not reach back far enough, an identity join that
@@ -104,6 +104,27 @@ restart a grace period that already ran.
 goes to the recycle bin and is recoverable while retention lasts. The exclusion
 persists until someone removes it, and it blocks collection completion as well as
 the import lists.
+
+**A history row that is still playing carries no row ID.** Tautulli lists the
+in-progress session in `get_history` and counts it in `recordsFiltered`, but the
+row has `row_id: null` until playback stops. De-duplicating it away left
+`retrieved` one short of the declared count, which is the engine's definition of
+unusable history — so a run that happened while somebody was watching a film
+blocked completely and did nothing. Found live on 2026-09-12 rather than by any
+test, because it only appears while a session is open.
+
+## The first in-cluster run
+
+`LEDGER_DIR` points at a fresh PersistentVolumeClaim, so the ledger does not carry
+over from the S3 store the cloud routine used. That is deliberate but not free:
+the first run finds no validated baseline, blocks on that, records one, and
+deletes nothing. It is the designed behaviour and it self-corrects on the second
+run.
+
+What is lost is the rating-key crosswalk, which rebuilds itself in seconds, and
+the spare decisions from the dry-run era, which get re-judged. Nothing dangerous
+is lost: outstanding deletion intents cannot exist, because nothing has ever run
+in `act` mode and dry-run state is namespaced under its own prefix.
 
 ## Undoing a deletion
 

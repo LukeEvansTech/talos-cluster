@@ -719,10 +719,23 @@ def cmd_execute(args: argparse.Namespace) -> int:
         )
 
         now = datetime.now(timezone.utc)
+        escalated: list[dict] = []
         for item in accepted:
             if item["verdict"] not in ("keep", "review") or item["movie_id"] not in movies:
                 continue
             film = to_film(movies[item["movie_id"]], tag_labels)
+            if item["verdict"] == "review":
+                # The plan's review list was built before judgement, so without
+                # this the film the judge escalated reaches nobody this week.
+                escalated.append(
+                    {
+                        "movie_id": film.movie_id,
+                        "title": film.title,
+                        "year": film.year,
+                        "size_gb": film.size_gb,
+                        "reason": item["reason"],
+                    }
+                )
             ledger.write_decision(
                 build_decision_record(
                     rehydrate(by_id[item["movie_id"]], film),
@@ -736,7 +749,13 @@ def cmd_execute(args: argparse.Namespace) -> int:
 
         summary = {
             "run_id": sources.run_id,
+            # The plan and the execution are separate CronJobs and generate
+            # their own run ids, so this is the only thing tying a result to
+            # the plan it came from. The digest needs it to tell this week's
+            # result from one left on the volume by an earlier week.
+            "plan_run_id": plan.get("run_id"),
             "mode": "dry-run" if ledger.dry_run else "act",
+            "escalated": escalated,
             "keep_tags_added": tagged,
             "deferred": [a.film.movie_id for a in deferred],
             "rejected_recommendations": rejected,

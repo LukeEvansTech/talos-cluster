@@ -58,8 +58,12 @@ def plan(**overrides) -> dict:
 def result(**overrides) -> dict:
     """An execution summary in its dry-run shape."""
     base = {
-        "run_id": "run-test",
+        # Deliberately not the plan's: the executor is a separate CronJob and
+        # generates its own. `plan_run_id` is what ties the two together.
+        "run_id": "run-execute",
+        "plan_run_id": "run-test",
         "mode": "dry-run",
+        "escalated": [],
         "deleted": [{"movie_id": 3, "title": "The Devil's Mouth", "year": 2026, "size_gb": 4.0, "simulated": True}],
         "skipped": [],
         "failed": [],
@@ -96,10 +100,21 @@ class AbsentEvidenceTests(unittest.TestCase):
         self.assertIn("did not finish", digest.text)
 
     def test_last_weeks_result_is_not_reported_against_this_weeks_plan(self):
-        """Both files live on the same volume; only the run id tells them apart."""
-        digest = reporting.render(plan(), result(run_id="run-last-week"), None, NOW)
+        """Both files live on the same volume; only the plan ID tells them apart."""
+        digest = reporting.render(plan(), result(plan_run_id="run-last-week"), None, NOW)
         self.assertIn("did not finish", digest.text)
         self.assertNotIn("would delete", digest.push)
+
+    def test_this_weeks_result_is_used_even_though_its_own_run_id_differs(self):
+        """The normal case: two CronJobs, two run IDs, one plan between them."""
+        digest = reporting.render(plan(), result(), None, NOW)
+        self.assertIn("would delete 1", digest.push)
+        self.assertNotIn("did not finish", digest.text)
+
+    def test_an_unfinished_execution_reaches_the_push_not_only_the_text(self):
+        digest = reporting.render(plan(), None, None, NOW)
+        self.assertIn("execute did not finish", digest.push)
+        self.assertIn("execute did not finish", digest.title)
 
 
 class BlockedRunTests(unittest.TestCase):
@@ -128,7 +143,7 @@ class DryRunTests(unittest.TestCase):
     def test_failed_and_uncertain_deletions_reach_the_push(self):
         bad = result(uncertain=[{"movie_id": 9, "title": "Somewhere", "year": 2026, "why": "timed out"}])
         digest = reporting.render(plan(), bad, None, NOW)
-        self.assertIn("1 uncertain", digest.push)
+        self.assertIn("1 deletion uncertain", digest.push)
         self.assertIn("timed out", digest.text)
 
     def test_a_skip_record_without_a_film_does_not_break_the_digest(self):
@@ -182,6 +197,35 @@ class JudgementRecordTests(unittest.TestCase):
     def test_a_failed_judgement_is_reported_not_hidden(self):
         digest = reporting.render(plan(), result(), {"status": "failed", "detail": "npm install failed"}, NOW)
         self.assertIn("npm install failed", digest.text)
+
+    def test_a_failed_judgement_reaches_the_push(self):
+        """Otherwise the phone shows a calm 'would delete 0' and nothing else."""
+        digest = reporting.render(plan(), result(), {"status": "failed", "detail": "npm install failed"}, NOW)
+        self.assertIn("judgement failed", digest.push)
+        self.assertIn("judgement failed", digest.title)
+
+    def test_nothing_to_judge_is_not_treated_as_a_problem(self):
+        digest = reporting.render(plan(), result(), {"status": "not asked", "detail": "no candidates"}, NOW)
+        self.assertNotIn("Needs attention", digest.push)
+
+
+class EscalationTests(unittest.TestCase):
+    """A film the judge sent to a person has to reach that person this week."""
+
+    def escalated(self):
+        """One result carrying a judge escalation."""
+        return result(
+            escalated=[{"movie_id": 3, "title": "The Devil's Mouth", "year": 2026, "size_gb": 4.0, "reason": "unsure"}]
+        )
+
+    def test_an_escalated_film_joins_the_review_queue(self):
+        digest = reporting.render(plan(), self.escalated(), None, NOW)
+        self.assertIn("3 waiting on you", digest.push)
+
+    def test_the_judges_reason_is_kept_in_the_report(self):
+        digest = reporting.render(plan(), self.escalated(), None, NOW)
+        self.assertIn("Sent to you by the judge", digest.text)
+        self.assertIn("unsure", digest.text)
 
     def test_a_successful_judgement_reports_its_verdicts(self):
         record = {"status": "judged", "verdicts": {"keep": 3, "delete": 1}, "cost_usd": 0.42}

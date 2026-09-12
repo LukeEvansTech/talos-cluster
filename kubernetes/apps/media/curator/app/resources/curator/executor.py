@@ -49,6 +49,9 @@ def validate_recommendations(
     accepted: list[dict] = []
     rejected: list[dict] = []
     for item in recommendations:
+        if not isinstance(item, dict):
+            rejected.append({"item": item, "why": "recommendation is not an object"})
+            continue
         movie_id = item.get("movie_id")
         verdict = str(item.get("verdict", "")).lower()
         reason = str(item.get("reason", "")).strip()

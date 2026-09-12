@@ -237,6 +237,7 @@ class Tautulli:
         start = 0
         declared: int | None = None
         duplicates = 0
+        without_id = 0
         for _ in range(max_pages):
             data = self._call(
                 "get_history",
@@ -254,6 +255,15 @@ class Tautulli:
             for row in page:
                 row_id = row.get("row_id") or row.get("id")
                 if row_id is None:
+                    # Tautulli lists an in-progress session with no row id yet.
+                    # Dropping it made `retrieved` one short of the declared
+                    # count, which reads as incomplete history and blocks the
+                    # entire run -- so any run that overlapped with somebody
+                    # watching a film did nothing at all. It cannot be
+                    # de-duplicated, but a play counted twice only ever argues
+                    # against deleting something.
+                    rows.append(row)
+                    without_id += 1
                     continue
                 if int(row_id) in seen:
                     duplicates += 1
@@ -268,6 +278,7 @@ class Tautulli:
             "declared": declared,
             "retrieved": len(rows),
             "duplicates_skipped": duplicates,
+            "without_id": without_id,
             "complete": declared is not None and len(rows) >= int(declared),
         }
         return rows, meta

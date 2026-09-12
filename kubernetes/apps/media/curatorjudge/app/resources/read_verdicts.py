@@ -71,11 +71,15 @@ def main() -> int:
     if not isinstance(verdicts, list):
         return finish("malformed", f"expected a JSON array, got {type(verdicts).__name__}", 1, cost_usd=cost)
 
+    bad = [v for v in verdicts if not isinstance(v, dict)]
+    if bad:
+        return finish("malformed", f"{len(bad)} entries are not objects, first {bad[0]!r}", 1, cost_usd=cost)
+
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(verdicts, indent=2), encoding="utf-8")
     tally: dict[str, int] = {}
     for item in verdicts:
-        verdict = str(item.get("verdict", "?")) if isinstance(item, dict) else "?"
+        verdict = str(item.get("verdict", "?"))
         tally[verdict] = tally.get(verdict, 0) + 1
     return finish(
         "judged",

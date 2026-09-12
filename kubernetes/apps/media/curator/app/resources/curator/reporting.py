@@ -64,7 +64,7 @@ def _reason(item: dict) -> str:
     blockers: the planner owns that wording, and a table here would quietly stop
     matching the day someone rephrases one.
     """
-    text = (item.get("blockers") or item.get("reasons") or ["no reason recorded"])[0]
+    text = (item.get("blockers") or item.get("reasons") or [item.get("reason") or "no reason recorded"])[0]
     return str(text).split(":", 1)[0][:60]
 
 
@@ -147,6 +147,27 @@ def _execution_lines(result: dict | None) -> list[str]:
     return lines
 
 
+def _problems(blocks: list, result: dict | None, judgement: dict | None) -> list[str]:
+    """Everything that should stop this reading as a quiet week.
+
+    The phone is where the distinction is most often lost: a judgement that
+    failed leaves an empty recommendation list, which then executes cleanly and
+    reports "0 deleted" -- indistinguishable from a week with nothing to do.
+    """
+    problems = [str(b) for b in blocks]
+    if result is None:
+        problems.append("execute did not finish")
+        return problems
+    status = (judgement or {}).get("status")
+    if status not in (None, "judged", "not asked"):
+        problems.append(f"judgement {status}: {(judgement or {}).get('detail', '')}"[:120])
+    for key in ("failed", "uncertain"):
+        count = len(result.get(key) or [])
+        if count:
+            problems.append(f"{count} deletion{'s' if count != 1 else ''} {key}")
+    return problems
+
+
 def _clip(message: str) -> str:
     """Cut to the push limit at a line boundary, and say that it was cut."""
     if len(message) <= PUSH_LIMIT:
@@ -178,10 +199,11 @@ def render(
             f"The newest plan is {age:.0f}h old, so this week's curator job did not produce one.",
         )
 
-    # Both files sit on the same volume from one week to the next. A result left
-    # by an earlier run describes an execution that did not happen this week, and
-    # would be repeated here as though it had.
-    if result is not None and result.get("run_id") != plan.get("run_id"):
+    # Both files sit on the same volume from one week to the next, and the two
+    # CronJobs generate their own run ids -- so the result names the plan it
+    # acted on, and that is what ties them together. Anything else is an
+    # execution that did not happen this week.
+    if result is not None and result.get("plan_run_id") != plan.get("run_id"):
         result = None
 
     mode = str(plan.get("mode", "?"))
@@ -193,25 +215,30 @@ def render(
     qualify = len(plan.get("keep_tag_additions") or [])
     keep_tags = (result or {}).get("keep_tags_added") or {}
     library = sum(int(v) for v in counts.values())
+    # The judge can send a film to a person rather than to deletion, and that
+    # decision is made after the plan's own review list was written.
+    escalated = (result or {}).get("escalated") or []
+    queue = review + escalated
 
-    title = f"Library cleanup: {len(review)} to review"
+    problems = _problems(blocks, result, judgement)
+
+    title = f"Library cleanup: {len(queue)} to review"
     if blocks:
         title = f"Library cleanup BLOCKED: {len(blocks)} issue" + ("s" if len(blocks) != 1 else "")
+    elif problems:
+        title = f"Library cleanup: {problems[0]}"
 
     push = [f"<b>{_esc(mode.upper())}</b> · {library:,} films · {len(candidates)} candidates"]
-    if blocks:
-        push.append("<b>Blocked, nothing acted on:</b>")
-        push.extend(f"· {_esc(b)}" for b in blocks[:PUSH_LISTED])
-    if review:
-        push.append(f"<b>{len(review)} waiting on you</b> · {_gb(review):,.0f} GB")
-        push.extend(f"· {count} × {_esc(reason)}" for reason, count, _ in _tally(review)[:PUSH_LISTED])
+    if problems:
+        push.append("<b>Needs attention:</b>")
+        push.extend(f"· {_esc(issue)}" for issue in problems[:PUSH_LISTED])
+    if queue:
+        push.append(f"<b>{len(queue)} waiting on you</b> · {_gb(queue):,.0f} GB")
+        push.extend(f"· {count} × {_esc(reason)}" for reason, count, _ in _tally(queue)[:PUSH_LISTED])
     if result:
         deleted = result.get("deleted") or []
         verb = "would delete" if all(i.get("simulated") for i in deleted) else "DELETED"
         push.append(f"{verb} {len(deleted)} · {_gb(deleted):,.0f} GB")
-        for key in ("failed", "uncertain"):
-            if result.get(key):
-                push.append(f"<b>{len(result[key])} {key}</b> — see the job log")
     if missing:
         push.append(f"{len(missing)} monitored films have no file")
 
@@ -233,12 +260,16 @@ def render(
         applied = keep_tags.get("applied")
         outcome = f"{applied} applied" if applied is not None else "execute did not reach it"
         text += [f"## Keep tag: {qualify} qualify, {outcome}", f"{keep_tags.get('note', '')}".strip(), ""]
-    if review:
-        text += [f"## Waiting on you: {len(review)} films, {_gb(review):,.0f} GB", ""]
-        text += [f"- {count} × {reason} ({size:,.0f} GB)" for reason, count, size in _tally(review)]
+    if queue:
+        text += [f"## Waiting on you: {len(queue)} films, {_gb(queue):,.0f} GB", ""]
+        text += [f"- {count} × {reason} ({size:,.0f} GB)" for reason, count, size in _tally(queue)]
         text += ["", "Largest:", ""]
-        largest = sorted(review, key=lambda i: float(i.get("size_gb") or 0), reverse=True)
+        largest = sorted(queue, key=lambda i: float(i.get("size_gb") or 0), reverse=True)
         text += [f"- {_label(i)} {float(i.get('size_gb') or 0):.0f} GB — {_reason(i)}" for i in largest[:TEXT_LISTED]]
+        text += [""]
+    if escalated:
+        text += [f"## Sent to you by the judge: {len(escalated)}", ""]
+        text += [f"- {_label(i)} {float(i.get('size_gb') or 0):.0f} GB — {i.get('reason')}" for i in escalated]
         text += [""]
     if missing:
         text += [f"## Monitored with no file: {len(missing)}", ""]
