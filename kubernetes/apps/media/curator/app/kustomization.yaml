@@ -23,6 +23,7 @@ configMapGenerator:
       - ./resources/curator/ledger.py
       - ./resources/curator/model.py
       - ./resources/curator/planner.py
+      - ./resources/curator/reporting.py
       - ./resources/curator/provision.py
       - ./resources/curator/s3.py
       - ./resources/curator/store.py

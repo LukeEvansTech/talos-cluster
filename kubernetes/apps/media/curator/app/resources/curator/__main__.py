@@ -1,7 +1,8 @@
-"""Command-line entry point: ``plan``, ``execute`` and ``selftest``.
+"""Command-line entry point: ``plan``, ``execute``, ``report`` and ``selftest``.
 
-``plan`` is read-only and always safe to run. ``execute`` is the only command that
-can change anything, and only when ``CLEANUP_MODE=act``.
+``plan`` and ``report`` are read-only and always safe to run. ``execute`` is the
+only command that can change anything, and only when ``CLEANUP_MODE=act`` and it
+was not given ``--read-only``.
 """
 
 from __future__ import annotations
@@ -17,6 +18,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from . import reporting
 from .clients import Radarr, RequestSystem, SourceError, Tautulli
 from .evidence import (
     build_crosswalk,
@@ -636,6 +638,14 @@ def cmd_execute(args: argparse.Namespace) -> int:
     """Apply Claude's recommendations, re-validating every safeguard first."""
     sources = build_sources()
     radarr, ledger = sources.radarr, sources.ledger
+    # The scheduled CronJob passes --read-only. Acting therefore takes two
+    # deliberate edits in different places rather than one word in a manifest,
+    # and a half-made change refuses loudly instead of deleting quietly. It is
+    # not a security boundary -- anyone who can change one file can change both
+    # -- it is a guard against the change nobody meant to make.
+    if getattr(args, "read_only", False) and not ledger.dry_run:
+        log("refusing to execute: --read-only was passed but CLEANUP_MODE is act")
+        return 5
     plan = json.loads(Path(args.plan).read_text(encoding="utf-8"))
     recommendations = json.loads(Path(args.recommendations).read_text(encoding="utf-8"))
     if isinstance(recommendations, dict):
@@ -762,6 +772,33 @@ def cmd_execute(args: argparse.Namespace) -> int:
         ledger.release_lock()
 
 
+def cmd_report(args: argparse.Namespace) -> int:
+    """Render the run's digest and deliver it."""
+    out = Path(args.out)
+    digest = reporting.render(
+        reporting.read(Path(args.plan)),
+        reporting.read(Path(args.result)),
+        reporting.read(Path(args.judgement)) if args.judgement else None,
+        datetime.now(timezone.utc),
+    )
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(digest.text, encoding="utf-8")
+    print(digest.text, flush=True)
+
+    url = env("CLEANUP_WEBHOOK_URL", required=False)
+    if not url:
+        log("no CLEANUP_WEBHOOK_URL: digest written but not delivered")
+        return 0
+    try:
+        log(reporting.post(url, env("CLEANUP_WEBHOOK_TOKEN", required=False), digest))
+    except reporting.NotificationError as exc:
+        # Loud on purpose. An undelivered digest is indistinguishable, from the
+        # phone, from a week in which the job never ran.
+        log(f"DIGEST NOT DELIVERED: {exc}")
+        return 6
+    return 0
+
+
 def cmd_selftest(_args: argparse.Namespace) -> int:
     """Run the fixture test suite."""
     suite = unittest.TestLoader().discover(
@@ -784,7 +821,19 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--plan", required=True)
     run.add_argument("--recommendations", required=True)
     run.add_argument("--out", default="./cleanup-result.json")
+    run.add_argument(
+        "--read-only",
+        action="store_true",
+        help="refuse to act even if CLEANUP_MODE says otherwise",
+    )
     run.set_defaults(func=cmd_execute)
+
+    digest = sub.add_parser("report", help="render and deliver the run digest")
+    digest.add_argument("--plan", required=True)
+    digest.add_argument("--result", required=True)
+    digest.add_argument("--judgement", default="")
+    digest.add_argument("--out", default="./cleanup-report.md")
+    digest.set_defaults(func=cmd_report)
 
     test = sub.add_parser("selftest", help="run the fixture tests")
     test.set_defaults(func=cmd_selftest)

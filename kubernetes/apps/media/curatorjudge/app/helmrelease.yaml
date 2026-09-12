@@ -78,13 +78,23 @@ spec:
               # $${VAR} survives Flux postBuild substitution; a bare ${VAR}
               # would be replaced with an empty string before the pod ever runs.
               - |
-                set -eu
+                set -u
                 if [ -f /work/skip ]; then
                   echo "skipping: $$(cat /work/skip)"
                   exit 0
                 fi
+                # A judgement this step cannot obtain is recorded and reported,
+                # not allowed to kill the pod before the digest is sent. The run
+                # deletes nothing, so the week's report is worth more than the
+                # judgement it is missing.
+                fail() {
+                  echo "$$1" >&2
+                  printf '%s' "$$1" > /work/judge-failed
+                  exit 0
+                }
                 npm install -g --silent --prefix /tmp/npm \
-                  "@anthropic-ai/claude-code@$${CLAUDE_CODE_VERSION}"
+                  "@anthropic-ai/claude-code@$${CLAUDE_CODE_VERSION}" \
+                  || fail "could not install the CLI"
                 # One turn, every tool denied. This is a single structured
                 # judgement, not an agent: it has no business reaching a
                 # filesystem or a network.
@@ -93,7 +103,8 @@ spec:
                   --max-turns 1 \
                   --model "$${JUDGE_MODEL}" \
                   --disallowed-tools "Bash,Read,Write,Edit,Glob,Grep,WebFetch,WebSearch,Task,NotebookEdit" \
-                  < /work/prompt.txt > /work/claude.json
+                  < /work/prompt.txt > /work/claude.json \
+                  || fail "claude -p exited non-zero"
             env:
               CLAUDE_CODE_VERSION: "2.1.269"
               JUDGE_MODEL: claude-opus-5
@@ -113,21 +124,35 @@ spec:
                 memory: 1Gi
             securityContext: *hardened
         containers:
-          # 3. Validate the answer, then apply what the engine still agrees
-          #    with. Exits non-zero if any deletion failed or could not be
-          #    confirmed, so the Job surfaces it rather than reporting success.
+          # 3. Validate the answer, apply what the engine still agrees with,
+          #    then send the digest. Exits non-zero if any step failed, so the
+          #    Job surfaces it rather than reporting success.
           app:
             image: *python
             command:
               - /bin/sh
               - -c
               - |
-                set -eu
-                python3 /prompt/read_verdicts.py
-                exec python3 -m curator execute \
+                set -u
+                rc=0
+                keep() { [ "$$rc" -eq 0 ] && rc="$$1"; return 0; }
+
+                python3 /prompt/read_verdicts.py || keep $$?
+                python3 -m curator execute \
                   --plan /state/cleanup-plan/plan.json \
                   --recommendations /state/cleanup-plan/recommendations.json \
-                  --out /state/cleanup-plan/result.json
+                  --out /state/cleanup-plan/result.json \
+                  --read-only || keep $$?
+                # The digest is the entire output of a read-only run, so it goes
+                # out whatever the steps above did. Its own failure earns a red
+                # Job: an undelivered digest is indistinguishable, from the
+                # phone, from a week in which nothing ran at all.
+                python3 -m curator report \
+                  --plan /state/cleanup-plan/plan.json \
+                  --result /state/cleanup-plan/result.json \
+                  --judgement /state/cleanup-plan/judgement.json \
+                  --out /state/cleanup-plan/report.md || keep $$?
+                exit "$$rc"
             env:
               <<: *pythonEnv
               PYTHONPATH: /app
@@ -139,7 +164,15 @@ spec:
               # Must match the curator job's mode: the ledger namespaces
               # dry-run state separately, and execute refuses a plan made in
               # the other mode rather than mixing the two.
+              #
+              # Scheduled runs are read-only, and --read-only on the command
+              # above enforces that independently: flipping this alone makes
+              # execute refuse rather than delete. Acting on a schedule is
+              # therefore two deliberate edits, not one word.
               CLEANUP_MODE: dry-run
+              # Fans out to Pushover. The route verifies its own token, which
+              # is why the digest carries one.
+              CLEANUP_WEBHOOK_URL: http://chaski.default.svc.cluster.local:8080/hooks/library-cleanup
             envFrom:
               - secretRef:
                   name: curatorjudge-secret

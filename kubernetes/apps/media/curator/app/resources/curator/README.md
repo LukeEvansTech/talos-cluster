@@ -1,7 +1,7 @@
 # curator
 
-The deterministic half of the weekly Radarr library cleanup routine. Judgement —
-is this film worth keeping? — stays with Claude in the routine prompt. Everything
+The deterministic half of the weekly Radarr library cleanup. Judgement — is this
+film worth keeping? — belongs to the `curatorjudge` app next door. Everything
 that has to be _reliable_ rather than tasteful lives here.
 
 The split exists because the two halves fail differently. A wrong judgement costs
@@ -10,18 +10,45 @@ happens silently, and the run reports success either way.
 
 ## Commands
 
+Run from the directory above this one, which is the package root.
+
 ```bash
-cd scripts
 python3 -m curator plan --out ./cleanup-plan      # read-only, always safe
 python3 -m curator execute --plan ./cleanup-plan/plan.json \
-    --recommendations ./recommendations.json --out ./result.json
+    --recommendations ./recommendations.json --out ./result.json --read-only
+python3 -m curator report --plan ./cleanup-plan/plan.json \
+    --result ./result.json --out ./report.md      # read-only, always safe
 python3 -m curator selftest                       # fixture tests, no network
 python3 -m curator.provision                      # show provenance-tag changes
 ```
 
-`plan` writes nothing anywhere. `execute` is the only command that can change
-anything, and only when `CLEANUP_MODE=act`; in `dry-run` it re-validates every
-safeguard, records its intent, and stops short of the call.
+`plan` and `report` write nothing outside their own output files. `execute` is
+the only command that can change anything, and only when `CLEANUP_MODE=act`; in
+`dry-run` it re-validates every safeguard, records its intent, and stops short of
+the call.
+
+## Scheduled runs are read-only
+
+The CronJobs pass `--read-only`, which refuses to act whatever `CLEANUP_MODE`
+says. Deleting on a schedule therefore takes two deliberate edits in different
+places, and a half-made change refuses loudly instead of deleting quietly.
+
+This is not a security boundary — anyone who can change one file can change both.
+It is a guard against the change nobody meant to make, and it reflects where the
+defects in this system have actually been: not in the judgement, but in the joins
+between four services that disagree about what identifies a film. Every one of
+those was a protection that read correctly, passed its tests, and could not see
+part of the population it guarded. A person between that and an irreversible
+import exclusion is worth more than an unattended thirty films a week.
+
+## The digest is the output
+
+`report` is what a read-only run is _for_. It renders the plan and the result
+into a Markdown report and pushes a summary to a webhook, on every run — including
+the runs where nothing happened, so that silence means the job did not run rather
+than that it had nothing to say. Four things it refuses to paper over: an absent
+plan, a plan left over from an earlier week, a result belonging to a different
+run ID, and a judgement that was never obtained.
 
 ## Configuration
 
@@ -33,7 +60,9 @@ committed here maps the private network.
 | `RADARR_URL`, `RADARR_API_KEY`                                                         | Radarr instance                                                                      |
 | `TAUTULLI_URL`, `TAUTULLI_API_KEY`                                                     | play history; a hard dependency                                                      |
 | `SEERR_URL`, `SEERR_API_KEY`                                                           | request system; optional, but without it no film can be shown to have been requested |
+| `LEDGER_DIR`                                                                           | durable state on a mounted volume; preferred over the S3 variables below             |
 | `LEDGER_ENDPOINT`, `LEDGER_BUCKET`, `LEDGER_ACCESS_KEY_ID`, `LEDGER_SECRET_ACCESS_KEY` | S3-compatible store for durable state                                                |
+| `CLEANUP_WEBHOOK_URL`, `CLEANUP_WEBHOOK_TOKEN`                                         | where `report` delivers the digest; without the URL it only writes the file          |
 | `CLEANUP_MODE`                                                                         | `dry-run` (default) or `act`                                                         |
 | `CLEANUP_SCOPE_START`                                                                  | ISO date; defaults to `2026-03-01`                                                   |
 | `CLEANUP_RUN_ID`                                                                       | optional; generated if absent                                                        |
@@ -47,6 +76,7 @@ committed here maps the private network.
 | `evidence.py`  | provenance, first-playable availability, viewing evidence                              |
 | `planner.py`   | scope, protections, authorisation, batching, anomaly detection, allow-list maintenance |
 | `ledger.py`    | durable state in object storage                                                        |
+| `reporting.py` | the weekly digest, and its delivery                                                    |
 | `executor.py`  | recommendation validation, live re-checks, deletion, reconciliation                    |
 | `provision.py` | one-off: per-list provenance tags and the decision tags                                |
 
