@@ -1,7 +1,9 @@
 # KB-030: VolSync Kopia backups fail with `no space left on device` on `/cache`
 
 **Status:** Resolved for `wizarr` (cache raised 4Gi → 8Gi; first good sync 2026-08-15T19:18Z after
-~15h of failures). The sizing rule below applies to every app using the `volsync` component.
+~15h of failures), then **recurred fleet-wide on 2026-09-11** as the shared index outgrew 8Gi —
+see [The 2026-09-11 recurrence](#the-2026-09-11-recurrence). The sizing rule below applies to every
+app using the `volsync` component, and it changed: do not pin a cache size on an app at all.
 
 ## Symptom
 
@@ -75,15 +77,19 @@ index size does not leave headroom. It guarantees a 100%-full volume, and then e
 
 ## Fix
 
-Raise `VOLSYNC_CACHE_CAPACITY` in the app's `ks.yaml` to the cluster floor and let Flux reconcile:
+**Delete** any `VOLSYNC_CACHE_CAPACITY` line from the app's `ks.yaml` so it inherits the component
+default, and let Flux reconcile:
 
 ```yaml
 postBuild:
   substitute:
     APP: *app
     VOLSYNC_CAPACITY: 5Gi
-    VOLSYNC_CACHE_CAPACITY: 8Gi # not 4Gi; cache tracks repository size, not app size
+    # no VOLSYNC_CACHE_CAPACITY: the cache tracks repository size, not app
+    # size, and an override here is a cap that the default will outgrow
 ```
+
+Pinning a number is what caused the 2026-09-11 recurrence — see the sizing rule below.
 
 Flux alone is not enough: the existing cache PVC is already full and VolSync will not grow it as
 part of the mover run, so expand it too. `miroir-local` sets `allowVolumeExpansion: true`, so this
@@ -125,12 +131,33 @@ kubectl delete pod -n <ns> -l app.kubernetes.io/created-by=volsync --field-selec
 
 ## Sizing rule
 
-- **8Gi is the floor** for any app on the shared NFS Kopia repository. Do not scale it down for a
-  small app. It is not proportional to `VOLSYNC_CAPACITY`.
-- **The floor rises with the repository.** The index was ~2G of the 3.9G in use here; when peer
-  caches routinely pass ~70%, raise the floor cluster-wide rather than app by app.
-- Apps with genuinely large working sets (`plex` 100Gi, `jellyfin` 50Gi) size above the floor for
+- **Do not set `VOLSYNC_CACHE_CAPACITY` on an app at all.** The component default is the floor, and
+  it is raised cluster-wide. An override cannot follow the default upward, so it silently becomes a
+  cap the moment the default passes it.
+- **The floor rises with the repository**, because the cache holds the shared index rather than app
+  data. Measured 2026-08-29 → 09-12, the fleet-wide peak grew from 7.23Gi to 7.57Gi: ~25MiB/day,
+  near perfectly linear, and identical whether the volume is 8Gi, 10Gi or 98Gi.
+- Apps with genuinely large working sets (`plex` 100Gi, `jellyfin` 50Gi) size above the default for
   their own content cache, which is a separate concern from this failure.
+
+### The 2026-09-11 recurrence
+
+This entry's own warning — *"when peer caches routinely pass ~70%, raise the floor cluster-wide
+rather than app by app"* — fired, and the app-by-app half is what bit. 34 apps carried
+`VOLSYNC_CACHE_CAPACITY: 8Gi`, written in December 2025 when it was a **raise** off a 2Gi default.
+The component default later moved to 10Gi, turning every one of those entries into a **cap** below
+it. On 2026-09-11 the shared index crossed the 8Gi line and 19 of them alerted critical at ~97.4%
+within a day; not one of the 128 volumes on the default alerted.
+
+Nothing failed — all 200 ReplicationSources kept syncing — because the alert threshold sits below
+ENOSPC. Fixed in [#5098](https://github.com/LukeEvansTech/talos-cluster/pull/5098) by deleting every
+override at or below the default and raising the default to 16Gi (~8 months of runway at 25MiB/day,
+against ~29 days for 10Gi). `miroir-local` is thin-provisioned, so the declared size costs almost
+nothing until used.
+
+Raising the cache only buys time. The growth is the repository's index set (2,890 blobs, climbing
+~2/hour), and the lever on that is Kopia **retention**, not cache size and not more maintenance —
+maintenance is already hourly and succeeding.
 
 ## References
 

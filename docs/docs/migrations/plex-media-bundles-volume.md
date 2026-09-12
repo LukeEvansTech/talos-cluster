@@ -763,7 +763,7 @@ for the full soak.
 ## Follow-ups
 
 - `VOLSYNC_CACHE_CAPACITY` for `plex` is 100Gi, sized when the source was 291G. It could come down
-  once the source is 44G, but never below the 8Gi floor in
+  once the source is 44G, but never below the component default in
   [KB-030](../troubleshooting/kb/030-volsync-kopia-cache-pvc-too-small.md), and lowering it means
   deleting the existing cache PVCs, because those cannot shrink either. Not urgent; `miroir-local`
   is node local and cheap.
