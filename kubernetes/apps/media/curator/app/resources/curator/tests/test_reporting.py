@@ -55,6 +55,13 @@ def plan(**overrides) -> dict:
     return base
 
 
+def judgement(**overrides) -> dict:
+    """A judgement record, tied to the plan it was made about."""
+    base = {"status": "judged", "detail": "", "plan_run_id": "run-test"}
+    base.update(overrides)
+    return base
+
+
 def result(**overrides) -> dict:
     """An execution summary in its dry-run shape."""
     base = {
@@ -195,17 +202,24 @@ class JudgementRecordTests(unittest.TestCase):
     """Whether the model was asked, and what it said, is part of the record."""
 
     def test_a_failed_judgement_is_reported_not_hidden(self):
-        digest = reporting.render(plan(), result(), {"status": "failed", "detail": "npm install failed"}, NOW)
+        digest = reporting.render(plan(), result(), judgement(status="failed", detail="npm install failed"), NOW)
         self.assertIn("npm install failed", digest.text)
 
     def test_a_failed_judgement_reaches_the_push(self):
         """Otherwise the phone shows a calm 'would delete 0' and nothing else."""
-        digest = reporting.render(plan(), result(), {"status": "failed", "detail": "npm install failed"}, NOW)
+        digest = reporting.render(plan(), result(), judgement(status="failed", detail="npm install failed"), NOW)
         self.assertIn("judgement failed", digest.push)
         self.assertIn("judgement failed", digest.title)
 
+    def test_last_weeks_judgement_is_not_reported_as_this_weeks(self):
+        """It sits on the same volume, and says "judged" long after the fact."""
+        stale = judgement(plan_run_id="run-last-week", verdicts={"keep": 3})
+        digest = reporting.render(plan(), result(), stale, NOW)
+        self.assertIn("no judgement was recorded for this plan", digest.text)
+        self.assertNotIn("3 keep", digest.text)
+
     def test_nothing_to_judge_is_not_treated_as_a_problem(self):
-        digest = reporting.render(plan(), result(), {"status": "not asked", "detail": "no candidates"}, NOW)
+        digest = reporting.render(plan(), result(), judgement(status="not asked", detail="no candidates"), NOW)
         self.assertNotIn("Needs attention", digest.push)
 
 
@@ -228,7 +242,7 @@ class EscalationTests(unittest.TestCase):
         self.assertIn("unsure", digest.text)
 
     def test_a_successful_judgement_reports_its_verdicts(self):
-        record = {"status": "judged", "verdicts": {"keep": 3, "delete": 1}, "cost_usd": 0.42}
+        record = judgement(verdicts={"keep": 3, "delete": 1}, cost_usd=0.42)
         digest = reporting.render(plan(), result(), record, NOW)
         self.assertIn("1 delete, 3 keep", digest.text)
 

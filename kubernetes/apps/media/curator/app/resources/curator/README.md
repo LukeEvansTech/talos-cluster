@@ -80,7 +80,7 @@ committed here maps the private network.
 | `executor.py`  | recommendation validation, live re-checks, deletion, reconciliation                    |
 | `provision.py` | one-off: per-list provenance tags and the decision tags                                |
 
-## Six things that are easy to get wrong
+## Eight things that are easy to get wrong
 
 **A zero play count has four meanings.** Only one of them is "nobody watched it".
 The others are history that does not reach back far enough, an identity join that
@@ -121,6 +121,25 @@ row has `row_id: null` until playback stops. De-duplicating it away left
 unusable history — so a run that happened while somebody was watching a film
 blocked completely and did nothing. Found live on 2026-09-12 rather than by any
 test, because it only appears while a session is open.
+
+**Every file on the state volume outlives the run that wrote it.** The plan, the
+verdicts, the result and the judgement all sit on one PersistentVolumeClaim from
+one Saturday to the next, so a step that dies before rewriting its output leaves
+last week's copy exactly where this week's would be. A judging step that crashed
+on a malformed answer used to leave last week's `delete` verdicts in place, and
+the shell deliberately continues to `execute` — which, in act mode, would delete
+any of those films still on this week's candidate list. Two habits follow: the
+refusal is written _first_, before anything that can raise, and every output
+names the `run_id` of the plan it belongs to. A file that names another plan is
+refused rather than read.
+
+**A snapshot taken before a batch is not evidence about the batch's last film.**
+Live re-validation covers everything Radarr holds, per film. The two checks that
+live outside Radarr — who is watching right now, and what has been requested or
+finished since the plan — were read once, before the loop. A batch of up to
+thirty deletions takes minutes; starting a film takes seconds. So both are
+re-read immediately before each deletion, and an answer that cannot be got is a
+refusal rather than a pass.
 
 ## The first in-cluster run
 

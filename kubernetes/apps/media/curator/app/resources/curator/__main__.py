@@ -758,6 +758,18 @@ def cmd_execute(args: argparse.Namespace) -> int:
     plan = json.loads(Path(args.plan).read_text(encoding="utf-8"))
     recommendations = json.loads(Path(args.recommendations).read_text(encoding="utf-8"))
     if isinstance(recommendations, dict):
+        # The pipeline's own recommendations file names the plan it was judged
+        # against. Both files outlive the run on the same volume, so a judging
+        # step that died before rewriting its output leaves last week's verdicts
+        # in place -- and a film still on this week's candidate list would then
+        # be deleted on a judgement nobody made about it. A bare list is still
+        # accepted, for the hand-made file of a manual run.
+        if recommendations.get("plan_run_id") != plan.get("run_id"):
+            log(
+                "refusing to execute: recommendations were judged against plan "
+                f"{recommendations.get('plan_run_id')!r}, not {plan.get('run_id')!r}"
+            )
+            return 7
         recommendations = recommendations.get("recommendations", [])
 
     if plan.get("blocks"):

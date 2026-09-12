@@ -193,6 +193,10 @@ class FakeTautulli:
         self.playing = playing or set()
         self.raise_error = raise_error
         self.playing_ids = playing_ids or set()
+        # Successive answers, for modelling somebody pressing play midway
+        # through a batch. The last entry repeats once the list runs out.
+        self.playing_ids_sequence: list[set[tuple[str, str]]] | None = None
+        self.now_playing_calls = 0
         self.history_rows: list[dict] = []
         self.history_complete = True
 
@@ -206,6 +210,10 @@ class FakeTautulli:
         """External ids currently streaming."""
         if self.raise_error:
             raise self.raise_error
+        self.now_playing_calls += 1
+        if self.playing_ids_sequence:
+            index = min(self.now_playing_calls - 1, len(self.playing_ids_sequence) - 1)
+            return self.playing_ids_sequence[index]
         return self.playing_ids
 
     def movie_history(self):

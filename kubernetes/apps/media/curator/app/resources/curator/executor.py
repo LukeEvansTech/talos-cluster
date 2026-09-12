@@ -271,6 +271,36 @@ def late_evidence_block(film, requests_by_tmdb: dict[int, dict], watched_ids: se
     return None
 
 
+def volatile_block(film, tautulli, seerr, crosswalk: dict[int, dict] | None, since: datetime | None) -> str | None:
+    """Re-read, for one film, the evidence that moves while the batch is running.
+
+    ``revalidate`` re-reads Radarr per film, but the two checks that live
+    outside Radarr -- who is watching now, and what has been requested or
+    finished since the plan -- were read once, before the loop. A batch of up to
+    thirty deletions takes minutes, and starting a film is a thing that takes
+    seconds: the last deletion in a batch was being judged on evidence gathered
+    before the first one happened. So this runs immediately before the
+    destructive call, and an answer it cannot get is a refusal.
+    """
+    if tautulli is None:
+        return "could not re-confirm nobody is watching it"
+    try:
+        playing = tautulli.now_playing_ids()
+    except SourceError as exc:
+        return f"could not re-confirm nobody is watching it: {exc}"
+
+    identity = {("tmdb", str(film.tmdb_id))} if film.tmdb_id else set()
+    if film.imdb_id:
+        identity.add(("imdb", str(film.imdb_id)))
+    if identity & playing:
+        return "somebody started watching it during this run"
+
+    requests_by_tmdb, watched_ids, known = late_evidence(tautulli, seerr, crosswalk, since)
+    if not known:
+        return "could not re-read plays and requests during this run"
+    return late_evidence_block(film, requests_by_tmdb, watched_ids)
+
+
 def execute(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     approved: list[Assessment],
     radarr: Radarr,
@@ -352,6 +382,14 @@ def execute(  # pylint: disable=too-many-arguments,too-many-positional-arguments
             continue
         if not ok:
             result.skipped.append({**record, "why": why})
+            continue
+
+        # Last, because it is the check closest in time to the delete. Run in
+        # dry-run too: a report that skipped this would describe a batch nobody
+        # is going to run.
+        moved = volatile_block(film, tautulli, seerr, crosswalk, planned_at)
+        if moved:
+            result.skipped.append({**record, "why": moved})
             continue
 
         ledger.record_intent({**record, "restore": restore_snapshot(live or {})}, assessment.to_json())

@@ -179,6 +179,23 @@ def _clip(message: str) -> str:
     return f"{kept}\n<i>(truncated)</i>"
 
 
+def _this_weeks(plan: dict, result: dict | None, judgement: dict | None) -> tuple[dict | None, dict | None]:
+    """Discard anything on the volume that belongs to an earlier run.
+
+    Every file here outlives the week that wrote it, and the two CronJobs
+    generate their own run ids -- so each output names the *plan* it belongs to,
+    and that is what ties them together. A leftover would otherwise report an
+    execution that did not happen and a judge that was never reached as though
+    both had answered this morning.
+    """
+    run_id = plan.get("run_id")
+    if result is not None and result.get("plan_run_id") != run_id:
+        result = None
+    if judgement is not None and judgement.get("plan_run_id") != run_id:
+        judgement = {"status": "failed", "detail": "no judgement was recorded for this plan"}
+    return result, judgement
+
+
 def render(
     plan: dict | None,
     result: dict | None,
@@ -202,12 +219,7 @@ def render(
             f"The newest plan is {age:.0f}h old, so this week's curator job did not produce one.",
         )
 
-    # Both files sit on the same volume from one week to the next, and the two
-    # CronJobs generate their own run ids -- so the result names the plan it
-    # acted on, and that is what ties them together. Anything else is an
-    # execution that did not happen this week.
-    if result is not None and result.get("plan_run_id") != plan.get("run_id"):
-        result = None
+    result, judgement = _this_weeks(plan, result, judgement)
 
     mode = str(plan.get("mode", "?"))
     counts = plan.get("counts") or {}
