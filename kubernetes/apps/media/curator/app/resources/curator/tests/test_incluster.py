@@ -12,9 +12,16 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from curator.__main__ import count_genres, count_owned_siblings, plan_refusal
+from curator.clients import SourceError
 from curator.executor import late_evidence, late_evidence_block
 from curator.model import Outcome
-from curator.planner import PlanContext, assess, fact_fingerprint, keep_tag_targets
+from curator.planner import (
+    PlanContext,
+    _subject_bucket,
+    assess,
+    fact_fingerprint,
+    keep_tag_targets,
+)
 
 from .fixtures import SCOPE_START, days_ago, feed_provenance, make_availability, make_film, make_viewing
 
@@ -247,3 +254,105 @@ class FingerprintCoversKeepEvidenceTests(unittest.TestCase):
         before = fact_fingerprint(film, prov, view, False, subject_counts={"Action": 1002})
         after = fact_fingerprint(film, prov, view, False, subject_counts={"Action": 1008})
         self.assertEqual(before, after)
+
+
+class FirstCompletionIsCaughtTests(unittest.TestCase):
+    """The crosswalk cannot contain a film nobody has ever played.
+
+    It is built from rating keys already present in history when the plan ran,
+    and a candidate is by definition a film with no plays. A first completion
+    between planning and execution therefore arrives on a key the gate has
+    never seen -- the one case it exists to catch.
+    """
+
+    class _Tautulli:
+        """History plus a metadata lookup, as the real client provides."""
+
+        def __init__(self, rows, metadata=None, fail_metadata=False):
+            self.rows = rows
+            self.metadata_by_key = metadata or {}
+            self.fail_metadata = fail_metadata
+            self.lookups: list[int] = []
+
+        def movie_history(self):
+            """Complete history."""
+            return self.rows, {"complete": True}
+
+        def metadata(self, rating_key):
+            """Resolve one key, recording that it was asked for."""
+            self.lookups.append(rating_key)
+            if self.fail_metadata:
+                raise SourceError("tautulli refused")
+            return self.metadata_by_key.get(rating_key)
+
+    def _row(self, key, stopped):
+        return [{"rating_key": key, "percent_complete": 97, "stopped": stopped}]
+
+    def test_a_first_completion_on_an_unknown_key_is_caught(self):
+        after = int((NOW + timedelta(minutes=20)).timestamp())
+        tautulli = self._Tautulli(self._row(9999, after), metadata={9999: {"guids": ["tmdb://555", "imdb://tt555"]}})
+        _, watched, known = late_evidence(tautulli, None, {}, NOW)
+        self.assertTrue(known)
+        self.assertEqual(watched, {555})
+        self.assertEqual(tautulli.lookups, [9999])
+
+    def test_an_unattributable_completion_stops_the_run(self):
+        """Something was watched and we cannot say what. Refuse, don't guess."""
+        after = int((NOW + timedelta(minutes=20)).timestamp())
+        tautulli = self._Tautulli(self._row(9999, after), metadata={})
+        _, _, known = late_evidence(tautulli, None, {}, NOW)
+        self.assertFalse(known)
+
+    def test_a_metadata_failure_stops_the_run(self):
+        after = int((NOW + timedelta(minutes=20)).timestamp())
+        tautulli = self._Tautulli(self._row(9999, after), fail_metadata=True)
+        self.assertFalse(late_evidence(tautulli, None, {}, NOW)[2])
+
+    def test_old_plays_are_not_looked_up_at_all(self):
+        """Nothing before the plan matters, so nothing before it costs a call."""
+        before = int((NOW - timedelta(days=30)).timestamp())
+        tautulli = self._Tautulli(self._row(9999, before))
+        _, watched, known = late_evidence(tautulli, None, {}, NOW)
+        self.assertTrue(known)
+        self.assertEqual(watched, set())
+        self.assertEqual(tautulli.lookups, [])
+
+
+class HumanEligibilityBeatsTheBarTests(unittest.TestCase):
+    """cleanup-eligible must not be made inert by the automatic bar.
+
+    keep_tag_targets already declines to re-tag a film a person released, so
+    protecting it on the same ratings would leave the tag with nothing to do.
+    """
+
+    def test_a_high_rated_film_marked_eligible_is_not_bar_protected(self):
+        film = make_film(tags=frozenset({"src-x", "cleanup-eligible"}), imdb_votes=200_000, imdb_score=7.4)
+        result = assess(film, feed_provenance(), make_availability(), make_viewing(), context())
+        self.assertIs(result.outcome, Outcome.CANDIDATE)
+
+    def test_without_the_tag_the_bar_still_protects(self):
+        film = make_film(tags=frozenset({"src-x"}), imdb_votes=200_000, imdb_score=7.4)
+        result = assess(film, feed_provenance(), make_availability(), make_viewing(), context())
+        self.assertIs(result.outcome, Outcome.PROTECTED)
+
+    def test_keep_and_eligible_together_still_protect(self):
+        """An explicit keep outranks an eligibility tag, as it outranks all."""
+        film = make_film(tags=frozenset({"keep", "cleanup-eligible"}), imdb_votes=200_000, imdb_score=7.4)
+        result = assess(film, feed_provenance(), make_availability(), make_viewing(), context())
+        self.assertIs(result.outcome, Outcome.PROTECTED)
+
+
+class SubjectBucketTests(unittest.TestCase):
+    """Small subjects are tracked exactly; large ones are not."""
+
+    def test_a_collapsing_small_subject_changes_the_fingerprint(self):
+        self.assertNotEqual(_subject_bucket(20), _subject_bucket(1))
+
+    def test_a_large_subject_absorbs_ordinary_growth(self):
+        self.assertEqual(_subject_bucket(1002), _subject_bucket(1008))
+
+    def test_exact_and_bucketed_ranges_never_collide(self):
+        """A bucketed 56 must not look like an exact 2."""
+        self.assertNotEqual(_subject_bucket(56), _subject_bucket(2))
+        buckets = [_subject_bucket(n) for n in range(4000)]
+        self.assertFalse(any(b < 25 and buckets.count(b) > 1 for b in set(buckets)))

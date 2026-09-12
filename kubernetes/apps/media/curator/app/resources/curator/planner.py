@@ -31,6 +31,8 @@ from .model import (
 
 # Batch rails.
 MAX_DELETIONS_PER_RUN = 30
+# Subject counts below this are fingerprinted exactly; above it, bucketed.
+SUBJECT_EXACT_BELOW = 25
 # How long a spare stands before the same film is judged again. Long enough that
 # a weekly run is not re-litigating the same 500 films, short enough that a
 # changed fact is picked up within a season.
@@ -65,6 +67,17 @@ class PlanContext:
     genre_counts: dict[str, int] = field(default_factory=dict)
 
 
+def _subject_bucket(count: int) -> int:
+    """Bucket a subject count so small changes matter and large ones do not.
+
+    Bucketed values start past the exact range, so a grouped 56 can never be
+    mistaken for an exact 2.
+    """
+    if count < SUBJECT_EXACT_BELOW:
+        return count
+    return SUBJECT_EXACT_BELOW + count // SUBJECT_EXACT_BELOW
+
+
 def fact_fingerprint(
     film: Film,
     provenance: Provenance,
@@ -92,7 +105,14 @@ def fact_fingerprint(
         # subject counts are bucketed so ordinary library growth does not
         # reopen every decision each week.
         "siblings_owned": siblings_owned,
-        "subjects": {g: c // 25 for g, c in sorted((subject_counts or {}).items())},
+        # Exact below 25, bucketed above. A subject collapsing from 20 films to
+        # one is the evidence disappearing and must reopen the decision; a
+        # library of 1,002 action films gaining six is not.
+        # Exact below the threshold, coarsely bucketed above, and the two
+        # ranges cannot collide. A subject collapsing from 20 films to one is
+        # the keep reason evaporating and must reopen the decision; a library
+        # of 1,002 action films gaining six is not.
+        "subjects": {g: _subject_bucket(c) for g, c in sorted((subject_counts or {}).items())},
     }
     blob = json.dumps(payload, sort_keys=True).encode()
     return hashlib.sha256(blob).hexdigest()[:16]
@@ -135,7 +155,7 @@ def _protection_gate(
     # tag has been written. Assessment runs before tag maintenance, so without
     # this a film could be judged and deleted in the same run that was about to
     # mark it permanently protected.
-    if meets_keep_bar(film):
+    if meets_keep_bar(film) and TAG_HUMAN_ELIGIBLE not in film.tags:
         result.outcome = Outcome.PROTECTED
         result.protections.append(f"meets the allow-list bar ({film.imdb_votes} votes at {film.imdb_score})")
         return True

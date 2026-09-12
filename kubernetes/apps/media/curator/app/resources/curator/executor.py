@@ -186,7 +186,7 @@ def late_evidence(tautulli, seerr, crosswalk: dict[int, dict] | None, since: dat
         return {}, set(), False
 
     cutoff = since.timestamp()
-    by_key: dict[int, dict] = crosswalk or {}
+    by_key: dict[int, dict] = dict(crosswalk or {})
     for row in rows:
         key = row.get("rating_key")
         if key in (None, "") or int(row.get("percent_complete") or 0) < COMPLETION_PERCENT:
@@ -194,10 +194,40 @@ def late_evidence(tautulli, seerr, crosswalk: dict[int, dict] | None, since: dat
         stopped = row.get("stopped") or row.get("date")
         if not str(stopped).isdigit() or int(stopped) <= cutoff:
             continue
+
         entry = by_key.get(int(key))
-        if entry and entry.get("tmdb"):
+        if entry is None:
+            # The crosswalk is built from keys already present in history when
+            # the plan ran, so a film played for the FIRST time since then is
+            # missing from it -- and a zero-play film is exactly what a
+            # candidate is. Without resolving it here the gate would be blind
+            # to the one completion it exists to catch.
+            entry = _resolve_key(tautulli, int(key))
+            by_key[int(key)] = entry
+        if entry.get("tmdb"):
             watched.add(int(entry["tmdb"]))
+        elif entry.get("unresolved"):
+            # A completed play we cannot attribute to any film. Refusing the
+            # whole run is the safe reading: something was watched and we
+            # cannot say what.
+            return requests_by_tmdb, watched, False
     return requests_by_tmdb, watched, True
+
+
+def _resolve_key(tautulli, rating_key: int) -> dict:
+    """Look up one Plex item's external ids, for a key seen since the plan."""
+    try:
+        meta = tautulli.metadata(rating_key)
+    except SourceError:
+        return {"unresolved": True}
+    if not meta:
+        return {"unresolved": True}
+    ids: dict = {}
+    for guid in meta.get("guids") or []:
+        if guid.startswith("tmdb://"):
+            suffix = guid.removeprefix("tmdb://")
+            ids["tmdb"] = int(suffix) if suffix.isdigit() else None
+    return ids or {"unresolved": True}
 
 
 def late_evidence_block(film, requests_by_tmdb: dict[int, dict], watched_tmdb_ids: set[int]) -> str | None:
