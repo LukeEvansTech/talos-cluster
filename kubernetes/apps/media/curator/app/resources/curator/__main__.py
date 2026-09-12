@@ -51,6 +51,7 @@ from .planner import (
     summarise,
 )
 from .s3 import S3Client, S3Config
+from .store import FileStore
 
 DEFAULT_SCOPE_START = "2026-03-01"
 
@@ -110,6 +111,26 @@ class Sources:
     run_id: str
 
 
+def build_store():
+    """Pick the ledger backend from the environment.
+
+    ``LEDGER_DIR`` is a mounted volume, which is how this runs in the cluster --
+    the volume is snapshotted, so the ledger is backed up with everything else.
+    Falling back to S3 keeps the engine runnable somewhere without one.
+    """
+    directory = env("LEDGER_DIR", required=False)
+    if directory:
+        return FileStore(directory)
+    return S3Client(
+        S3Config(
+            endpoint=env("LEDGER_ENDPOINT"),
+            access_key=env("LEDGER_ACCESS_KEY_ID"),
+            secret_key=env("LEDGER_SECRET_ACCESS_KEY"),
+            bucket=env("LEDGER_BUCKET"),
+        )
+    )
+
+
 def build_sources() -> Sources:
     """Construct every client from the environment."""
     run_id = os.environ.get("CLEANUP_RUN_ID") or (
@@ -121,14 +142,7 @@ def build_sources() -> Sources:
         tautulli=Tautulli(env("TAUTULLI_URL"), env("TAUTULLI_API_KEY")),
         seerr=(RequestSystem(seerr_url, env("SEERR_API_KEY", required=False)) if seerr_url else None),
         ledger=Ledger(
-            S3Client(
-                S3Config(
-                    endpoint=env("LEDGER_ENDPOINT"),
-                    access_key=env("LEDGER_ACCESS_KEY_ID"),
-                    secret_key=env("LEDGER_SECRET_ACCESS_KEY"),
-                    bucket=env("LEDGER_BUCKET"),
-                )
-            ),
+            build_store(),
             run_id=run_id,
             dry_run=os.environ.get("CLEANUP_MODE", "dry-run").lower() != "act",
         ),
@@ -215,6 +229,42 @@ def resolve_identities(
             "cannot be attributed by id; films sharing their titles go to review"
         )
     return crosswalk, unattributed
+
+
+def count_owned_siblings(movies: list[dict], collections: list[dict]) -> dict[int, int]:
+    """How many *other* entries of a film's collection are already in the library.
+
+    "Collection support" is one of the three reasons to keep a film, and it is
+    unanswerable from a collection name alone.
+    """
+    # Only films on disk count. A collection entry Radarr is still looking for
+    # is not evidence that the library holds part of the set.
+    owned = {m.get("tmdbId") for m in movies if m.get("tmdbId") and m.get("hasFile")}
+    by_movie: dict[int, int] = {}
+    tmdb_to_id = {m["tmdbId"]: m["id"] for m in movies if m.get("tmdbId")}
+    for collection in collections:
+        members = [e.get("tmdbId") for e in (collection.get("movies") or []) if e.get("tmdbId")]
+        held = [t for t in members if t in owned]
+        for tmdb_id in held:
+            movie_id = tmdb_to_id.get(tmdb_id)
+            if movie_id is not None:
+                by_movie[movie_id] = len(held) - 1
+    return by_movie
+
+
+def count_genres(movies: list[dict]) -> dict[str, int]:
+    """How many films the library holds per genre.
+
+    "A subject the library demonstrably follows" is meant to be counted, not
+    assumed, so the count has to come from the library rather than a guess.
+    """
+    counts: dict[str, int] = {}
+    for movie in movies:
+        if not movie.get("hasFile"):
+            continue
+        for genre in movie.get("genres") or []:
+            counts[genre] = counts.get(genre, 0) + 1
+    return counts
 
 
 def assess_library(
@@ -431,6 +481,8 @@ def cmd_plan(args: argparse.Namespace) -> int:
         history_ok=history_ok,
         decisions=ledger.read_decisions(),
         collections_loaded=bool(collections),
+        siblings_owned=count_owned_siblings(library.movies, collections),
+        genre_counts=count_genres(library.movies),
     )
     assessments = assess_library(
         movies,
@@ -500,6 +552,10 @@ def rehydrate(planned: dict, film: Film, reason: str = "") -> Assessment:
     return Assessment(
         film=film,
         outcome=Outcome.CANDIDATE,
+        # Carried so the decision fingerprint covers the evidence a keep was
+        # actually granted on: losing the last owned sibling should reopen it.
+        siblings_owned=int(planned.get("siblings_owned") or 0),
+        subject_counts=dict(planned.get("subject_counts") or {}),
         provenance=Provenance(Origin(planned["origin"]), tuple(planned.get("origin_evidence") or ())),
         availability=Availability(None, planned["availability_source"], film.has_file),
         viewing=Viewing(
@@ -547,6 +603,35 @@ def apply_keep_tags(radarr: Radarr, additions: list[dict], dry_run: bool) -> dic
     return {"requested": len(movie_ids), "applied": applied, "http": status}
 
 
+def plan_refusal(plan: dict, run_mode: str, now: datetime) -> str | None:
+    """Why this plan must not be acted on, or None if it may be.
+
+    Two things a plan has to prove before anything is deleted from it.
+
+    Its mode must match this run's: the ledger namespaces dry-run state under
+    its own prefix, so planning in one mode and executing in the other reads
+    rehearsal baselines and decisions while writing real ones.
+
+    And it must be recent. Live re-validation refreshes tags, collections,
+    status and current playback -- but not play history or requests. A plan left
+    behind by a failed earlier schedule therefore describes a library that has
+    moved on, and a film watched since it was written would not be protected.
+    """
+    plan_mode = plan.get("mode")
+    if plan_mode != run_mode:
+        return f"plan was made in {plan_mode!r} but this run is {run_mode!r}"
+
+    generated = utc(plan.get("generated_at"))
+    if generated is None:
+        return "plan has no usable generated_at"
+
+    max_age = float(os.environ.get("CLEANUP_MAX_PLAN_AGE_HOURS", "6"))
+    age_hours = (now - generated).total_seconds() / 3600
+    if age_hours > max_age:
+        return f"plan is {age_hours:.1f}h old, over the {max_age}h limit"
+    return None
+
+
 def cmd_execute(args: argparse.Namespace) -> int:
     """Apply Claude's recommendations, re-validating every safeguard first."""
     sources = build_sources()
@@ -561,6 +646,11 @@ def cmd_execute(args: argparse.Namespace) -> int:
         for block in plan["blocks"]:
             log(f"  BLOCK: {block}")
         return 2
+
+    refusal = plan_refusal(plan, "dry-run" if ledger.dry_run else "act", datetime.now(timezone.utc))
+    if refusal:
+        log(f"refusing to execute: {refusal}")
+        return 5
 
     tag_labels = {t["id"]: t["label"] for t in radarr.tags()}
     monitored = monitored_collection_ids(radarr.collections())
@@ -592,6 +682,12 @@ def cmd_execute(args: argparse.Namespace) -> int:
             for item in accepted
             if item["verdict"] == "delete" and item["movie_id"] in movies
         ]
+        # Before anything is deleted. Assessment now protects anything meeting
+        # the bar, so the two sets should not overlap -- applying first means a
+        # plan built before that rule still cannot delete a film it was about
+        # to permanently protect.
+        tagged = apply_keep_tags(radarr, plan.get("keep_tag_additions") or [], ledger.dry_run)
+
         already = ledger.deletions_in_window()
         selected, deferred = select_batch(approved, MAX_DELETIONS_PER_RUN, already)
         log(
@@ -607,8 +703,10 @@ def cmd_execute(args: argparse.Namespace) -> int:
             tag_labels,
             monitored,
             dry_run=ledger.dry_run,
+            seerr=sources.seerr,
+            crosswalk=ledger.read_crosswalk(),
+            planned_at=utc(plan.get("generated_at")),
         )
-        tagged = apply_keep_tags(radarr, plan.get("keep_tag_additions") or [], ledger.dry_run)
 
         now = datetime.now(timezone.utc)
         for item in accepted:
@@ -639,6 +737,26 @@ def cmd_execute(args: argparse.Namespace) -> int:
             f"deleted={len(result.deleted)} skipped={len(result.skipped)} "
             f"failed={len(result.failed)} uncertain={len(result.uncertain)}"
         )
+        # A failed deletion is safe to surface as a Job failure: nothing was
+        # destroyed, so a retry re-attempts a no-op. An *uncertain* one is not:
+        # the DELETE may have landed, and re-running the pipeline would issue it
+        # again -- exactly what _delete_one refuses to do. Those are left for
+        # the next run's reconciliation, which resolves them by looking.
+        # Both surface as a Job failure. That was unsafe while the CronJob could
+        # retry -- a retry would re-run judgement and re-issue a DELETE that may
+        # already have landed -- but backoffLimit is 0, so a non-zero exit now
+        # only marks the Job failed. An ambiguous destructive operation is
+        # exactly what should be visible, and the next scheduled run still
+        # reconciles it by looking rather than by repeating the call.
+        if result.uncertain:
+            log(
+                f"exiting non-zero: {len(result.uncertain)} deletion(s) could not be "
+                "confirmed; the next run reconciles them against live state"
+            )
+            return 4
+        if result.failed:
+            log("exiting non-zero: some deletions failed outright")
+            return 4
         return 0
     finally:
         ledger.release_lock()
