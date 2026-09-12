@@ -34,6 +34,7 @@ from .fixtures import (
     make_viewing,
 )
 
+
 def _judge_script() -> Path:
     """The judge's validator, when these tests run from a checkout.
 
