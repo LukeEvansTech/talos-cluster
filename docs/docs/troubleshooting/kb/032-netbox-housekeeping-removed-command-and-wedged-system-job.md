@@ -110,15 +110,18 @@ the registry check below finds the job, it is merely pending — wait for it rat
 the workaround.
 
 Prove it by resolving the row's own `job_id` against RQ, which is the check `enqueue_once` omits.
-Two things need testing, because each alone gives a wrong answer in a different situation:
+The question to answer is **"will anything still run this job?"**, and neither obvious check
+answers it alone:
 
-- **Does a job object exist at all?** `NoSuchJobError` is the wedge, and it is the only definitive
-  signal. Absence from the *scheduled registry* is not, because a healthy job leaves that registry
-  the moment the scheduler promotes it into the queue. The Django row still reads `scheduled` until
-  a worker actually starts it, so a registry-only check reports the wedge signature for any job
-  merely waiting on a busy worker — and acting on that deletes a live row.
-- **Where is it?** A job object existing does not mean anything is scheduled to run it, and testing
-  for **this specific ID** matters: any other scheduled NetBox task would satisfy a bare count.
+- **Presence in the scheduled registry is not it.** A healthy job leaves that registry the moment
+  the scheduler promotes it into the queue, while the Django row stays `scheduled` until a worker
+  starts it. A registry-only check therefore reports the wedge signature for any job merely waiting
+  on a busy worker, and acting on that deletes a live row. Testing for **this specific ID** matters
+  too: any other scheduled NetBox task would satisfy a bare count.
+- **Existence of a job object is not it either.** RQ keeps job hashes around after they settle, so
+  `RQJob.fetch()` can succeed for a job in a terminal state — `finished`, `failed`, `stopped`,
+  `canceled` — that will never run again. The row still reads `scheduled`, `enqueue_once` still
+  short-circuits on it, and that is just as wedged as the job being absent.
 
 ```python
 from core.models import Job
@@ -139,15 +142,17 @@ for q in ("high", "default", "low"):
              "queued:", jid in queue.get_job_ids())
 ```
 
-Read the result against these three shapes:
+The rule is the job's own status, not where it was found:
 
-| `rq status` | `scheduled` | `queued` | Verdict |
-| --- | --- | --- | --- |
-| `scheduled` | `True` on one queue | `False` | Healthy, waiting for its due time |
-| `queued` / `started` | `False` everywhere | `True` (or started) | Healthy, due and waiting on a busy worker — **do nothing** |
-| `MISSING` | `False` everywhere | `False` everywhere | Wedged |
+| `rq status` | Verdict |
+| --- | --- |
+| `scheduled` | Healthy — waiting for its due time (expect `scheduled: True` on one queue) |
+| `queued`, `deferred`, `started` | Healthy — due, waiting on a busy worker. **Do nothing** |
+| `MISSING` | Wedged — the queue side lost it |
+| `finished`, `failed`, `stopped`, `canceled` | Wedged — the object survives but nothing will run it |
 
-Only the third row justifies the workaround below.
+Anything not in a pending or running state is wedged, however it got there. The registry and queue
+columns are context for *which* of those happened; they are not the verdict.
 
 ## Fix
 
@@ -175,8 +180,8 @@ kubectl -n default rollout restart deploy/netbox-worker
 The worker runs housekeeping immediately on start and schedules the next occurrence.
 
 **Verify in both places.** The database row is exactly what lied for three weeks, so a `scheduled`
-row on its own is not evidence. Re-run the check above against the *new* row and require the healthy
-first shape — `rq status: scheduled`, and the row's own `job_id` present in `default`'s
+row on its own is not evidence. Re-run the check above against the *new* row and require the first
+healthy shape — `rq status: scheduled`, and the row's own `job_id` present in `default`'s
 `ScheduledJobRegistry`:
 
 ```console
