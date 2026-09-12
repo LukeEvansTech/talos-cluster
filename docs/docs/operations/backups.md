@@ -18,11 +18,17 @@ replacing, VolSync for those apps.
   it in both double-applies).
 - Set `VOLSYNC_CAPACITY` in the `ks.yaml` `postBuild.substitute` block to size the replication
   volume.
-- Leave `VOLSYNC_CACHE_CAPACITY` at **8Gi or above**, whatever `VOLSYNC_CAPACITY` is. Every app
-  shares one Kopia repository, so the mover's `/cache` holds that repository's index and metadata
-  rather than the app's own data, so it does not scale down with a small app. Under-sizing it fills
-  the cache volume to 100% and the mover dies on `no space left on device`; see
-  [KB-030](../troubleshooting/kb/030-volsync-kopia-cache-pvc-too-small.md).
+- **Do not set `VOLSYNC_CACHE_CAPACITY` at all** unless the app needs *more* than the component
+  default (currently 16Gi). Every app shares one Kopia repository, so the mover's `/cache` holds
+  that repository's index and metadata rather than the app's own data: it does not scale down with
+  a small app, and a trivial app peaks within 0.1Gi of a large one. Under-sizing it fills the cache
+  volume and the mover dies on `no space left on device`
+  ([KB-030](../troubleshooting/kb/030-volsync-kopia-cache-pvc-too-small.md)).
+  An override is a **cap**, not a floor, and that is the trap: 34 apps carried an 8Gi entry written
+  in December 2025 to raise them off a 2Gi default, the default later moved past them, and on
+  2026-09-11 all of them went critical while every app on the default was fine. Only `plex` (100Gi)
+  and `jellyfin` (50Gi) should carry one, for content caches that genuinely exceed the shared
+  index.
 - **Keep regenerable data off the backed-up claim.** VolSync snapshots `spec.sourcePVC` and nothing
   else, so a cache or thumbnail directory mounted from its own PVC is excluded for free. Neither
   mover can exclude a path from a claim it is already backing up: restic has no exclusion field at

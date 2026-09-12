@@ -13,7 +13,18 @@ spec:
       - ${VOLSYNC_SNAP_ACCESSMODES:=ReadWriteOnce}
     cacheAccessModes:
       - ${VOLSYNC_CACHE_ACCESSMODES:=ReadWriteOnce}
-    cacheCapacity: ${VOLSYNC_CACHE_CAPACITY:=10Gi}
+    # 16Gi, not a per-app size: the cache holds the SHARED kopia repository's
+    # index set, so every mover converges on the same footprint whatever the
+    # app's own data is - a tiny app peaks within 0.1Gi of a large one. That
+    # footprint grows ~25MiB/day with the repository (7.23Gi on 2026-08-29,
+    # 7.57Gi on 09-12), so a size chosen against today's number expires: the
+    # old 8Gi app overrides went critical on 09-11 and 10Gi was ~29 days from
+    # warning. 16Gi is ~8 months at the measured rate. miroir-local is thin
+    # (1.1TiB allocated against 2.1TiB provisioned), and real usage stays at
+    # the shared ~7.5Gi, so declaring more costs almost nothing on disk.
+    # Raising this only buys time - the lever on the growth itself is kopia
+    # retention, not cache size or more maintenance.
+    cacheCapacity: ${VOLSYNC_CACHE_CAPACITY:=16Gi}
     cacheStorageClassName: ${VOLSYNC_CACHE_STORAGECLASS:=miroir-local}
     compression: zstd-fastest
     copyMethod: ${VOLSYNC_COPYMETHOD:=Snapshot}

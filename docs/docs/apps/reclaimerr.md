@@ -29,9 +29,9 @@ bjw-s `app-template` deployment mirroring sibling apps (maintainerr, pulsarr).
   calls are accepted.
 - **Components:** `homepage` (dashboard tile under the
   `Media` group, `mdi-broom` icon) and `volsync` (PVC backup). (Gatus monitoring is automatic via
-  the gatus-sidecar chart's HTTPRoute auto-discovery, no `gatus/guarded` component.) `VOLSYNC_CAPACITY: 2Gi` and
-  `VOLSYNC_CACHE_CAPACITY: 8Gi` are the required substitutes for the volsync component
-  (overriding the 5Gi/10Gi defaults).
+  the gatus-sidecar chart's HTTPRoute auto-discovery, no `gatus/guarded` component.)
+  `VOLSYNC_CAPACITY: 2Gi` overrides the 5Gi default; the cache size is deliberately *not* pinned,
+  so it follows the component default.
 - **Deferred (out of scope):** external ingress, pre-seeding `JWT_SECRET`/`ENCRYPTION_KEY` via
   1Password, and a `TMDB_API_KEY` override (the bundled upstream key is fine).
 
