@@ -165,6 +165,9 @@ def _problems(blocks: list, result: dict | None, judgement: dict | None) -> list
         count = len(result.get(key) or [])
         if count:
             problems.append(f"{count} deletion{'s' if count != 1 else ''} {key}")
+    unjudged = len(result.get("unjudged") or [])
+    if unjudged:
+        problems.append(f"{unjudged} candidate{'s' if unjudged != 1 else ''} came back with no verdict")
     return problems
 
 

@@ -341,15 +341,19 @@ def keep_tag_targets(
     decides; and a film marked ``cleanup-eligible`` is never re-protected, or the
     rating rule reverses the override every week.
     """
-    targets = []
-    for film in films:
-        if TAG_KEEP in film.tags or TAG_KEEP_REVIEW in film.tags:
-            continue
-        if TAG_HUMAN_ELIGIBLE in film.tags or TAG_HUMAN_DISMISSED in film.tags:
-            continue
-        if meets_keep_bar(film, bar_votes, bar_score):
-            targets.append(film)
-    return targets
+    return [f for f in films if keep_tag_applies(f) and meets_keep_bar(f, bar_votes, bar_score)]
+
+
+def keep_tag_applies(film: Film) -> bool:
+    """Whether automatic protection may still be given to this film.
+
+    Checked again at execution because the plan is half an hour old by then: a
+    person who marks a film `cleanup-eligible` in that window would otherwise
+    have their decision reversed by an absolute veto tag.
+    """
+    if TAG_KEEP in film.tags or TAG_KEEP_REVIEW in film.tags:
+        return False
+    return not (TAG_HUMAN_ELIGIBLE in film.tags or TAG_HUMAN_DISMISSED in film.tags)
 
 
 # --- batching -------------------------------------------------------------

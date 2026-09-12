@@ -55,17 +55,17 @@ run ID, and a judgement that was never obtained.
 All of it from the environment, because this repository is public and a hostname
 committed here maps the private network.
 
-| Variable                                                                               | Meaning                                                                              |
-| -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| `RADARR_URL`, `RADARR_API_KEY`                                                         | Radarr instance                                                                      |
-| `TAUTULLI_URL`, `TAUTULLI_API_KEY`                                                     | play history; a hard dependency                                                      |
-| `SEERR_URL`, `SEERR_API_KEY`                                                           | request system; optional, but without it no film can be shown to have been requested |
-| `LEDGER_DIR`                                                                           | durable state on a mounted volume; preferred over the S3 variables below             |
-| `LEDGER_ENDPOINT`, `LEDGER_BUCKET`, `LEDGER_ACCESS_KEY_ID`, `LEDGER_SECRET_ACCESS_KEY` | S3-compatible store for durable state                                                |
-| `CLEANUP_WEBHOOK_URL`, `CLEANUP_WEBHOOK_TOKEN`                                         | where `report` delivers the digest; without the URL it only writes the file          |
-| `CLEANUP_MODE`                                                                         | `dry-run` (default) or `act`                                                         |
-| `CLEANUP_SCOPE_START`                                                                  | ISO date; defaults to `2026-03-01`                                                   |
-| `CLEANUP_RUN_ID`                                                                       | optional; generated if absent                                                        |
+| Variable                                                                               | Meaning                                                                     |
+| -------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `RADARR_URL`, `RADARR_API_KEY`                                                         | Radarr instance                                                             |
+| `TAUTULLI_URL`, `TAUTULLI_API_KEY`                                                     | play history; a hard dependency                                             |
+| `SEERR_URL`, `SEERR_API_KEY`                                                           | request system; optional to configure, but blocking once it is              |
+| `LEDGER_DIR`                                                                           | durable state on a mounted volume; preferred over the S3 variables below    |
+| `LEDGER_ENDPOINT`, `LEDGER_BUCKET`, `LEDGER_ACCESS_KEY_ID`, `LEDGER_SECRET_ACCESS_KEY` | S3-compatible store for durable state                                       |
+| `CLEANUP_WEBHOOK_URL`, `CLEANUP_WEBHOOK_TOKEN`                                         | where `report` delivers the digest; without the URL it only writes the file |
+| `CLEANUP_MODE`                                                                         | `dry-run` (default) or `act`                                                |
+| `CLEANUP_SCOPE_START`                                                                  | ISO date; defaults to `2026-03-01`                                          |
+| `CLEANUP_RUN_ID`                                                                       | optional; generated if absent                                               |
 
 ## What each module is responsible for
 
@@ -80,7 +80,7 @@ committed here maps the private network.
 | `executor.py`  | recommendation validation, live re-checks, deletion, reconciliation                    |
 | `provision.py` | one-off: per-list provenance tags and the decision tags                                |
 
-## Five things that are easy to get wrong
+## Six things that are easy to get wrong
 
 **A zero play count has four meanings.** Only one of them is "nobody watched it".
 The others are history that does not reach back far enough, an identity join that
@@ -104,6 +104,15 @@ restart a grace period that already ran.
 goes to the recycle bin and is recoverable while retention lasts. The exclusion
 persists until someone removes it, and it blocks collection completion as well as
 the import lists.
+
+**An outage is not an answer.** A request system that is configured and does not
+respond blocks the run rather than degrading it. An empty request set reads
+exactly like "nobody asked for any of this", and for a film carrying an
+import-list provenance tag that difference is the entire authorisation to delete
+it — execution only re-reads requests made _since_ the plan, so a request made
+before an outage would never be seen again. The same rule is why a `get_metadata`
+timeout is now raised rather than returned as "no such item": swallowed, it let
+the active-session check quietly drop the film somebody was watching.
 
 **A history row that is still playing carries no row ID.** Tautulli lists the
 in-progress session in `get_history` and counts it in `recordsFiltered`, but the

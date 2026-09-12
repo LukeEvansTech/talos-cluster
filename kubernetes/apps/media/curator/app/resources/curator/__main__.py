@@ -47,6 +47,7 @@ from .planner import (
     assess,
     build_decision_record,
     check_anomalies,
+    keep_tag_applies,
     keep_tag_targets,
     select_batch,
     snapshot_valid,
@@ -205,7 +206,15 @@ def resolve_identities(
     fresh: dict[int, dict] = {}
     retired: dict[int, dict] = {}
     for key in missing:
-        meta = tautulli.metadata(key)
+        try:
+            meta = tautulli.metadata(key)
+        except SourceError as exc:
+            # A lookup that failed for infrastructure reasons is not evidence
+            # that the key is retired, but it is also no reason to abandon the
+            # whole run. Recording it unresolved taints the zero, which sends
+            # any film sharing the title to review.
+            log(f"  rating key {key} could not be resolved ({exc}); treating it as unresolved")
+            meta = None
         if meta:
             fresh[key] = meta
         else:
@@ -368,6 +377,9 @@ class Library:
     exclusions: list[dict]
     horizon: datetime | None
     requests: dict[int, dict]
+    # False only when a request system is configured and did not answer. An
+    # estate with none configured is a deliberate choice, not an outage.
+    requests_ok: bool = True
 
 
 def gather_library(sources: Sources) -> Library:
@@ -382,19 +394,26 @@ def gather_library(sources: Sources) -> Library:
     log(f"Radarr history reaches back to {horizon.date() if horizon else 'unknown'}")
 
     requests: dict[int, dict] = {}
+    requests_ok = sources.seerr is None
     if sources.seerr:
         try:
             requests = sources.seerr.movie_requests()
+            requests_ok = True
             log(f"request system: {len(requests)} movie requests")
         except SourceError as exc:
-            log(f"request system unavailable: {exc} -- every origin will read as unknown")
+            # An empty request set is indistinguishable from "nobody asked for
+            # any of this", and for a film carrying an import-list provenance
+            # tag that difference is the whole authorisation. Execution only
+            # re-reads requests made *since* the plan, so a request made before
+            # an outage would never be seen again.
+            log(f"request system unavailable: {exc}")
 
     monitored = monitored_collection_ids(collections)
     log(
         f"{sum(1 for c in collections if c.get('monitored'))} monitored collections "
         f"protect {len(monitored)} tmdb ids"
     )
-    return Library(tag_labels, movies, collections, exclusions, horizon, requests)
+    return Library(tag_labels, movies, collections, exclusions, horizon, requests, requests_ok)
 
 
 def build_plan_payload(
@@ -437,6 +456,32 @@ def build_plan_payload(
         "multi_user_completions": [a.to_json() for a in assessments if a.viewing.distinct_completers >= 2],
         "expired_basis_keeps": expired_basis_keeps(assessments),
     }
+
+
+def source_blocks(
+    bin_ok: bool,
+    bin_detail: str,
+    history_ok: bool,
+    history_note: str,
+    requests_ok: bool,
+) -> list[str]:
+    """Reasons this run must not act, drawn from the state of its sources.
+
+    Each one is a check that could not be performed rather than a check that
+    failed, and the difference decides everything: an unavailable safeguard is
+    an unresolved safeguard.
+    """
+    blocks = []
+    if not bin_ok:
+        blocks.append(bin_detail)
+    if not history_ok:
+        blocks.append(f"play history not usable: {history_note}")
+    if not requests_ok:
+        # Without it an empty request set is indistinguishable from "nobody
+        # asked for any of this", and for a film carrying an import-list
+        # provenance tag that difference is the entire authorisation.
+        blocks.append("request system unreachable: a requested film could not be told from a feed pull")
+    return blocks
 
 
 def cmd_plan(args: argparse.Namespace) -> int:
@@ -504,11 +549,9 @@ def cmd_plan(args: argparse.Namespace) -> int:
     log(f"assessment: {counts}")
 
     snapshot = build_snapshot(movies, tag_labels, collections, exclusions, history_meta, history_ok, now)
-    blocks = check_anomalies(snapshot, ledger.read_baseline())
-    if not bin_ok:
-        blocks.append(bin_detail)
-    if not history_ok:
-        blocks.append(f"play history not usable: {history_note}")
+    blocks = check_anomalies(snapshot, ledger.read_baseline()) + source_blocks(
+        bin_ok, bin_detail, history_ok, history_note, library.requests_ok
+    )
 
     problems = snapshot_valid(snapshot)
     if problems:
@@ -577,19 +620,41 @@ def rehydrate(planned: dict, film: Film, reason: str = "") -> Assessment:
     )
 
 
-def apply_keep_tags(radarr: Radarr, additions: list[dict], dry_run: bool) -> dict[str, Any]:
+def apply_keep_tags(
+    radarr: Radarr,
+    additions: list[dict],
+    dry_run: bool,
+    live: dict[int, dict] | None = None,
+    tag_labels: dict[int, str] | None = None,
+) -> dict[str, Any]:
     """Give the permanent allow-list tag to films that have earned it.
 
     Add-only. The editor endpoint answers 202, meaning queued and nothing more,
     so the count is confirmed by re-reading rather than assumed.
+
+    The plan is half an hour old by the time this runs, so each target is
+    re-checked against its live tags first: `keep` is an absolute veto, and
+    applying it to a film somebody has just marked `cleanup-eligible` would
+    reverse that person's decision.
     """
     movie_ids = [a["movie_id"] for a in additions if isinstance(a.get("movie_id"), int)]
+    withdrawn = 0
+    if live is not None:
+        kept = []
+        for movie_id in movie_ids:
+            record = live.get(movie_id)
+            if record is None or not keep_tag_applies(to_film(record, tag_labels or {})):
+                withdrawn += 1
+                continue
+            kept.append(movie_id)
+        movie_ids = kept
     if not movie_ids:
-        return {"requested": 0, "applied": 0, "note": "nothing qualified"}
+        return {"requested": 0, "applied": 0, "withdrawn": withdrawn, "note": "nothing qualified"}
     if dry_run:
         return {
             "requested": len(movie_ids),
             "applied": 0,
+            "withdrawn": withdrawn,
             "note": "dry run: not applied",
         }
 
@@ -634,6 +699,50 @@ def plan_refusal(plan: dict, run_mode: str, now: datetime) -> str | None:
     return None
 
 
+def record_judge_decisions(
+    accepted: list[dict],
+    movies: dict[int, dict],
+    by_id: dict[int, dict],
+    tag_labels: dict[int, str],
+    monitored: set[int],
+    ledger: Ledger,
+    run_id: str,
+) -> list[dict]:
+    """Persist what the judge decided, and collect what it sent to a person.
+
+    Returns the escalations, because the plan's review list was written before
+    judgement: without carrying them out of here, a film the judge deliberately
+    put in front of somebody would wait until next week's plan to be seen.
+    """
+    now = datetime.now(timezone.utc)
+    escalated: list[dict] = []
+    for item in accepted:
+        if item["verdict"] not in ("keep", "review") or item["movie_id"] not in movies:
+            continue
+        film = to_film(movies[item["movie_id"]], tag_labels)
+        if item["verdict"] == "review":
+            escalated.append(
+                {
+                    "movie_id": film.movie_id,
+                    "title": film.title,
+                    "year": film.year,
+                    "size_gb": film.size_gb,
+                    "reason": item["reason"],
+                }
+            )
+        ledger.write_decision(
+            build_decision_record(
+                rehydrate(by_id[item["movie_id"]], film),
+                verdict=("spared" if item["verdict"] == "keep" else "queued for review"),
+                reason=item["reason"],
+                run_id=run_id,
+                now=now,
+                monitored=bool(film.tmdb_id and film.tmdb_id in monitored),
+            )
+        )
+    return escalated
+
+
 def cmd_execute(args: argparse.Namespace) -> int:
     """Apply Claude's recommendations, re-validating every safeguard first."""
     sources = build_sources()
@@ -669,6 +778,12 @@ def cmd_execute(args: argparse.Namespace) -> int:
     accepted, rejected = validate_recommendations(recommendations, by_id)
     for bad in rejected:
         log(f"  rejected recommendation: {bad}")
+    # A candidate the judge simply left out is not acted on, which is safe, but
+    # it reaches nobody either -- it is neither deleted nor put in front of a
+    # person. Counting it is the only thing that makes that visible.
+    unjudged = sorted(set(by_id) - {item["movie_id"] for item in accepted})
+    if unjudged:
+        log(f"  {len(unjudged)} candidate(s) came back with no usable verdict")
 
     dangling = ledger.unreconciled_intents()
     if dangling:
@@ -696,7 +811,13 @@ def cmd_execute(args: argparse.Namespace) -> int:
         # the bar, so the two sets should not overlap -- applying first means a
         # plan built before that rule still cannot delete a film it was about
         # to permanently protect.
-        tagged = apply_keep_tags(radarr, plan.get("keep_tag_additions") or [], ledger.dry_run)
+        tagged = apply_keep_tags(
+            radarr,
+            plan.get("keep_tag_additions") or [],
+            ledger.dry_run,
+            live=movies,
+            tag_labels=tag_labels,
+        )
 
         already = ledger.deletions_in_window()
         selected, deferred = select_batch(approved, MAX_DELETIONS_PER_RUN, already)
@@ -718,35 +839,7 @@ def cmd_execute(args: argparse.Namespace) -> int:
             planned_at=utc(plan.get("generated_at")),
         )
 
-        now = datetime.now(timezone.utc)
-        escalated: list[dict] = []
-        for item in accepted:
-            if item["verdict"] not in ("keep", "review") or item["movie_id"] not in movies:
-                continue
-            film = to_film(movies[item["movie_id"]], tag_labels)
-            if item["verdict"] == "review":
-                # The plan's review list was built before judgement, so without
-                # this the film the judge escalated reaches nobody this week.
-                escalated.append(
-                    {
-                        "movie_id": film.movie_id,
-                        "title": film.title,
-                        "year": film.year,
-                        "size_gb": film.size_gb,
-                        "reason": item["reason"],
-                    }
-                )
-            ledger.write_decision(
-                build_decision_record(
-                    rehydrate(by_id[item["movie_id"]], film),
-                    verdict=("spared" if item["verdict"] == "keep" else "queued for review"),
-                    reason=item["reason"],
-                    run_id=sources.run_id,
-                    now=now,
-                    monitored=bool(film.tmdb_id and film.tmdb_id in monitored),
-                )
-            )
-
+        escalated = record_judge_decisions(accepted, movies, by_id, tag_labels, monitored, ledger, sources.run_id)
         summary = {
             "run_id": sources.run_id,
             # The plan and the execution are separate CronJobs and generate
@@ -754,6 +847,7 @@ def cmd_execute(args: argparse.Namespace) -> int:
             # the plan it came from. The digest needs it to tell this week's
             # result from one left on the volume by an earlier week.
             "plan_run_id": plan.get("run_id"),
+            "unjudged": unjudged,
             "mode": "dry-run" if ledger.dry_run else "act",
             "escalated": escalated,
             "keep_tags_added": tagged,

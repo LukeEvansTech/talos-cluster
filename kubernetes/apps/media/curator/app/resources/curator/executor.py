@@ -48,6 +48,7 @@ def validate_recommendations(
     """
     accepted: list[dict] = []
     rejected: list[dict] = []
+    seen: set[int] = set()
     for item in recommendations:
         if not isinstance(item, dict):
             rejected.append({"item": item, "why": "recommendation is not an object"})
@@ -67,6 +68,12 @@ def validate_recommendations(
         if verdict == "delete" and len(reason) < 12:
             rejected.append({"movie_id": movie_id, "why": "delete without a stated reason"})
             continue
+        if movie_id in seen:
+            # A film judged twice has been judged two ways. Taking both would
+            # delete it and then record a decision to spare the same film.
+            rejected.append({"movie_id": movie_id, "why": "judged more than once"})
+            continue
+        seen.add(movie_id)
         accepted.append({"movie_id": movie_id, "verdict": verdict, "reason": reason})
     return accepted, rejected
 
