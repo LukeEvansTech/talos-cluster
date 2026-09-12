@@ -122,11 +122,15 @@ answers it alone:
   `RQJob.fetch()` can succeed for a job in a terminal state — `finished`, `failed`, `stopped`,
   `canceled` — that will never run again. The row still reads `scheduled`, `enqueue_once` still
   short-circuits on it, and that is just as wedged as the job being absent.
+- **Nor is the status field, on its own.** The status lives in the job hash while the reference
+  lives in a separate registry or queue key, so eviction can take one and leave the other: a hash
+  still reporting `scheduled` with nothing in any `ScheduledJobRegistry` is wedged, however healthy
+  the status reads.
 
 ```python
 from core.models import Job
 from rq.job import Job as RQJob
-from rq.registry import ScheduledJobRegistry
+from rq.registry import ScheduledJobRegistry, StartedJobRegistry
 from rq.exceptions import NoSuchJobError
 import django_rq
 
@@ -139,20 +143,25 @@ except NoSuchJobError:
 for q in ("high", "default", "low"):
     queue = django_rq.get_queue(q)
     print(q, "scheduled:", jid in ScheduledJobRegistry(queue=queue).get_job_ids(),
-             "queued:", jid in queue.get_job_ids())
+             "queued:", jid in queue.get_job_ids(),
+             "started:", jid in StartedJobRegistry(queue=queue).get_job_ids())
 ```
 
-The rule is the job's own status, not where it was found:
+A job is healthy only if it is in a live state **and** something still holds a reference to it.
+Both halves, on the same queue:
 
-| `rq status` | Verdict |
-| --- | --- |
-| `scheduled` | Healthy — waiting for its due time (expect `scheduled: True` on one queue) |
-| `queued`, `deferred`, `started` | Healthy — due, waiting on a busy worker. **Do nothing** |
-| `MISSING` | Wedged — the queue side lost it |
-| `finished`, `failed`, `stopped`, `canceled` | Wedged — the object survives but nothing will run it |
+| `rq status` | Needs | Verdict |
+| --- | --- | --- |
+| `scheduled` | `scheduled: True` | Healthy — waiting for its due time |
+| `queued` | `queued: True` | Healthy — due, waiting on a busy worker. **Do nothing** |
+| `started` | `started: True` | Healthy — running right now |
+| `MISSING` | — | Wedged — the queue side lost the job |
+| `finished`, `failed`, `stopped`, `canceled` | — | Wedged — the object survives, nothing will run it |
+| any of the first three | all `False` | Wedged — the status survived, the reference did not |
 
-Anything not in a pending or running state is wedged, however it got there. The registry and queue
-columns are context for *which* of those happened; they are not the verdict.
+The last row is the one worth reading twice: a partial eviction leaves the hash reporting
+`scheduled` while no registry references it, so the status alone looks healthy. Treat a live status
+with no matching membership exactly like a missing job.
 
 ## Fix
 
@@ -186,9 +195,9 @@ healthy shape — `rq status: scheduled`, and the row's own `job_id` present in 
 
 ```console
 rq status: scheduled
-high scheduled: False queued: False
-default scheduled: True queued: False
-low scheduled: False queued: False
+high scheduled: False queued: False started: False
+default scheduled: True queued: False started: False
+low scheduled: False queued: False started: False
 ```
 
 Finally, clear the failed Jobs. `KubeJobFailed` latches on the Job object and keeps firing until
