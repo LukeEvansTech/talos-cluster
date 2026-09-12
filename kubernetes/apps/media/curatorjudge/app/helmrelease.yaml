@@ -1,0 +1,181 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: curatorjudge
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: curatorjudge
+  values:
+    controllers:
+      # Reads the plan the curator job left on the volume, asks Claude which of
+      # the candidates are worth keeping, and applies the answer.
+      #
+      # Three steps, because the judge is the least trusted part of this and is
+      # kept as small as possible: build the prompt, ask, act. Only the middle
+      # step talks to Claude, and it holds no credential except the OAuth token.
+      # The executor independently re-checks every protection against live
+      # Radarr and refuses any id the plan did not offer, so a wrong -- or
+      # hostile -- answer can only choose badly among films already cleared.
+      curatorjudge:
+        type: cronjob
+        cronjob:
+          # Half an hour after curator, which needs a couple of minutes cold.
+          schedule: "30 8 * * 6"
+          timeZone: "${TIMEZONE}"
+          concurrencyPolicy: Forbid
+          successfulJobsHistory: 3
+          failedJobsHistory: 3
+          backoffLimit: 1
+          activeDeadlineSeconds: 3600
+        pod:
+          automountServiceAccountToken: false
+        initContainers:
+          # 1. Plan -> prompt. Refuses a stale plan, one the engine blocked, or
+          #    one with nothing to judge, and leaves a marker the next steps
+          #    honour rather than paying for a judgement that would be rejected.
+          prompt:
+            image: &python
+              repository: docker.io/library/python
+              tag: 3.14-alpine@sha256:c6ead215bfd31f1e433d968853b7a769989117115b728874824e6c0a27cb96fc
+            command:
+              - python3
+              - /prompt/build_prompt.py
+            env: &pythonEnv
+              PYTHONDONTWRITEBYTECODE: "1"
+              PYTHONUNBUFFERED: "1"
+              TZ: "${TIMEZONE}"
+            resources: &small
+              requests:
+                cpu: 10m
+                memory: 64Mi
+              limits:
+                memory: 256Mi
+            securityContext: &hardened
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop:
+                  - ALL
+          # 2. Ask Claude. Anthropic publishes no public image, so the CLI is
+          #    installed at start-up -- into a writable prefix under /tmp,
+          #    because the root filesystem is read-only and this runs as a
+          #    non-root user. The version is pinned so it is visible in git.
+          judge:
+            image:
+              repository: docker.io/library/node
+              tag: 24-alpine@sha256:50c8e8ca1d27439048670df5883f32d57cf81cff6233222c893fd0d9884cbd81
+            command:
+              - /bin/sh
+              - -c
+              # $${VAR} survives Flux postBuild substitution; a bare ${VAR}
+              # would be replaced with an empty string before the pod ever runs.
+              - |
+                set -eu
+                if [ -f /work/skip ]; then
+                  echo "skipping: $$(cat /work/skip)"
+                  exit 0
+                fi
+                npm install -g --silent --prefix /tmp/npm \
+                  "@anthropic-ai/claude-code@$${CLAUDE_CODE_VERSION}"
+                # One turn, every tool denied. This is a single structured
+                # judgement, not an agent: it has no business reaching a
+                # filesystem or a network.
+                /tmp/npm/bin/claude -p \
+                  --output-format json \
+                  --max-turns 1 \
+                  --model "$${JUDGE_MODEL}" \
+                  --disallowed-tools "Bash,Read,Write,Edit,Glob,Grep,WebFetch,WebSearch,Task,NotebookEdit" \
+                  < /work/prompt.txt > /work/claude.json
+            env:
+              CLAUDE_CODE_VERSION: "2.1.269"
+              JUDGE_MODEL: claude-opus-5
+              # The CLI writes its own state; both must be writable and both
+              # live on the emptyDir that dies with the pod.
+              HOME: /tmp/claude-home
+              npm_config_cache: /tmp/npm-cache
+              TZ: "${TIMEZONE}"
+            envFrom:
+              - secretRef:
+                  name: curatorjudge-token
+            resources:
+              requests:
+                cpu: 50m
+                memory: 256Mi
+              limits:
+                memory: 1Gi
+            securityContext: *hardened
+        containers:
+          # 3. Validate the answer, then apply what the engine still agrees
+          #    with. Exits non-zero if any deletion failed or could not be
+          #    confirmed, so the Job surfaces it rather than reporting success.
+          app:
+            image: *python
+            command:
+              - /bin/sh
+              - -c
+              - |
+                set -eu
+                python3 /prompt/read_verdicts.py
+                exec python3 -m curator execute \
+                  --plan /state/cleanup-plan/plan.json \
+                  --recommendations /state/cleanup-plan/recommendations.json \
+                  --out /state/cleanup-plan/result.json
+            env:
+              <<: *pythonEnv
+              PYTHONPATH: /app
+              RADARR_URL: http://radarr.media.svc.cluster.local
+              TAUTULLI_URL: http://tautulli.media.svc.cluster.local
+              SEERR_URL: http://seerr.media.svc.cluster.local
+              LEDGER_DIR: /state/ledger
+              CLEANUP_SCOPE_START: "2026-03-01"
+              # Must match the curator job's mode: the ledger namespaces
+              # dry-run state separately, and execute refuses a plan made in
+              # the other mode rather than mixing the two.
+              CLEANUP_MODE: dry-run
+            envFrom:
+              - secretRef:
+                  name: curatorjudge-secret
+            resources: *small
+            securityContext: *hardened
+    defaultPodOptions:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+    persistence:
+      prompt:
+        type: configMap
+        name: curatorjudge-prompt
+        defaultMode: 0555
+        globalMounts:
+          - path: /prompt
+            readOnly: true
+      # Owned by the curator app; mounted here to run execute.
+      code:
+        type: configMap
+        name: curator-code
+        globalMounts:
+          - path: /app/curator
+            readOnly: true
+      state:
+        existingClaim: curator
+        globalMounts:
+          - path: /state
+      # Hand-off between the three steps, and the only writable place the judge
+      # has: npm prefix, npm cache and the CLI's own state all land here.
+      work:
+        type: emptyDir
+        globalMounts:
+          - path: /work
+      tmp:
+        type: emptyDir
+        globalMounts:
+          - path: /tmp

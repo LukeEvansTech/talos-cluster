@@ -178,6 +178,12 @@ class Assessment:
     reasons: list[str] = field(default_factory=list)
     blockers: list[str] = field(default_factory=list)
     protections: list[str] = field(default_factory=list)
+    # Evidence the keep reasons are stated in terms of. Without these the judge
+    # is asked to prove a collection is partly owned, or that the library
+    # follows a subject, from information it was never given -- and a rule that
+    # defaults to deletion resolves that absence as "delete".
+    siblings_owned: int = 0
+    subject_counts: dict[str, int] = field(default_factory=dict)
 
     def to_json(self) -> dict[str, Any]:
         """Serialise for the candidate hand-off and the run report."""
@@ -201,6 +207,8 @@ class Assessment:
             "imdb_score": self.film.imdb_score,
             "imdb_votes": self.film.imdb_votes,
             "collection": self.film.collection_title,
+            "siblings_owned": self.siblings_owned,
+            "subject_counts": dict(self.subject_counts),
             "genres": list(self.film.genres),
             "studio": self.film.studio,
             "history_status": self.viewing.status.value,

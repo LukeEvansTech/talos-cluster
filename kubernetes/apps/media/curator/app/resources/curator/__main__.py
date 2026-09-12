@@ -231,6 +231,38 @@ def resolve_identities(
     return crosswalk, unattributed
 
 
+def count_owned_siblings(movies: list[dict], collections: list[dict]) -> dict[int, int]:
+    """How many *other* entries of a film's collection are already in the library.
+
+    "Collection support" is one of the three reasons to keep a film, and it is
+    unanswerable from a collection name alone.
+    """
+    owned = {m.get("tmdbId") for m in movies if m.get("tmdbId")}
+    by_movie: dict[int, int] = {}
+    tmdb_to_id = {m["tmdbId"]: m["id"] for m in movies if m.get("tmdbId")}
+    for collection in collections:
+        members = [e.get("tmdbId") for e in (collection.get("movies") or []) if e.get("tmdbId")]
+        held = [t for t in members if t in owned]
+        for tmdb_id in held:
+            movie_id = tmdb_to_id.get(tmdb_id)
+            if movie_id is not None:
+                by_movie[movie_id] = len(held) - 1
+    return by_movie
+
+
+def count_genres(movies: list[dict]) -> dict[str, int]:
+    """How many films the library holds per genre.
+
+    "A subject the library demonstrably follows" is meant to be counted, not
+    assumed, so the count has to come from the library rather than a guess.
+    """
+    counts: dict[str, int] = {}
+    for movie in movies:
+        for genre in movie.get("genres") or []:
+            counts[genre] = counts.get(genre, 0) + 1
+    return counts
+
+
 def assess_library(
     movies: list[dict],
     tag_labels: dict[int, str],
@@ -264,7 +296,10 @@ def assess_library(
             history_ok=ctx.history_ok,
             unattributed_rows=evidence["unattributed"],
         )
-        assessments.append(assess(film, provenance, availability, viewing, ctx))
+        result = assess(film, provenance, availability, viewing, ctx)
+        result.siblings_owned = evidence["siblings_owned"].get(film.movie_id, 0)
+        result.subject_counts = {g: evidence["genre_counts"].get(g, 0) for g in film.genres}
+        assessments.append(result)
 
     if bootstrapped:
         ledger.write_first_seen(bootstrapped)
@@ -457,6 +492,8 @@ def cmd_plan(args: argparse.Namespace) -> int:
             "rows_by_key": rows_by_key,
             "crosswalk": crosswalk,
             "unattributed": unattributed,
+            "siblings_owned": count_owned_siblings(library.movies, collections),
+            "genre_counts": count_genres(library.movies),
         },
         ledger,
     )
@@ -561,6 +598,35 @@ def apply_keep_tags(radarr: Radarr, additions: list[dict], dry_run: bool) -> dic
     return {"requested": len(movie_ids), "applied": applied, "http": status}
 
 
+def plan_refusal(plan: dict, run_mode: str, now: datetime) -> str | None:
+    """Why this plan must not be acted on, or None if it may be.
+
+    Two things a plan has to prove before anything is deleted from it.
+
+    Its mode must match this run's: the ledger namespaces dry-run state under
+    its own prefix, so planning in one mode and executing in the other reads
+    rehearsal baselines and decisions while writing real ones.
+
+    And it must be recent. Live re-validation refreshes tags, collections,
+    status and current playback -- but not play history or requests. A plan left
+    behind by a failed earlier schedule therefore describes a library that has
+    moved on, and a film watched since it was written would not be protected.
+    """
+    plan_mode = plan.get("mode")
+    if plan_mode != run_mode:
+        return f"plan was made in {plan_mode!r} but this run is {run_mode!r}"
+
+    generated = utc(plan.get("generated_at"))
+    if generated is None:
+        return "plan has no usable generated_at"
+
+    max_age = float(os.environ.get("CLEANUP_MAX_PLAN_AGE_HOURS", "6"))
+    age_hours = (now - generated).total_seconds() / 3600
+    if age_hours > max_age:
+        return f"plan is {age_hours:.1f}h old, over the {max_age}h limit"
+    return None
+
+
 def cmd_execute(args: argparse.Namespace) -> int:
     """Apply Claude's recommendations, re-validating every safeguard first."""
     sources = build_sources()
@@ -575,6 +641,11 @@ def cmd_execute(args: argparse.Namespace) -> int:
         for block in plan["blocks"]:
             log(f"  BLOCK: {block}")
         return 2
+
+    refusal = plan_refusal(plan, "dry-run" if ledger.dry_run else "act", datetime.now(timezone.utc))
+    if refusal:
+        log(f"refusing to execute: {refusal}")
+        return 5
 
     tag_labels = {t["id"]: t["label"] for t in radarr.tags()}
     monitored = monitored_collection_ids(radarr.collections())
@@ -653,6 +724,12 @@ def cmd_execute(args: argparse.Namespace) -> int:
             f"deleted={len(result.deleted)} skipped={len(result.skipped)} "
             f"failed={len(result.failed)} uncertain={len(result.uncertain)}"
         )
+        # A failed or uncertain deletion is exactly the outcome someone needs to
+        # look at, and a Job that exits 0 is one nothing surfaces. Skips are not
+        # failures -- a protection firing is the system working.
+        if result.failed or result.uncertain:
+            log("exiting non-zero: some deletions failed or could not be confirmed")
+            return 4
         return 0
     finally:
         ledger.release_lock()

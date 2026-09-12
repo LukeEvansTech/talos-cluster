@@ -2,13 +2,16 @@
 # yaml-language-server: $schema=https://json.schemastore.org/kustomization
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
+# Checkov CKV_K8S_21: generated ConfigMaps need an explicit namespace rather
+# than inheriting the Flux target.
+namespace: media
 resources:
   - ./ocirepository.yaml
   - ./externalsecret.yaml
   - ./helmrelease.yaml
 configMapGenerator:
   # The engine package, mounted at /app/curator and run as `python3 -m curator`.
-  # curator-judge mounts this same ConfigMap to run `execute`, which is why the
+  # curatorjudge mounts this same ConfigMap to run `execute`, which is why the
   # name is fixed rather than hashed. Tests are deliberately not shipped.
   - name: curator-code
     files:

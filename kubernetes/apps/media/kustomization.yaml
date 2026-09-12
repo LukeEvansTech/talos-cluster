@@ -15,7 +15,7 @@ resources:
   - ./bazarr/ks.yaml
   - ./decluttarr/ks.yaml
   - ./curator/ks.yaml
-  - ./curator-judge/ks.yaml
+  - ./curatorjudge/ks.yaml
   - ./deduparr/ks.yaml
   - ./exclusion-sync/ks.yaml
   - ./fetcharr/ks.yaml

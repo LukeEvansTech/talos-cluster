@@ -13,7 +13,7 @@ spec:
     controllers:
       # Assesses the whole film library and writes cleanup-plan/plan.json to the
       # volume. Reads only: it never deletes and never changes a tag. The
-      # judgement half is the separate curator-judge app, which runs half an
+      # judgement half is the separate curatorjudge app, which runs half an
       # hour later against the plan this leaves behind.
       curator:
         type: cronjob

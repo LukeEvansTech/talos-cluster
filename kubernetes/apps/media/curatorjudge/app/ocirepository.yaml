@@ -2,7 +2,7 @@
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository
 metadata:
-  name: curator-judge
+  name: curatorjudge
 spec:
   interval: 1h
   layerSelector:
