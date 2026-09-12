@@ -211,6 +211,10 @@ class Assessment:
             "subject_counts": dict(self.subject_counts),
             "genres": list(self.film.genres),
             "studio": self.film.studio,
+            # The judge is asked to read this, and the prompt's injection
+            # handling is written against it. Omitted, it arrived as null and
+            # both were silently inert.
+            "overview": self.film.overview,
             "history_status": self.viewing.status.value,
             "identity_via": self.viewing.identity_via,
             "play_count": self.viewing.play_count,

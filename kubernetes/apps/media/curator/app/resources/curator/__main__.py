@@ -742,11 +742,18 @@ def cmd_execute(args: argparse.Namespace) -> int:
         # the DELETE may have landed, and re-running the pipeline would issue it
         # again -- exactly what _delete_one refuses to do. Those are left for
         # the next run's reconciliation, which resolves them by looking.
+        # Both surface as a Job failure. That was unsafe while the CronJob could
+        # retry -- a retry would re-run judgement and re-issue a DELETE that may
+        # already have landed -- but backoffLimit is 0, so a non-zero exit now
+        # only marks the Job failed. An ambiguous destructive operation is
+        # exactly what should be visible, and the next scheduled run still
+        # reconciles it by looking rather than by repeating the call.
         if result.uncertain:
             log(
-                f"{len(result.uncertain)} deletion(s) could not be confirmed; "
-                "left for the next run to reconcile rather than retried"
+                f"exiting non-zero: {len(result.uncertain)} deletion(s) could not be "
+                "confirmed; the next run reconciles them against live state"
             )
+            return 4
         if result.failed:
             log("exiting non-zero: some deletions failed outright")
             return 4

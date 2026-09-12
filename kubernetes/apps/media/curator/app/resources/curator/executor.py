@@ -158,12 +158,12 @@ def late_evidence(tautulli, seerr, crosswalk: dict[int, dict] | None, since: dat
     already gave the household its chance and a single play is not protection.
     Treating that pre-existing play as new would silently overturn that rule.
 
-    Returns ``(requests_by_tmdb, watched_tmdb_ids, known)``. ``known`` is False
+    Returns ``(requests_by_tmdb, watched_ids, known)``. ``known`` is False
     when either source could not be read -- an unavailable safety check is an
     unresolved one, so the caller skips rather than proceeding.
     """
     requests_by_tmdb: dict[int, dict] = {}
-    watched: set[int] = set()
+    watched: set[tuple[str, str]] = set()
     if since is None:
         return {}, set(), False
 
@@ -204,9 +204,14 @@ def late_evidence(tautulli, seerr, crosswalk: dict[int, dict] | None, since: dat
             # to the one completion it exists to catch.
             entry = _resolve_key(tautulli, int(key))
             by_key[int(key)] = entry
+        identified = False
         if entry.get("tmdb"):
-            watched.add(int(entry["tmdb"]))
-        elif entry.get("unresolved"):
+            watched.add(("tmdb", str(entry["tmdb"])))
+            identified = True
+        if entry.get("imdb"):
+            watched.add(("imdb", str(entry["imdb"])))
+            identified = True
+        if not identified:
             # A completed play we cannot attribute to any film. Refusing the
             # whole run is the safe reading: something was watched and we
             # cannot say what.
@@ -226,11 +231,14 @@ def _resolve_key(tautulli, rating_key: int) -> dict:
     for guid in meta.get("guids") or []:
         if guid.startswith("tmdb://"):
             suffix = guid.removeprefix("tmdb://")
-            ids["tmdb"] = int(suffix) if suffix.isdigit() else None
+            if suffix.isdigit():
+                ids["tmdb"] = int(suffix)
+        elif guid.startswith("imdb://"):
+            ids["imdb"] = guid.removeprefix("imdb://")
     return ids or {"unresolved": True}
 
 
-def late_evidence_block(film, requests_by_tmdb: dict[int, dict], watched_tmdb_ids: set[int]) -> str | None:
+def late_evidence_block(film, requests_by_tmdb: dict[int, dict], watched_ids: set[tuple[str, str]]) -> str | None:
     """Whether something happened between planning and now that protects a film.
 
     Live re-validation covers tags, collections, status, file presence and
@@ -242,7 +250,13 @@ def late_evidence_block(film, requests_by_tmdb: dict[int, dict], watched_tmdb_id
     if film.tmdb_id and film.tmdb_id in requests_by_tmdb:
         who = (requests_by_tmdb[film.tmdb_id] or {}).get("requested_by") or "someone"
         return f"requested by {who} since the plan was made"
-    if film.tmdb_id and film.tmdb_id in watched_tmdb_ids:
+    # Either identifier will do. The crosswalk holds IMDb-only entries, so
+    # matching on tmdb alone dropped those completions silently -- the same
+    # blindness one identifier further along.
+    identity = {("tmdb", str(film.tmdb_id))} if film.tmdb_id else set()
+    if film.imdb_id:
+        identity.add(("imdb", str(film.imdb_id)))
+    if identity & watched_ids:
         return "completed by someone since the plan was made"
     return None
 
@@ -283,7 +297,7 @@ def execute(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         now_playing, activity_known = set(), False
         result.skipped.append({"why": f"activity check unavailable: {exc}"})
 
-    requests_by_tmdb, watched_tmdb_ids, late_known = late_evidence(tautulli, seerr, crosswalk, planned_at)
+    requests_by_tmdb, watched_ids, late_known = late_evidence(tautulli, seerr, crosswalk, planned_at)
     if not late_known:
         result.skipped.extend(
             {
@@ -310,7 +324,7 @@ def execute(  # pylint: disable=too-many-arguments,too-many-positional-arguments
             result.skipped.append({**record, "why": "could not confirm nobody is watching it"})
             continue
 
-        late = late_evidence_block(film, requests_by_tmdb, watched_tmdb_ids)
+        late = late_evidence_block(film, requests_by_tmdb, watched_ids)
         if late:
             result.skipped.append({**record, "why": late})
             continue

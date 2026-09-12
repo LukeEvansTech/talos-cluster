@@ -169,7 +169,8 @@ class LateEvidenceWindowTests(unittest.TestCase):
     def test_a_play_after_the_plan_is_caught(self):
         new_play = int((NOW + timedelta(minutes=20)).timestamp())
         _, watched, _ = late_evidence(self._Tautulli(self._rows(new_play)), None, self.CROSSWALK, NOW)
-        self.assertEqual(watched, {555})
+        # Both identifiers are recorded, so a film carrying either is matched.
+        self.assertEqual(watched, {("tmdb", "555"), ("imdb", "tt555")})
 
     def test_an_unknown_plan_time_refuses_rather_than_guesses(self):
         _, _, known = late_evidence(self._Tautulli([]), None, self.CROSSWALK, None)
@@ -191,13 +192,14 @@ class LateEvidenceTests(unittest.TestCase):
 
     def test_a_completion_since_the_plan_blocks_the_delete(self):
         film = make_film(tmdb_id=555)
-        self.assertIn("completed by someone", late_evidence_block(film, {}, {555}))
+        self.assertIn("completed by someone", late_evidence_block(film, {}, {("tmdb", "555")}))
 
     def test_an_untouched_film_is_not_blocked(self):
-        self.assertIsNone(late_evidence_block(make_film(tmdb_id=555), {}, {999}))
+        self.assertIsNone(late_evidence_block(make_film(tmdb_id=555), {}, {("tmdb", "999")}))
 
     def test_a_film_with_no_tmdb_id_is_not_matched_by_accident(self):
-        self.assertIsNone(late_evidence_block(make_film(tmdb_id=None), {555: {}}, {555}))
+        film = make_film(tmdb_id=None, imdb_id=None)
+        self.assertIsNone(late_evidence_block(film, {555: {}}, {("tmdb", "555")}))
 
 
 class KeepBarIsAProtectionTests(unittest.TestCase):
@@ -293,7 +295,7 @@ class FirstCompletionIsCaughtTests(unittest.TestCase):
         tautulli = self._Tautulli(self._row(9999, after), metadata={9999: {"guids": ["tmdb://555", "imdb://tt555"]}})
         _, watched, known = late_evidence(tautulli, None, {}, NOW)
         self.assertTrue(known)
-        self.assertEqual(watched, {555})
+        self.assertEqual(watched, {("tmdb", "555"), ("imdb", "tt555")})
         self.assertEqual(tautulli.lookups, [9999])
 
     def test_an_unattributable_completion_stops_the_run(self):
@@ -356,3 +358,29 @@ class SubjectBucketTests(unittest.TestCase):
         self.assertNotEqual(_subject_bucket(56), _subject_bucket(2))
         buckets = [_subject_bucket(n) for n in range(4000)]
         self.assertFalse(any(b < 25 and buckets.count(b) > 1 for b in set(buckets)))
+
+
+class ImdbOnlyCompletionsAreSeenTests(unittest.TestCase):
+    """The crosswalk holds IMDb-only entries, and they count.
+
+    _match_rating_keys has always supported matching a film by IMDb id when
+    TMDb is absent. The late-evidence gate did not, so a completion on such a
+    film was dropped without a word -- the same blindness one identifier
+    further along.
+    """
+
+    def test_a_cached_imdb_only_entry_still_blocks(self):
+        film = make_film(tmdb_id=None, imdb_id="tt0000001")
+        self.assertIn(
+            "completed by someone",
+            late_evidence_block(film, {}, {("imdb", "tt0000001")}),
+        )
+
+    def test_a_film_matched_by_either_identifier_blocks(self):
+        film = make_film(tmdb_id=1000, imdb_id="tt0000001")
+        self.assertIsNotNone(late_evidence_block(film, {}, {("imdb", "tt0000001")}))
+        self.assertIsNotNone(late_evidence_block(film, {}, {("tmdb", "1000")}))
+
+    def test_a_different_film_on_either_identifier_does_not_block(self):
+        film = make_film(tmdb_id=1000, imdb_id="tt0000001")
+        self.assertIsNone(late_evidence_block(film, {}, {("imdb", "tt9999999")}))
