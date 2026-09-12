@@ -4,15 +4,15 @@
 
 [NetBox](https://github.com/netbox-community/netbox) provides DCIM (data centre infrastructure
 management) and IPAM (IP address management): the source of truth for devices, racks, prefixes, and
-IP allocations. It runs internal-only in the `default` namespace: a web frontend, an RQ background
-worker (webhooks, scripts, reports), and a daily housekeeping CronJob.
+IP allocations. It runs internal-only in the `default` namespace: a web frontend and an RQ
+background worker (webhooks, scripts, reports, and the daily housekeeping system job).
 
 ## Design decisions
 
 NetBox is one of the few apps here that does **not** use the bjw-s `app-template` chart. It uses the
 official **`netbox-chart`** (`oci://ghcr.io/netbox-community/netbox-chart/netbox`) via an
-`OCIRepository` + `chartRef`, because NetBox's multi-workload topology (web + worker + housekeeping)
-and its `existingSecret` contract are already modelled by the upstream chart.
+`OCIRepository` + `chartRef`, because NetBox's multi-workload topology (web + worker) and its
+`existingSecret` contract are already modelled by the upstream chart.
 
 - **Namespace** `default`, modelled on the in-repo `paperless` app (its closest twin).
 - **PostgreSQL**: shared CNPG cluster (`postgres18-rw.database.svc.cluster.local`, `sslmode=require`);
@@ -51,10 +51,16 @@ and its `existingSecret` contract are already modelled by the upstream chart.
     flate build hr netbox -n default --path kubernetes/flux/cluster
     ```
 
-- **Web, worker, and housekeeping share one RWO `media` PVC, so they must co-locate.** With a
-  ReadWriteOnce `ceph-block` claim, scheduling the pods onto different nodes deadlocks on
-  `Multi-Attach` during a rollout. Pin them together with podAffinity (anchor on the worker) or hit
-  a stuck rollout.
+- **Web and worker share one RWO `media` PVC, so they must co-locate.** With a ReadWriteOnce
+  `ceph-block` claim, scheduling the pods onto different nodes deadlocks on `Multi-Attach` during a
+  rollout. Pin them together with podAffinity (anchor on the worker) or hit a stuck rollout.
+- **The chart's housekeeping CronJob is disabled, deliberately.** v4.7.0 removed
+  `manage.py housekeeping`, the command that CronJob runs, and moved the work into an internal RQ
+  system job that `manage.py rqworker` schedules itself, so the worker is now the only component
+  housekeeping needs. The chart has not caught up and still defaults it on, which costs a daily
+  `KubeJobFailed`. Do not "fix" this by deploying an `rqscheduler` — see
+  [KB-032](../troubleshooting/kb/032-netbox-housekeeping-removed-command-and-wedged-system-job.md),
+  which also covers how the internal job wedges permanently and how to un-wedge it.
 - **Granian web OOMs at the chart's default 4 workers** (peaks ~956Mi against a 1Gi limit). Set
   `GRANIAN_WORKERS=2` and give the web pod request 512Mi / limit 1.5Gi.
 - **Django host guarding rejects unlisted Host headers, including kubelet probes.** `ALLOWED_HOSTS`
