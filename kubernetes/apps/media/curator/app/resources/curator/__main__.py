@@ -205,7 +205,9 @@ def resolve_identities(
 
     fresh: dict[int, dict] = {}
     retired: dict[int, dict] = {}
+    unreachable: dict[int, dict] = {}
     for key in missing:
+        answered = True
         try:
             meta = tautulli.metadata(key)
         except SourceError as exc:
@@ -214,23 +216,31 @@ def resolve_identities(
             # whole run. Recording it unresolved taints the zero, which sends
             # any film sharing the title to review.
             log(f"  rating key {key} could not be resolved ({exc}); treating it as unresolved")
-            meta = None
+            meta, answered = None, False
         if meta:
             fresh[key] = meta
-        else:
-            sample = rows_by_key[key][0]
-            retired[key] = {
-                "tmdb": None,
-                "imdb": None,
-                "title": sample.get("title") or sample.get("full_title"),
-                "year": sample.get("year"),
-                "unresolved": True,
-            }
+            continue
+        sample = rows_by_key[key][0]
+        entry = {
+            "tmdb": None,
+            "imdb": None,
+            "title": sample.get("title") or sample.get("full_title"),
+            "year": sample.get("year"),
+            "unresolved": True,
+        }
+        (retired if answered else unreachable)[key] = entry
     if fresh:
         crosswalk.update(build_crosswalk(fresh))
     crosswalk.update(retired)
     if fresh or retired:
         ledger.write_crosswalk(crosswalk)
+    # Merged after the write, never into it. The crosswalk is durable and is
+    # only consulted for keys it does not already hold, so persisting an outage
+    # would mean never asking about that key again -- and a play that stays
+    # unattributed can only be matched back by title, which finds nothing at all
+    # when Plex and Radarr disagree about the title. The film then reads as
+    # never watched, permanently, on the strength of one timeout.
+    crosswalk.update(unreachable)
 
     unattributed_keys = {k for k, v in crosswalk.items() if v.get("unresolved")}
     unattributed = [row for key in unattributed_keys for row in rows_by_key.get(key, [])]

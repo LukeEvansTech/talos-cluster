@@ -112,7 +112,13 @@ import-list provenance tag that difference is the entire authorisation to delete
 it — execution only re-reads requests made _since_ the plan, so a request made
 before an outage would never be seen again. The same rule is why a `get_metadata`
 timeout is now raised rather than returned as "no such item": swallowed, it let
-the active-session check quietly drop the film somebody was watching.
+the active-session check quietly drop the film somebody was watching. The
+sharpest version is an outage written into a _durable_ cache: the rating-key
+crosswalk is only consulted for keys it does not already hold, so a timeout
+recorded there is never asked about again. Those plays can then only be matched
+back by title, which finds nothing when Plex and Radarr disagree about one — and
+the film reads as never watched, permanently, on the strength of one bad minute.
+An authoritative "no such item" is cached; a failure to ask is not.
 
 **A history row that is still playing carries no row ID.** Tautulli lists the
 in-progress session in `get_history` and counts it in `recordsFiltered`, but the

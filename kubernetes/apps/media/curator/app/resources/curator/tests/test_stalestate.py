@@ -20,6 +20,7 @@ from types import SimpleNamespace
 from typing import Any
 
 from curator import __main__ as cli
+from curator.__main__ import resolve_identities
 from curator.clients import SourceError
 from curator.executor import execute, volatile_block
 from curator.model import Assessment, Outcome
@@ -176,6 +177,69 @@ class EngineRefusesLeftoversTests(unittest.TestCase):
 def _sources() -> SimpleNamespace:
     """Just enough of build_sources() for the guard above it to run."""
     return SimpleNamespace(radarr=FakeRadarr({}), ledger=SimpleNamespace(dry_run=True), run_id="run-execute")
+
+
+class CachedOutageTests(unittest.TestCase):
+    """An outage written into a durable cache is never asked about again."""
+
+    def rows(self) -> dict[int, list[dict]]:
+        """History rows for two Plex rating keys."""
+        return {
+            900: [{"title": "The Quiet Hour", "year": 2026}],
+            901: [{"title": "Elsewhere", "year": 2026}],
+        }
+
+    def test_a_timeout_is_not_written_into_the_crosswalk(self):
+        ledger = _Crosswalk()
+        crosswalk, unattributed = resolve_identities(_Metadata({900: SourceError("timeout")}), ledger, self.rows())
+        # Tainted for this run, so films sharing the title go to review ...
+        self.assertTrue(crosswalk[900]["unresolved"])
+        self.assertEqual(len(unattributed), 1)
+        # ... but not remembered, so next week asks again.
+        self.assertNotIn(900, ledger.written)
+
+    def test_an_authoritative_absence_is_remembered(self):
+        """A retired rating key really is gone; asking again every week is waste."""
+        ledger = _Crosswalk()
+        crosswalk, _ = resolve_identities(_Metadata({900: None}), ledger, self.rows())
+        self.assertTrue(crosswalk[900]["unresolved"])
+        self.assertTrue(ledger.written[900]["unresolved"])
+
+    def test_a_key_that_resolved_is_remembered(self):
+        ledger = _Crosswalk()
+        resolve_identities(_Metadata({}), ledger, self.rows())
+        self.assertEqual(ledger.written[901]["tmdb"], 555)
+
+
+class _Metadata:
+    """A Tautulli whose metadata lookups can fail per rating key."""
+
+    def __init__(self, behaviour: dict[int, Any]):
+        self.behaviour = behaviour
+
+    def metadata(self, rating_key: int):
+        """Raise, answer "no such item", or resolve, depending on the key."""
+        if rating_key in self.behaviour:
+            outcome = self.behaviour[rating_key]
+            if isinstance(outcome, Exception):
+                raise outcome
+            return outcome
+        return {"guids": ["tmdb://555", "imdb://tt0000555"], "title": "Elsewhere", "year": "2026"}
+
+
+class _Crosswalk:
+    """A ledger that records what was actually persisted."""
+
+    def __init__(self):
+        self.written: dict[int, dict] = {}
+
+    def read_crosswalk(self) -> dict[int, dict]:
+        """What earlier runs persisted."""
+        return dict(self.written)
+
+    def write_crosswalk(self, crosswalk: dict[int, dict]) -> None:
+        """Persist the map."""
+        self.written = dict(crosswalk)
 
 
 class VolatileEvidenceTests(unittest.TestCase):
