@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unittest
 from dataclasses import replace
+from datetime import datetime, timedelta, timezone
 
 from curator.clients import SourceError
 from curator.executor import (
@@ -28,6 +29,9 @@ from .fixtures import (
 )
 
 TAGS = {1: "keep", 2: "keep-review", 3: "cleanup-keep", 4: "src-tmdb-popular"}
+
+# The moment the plan was made; the late-evidence gate compares against it.
+PLANNED_AT = datetime.now(timezone.utc) - timedelta(minutes=30)
 
 
 def movie_record(movie_id=1, tags=None, tmdb_id=1000, status="released", has_file=True):
@@ -77,6 +81,12 @@ class RecommendationValidationTests(unittest.TestCase):
         )
         self.assertEqual(len(accepted), 1)
         self.assertEqual(rejected, [])
+
+    def test_a_scalar_in_place_of_a_recommendation_is_rejected(self):
+        """A syntactically valid array can still hold `[null]` or `["review"]`."""
+        accepted, rejected = validate_recommendations([None, "review", 7], self.candidates)
+        self.assertEqual(accepted, [])
+        self.assertEqual(len(rejected), 3)
 
     def test_unknown_movie_id_is_rejected(self):
         _, rejected = validate_recommendations(
@@ -207,7 +217,9 @@ class ExecutionTests(unittest.TestCase):
     def test_dry_run_writes_intent_but_never_an_outcome(self):
         radarr = FakeRadarr({1: movie_record()}, TAGS)
         ledger = self.ledger(dry_run=True)
-        result = execute([assessment()], radarr, FakeTautulli(), ledger, TAGS, set(), dry_run=True)
+        result = execute(
+            [assessment()], radarr, FakeTautulli(), ledger, TAGS, set(), dry_run=True, planned_at=PLANNED_AT
+        )
         self.assertEqual(len(result.deleted), 1)
         self.assertTrue(result.deleted[0]["simulated"])
         self.assertEqual(radarr.deleted, [], "dry run must not delete anything")
@@ -221,7 +233,9 @@ class ExecutionTests(unittest.TestCase):
     def test_act_deletes_and_records_the_outcome(self):
         radarr = FakeRadarr({1: movie_record()}, TAGS)
         ledger = self.ledger(dry_run=False)
-        result = execute([assessment()], radarr, FakeTautulli(), ledger, TAGS, set(), dry_run=False)
+        result = execute(
+            [assessment()], radarr, FakeTautulli(), ledger, TAGS, set(), dry_run=False, planned_at=PLANNED_AT
+        )
         self.assertEqual(radarr.deleted, [1])
         self.assertEqual(len(result.deleted), 1)
         self.assertEqual(self.s3.loads("runs/run-test/outcome/1.json")["status"], "deleted")
@@ -237,6 +251,7 @@ class ExecutionTests(unittest.TestCase):
             TAGS,
             set(),
             dry_run=False,
+            planned_at=PLANNED_AT,
         )
         self.assertEqual(len(result.failed), 1)
         self.assertEqual(len(result.deleted), 0)
@@ -252,6 +267,7 @@ class ExecutionTests(unittest.TestCase):
             TAGS,
             set(),
             dry_run=False,
+            planned_at=PLANNED_AT,
         )
         self.assertEqual(len(result.uncertain), 1)
         self.assertEqual(len(result.deleted), 0)
@@ -269,6 +285,7 @@ class ExecutionTests(unittest.TestCase):
             TAGS,
             set(),
             dry_run=False,
+            planned_at=PLANNED_AT,
         )
         self.assertEqual(len(result.deleted), 1)
         self.assertIn("after a transport error", result.deleted[0]["note"])
@@ -284,12 +301,20 @@ class ExecutionTests(unittest.TestCase):
             TAGS,
             set(),
             dry_run=False,
+            planned_at=PLANNED_AT,
         )
         self.assertEqual(len(result.uncertain), 1)
         self.assertEqual(radarr.deleted, [])
         self.assertEqual(self.s3.loads("runs/run-test/outcome/1.json")["status"], "uncertain")
 
     def test_unavailable_activity_check_skips_rather_than_proceeds(self):
+        """An unavailable safety check is an unresolved one, not a passed one.
+
+        Asserted on the outcome rather than the wording: Tautulli backs both the
+        current-playback check and the late-completion check, so which message
+        fires first is an implementation detail. What matters is that nothing is
+        deleted and the run says why.
+        """
         radarr = FakeRadarr({1: movie_record()}, TAGS)
         tautulli = FakeTautulli(raise_error=SourceError("tautulli down"))
         result = execute(
@@ -300,9 +325,11 @@ class ExecutionTests(unittest.TestCase):
             TAGS,
             set(),
             dry_run=False,
+            planned_at=PLANNED_AT,
         )
         self.assertEqual(radarr.deleted, [])
-        self.assertTrue(any("could not confirm nobody is watching" in s.get("why", "") for s in result.skipped))
+        self.assertEqual(result.deleted, [])
+        self.assertTrue(any("could not" in item.get("why", "") for item in result.skipped))
 
     def test_partial_failure_does_not_stop_the_batch(self):
         radarr = FakeRadarr({1: movie_record(1), 2: movie_record(2, tmdb_id=2000)}, TAGS)
@@ -315,6 +342,7 @@ class ExecutionTests(unittest.TestCase):
             TAGS,
             set(),
             dry_run=False,
+            planned_at=PLANNED_AT,
         )
         self.assertEqual(len(result.failed), 1)
         self.assertEqual(len(result.deleted), 1)

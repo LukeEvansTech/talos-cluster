@@ -38,3 +38,23 @@ spec:
     - fromEndpoints:
         - matchLabels:
             io.kubernetes.pod.namespace: ai
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/cilium.io/ciliumnetworkpolicy_v2.json
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: allow-chaski-from-media
+spec:
+  # The curatorjudge CronJob (media) posts its weekly digest straight to
+  # chaski's ClusterIP rather than out through the gateway and back. Additive
+  # to the namespace-wide policy above (Cilium unions allows), which otherwise
+  # admits only the network namespace.
+  description: "Allow the curatorjudge job (media) to reach chaski"
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: chaski
+  ingress:
+    - fromEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: media
+            app.kubernetes.io/name: curatorjudge

@@ -117,6 +117,21 @@ class TautulliPaginationTests(unittest.TestCase):
         self.assertEqual(len({r["row_id"] for r in rows}), len(rows))
         self.assertEqual(meta["duplicates_skipped"], 1)
 
+    def test_an_in_progress_session_does_not_make_history_read_as_incomplete(self):
+        """Tautulli lists a playing session with no row id, and it counts.
+
+        Dropped, `retrieved` came up one short of the declared count, the run
+        blocked on "play history not usable", and nothing happened -- every time
+        somebody happened to be watching a film when the job fired.
+        """
+        playing = play_row(1, 10, 34, 1)
+        playing["row_id"] = playing["id"] = None
+        client = Tautulli("http://t", "k", opener=_Opener([history_page([play_row(1, 11, 95, 2), playing], 2)]))
+        rows, meta = client.movie_history(page_size=500)
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(meta["without_id"], 1)
+        self.assertTrue(meta["complete"])
+
     def test_short_retrieval_is_reported_as_incomplete(self):
         """Fewer rows than declared must not read as a complete history."""
         client = Tautulli(

@@ -13,7 +13,8 @@ from datetime import datetime, timezone
 from typing import Any
 
 from .clients import Radarr, SourceError, Tautulli
-from .model import VETO_TAGS, Assessment
+from .evidence import COMPLETION_PERCENT
+from .model import VETO_TAGS, Assessment, utc
 
 
 @dataclass
@@ -47,7 +48,11 @@ def validate_recommendations(
     """
     accepted: list[dict] = []
     rejected: list[dict] = []
+    seen: set[int] = set()
     for item in recommendations:
+        if not isinstance(item, dict):
+            rejected.append({"item": item, "why": "recommendation is not an object"})
+            continue
         movie_id = item.get("movie_id")
         verdict = str(item.get("verdict", "")).lower()
         reason = str(item.get("reason", "")).strip()
@@ -63,6 +68,12 @@ def validate_recommendations(
         if verdict == "delete" and len(reason) < 12:
             rejected.append({"movie_id": movie_id, "why": "delete without a stated reason"})
             continue
+        if movie_id in seen:
+            # A film judged twice has been judged two ways. Taking both would
+            # delete it and then record a decision to spare the same film.
+            rejected.append({"movie_id": movie_id, "why": "judged more than once"})
+            continue
+        seen.add(movie_id)
         accepted.append({"movie_id": movie_id, "verdict": verdict, "reason": reason})
     return accepted, rejected
 
@@ -148,7 +159,149 @@ def revalidate(
     return True, "all protections re-checked against live state", live
 
 
-def execute(
+def late_evidence(tautulli, seerr, crosswalk: dict[int, dict] | None, since: datetime | None):
+    """Re-read the two things that change outside Radarr, at execution time.
+
+    Only evidence dated **after** ``since`` -- the moment the plan was made --
+    counts. Blocking on everything would be stricter but wrong: a film with one
+    completion reaches the candidate list by design, because the viewing window
+    already gave the household its chance and a single play is not protection.
+    Treating that pre-existing play as new would silently overturn that rule.
+
+    Returns ``(requests_by_tmdb, watched_ids, known)``. ``known`` is False
+    when either source could not be read -- an unavailable safety check is an
+    unresolved one, so the caller skips rather than proceeding.
+    """
+    requests_by_tmdb: dict[int, dict] = {}
+    watched: set[tuple[str, str]] = set()
+    if since is None:
+        return {}, set(), False
+
+    if seerr is not None:
+        try:
+            for tmdb_id, request in seerr.movie_requests().items():
+                created = utc(request.get("created_at"))
+                if created and created > since:
+                    requests_by_tmdb[tmdb_id] = request
+        except SourceError:
+            return {}, set(), False
+
+    if tautulli is None:
+        return requests_by_tmdb, watched, False
+    try:
+        rows, meta = tautulli.movie_history()
+    except SourceError:
+        return {}, set(), False
+    if not meta.get("complete"):
+        return {}, set(), False
+
+    cutoff = since.timestamp()
+    by_key: dict[int, dict] = dict(crosswalk or {})
+    for row in rows:
+        key = row.get("rating_key")
+        if key in (None, "") or int(row.get("percent_complete") or 0) < COMPLETION_PERCENT:
+            continue
+        stopped = row.get("stopped") or row.get("date")
+        if not str(stopped).isdigit() or int(stopped) <= cutoff:
+            continue
+
+        entry = by_key.get(int(key))
+        if entry is None:
+            # The crosswalk is built from keys already present in history when
+            # the plan ran, so a film played for the FIRST time since then is
+            # missing from it -- and a zero-play film is exactly what a
+            # candidate is. Without resolving it here the gate would be blind
+            # to the one completion it exists to catch.
+            entry = _resolve_key(tautulli, int(key))
+            by_key[int(key)] = entry
+        identified = False
+        if entry.get("tmdb"):
+            watched.add(("tmdb", str(entry["tmdb"])))
+            identified = True
+        if entry.get("imdb"):
+            watched.add(("imdb", str(entry["imdb"])))
+            identified = True
+        if not identified:
+            # A completed play we cannot attribute to any film. Refusing the
+            # whole run is the safe reading: something was watched and we
+            # cannot say what.
+            return requests_by_tmdb, watched, False
+    return requests_by_tmdb, watched, True
+
+
+def _resolve_key(tautulli, rating_key: int) -> dict:
+    """Look up one Plex item's external ids, for a key seen since the plan."""
+    try:
+        meta = tautulli.metadata(rating_key)
+    except SourceError:
+        return {"unresolved": True}
+    if not meta:
+        return {"unresolved": True}
+    ids: dict = {}
+    for guid in meta.get("guids") or []:
+        if guid.startswith("tmdb://"):
+            suffix = guid.removeprefix("tmdb://")
+            if suffix.isdigit():
+                ids["tmdb"] = int(suffix)
+        elif guid.startswith("imdb://"):
+            ids["imdb"] = guid.removeprefix("imdb://")
+    return ids or {"unresolved": True}
+
+
+def late_evidence_block(film, requests_by_tmdb: dict[int, dict], watched_ids: set[tuple[str, str]]) -> str | None:
+    """Whether something happened between planning and now that protects a film.
+
+    Live re-validation covers tags, collections, status, file presence and
+    current playback -- all state Radarr holds. It does not cover the two things
+    that change outside Radarr: somebody requesting a film, and somebody
+    finishing one. A plan is at least half an hour old by the time it is acted
+    on, so both are reachable, and neither leaves a trace the other checks see.
+    """
+    if film.tmdb_id and film.tmdb_id in requests_by_tmdb:
+        who = (requests_by_tmdb[film.tmdb_id] or {}).get("requested_by") or "someone"
+        return f"requested by {who} since the plan was made"
+    # Either identifier will do. The crosswalk holds IMDb-only entries, so
+    # matching on tmdb alone dropped those completions silently -- the same
+    # blindness one identifier further along.
+    identity = {("tmdb", str(film.tmdb_id))} if film.tmdb_id else set()
+    if film.imdb_id:
+        identity.add(("imdb", str(film.imdb_id)))
+    if identity & watched_ids:
+        return "completed by someone since the plan was made"
+    return None
+
+
+def volatile_block(film, tautulli, seerr, crosswalk: dict[int, dict] | None, since: datetime | None) -> str | None:
+    """Re-read, for one film, the evidence that moves while the batch is running.
+
+    ``revalidate`` re-reads Radarr per film, but the two checks that live
+    outside Radarr -- who is watching now, and what has been requested or
+    finished since the plan -- were read once, before the loop. A batch of up to
+    thirty deletions takes minutes, and starting a film is a thing that takes
+    seconds: the last deletion in a batch was being judged on evidence gathered
+    before the first one happened. So this runs immediately before the
+    destructive call, and an answer it cannot get is a refusal.
+    """
+    if tautulli is None:
+        return "could not re-confirm nobody is watching it"
+    try:
+        playing = tautulli.now_playing_ids()
+    except SourceError as exc:
+        return f"could not re-confirm nobody is watching it: {exc}"
+
+    identity = {("tmdb", str(film.tmdb_id))} if film.tmdb_id else set()
+    if film.imdb_id:
+        identity.add(("imdb", str(film.imdb_id)))
+    if identity & playing:
+        return "somebody started watching it during this run"
+
+    requests_by_tmdb, watched_ids, known = late_evidence(tautulli, seerr, crosswalk, since)
+    if not known:
+        return "could not re-read plays and requests during this run"
+    return late_evidence_block(film, requests_by_tmdb, watched_ids)
+
+
+def execute(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     approved: list[Assessment],
     radarr: Radarr,
     tautulli: Tautulli | None,
@@ -156,6 +309,9 @@ def execute(
     tag_labels: dict[int, str],
     monitored_collection_tmdb_ids: set[int],
     dry_run: bool = True,
+    seerr=None,
+    crosswalk: dict[int, dict] | None = None,
+    planned_at: datetime | None = None,
 ) -> ExecutionResult:
     """Delete the approved films, re-validating each one first."""
     result = ExecutionResult()
@@ -181,6 +337,18 @@ def execute(
         now_playing, activity_known = set(), False
         result.skipped.append({"why": f"activity check unavailable: {exc}"})
 
+    requests_by_tmdb, watched_ids, late_known = late_evidence(tautulli, seerr, crosswalk, planned_at)
+    if not late_known:
+        result.skipped.extend(
+            {
+                "movie_id": a.film.movie_id,
+                "title": a.film.title,
+                "why": "could not re-read plays and requests made since the plan",
+            }
+            for a in approved
+        )
+        return result
+
     for assessment in approved:
         film = assessment.film
         record = {
@@ -196,6 +364,11 @@ def execute(
             result.skipped.append({**record, "why": "could not confirm nobody is watching it"})
             continue
 
+        late = late_evidence_block(film, requests_by_tmdb, watched_ids)
+        if late:
+            result.skipped.append({**record, "why": late})
+            continue
+
         try:
             ok, why, live = revalidate(
                 film.movie_id,
@@ -209,6 +382,14 @@ def execute(
             continue
         if not ok:
             result.skipped.append({**record, "why": why})
+            continue
+
+        # Last, because it is the check closest in time to the delete. Run in
+        # dry-run too: a report that skipped this would describe a batch nobody
+        # is going to run.
+        moved = volatile_block(film, tautulli, seerr, crosswalk, planned_at)
+        if moved:
+            result.skipped.append({**record, "why": moved})
             continue
 
         ledger.record_intent({**record, "restore": restore_snapshot(live or {})}, assessment.to_json())

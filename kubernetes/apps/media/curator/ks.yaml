@@ -1,0 +1,36 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/kustomize.toolkit.fluxcd.io/kustomization_v1.json
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: &app curator
+  namespace: &namespace media
+spec:
+  commonMetadata:
+    labels:
+      app.kubernetes.io/name: *app
+  components:
+    # The ledger lives on this volume: the validated baseline, standing
+    # spare/dismissal decisions, the Plex identity crosswalk, and the
+    # intent/outcome records for every deletion. Losing it does not just lose
+    # history -- anomaly detection has no yardstick and every settled judgement
+    # is re-litigated, so it is worth snapshotting.
+    - ../../../../components/volsync
+  dependsOn:
+    - name: onepassword-connect
+      namespace: external-secrets
+  interval: 1h
+  path: ./kubernetes/apps/media/curator/app
+  postBuild:
+    substitute:
+      APP: *app
+      VOLSYNC_CAPACITY: 2Gi
+  prune: true
+  retryInterval: 2m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+    namespace: flux-system
+  targetNamespace: *namespace
+  timeout: 5m
+  wait: false

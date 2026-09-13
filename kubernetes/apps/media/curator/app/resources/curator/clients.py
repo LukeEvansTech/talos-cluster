@@ -23,6 +23,16 @@ class SourceError(RuntimeError):
         self.status = status
 
 
+class ResultError(SourceError):
+    """The service answered, and its answer was "no".
+
+    Kept apart from its parent because the two mean opposite things for safety.
+    A refusal is information -- this rating key no longer exists. A timeout is
+    the absence of information, and treating the two alike turns "I could not
+    check" into "I checked, and it is fine".
+    """
+
+
 class _Http:
     """Shared JSON-over-HTTP plumbing with explicit timeouts."""
 
@@ -213,7 +223,7 @@ class Tautulli:
         payload = self.http.get_json("/api/v2", params=query)
         response = (payload or {}).get("response") or {}
         if response.get("result") != "success":
-            raise SourceError(f"Tautulli {cmd} returned result={response.get('result')!r}")
+            raise ResultError(f"Tautulli {cmd} returned result={response.get('result')!r}")
         return response.get("data")
 
     def preflight(self) -> str:
@@ -237,6 +247,7 @@ class Tautulli:
         start = 0
         declared: int | None = None
         duplicates = 0
+        without_id = 0
         for _ in range(max_pages):
             data = self._call(
                 "get_history",
@@ -254,6 +265,15 @@ class Tautulli:
             for row in page:
                 row_id = row.get("row_id") or row.get("id")
                 if row_id is None:
+                    # Tautulli lists an in-progress session with no row id yet.
+                    # Dropping it made `retrieved` one short of the declared
+                    # count, which reads as incomplete history and blocks the
+                    # entire run -- so any run that overlapped with somebody
+                    # watching a film did nothing at all. It cannot be
+                    # de-duplicated, but a play counted twice only ever argues
+                    # against deleting something.
+                    rows.append(row)
+                    without_id += 1
                     continue
                 if int(row_id) in seen:
                     duplicates += 1
@@ -268,15 +288,22 @@ class Tautulli:
             "declared": declared,
             "retrieved": len(rows),
             "duplicates_skipped": duplicates,
+            "without_id": without_id,
             "complete": declared is not None and len(rows) >= int(declared),
         }
         return rows, meta
 
     def metadata(self, rating_key: int) -> dict | None:
-        """Item metadata, for the external IDs behind a rating key."""
+        """Item metadata, for the external IDs behind a rating key.
+
+        None means Tautulli answered and has no such item. A timeout or a server
+        error is raised instead: swallowing it here let `now_playing_ids` drop
+        the film somebody is watching right now while the caller still believed
+        the activity check had run.
+        """
         try:
             data = self._call("get_metadata", rating_key=rating_key)
-        except SourceError:
+        except ResultError:
             return None
         return data if isinstance(data, dict) and data else None
 

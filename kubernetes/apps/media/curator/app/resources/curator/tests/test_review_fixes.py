@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import unittest
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from curator.__main__ import apply_keep_tags, rehydrate
@@ -32,6 +33,9 @@ from .fixtures import (
     make_viewing,
 )
 from .test_executor import TAGS, assessment, movie_record
+
+# The moment the plan was made; the late-evidence gate compares against it.
+PLANNED_AT = datetime.now(timezone.utc) - timedelta(minutes=30)
 
 
 def context(**overrides) -> PlanContext:
@@ -66,6 +70,7 @@ class ReadFailureIsNotConfirmation(unittest.TestCase):
             TAGS,
             set(),
             dry_run=False,
+            planned_at=PLANNED_AT,
         )
         self.assertEqual(len(result.uncertain), 1)
         self.assertEqual(len(result.deleted), 0)
@@ -92,6 +97,7 @@ class RecoverabilityIsRecheckedLive(unittest.TestCase):
             TAGS,
             set(),
             dry_run=False,
+            planned_at=PLANNED_AT,
         )
         self.assertEqual(radarr.deleted, [])
         self.assertEqual(len(result.skipped), 1)
@@ -112,6 +118,7 @@ class ActivityCheckCoversUnwatchedFilms(unittest.TestCase):
             TAGS,
             set(),
             dry_run=False,
+            planned_at=PLANNED_AT,
         )
         self.assertEqual(radarr.deleted, [])
         self.assertIn("watching it right now", result.skipped[0]["why"])
@@ -133,6 +140,7 @@ class IntentCarriesRestoreState(unittest.TestCase):
             TAGS,
             set(),
             dry_run=True,
+            planned_at=PLANNED_AT,
         )
         intent = json.loads(s3.store["dry-run/runs/r1/intent/1.json"])
         restore = intent["movie"]["restore"]
