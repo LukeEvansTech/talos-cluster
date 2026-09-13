@@ -24,6 +24,15 @@ spec:
       resources:
         limits:
           memory: 512Mi
+    # Publish CSIStorageCapacity so the scheduler steers a WaitForFirstConsumer
+    # pod onto a node whose pool can actually hold the volume. Without it the
+    # scheduler is blind to pool usage and simply lands somewhere, leaving
+    # CreateVolume to refuse: nearly every volsync cache accreted onto one
+    # node, so when #5098 raised them to 16Gi that node crossed the 2x
+    # overcommit guard with ~3Gi to spare and started refusing new volumes and
+    # pending resizes outright, while its two peers sat under 12% provisioned.
+    storageCapacity:
+      enabled: true
     groupSnapshots:
       enabled: true
     monitoring:
