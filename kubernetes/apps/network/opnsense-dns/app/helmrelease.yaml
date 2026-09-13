@@ -61,6 +61,11 @@ spec:
             memory: 256Mi
     policy: upsert-only
     registry: noop
+    # See the note in cloudflare-dns: external-dns 1.22.0 changes the default
+    # annotation prefix to the GA `external-dns.kubernetes.io/`, which none of
+    # this repository's annotations use yet. `upsert-only` means stale records
+    # survive a bump, but new and changed hostnames would stop publishing.
+    annotationPrefix: external-dns.alpha.kubernetes.io/
     sources:
       - crd
       - gateway-httproute
