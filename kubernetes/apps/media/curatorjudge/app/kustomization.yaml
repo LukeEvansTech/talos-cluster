@@ -1,0 +1,22 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# Checkov CKV_K8S_21: generated ConfigMaps need an explicit namespace rather
+# than inheriting the Flux target.
+namespace: media
+resources:
+  - ./ocirepository.yaml
+  - ./externalsecret.yaml
+  - ./helmrelease.yaml
+configMapGenerator:
+  - name: curatorjudge-prompt
+    files:
+      - ./resources/build_prompt.py
+      - ./resources/read_verdicts.py
+      - ./resources/taste.md
+generatorOptions:
+  disableNameSuffixHash: true
+  annotations:
+    # These carry ${...} of their own; Flux must not substitute them.
+    kustomize.toolkit.fluxcd.io/substitute: disabled

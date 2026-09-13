@@ -1,7 +1,8 @@
-"""Command-line entry point: ``plan``, ``execute`` and ``selftest``.
+"""Command-line entry point: ``plan``, ``execute``, ``report`` and ``selftest``.
 
-``plan`` is read-only and always safe to run. ``execute`` is the only command that
-can change anything, and only when ``CLEANUP_MODE=act``.
+``plan`` and ``report`` are read-only and always safe to run. ``execute`` is the
+only command that can change anything, and only when ``CLEANUP_MODE=act`` and it
+was not given ``--read-only``.
 """
 
 from __future__ import annotations
@@ -17,6 +18,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from . import reporting
 from .clients import Radarr, RequestSystem, SourceError, Tautulli
 from .evidence import (
     build_crosswalk,
@@ -45,12 +47,14 @@ from .planner import (
     assess,
     build_decision_record,
     check_anomalies,
+    keep_tag_applies,
     keep_tag_targets,
     select_batch,
     snapshot_valid,
     summarise,
 )
 from .s3 import S3Client, S3Config
+from .store import FileStore
 
 DEFAULT_SCOPE_START = "2026-03-01"
 
@@ -110,6 +114,26 @@ class Sources:
     run_id: str
 
 
+def build_store():
+    """Pick the ledger backend from the environment.
+
+    ``LEDGER_DIR`` is a mounted volume, which is how this runs in the cluster --
+    the volume is snapshotted, so the ledger is backed up with everything else.
+    Falling back to S3 keeps the engine runnable somewhere without one.
+    """
+    directory = env("LEDGER_DIR", required=False)
+    if directory:
+        return FileStore(directory)
+    return S3Client(
+        S3Config(
+            endpoint=env("LEDGER_ENDPOINT"),
+            access_key=env("LEDGER_ACCESS_KEY_ID"),
+            secret_key=env("LEDGER_SECRET_ACCESS_KEY"),
+            bucket=env("LEDGER_BUCKET"),
+        )
+    )
+
+
 def build_sources() -> Sources:
     """Construct every client from the environment."""
     run_id = os.environ.get("CLEANUP_RUN_ID") or (
@@ -121,14 +145,7 @@ def build_sources() -> Sources:
         tautulli=Tautulli(env("TAUTULLI_URL"), env("TAUTULLI_API_KEY")),
         seerr=(RequestSystem(seerr_url, env("SEERR_API_KEY", required=False)) if seerr_url else None),
         ledger=Ledger(
-            S3Client(
-                S3Config(
-                    endpoint=env("LEDGER_ENDPOINT"),
-                    access_key=env("LEDGER_ACCESS_KEY_ID"),
-                    secret_key=env("LEDGER_SECRET_ACCESS_KEY"),
-                    bucket=env("LEDGER_BUCKET"),
-                )
-            ),
+            build_store(),
             run_id=run_id,
             dry_run=os.environ.get("CLEANUP_MODE", "dry-run").lower() != "act",
         ),
@@ -188,24 +205,42 @@ def resolve_identities(
 
     fresh: dict[int, dict] = {}
     retired: dict[int, dict] = {}
+    unreachable: dict[int, dict] = {}
     for key in missing:
-        meta = tautulli.metadata(key)
+        answered = True
+        try:
+            meta = tautulli.metadata(key)
+        except SourceError as exc:
+            # A lookup that failed for infrastructure reasons is not evidence
+            # that the key is retired, but it is also no reason to abandon the
+            # whole run. Recording it unresolved taints the zero, which sends
+            # any film sharing the title to review.
+            log(f"  rating key {key} could not be resolved ({exc}); treating it as unresolved")
+            meta, answered = None, False
         if meta:
             fresh[key] = meta
-        else:
-            sample = rows_by_key[key][0]
-            retired[key] = {
-                "tmdb": None,
-                "imdb": None,
-                "title": sample.get("title") or sample.get("full_title"),
-                "year": sample.get("year"),
-                "unresolved": True,
-            }
+            continue
+        sample = rows_by_key[key][0]
+        entry = {
+            "tmdb": None,
+            "imdb": None,
+            "title": sample.get("title") or sample.get("full_title"),
+            "year": sample.get("year"),
+            "unresolved": True,
+        }
+        (retired if answered else unreachable)[key] = entry
     if fresh:
         crosswalk.update(build_crosswalk(fresh))
     crosswalk.update(retired)
     if fresh or retired:
         ledger.write_crosswalk(crosswalk)
+    # Merged after the write, never into it. The crosswalk is durable and is
+    # only consulted for keys it does not already hold, so persisting an outage
+    # would mean never asking about that key again -- and a play that stays
+    # unattributed can only be matched back by title, which finds nothing at all
+    # when Plex and Radarr disagree about the title. The film then reads as
+    # never watched, permanently, on the strength of one timeout.
+    crosswalk.update(unreachable)
 
     unattributed_keys = {k for k, v in crosswalk.items() if v.get("unresolved")}
     unattributed = [row for key in unattributed_keys for row in rows_by_key.get(key, [])]
@@ -215,6 +250,42 @@ def resolve_identities(
             "cannot be attributed by id; films sharing their titles go to review"
         )
     return crosswalk, unattributed
+
+
+def count_owned_siblings(movies: list[dict], collections: list[dict]) -> dict[int, int]:
+    """How many *other* entries of a film's collection are already in the library.
+
+    "Collection support" is one of the three reasons to keep a film, and it is
+    unanswerable from a collection name alone.
+    """
+    # Only films on disk count. A collection entry Radarr is still looking for
+    # is not evidence that the library holds part of the set.
+    owned = {m.get("tmdbId") for m in movies if m.get("tmdbId") and m.get("hasFile")}
+    by_movie: dict[int, int] = {}
+    tmdb_to_id = {m["tmdbId"]: m["id"] for m in movies if m.get("tmdbId")}
+    for collection in collections:
+        members = [e.get("tmdbId") for e in (collection.get("movies") or []) if e.get("tmdbId")]
+        held = [t for t in members if t in owned]
+        for tmdb_id in held:
+            movie_id = tmdb_to_id.get(tmdb_id)
+            if movie_id is not None:
+                by_movie[movie_id] = len(held) - 1
+    return by_movie
+
+
+def count_genres(movies: list[dict]) -> dict[str, int]:
+    """How many films the library holds per genre.
+
+    "A subject the library demonstrably follows" is meant to be counted, not
+    assumed, so the count has to come from the library rather than a guess.
+    """
+    counts: dict[str, int] = {}
+    for movie in movies:
+        if not movie.get("hasFile"):
+            continue
+        for genre in movie.get("genres") or []:
+            counts[genre] = counts.get(genre, 0) + 1
+    return counts
 
 
 def assess_library(
@@ -316,6 +387,9 @@ class Library:
     exclusions: list[dict]
     horizon: datetime | None
     requests: dict[int, dict]
+    # False only when a request system is configured and did not answer. An
+    # estate with none configured is a deliberate choice, not an outage.
+    requests_ok: bool = True
 
 
 def gather_library(sources: Sources) -> Library:
@@ -330,19 +404,26 @@ def gather_library(sources: Sources) -> Library:
     log(f"Radarr history reaches back to {horizon.date() if horizon else 'unknown'}")
 
     requests: dict[int, dict] = {}
+    requests_ok = sources.seerr is None
     if sources.seerr:
         try:
             requests = sources.seerr.movie_requests()
+            requests_ok = True
             log(f"request system: {len(requests)} movie requests")
         except SourceError as exc:
-            log(f"request system unavailable: {exc} -- every origin will read as unknown")
+            # An empty request set is indistinguishable from "nobody asked for
+            # any of this", and for a film carrying an import-list provenance
+            # tag that difference is the whole authorisation. Execution only
+            # re-reads requests made *since* the plan, so a request made before
+            # an outage would never be seen again.
+            log(f"request system unavailable: {exc}")
 
     monitored = monitored_collection_ids(collections)
     log(
         f"{sum(1 for c in collections if c.get('monitored'))} monitored collections "
         f"protect {len(monitored)} tmdb ids"
     )
-    return Library(tag_labels, movies, collections, exclusions, horizon, requests)
+    return Library(tag_labels, movies, collections, exclusions, horizon, requests, requests_ok)
 
 
 def build_plan_payload(
@@ -385,6 +466,32 @@ def build_plan_payload(
         "multi_user_completions": [a.to_json() for a in assessments if a.viewing.distinct_completers >= 2],
         "expired_basis_keeps": expired_basis_keeps(assessments),
     }
+
+
+def source_blocks(
+    bin_ok: bool,
+    bin_detail: str,
+    history_ok: bool,
+    history_note: str,
+    requests_ok: bool,
+) -> list[str]:
+    """Reasons this run must not act, drawn from the state of its sources.
+
+    Each one is a check that could not be performed rather than a check that
+    failed, and the difference decides everything: an unavailable safeguard is
+    an unresolved safeguard.
+    """
+    blocks = []
+    if not bin_ok:
+        blocks.append(bin_detail)
+    if not history_ok:
+        blocks.append(f"play history not usable: {history_note}")
+    if not requests_ok:
+        # Without it an empty request set is indistinguishable from "nobody
+        # asked for any of this", and for a film carrying an import-list
+        # provenance tag that difference is the entire authorisation.
+        blocks.append("request system unreachable: a requested film could not be told from a feed pull")
+    return blocks
 
 
 def cmd_plan(args: argparse.Namespace) -> int:
@@ -431,6 +538,8 @@ def cmd_plan(args: argparse.Namespace) -> int:
         history_ok=history_ok,
         decisions=ledger.read_decisions(),
         collections_loaded=bool(collections),
+        siblings_owned=count_owned_siblings(library.movies, collections),
+        genre_counts=count_genres(library.movies),
     )
     assessments = assess_library(
         movies,
@@ -450,11 +559,9 @@ def cmd_plan(args: argparse.Namespace) -> int:
     log(f"assessment: {counts}")
 
     snapshot = build_snapshot(movies, tag_labels, collections, exclusions, history_meta, history_ok, now)
-    blocks = check_anomalies(snapshot, ledger.read_baseline())
-    if not bin_ok:
-        blocks.append(bin_detail)
-    if not history_ok:
-        blocks.append(f"play history not usable: {history_note}")
+    blocks = check_anomalies(snapshot, ledger.read_baseline()) + source_blocks(
+        bin_ok, bin_detail, history_ok, history_note, library.requests_ok
+    )
 
     problems = snapshot_valid(snapshot)
     if problems:
@@ -500,6 +607,10 @@ def rehydrate(planned: dict, film: Film, reason: str = "") -> Assessment:
     return Assessment(
         film=film,
         outcome=Outcome.CANDIDATE,
+        # Carried so the decision fingerprint covers the evidence a keep was
+        # actually granted on: losing the last owned sibling should reopen it.
+        siblings_owned=int(planned.get("siblings_owned") or 0),
+        subject_counts=dict(planned.get("subject_counts") or {}),
         provenance=Provenance(Origin(planned["origin"]), tuple(planned.get("origin_evidence") or ())),
         availability=Availability(None, planned["availability_source"], film.has_file),
         viewing=Viewing(
@@ -519,19 +630,41 @@ def rehydrate(planned: dict, film: Film, reason: str = "") -> Assessment:
     )
 
 
-def apply_keep_tags(radarr: Radarr, additions: list[dict], dry_run: bool) -> dict[str, Any]:
+def apply_keep_tags(
+    radarr: Radarr,
+    additions: list[dict],
+    dry_run: bool,
+    live: dict[int, dict] | None = None,
+    tag_labels: dict[int, str] | None = None,
+) -> dict[str, Any]:
     """Give the permanent allow-list tag to films that have earned it.
 
     Add-only. The editor endpoint answers 202, meaning queued and nothing more,
     so the count is confirmed by re-reading rather than assumed.
+
+    The plan is half an hour old by the time this runs, so each target is
+    re-checked against its live tags first: `keep` is an absolute veto, and
+    applying it to a film somebody has just marked `cleanup-eligible` would
+    reverse that person's decision.
     """
     movie_ids = [a["movie_id"] for a in additions if isinstance(a.get("movie_id"), int)]
+    withdrawn = 0
+    if live is not None:
+        kept = []
+        for movie_id in movie_ids:
+            record = live.get(movie_id)
+            if record is None or not keep_tag_applies(to_film(record, tag_labels or {})):
+                withdrawn += 1
+                continue
+            kept.append(movie_id)
+        movie_ids = kept
     if not movie_ids:
-        return {"requested": 0, "applied": 0, "note": "nothing qualified"}
+        return {"requested": 0, "applied": 0, "withdrawn": withdrawn, "note": "nothing qualified"}
     if dry_run:
         return {
             "requested": len(movie_ids),
             "applied": 0,
+            "withdrawn": withdrawn,
             "note": "dry run: not applied",
         }
 
@@ -547,13 +680,106 @@ def apply_keep_tags(radarr: Radarr, additions: list[dict], dry_run: bool) -> dic
     return {"requested": len(movie_ids), "applied": applied, "http": status}
 
 
+def plan_refusal(plan: dict, run_mode: str, now: datetime) -> str | None:
+    """Why this plan must not be acted on, or None if it may be.
+
+    Two things a plan has to prove before anything is deleted from it.
+
+    Its mode must match this run's: the ledger namespaces dry-run state under
+    its own prefix, so planning in one mode and executing in the other reads
+    rehearsal baselines and decisions while writing real ones.
+
+    And it must be recent. Live re-validation refreshes tags, collections,
+    status and current playback -- but not play history or requests. A plan left
+    behind by a failed earlier schedule therefore describes a library that has
+    moved on, and a film watched since it was written would not be protected.
+    """
+    plan_mode = plan.get("mode")
+    if plan_mode != run_mode:
+        return f"plan was made in {plan_mode!r} but this run is {run_mode!r}"
+
+    generated = utc(plan.get("generated_at"))
+    if generated is None:
+        return "plan has no usable generated_at"
+
+    max_age = float(os.environ.get("CLEANUP_MAX_PLAN_AGE_HOURS", "6"))
+    age_hours = (now - generated).total_seconds() / 3600
+    if age_hours > max_age:
+        return f"plan is {age_hours:.1f}h old, over the {max_age}h limit"
+    return None
+
+
+def record_judge_decisions(
+    accepted: list[dict],
+    movies: dict[int, dict],
+    by_id: dict[int, dict],
+    tag_labels: dict[int, str],
+    monitored: set[int],
+    ledger: Ledger,
+    run_id: str,
+) -> list[dict]:
+    """Persist what the judge decided, and collect what it sent to a person.
+
+    Returns the escalations, because the plan's review list was written before
+    judgement: without carrying them out of here, a film the judge deliberately
+    put in front of somebody would wait until next week's plan to be seen.
+    """
+    now = datetime.now(timezone.utc)
+    escalated: list[dict] = []
+    for item in accepted:
+        if item["verdict"] not in ("keep", "review") or item["movie_id"] not in movies:
+            continue
+        film = to_film(movies[item["movie_id"]], tag_labels)
+        if item["verdict"] == "review":
+            escalated.append(
+                {
+                    "movie_id": film.movie_id,
+                    "title": film.title,
+                    "year": film.year,
+                    "size_gb": film.size_gb,
+                    "reason": item["reason"],
+                }
+            )
+        ledger.write_decision(
+            build_decision_record(
+                rehydrate(by_id[item["movie_id"]], film),
+                verdict=("spared" if item["verdict"] == "keep" else "queued for review"),
+                reason=item["reason"],
+                run_id=run_id,
+                now=now,
+                monitored=bool(film.tmdb_id and film.tmdb_id in monitored),
+            )
+        )
+    return escalated
+
+
 def cmd_execute(args: argparse.Namespace) -> int:
     """Apply Claude's recommendations, re-validating every safeguard first."""
     sources = build_sources()
     radarr, ledger = sources.radarr, sources.ledger
+    # The scheduled CronJob passes --read-only. Acting therefore takes two
+    # deliberate edits in different places rather than one word in a manifest,
+    # and a half-made change refuses loudly instead of deleting quietly. It is
+    # not a security boundary -- anyone who can change one file can change both
+    # -- it is a guard against the change nobody meant to make.
+    if getattr(args, "read_only", False) and not ledger.dry_run:
+        log("refusing to execute: --read-only was passed but CLEANUP_MODE is act")
+        return 5
     plan = json.loads(Path(args.plan).read_text(encoding="utf-8"))
     recommendations = json.loads(Path(args.recommendations).read_text(encoding="utf-8"))
     if isinstance(recommendations, dict):
+        # The pipeline's own recommendations file names the plan it was judged
+        # against. Both files outlive the run on the same volume, so a judging
+        # step that died before rewriting its output leaves last week's verdicts
+        # in place -- and a film still on this week's candidate list would then
+        # be deleted on a judgement nobody made about it. A bare list is still
+        # accepted, for the hand-made file of a manual run.
+        if recommendations.get("plan_run_id") != plan.get("run_id"):
+            log(
+                "refusing to execute: recommendations were judged against plan "
+                f"{recommendations.get('plan_run_id')!r}, not {plan.get('run_id')!r}"
+            )
+            return 7
         recommendations = recommendations.get("recommendations", [])
 
     if plan.get("blocks"):
@@ -562,6 +788,11 @@ def cmd_execute(args: argparse.Namespace) -> int:
             log(f"  BLOCK: {block}")
         return 2
 
+    refusal = plan_refusal(plan, "dry-run" if ledger.dry_run else "act", datetime.now(timezone.utc))
+    if refusal:
+        log(f"refusing to execute: {refusal}")
+        return 5
+
     tag_labels = {t["id"]: t["label"] for t in radarr.tags()}
     monitored = monitored_collection_ids(radarr.collections())
     by_id = {item["movie_id"]: item for item in plan.get("candidates", [])}
@@ -569,6 +800,12 @@ def cmd_execute(args: argparse.Namespace) -> int:
     accepted, rejected = validate_recommendations(recommendations, by_id)
     for bad in rejected:
         log(f"  rejected recommendation: {bad}")
+    # A candidate the judge simply left out is not acted on, which is safe, but
+    # it reaches nobody either -- it is neither deleted nor put in front of a
+    # person. Counting it is the only thing that makes that visible.
+    unjudged = sorted(set(by_id) - {item["movie_id"] for item in accepted})
+    if unjudged:
+        log(f"  {len(unjudged)} candidate(s) came back with no usable verdict")
 
     dangling = ledger.unreconciled_intents()
     if dangling:
@@ -592,6 +829,18 @@ def cmd_execute(args: argparse.Namespace) -> int:
             for item in accepted
             if item["verdict"] == "delete" and item["movie_id"] in movies
         ]
+        # Before anything is deleted. Assessment now protects anything meeting
+        # the bar, so the two sets should not overlap -- applying first means a
+        # plan built before that rule still cannot delete a film it was about
+        # to permanently protect.
+        tagged = apply_keep_tags(
+            radarr,
+            plan.get("keep_tag_additions") or [],
+            ledger.dry_run,
+            live=movies,
+            tag_labels=tag_labels,
+        )
+
         already = ledger.deletions_in_window()
         selected, deferred = select_batch(approved, MAX_DELETIONS_PER_RUN, already)
         log(
@@ -607,28 +856,22 @@ def cmd_execute(args: argparse.Namespace) -> int:
             tag_labels,
             monitored,
             dry_run=ledger.dry_run,
+            seerr=sources.seerr,
+            crosswalk=ledger.read_crosswalk(),
+            planned_at=utc(plan.get("generated_at")),
         )
-        tagged = apply_keep_tags(radarr, plan.get("keep_tag_additions") or [], ledger.dry_run)
 
-        now = datetime.now(timezone.utc)
-        for item in accepted:
-            if item["verdict"] not in ("keep", "review") or item["movie_id"] not in movies:
-                continue
-            film = to_film(movies[item["movie_id"]], tag_labels)
-            ledger.write_decision(
-                build_decision_record(
-                    rehydrate(by_id[item["movie_id"]], film),
-                    verdict=("spared" if item["verdict"] == "keep" else "queued for review"),
-                    reason=item["reason"],
-                    run_id=sources.run_id,
-                    now=now,
-                    monitored=bool(film.tmdb_id and film.tmdb_id in monitored),
-                )
-            )
-
+        escalated = record_judge_decisions(accepted, movies, by_id, tag_labels, monitored, ledger, sources.run_id)
         summary = {
             "run_id": sources.run_id,
+            # The plan and the execution are separate CronJobs and generate
+            # their own run ids, so this is the only thing tying a result to
+            # the plan it came from. The digest needs it to tell this week's
+            # result from one left on the volume by an earlier week.
+            "plan_run_id": plan.get("run_id"),
+            "unjudged": unjudged,
             "mode": "dry-run" if ledger.dry_run else "act",
+            "escalated": escalated,
             "keep_tags_added": tagged,
             "deferred": [a.film.movie_id for a in deferred],
             "rejected_recommendations": rejected,
@@ -639,9 +882,56 @@ def cmd_execute(args: argparse.Namespace) -> int:
             f"deleted={len(result.deleted)} skipped={len(result.skipped)} "
             f"failed={len(result.failed)} uncertain={len(result.uncertain)}"
         )
+        # A failed deletion is safe to surface as a Job failure: nothing was
+        # destroyed, so a retry re-attempts a no-op. An *uncertain* one is not:
+        # the DELETE may have landed, and re-running the pipeline would issue it
+        # again -- exactly what _delete_one refuses to do. Those are left for
+        # the next run's reconciliation, which resolves them by looking.
+        # Both surface as a Job failure. That was unsafe while the CronJob could
+        # retry -- a retry would re-run judgement and re-issue a DELETE that may
+        # already have landed -- but backoffLimit is 0, so a non-zero exit now
+        # only marks the Job failed. An ambiguous destructive operation is
+        # exactly what should be visible, and the next scheduled run still
+        # reconciles it by looking rather than by repeating the call.
+        if result.uncertain:
+            log(
+                f"exiting non-zero: {len(result.uncertain)} deletion(s) could not be "
+                "confirmed; the next run reconciles them against live state"
+            )
+            return 4
+        if result.failed:
+            log("exiting non-zero: some deletions failed outright")
+            return 4
         return 0
     finally:
         ledger.release_lock()
+
+
+def cmd_report(args: argparse.Namespace) -> int:
+    """Render the run's digest and deliver it."""
+    out = Path(args.out)
+    digest = reporting.render(
+        reporting.read(Path(args.plan)),
+        reporting.read(Path(args.result)),
+        reporting.read(Path(args.judgement)) if args.judgement else None,
+        datetime.now(timezone.utc),
+    )
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(digest.text, encoding="utf-8")
+    print(digest.text, flush=True)
+
+    url = env("CLEANUP_WEBHOOK_URL", required=False)
+    if not url:
+        log("no CLEANUP_WEBHOOK_URL: digest written but not delivered")
+        return 0
+    try:
+        log(reporting.post(url, env("CLEANUP_WEBHOOK_TOKEN", required=False), digest))
+    except reporting.NotificationError as exc:
+        # Loud on purpose. An undelivered digest is indistinguishable, from the
+        # phone, from a week in which the job never ran.
+        log(f"DIGEST NOT DELIVERED: {exc}")
+        return 6
+    return 0
 
 
 def cmd_selftest(_args: argparse.Namespace) -> int:
@@ -666,7 +956,19 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--plan", required=True)
     run.add_argument("--recommendations", required=True)
     run.add_argument("--out", default="./cleanup-result.json")
+    run.add_argument(
+        "--read-only",
+        action="store_true",
+        help="refuse to act even if CLEANUP_MODE says otherwise",
+    )
     run.set_defaults(func=cmd_execute)
+
+    digest = sub.add_parser("report", help="render and deliver the run digest")
+    digest.add_argument("--plan", required=True)
+    digest.add_argument("--result", required=True)
+    digest.add_argument("--judgement", default="")
+    digest.add_argument("--out", default="./cleanup-report.md")
+    digest.set_defaults(func=cmd_report)
 
     test = sub.add_parser("selftest", help="run the fixture tests")
     test.set_defaults(func=cmd_selftest)
