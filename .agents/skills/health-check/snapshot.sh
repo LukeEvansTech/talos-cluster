@@ -19,20 +19,25 @@ run() {
     local key=$1
     shift
     local out err
-    if out=$("$@" 2>/tmp/health-err.$$); then
+    if out=$("$@" 2>/tmp/health-err.$$) && [ -n "$out" ] && jq -e . >/dev/null 2>&1 <<<"$out"; then
         parts+=("$(jq -n --arg k "$key" --argjson v "$out" '{($k): $v}')")
     else
+        # Covers a non-zero exit, an empty body from a proxy, and non-JSON output:
+        # all three are "did not run", never "nothing wrong".
         err=$(head -c 400 /tmp/health-err.$$ | tr -d '\000')
+        [ -n "$err" ] || err="empty or non-JSON output"
         parts+=("$(jq -n --arg k "$key" --arg e "$err" '{($k): {blind: true, error: $e}}')")
     fi
     rm -f /tmp/health-err.$$
 }
 
+# Node names are internal identifiers (this repository is public), so the
+# snapshot carries counts, never names. Look a cordoned node up by hand.
 nodes() {
     kubectl get nodes -o json | jq '{
         ready: [.items[] | select(.status.conditions[] | select(.type=="Ready" and .status=="True"))] | length,
         total: (.items | length),
-        cordoned: [.items[] | select(.spec.unschedulable == true) | .metadata.name],
+        cordoned: [.items[] | select(.spec.unschedulable == true)] | length,
         versions: [.items[].status.nodeInfo.kubeletVersion] | unique,
         os: [.items[].status.nodeInfo.osImage] | unique
     }'
@@ -68,11 +73,16 @@ pods() {
     }'
 }
 
+# Presence guards: this cluster always has ExternalSecrets, ReplicationSources
+# and Gatus series. Zero of any of them means the read path is broken, not that
+# everything is healthy, so those cases return non-zero and record as blind.
 eso() {
-    local store es
-    store=$(kubectl get clustersecretstore onepassword-connect -o json | jq '[.status.conditions[]? | select(.type=="Ready" and .status=="True")] | length > 0')
-    es=$(kubectl get externalsecrets -A -o json | jq '[.items[] | select(([.status.conditions[]? | select(.type=="Ready" and .status=="True")] | length) == 0) | .metadata.namespace + "/" + .metadata.name]')
-    jq -n --argjson s "$store" --argjson e "$es" '{store_ready: $s, not_synced: $e}'
+    local store all es
+    store=$(kubectl get clustersecretstore onepassword-connect -o json | jq '[.status.conditions[]? | select(.type=="Ready" and .status=="True")] | length > 0') || return 1
+    all=$(kubectl get externalsecrets -A -o json) || return 1
+    [ "$(jq '.items | length' <<<"$all")" -gt 0 ] || { echo "no ExternalSecrets returned" >&2; return 1; }
+    es=$(jq '[.items[] | select(([.status.conditions[]? | select(.type=="Ready" and .status=="True")] | length) == 0) | .metadata.namespace + "/" + .metadata.name]' <<<"$all")
+    jq -n --argjson s "$store" --argjson e "$es" --argjson n "$(jq '.items | length' <<<"$all")" '{store_ready: $s, total: $n, not_synced: $e}'
 }
 
 alerts() {
@@ -88,15 +98,24 @@ ceph() {
 }
 
 volsync() {
-    kubectl get replicationsource -A -o json | jq '{
+    local all
+    all=$(kubectl get replicationsource -A -o json) || return 1
+    [ "$(jq '.items | length' <<<"$all")" -gt 0 ] || { echo "no ReplicationSources returned" >&2; return 1; }
+    jq '{
+        total: (.items | length),
         synchronizing: [.items[] | select(.status.conditions[]? | select(.type=="Synchronizing" and .status=="True")) | .metadata.namespace + "/" + .metadata.name],
         last_failed: [.items[] | select(.status.latestMoverStatus.result? == "Failed") | .metadata.namespace + "/" + .metadata.name]
-    }'
+    }' <<<"$all"
 }
 
 gatus() {
-    kubectl get --raw "/api/v1/namespaces/observability/services/kube-prometheus-stack-prometheus:9090/proxy/api/v1/query?query=gatus_results_endpoint_success%7Bgroup!%3D%22connectivity%22%7D%20%3D%3D%200" |
-        jq '{failing: [.data.result[] | (.metric.group // "-") + "/" + .metric.name] | sort}'
+    local base total failing
+    base="/api/v1/namespaces/observability/services/kube-prometheus-stack-prometheus:9090/proxy/api/v1/query"
+    total=$(kubectl get --raw "${base}?query=count(gatus_results_endpoint_success)" | jq -r '.data.result[0].value[1] // "0"') || return 1
+    [ "$total" -gt 0 ] 2>/dev/null || { echo "no gatus_results_endpoint_success series in Prometheus" >&2; return 1; }
+    failing=$(kubectl get --raw "${base}?query=gatus_results_endpoint_success%7Bgroup!%3D%22connectivity%22%7D%20%3D%3D%200" |
+        jq '[.data.result[] | (.metric.group // "-") + "/" + .metric.name] | sort') || return 1
+    jq -n --argjson t "$total" --argjson f "$failing" '{total: $t, failing: $f}'
 }
 
 run nodes nodes

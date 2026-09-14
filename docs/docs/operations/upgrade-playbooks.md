@@ -218,8 +218,10 @@ cert-manager.
 
 **Repo paths:** `kubernetes/apps/external-secrets/external-secrets/app/` (HR and a PDB) and
 `kubernetes/apps/external-secrets/onepassword-connect/app/` (HR, the `ClusterSecretStore`
-`onepassword-connect`, and the ExternalSecret holding the Connect credentials). Every app with an
-ExternalSecret `dependsOn` `onepassword-connect`, so a broken store blocks every app deploy.
+`onepassword-connect`, and the ExternalSecret holding the Connect credentials). House rule is that
+an app with an ExternalSecret `dependsOn` `onepassword-connect`; about half of them do today, so a
+broken store blocks those at the Flux layer and leaves the rest waiting on Secrets that never
+arrive. Either way nothing with a secret deploys.
 
 **Read before merging:** the external-secrets release notes for API version promotions (every
 ExternalSecret and the store are on `external-secrets.io/v1`; a future API promotion means editing
@@ -341,7 +343,8 @@ with `runtimeClassName: nvidia` starts and sees the card (`nvidia-smi` in an Oll
 ## Envoy Gateway
 
 **Arrives as:** `envoyproxy` (the gateway-helm chart and the Envoy image). The Gateway API CRDs
-arrive separately under `gateway-api` and **do** auto-merge (additive, low risk).
+arrive separately as a `gateway-api` `github-releases` bump, also protected (the guard matches
+`/gateway-api/` since #3869), so they are reviewed by hand too.
 
 **Repo paths:** `kubernetes/apps/network/envoy-gateway/app/helmrelease.yaml` (CRD policy
 `CreateReplace`), `app/envoy.yaml` (the two `Gateway` objects and their `EnvoyProxy` configs; the

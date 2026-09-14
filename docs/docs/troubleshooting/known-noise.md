@@ -163,7 +163,8 @@ never appear in Alertmanager either; check both paths when chasing a page.
 
 Blocks node drains by design: CNPG forces a switchover rather than evicting the primary. During a
 planned rolling reboot, patch `spec.enablePDB: false` on the `Cluster`; Flux reconciles it back
-on its own. Do not delete the PDB. Procedure in [Talos upgrades](../operations/talos-upgrades.md).
+on its own. Do not delete the PDB. Procedure in
+[Talos upgrades](../operations/talos-upgrades.md#rolling-reboot-procedure).
 
 ### The muted Ceph `AUTH_INSECURE_*` health checks
 
@@ -186,12 +187,14 @@ The Konflate status is advisory. `failures` means individual resources could not
 shelly-fleet private source cascade is on every PR); `error` means the whole render failed and is
 the only state that blocks. Do not chase `failures` unless a resource you changed is among them.
 
-### A Renovate PR held red on purpose
+### A Renovate version deliberately blocked
 
-`romm` is held at 5.0.0 (5.1.0 runs an un-disableable nightly `rmtree` over the artwork PVC,
-rommapp/romm#3994). `garage` v2.4.0 is blocked by `allowedVersions` (rustls no-CryptoProvider
-panic). A red `claude/renovate-review` status on those PRs is the hold. Do not re-run it, admin
-merge it, or close and reopen the PR (Renovate then blocks the update).
+`garage` v2.4.0 is blocked by an `allowedVersions` rule in `.renovaterc.json5` (rustls
+no-CryptoProvider panic in its discovery loop); the next release flows normally. A hold of that
+shape is a decision, not a defect: check `.renovaterc.json5` for an `allowedVersions` entry before
+treating a "missing" update as a Renovate fault. Where a hold is instead being enforced by a red
+`claude/renovate-review` status on an open PR, the PR body or the linked issue says so; do not
+re-run the gate, admin-merge, or close and reopen the PR (Renovate then blocks the update).
 
 ### Both `FilesystemTrimConfig` and the `kube-system/fstrim` CronJob
 

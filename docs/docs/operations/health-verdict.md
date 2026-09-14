@@ -36,28 +36,90 @@ Every run writes one JSON document so the next run has something to diff against
 
 ```json
 {
-  "taken": "2026-09-14T10:00:00Z",
-  "nodes": {"ready": 3, "cordoned": 0, "versions": ["v1.37.0"], "os": ["Talos (v1.14.0)"]},
-  "flux": {"ks_not_ready": [], "hr_not_ready": [], "src_not_ready": []},
-  "pods": {"not_running": [], "waiting": [], "restarts": {"ns/pod": 3}},
-  "eso": {"store_ready": true, "not_synced": []},
-  "alerts": {"critical": ["DockerBackupStale", "VMwareHostPoweredOff"]},
-  "ceph": {"health": "HEALTH_OK", "detail": "HEALTH_OK (muted: AUTH_INSECURE_...)", "osd": "6 osds: 6 up, 6 in"},
-  "volsync": {"synchronizing": [], "last_failed": []},
-  "gatus": {"failing": []}
+  "nodes": {
+    "ready": 3,
+    "total": 3,
+    "cordoned": 0,
+    "versions": [
+      "v1.37.0"
+    ],
+    "os": [
+      "Talos (v1.14.0)"
+    ]
+  },
+  "flux": {
+    "ks_not_ready": [],
+    "hr_not_ready": [],
+    "src_not_ready": []
+  },
+  "pods": {
+    "not_running": [
+      {
+        "ns": "<ns>",
+        "name": "<pod>",
+        "phase": "Failed",
+        "created": "2026-09-13T07:30:00Z"
+      }
+    ],
+    "waiting": [],
+    "restarts": {
+      "<ns>/<pod>": 3
+    }
+  },
+  "eso": {
+    "store_ready": true,
+    "total": 426,
+    "not_synced": []
+  },
+  "alerts": {
+    "critical": [
+      {
+        "alertname": "DockerBackupStale",
+        "namespace": null,
+        "startsAt": "2026-09-09T14:01:15.060Z"
+      },
+      {
+        "alertname": "VMwareHostPoweredOff",
+        "namespace": "observability",
+        "startsAt": "2026-09-13T12:36:01.885Z"
+      }
+    ]
+  },
+  "ceph": {
+    "health": "HEALTH_OK",
+    "detail": "HEALTH_OK (muted: AUTH_INSECURE_CLIENT_KEY_TYPE AUTH_INSECURE_KEYS_ALLOWED AUTH_INSECURE_KEYS_CREATABLE)",
+    "osd": "6 osds: 6 up (since 24h), 6 in (since 10d); epoch: e1177874"
+  },
+  "volsync": {
+    "total": 202,
+    "synchronizing": [],
+    "last_failed": []
+  },
+  "gatus": {
+    "total": 140,
+    "failing": []
+  },
+  "taken": "2026-09-14T13:52:14Z"
 }
 ```
 
-Keep snapshots in the session scratchpad during a batch (compare each merge to the one before)
-and copy the last one into the PR or issue when the batch closes. Nothing in it is sensitive, but
-it does name pods and alerts, so it stays out of the public repo.
+That is the real shape (taken from a live run, pod names replaced). `nodes.cordoned` is a count,
+not a list of names; `alerts.critical` is a list of objects; `eso`, `volsync` and `gatus` carry a
+`total` that the script uses as a presence guard, so a read path that returns nothing is recorded
+as blind rather than as empty-and-healthy.
+
+Keep snapshots in the session scratchpad during a batch (compare each merge to the one before).
+**Never paste a raw snapshot into a PR, an issue or a commit**: this repository is public, and the
+snapshot names pods, alerts and namespaces. The script already reduces nodes to counts so a node
+name cannot leak through `cordoned`, but pod names can still encode device identities. When the
+batch closes, write a redacted summary (the verdict, the counts, the alert names) into the PR.
 
 ## Checks
 
 Run cheapest first. All use the repo kubeconfig:
 
 ```bash
-export KUBECONFIG=/Users/luke.evans/GIT/LukeEvansTech/talos-cluster/kubeconfig
+export KUBECONFIG="$PWD/kubeconfig"   # from the repository root; .mise.toml sets the same
 ```
 
 ### 1. Nodes
