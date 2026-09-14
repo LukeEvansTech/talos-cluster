@@ -3,6 +3,12 @@
 This section tracks known issues and their workarounds in the cluster, split into one
 knowledge-base entry per issue. Each entry follows the same shape: symptom, cause, fix.
 
+Before fixing anything, check [known noise and non-remediation](known-noise.md): the alerts and
+symptoms where the obvious corrective action is wrong, the configuration that is deliberately
+"broken", and the operations that must be escalated rather than attempted. After a change to
+protected infrastructure, the [health verdict](../operations/health-verdict.md) is the
+cross-cutting check.
+
 ## Symptom ladder
 
 Work down from what you observe to the most likely entry:

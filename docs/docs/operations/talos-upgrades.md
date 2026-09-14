@@ -196,6 +196,72 @@ Replace `<node-ip>` and `<version>` with the target node address and the Talos v
 Only do this when you know why the check is failing. The check exists to stop a reboot from making
 that problem worse.
 
+## Rolling reboot procedure
+
+For a planned reboot of every node outside tuppr (a machine-config change that needs a reboot, a
+firmware or BIOS change), this is the sequence that ran cleanly on all three nodes in September
+2026: about three minutes per node, Ceph re-converged in under 90 seconds each, no boot stall and
+no bootloader revert. The guards come first because each one has blocked a drain or made a reboot
+unsafe before.
+
+### Guards, before the first node
+
+- **Ceph**: `ceph osd set noout` in the toolbox, so the two OSDs on the rebooting node are not
+  rebalanced away. **Unset it at the end** (`ceph osd unset noout`).
+- **CNPG**: the `postgres18-primary` PodDisruptionBudget allows 0 disruptions by design, and the
+  drain blocks on it. Patch `spec.enablePDB: false` on the `Cluster` (`kubectl -n database patch
+  cluster postgres18 --type merge -p '{"spec":{"enablePDB":false}}'`) **immediately before each
+  node's drain**, not once at the start: the Kustomization reconciles hourly and restores the
+  field, and a roll that started late in that hour finds the PDB back at 0 allowed disruptions on
+  the second node. Alternatively suspend the `cloudnative-pg-cluster` Kustomization for the window
+  and resume it explicitly afterwards. Setting only `nodeMaintenanceWindow` does **not** relax
+  it. The primary fails over cleanly on eviction. **After the last node**, do not leave the
+  primary unprotected for up to an hour: `flux reconcile kustomization cloudnative-pg-cluster -n
+  database` restores `enablePDB` immediately (or `flux resume` if you suspended it), and
+  `kubectl -n database get pdb` should show the primary PDB back at 0 allowed disruptions.
+- **Alertmanager**: silences copied **exactly** from the two `silences` matchers in the tuppr
+  `TalosUpgrade` CR (`kubernetes/apps/system-upgrade/tuppr/upgrades/talosupgrade.yaml`), for about
+  three hours: the `CephMonDown|CephOSDDown|…` list and the `KubeNodeUnreachable|…|TargetDown`
+  list. Do **not** widen them to `Ceph.*`: `CephMonDownQuorumAtRisk`, `CephHealthError`, the etcd
+  member alerts and `MiroirVolumeQuorumLost` are deliberately left audible so a second failure
+  during a reboot still pages. Create them through a port-forward to the Alertmanager service and
+  `POST /api/v2/silences`; `kubectl create --raw` is rejected. Expire them by id when done.
+
+### Per node
+
+1. `kubectl cordon <node>`, then
+   `kubectl drain <node> --ignore-daemonsets --delete-emptydir-data --force` (45 to 100 seconds).
+2. Pin the miroir agent off the node, exactly as in the
+   [upgrade revert procedure](#upgrade-didnt-take-node-reboots-into-the-old-version) (a
+   `nodeAffinity` patch on the DaemonSet), and wait for its pod to go. Otherwise it re-attaches the
+   loop devices within about 30 seconds of the detach.
+3. Detach the miroir loop devices and confirm the count stays at zero for two 15-second polls.
+   Three ways this step silently does nothing: `kubectl debug node/<node>` returns **before** the
+   pod finishes, so poll for the pod, wait for `Succeeded`, read its log, then delete it; the
+   `backing_file` in sysfs is rendered relative to the creating process's mount namespace, so a
+   filter on `/var/...` matches nothing from the debug container (match `*.img` instead); and only
+   the `.img` loops matter, `loop0` to `loop5` are Talos's own squashfs images. Detaching needs no
+   `nsenter`: loop devices are global kernel objects, so `losetup -d /host/dev/loopN` from the
+   privileged debug container works.
+4. `talosctl reboot --nodes <node-ip>`, then verify the version and whatever file or setting the
+   reboot was for.
+5. Restore the DaemonSet affinity (`null`) and `kubectl uncordon <node>`.
+6. Wait for `6/6` OSDs up and every PG `active+clean`, and for all three etcd members healthy,
+   before starting the next node.
+
+The leak refills fast: one node was back to about 200 attached loop devices three days after a
+detach, so budget for the detach on **every** reboot of that node and never assume a recent one
+still holds.
+
+### Run it backgrounded and resumable
+
+The whole cycle is 8 to 12 minutes per node. Run the script with output redirected to a log and
+block on a marker rather than waiting on the command; a tool timeout mid-cycle leaves a node
+half-applied. Give the script a `skip` phase argument that bypasses cordon, drain and pin, and a
+pre-flight that does not abort on `4/6` OSDs when resuming a node that is already drained. Both
+were needed on the first run: the interruption landed after the last node's uncordon but during
+the Ceph wait, so only the final wait had to be redone.
+
 ## Talos 1.14 notes
 
 What changed for this cluster when the fleet moved from 1.13 to 1.14 in September 2026, and what
@@ -312,6 +378,13 @@ every controller that reads Secrets crash-loops. `talos/patches/controller/clust
 generated document and `talos/patches/controller/etcd-encryption.yaml` restates it with `key2`. The
 value comes from the talsecret document through `TALOS_SECRETBOX_SECRET`, exported by
 `just talos gen-config`, which also refuses any render that does not carry exactly one `key2`.
-Before applying any regenerated config, save the live one
-(`talosctl -n <ip> get mc v1alpha1 -o yaml`; the config is the `.spec` string) and dry-run first.
-Re-applying that saved file is the recovery.
+Before applying any regenerated config, save the live one to a file you never print, and dry-run
+first. The live config carries the etcd encryption key and every cluster credential, so redirect
+it under `umask 077` and keep the file out of Git and out of any transcript:
+
+```bash
+MC_DIR="${SCRATCHPAD:-/tmp}/talos-mc" && (umask 077 && mkdir -p "$MC_DIR" \
+  && talosctl -n <node-ip> get mc v1alpha1 -o yaml > "$MC_DIR/mc-<node>.yaml")
+```
+
+The config is the `.spec` string of that document. Re-applying that saved file is the recovery.

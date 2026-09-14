@@ -40,6 +40,9 @@ nav = [
     { "Bootstrap" = "operations/bootstrap.md" },
     { "Talos & K8s upgrades" = "operations/talos-upgrades.md" },
     { "Renovate auto-merge" = "operations/renovate-automerge.md" },
+    { "Upgrade playbooks" = "operations/upgrade-playbooks.md" },
+    { "Health verdict" = "operations/health-verdict.md" },
+    { "Hardening backlog" = "operations/hardening-backlog.md" },
     { "Backups" = "operations/backups.md" },
     { "Device monitoring" = "operations/device-monitoring.md" },
     { "TrueNAS monitoring" = "operations/truenas-monitoring.md" },
@@ -67,6 +70,7 @@ nav = [
   ] },
   { "Troubleshooting" = [
     { "Symptom ladder" = "troubleshooting/index.md" },
+    { "Known noise" = "troubleshooting/known-noise.md" },
     { "KB" = [
       { "001: PushSecret false 400s" = "troubleshooting/kb/001-1password-connect-pushsecret-false-400-errors.md" },
       { "002: Plex direct-play buffering" = "troubleshooting/kb/002-plex-direct-play-buffering-bbr-mtu-probing.md" },
