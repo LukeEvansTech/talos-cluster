@@ -19,6 +19,11 @@ releases:
     namespace: network
     chart: oci://ghcr.io/home-operations/charts-mirror/external-dns
     version: 1.21.1
+    # Chart 1.22.0 makes `policy` a required value with no default, so a bare
+    # render fails schema validation before any CRD is emitted. The value is
+    # irrelevant to CRD extraction; it only has to satisfy the schema.
+    values:
+      - policy: sync
 
   - name: envoy-gateway
     namespace: network
