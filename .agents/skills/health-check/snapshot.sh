@@ -71,7 +71,7 @@ pods() {
             | select(([.status.conditions[]? | select(.type == "Ready" and .status == "True")] | length) == 0)
             | {ns: .metadata.namespace, name: .metadata.name, since: ([.status.conditions[]? | select(.type == "Ready")][0].lastTransitionTime // null)}],
         restarts: ([.items[] | {key: (.metadata.namespace + "/" + .metadata.name),
-            value: ((.status.containerStatuses // []) | map(.restartCount) | add // 0)}
+            value: (((.status.containerStatuses // []) + (.status.initContainerStatuses // [])) | map(.restartCount) | add // 0)}
             | select(.value > 0)] | from_entries)
     }'
 }
@@ -91,9 +91,20 @@ eso() {
     jq -n --argjson s "$store" --argjson e "$es" --argjson n "$(jq '.items | length' <<<"$all")" '{store_ready: $s, total: $n, not_synced: $e}'
 }
 
+# The always-firing Watchdog proves Prometheus is still evaluating rules and
+# delivering to Alertmanager. Without it an empty critical list means the
+# pipeline is dead, not that the cluster is quiet, so its absence is blind.
 alerts() {
-    kubectl get --raw "/api/v1/namespaces/observability/services/kube-prometheus-stack-alertmanager:9093/proxy/api/v2/alerts?active=true&silenced=false&filter=severity%3Dcritical" |
-        jq '{critical: [.[] | {alertname: .labels.alertname, namespace: (.labels.namespace // null), startsAt: .startsAt}] | sort_by(.alertname)}'
+    local base wd crit
+    base="/api/v1/namespaces/observability/services/kube-prometheus-stack-alertmanager:9093/proxy/api/v2/alerts"
+    wd=$(kubectl get --raw "${base}?active=true&filter=alertname%3DWatchdog" | jq 'length') || return 1
+    [ "$wd" -gt 0 ] 2>/dev/null || {
+        echo "Watchdog alert not active in Alertmanager: the alerting pipeline is down" >&2
+        return 1
+    }
+    crit=$(kubectl get --raw "${base}?active=true&silenced=false&filter=severity%3Dcritical" |
+        jq '[.[] | {alertname: .labels.alertname, namespace: (.labels.namespace // null), startsAt: .startsAt}] | sort_by(.alertname)') || return 1
+    jq -n --argjson w true --argjson c "$crit" '{watchdog: $w, critical: $c}'
 }
 
 ceph() {

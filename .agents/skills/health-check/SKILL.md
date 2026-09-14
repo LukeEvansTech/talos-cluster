@@ -30,18 +30,25 @@ skill mutates the cluster, and it must not be extended to.
    `./kubeconfig`), `kubectl`, `flux` and `jq`. Every check that fails to run is recorded as
    `"blind": true` for that key instead of aborting the run.
 
-2. If a previous snapshot exists in `$SNAP_DIR` (or one is named in the request), diff the two:
-   `jq -S . old.json > a; jq -S . new.json > b; diff a b`. Interesting deltas are new entries in
-   any `*_not_ready` / `not_running` / `critical` / `failing` list, and any pod whose restart count
-   rose.
+2. If a previous snapshot exists in `$SNAP_DIR` (or one is named in the request), diff the two
+   without writing anything outside `$SNAP_DIR`: `diff <(jq -S . "$OLD") <(jq -S . "$NEW")`. A raw
+   snapshot names pods and namespaces, so it must never land in the checkout where a later
+   `git add` could publish it. Interesting deltas are new entries in any `not_ready` /
+   `not_running` / `stale` / `critical` / `failing` list, and any pod whose restart count rose.
+
+   **No previous snapshot means no verdict.** Restart deltas, "new since the change" and
+   "pre-existing" are all defined against a baseline. On a first run record the snapshot, report
+   `baseline` with the absolute findings (anything blind, anything failing outright), and say a
+   healthy verdict needs a second snapshot to compare against.
 
 3. Classify every non-green item using the tables on the health-verdict page and the
    [known noise](../../../docs/docs/troubleshooting/known-noise.md) page. Re-poll transients
    once after about 90 seconds (image pulls, a reconcile still in progress) before deciding.
 
 4. Report, in this order:
-   - **Verdict:** one of `healthy`, `benign-warn`, `regression`, `blind`. A single blind check
-     makes the whole verdict `blind` unless the user explicitly accepts the gap.
+   - **Verdict:** one of `healthy`, `benign-warn`, `regression`, `blind`, `baseline`. A single
+     blind check makes the whole verdict `blind` unless the user explicitly accepts the gap; a
+     first run with nothing to diff against is `baseline`, never `healthy`.
    - **New since last snapshot:** each item with the check it came from and its classification.
      For a benign-warn, name the known-noise entry that matched.
    - **Pre-existing:** items present in both snapshots, one line each, no analysis.

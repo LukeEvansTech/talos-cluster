@@ -17,6 +17,7 @@ verdict. This page is the design it follows and the reference when a check needs
 | **benign-warn** | A check is non-green but matches a [known noise](../troubleshooting/known-noise.md) entry, or is a transient that clears on re-poll | Note which entry matched, re-poll transients once after 90 s, do not escalate |
 | **regression** | A check is non-green and **new**: it broke across the reconcile window, or is tied to the component that changed | Stop merging. Diagnose or roll back per the playbook |
 | **blind** | A check could not run (the API refused, a command failed, an empty answer where a populated one is normal) | Say so. Never report a check that did not run as green |
+| **baseline** | The first snapshot, with nothing to diff against | Record it and report absolute findings only. `healthy` needs a second snapshot |
 
 Three rules of interpretation:
 
@@ -79,6 +80,7 @@ Every run writes one JSON document so the next run has something to diff against
     "not_synced": []
   },
   "alerts": {
+    "watchdog": true,
     "critical": [
       {
         "alertname": "DockerBackupStale",
@@ -107,7 +109,7 @@ Every run writes one JSON document so the next run has something to diff against
     "total": 140,
     "failing": []
   },
-  "taken": "2026-09-14T14:09:35Z"
+  "taken": "2026-09-14T14:26:36Z"
 }
 ```
 
@@ -171,7 +173,9 @@ readiness failure leaves the phase `Running` and the container `running`, so a 0
 service without a Gatus endpoint would otherwise be invisible to this check.
 
 **Healthy:** the first list is empty or holds only `Completed` Jobs; no pod is `not_ready` beyond
-a rolling restart; the restart list is unchanged from the prior snapshot. **Benign-warn:** `ContainerCreating` or `Init` pods under 90 s old;
+a rolling restart; the restart list is unchanged from the prior snapshot. Restart counts include
+native sidecars under `initContainers` (several apps here run one), which a sum of
+`containerStatuses` alone would miss. **Benign-warn:** `ContainerCreating` or `Init` pods under 90 s old;
 stale `Error` pods with an old age (GC leftovers, confirm by age and by a healthy running
 sibling). **Regression:** any `CrashLoopBackOff` or `OOMKilled` that is new, and **any pod whose
 restart count rose since the last snapshot**. The second half is the check the alerts do not
@@ -198,8 +202,13 @@ kubectl get --raw "/api/v1/namespaces/observability/services/kube-prometheus-sta
   | jq -r '.[] | .labels.alertname + " " + (.labels.namespace // "-") + " " + .startsAt' | sort
 ```
 
-**Healthy:** the same set as the prior snapshot, or empty. **Benign-warn:** an entry the
-[known noise](../troubleshooting/known-noise.md) page covers, named in the note. **Regression:**
+The script first confirms the always-firing `Watchdog` alert is active (it is routed to a
+heartbeat receiver for exactly this purpose). Without it an empty critical list means Prometheus
+has stopped evaluating or delivering, so the check is blind, not quiet.
+
+**Healthy:** Watchdog present and the same critical set as the prior snapshot, or empty.
+**Benign-warn:** an entry the [known noise](../troubleshooting/known-noise.md) page covers, named
+in the note. **Regression:**
 any critical whose `startsAt` is after the change and which is not noise. Remember that
 `startsAt` resets on an Alertmanager restart; three alerts sharing one `startsAt` are telling you
 when Alertmanager restarted, not when they fired. If the command errors, the check is **blind**:

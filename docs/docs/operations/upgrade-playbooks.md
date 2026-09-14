@@ -425,6 +425,36 @@ newer and moves faster than restic), and [Backups](backups.md).
 **Rollback caveats:** the Kopia repository format is forward-compatible within a major; check the
 Kopia version inside the mover image before rolling back more than a patch.
 
+## litellm-operator
+
+**Arrives as:** `litellm-operator` (chart and image), protected because it is pre-1.0 and its CRD
+shape still moves between releases. The LiteLLM proxy image itself (`ghcr.io/berriai/litellm`,
+digest-pinned on `main-stable`) is **not** protected and auto-merges as a digest bump.
+
+**Repo paths:** `kubernetes/apps/ai/litellm-operator/app/` (HR; memory limit 512 Mi) and the
+`LiteLLMProxy` CR it reconciles at `kubernetes/apps/ai/litellm/app/litellmproxy.yaml` (probes,
+resources, the MCP and semantic-filter config). [LiteLLM](../apps/litellm.md) has the app design;
+[AI / LLM stack](../architecture/ai-llm-stack.md) the surrounding pieces.
+
+**Read before merging:** the operator's release notes for `LiteLLMProxy` schema changes; check every
+field the CR sets still exists (`spec` exposes `livenessProbe` and `readinessProbe` but **no**
+`startupProbe`, which is why the boot-time fix below lives in `initialDelaySeconds`).
+
+**Known breaking patterns:**
+
+| Pattern | Required action |
+| --- | --- |
+| Any operator reconcile rolls the proxy pod (the template carries a config hash), and a cold boot embeds the whole MCP tool registry synchronously, taking up to ~100 s | Keep `livenessProbe.initialDelaySeconds` at 180 (#5058). A shorter value killed the pod mid-boot 62 times in two hours with **no** crashloop alert, because LiteLLM exits 0 on SIGTERM |
+| The operator's own restarts cluster inside a Talos or Kubernetes roll | Reconcile churn, not a leak; see [known noise](../troubleshooting/known-noise.md#restarts-that-cluster-inside-an-upgrade-window) |
+
+**After merge:** the operator pod Running with 0 restarts; the proxy pod Ready with 0 restarts
+after **one** roll (a second roll within minutes means the operator is fighting the CR);
+`restartCount` read directly, not inferred from alerts; a chat completion through the gateway
+succeeds; `/metrics/` scrapes.
+
+**Rollback caveats:** re-pin the chart tag. If the CRD moved, the old operator may reject the
+CR's newer fields; revert the CR in the same PR.
+
 ## miroir
 
 **Arrives as:** `miroir` (chart and image).
