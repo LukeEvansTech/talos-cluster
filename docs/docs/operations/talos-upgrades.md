@@ -210,9 +210,12 @@ unsafe before.
   rebalanced away. **Unset it at the end** (`ceph osd unset noout`).
 - **CNPG**: the `postgres18-primary` PodDisruptionBudget allows 0 disruptions by design, and the
   drain blocks on it. Patch `spec.enablePDB: false` on the `Cluster` (`kubectl -n database patch
-  cluster postgres18 --type merge -p '{"spec":{"enablePDB":false}}'`). Setting only
-  `nodeMaintenanceWindow` does **not** relax it. Flux reconciles the field back on its own, so
-  nothing is left drifted, and the primary fails over cleanly on eviction.
+  cluster postgres18 --type merge -p '{"spec":{"enablePDB":false}}'`) **immediately before each
+  node's drain**, not once at the start: the Kustomization reconciles hourly and restores the
+  field, and a roll that started late in that hour finds the PDB back at 0 allowed disruptions on
+  the second node. Alternatively suspend the `cloudnative-pg-cluster` Kustomization for the window
+  and resume it explicitly afterwards. Setting only `nodeMaintenanceWindow` does **not** relax
+  it. The primary fails over cleanly on eviction.
 - **Alertmanager**: silences mirroring tuppr's own matchers (`Ceph.*`, `KubeNode.*`, `Kubelet.*`,
   `TargetDown`) for about three hours. Create them through a port-forward to the Alertmanager
   service and `POST /api/v2/silences`; `kubectl create --raw` is rejected. Expire them by id when

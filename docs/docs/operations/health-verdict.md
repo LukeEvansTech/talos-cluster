@@ -106,7 +106,7 @@ Every run writes one JSON document so the next run has something to diff against
     "last_failed": []
   },
   "gatus": {
-    "total": 140,
+    "discovered": 132,
     "failing": []
   },
   "taken": "2026-09-14T14:26:36Z"
@@ -116,9 +116,11 @@ Every run writes one JSON document so the next run has something to diff against
 That is the real shape (taken from a live run, pod names replaced). `nodes.cordoned` is a count,
 not a list of names; `alerts.critical` is a list of objects; `pods.not_ready` is Running pods whose
 `Ready` condition is not `True`; `volsync.stale` is sources whose last successful sync is older than
-about twice their schedule; `eso`, `volsync` and `gatus` carry a `total` that the script uses as a
-presence guard, so a read path that returns nothing is recorded as blind rather than as
-empty-and-healthy.
+about twice their schedule; `eso` and `volsync` carry a `total`, and `gatus` a `discovered` count of
+sidecar-discovered endpoints (the static ones in `config.yaml` would keep a plain total non-zero
+with discovery dead), which the script uses as presence guards so a read path that returns
+nothing is recorded as blind rather than as empty-and-healthy. A large drop in any of those counts
+against the previous snapshot is itself a finding.
 
 Keep snapshots in the session scratchpad during a batch (compare each merge to the one before).
 **Never paste a raw snapshot into a PR, an issue or a commit**: this repository is public, and the
@@ -165,7 +167,7 @@ a Kustomization failing its health check for longer than one interval. Read the 
 ```bash
 kubectl get pods -A --field-selector='status.phase!=Running,status.phase!=Succeeded' \
   -o custom-columns='NS:.metadata.namespace,NAME:.metadata.name,PHASE:.status.phase,AGE:.metadata.creationTimestamp'
-kubectl get pods -A -o json | jq -r '.items[] | .metadata.namespace + "/" + .metadata.name + " " + ((.status.containerStatuses // []) | map(.restartCount) | add // 0 | tostring)' | awk '$2 > 0' | sort -k2 -nr | head -20
+kubectl get pods -A -o json | jq -r '.items[] | .metadata.namespace + "/" + .metadata.name + " " + (((.status.containerStatuses // []) + (.status.initContainerStatuses // [])) | map(.restartCount) | add // 0 | tostring)' | awk '$2 > 0' | sort -k2 -nr | head -20
 ```
 
 Also list Running pods whose `Ready` condition is not `True` (the script's `not_ready`): a

@@ -252,9 +252,12 @@ fixed `clusterIP`, `k8sAppLabelOverride: kube-dns`, and the PDB.
 rendered from `servers[].plugins`, and a renamed or removed plugin fails at pod start, not at
 render.
 
-**Known breaking patterns:** none recorded. Talos `forwardKubeDNSToHost` means the host DNS
-cache sits in front of CoreDNS for pods, so a broken CoreDNS shows as stale answers before it
-shows as NXDOMAIN.
+**Known breaking patterns:** none recorded. Pods query CoreDNS directly; Talos
+`forwardKubeDNSToHost` puts the host resolver **behind** CoreDNS as its upstream (node-side
+lookups such as NFS mounts use the host resolver on their own, see
+[KB-009](../troubleshooting/kb/009-nfs-mount-failures-host-dns-readonly-export.md)). So a failed
+lookup from a fresh pod after the bump is CoreDNS, and a `SERVFAIL` on external names only is the
+upstream path.
 
 **After merge:** both replicas Ready; `nslookup kubernetes.default` and an external name from a
 fresh pod; an AAAA query returns NOERROR with no answer; no `plugin/errors` lines in the logs.

@@ -137,14 +137,18 @@ volsync() {
 gatus() {
     local base total failing
     base="/api/v1/namespaces/observability/services/kube-prometheus-stack-prometheus:9090/proxy/api/v1/query"
-    total=$(kubectl get --raw "${base}?query=count(gatus_results_endpoint_success)" | jq -r '.data.result[0].value[1] // "0"') || return 1
+    # Guard on the sidecar-DISCOVERED endpoints (group internal|external comes
+    # only from the Gateway annotation the sidecar inherits), not on the total:
+    # the six static endpoints in config.yaml keep the total non-zero even when
+    # discovery has lost every HTTPRoute.
+    total=$(kubectl get --raw "${base}?query=count(gatus_results_endpoint_success%7Bgroup%3D~%22internal%7Cexternal%22%7D)" | jq -r '.data.result[0].value[1] // "0"') || return 1
     [ "$total" -gt 0 ] 2>/dev/null || {
-        echo "no gatus_results_endpoint_success series in Prometheus" >&2
+        echo "no sidecar-discovered Gatus endpoints (group internal|external) in Prometheus: discovery is down" >&2
         return 1
     }
     failing=$(kubectl get --raw "${base}?query=gatus_results_endpoint_success%7Bgroup!%3D%22connectivity%22%7D%20%3D%3D%200" |
         jq '[.data.result[] | (.metric.group // "-") + "/" + .metric.name] | sort') || return 1
-    jq -n --argjson t "$total" --argjson f "$failing" '{total: $t, failing: $f}'
+    jq -n --argjson t "$total" --argjson f "$failing" '{discovered: $t, failing: $f}'
 }
 
 run nodes nodes
