@@ -53,7 +53,7 @@ spec:
   # with "model not found". See #3792 (which set it) and the revert that
   # followed.
   runtime: llamacpp
-  image: ghcr.io/ggml-org/llama.cpp:server-cuda@sha256:0d9738b203c12d96c1157b76482d5c7afa95fd28b2031b0bff912bd457791819
+  image: ghcr.io/ggml-org/llama.cpp:server-cuda@sha256:69c28827c1dc4807d00214e568b3187535bef7a2682825097a8357654084b49a
   # Defer a pod-template rollout (e.g. a Renovate image bump) until llama.cpp's
   # own /slots endpoint reports both slots idle, instead of killing an
   # in-flight opencode/agent session mid-response. Falls back to proceeding
