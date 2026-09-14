@@ -170,6 +170,46 @@ Flux delete its live HelmRelease, PVC, and everything else it owns.
 Either way Flux **prunes the PVC**. Take a VolSync snapshot or copy the data out
 (`just kube browse-pvc`) first if it matters.
 
+### Flux pruning beyond app removal
+
+Removing an app is the obvious prune. The same `prune: true` also fires on changes that look like
+refactors, because a Flux `Kustomization`'s inventory is keyed by its name and namespace:
+
+- **Renaming a `Kustomization`** (a new `&app` anchor, a new `metadata.name`) creates a new
+  inventory; the old object prunes everything it applied that the new one has not adopted yet.
+- **Moving one to another namespace** is a delete plus a create, with the same effect.
+- **Changing `spec.path` or `spec.targetNamespace`**, or dropping a component from
+  `spec.components`, prunes whatever the old render produced and the new one does not.
+
+Before any of these, say which stateful objects are in the inventory and how they are protected.
+Every `namespace.yaml` here carries `kustomize.toolkit.fluxcd.io/prune: disabled`; a PVC that must
+survive a rename needs the same annotation, or `helm.sh/resource-policy: keep` when Helm owns it. A
+safer cutover is to set `spec.prune: false` on the old `Kustomization`, reconcile, then delete or
+move it. The failure mode when this is skipped is a pod stuck `Pending` with
+`persistentvolumeclaim "<name>" not found`, and the data is gone.
+
+## Inspecting the live cluster
+
+Read-only inspection is always fine: `kubectl get/describe/logs/events`, `flux get`, `ceph -s`
+through the toolbox, the read-only MCP servers. Two rules apply to how it is done:
+
+- **Never dump Secrets.** No `kubectl get secret -o yaml`, no `-o json` on objects that inline
+  secret data, no `just kube view-secret` in a transcript that will be kept. Secret values in a
+  session log are a disclosure. Read the one field you need with a `jsonpath`, or confirm a value
+  is set by its length. Notification and webhook URLs carry credentials in more than one part, so
+  never print one at all; print the scheme.
+- **Prefer narrow queries.** Namespace-scoped, label- or field-selected, `jsonpath` or `jq`
+  projected. A cluster-wide `-o yaml` is slow, fills the context with nothing useful, and is the
+  usual way a secret ends up on screen by accident.
+
+Before acting on an alert, read [known noise](docs/docs/troubleshooting/known-noise.md): it lists
+the cases where the obvious fix is wrong. After any change to protected infrastructure, run the
+[health verdict](docs/docs/operations/health-verdict.md) (the `health-check` skill under
+`.agents/skills/`) and compare with the previous snapshot; the per-component checks are in the
+[upgrade playbooks](docs/docs/operations/upgrade-playbooks.md). Anything found along the way that
+is a false green, a fail-open guard, or a doc asserting a safety property the cluster does not
+have goes in the [hardening backlog](docs/docs/operations/hardening-backlog.md).
+
 ## Validation
 
 The in-cluster **Konflate** posts PR renders and diffs as a native `Konflate` commit status plus a PR
@@ -276,3 +316,6 @@ Tool-agnostic agent instructions and skills live under `.agents/`:
   defaults plus app-template-specific ordering). Apply when asked to sort YAML.
 - `.agents/skills/add-app/` is a skill that scaffolds a new app-template application following the
   conventions above. Claude Code discovers it via a local `.claude/skills/add-app` symlink.
+- `.agents/skills/health-check/` is a read-only skill that snapshots cluster health
+  (`snapshot.sh`) and reports a verdict against the previous snapshot, per
+  `docs/docs/operations/health-verdict.md`. Same symlink convention.

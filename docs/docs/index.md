@@ -23,12 +23,14 @@ enforces that on every pull request.
 
 - **Architecture**, how the pieces fit: the GitOps flow, networking (Cilium + Envoy Gateway),
   storage, secret management, and the AI/LLM stack.
-- **Operations**, runbooks: bootstrapping, Talos and Kubernetes upgrades, backups, and monitoring
-  the cluster and the infrastructure around it.
+- **Operations**, runbooks: bootstrapping, Talos and Kubernetes upgrades, per-component upgrade
+  playbooks, the post-change health verdict, backups, monitoring the cluster and the infrastructure
+  around it, and the hardening backlog of false greens found along the way.
 - **Migrations**: playbooks for the larger changes the cluster has been through.
 - **Apps**, per-application notes: why it is set up the way it is, and the traps hit while deploying
   it.
-- **Troubleshooting**: a symptom ladder and a KB of recurring issues with their fixes.
+- **Troubleshooting**: a symptom ladder, a KB of recurring issues with their fixes, and the known
+  noise page for the alerts where the obvious fix is wrong.
 - **FAQ**: quick answers to the questions that come up most.
 
 ## Tech at a glance
