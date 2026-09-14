@@ -33,6 +33,13 @@ spec:
       - --events
       - --gateway-label-filter=type=external
     policy: sync
+    # Pinned rather than left to the chart default: external-dns 1.22.0 flips
+    # the default annotation prefix to the GA `external-dns.kubernetes.io/`,
+    # and every annotation in this repository still uses the alpha prefix.
+    # With `policy: sync` an unpinned bump would read zero annotations and
+    # delete the records it owns. Drop the pin only as part of rewriting the
+    # annotations to the GA prefix.
+    annotationPrefix: external-dns.alpha.kubernetes.io/
     sources:
       - "crd"
       - "gateway-httproute"
