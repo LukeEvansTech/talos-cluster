@@ -62,6 +62,13 @@ Every run writes one JSON document so the next run has something to diff against
       }
     ],
     "waiting": [],
+    "not_ready": [
+      {
+        "ns": "<ns>",
+        "name": "<pod>",
+        "since": "2026-09-14T13:00:00Z"
+      }
+    ],
     "restarts": {
       "<ns>/<pod>": 3
     }
@@ -88,10 +95,11 @@ Every run writes one JSON document so the next run has something to diff against
   "ceph": {
     "health": "HEALTH_OK",
     "detail": "HEALTH_OK (muted: AUTH_INSECURE_CLIENT_KEY_TYPE AUTH_INSECURE_KEYS_ALLOWED AUTH_INSECURE_KEYS_CREATABLE)",
-    "osd": "6 osds: 6 up (since 24h), 6 in (since 10d); epoch: e1177874"
+    "osd": "6 osds: 6 up (since 25h), 6 in (since 10d); epoch: e1177874"
   },
   "volsync": {
     "total": 202,
+    "stale": [],
     "synchronizing": [],
     "last_failed": []
   },
@@ -99,14 +107,16 @@ Every run writes one JSON document so the next run has something to diff against
     "total": 140,
     "failing": []
   },
-  "taken": "2026-09-14T13:52:14Z"
+  "taken": "2026-09-14T14:09:35Z"
 }
 ```
 
 That is the real shape (taken from a live run, pod names replaced). `nodes.cordoned` is a count,
-not a list of names; `alerts.critical` is a list of objects; `eso`, `volsync` and `gatus` carry a
-`total` that the script uses as a presence guard, so a read path that returns nothing is recorded
-as blind rather than as empty-and-healthy.
+not a list of names; `alerts.critical` is a list of objects; `pods.not_ready` is Running pods whose
+`Ready` condition is not `True`; `volsync.stale` is sources whose last successful sync is older than
+about twice their schedule; `eso`, `volsync` and `gatus` carry a `total` that the script uses as a
+presence guard, so a read path that returns nothing is recorded as blind rather than as
+empty-and-healthy.
 
 Keep snapshots in the session scratchpad during a batch (compare each merge to the one before).
 **Never paste a raw snapshot into a PR, an issue or a commit**: this repository is public, and the
@@ -156,8 +166,12 @@ kubectl get pods -A --field-selector='status.phase!=Running,status.phase!=Succee
 kubectl get pods -A -o json | jq -r '.items[] | .metadata.namespace + "/" + .metadata.name + " " + ((.status.containerStatuses // []) | map(.restartCount) | add // 0 | tostring)' | awk '$2 > 0' | sort -k2 -nr | head -20
 ```
 
-**Healthy:** the first list is empty or holds only `Completed` Jobs; the restart list is unchanged
-from the prior snapshot. **Benign-warn:** `ContainerCreating` or `Init` pods under 90 s old;
+Also list Running pods whose `Ready` condition is not `True` (the script's `not_ready`): a
+readiness failure leaves the phase `Running` and the container `running`, so a 0/1 controller or
+service without a Gatus endpoint would otherwise be invisible to this check.
+
+**Healthy:** the first list is empty or holds only `Completed` Jobs; no pod is `not_ready` beyond
+a rolling restart; the restart list is unchanged from the prior snapshot. **Benign-warn:** `ContainerCreating` or `Init` pods under 90 s old;
 stale `Error` pods with an old age (GC leftovers, confirm by age and by a healthy running
 sibling). **Regression:** any `CrashLoopBackOff` or `OOMKilled` that is new, and **any pod whose
 restart count rose since the last snapshot**. The second half is the check the alerts do not
@@ -212,9 +226,15 @@ kubectl get replicationsource -A -o json | jq -r '.items[] | select(.status.cond
 kubectl get replicationsource -A -o json | jq -r '.items[] | select(.status.latestMoverStatus.result? == "Failed") | .metadata.namespace + "/" + .metadata.name'
 ```
 
-**Healthy:** both empty, or the first holding only sources whose schedule is due now. **Benign-warn:**
-one source mid-run. **Regression:** a source `Synchronizing` for longer than its interval (a
-stale repo lock, see [Talos upgrades](talos-upgrades.md#common-blockers)), every source failing
+Then the check the two lists cannot make: a source whose last successful sync is older than about
+twice its schedule (the script's `stale`: 9 h for the 4-hourly NFS/Kopia sources, 30 h for the
+nightly R2/restic ones). A backup path that quietly stops starting leaves `Synchronizing=False`
+and a stale-but-successful `latestMoverStatus` on every source, which reads as healthy.
+
+**Healthy:** both lists empty (or the first holding only sources whose schedule is due now) and
+`stale` empty. **Benign-warn:** one source mid-run; a source created within the last schedule
+interval. **Regression:** any source in `stale`; a source `Synchronizing` for longer than its interval (a
+stale restic lock on an R2 source, see [Talos upgrades](talos-upgrades.md#common-blockers)), every source failing
 at once (the snapshotter or the NAS, see
 [KB-009](../troubleshooting/kb/009-nfs-mount-failures-host-dns-readonly-export.md) and
 [KB-010](../troubleshooting/kb/010-rook-ceph-v120-csi-driver-split.md)), or one app's movers

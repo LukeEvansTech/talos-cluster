@@ -369,6 +369,12 @@ every controller that reads Secrets crash-loops. `talos/patches/controller/clust
 generated document and `talos/patches/controller/etcd-encryption.yaml` restates it with `key2`. The
 value comes from the talsecret document through `TALOS_SECRETBOX_SECRET`, exported by
 `just talos gen-config`, which also refuses any render that does not carry exactly one `key2`.
-Before applying any regenerated config, save the live one
-(`talosctl -n <ip> get mc v1alpha1 -o yaml`; the config is the `.spec` string) and dry-run first.
-Re-applying that saved file is the recovery.
+Before applying any regenerated config, save the live one to a file you never print, and dry-run
+first. The live config carries the etcd encryption key and every cluster credential, so redirect
+it under `umask 077` and keep the file out of Git and out of any transcript:
+
+```bash
+(umask 077 && talosctl -n <node-ip> get mc v1alpha1 -o yaml > "$SCRATCHPAD/mc-<node>.yaml")
+```
+
+The config is the `.spec` string of that document. Re-applying that saved file is the recovery.

@@ -48,8 +48,8 @@ tuppr does not need it, so a version-bump-only upgrade can go first.
 | A completed install reverts to the old UKI because a loop device holds the encrypted `EPHEMERAL` volume open during shutdown teardown | Detach miroir's loop devices with the agent pinned off the node before each node's upgrade. Procedure in [Talos upgrades](talos-upgrades.md#upgrade-didnt-take-node-reboots-into-the-old-version). tuppr reports `version mismatch`; `talosctl upgrade --wait` exits 0 regardless |
 | A stale `LoaderEntryDefault` after an NVRAM wipe boots the old version | [KB-028](../troubleshooting/kb/028-talos-upgrade-boots-old-version-loaderentrydefault.md), a different recovery from the row above; tell them apart by whether the shutdown was prompt |
 | A minor bump changes the machine-config contract (1.14 moved apiserver, proxy, etcd encryption and others to multi-document kinds) | Roll the fleet with tuppr **first**, then `just talos gen-config`, then `talosctl apply-config --dry-run` per node. A 1.13 node rejects the new kinds |
-| talhelper renders `KubeEtcdEncryptionConfig` with the key named `key1`; Talos has always used `key2`, and etcd ciphertext is prefixed with the key name | Every apiserver stops decrypting Secrets. The patch that restates `key2` and the `gen-config` guard exist; **save the live config and dry-run before any regenerated apply** |
-| tuppr's pre-flight health checks stall on a Ceph `HEALTH_WARN` from archived-or-not crash reports, or a VolSync `ReplicationSource` stuck on a stale repo lock | Archive the crashes; unlock via `spec.restic.unlock` on the ReplicationSource. Both in [Talos upgrades](talos-upgrades.md#common-blockers) |
+| talhelper renders `KubeEtcdEncryptionConfig` with the key named `key1`; Talos has always used `key2`, and etcd ciphertext is prefixed with the key name | Every apiserver stops decrypting Secrets. The patch that restates `key2` and the `gen-config` guard exist; **save the live config straight to a `umask 077` file and dry-run before any regenerated apply**. Never print it: the live config carries the etcd encryption key and every cluster credential |
+| tuppr's pre-flight health checks stall on a Ceph `HEALTH_WARN` from archived-or-not crash reports, or a VolSync `ReplicationSource` stuck `Synchronizing` | Archive the crashes. For a stuck **R2** source (restic), set `spec.restic.unlock` to a new string and delete its Job; the Kopia mover the **NFS** sources use has no lock and no `unlock` field, so a stuck NFS source is a failing mover ([KB-030](../troubleshooting/kb/030-volsync-kopia-cache-pvc-too-small.md), [KB-009](../troubleshooting/kb/009-nfs-mount-failures-host-dns-readonly-export.md)). Both in [Talos upgrades](talos-upgrades.md#common-blockers) |
 | The leader tuppr pod is on the node being drained, leadership moves mid-job, and the job is marked `Failed` with the node left cordoned and often already upgraded | Check `machined` logs for `installation of <ver> complete`; reboot to finish; uncordon; delete the `TalosUpgrade` CR and let Flux recreate it |
 | Image verification rejects the factory installer | [Talos upgrades](talos-upgrades.md#image-verification-failures) |
 
@@ -184,8 +184,11 @@ at 1 Gi after the merge-burst OOM, CPU limits stripped) are the deviations.
 `status.lastAppliedRevision` matches; all four controllers Running with no restarts; `flux get
 kustomizations -A` fully Ready.
 
-**Rollback caveats:** revert the artifact tag; the operator re-renders the controllers. Flux CRD
-schema changes are additive within 2.x.
+**Rollback caveats:** the group moves the manifests artifact **and** the `flux-operator` and
+`flux-instance` charts together. Re-pin all three (the artifact tag in the instance values, and
+both charts' OCIRepository tags), or a regression in the operator or its templates survives an
+artifact-only revert. The operator then re-renders the controllers. Flux CRD schema changes are
+additive within 2.x.
 
 ## cert-manager
 

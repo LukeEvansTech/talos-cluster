@@ -67,6 +67,9 @@ pods() {
         waiting: [.items[] | select(.status.phase == "Running")
             | . as $p | (.status.containerStatuses // [])[] | select(.state.waiting != null)
             | {ns: $p.metadata.namespace, name: $p.metadata.name, reason: .state.waiting.reason}],
+        not_ready: [.items[] | select(.status.phase == "Running")
+            | select(([.status.conditions[]? | select(.type == "Ready" and .status == "True")] | length) == 0)
+            | {ns: .metadata.namespace, name: .metadata.name, since: ([.status.conditions[]? | select(.type == "Ready")][0].lastTransitionTime // null)}],
         restarts: ([.items[] | {key: (.metadata.namespace + "/" + .metadata.name),
             value: ((.status.containerStatuses // []) | map(.restartCount) | add // 0)}
             | select(.value > 0)] | from_entries)
@@ -107,8 +110,14 @@ volsync() {
         echo "no ReplicationSources returned" >&2
         return 1
     }
-    jq '{
+    # stale: a source whose last successful sync is older than about twice its
+    # schedule (NFS/kopia every 4 h -> 9 h; R2/restic nightly -> 30 h). A backup
+    # path that quietly stops leaves every other field looking healthy.
+    jq 'now as $n | {
         total: (.items | length),
+        stale: [.items[] | (if .spec.kopia then 9 elif .spec.restic then 30 else 30 end) as $h
+            | select((.status.lastSyncTime == null) or (($n - (.status.lastSyncTime | fromdateiso8601)) > ($h * 3600)))
+            | .metadata.namespace + "/" + .metadata.name],
         synchronizing: [.items[] | select(.status.conditions[]? | select(.type=="Synchronizing" and .status=="True")) | .metadata.namespace + "/" + .metadata.name],
         last_failed: [.items[] | select(.status.latestMoverStatus.result? == "Failed") | .metadata.namespace + "/" + .metadata.name]
     }' <<<"$all"
