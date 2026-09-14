@@ -80,7 +80,10 @@ eso() {
     local store all es
     store=$(kubectl get clustersecretstore onepassword-connect -o json | jq '[.status.conditions[]? | select(.type=="Ready" and .status=="True")] | length > 0') || return 1
     all=$(kubectl get externalsecrets -A -o json) || return 1
-    [ "$(jq '.items | length' <<<"$all")" -gt 0 ] || { echo "no ExternalSecrets returned" >&2; return 1; }
+    [ "$(jq '.items | length' <<<"$all")" -gt 0 ] || {
+        echo "no ExternalSecrets returned" >&2
+        return 1
+    }
     es=$(jq '[.items[] | select(([.status.conditions[]? | select(.type=="Ready" and .status=="True")] | length) == 0) | .metadata.namespace + "/" + .metadata.name]' <<<"$all")
     jq -n --argjson s "$store" --argjson e "$es" --argjson n "$(jq '.items | length' <<<"$all")" '{store_ready: $s, total: $n, not_synced: $e}'
 }
@@ -100,7 +103,10 @@ ceph() {
 volsync() {
     local all
     all=$(kubectl get replicationsource -A -o json) || return 1
-    [ "$(jq '.items | length' <<<"$all")" -gt 0 ] || { echo "no ReplicationSources returned" >&2; return 1; }
+    [ "$(jq '.items | length' <<<"$all")" -gt 0 ] || {
+        echo "no ReplicationSources returned" >&2
+        return 1
+    }
     jq '{
         total: (.items | length),
         synchronizing: [.items[] | select(.status.conditions[]? | select(.type=="Synchronizing" and .status=="True")) | .metadata.namespace + "/" + .metadata.name],
@@ -112,7 +118,10 @@ gatus() {
     local base total failing
     base="/api/v1/namespaces/observability/services/kube-prometheus-stack-prometheus:9090/proxy/api/v1/query"
     total=$(kubectl get --raw "${base}?query=count(gatus_results_endpoint_success)" | jq -r '.data.result[0].value[1] // "0"') || return 1
-    [ "$total" -gt 0 ] 2>/dev/null || { echo "no gatus_results_endpoint_success series in Prometheus" >&2; return 1; }
+    [ "$total" -gt 0 ] 2>/dev/null || {
+        echo "no gatus_results_endpoint_success series in Prometheus" >&2
+        return 1
+    }
     failing=$(kubectl get --raw "${base}?query=gatus_results_endpoint_success%7Bgroup!%3D%22connectivity%22%7D%20%3D%3D%200" |
         jq '[.data.result[] | (.metric.group // "-") + "/" + .metric.name] | sort') || return 1
     jq -n --argjson t "$total" --argjson f "$failing" '{total: $t, failing: $f}'
