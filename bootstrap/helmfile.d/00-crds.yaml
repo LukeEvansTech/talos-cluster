@@ -43,7 +43,7 @@ releases:
   - name: snapshot-controller
     namespace: kube-system
     chart: oci://ghcr.io/home-operations/charts/snapshot-controller
-    version: 0.1.0
+    version: 0.1.1
 
   - name: volsync
     namespace: volsync-system
