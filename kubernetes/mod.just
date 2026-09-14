@@ -44,7 +44,7 @@ prune-pods:
 [doc('Snapshot VolSync PVCs')]
 snapshot:
     kubectl get replicationsources --no-headers -A | while read -r ns name _; do
-        kubectl -n "$ns" patch replicationsources "$name" --type merge -p '{"spec":{"trigger":{"manual":"$(date +%s)"}}}'
+        kubectl -n "$ns" patch replicationsources "$name" --type merge -p "{\"spec\":{\"trigger\":{\"manual\":\"$(date +%s)\"}}}"
     done
 
 [doc('Pin (suspend) or release (resume) zeroscaler HPAs during node drains')]

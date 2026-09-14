@@ -87,9 +87,10 @@ The protected patterns intentionally overlap the `groups` rules (Cilium, Cert-Ma
 `groups` block controls *grouping* of PRs, while the guard controls *auto-merge*. The two are
 independent.
 
-> **Note:** the `gateway-api` CRDs still auto-merge via a separate `github-releases` rule. Those
-> bumps are additive and low-risk, so they are intentionally left on auto-merge even though Envoy
-> Gateway itself is protected.
+> **Note:** the `gateway-api` CRDs used to auto-merge via a separate `github-releases` rule. Since
+> #3869 added `github-releases` to the guard's `matchDatasources` and `/gateway-api/` to its
+> package list, they are protected like Envoy Gateway itself: a tier-0 component tracked through
+> another datasource was slipping past the guard.
 
 ## Safety levers
 

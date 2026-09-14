@@ -13,6 +13,9 @@ Cursor, Claude Code) can apply the same conventions:
   plus app-template-specific ordering). Apply this when asked to sort YAML.
 - `.agents/skills/add-app/SKILL.md`: a skill that scaffolds a new app-template application
   following the conventions below. Agent tools that read `.agents/skills/` can invoke it directly.
+- `.agents/skills/health-check/`: a read-only skill (plus `snapshot.sh`) that takes the
+  [health verdict](operations/health-verdict.md) snapshot and reports healthy / benign-warn /
+  regression / blind against the previous one.
 
 `AGENTS.md` at the repository root is the canonical, tool-agnostic conventions guide. The local
 `CLAUDE.md` imports it via an `@AGENTS.md` include and adds Claude-Code-specific specifics on top
@@ -84,6 +87,18 @@ workflows (`actionlint`, `zizmor`). It also mirrors several super-linter checks 
 mode (`yamllint`, `codespell`, `markdownlint`, `editorconfig-checker`), scoped to staged files so
 their findings surface at commit time instead of in CI. `.lefthook.toml` is the source of truth for
 the exact command/glob/exclude for each hook.
+
+## Operational pages agents should know about
+
+Four pages exist specifically for anyone acting on the cluster without the history of how a
+problem was last diagnosed:
+
+- [Known noise and non-remediation](troubleshooting/known-noise.md): read before "fixing" an alert.
+- [Health verdict](operations/health-verdict.md): the cross-cutting post-change check.
+- [Upgrade playbooks](operations/upgrade-playbooks.md): per-component knowledge for the
+  protected-infra set Renovate never auto-merges.
+- [Hardening backlog](operations/hardening-backlog.md): false greens and fail-open guards found
+  while doing other work. Append to it; mark resolved entries rather than deleting them.
 
 ## Where AI planning artifacts go
 
