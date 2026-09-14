@@ -215,11 +215,17 @@ unsafe before.
   field, and a roll that started late in that hour finds the PDB back at 0 allowed disruptions on
   the second node. Alternatively suspend the `cloudnative-pg-cluster` Kustomization for the window
   and resume it explicitly afterwards. Setting only `nodeMaintenanceWindow` does **not** relax
-  it. The primary fails over cleanly on eviction.
-- **Alertmanager**: silences mirroring tuppr's own matchers (`Ceph.*`, `KubeNode.*`, `Kubelet.*`,
-  `TargetDown`) for about three hours. Create them through a port-forward to the Alertmanager
-  service and `POST /api/v2/silences`; `kubectl create --raw` is rejected. Expire them by id when
-  done.
+  it. The primary fails over cleanly on eviction. **After the last node**, do not leave the
+  primary unprotected for up to an hour: `flux reconcile kustomization cloudnative-pg-cluster -n
+  database` restores `enablePDB` immediately (or `flux resume` if you suspended it), and
+  `kubectl -n database get pdb` should show the primary PDB back at 0 allowed disruptions.
+- **Alertmanager**: silences copied **exactly** from the two `silences` matchers in the tuppr
+  `TalosUpgrade` CR (`kubernetes/apps/system-upgrade/tuppr/upgrades/talosupgrade.yaml`), for about
+  three hours: the `CephMonDown|CephOSDDown|…` list and the `KubeNodeUnreachable|…|TargetDown`
+  list. Do **not** widen them to `Ceph.*`: `CephMonDownQuorumAtRisk`, `CephHealthError`, the etcd
+  member alerts and `MiroirVolumeQuorumLost` are deliberately left audible so a second failure
+  during a reboot still pages. Create them through a port-forward to the Alertmanager service and
+  `POST /api/v2/silences`; `kubectl create --raw` is rejected. Expire them by id when done.
 
 ### Per node
 
@@ -377,7 +383,8 @@ first. The live config carries the etcd encryption key and every cluster credent
 it under `umask 077` and keep the file out of Git and out of any transcript:
 
 ```bash
-(umask 077 && talosctl -n <node-ip> get mc v1alpha1 -o yaml > "$SCRATCHPAD/mc-<node>.yaml")
+MC_DIR="${SCRATCHPAD:-/tmp}/talos-mc" && (umask 077 && mkdir -p "$MC_DIR" \
+  && talosctl -n <node-ip> get mc v1alpha1 -o yaml > "$MC_DIR/mc-<node>.yaml")
 ```
 
 The config is the `.spec` string of that document. Re-applying that saved file is the recovery.

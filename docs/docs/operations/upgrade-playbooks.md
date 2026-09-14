@@ -32,9 +32,14 @@ Three rules apply to all of them:
 **Arrives as:** the `Talos` group, from the `custom.talos-factory` datasource (Sidero no longer
 publishes a generic installer image for 1.14+; the pins carry `depName=siderolabs/talos`).
 
-**Repo paths:** `talos/talconfig.yaml` (`talosVersion`), `talos/talenv.yaml`, and the
-`TalosUpgrade` CR at `kubernetes/apps/system-upgrade/tuppr/upgrades/talosupgrade.yaml` (tuppr
-drives the roll). The machine-config patches under `talos/patches/` are the deviations.
+**Repo paths:** five pins move together. `talos/talconfig.yaml` (`talosVersion`),
+`talos/talenv.yaml` (`talosVersion`, read by the `just talos` recipes), the `TalosUpgrade` CR at
+`kubernetes/apps/system-upgrade/tuppr/upgrades/talosupgrade.yaml` (tuppr drives the roll), the
+`talosctl` CLI in `.mise.toml` (`aqua:siderolabs/talos`, in the same group since the regex
+dropped its datasource restriction), and the `talosctl` download URL baked into the etcd-defrag
+HelmRelease (`kubernetes/apps/kube-system/etcd-defrag/app/helmrelease.yaml`, tracked by a custom
+manager). A rollback that touches only the first three leaves both clients on a different version
+from the nodes. The machine-config patches under `talos/patches/` are the deviations.
 
 **Read before merging:** the Talos release notes for **every** intervening patch, the tuppr
 release notes if tuppr moved too, and [Talos upgrades](talos-upgrades.md) in full. A **minor**
@@ -68,7 +73,9 @@ volumes still mounted needs a BMC reset; never reboot all three at once.
 **Arrives as:** the `Kubernetes` group (`kubelet`, `kube-apiserver`, `kube-controller-manager`,
 `kube-scheduler`, `kube-proxy`).
 
-**Repo paths:** `talos/talconfig.yaml` (`kubernetesVersion`) and the `KubernetesUpgrade` CR at
+**Repo paths:** `talos/talconfig.yaml` (`kubernetesVersion`), `talos/talenv.yaml`
+(`kubernetesVersion`, which `just talos upgrade-k8s` reads, so a rollback that skips it leaves the
+manual command targeting the version you just backed out of), and the `KubernetesUpgrade` CR at
 `kubernetes/apps/system-upgrade/tuppr/upgrades/kubernetesupgrade.yaml`.
 
 **Read before merging:** the Talos support matrix for the running Talos minor (each Talos minor
@@ -154,9 +161,11 @@ pod runs the image-set cephcsi version (the check that the bump actually landed)
 `ceph-block` PVC binds and mounts; VolSync source snapshots reach `READYTOUSE=true`; both
 `ReplicationSource` movers for one app complete.
 
-**Rollback caveats:** re-pin `ref.tag` on the two Rook OCIRepositories only. A Ceph major does not
-roll back with the chart. Crossing the v1.20 CSI split in either direction needs the drivers
-chart present and Ready first.
+**Rollback caveats:** for a Rook bump, re-pin `ref.tag` on the two Rook OCIRepositories (operator
+and cluster, together); for a `ceph-csi-drivers` bump, re-pin `csi-drivers/ocirepository.yaml`,
+then restart `ceph-csi-controller-manager` so the plugins actually roll back. Never revert the
+HelmRelease files themselves. A Ceph major does not roll back with the chart. Crossing the v1.20
+CSI split in either direction needs the drivers chart present and Ready first.
 
 ## Flux (operator and instance)
 
