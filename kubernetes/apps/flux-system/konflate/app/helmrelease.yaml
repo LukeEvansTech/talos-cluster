@@ -24,6 +24,17 @@ spec:
       statusChecks: true
       prComments: true
       publicUrl: "https://konflate.${SECRET_DOMAIN}"
+      # Konflate templates charts offline with no API server to discover from,
+      # so without these it renders against helm's built-in core API set and
+      # whatever Kubernetes version the helm SDK was built against. A chart
+      # gated on `.Capabilities.APIVersions.Has` (a CRD, a feature-gated API)
+      # or on `.Capabilities.KubeVersion` then renders differently in a PR
+      # diff than it does in-cluster. The chart `tpl`s both values, and
+      # helm-controller resolves capabilities against this cluster — which is
+      # also konflate's render target — so they track it with nothing static
+      # to maintain.
+      kubeVersion: "{{ .Capabilities.KubeVersion.Version }}"
+      helmApiVersions: '{{ join "," .Capabilities.APIVersions }}'
     secret:
       # KONFLATE_PUSH_TOKEN, bearer for POST /api/prs/{n}/refresh, forcing a
       # re-render of a PR's new head ahead of the 15m poll. With the CI
