@@ -78,7 +78,7 @@ spec:
           app:
             image:
               repository: docker.io/buddyspencer/gickup
-              tag: 0.10.46@sha256:08b03ebace9017e0c1fb085d9726392e5a09fd830986b6eb5d3a242317180531
+              tag: 0.10.47@sha256:a0307e9c131b45b0d2039417f291b7ef44580d9d9e303bb5a6083aaf82691044
             args:
               - /config/conf.yml
             env:
