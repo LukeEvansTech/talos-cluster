@@ -167,6 +167,8 @@ spec:
         parentRefs:
           - name: envoy-external
             namespace: network
+          - name: envoy-internal
+            namespace: network
         rules:
           # Strip Range on external-subtitle fetches, SRT subtitles break through a
           # reverse proxy otherwise.
