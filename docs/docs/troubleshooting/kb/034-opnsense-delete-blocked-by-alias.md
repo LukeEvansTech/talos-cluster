@@ -28,9 +28,9 @@ exists after the first refusal. The rule has a second branch precisely so that f
 A hostname was removed from Git (or moved to the other gateway), so under `policy: sync`
 external-dns planned the deletion of its A row and registry row. In OPNsense a host override can
 carry **aliases** (the Aliases grid on the same Services → Unbound DNS → Overrides page, each alias
-tied to a parent host row), and deleting the parent row cascades to them. Someone had added an alias by hand to a
-controller-owned row, so completing the delete would have silently destroyed a name the controller
-never knew about.
+tied to a parent host row), and deleting the parent row cascades to them. Someone had added an
+alias by hand to a controller-owned row, so completing the delete would have silently destroyed a
+name the controller never knew about.
 
 The provider therefore refuses any delete whose row still has enabled alias children, increments
 the counter, and returns the error. It does this every reconcile until the alias is gone. It never

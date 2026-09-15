@@ -390,7 +390,7 @@ graph TD
 2. Check the webhook is healthy:
 
     ```bash
-    kubectl logs -n network deployment/opnsense-dns
+    kubectl logs -n network deployment/opnsense-dns -c webhook
     ```
 
 3. Confirm the app's `HTTPRoute` targets `envoy-internal`, and that opnsense-dns logged the record:
@@ -514,8 +514,8 @@ hostname from Git removes its A row and its registry row on the next reconcile.
   only an app-hostname alias; it still carries device records that have no
   `${SECRET_DOMAIN}` equivalent: IPMI probe targets, core switches, the
   Kubernetes API endpoint, VM management interfaces, the NAS S3 endpoint, and a
-  handful of media-service aliases. Those are managed from `network-ops`, carry no registry row,
-  and are exactly the rows the ownership model protects.
+  handful of media-service aliases. Those are managed from `network-ops`, carry
+  no registry row, and are exactly the rows the ownership model protects.
 
 ### Alerts
 
