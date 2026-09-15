@@ -10,7 +10,7 @@ Forgejo directly and nothing clones from it: it is a backup, not a second forge.
 - Everything the account can reach, private ones included: its own repositories, the
   organisations it belongs to (`codelooks-com` among them), and repositories other people
   share with it as a collaborator.
-- Every starred repository (a few hundred, around 45 GB of git data).
+- Every starred repository (a few hundred, around 45 GB of Git data).
 - The wiki of each of the above, where one exists.
 
 Forks are skipped. Each upstream owner becomes a private Forgejo organisation, so the
@@ -20,7 +20,7 @@ cannot collide.
 ## What is deliberately not mirrored
 
 - **Issues, pull requests, releases and other metadata.** gickup can only dump issues to a
-  local directory, and the decision was that git data plus wiki is the backup.
+  local directory, and the decision was that Git data plus wiki is the backup.
 - **Gists and LFS objects.**
 
 To narrow the private pass to particular owners, add an `includeorgs` list of GitHub
@@ -29,7 +29,7 @@ too, which is why the stars are a separate entry.
 
 ## How it works
 
-1. **Forgejo** runs from the forgejo-helm chart with sqlite on a VolSync-backed
+1. **Forgejo** runs from the forgejo-helm chart with SQLite on a VolSync-backed
    `ceph-block` PVC. It is hardened for its role: `DISABLE_SSH` (nothing clones over
    SSH and the service is ClusterIP-only), `DISABLE_REGISTRATION`, and
    `REQUIRE_SIGNIN_VIEW`. `[git.timeout] MIGRATE` is raised to an hour because the

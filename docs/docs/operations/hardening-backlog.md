@@ -132,7 +132,7 @@ The churn that caused the 429s was fixed in shelly-operator v0.3.2, but the conf
 the next unreachable device will page as drift.
 
 **What would close it:** a state or reason metric from the operator and an alert expression that
-excludes `Unknown`. Lives in the shelly-operator repo.
+excludes `Unknown`. Lives in the shelly-operator repository.
 
 ### H-13: The Scrypted page documented an app that was never commissioned
 

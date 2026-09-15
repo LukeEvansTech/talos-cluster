@@ -7,7 +7,7 @@ explains the policy; this page is what to do when one of those PRs is in front o
 Every section has the same shape so it can be worked top to bottom:
 
 - **Arrives as**: how Renovate presents the bump (group name, which datasource, one PR or several).
-- **Repo paths**: the files a version change touches, and the values that are deliberate
+- **Repository paths**: the files a version change touches, and the values that are deliberate
   deviations a blind revert would drop.
 - **Read before merging**: the release notes and the repo-specific history that matter.
 - **Known breaking patterns**: what has broken here before, and the edit that goes in the same PR.
@@ -32,10 +32,10 @@ Three rules apply to all of them:
 **Arrives as:** the `Talos` group, from the `custom.talos-factory` datasource (Sidero no longer
 publishes a generic installer image for 1.14+; the pins carry `depName=siderolabs/talos`).
 
-**Repo paths:** five pins move together. `talos/talconfig.yaml` (`talosVersion`),
+**Repository paths:** five pins move together. `talos/talconfig.yaml` (`talosVersion`),
 `talos/talenv.yaml` (`talosVersion`, read by the `just talos` recipes), the `TalosUpgrade` CR at
 `kubernetes/apps/system-upgrade/tuppr/upgrades/talosupgrade.yaml` (tuppr drives the roll), the
-`talosctl` CLI in `.mise.toml` (`aqua:siderolabs/talos`, in the same group since the regex
+`talosctl` CLI in `.mise.toml` (`aqua:siderolabs/talos`, in the same group since the regular expression
 dropped its datasource restriction), and the `talosctl` download URL baked into the etcd-defrag
 HelmRelease (`kubernetes/apps/kube-system/etcd-defrag/app/helmrelease.yaml`, tracked by a custom
 manager). A rollback that touches only the first three leaves both clients on a different version
@@ -73,7 +73,7 @@ volumes still mounted needs a BMC reset; never reboot all three at once.
 **Arrives as:** the `Kubernetes` group (`kubelet`, `kube-apiserver`, `kube-controller-manager`,
 `kube-scheduler`, `kube-proxy`).
 
-**Repo paths:** `talos/talconfig.yaml` (`kubernetesVersion`), `talos/talenv.yaml`
+**Repository paths:** `talos/talconfig.yaml` (`kubernetesVersion`), `talos/talenv.yaml`
 (`kubernetesVersion`, which `just talos upgrade-k8s` reads, so a rollback that skips it leaves the
 manual command targeting the version you just backed out of), and the `KubernetesUpgrade` CR at
 `kubernetes/apps/system-upgrade/tuppr/upgrades/kubernetesupgrade.yaml`.
@@ -87,7 +87,7 @@ ceiling; the others document "newest tested" and have not broken on a version on
 **Known breaking patterns:** none recorded on this cluster since tuppr took over. A tuppr Job
 failure is terminal until the CR is reset; it does not retry.
 
-**After merge:** apiserver and kubelet versions on all nodes; gpu allocatable still 5 per node;
+**After merge:** apiserver and kubelet versions on all nodes; GPU allocatable still 5 per node;
 `kubectl top` works; only control-plane static pods restarted. Restarts of operators inside the
 upgrade window are reconcile churn, not a chronic fault (see
 [known noise](../troubleshooting/known-noise.md#restarts-that-cluster-inside-an-upgrade-window)).
@@ -100,7 +100,7 @@ the newer apiserver. Treat it as one way.
 **Arrives as:** the `Cilium` group (chart from `quay.io/cilium/charts`, plus the operator and
 agent images).
 
-**Repo paths:** `kubernetes/apps/kube-system/cilium/app/helm/values.yaml` (rendered into the HR
+**Repository paths:** `kubernetes/apps/kube-system/cilium/app/helm/values.yaml` (rendered into the HR
 via a ConfigMap generator), `app/networks.yaml` (L2 announcement and LB pools), and
 `kubernetes/apps/kube-system/cilium-policies/` (the cluster-wide policies). Deviations from the
 upstream template: `loadBalancer.mode: dsr`, `routingMode: native`, `kubeProxyReplacement: true`,
@@ -133,7 +133,7 @@ a bad state may need node reboots even after the chart is reverted.
 `rook-ceph` (operator) and `rook-ceph-cluster` **must move together**. `ceph-csi-drivers` (the
 home-operations mirror of the upstream ceph-csi-operator chart) is an independent line.
 
-**Repo paths:** `kubernetes/apps/rook-ceph/rook-ceph/ks.yaml` wires three Kustomizations in
+**Repository paths:** `kubernetes/apps/rook-ceph/rook-ceph/ks.yaml` wires three Kustomizations in
 order, `rook-ceph` then `rook-ceph-csi-drivers` then `rook-ceph-cluster`. `app/` is the operator,
 `csi-drivers/` the CSI drivers chart, `cluster/helmrelease.yaml` the `CephCluster`, pools,
 filesystem, `cephConfig` and health-check mutes. Deviations a bulk revert would drop:
@@ -172,7 +172,7 @@ CSI split in either direction needs the drivers chart present and Ready first.
 **Arrives as:** the `Flux` group: `flux-operator` chart, `flux-instance` chart, the
 `flux-operator-manifests` artifact, and the MCP server image.
 
-**Repo paths:** `kubernetes/apps/flux-system/flux-operator/app/helm/values.yaml` and
+**Repository paths:** `kubernetes/apps/flux-system/flux-operator/app/helm/values.yaml` and
 `kubernetes/apps/flux-system/flux-instance/app/helmrelease.yaml`. The instance HR sets
 `instance.distribution.artifact` but **not** `distribution.version`, so the chart default `2.x`
 resolves to whatever that artifact bundles. The per-controller resource patches (source-controller
@@ -186,8 +186,8 @@ at 1 Gi after the merge-burst OOM, CPU limits stripped) are the deviations.
 
 | Pattern | Required action |
 | --- | --- |
-| A merge burst spikes source-controller past its limit; every HelmRelease then fails `Could not load chart` and the git fix cannot self-apply | Break glass: edit the live `FluxInstance` CR (flux-operator reconciles it independently of source-controller), then land the same value in git. Limit is 1 Gi today |
-| The MCP server renames tools between versions | No repo change: nothing hardcodes tool names, and the `flux-mcp-write` ClusterRole is the write boundary |
+| A merge burst spikes source-controller past its limit; every HelmRelease then fails `Could not load chart` and the Git fix cannot self-apply | Break glass: edit the live `FluxInstance` CR (flux-operator reconciles it independently of source-controller), then land the same value in Git. Limit is 1 Gi today |
+| The MCP server renames tools between versions | No repository change: nothing hardcodes tool names, and the `flux-mcp-write` ClusterRole is the write boundary |
 
 **After merge:** `flux version` shows the expected `distribution:`; the `FluxInstance`
 `status.lastAppliedRevision` matches; all four controllers Running with no restarts; `flux get
@@ -203,7 +203,7 @@ additive within 2.x.
 
 **Arrives as:** the `Cert-Manager` group (chart from `quay.io/jetstack/charts`).
 
-**Repo paths:** `kubernetes/apps/cert-manager/cert-manager/app/helm/values.yaml`,
+**Repository paths:** `kubernetes/apps/cert-manager/cert-manager/app/helm/values.yaml`,
 `app/clusterissuer.yaml`, `app/prometheusrule.yaml`, and `tls/` (the wildcard Certificate and the
 PushSecret that copies it to 1Password). The cert-manager Kustomization has `wait: true` and a
 `healthCheckExprs` on the ClusterIssuer, and it is a **dependency root**: Envoy Gateway, the CNPG
@@ -228,7 +228,7 @@ cert-manager.
 **Arrives as:** separate PRs. `external-secrets` (chart) and `1password` (connect chart, the
 `connect-api` and `connect-sync` images).
 
-**Repo paths:** `kubernetes/apps/external-secrets/external-secrets/app/` (HR and a PDB) and
+**Repository paths:** `kubernetes/apps/external-secrets/external-secrets/app/` (HR and a PDB) and
 `kubernetes/apps/external-secrets/onepassword-connect/app/` (HR, the `ClusterSecretStore`
 `onepassword-connect`, and the ExternalSecret holding the Connect credentials). House rule is that
 an app with an ExternalSecret `dependsOn` `onepassword-connect`; about half of them do today, so a
@@ -253,7 +253,7 @@ confirm a `lastRefreshTime` advances; the PushSecret in cert-manager still `Sync
 
 **Arrives as:** the `CoreDNS` group (chart plus the image mirrored via `mirror.gcr.io`).
 
-**Repo paths:** `kubernetes/apps/kube-system/coredns/app/helm/values.yaml`. Deviations: the
+**Repository paths:** `kubernetes/apps/kube-system/coredns/app/helm/values.yaml`. Deviations: the
 `template ANY AAAA` plugin that answers every AAAA with an empty NOERROR (IPv4-only cluster), the
 fixed `clusterIP`, `k8sAppLabelOverride: kube-dns`, and the PDB.
 
@@ -277,7 +277,7 @@ fresh pod; an AAAA query returns NOERROR with no answer; no `plugin/errors` line
 
 **Arrives as:** `spegel` (chart and image).
 
-**Repo paths:** `kubernetes/apps/kube-system/spegel/app/helm/values.yaml`. Talos side:
+**Repository paths:** `kubernetes/apps/kube-system/spegel/app/helm/values.yaml`. Talos side:
 `containerdRegistryConfigPath: /etc/cri/conf.d/hosts` matches the Talos registry-mirror
 configuration in the machine config; the two must agree.
 
@@ -300,7 +300,7 @@ is down, slower but not broken.
 **Arrives as:** `cloudnative-pg` (operator chart), the `postgresql` image (digest-pinned on the
 `Cluster`), and the `CloudNative-PG Barman Cloud` group (the backup plugin).
 
-**Repo paths:** `kubernetes/apps/database/cloudnative-pg/app/` (operator), `cluster/cluster.yaml`
+**Repository paths:** `kubernetes/apps/database/cloudnative-pg/app/` (operator), `cluster/cluster.yaml`
 (`postgres18`, 3 instances on `miroir-local`, `primaryUpdateStrategy: unsupervised`,
 `failoverDelay: 60`), `cluster/scheduledbackup.yaml` and `cluster/objectstore.yaml` (Barman to
 S3), `barman-cloud/` (the plugin), `backup/` (the NFS dump CronJob), and `cluster/pooler.yaml`.
@@ -334,7 +334,7 @@ been opened by the newer one.
 driver and toolkit are **disabled** in the chart because Talos ships them as system extensions,
 so the chart bump touches the device plugin, GFD, DCGM exporter and the operator itself.
 
-**Repo paths:** `kubernetes/apps/gpu-operator/gpu-operator/app/helmrelease.yaml`
+**Repository paths:** `kubernetes/apps/gpu-operator/gpu-operator/app/helmrelease.yaml`
 (`driver.enabled: false`, `toolkit.enabled: false`, `cdi.enabled: true`, time slicing via
 `devicePlugin.config`), `app/time-slicing-config.yaml` (5 replicas per card),
 `app/runtimeclass.yaml`, `app/prometheusrule.yaml`.
@@ -361,7 +361,7 @@ with `runtimeClassName: nvidia` starts and sees the card (`nvidia-smi` in an Oll
 arrive separately as a `gateway-api` `github-releases` bump, also protected (the guard matches
 `/gateway-api/` since #3869), so they are reviewed by hand too.
 
-**Repo paths:** `kubernetes/apps/network/envoy-gateway/app/helmrelease.yaml` (CRD policy
+**Repository paths:** `kubernetes/apps/network/envoy-gateway/app/helmrelease.yaml` (CRD policy
 `CreateReplace`), `app/envoy.yaml` (the two `Gateway` objects and their `EnvoyProxy` configs; the
 LB addresses in it are allowlisted functional config), `app/observability.yaml`. Every app's
 route attaches to `envoy-internal` or `envoy-external` in `network`.
@@ -389,7 +389,7 @@ check the older Envoy Gateway release lists that CRD version as supported before
 moves first whenever a Talos bump needs a tuppr feature (0.5.3 was required for the Image Factory
 installer in 1.14).
 
-**Repo paths:** `kubernetes/apps/system-upgrade/tuppr/app/helmrelease.yaml` (memory limit 768 Mi
+**Repository paths:** `kubernetes/apps/system-upgrade/tuppr/app/helmrelease.yaml` (memory limit 768 Mi
 after the apiserver-blip OOM), `upgrades/talosupgrade.yaml` (`rebootMode: default`, drain
 settings, the two `healthChecks`), `upgrades/kubernetesupgrade.yaml`, `upgrades/prometheusrule.yaml`
 (hand-tuned; the chart's rules are disabled).
@@ -414,7 +414,7 @@ or `Idle`; ServiceMonitor still scraping (`up{job=~"tuppr.*"}`); the dashboard r
 **Arrives as:** `volsync` (chart and mover images) and `snapshot-controller` (the CSI
 VolumeSnapshot controller chart).
 
-**Repo paths:** `kubernetes/apps/volsync-system/volsync/app/` (HR, the
+**Repository paths:** `kubernetes/apps/volsync-system/volsync/app/` (HR, the
 `MutatingAdmissionPolicy` that adds the start jitter to mover Jobs, PrometheusRule), `volsync/maintenance/`
 (Kopia maintenance and its policy), `kubernetes/apps/kube-system/snapshot-controller/app/`, and
 the `kubernetes/components/volsync/` component every backed-up app pulls in.
@@ -443,7 +443,7 @@ Kopia version inside the mover image before rolling back more than a patch.
 shape still moves between releases. The LiteLLM proxy image itself (`ghcr.io/berriai/litellm`,
 digest-pinned on `main-stable`) is **not** protected and auto-merges as a digest bump.
 
-**Repo paths:** `kubernetes/apps/ai/litellm-operator/app/` (HR; memory limit 512 Mi) and the
+**Repository paths:** `kubernetes/apps/ai/litellm-operator/app/` (HR; memory limit 512 Mi) and the
 `LiteLLMProxy` CR it reconciles at `kubernetes/apps/ai/litellm/app/litellmproxy.yaml` (probes,
 resources, the MCP and semantic-filter config). [LiteLLM](../apps/litellm.md) has the app design;
 [AI / LLM stack](../architecture/ai-llm-stack.md) the surrounding pieces.
@@ -471,7 +471,7 @@ CR's newer fields; revert the CR in the same PR.
 
 **Arrives as:** `miroir` (chart and image).
 
-**Repo paths:** `kubernetes/apps/miroir-system/miroir/` (the CSI driver and its config) and the
+**Repository paths:** `kubernetes/apps/miroir-system/miroir/` (the CSI driver and its config) and the
 `miroir-local` StorageClass it provides. CNPG replicas and other node-local volumes live on it.
 
 **Read before merging:** the miroir release notes, with particular attention to anything about

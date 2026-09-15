@@ -98,7 +98,7 @@ kustomize.toolkit.fluxcd.io/ssa: IfNotPresent
 
 kustomize-controller now creates the Secret only when it does not exist (bootstrap), and
 never again overwrites the ESO-managed real values. CI rendering (flate/Konflate) is
-unaffected: both read the git file, not the live object. Trade-off: a key added to the
+unaffected: both read the Git file, not the live object. Trade-off: a key added to the
 placeholder file after bootstrap reaches only CI rendering; the live value must land in
 the `cluster-secrets` 1Password item, which was already the required workflow.
 

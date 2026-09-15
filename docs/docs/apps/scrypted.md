@@ -13,7 +13,7 @@ Reolink cameras in a later phase.
   fleet (2× Doorbell Pro 2, Doorbell 2nd Gen, Stick Up Cam Battery, Floodlight
   Cam Wired Plus, Spotlight Cam Plus Battery, Indoor Cam) into HomeKit. Traffic
   is cloud-relayed through the Ring account, which is expected at this stage.
-- **Phase 1+:** Reolink cameras (Doorbell PoE/WiFi, Duo/Elite Floodlight, Argus
+- **Phase 1+:** Reolink cameras (Doorbell PoE/Wi-Fi, Duo/Elite Floodlight, Argus
   4 Pro, E1 Pro) via `@scrypted/reolink`. Nothing here blocks local RTSP/ONVIF.
 - Internal-only: `scrypted.${SECRET_DOMAIN}` on `envoy-internal`.
 
@@ -69,7 +69,7 @@ Scrypted is **additive**: Homebridge stays.
   and npm-installs into `/server/volume`. Same documented exception as
   Homebridge; most apps here run as UID 1000.
 - **Image variant `-noble-full`.** This is the variant upstream publishes as
-  `:latest` (identical digest). Renovate's docker versioning keeps updates
+  `:latest` (identical digest). Renovate's `docker` versioning keeps updates
   within the same suffix family. The `-noble-nvidia` variant is the drop-in
   swap if GPU transcoding is ever wanted: the cluster's NVIDIA L4s and the
   `runtimeClassName: nvidia` pattern are available, but Phase 0 needs no GPU.

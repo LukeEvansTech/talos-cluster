@@ -5,7 +5,7 @@ restart to wipe the emptyDir mirror) are durable.
 
 `konflate` (chart `oci://ghcr.io/home-operations/charts/konflate`) runs as a Flux HelmRelease
 in `flux-system`, rendering in-cluster Flux diffs over the repository. It caches many tiny
-OCI/Helm files and clones the repo into an in-pod git mirror. Two different failure modes have
+OCI/Helm files and clones the repository into an in-pod Git mirror. Two different failure modes have
 hit it.
 
 ## Symptom
@@ -24,9 +24,9 @@ konflate's source/render/stage caches are millions of tiny files at only a few G
 fixed-inode ceph-block RBD volume **exhausts inodes long before bytes**. The chart bounds
 caches by bytes + TTL but never by inode count.
 
-### Variant B: a phantom (dangling) ref in the git mirror
+### Variant B: a phantom (dangling) ref in the Git mirror
 
-The failing SHA is a **phantom**, not in the GitHub repo at all (`git cat-file -t <SHA>` =
+The failing SHA is a **phantom**, not in the GitHub repository at all (`git cat-file -t <SHA>` =
 bad object even after fetch). It's a dangling ref in konflate's in-pod mirror, almost
 certainly a commit that Renovate force-pushed away but the mirror still references.
 `repack mirror` chokes on it, which breaks the **whole** mirror, so every render fails

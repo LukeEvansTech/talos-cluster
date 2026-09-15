@@ -50,7 +50,7 @@ Application container images and Helm charts auto-merge under **two** rules, spl
   it holds the merge until the PR's checks are green (the `Lint` and `security-scans` GitHub Actions
   workflows, the Konflate commit status, and the `claude/renovate-review` commit status; see
   [AI review of Renovate PRs](#ai-review-of-renovate-prs) below), rather than relying on GitHub-native
-  auto-merge (the repo has no required-status-check rulesets).
+  auto-merge (the repository has no required-status-check rulesets).
 - `minimumReleaseAge: "2 days"` on the **minor/patch** rule is a cooldown: a release must be two days
   old before it can merge, giving yanked tags, broken `.0` releases, and runtime regressions a window
   to surface first.
@@ -157,7 +157,7 @@ each justified; the waste was re-run *frequency*.)
 
 `.github/workflows/renovate-review.yaml` reviews Renovate PRs with `anthropics/claude-code-action`
 (Claude via OAuth, sidestepping the internal-only LiteLLM). It is gated to `renovate[bot]` PRs,
-skips digest-only and github-action bumps, and tiers the model: a cheaper model for routine patch
+skips digest-only and GitHub Actions bumps, and tiers the model: a cheaper model for routine patch
 container bumps, a stronger one for minor/major/chart or high-blast-radius components. It posts a
 `claude/renovate-review` commit status that gates auto-merge via all-checks-green.
 

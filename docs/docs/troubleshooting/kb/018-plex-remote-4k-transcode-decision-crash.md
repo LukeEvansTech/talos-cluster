@@ -45,7 +45,7 @@ client or in the library instead:
    via tdarr) so even Maximum-quality clients direct-play the 1080p copy (~10-15 Mbps) with
    zero transcode; keep the 4K original for LAN.
 
-The cap itself is declarative in git as `PLEX_PREFERENCE_14: "WanPerStreamMaxUploadRate=20000"`
+The cap itself is declarative in Git as `PLEX_PREFERENCE_14: "WanPerStreamMaxUploadRate=20000"`
 in the Plex HelmRelease values (the home-operations image applies any
 `PLEX_PREFERENCE_<n>="Key=Value"` env on start, no live API/UI change needed). There is **no**
 server-side "limit remote resolution" setting in Plex, only bitrate.
@@ -53,7 +53,7 @@ server-side "limit remote resolution" setting in Plex, only bitrate.
 ## Recon notes
 
 - Tautulli listens on `:80` (not the config's `8181`); its on-disk `config.ini` api_key can be
-  stale versus the in-memory one: copy `/config/tautulli.db` out and query sqlite locally.
+  stale versus the in-memory one: copy `/config/tautulli.db` out and query SQLite locally.
 - The Plex token is in `Preferences.xml` (`PlexOnlineToken`); query the local API at
   `http://localhost:32400` inside the pod. Enable `logDebug=1` temporarily to capture the
   decision codes (`Direct Play=3000`, `Transcode=4005`).

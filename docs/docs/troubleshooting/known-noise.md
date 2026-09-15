@@ -176,7 +176,7 @@ is one of those is the mute, not a regression.
 ### The `cluster-secrets` placeholder Secret has no `ssa` annotation on the live object
 
 The fix for the placeholder race (#4081) is `kustomize.toolkit.fluxcd.io/ssa: IfNotPresent` on the
-**git manifest**. External Secrets rewrites the live Secret's metadata a second after Flux applies
+**Git manifest**. External Secrets rewrites the live Secret's metadata a second after Flux applies
 it and drops the annotation. That is expected. Verify by the managedFields timestamp of
 `kustomize-controller` on the Secret, which must stop advancing, not by reading the annotation.
 [KB-020](kb/020-httproute-drifts-to-placeholder-hostnames.md).
@@ -230,11 +230,11 @@ apart; run it before acting on the presenting symptom.
 ## Escalate: do not attempt these autonomously
 
 - **Never run `kopia` CLI commands inside the `volsync-system/kopia` server pod.** `snapshot list
-  --all` loads the repo index into the serving container and OOMKills it, taking the shared
+  --all` loads the repository index into the serving container and OOMKills it, taking the shared
   backup server down for every app. Use a separate short-lived pod against the same NFS mount.
 - **Never `kubectl patch` the size of a GitOps-managed PVC.** A PVC cannot shrink, so the next
   Helm upgrade fails `field can not be less than status.capacity` and the HelmRelease wedges. Bump
-  `size:` in git ([KB-011](kb/011-konflate-render-failures.md) has the history).
+  `size:` in Git ([KB-011](kb/011-konflate-render-failures.md) has the history).
 - **Never reboot or upgrade all three nodes at once.** With Rook-Ceph, the last node stalls forever
   in the volume-unmount step of shutdown because the other two mons are already gone. Drain one,
   reboot one, wait for `HEALTH_OK` and three healthy etcd members, then the next.
@@ -254,7 +254,7 @@ These fire for a real reason and have a fixed, safe remedy. Apply it, then verif
 | Alert or symptom | Remedy | Verify |
 | --- | --- | --- |
 | Ceph `HEALTH_WARN` from recent crash reports (blocks tuppr) | `ceph crash archive-all` in the toolbox, after `ceph crash ls-new` shows the daemon recovered | `ceph health` returns `HEALTH_OK` |
-| `volsync-system/kopia` server OOM-crashlooping | Raise its memory limit; it scales with repo size | [KB-016](kb/016-kopia-repo-server-oom-repo-size.md) |
+| `volsync-system/kopia` server OOM-crashlooping | Raise its memory limit; it scales with repository size | [KB-016](kb/016-kopia-repo-server-oom-repo-size.md) |
 | `KubeJobFailed` with a healthy CronJob | `kubectl delete job <name>` | Alert resolves within one evaluation |
 | CSI plugin pods still on the old cephcsi image after a Rook bump | `kubectl -n rook-ceph rollout restart deploy/ceph-csi-controller-manager` | Every `*.csi.ceph.com-*plugin` pod runs the image-set version |
 | VolumeSnapshots stuck `READYTOUSE=false`, `VolSyncVolumeOutOfSync` everywhere | Delete the orphaned `external-snapshotter-leader-*` Lease in `rook-ceph` | Snapshotter logs `Creating snapshot for content`; movers drain over a few hours |

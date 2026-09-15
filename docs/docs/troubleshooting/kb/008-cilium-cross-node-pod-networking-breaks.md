@@ -11,7 +11,7 @@ node's **host / underlay** traffic (node-IP pings) is perfect. Paths that don't 
 affected node (peer ↔ peer) are fine.
 
 Reliable independent canary: the affected node's **spegel** pod goes `0/1` (P2P bootstrap DNS
-i/o timeouts). Cilium's drop monitor shows nothing for the lost traffic, and NIC counters are
+I/O timeouts). Cilium's drop monitor shows nothing for the lost traffic, and NIC counters are
 clean (`rx_crc_errors=0`).
 
 ## Cause

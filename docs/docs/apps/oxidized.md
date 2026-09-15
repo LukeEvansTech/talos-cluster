@@ -13,7 +13,7 @@ GUI/SSH edits) that bypass the IaC.
   versioned, diffable, and recoverable.
 - Detect drift between IaC-declared intent and what's actually running on the hardware.
 - Notify on change and on failure, and surface per-device freshness as metrics.
-- Device roles backed up (kept generic, since this is a public repo): the perimeter
+- Device roles backed up (kept generic, since this is a public repository): the perimeter
   firewall/router, and the PoE and non-PoE access-switch pair (exactly three devices, wired
   individually in the ExternalSecret's `router.db` template).
 - Deliberately not included: a core switch and a wireless AP controller, because Oxidized ships no
@@ -29,15 +29,15 @@ GUI/SSH edits) that bypass the IaC.
   per-device last-success metrics on `:8080`. One init container (`ssh-setup`) stages the SSH deploy
   key onto a memory-backed `emptyDir` before the app starts.
 - **The device inventory/lookup table (`router.db`) and device credentials are rendered INSIDE the
-  ExternalSecret `target.template.data` block using Golang template syntax (`{{ .VAR }}`), then
-  mounted directly from the rendered Secret, NEVER stored in a ConfigMap in git.** This is the
+  ExternalSecret `target.template.data` block using Go template syntax (`{{ .VAR }}`), then
+  mounted directly from the rendered Secret, NEVER stored in a ConfigMap in Git.** This is the
   repository-wide rule for any device address or credential table. In this app it is realised as:
   - The ExternalSecret renders `router.db` inline in its `target.template.data` block, substituting
     per-device hostnames, usernames, and passwords from the 1Password item using `{{ .VAR }}`
-    Golang template syntax.
+    Go template syntax.
   - The rendered `router.db` is mounted directly from the Secret (`type: secret`, name:
     `oxidized-secret`) at `/etc/oxidized/router.db.d/router.db` as a read-only file. Net effect:
-    device credentials never land on the Ceph PVC and never appear in git.
+    device credentials never land on the Ceph PVC and never appear in Git.
   - The ConfigMap holds only the Oxidized YAML config (not a `router.db` template). There is no
     `envsubst` init container for `router.db`.
 - **Secrets flow 1Password → ExternalSecret → Secret.** A single 1Password item (in the `Talos` vault,
@@ -45,11 +45,11 @@ GUI/SSH edits) that bypass the IaC.
   the GitHub deploy key, the `known_hosts` line, and the notification provider token/user key.
 - **SSH key only on tmpfs.** The SSH deploy key is written by the `ssh-setup` init container to a
   memory-backed `emptyDir` (`~/.ssh`). The Ceph PVC holds only Oxidized state and the bare Git
-  repo.
-- **Push target is a private GitHub repo over SSH.** An `exec` hook (not the `githubrepo` hook)
-  fires on `post_store` and runs system git over SSH using the ed25519 deploy key staged by the init
+  repository.
+- **Push target is a private GitHub repository over SSH.** An `exec` hook (not the `githubrepo` hook)
+  fires on `post_store` and runs system Git over SSH using the ed25519 deploy key staged by the init
   container. The `githubrepo` hook (rugged/libgit2) was abandoned because it fails against current
-  GitHub with `Rugged::SshError: remote rejected authentication`. The repo stays private: even after
+  GitHub with `Rugged::SshError: remote rejected authentication`. The repository stays private: even after
   secret stripping, configs may carry topology/address detail.
 - **Notifications are split.** Drift and poll-failure events fire a direct `exec` hook to the push
   notification provider; longer-horizon staleness is alerted through the existing
@@ -106,8 +106,8 @@ GUI/SSH edits) that bypass the IaC.
   for fast feedback, verify every device goes green and commits land, then restore `interval: 86400`
   before merge. The same fast-feedback trick applies to alert `for:` thresholds.
 - **Audit committed configs for plaintext secrets.** After the first successful poll, clone the backup
-  repo and grep the firewall config in particular for plaintext secret tags. If anything sensitive
-  leaks through, enable Oxidized's `remove_secret` (globally and/or per-model, with custom regex for
+  repository and grep the firewall config in particular for plaintext secret tags. If anything sensitive
+  leaks through, enable Oxidized's `remove_secret` (globally and/or per-model, with custom regular expression for
   any tag the built-in logic misses), redeploy the ConfigMap, and re-verify the next cycle is clean.
 - **Failure modes are mostly self-healing.**
   - A single unreachable device fires the failure hook and, after 48h, the stale alert; it recovers on
@@ -116,9 +116,9 @@ GUI/SSH edits) that bypass the IaC.
   - A notification-provider outage loses only the notification; drift commits are still stored in Git.
   - 1Password Connect being down leaves the already-mounted Secret working for hours.
 - **State recovery.** If the PVC is corrupted, delete it and either restore via VolSync or re-clone
-  from the GitHub backup repo. The remote history is durable, and a redeploy picks up where it left
+  from the GitHub backup repository. The remote history is durable, and a redeploy picks up where it left
   off. Uninstall is `just kube delete-ks observability oxidized` (+ optional PVC delete); the 1Password
-  item and GitHub repo persist for clean redeploy.
+  item and GitHub repository persist for clean redeploy.
 - **Restart after ConfigMap-only changes.** Editing the Oxidized config in the ConfigMap does not roll
   the pod automatically: re-apply the Kustomization or restart the deployment so the new content is
   picked up. Changes to `router.db` require updating the ExternalSecret template and waiting for the

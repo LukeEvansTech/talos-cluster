@@ -17,7 +17,7 @@ Secrets never live in Git. They flow:
 - **`cluster-settings`**: a git-tracked ConfigMap (`components/global-vars/`) holding cluster-wide
   *non-sensitive* `${...}` values (non-secret feature flags and the like; currently empty).
 
-## Rules for a public repo
+## Rules for a public repository
 
 - Use the `${SECRET_DOMAIN}` / `${SECRET_INTERNAL_DOMAIN}` placeholders in Git; Flux substitutes the
   real values at apply time.
@@ -38,7 +38,7 @@ Secrets never live in Git. They flow:
 The talhelper secrets bundle (cluster CA/PKI, etcd certs, bootstrap tokens) follows the same
 "1Password owns it" rule as everything else. There is **no SOPS anywhere in this repository**:
 the historical `talos/talsecret.sops.yaml` was removed in PR #3463 (2026-07) after the age key for
-it was lost; the encrypted blob left in git history is dead ciphertext.
+it was lost; the encrypted blob left in Git history is dead ciphertext.
 
 - The bundle is stored as the **`talsecret` document** in the `Talos` 1Password vault.
 - `just talos gen-config` fetches it (`op document get talsecret --vault Talos`) to a temp file,

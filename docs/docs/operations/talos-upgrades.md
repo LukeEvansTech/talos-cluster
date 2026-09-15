@@ -225,7 +225,7 @@ unsafe before.
   list. Do **not** widen them to `Ceph.*`: `CephMonDownQuorumAtRisk`, `CephHealthError`, the etcd
   member alerts and `MiroirVolumeQuorumLost` are deliberately left audible so a second failure
   during a reboot still pages. Create them through a port-forward to the Alertmanager service and
-  `POST /api/v2/silences`; `kubectl create --raw` is rejected. Expire them by id when done.
+  `POST /api/v2/silences`; `kubectl create --raw` is rejected. Expire them by ID when done.
 
 ### Per node
 

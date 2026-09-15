@@ -22,7 +22,7 @@ In both, `kubectl get pods -A` is green, nodes are `Ready`, and the apps keep se
 
 A burst of merges (e.g. ~14 PRs in quick succession) spikes source-controller: artifact-store
 rebuild, `--helm-cache-max-size`, and `--concurrent` reconciles together push it past its
-memory limit. Once it OOM-crashloops it **cannot serve OCI/git artifacts**, so every
+memory limit. Once it OOM-crashloops it **cannot serve OCI/Git artifacts**, so every
 HelmRelease that needs to (re)load its chart fails: all the ArtifactFailed alerts are
 downstream of the single OOM.
 
@@ -47,8 +47,8 @@ Bump the source-controller resources in the FluxInstance patch at
 ~400Mi and a full artifact re-fetch peaks ~474Mi, so 512Mi is too tight. Use **1Gi**
 (request = limit). Go higher if a bigger burst OOMs it again.
 
-The git fix can't self-apply while source-controller is down (kustomize/helm-controller need
-it to fetch the git artifact and re-render). Break the deadlock by editing the **live**
+The Git fix can't self-apply while source-controller is down (kustomize/helm-controller need
+it to fetch the Git artifact and re-render). Break the deadlock by editing the **live**
 FluxInstance CR. **flux-operator**, not source-controller, reconciles it, so it applies
 independently:
 
@@ -58,8 +58,8 @@ kubectl get fluxinstance flux -n flux-system -o json > /tmp/fluxinstance.json
 kubectl replace -f /tmp/fluxinstance.json
 ```
 
-Then land the same value in git and `flux reconcile kustomization flux-instance -n flux-system`
-so live and git converge (otherwise the next re-render reverts the break-glass).
+Then land the same value in Git and `flux reconcile kustomization flux-instance -n flux-system`
+so live and Git converge (otherwise the next re-render reverts the break-glass).
 
 ### Variant B: retry the failing root source
 

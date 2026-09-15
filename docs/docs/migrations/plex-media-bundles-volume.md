@@ -511,7 +511,7 @@ Specifically, none of these belong anywhere near this step, and all of them exis
 
 One more trap, learned the hard way: **do not run the Kopia CLI inside the `kopia` pod in
 `volsync-system`.** That container is capped at 2Gi and the server process already sits near it, so a
-second Kopia process loading the repository indexes OOM-kills the server (`exit 137`). It restarts by
+second Kopia process loading the repository indices OOM-kills the server (`exit 137`). It restarts by
 itself, but the backup web interface is down while it does. The Job below runs in its own pod with
 its own memory budget for exactly this reason.
 

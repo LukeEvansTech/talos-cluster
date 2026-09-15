@@ -85,7 +85,7 @@ just kube zeroscaler suspend   # pin all NFS-gated apps up (minReplicas=1)
 just kube zeroscaler resume    # back to metric-driven (minReplicas=0)
 ```
 
-Note: Flux reverts `minReplicas` to the git value (`0`) on the next reconcile, so pause then act promptly (or `flux suspend` the app's Kustomization for a longer hold).
+Note: Flux reverts `minReplicas` to the Git value (`0`) on the next reconcile, so pause then act promptly (or `flux suspend` the app's Kustomization for a longer hold).
 
 ### Open items
 

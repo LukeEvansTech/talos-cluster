@@ -84,7 +84,7 @@ The server-side TCP levers (lower the `200M` egress cap, force-disable BBR via `
     ```
 
 - **Source-IP is SNAT'd.** The Plex Service is `externalTrafficPolicy: Cluster`, so a filter like `ss dst <apple-tv-ip>` finds nothing. Client media sockets can appear with node/masquerade peers, though here the Apple TV's real IP `<apple-tv-ip>` did show on the video socket. Filter by `sport = :32400` and look for the socket with a large `Send-Q` / `persist` timer.
-- **Confirm the egress cap is really enforced** (not just annotated): `cilium-dbg bpf bandwidth list` on the node's agent. The Plex endpoint id (from `cilium-dbg endpoint list` matching `10.42.1.109`) should show `Egress … 200M`. It was correctly enforced here (endpoint `1001 → 200M`), which is why this is *not* a KB-002 relapse.
+- **Confirm the egress cap is really enforced** (not just annotated): `cilium-dbg bpf bandwidth list` on the node's agent. The Plex endpoint ID (from `cilium-dbg endpoint list` matching `10.42.1.109`) should show `Egress … 200M`. It was correctly enforced here (endpoint `1001 → 200M`), which is why this is *not* a KB-002 relapse.
 - **Dead-ends ruled out this run (so nobody re-chases them):**
     - *GPU/libcuda:* the driver moved `libcuda.so.1` from `/usr/local/glibc/usr/lib` (the KB-era `LD_LIBRARY_PATH`) to `/usr/local/lib` after the 570→595 bump, but **musl already searches `/usr/local/lib`**, so `LD_PRELOAD=libcuda.so.1` loads fine on either path. The stale `LD_LIBRARY_PATH` is harmless, not a bug.
     - *RPU `hevc … RPU validation failed`:* a single unrelated remote transcode session (`iqi9…`), ~136k lines over Jul 11 16:28-18:03, **zero since**; not the Apple TV, not this symptom.

@@ -10,7 +10,7 @@ bjw-s `app-template` deployment mirroring sibling apps (maintainerr, pulsarr).
   Jellyfin/Plex and the \*arr stack (Sonarr/Radarr).
 - Single Deployment pod with a small VolSync-backed PVC (`2Gi`) at `/app/data` holding the
   app database, logs, and static files.
-- Jellyfin/Plex and \*arr connections are configured through the UI post-deploy, not in git.
+- Jellyfin/Plex and \*arr connections are configured through the UI post-deploy, not in Git.
 
 ## Design decisions
 
