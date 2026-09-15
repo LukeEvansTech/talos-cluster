@@ -41,6 +41,11 @@ spec:
                 key: api-secret
           - name: OPNSENSE_DOMAINS
             value: ${SECRET_DOMAIN},${SECRET_INTERNAL_DOMAIN}
+          # One write at a time: OPNsense lost 2 of 282 concurrent addHostOverride
+          # saves during the 2026-09-15 cutover (both acknowledged with a uuid, neither
+          # in the table afterwards). Keep at 1 until the webhook serialises writes itself.
+          - name: OPNSENSE_APPLY_WORKERS
+            value: "1"
           # The firewall presents a self-signed certificate; the provider
           # defaults to verifying.
           - name: OPNSENSE_SKIP_TLS_VERIFY
