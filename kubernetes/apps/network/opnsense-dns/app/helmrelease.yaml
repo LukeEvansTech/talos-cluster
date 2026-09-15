@@ -22,7 +22,7 @@ spec:
       webhook:
         image:
           repository: ghcr.io/lukeevanstech/external-dns-opnsense-webhook
-          tag: 0.1.0@sha256:b9df1ac4db692cf4cbd31560e88a30d6ee979eceb57b830cbf73dbae190fa3cf
+          tag: 0.1.1@sha256:03c74f5e9653f2d894ff14121555dbc9201d40ec02eb6c3d51671435bf257294
         env:
           - name: OPNSENSE_HOST
             valueFrom:
