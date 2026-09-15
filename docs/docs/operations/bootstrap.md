@@ -552,7 +552,7 @@ stringData:
     value: ref+op://vault/item/field
 ```
 
-## Migration from bash scripts
+## Migration from Bash scripts
 
 The old bash-based bootstrap system (`scripts/bootstrap-apps.sh`) has been removed. If you're migrating from the old system:
 

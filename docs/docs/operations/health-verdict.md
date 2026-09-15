@@ -130,7 +130,7 @@ batch closes, write a redacted summary (the verdict, the counts, the alert names
 
 ## Checks
 
-Run cheapest first. All use the repo kubeconfig:
+Run cheapest first. All use the repository kubeconfig:
 
 ```bash
 export KUBECONFIG="$PWD/kubeconfig"   # from the repository root; .mise.toml sets the same
@@ -294,4 +294,4 @@ Where `git revert` is not enough, the [upgrade playbooks](upgrade-playbooks.md) 
 component. The common cases: a Ceph major (one way), a Kubernetes or Talos minor with an etcd
 major inside it (one way), a `Cluster` whose Postgres image has been opened by the newer version,
 a HelmRelease that needs a suspend and resume to unwedge, and a PVC that has been grown live and
-can never shrink back to what git declares.
+can never shrink back to what Git declares.

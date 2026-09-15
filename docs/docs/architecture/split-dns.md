@@ -254,7 +254,7 @@ spec:
               - ${CLOUDFLARE_TUNNEL_ID}.cfargotunnel.com
 ```
 
-### Why `--cloudflare-proxied` is enabled
+### Why `--cloudflare-proxied` is enabled {#why-cloudflare-proxied-is-enabled}
 
 `--cloudflare-proxied` is enabled, and it is safe because cloudflare-dns no longer ingests internal records:
 

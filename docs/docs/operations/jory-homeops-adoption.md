@@ -171,7 +171,7 @@ to protect co-tenants.
 ### PR G: model-storage de-workaround (requires PR D)
 
 The RWO pattern in `kubernetes/apps/ai/llmkube/models/` exists **only** because of the wrong
-June diagnosis (KB-025): per-model `ceph-block` PVCs, one-shot curl staging Jobs carrying
+June diagnosis (KB-025): per-model `ceph-block` PVCs, one-shot `curl` staging Jobs carrying
 `kustomize.toolkit.fluxcd.io/reconcile: disabled` (Job immutability vs Renovate), and
 `modelCache.enabled: false` in the llmkube HelmRelease with the wrong comment. Target state is
 jory's, verbatim from his llmkube HelmRelease:
@@ -261,7 +261,7 @@ provider (`spec.providerConfig`), pointed at the `litellm-key-foreman` Secret th
 
 **Prerequisites the owner must create before the trial can run** (not automated by the PR):
 
-- A GitHub App (the trial used `foreman-lukeevanstech`, id 4718328: Contents RW / Pull requests
+- A GitHub App (the trial used `foreman-lukeevanstech`, ID 4718328: Contents RW / Pull requests
   RW / Issues R / Metadata R, webhook off, deleted 2026-08-26 together with its 1Password item)
   installed on the account; its private key lives on the `foreman-github` 1Password item (Talos
   vault, fields `APP_ID`, `INSTALLATION_ID`, `PRIVATE_KEY`). An
@@ -272,7 +272,7 @@ provider (`spec.providerConfig`), pointed at the `litellm-key-foreman` Secret th
   `LiteLLMVirtualKey` in this PR can resolve. See that PR's Verification section for what was
   actually observed against the litellm-operator's validating webhook.
 
-**Trial procedure.** Apply one `Workload` by hand against a real issue in a repo the generator's `repositories` list
+**Trial procedure.** Apply one `Workload` by hand against a real issue in a repository the generator's `repositories` list
 covers:
 
 ```yaml

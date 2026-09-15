@@ -56,7 +56,7 @@ rescan just the changed paths.
   ```
 
 - **Inline `config.yaml` in the ExternalSecret.** The earlier
-  `templateFrom.configMap` pointed at a ConfigMap that never existed in git or
+  `templateFrom.configMap` pointed at a ConfigMap that never existed in Git or
   the cluster, so it was dropped. The config is rendered inline; only the auth
   credentials come from 1Password, while the non-secret `database_url` lives in
   the template:
@@ -94,7 +94,7 @@ rescan just the changed paths.
   must match the `{{ .username }}` / `{{ .password }}` template vars. The
   Jellyfin API key (Dashboard → API Keys, one issued for `autopulse`) lives on
   the same item as a concealed `JELLYFIN_TOKEN` field.
-- **The Sonarr/Radarr side is not in git.** Each app needs a Connect → Webhook
+- **The Sonarr/Radarr side is not in Git.** Each app needs a Connect → Webhook
   (Settings → Connect) pointing at
   `http://autopulse.media.svc.cluster.local:2875/triggers/<sonarr|radarr>`,
   method `POST`, basic auth with the autopulse credentials, on Import and
