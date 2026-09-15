@@ -376,7 +376,7 @@ works under DSR; none exist yet, so the first one is the first real test.
 
 **After merge:** both Gateways `Programmed` with their addresses unchanged; a sample internal and
 external route answer 200 through the gateway hostname (not the pod IP); external-dns has not
-churned records (the OPNsense record count has a hard ceiling, see
+churned records (every host-override create or delete restarts Unbound, see
 [split DNS](../architecture/split-dns.md)); Gatus shows no new endpoint failures after the
 sidecar's next refresh.
 
