@@ -21,8 +21,8 @@ spec:
       name: webhook
       webhook:
         image:
-          repository: ghcr.io/crutonjohn/external-dns-opnsense-webhook
-          tag: v1.0.0@sha256:0bf02fe18db4fe3a86fe5f561313ee434a203f4dcee7d19e770f67df854f3cff
+          repository: ghcr.io/lukeevanstech/external-dns-opnsense-webhook
+          tag: 0.1.0@sha256:b9df1ac4db692cf4cbd31560e88a30d6ee979eceb57b830cbf73dbae190fa3cf
         env:
           - name: OPNSENSE_HOST
             valueFrom:
@@ -39,18 +39,22 @@ spec:
               secretKeyRef:
                 name: opnsense-dns-secret
                 key: api-secret
+          - name: OPNSENSE_DOMAINS
+            value: ${SECRET_DOMAIN},${SECRET_INTERNAL_DOMAIN}
+          # The firewall presents a self-signed certificate; the provider
+          # defaults to verifying.
           - name: OPNSENSE_SKIP_TLS_VERIFY
             value: "true"
         livenessProbe:
           httpGet:
             path: /healthz
-            port: 8080
+            port: http-webhook
           initialDelaySeconds: 10
           timeoutSeconds: 5
         readinessProbe:
           httpGet:
             path: /readyz
-            port: 8080
+            port: http-webhook
           initialDelaySeconds: 10
           timeoutSeconds: 5
         resources:
@@ -59,6 +63,12 @@ spec:
             memory: 128Mi
           limits:
             memory: 256Mi
+    # One apply can take OPNSENSE_APPLY_TIMEOUT + OPNSENSE_RECONFIGURE_TIMEOUT
+    # (165s); the controller's write timeout and the pod's grace period sit
+    # above that.
+    deploymentStrategy:
+      type: Recreate
+    terminationGracePeriodSeconds: 180
     policy: upsert-only
     registry: noop
     # See the note in cloudflare-dns: external-dns 1.22.0 changes the default
@@ -67,12 +77,13 @@ spec:
     # survive a bump, but new and changed hostnames would stop publishing.
     annotationPrefix: external-dns.alpha.kubernetes.io/
     sources:
-      - crd
       - gateway-httproute
       - service
     extraArgs:
       - --events
       - --gateway-label-filter=type=internal
+      - --webhook-provider-read-timeout=30s
+      - --webhook-provider-write-timeout=180s
     domainFilters:
       - ${SECRET_DOMAIN}
       - ${SECRET_INTERNAL_DOMAIN}
