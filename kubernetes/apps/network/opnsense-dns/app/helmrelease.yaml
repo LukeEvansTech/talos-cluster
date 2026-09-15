@@ -69,12 +69,16 @@ spec:
     deploymentStrategy:
       type: Recreate
     terminationGracePeriodSeconds: 180
-    policy: upsert-only
-    registry: noop
-    # See the note in cloudflare-dns: external-dns 1.22.0 changes the default
-    # annotation prefix to the GA `external-dns.kubernetes.io/`, which none of
-    # this repository's annotations use yet. `upsert-only` means stale records
-    # survive a bump, but new and changed hostnames would stop publishing.
+    policy: sync
+    registry: txt
+    txtOwnerId: main
+    txtPrefix: k8s.main.%{record_type}-
+    # Pinned rather than left to the chart default: external-dns 1.22.0 flips
+    # the default annotation prefix to the GA `external-dns.kubernetes.io/`,
+    # and every annotation in this repository still uses the alpha prefix.
+    # With `policy: sync` an unpinned bump would read zero annotations and
+    # delete every record it owns. Drop the pin only as part of rewriting the
+    # annotations to the GA prefix.
     annotationPrefix: external-dns.alpha.kubernetes.io/
     sources:
       - gateway-httproute

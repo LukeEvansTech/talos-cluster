@@ -104,6 +104,8 @@ nav = [
       { "030: VolSync Kopia cache PVC too small" = "troubleshooting/kb/030-volsync-kopia-cache-pvc-too-small.md" },
       { "031: VolSync restore destinations never updated" = "troubleshooting/kb/031-volsync-restore-destinations-never-updated.md" },
       { "032: NetBox housekeeping removed command + wedged system job" = "troubleshooting/kb/032-netbox-housekeeping-removed-command-and-wedged-system-job.md" },
+      { "033: OPNsense record exists but is unowned" = "troubleshooting/kb/033-opnsense-record-exists-but-is-unowned.md" },
+      { "034: OPNsense delete blocked by alias" = "troubleshooting/kb/034-opnsense-delete-blocked-by-alias.md" },
     ] },
   ] },
   { "FAQ" = "faq.md" },
