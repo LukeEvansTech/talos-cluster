@@ -21,7 +21,7 @@ missing service accounts. The Kustomization ordering is
   `VolSyncVolumeOutOfSync` alerts (every `*-nfs` / `*-r2` ReplicationSource). CSI
   VolumeSnapshots are stuck `READYTOUSE=false` for hours; the VolSync controller logs
   `waiting for snapshot to be ready`. (NFS reachability is a red herring: `kopia-maint`
-  jobs against the same repo keep completing.)
+  jobs against the same repository keep completing.)
 
 ## Cause
 

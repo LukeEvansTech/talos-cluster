@@ -43,7 +43,7 @@ See the [AI / LLM stack](../architecture/ai-llm-stack.md) page for how it fits t
   kubelet.
 - Never rotate `LITELLM_SALT_KEY`: rotating it makes DB-stored provider/virtual keys undecipherable
   (config-file keys are unaffected). Note this on the 1Password item.
-- Keep provider API keys out of git by referencing them as `os.environ/<NAME>` in a `LiteLLMModel`'s
+- Keep provider API keys out of Git by referencing them as `os.environ/<NAME>` in a `LiteLLMModel`'s
   `params.apiKey` (the operator wires the env var from a Secret automatically when you use
   `apiKeyRef` instead of a literal `os.environ/` string).
 - Two `GrafanaDashboard` CRs: `litellm` is fetched from grafana.com via URL (Flux `postBuild` does

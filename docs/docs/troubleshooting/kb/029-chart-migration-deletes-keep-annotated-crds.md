@@ -57,7 +57,7 @@ Recovery, in the order that worked:
     flux reconcile ks miroir-config -n miroir-system           # miroir snapshot class
     ```
 
-5. Verify end to end: all three `VolumeSnapshotClass` objects back, downstream Kustomizations Ready, and one manually-triggered ReplicationSource (`spec.trigger.manual`) completes `Successful`.
+5. Verify end-to-end: all three `VolumeSnapshotClass` objects back, downstream Kustomizations Ready, and one manually-triggered ReplicationSource (`spec.trigger.manual`) completes `Successful`.
 
 Impact boundary: source PVCs and the Kopia repositories (the real backups) are untouched. What is lost is the cached `VolumeSnapshot`/`VolumeSnapshotContent` restore points, which the next scheduled VolSync cycles rebuild.
 

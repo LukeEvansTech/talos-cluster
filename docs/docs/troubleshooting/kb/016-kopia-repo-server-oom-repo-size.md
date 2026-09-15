@@ -1,6 +1,6 @@
-# KB-016: Kopia repo server OOM = repo size, not a maintenance failure
+# KB-016: Kopia repository server OOM = repository size, not a maintenance failure
 
-**Status:** Resolved (raised to 2Gi); revisit as the repo grows.
+**Status:** Resolved (raised to 2Gi); revisit as the repository grows.
 
 ## Symptom
 
@@ -11,7 +11,7 @@ broken.
 
 ## Cause
 
-It's **repo size**, not maintenance. The VolSync Kopia repo had grown to ~320 GB / **3.4M
+It's **repository size**, not maintenance. The VolSync Kopia repository had grown to ~320 GB / **3.4M
 in-use contents** / ~3,462 index blobs. The server loads the **full index into memory on
 start**, which exceeds the limit. The "too many index blobs" message is a **red herring**:
 maintenance is actually running fine:
@@ -36,7 +36,7 @@ resources:
     memory: 2Gi
 ```
 
-The repo keeps growing, so if it OOMs again at 2Gi, go 3-4Gi. (Maintenance config lives at
+The repository keeps growing, so if it OOMs again at 2Gi, go 3-4Gi. (Maintenance config lives at
 `kubernetes/apps/volsync-system/volsync/maintenance/`.)
 
 ## References

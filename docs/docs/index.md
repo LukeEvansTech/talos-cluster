@@ -15,7 +15,7 @@ flowchart LR
 
 Everything that runs in the cluster is declared in this public repository. Secrets never live in Git:
 they flow from 1Password through External Secrets into Kubernetes `Secret`s, and Flux substitutes
-`${SECRET_DOMAIN}` / `${SECRET_INTERNAL_DOMAIN}` placeholders at apply time. Because the repo is
+`${SECRET_DOMAIN}` / `${SECRET_INTERNAL_DOMAIN}` placeholders at apply time. Because the repository is
 public, internal addresses, node and device hostnames, and MACs are kept out of it. A CI guard
 enforces that on every pull request.
 

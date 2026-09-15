@@ -88,7 +88,7 @@ probe_success{job="nfs_probe"}
 kubectl get hpa -n media
 ```
 
-Recovery took roughly four minutes end to end: about one minute for the probe, then
+Recovery took roughly four minutes end-to-end: about one minute for the probe, then
 pods rescheduling.
 
 ## Prevention

@@ -22,7 +22,7 @@ The cluster uses four storage tiers, chosen per workload:
   `ceph-filesystem` only when a volume genuinely needs RWX.
 - Use `miroir-local` when the workload is latency-sensitive or explicitly node-local; remember it
   pins the pod and a single RWO claim cannot be mounted by pods on two nodes at once (Multi-Attach
-  deadlocks show up on rollouts, so co-locate the consumers).
+  deadlocks show up on rollouts, so colocate the consumers).
 - Use NFS for large shared datasets and as a VolSync destination.
 - Use Garage when an app wants S3, provisioning the bucket and access key with the `/garage` CLI
   inside `garage-0` first.

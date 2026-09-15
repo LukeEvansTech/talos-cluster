@@ -1,6 +1,6 @@
 # changedetection.io
 
-Web-page and feed change monitor in the `default` namespace, internal-only at
+Web page and feed change monitor in the `default` namespace, internal-only at
 `changedetection.${SECRET_DOMAIN}`. Runs the bjw-s app-template with two containers: the
 changedetection.io app itself and a browserless Chrome sidecar (`PLAYWRIGHT_DRIVER_URL`) for
 JS-heavy pages. Feeds and static pages use the basic HTTP fetcher (`html_requests`), no browser
@@ -38,7 +38,7 @@ Verified against `https://opentrackers.org/feed/` (WordPress RSS, fixed 20-item 
 1. Enable **RSS reader mode** globally (UI → Settings → RSS tab). This is the load-bearing step:
    see the findings below for why raw-XML filtering does not work.
 2. Create the watch with `fetch_backend: html_requests` and no `include_filters`.
-3. Reduce the snapshot to stable lines with an extract-text regex:
+3. Reduce the snapshot to stable lines with an extract-text regular expression:
    `/(?m)^\s*(?:Title|Link): .+/`. The snapshot becomes exactly two lines per feed item; any new
    or edited post changes those lines and triggers a notification whose diff names the post.
 4. Leave the diff-type options (`filter_text_added` / `removed` / `replaced`) at their defaults
@@ -64,8 +64,8 @@ Verified against `https://opentrackers.org/feed/` (WordPress RSS, fixed 20-item 
 - **Non-default diff-type options silently disable `extract_text`.** Pipeline order is: include
   filters → text conversion → *diff-type filtering (early-returns on "no diff")* → extract-text.
   Setting e.g. `filter_text_removed: false` looks reasonable ("alert on additions only") but means
-  the extraction regex never runs on unchanged checks, and snapshots alternate between full text
-  and diff fragments. Keep all three at `true` and let the extract regex do the filtering.
+  the extraction regular expression never runs on unchanged checks, and snapshots alternate between full text
+  and diff fragments. Keep all three at `true` and let the extract regular expression do the filtering.
 - **Fixed-window feeds make "added-only" unnecessary anyway.** A post cannot leave an N-item
   window without a new one entering, so a removal-only change cannot occur.
 - **Never enable "unique lines in history" for re-bumping sites.** Opentrackers re-dates an old

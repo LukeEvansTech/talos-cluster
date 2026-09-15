@@ -26,7 +26,7 @@ Kubernetes cluster, with a queryable findings dashboard.
     `init-db` initContainer that bootstraps the database and role.
   - `prowler-ui`: the Next.js frontend (NextAuth lives here).
   - `prowler-beat`: the celery beat scheduler.
-- **Co-locating API and worker in one Pod.** The worker writes scan artifacts that
+- **Colocating API and worker in one Pod.** The worker writes scan artifacts that
   the API serves. The cluster has no RWX StorageClass (only RWO `ceph-block`,
   `miroir-local`, and `ceph-bucket` S3), so the two cannot share a PVC across
   separate Deployments. Running both as containers in one Pod with a shared

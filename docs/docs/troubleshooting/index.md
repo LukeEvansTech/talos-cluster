@@ -28,7 +28,7 @@ Work down from what you observe to the most likely entry:
 - **Storage / backups**
     - Backup pod stuck `PodInitializing` (`mount.nfs: Failed to resolve`), or `CreateContainerConfigError` on a subPath → [KB-009](kb/009-nfs-mount-failures-host-dns-readonly-export.md)
     - After a Rook v1.20 upgrade: RBD nodeplugin `FailedCreate`, or ~88 `VolSyncVolumeOutOfSync` alerts → [KB-010](kb/010-rook-ceph-v120-csi-driver-split.md)
-    - `volsync-system/kopia` repo server OOM-crashloops (`exit 137`) → [KB-016](kb/016-kopia-repo-server-oom-repo-size.md)
+    - `volsync-system/kopia` repository server OOM-crashloops (`exit 137`) → [KB-016](kb/016-kopia-repo-server-oom-repo-size.md)
     - `CephMonDownQuorumAtRisk` (critical) fires minutes after cordoning a control-plane node → [KB-019](kb/019-cordon-control-plane-breaks-ceph-mon-quorum.md)
     - Snapshot CRDs vanish minutes after merging a chart migration; controller crash-loops on "failure to ensure CRDs exist"; HelmRelease rollback loop re-deletes them each retry → [KB-029](kb/029-chart-migration-deletes-keep-annotated-crds.md)
     - One app's `volsync-src-<app>-nfs-*` mover pods sit in `Error` while every other app backs up fine; the log ends `write /cache/CACHEDIR.TAG: no space left on device` then `found existing data in storage location` → [KB-030](kb/030-volsync-kopia-cache-pvc-too-small.md)
@@ -73,7 +73,7 @@ Work down from what you observe to the most likely entry:
 - [KB-013: Go Pod Startup SIGSEGV Was a UPX Stub vs. Service-Link Env Vars, Not a Go Regression](kb/013-go-1264-binary-startup-sigsegv.md)
 - [KB-014: GPU Device-Plugin Handover Leaves `allocatable.nvidia.com/gpu = 0`](kb/014-gpu-device-plugin-handover-allocatable-zero.md)
 - [KB-015: Slow Image Pulls Exceed the HelmRelease Timeout (Rollback Loop)](kb/015-slow-image-pulls-exceed-helmrelease-timeout.md)
-- [KB-016: Kopia Repo Server OOM = Repo Size, Not a Maintenance Failure](kb/016-kopia-repo-server-oom-repo-size.md)
+- [KB-016: Kopia Repository Server OOM = Repository Size, Not a Maintenance Failure](kb/016-kopia-repo-server-oom-repo-size.md)
 - [KB-017: `mise` + lefthook Symlink Race Blocks the First Commit After a Tool Bump](kb/017-mise-lefthook-symlink-race-on-commit.md)
 - [KB-018: Plex Remote 4K Transcode-Decision Crash (`bad lexical cast`)](kb/018-plex-remote-4k-transcode-decision-crash.md)
 - [KB-019: Cordoning a Control-Plane Node Breaks Ceph Mon Quorum](kb/019-cordon-control-plane-breaks-ceph-mon-quorum.md)

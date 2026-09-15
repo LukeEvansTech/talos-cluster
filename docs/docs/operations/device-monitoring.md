@@ -73,7 +73,6 @@ from the generic `TargetDown` ratio, and carries
 `MikrotikInterfaceScrapeDegraded` instead.
 
 !!! tip "Per-port PoE is how the wireless estate is monitored"
-
     The access points and the Zigbee coordinator have no exporter, agent or
     probe of their own, and sit on DHCP addresses that move, so there is
     nothing stable to point a check at. The switch's own PoE meter is the only
@@ -101,7 +100,7 @@ whole game:
 3. **`cluster-secrets`** (1Password-backed): `SECRET_STORAGE_SERVER`,
    `SECRET_VSPHERE_ENDPOINT`, and the device DNS names `ONYX_ADDR`,
    `MIKROTIK_POE_ADDR`, `MIKROTIK_NONPOE_ADDR`, `NUT_SERVER_ADDR` (internal
-   hostnames kept out of this public repo). Flux substitutes `${...}` from this
+   hostnames kept out of this public repository). Flux substitutes `${...}` from this
    Secret the same way; the real values live in the `cluster-secrets` 1Password
    item (vault `Talos`).
 4. **Per-app 1Password items** (vault `Talos`, read by External Secrets via the
@@ -254,7 +253,7 @@ same way as the Onyx core switch: a `serviceMonitor.params[]` entry with module
 both MikroTiks by the network-ops Terraform (`routeros_snmp_community`), so no
 device-side change is needed. Add the host as a `cluster-secrets` DNS var (the
 1Password item, **not** git-tracked `cluster-settings`: device hostnames stay
-out of this public repo).
+out of this public repository).
 
 ## Validation
 

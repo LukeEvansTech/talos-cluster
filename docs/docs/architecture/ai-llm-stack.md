@@ -38,7 +38,7 @@ The model is **Qwen3.8-27B Heretic-abliterated** (0bserverx RVN Q4_K_S, MTP head
 picked as the closest-to-vanilla uncensored build (KL ~0.0085 vs base, refusals 0–1/100,
 official chat template). Its hybrid Gated-DeltaNet layout keeps KV at ~32KB/token (q8_0), so
 one 24GB L4 serves 128k of context across 2 slots alongside the weights and the vision
-projector, with no YaRN and no `--override-kv`. `--kv-unified` (#4579) pools that context rather than
+projector, with no `--rope-scaling yarn` and no `--override-kv`. `--kv-unified` (#4579) pools that context rather than
 splitting it statically, so one request may use the whole 128k window while the other slot is
 idle, instead of a fixed 64k-per-slot cap.
 
@@ -176,8 +176,8 @@ lets **one request use the full 131072-token window** (`contextSize` in
 splitting it into a static 64k-per-slot cap. Either group hosts opencode; use
 `self-hosted-uncensored` if a cloud fallback mid-session would be unwelcome.
 
-The YaRN + `--override-kv` workaround the previous Qwen3-30B-A3B uncensored model needed (the
-pinned server hard-capped slots to the trained context even with correct YaRN args,
+The `--rope-scaling yarn` + `--override-kv` workaround the previous Qwen3-30B-A3B uncensored model needed (the
+pinned server hard-capped slots to the trained context even with correct `yarn` scaling arguments,
 [llama.cpp#22140](https://github.com/ggml-org/llama.cpp/issues/22140)) is retired with it. The
 verification habit it taught still stands: a `Ready` phase and a clean `kustomize build` do
 **not** prove the served window. Confirm with `/props`
@@ -274,7 +274,7 @@ endpoint to LiteLLM's `mcp_servers`. The service name depends on the transport:
 
 - **Native `streamable-http` transport** (e.g. kubectl, flux): ToolHive creates `mcp-<name>` on the
   spec's `mcpPort`.
-- **`stdio` transport with `proxyMode: streamable-http`** (e.g. github, grafana): ToolHive creates
+- **`stdio` transport with `proxyMode: streamable-http`** (e.g. `github`, grafana): ToolHive creates
   `mcp-<name>-proxy` on the spec's `proxyPort` (typically 8080).
 
 #### What clients actually see
@@ -316,11 +316,11 @@ To move embeddings onto the GPU later, swap `llama-embed`/`llama-rerank` for llm
 account and serves it as a static site. Two controllers share one RWO `ceph-block` PVC:
 
 - **`mkdocs`** (Deployment): `squidfunk/mkdocs-material` in `serve --dirty` mode, rendering
-  whatever is committed to the git repository on the shared PVC. This is what the
+  whatever is committed to the Git repository on the shared PVC. This is what the
   `repowiki.${SECRET_DOMAIN}` route (envoy-internal) serves.
 - **`repowiki-gen`** (CronJob, every 12h): clones/updates each repository from
   `repos.txt`, has the `self-hosted` LiteLLM model plan a page set per repository, writes the
-  pages, and commits them into the git repository on the PVC. A `podAffinity` pins it to the
+  pages, and commits them into the Git repository on the PVC. A `podAffinity` pins it to the
   same node as the `mkdocs` pod, since the PVC is ReadWriteOnce.
 
 Ported from Jory's [`repo-wiki`](https://github.com/joryirving/home-ops/tree/main/kubernetes/apps/base/llm/repo-wiki);

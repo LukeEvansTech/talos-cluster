@@ -172,7 +172,7 @@ housekeeping:
   enabled: false
 ```
 
-Keep the `affinity` block commented rather than deleting it — the RWO `media` PVC co-location
+Keep the `affinity` block commented rather than deleting it — the RWO `media` PVC colocation
 constraint still applies if the chart ever ships a working CronJob again.
 
 **Un-wedge the system job** using upstream's documented workaround — delete the stale `scheduled`

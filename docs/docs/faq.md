@@ -72,7 +72,7 @@ Many app Kustomizations `dependsOn` `external-secrets/onepassword-connect`, so r
 apps report "dependency not ready". A ConfigMap content change does not roll pods, so follow up with
 `kubectl rollout restart deploy <app> -n <ns>`.
 
-## Why is the repo public, and what must never be committed?
+## Why is the repository public, and what must never be committed?
 
 The repository is publicly readable, so anything committed is world-visible. **Never commit**:
 

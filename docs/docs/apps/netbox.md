@@ -51,7 +51,7 @@ official **`netbox-chart`** (`oci://ghcr.io/netbox-community/netbox-chart/netbox
     flate build hr netbox -n default --path kubernetes/flux/cluster
     ```
 
-- **Web and worker share one RWO `media` PVC, so they must co-locate.** With a ReadWriteOnce
+- **Web and worker share one RWO `media` PVC, so they must colocate.** With a ReadWriteOnce
   `ceph-block` claim, scheduling the pods onto different nodes deadlocks on `Multi-Attach` during a
   rollout. Pin them together with podAffinity (anchor on the worker) or hit a stuck rollout.
 - **The chart's housekeeping CronJob is disabled, deliberately.** v4.7.0 removed
