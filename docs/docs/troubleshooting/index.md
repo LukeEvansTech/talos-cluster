@@ -23,6 +23,8 @@ Work down from what you observe to the most likely entry:
     - An app 404s through the gateway on its real hostname but works on its pod IP (live HTTPRoute drifted to `*.example.com`) → [KB-020](kb/020-httproute-drifts-to-placeholder-hostnames.md)
     - `NodeHighNumberConntrackEntriesUsed` on every node at once right after deploying a scanner → [KB-023](kb/023-node-conntrack-saturation-host-network-scanner.md)
     - A dozen Gatus endpoints across `media`/`downloads` go red at once with HTTP 503, DNS still resolves, pods are simply absent (zeroscaler at 0/1) → [KB-027](kb/027-dns-cleanup-scaled-nfs-apps-to-zero.md)
+    - One internal hostname never gets its record (or resolves to the wrong value) while every other new app is fine; the name is already in Unbound as a hand-made row → [KB-033](kb/033-opnsense-record-exists-but-is-unowned.md)
+    - `OPNsenseDeleteBlocked` fires, or opnsense-dns fails every reconcile with `row has alias children; refusing to delete` → [KB-034](kb/034-opnsense-delete-blocked-by-alias.md)
 - **Storage / backups**
     - Backup pod stuck `PodInitializing` (`mount.nfs: Failed to resolve`), or `CreateContainerConfigError` on a subPath → [KB-009](kb/009-nfs-mount-failures-host-dns-readonly-export.md)
     - After a Rook v1.20 upgrade: RBD nodeplugin `FailedCreate`, or ~88 `VolSyncVolumeOutOfSync` alerts → [KB-010](kb/010-rook-ceph-v120-csi-driver-split.md)
@@ -88,3 +90,5 @@ Work down from what you observe to the most likely entry:
 - [KB-030: VolSync Kopia Backups Fail with `no space left on device` on `/cache`](kb/030-volsync-kopia-cache-pvc-too-small.md)
 - [KB-031: VolSync Restore Destinations Silently Frozen at Creation-Time Values](kb/031-volsync-restore-destinations-never-updated.md)
 - [KB-032: NetBox Housekeeping Fails Two Ways at Once (Removed Command, Wedged System Job)](kb/032-netbox-housekeeping-removed-command-and-wedged-system-job.md)
+- [KB-033: OPNsense Record Exists but Is Unowned (No Registry TXT Row)](kb/033-opnsense-record-exists-but-is-unowned.md)
+- [KB-034: OPNsense Delete Blocked by a Hand-Made Alias](kb/034-opnsense-delete-blocked-by-alias.md)

@@ -93,9 +93,8 @@ Inside `app/`:
   listeners (namespace `network`); a standalone `httproute.yaml` is the rarer case. Hosts are
   `${APP}.${SECRET_DOMAIN}`, one hostname per route, whichever gateway it attaches to. Do not add a
   `${SECRET_INTERNAL_DOMAIN}` alias: it resolves to the same gateway as the primary domain, so it
-  buys no extra restriction, and each alias costs an OPNsense host-override record. The record count
-  has a hard ceiling (~421) above which external-dns silently stops publishing anything cluster-wide
-  (see `docs/docs/architecture/split-dns.md`).
+  buys no extra restriction, and each alias still costs an OPNsense row; there is no longer a
+  publishing ceiling, but keep aliases purposeful (see `docs/docs/architecture/split-dns.md`).
 - **App names avoid hyphens so the host stays clean.** The route host follows
   `{{ .Release.Name }}.${SECRET_DOMAIN}`, so a hyphen in the app name leaks into the URL. Name new
   apps hyphen-free end-to-end (directory, `ks.yaml` `&app`, HelmRelease, controller, PVC): use
@@ -264,9 +263,8 @@ Flag consequential, repository-specific breakage. Prefer silence over style comm
   so the hyphen leaks into the URL. Name new apps hyphen-free end-to-end. Existing hyphenated apps
   predate the rule and are left alone.
 - A second route hostname, or a `${SECRET_INTERNAL_DOMAIN}` alias beside the primary domain. It
-  resolves to the same gateway so it buys no extra restriction, and each alias costs an OPNsense
-  host-override record against a hard ceiling (~421) above which external-dns silently stops
-  publishing anything cluster-wide.
+  resolves to the same gateway so it buys no extra restriction, and each alias still costs an
+  OPNsense row; there is no longer a publishing ceiling, but keep aliases purposeful.
 - An app with an `externalsecret.yaml` that does not `dependsOn` `onepassword-connect` in
   `external-secrets`.
 - Components (`volsync`, `alerts`, `homepage`, `kopiur`) or their `postBuild.substitute` values

@@ -42,8 +42,8 @@ hostnames:
   (`envoy-internal` vs `envoy-external`), not by the domain in its hostname.
 - `${SECRET_INTERNAL_DOMAIN}`: kept for non-route uses only, such as device records for IPMI probe
   targets and the NAS S3 endpoint, plus the opnsense-dns domain filter. Do not add
-  `${SECRET_INTERNAL_DOMAIN}` aliases to app routes. Each alias costs an OPNsense host-override
-  record, and the record count has a hard ceiling above which publishing silently stops.
+  `${SECRET_INTERNAL_DOMAIN}` aliases to app routes. Each alias still costs an OPNsense host-override
+  record; there is no longer a publishing ceiling, but keep aliases purposeful.
 
 "Available under `${SECRET_DOMAIN}`" for a home app therefore means internal DNS on the
 `envoy-internal` gateway, not public exposure. See [Networking](architecture/networking.md) and

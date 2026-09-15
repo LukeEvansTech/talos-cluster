@@ -106,5 +106,5 @@ check that only consults the repository will confidently report a clean result.
 ## Related
 
 - [024: zeroscaler NFS scale-to-zero via native HPA](024-zeroscaler-nfs-hpa.md): why the apps scale to zero
-- [Split DNS architecture](../../architecture/split-dns.md): the host-override ceiling and why
-  `upsert-only` means cleanups are manual
+- [Split DNS architecture](../../architecture/split-dns.md): how ownership and deletion work now
+  that `opnsense-dns` runs `sync` with the TXT registry (this cleanup predates that cutover)
