@@ -460,23 +460,23 @@ url = "https://github.com/home-operations/flate/releases/download/v0.6.5/flate_0
 url_api = "https://api.github.com/repos/home-operations/flate/releases/assets/541337298"
 
 [[tools."github:home-operations/yayamlls"]]
-version = "0.1.10"
+version = "0.3.0"
 backend = "github:home-operations/yayamlls"
 
 [tools."github:home-operations/yayamlls"."platforms.linux-arm64"]
-checksum = "sha256:f67c9a2b51cc6872fa307809f6ee83293594a11cb048e5e9da4aab07130ed444"
-url = "https://github.com/home-operations/yayamlls/releases/download/0.1.10/yayamlls_0.1.10_linux_arm64.tar.gz"
-url_api = "https://api.github.com/repos/home-operations/yayamlls/releases/assets/453891485"
+checksum = "sha256:dbcc8b7a67bdedf462c7eda76adffe9d58ffe96429c74fed59146aa34039d8bc"
+url = "https://github.com/home-operations/yayamlls/releases/download/0.3.0/yayamlls_0.3.0_linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/home-operations/yayamlls/releases/assets/537946196"
 
 [tools."github:home-operations/yayamlls"."platforms.linux-x64"]
-checksum = "sha256:9078ea741ed739862e60f7cb3c1bcc8d2d6355434961e2a785979df4818dd467"
-url = "https://github.com/home-operations/yayamlls/releases/download/0.1.10/yayamlls_0.1.10_linux_amd64.tar.gz"
-url_api = "https://api.github.com/repos/home-operations/yayamlls/releases/assets/453891484"
+checksum = "sha256:036c00ed7b903e2b27950873568147dc7a96b2c36eaef11f5928516900d6a753"
+url = "https://github.com/home-operations/yayamlls/releases/download/0.3.0/yayamlls_0.3.0_linux_amd64.tar.gz"
+url_api = "https://api.github.com/repos/home-operations/yayamlls/releases/assets/537946194"
 
 [tools."github:home-operations/yayamlls"."platforms.macos-arm64"]
-checksum = "sha256:2c22be8185088bcb5c54f46e837aa6ef5491d9c956e9a240ad124a6deaa6b738"
-url = "https://github.com/home-operations/yayamlls/releases/download/0.1.10/yayamlls_0.1.10_darwin_arm64.tar.gz"
-url_api = "https://api.github.com/repos/home-operations/yayamlls/releases/assets/453891482"
+checksum = "sha256:4e32db68d1b0f998856330cc15ee7ff54814a430ba605eb5577f65cab4197664"
+url = "https://github.com/home-operations/yayamlls/releases/download/0.3.0/yayamlls_0.3.0_darwin_arm64.tar.gz"
+url_api = "https://api.github.com/repos/home-operations/yayamlls/releases/assets/537946195"
 
 [[tools.node]]
 version = "24.21.0"
