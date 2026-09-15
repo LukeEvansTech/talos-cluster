@@ -499,6 +499,12 @@ hostname from Git removes its A row and its registry row on the next reconcile.
   row, and why an earlier version of this page told you to stay under ~420 rows. The new provider
   pages with `rowCount` and never depends on one response size. Aliases still cost a row each, so
   keep them purposeful.
+- **Every write is checked against a re-read.** OPNsense can acknowledge an `addHostOverride`
+  with a uuid and never save it: it lost 2 of 282 concurrent adds during the cutover. The provider
+  therefore sends writes one at a time and, after each apply phase, re-reads the table. A row that
+  is missing is logged with its name and uuid, counted in
+  `externaldns_webhook_opnsense_lost_writes_total`, and fails that phase, so no A row is created
+  over a missing registry TXT and the next reconcile retries it. `OPNsenseLostWrite` fires on it.
 - **Registry rows.** Each managed name carries one extra TXT row named `k8s.main.<type>-<name>`.
   If a delete of the data row succeeds and the delete of its TXT row fails, that TXT row is left
   behind for good (external-dns never plans registry rows for deletion); it is harmless to DNS and
@@ -519,7 +525,7 @@ hostname from Git removes its A row and its registry row on the next reconcile.
 
 ### Alerts
 
-`kubernetes/apps/network/opnsense-dns/app/prometheusrule.yaml` carries three rules. The two gauge
+`kubernetes/apps/network/opnsense-dns/app/prometheusrule.yaml` carries four rules. The two gauge
 rules also fire on series absence, because a NotReady sidecar takes the whole pod out of the
 ServiceMonitor scrape and a value-only rule would go quiet exactly when the firewall is unreachable:
 
@@ -529,9 +535,13 @@ ServiceMonitor scrape and a value-only rule would go quiet exactly when the fire
   reconfigured to serve them for 10 minutes, or the sidecar is not being scraped.
 - **`OPNsenseDeleteBlocked`** (warning): the provider refused to delete a host override because a
   hand-made alias hangs off it ([KB-034](../troubleshooting/kb/034-opnsense-delete-blocked-by-alias.md)).
-  Its counter series only exists after the first refusal, so this rule deliberately has no
-  `absent()` branch; a second branch catches that first sample, which `increase()` alone reads as
-  zero.
+- **`OPNsenseLostWrite`** (warning): the firewall acknowledged a host-override write that was
+  missing when the provider read the table back. The reconcile retries it; the sidecar log names
+  the row. More than one in a day means OPNsense is dropping saves for a new reason, so check the
+  firewall's own log before anything else.
+
+The two counter rules have no `absent()` branch (the gauge rules already cover a missing scrape);
+a second branch catches a fresh pod's first increment, which `increase()` alone reads as zero.
 
 ## Unbound include files do not survive a rebuild
 
