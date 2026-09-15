@@ -1,0 +1,45 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: opnsense-dns-rules
+spec:
+  groups:
+    - name: opnsense-dns.rules
+      rules:
+        # A NotReady sidecar takes the whole pod out of the ServiceMonitor, so
+        # every gauge rule also fires on absence; a value-only rule would go
+        # quiet exactly when the firewall is unreachable. The counter rule
+        # below is the deliberate exception: its series is created on the first
+        # blocked delete, so absence is the healthy steady state and wrapping
+        # it would alert forever.
+        - alert: OPNsenseDNSStale
+          expr: |
+            (time() - external_dns_controller_last_sync_timestamp_seconds{job="opnsense-dns"} > 900)
+              or absent(external_dns_controller_last_sync_timestamp_seconds{job="opnsense-dns"})
+          for: 5m
+          annotations:
+            summary: >-
+              opnsense-dns has not completed a sync for 15 minutes (or is not being scraped)
+          labels:
+            severity: critical
+        - alert: OPNsensePendingReconfigure
+          expr: |
+            externaldns_webhook_opnsense_pending_reconfigure{provider="opnsense"} == 1
+              or absent(externaldns_webhook_opnsense_pending_reconfigure{provider="opnsense"})
+          for: 10m
+          annotations:
+            summary: >-
+              opnsense-dns saved host overrides that Unbound is not serving yet (or the sidecar is not being scraped)
+          labels:
+            severity: warning
+        - alert: OPNsenseDeleteBlocked
+          expr: |
+            increase(externaldns_webhook_opnsense_delete_blocked_total{provider="opnsense"}[1h]) > 0
+          for: 0m
+          annotations:
+            summary: >-
+              opnsense-dns refused to delete a host override because a hand-made alias hangs off it
+          labels:
+            severity: warning
