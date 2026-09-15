@@ -93,6 +93,8 @@ spec:
         parentRefs:
           - name: envoy-external
             namespace: network
+          - name: envoy-internal
+            namespace: network
 
     persistence:
       data:

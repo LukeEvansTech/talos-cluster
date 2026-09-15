@@ -108,6 +108,8 @@ spec:
       parentRefs:
         - name: envoy-external
           namespace: network
+        - name: envoy-internal
+          namespace: network
       hostnames:
         - "{{ .Release.Name }}.${SECRET_DOMAIN}"
     resources:

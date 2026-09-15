@@ -489,6 +489,11 @@ hostname from Git removes its A row and its registry row on the next reconcile.
   or deletes it, and a declared hostname that collides with one is skipped (silently at the default
   log level, with an owner-mismatch line at debug) until the hand-made row is removed by hand
   ([KB-033](../troubleshooting/kb/033-opnsense-record-exists-but-is-unowned.md)).
+- **An app on the external gateway that LAN clients should reach directly attaches its route to
+  both gateways.** opnsense-dns then publishes the name against the internal gateway with a
+  registry row, exactly like an internal-only app, while cloudflare-dns keeps the public CNAME.
+  This replaced the hand-made rows that used to point those names at the external gateway's
+  address (plex, status, requests, wizarr, kromgo, erugo and contracthound, 2026-09-15).
 - **A row with a hand-made alias is never deleted by the controller.** The delete is refused and
   `OPNsenseDeleteBlocked` fires; re-home or delete the alias first
   ([KB-034](../troubleshooting/kb/034-opnsense-delete-blocked-by-alias.md)).
