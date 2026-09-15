@@ -41,7 +41,7 @@ spec:
           app:
             image:
               repository: ghcr.io/scanopy/scanopy/server
-              tag: v0.17.14@sha256:5759259d825f53a05145cb08cee9a993ae0fba1f3437a17cfa3ec47aaad4ed8d
+              tag: v0.17.15@sha256:454550b8919c3f7a4ef1d39401ef5ceb9100e777bdd9f3a8d7fc46902b9507ed
             env:
               TZ: ${TIMEZONE}
               SCANOPY_LOG_LEVEL: info
