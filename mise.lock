@@ -337,20 +337,23 @@ url_api = "https://api.github.com/repos/mikefarah/yq/releases/assets/522028033"
 provenance = "cosign"
 
 [[tools."aqua:mitsuhiko/minijinja"]]
-version = "2.18.0"
+version = "2.24.0"
 backend = "aqua:mitsuhiko/minijinja"
 
 [tools."aqua:mitsuhiko/minijinja"."platforms.linux-arm64"]
-checksum = "sha256:613b1f7cf6d79761e856948b89323979d0578b4fd10b64d8ad26da7b2db83c81"
-url = "https://github.com/mitsuhiko/minijinja/releases/download/2.18.0/minijinja-cli-aarch64-unknown-linux-musl.tar.xz"
+checksum = "sha256:b60f741e4101c0701a22a1115b2295fd8e4ae13cdffc0ebf4d1821d876e93347"
+url = "https://github.com/mitsuhiko/minijinja/releases/download/2.24.0/minijinja-cli-aarch64-unknown-linux-gnu.tar.xz"
+url_api = "https://api.github.com/repos/mitsuhiko/minijinja/releases/assets/511868827"
 
 [tools."aqua:mitsuhiko/minijinja"."platforms.linux-x64"]
-checksum = "sha256:0a5bc526a6b07c8abbd893c9bac39496abd38c56853c9c5fe9aeae504778dc60"
-url = "https://github.com/mitsuhiko/minijinja/releases/download/2.18.0/minijinja-cli-x86_64-unknown-linux-musl.tar.xz"
+checksum = "sha256:04651ea786eee8e6d5311caf96e01874d984ff72f3d3d91c2195851f0b414580"
+url = "https://github.com/mitsuhiko/minijinja/releases/download/2.24.0/minijinja-cli-x86_64-unknown-linux-gnu.tar.xz"
+url_api = "https://api.github.com/repos/mitsuhiko/minijinja/releases/assets/511868860"
 
 [tools."aqua:mitsuhiko/minijinja"."platforms.macos-arm64"]
-checksum = "sha256:65b441b161b04d0e8febf121f39eb9d9bdde27d8eff1ccd755020a589f5d03c2"
-url = "https://github.com/mitsuhiko/minijinja/releases/download/2.18.0/minijinja-cli-aarch64-apple-darwin.tar.xz"
+checksum = "sha256:a0f1525bcac485a80313cec7e835ed03335bd55bc14dc5cf070c7eb9789d9905"
+url = "https://github.com/mitsuhiko/minijinja/releases/download/2.24.0/minijinja-cli-aarch64-apple-darwin.tar.xz"
+url_api = "https://api.github.com/repos/mitsuhiko/minijinja/releases/assets/511868818"
 
 [[tools."aqua:rhysd/actionlint"]]
 version = "1.7.12"
