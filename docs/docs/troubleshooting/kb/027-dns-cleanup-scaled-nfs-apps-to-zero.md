@@ -93,11 +93,14 @@ pods rescheduling.
 
 ## Prevention
 
-Use `scripts/reclaim_stale_dns.py`. It derives its keep-list from **two** sources:
-Git manifests *and* the values inside `cluster-secrets` / `cluster-settings`, and
-refuses to delete anything appearing in either. It also prints a full JSON backup
-with UUIDs before acting; capture that output, because it is the only route back
-from a mistake.
+Reclaiming records is no longer a manual job. Since the 2026-09-15 cutover,
+`opnsense-dns` runs `sync` with the TXT registry: a hostname removed from Git is
+removed from Unbound by the controller on its next reconcile, and the controller only
+ever updates or deletes rows that carry its own registry TXT row. Device records such
+as the storage server are declared in `network-ops` with a description and have no
+registry row, so the controller cannot touch them. The `reclaim_stale_dns.py` script
+this entry used to recommend was written for the old `upsert-only` regime, when no
+record was ever deleted automatically, and has been removed.
 
 The general lesson: when validating that something is unreferenced, enumerate every
 place a reference can live. A value held in a Secret is invisible to `grep`, and a
