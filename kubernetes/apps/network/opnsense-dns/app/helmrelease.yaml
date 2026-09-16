@@ -41,10 +41,10 @@ spec:
                 key: api-secret
           - name: OPNSENSE_DOMAINS
             value: ${SECRET_DOMAIN},${SECRET_INTERNAL_DOMAIN}
-          # The firewall presents a self-signed certificate; the provider
-          # defaults to verifying.
-          - name: OPNSENSE_SKIP_TLS_VERIFY
-            value: "true"
+            # The firewall serves a publicly trusted certificate for its FQDN, and
+            # OPNSENSE_HOST names that FQDN, so the provider's default verification
+            # applies. Do not point the host at the bare IP: the certificate carries
+            # no IP subject alternative name and every call would fail.
         livenessProbe:
           httpGet:
             path: /healthz
