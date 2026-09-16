@@ -95,7 +95,7 @@ spec:
               mountPath: /var/lib/wazuh-indexer
       containers:
         - name: wazuh-indexer
-          image: docker.io/wazuh/wazuh-indexer:4.14.7@sha256:3bd92b2ea39b1f0cd979e12af4078ecb34980db3c99e4bbe2763965d56d52363
+          image: docker.io/wazuh/wazuh-indexer:4.14.7@sha256:1b85f946cc7c6530ffc34b5a2f4471ef533a17e6262f97b75dc794c3f2b8c0a0
           env:
             # Heap is HALF the container limit, per OpenSearch's own guidance.
             # Upstream ships -Xmx1g inside a 1564Mi limit (65%), leaving ~540Mi for
