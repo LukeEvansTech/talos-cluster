@@ -162,6 +162,11 @@ playback succeeds, then setting a password makes both media endpoints return HTT
 Previously cached content requires a separate purge; only generated test clips were uploaded
 before applying this fix, and no existing media library was mounted.
 
+**Deletion follow-up:** even with HTTP caching disabled, nginx's `open_file_cache` kept
+deleted files readable until its 120-second revalidation. The startup command disables that
+cache as well. A repeated static media request after deletion must return HTTP 404; the
+upstream API reports a missing video as HTTP 500, but must not return video bytes.
+
 ### H-18: Fireshare hid anonymous uploads without disabling them (resolved 2026-09-17)
 
 **Found:** while deploying Fireshare 1.8.1. Its default `show_public_upload: false` hides the
