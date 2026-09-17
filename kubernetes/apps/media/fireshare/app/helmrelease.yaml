@@ -151,14 +151,12 @@ spec:
       app:
         annotations:
           gatus.home-operations.com/endpoint: |-
-            group: external
+            group: internal
             url: https://fireshare.${SECRET_DOMAIN}/api/config
             conditions: ["[STATUS] == 200"]
         hostnames:
           - "{{ .Release.Name }}.${SECRET_DOMAIN}"
         parentRefs:
-          - name: envoy-external
-            namespace: network
           - name: envoy-internal
             namespace: network
         rules:
