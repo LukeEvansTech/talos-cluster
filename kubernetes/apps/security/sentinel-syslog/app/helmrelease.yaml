@@ -34,7 +34,7 @@ spec:
               # JRuby 10 runtime Logstash 9.4+ ships, crashlooping every rebuilt digest since
               # 2026-08-17 while the (mis-tagged) 9.1.10 builds moved their base to 9.4/9.5.
               repository: ghcr.io/lukeevanstech/logstash-sentinel
-              tag: 9.5.3@sha256:46974fd053a9296b5f77520336bf98916a9525d4022640230e8a94d22ee890b0
+              tag: 9.5.4@sha256:187348ccf43043663258514942115848cf8f7ec023c94a0fe79a7ce7c430d7bd
             env:
               TZ: ${TIMEZONE}
               # Bound the JVM heap AND Netty/direct off-heap for the semi-hyperconverged
