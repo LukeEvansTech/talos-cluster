@@ -149,6 +149,19 @@ included.
 
 Mark, do not delete. Each one is a pattern that will recur in a different place.
 
+### H-19: Cached Fireshare videos bypassed a newly set password (resolved 2026-09-17)
+
+**Found:** during the public deployment test. Fireshare's `/_content/video/` responses carry
+`Cache-Control: public, max-age=31536000, immutable`. After anonymous playback followed by
+setting a password, the API returned HTTP 403 but Cloudflare still served the cached video
+with HTTP 206. Deleting a video likewise cannot revoke an already cached response.
+
+**Fix:** the Fireshare HTTPRoute overwrites `Cache-Control` with `private, no-store`, so the
+access gate runs on subsequent requests. Verify using a new test video: anonymous range
+playback succeeds, then setting a password makes both media endpoints return HTTP 403.
+Previously cached content requires a separate purge; only generated test clips were uploaded
+before applying this fix, and no existing media library was mounted.
+
 ### H-18: Fireshare hid anonymous uploads without disabling them (resolved 2026-09-17)
 
 **Found:** while deploying Fireshare 1.8.1. Its default `show_public_upload: false` hides the
