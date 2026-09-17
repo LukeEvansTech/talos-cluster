@@ -149,6 +149,16 @@ included.
 
 Mark, do not delete. Each one is a pattern that will recur in a different place.
 
+### H-18: Fireshare hid anonymous uploads without disabling them (resolved 2026-09-17)
+
+**Found:** while deploying Fireshare 1.8.1. Its default `show_public_upload: false` hides the
+upload button, but `allow_public_upload: true` still permits anonymous API uploads.
+
+**Fix:** the Fireshare init container sets `allow_public_upload: false` before every startup,
+along with private defaults for new media. An invalid configuration stops initialization rather
+than falling back to upstream defaults. Verify both `/api/upload/public` and
+`/api/uploadChunked/public` reject unauthenticated POST requests with HTTP 401.
+
 ### H-1: The Gatus down-alert rule was never loaded (resolved 2026-07-01, #3372)
 
 `observability/gatus/app/kustomization.yaml` had `# - ./prometheusrule.yaml` commented out since

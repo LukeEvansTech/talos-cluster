@@ -1,0 +1,184 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: fireshare
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: fireshare
+  values:
+    controllers:
+      fireshare:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        strategy: Recreate
+        initContainers:
+          init-config:
+            image: &image
+              repository: docker.io/shaneisrael/fireshare
+              tag: 1.8.1-lite@sha256:beb3d37a37efc87df0bf47bc586e31ae56831d008f614717dddad8ca0a8ae8ec
+            command:
+              - python
+              - -c
+            args:
+              - |
+                import json
+                import os
+                from pathlib import Path
+
+                root = Path('/config')
+                for name in ('data', 'videos', 'images', 'processed'):
+                    directory = root / name
+                    directory.mkdir(exist_ok=True)
+                    os.chown(directory, 1000, 1000)
+
+                # Upstream allows anonymous uploads by default. Enforce selected,
+                # link-only sharing before the web server starts on every boot.
+                path = root / 'data/config.json'
+                config = json.loads(path.read_text()) if path.exists() else {}
+                app = config.setdefault('app_config', {})
+                app['allow_public_upload'] = False
+                app['allow_public_folder_selection'] = False
+                app.setdefault('video_defaults', {})['private'] = True
+                app.setdefault('image_defaults', {})['private'] = True
+                config.setdefault('ui_config', {})['show_public_upload'] = False
+                temporary = path.with_suffix('.tmp')
+                temporary.write_text(json.dumps(config, indent=2))
+                os.chown(temporary, 1000, 1000)
+                temporary.replace(path)
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop:
+                  - "ALL"
+                add:
+                  - "CHOWN"
+                  - "DAC_OVERRIDE"
+            resources:
+              requests:
+                cpu: 10m
+                memory: 32Mi
+              limits:
+                memory: 128Mi
+        containers:
+          app:
+            image: *image
+            command:
+              - bash
+              - -ec
+              - |
+                # nginx otherwise creates workers and thread pools for every
+                # host CPU, regardless of the container's resource allocation.
+                sed -i 's/worker_processes  auto;/worker_processes  2;/' /etc/nginx/nginx.conf.template
+                exec bash /entrypoint-lite.sh
+            env:
+              TZ: ${TIMEZONE}
+              DOMAIN: "{{ .Release.Name }}.${SECRET_DOMAIN}"
+              FIRESHARE_PORT: &port 8080
+              PUID: 1000
+              PGID: 1000
+              GUNICORN_WORKERS: 2
+              GUNICORN_THREADS: 4
+              SECURE_COOKIES: "true"
+              ENABLE_TRANSCODING: "false"
+            envFrom:
+              - secretRef:
+                  name: fireshare-secret
+            probes:
+              liveness: &probes
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /api/config
+                    port: *port
+                  periodSeconds: 10
+                  timeoutSeconds: 5
+                  failureThreshold: 3
+              readiness: *probes
+              startup:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /api/config
+                    port: *port
+                  periodSeconds: 5
+                  timeoutSeconds: 5
+                  failureThreshold: 60
+            # The upstream entrypoint configures system users and nginx as root,
+            # then drops the application to PUID/PGID with gosu.
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+              capabilities:
+                drop:
+                  - "ALL"
+                add:
+                  - "CHOWN"
+                  - "DAC_OVERRIDE"
+                  - "FOWNER"
+                  - "SETGID"
+                  - "SETUID"
+            resources:
+              requests:
+                cpu: 100m
+                memory: 256Mi
+              limits:
+                memory: 2Gi
+    defaultPodOptions:
+      securityContext:
+        runAsUser: 0
+        runAsGroup: 0
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile: { type: RuntimeDefault }
+    service:
+      app:
+        controller: fireshare
+        ports:
+          http:
+            port: *port
+    route:
+      app:
+        annotations:
+          gatus.home-operations.com/endpoint: |-
+            group: external
+            url: https://fireshare.${SECRET_DOMAIN}/api/config
+            conditions: ["[STATUS] == 200"]
+        hostnames:
+          - "{{ .Release.Name }}.${SECRET_DOMAIN}"
+        parentRefs:
+          - name: envoy-external
+            namespace: network
+          - name: envoy-internal
+            namespace: network
+        rules:
+          - backendRefs:
+              - identifier: app
+                port: *port
+            timeouts:
+              request: 0s
+              backendRequest: 0s
+    persistence:
+      config:
+        existingClaim: "{{ .Release.Name }}"
+        advancedMounts:
+          fireshare:
+            init-config:
+              - path: /config
+            app:
+              - path: /data
+                subPath: data
+              - path: /videos
+                subPath: videos
+              - path: /images
+                subPath: images
+              - path: /processed
+                subPath: processed
+      tmp:
+        type: emptyDir
