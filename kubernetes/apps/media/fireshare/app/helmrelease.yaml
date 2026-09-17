@@ -44,7 +44,9 @@ spec:
                 app['allow_public_folder_selection'] = False
                 app.setdefault('video_defaults', {})['private'] = True
                 app.setdefault('image_defaults', {})['private'] = True
-                config.setdefault('ui_config', {})['show_public_upload'] = False
+                ui = config.setdefault('ui_config', {})
+                ui['show_public_upload'] = False
+                ui['show_suggestions'] = False
                 temporary = path.with_suffix('.tmp')
                 temporary.write_text(json.dumps(config, indent=2))
                 os.chown(temporary, 1000, 1000)
@@ -151,12 +153,14 @@ spec:
       app:
         annotations:
           gatus.home-operations.com/endpoint: |-
-            group: internal
+            group: external
             url: https://fireshare.${SECRET_DOMAIN}/api/config
             conditions: ["[STATUS] == 200"]
         hostnames:
           - "{{ .Release.Name }}.${SECRET_DOMAIN}"
         parentRefs:
+          - name: envoy-external
+            namespace: network
           - name: envoy-internal
             namespace: network
         rules:
