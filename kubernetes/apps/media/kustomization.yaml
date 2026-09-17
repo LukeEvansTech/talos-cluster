@@ -19,6 +19,7 @@ resources:
   - ./deduparr/ks.yaml
   - ./exclusion-sync/ks.yaml
   - ./fetcharr/ks.yaml
+  - ./fireshare/ks.yaml
   - ./dispatcharr/ks.yaml
   # - ./huntarr/ks.yaml  # Archived
   - ./imagemaid/ks.yaml
