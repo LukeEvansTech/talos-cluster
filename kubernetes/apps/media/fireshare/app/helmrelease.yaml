@@ -161,6 +161,15 @@ spec:
           - backendRefs:
               - identifier: app
                 port: *port
+            # Upstream marks video responses public for a year. A shared cache
+            # can otherwise keep serving them after a password is set or the
+            # video is deleted, without checking Fireshare's access gate again.
+            filters:
+              - type: ResponseHeaderModifier
+                responseHeaderModifier:
+                  set:
+                    - name: Cache-Control
+                      value: private, no-store
             timeouts:
               request: 0s
               backendRequest: 0s
