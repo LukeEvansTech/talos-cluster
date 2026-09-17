@@ -73,7 +73,11 @@ spec:
               - |
                 # nginx otherwise creates workers and thread pools for every
                 # host CPU, regardless of the container's resource allocation.
-                sed -i 's/worker_processes  auto;/worker_processes  2;/' /etc/nginx/nginx.conf.template
+                # Its open-file cache also retains deleted videos for 120s.
+                sed -i \
+                  -e 's/worker_processes  auto;/worker_processes  2;/' \
+                  -e 's/open_file_cache max=.*;/open_file_cache off;/' \
+                  /etc/nginx/nginx.conf.template
                 exec bash /entrypoint-lite.sh
             env:
               TZ: ${TIMEZONE}
