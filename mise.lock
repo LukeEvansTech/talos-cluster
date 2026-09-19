@@ -499,7 +499,7 @@ version = "0.49.1"
 backend = "npm:markdownlint-cli"
 
 [[tools."npm:prettier"]]
-version = "3.9.6"
+version = "3.9.7"
 backend = "npm:prettier"
 
 [[tools."pipx:codespell"]]
