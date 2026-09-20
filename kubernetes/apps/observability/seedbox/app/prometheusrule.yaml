@@ -441,6 +441,94 @@ spec:
           for: 2h
           labels:
             severity: info
+        # ---- games tracker (games_* from the seedbox-metrics textfile collector) --
+        # Share Score, gold, Hit 'n' Runs and user-class points exist ONLY on
+        # games tracker's server; no client-side source can see them. The collector fetches
+        # HOURLY — Share Score is a 7-day trailing average, so faster buys nothing
+        # and spends a documented API budget of 5 requests per 10 seconds — and
+        # serves a cache in between.
+        #
+        # ⚠️ That cache is why every `for` below is >= 1h. Prometheus scrapes the
+        # textfile every ~5 min, but between games tracker fetches it re-reads the SAME
+        # cached number, so a `for: 30m` would debounce a scrape blip and nothing
+        # else. Only a `for` longer than the fetch interval establishes that a
+        # second, independent fetch agreed.
+        #
+        # No Share Score alert, deliberately — same reasoning as the tracker-ratio
+        # recording rule above. It moves on a 7-day average and falls for
+        # non-fault reasons (a qbit-manage cull, a batch of fresh snatches), so a
+        # threshold would fire on ordinary operation.
+        #
+        # No games tracker collector-health rule either: SeedboxMetricsCollectorDegraded
+        # already covers it. seedbox_metrics_up is the AND of all five sources, so
+        # a games tracker failure trips it, and its staleness leg catches a frozen fetch.
+        # A dedicated rule would page twice for one condition.
+        - alert: SeedboxGamesRatioBelowRequired
+          annotations:
+            summary: "games tracker ratio {{ $value }} is below the required floor - leeching privileges are at risk."
+          # games_ratio is deliberately ABSENT rather than zero when games tracker cannot
+          # express it, which it cannot while total download is 0 and the ratio is
+          # undefined. So this simply does not evaluate on a fresh account instead
+          # of firing on a fake 0 — which is the whole reason the collector refuses
+          # to publish a zero there.
+          expr: |-
+            games_ratio{job="seedbox-node"} < games_required_ratio{job="seedbox-node"}
+          for: 1h
+          labels:
+            severity: critical
+        - alert: SeedboxGamesWarned
+          annotations:
+            summary: "games tracker account is WARNED - gold income is halved until it expires and staff have acted."
+          expr: |-
+            games_warned{job="seedbox-node"} == 1
+          for: 1h
+          labels:
+            severity: critical
+        # H&Rs accrue against an 80-hour seed obligation, so this moves over days
+        # and a short `for` buys nothing. Six is the hard wall: at six the account
+        # goes on Hit 'n' Run Watch and may not download at all, and downloading
+        # anyway disables leeching outright. Warning at 3 leaves room to seed them
+        # off; critical at 5 is the last point before the wall.
+        - alert: SeedboxGamesHitAndRunsRising
+          annotations:
+            summary: "games tracker Hit 'n' Runs at {{ $value }} - six triggers H&R Watch and blocks all downloading."
+          expr: |-
+            games_hit_and_runs{job="seedbox-node"} >= 3
+          for: 1h
+          labels:
+            severity: warning
+        - alert: SeedboxGamesHitAndRunsCritical
+          annotations:
+            summary: "games tracker Hit 'n' Runs at {{ $value }} - one more and downloading is blocked entirely."
+          expr: |-
+            games_hit_and_runs{job="seedbox-node"} >= 5
+          for: 1h
+          labels:
+            severity: critical
+        # The meta-alert: the one that says the four above have stopped working.
+        # The collector maps documented games tracker fields to metrics, and games tracker's API wiki
+        # was last edited ~18 months before this shipped. If a key is renamed the
+        # metric simply vanishes, and an alert with no series NEVER FIRES — it
+        # goes quiet, which is indistinguishable from healthy. SeedboxGamesRatio-
+        # BelowRequired is already dormant for a legitimate reason (games_ratio is
+        # deliberately absent while download is 0 and the ratio is undefined), so
+        # "no series" cannot be used as the drift signal itself.
+        #
+        # games_fields_missing counts ONLY keys absent from the response. A present
+        # key holding null or a non-numeric value is counted separately as
+        # games_fields_null / games_fields_unparsable and is NOT drift — that
+        # distinction is what makes a non-zero value here worth acting on rather
+        # than permanent background noise.
+        #
+        # 2h, so a single odd response cannot page; a real rename persists.
+        - alert: SeedboxGamesSchemaDrift
+          annotations:
+            summary: "{{ $value }} documented games tracker field(s) have vanished from the API - games tracker alerts may be silently inert."
+          expr: |-
+            games_fields_missing{job="seedbox-node"} > 0
+          for: 2h
+          labels:
+            severity: warning
     # ---- container lifecycle (docker_state_exporter, seedbox-docker job) ------
     # Three rules, matching the appliance's lean set rather than the NAS's five:
     # exporter-down needs no rule of its own here (the job carries
@@ -555,7 +643,7 @@ spec:
         # throughout, so SeedboxScrapePathDegraded does not cover either case.
         - alert: SeedboxMetricsCollectorDegraded
           annotations:
-            summary: "Seedbox metrics collector unhealthy, missing or stale - qbit-manage/cross-seed/RecycleBin metrics frozen."
+            summary: "Seedbox metrics collector unhealthy, missing or stale - qbit-manage/cross-seed/RecycleBin/qBit-tag/games tracker metrics frozen."
           expr: |-
             seedbox_metrics_up{job="seedbox-node"} == 0
             or absent(seedbox_metrics_up{job="seedbox-node"})
