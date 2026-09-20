@@ -12,17 +12,25 @@ others. Claude Code loads it via an `@AGENTS.md` import in the repository's loca
 > `ExternalSecret`'s `target.template.data` block and mounted from the rendered Secret, never
 > rendered into a ConfigMap in Git.
 >
-> **This covers prose, not just files.** Commit messages and pull request bodies are equally
-> world-visible, and a squash merge copies the PR body verbatim into the commit message on `main`,
-> where it is permanent. That is how a LAN IP and the internal zone name reached history in #3803.
-> Write the _why_ without the coordinates: `${SECRET_DOMAIN}` rather than the real name, "the NAS
-> endpoint" rather than its address, "a delegated internal zone" rather than the directory-service
-> rebuild that caused it. Do not append AI session links or co-author trailers.
-> `.github/scripts/check_internal_identifiers.py --text-file` enforces this at `commit-msg` via
-> lefthook and on PR title and body via `.github/workflows/pr-hygiene.yml`, reusing the same patterns
-> as the tracked-file scan so prose and files cannot drift apart. The internal-zone regex arrives at
-> runtime via `INTERNAL_DOMAIN_RE` (a repository secret in CI, a gitignored `.mise.local.toml`
-> locally) rather than hardcoded, since the script itself is public.
+> **It also covers personal service accounts, not just network coordinates.** Membership of a
+> private tracker, a paid service, or any invite-only community is disclosed by naming it in a
+> metric name, an alert name, a dashboard panel or a commit subject — and on some of those,
+> disclosure carries a real cost to the account and to whoever vouched for you. Name the
+> _category_ instead: `games_*` not the site, "games tracker" not its brand. This happened on
+> 2026-09-20 and needed a full history rewrite, which stripped every commit signature in the
+> repository to remove 47 lines.
+>
+> > **This covers prose, not just files.** Commit messages and pull request bodies are equally
+> > world-visible, and a squash merge copies the PR body verbatim into the commit message on `main`,
+> > where it is permanent. That is how a LAN IP and the internal zone name reached history in #3803.
+> > Write the _why_ without the coordinates: `${SECRET_DOMAIN}` rather than the real name, "the NAS
+> > endpoint" rather than its address, "a delegated internal zone" rather than the directory-service
+> > rebuild that caused it. Do not append AI session links or co-author trailers.
+> > `.github/scripts/check_internal_identifiers.py --text-file` enforces this at `commit-msg` via
+> > lefthook and on PR title and body via `.github/workflows/pr-hygiene.yml`, reusing the same patterns
+> > as the tracked-file scan so prose and files cannot drift apart. The internal-zone regex arrives at
+> > runtime via `INTERNAL_DOMAIN_RE` (a repository secret in CI, a gitignored `.mise.local.toml`
+> > locally) rather than hardcoded, since the script itself is public.
 
 ## Repository structure
 
