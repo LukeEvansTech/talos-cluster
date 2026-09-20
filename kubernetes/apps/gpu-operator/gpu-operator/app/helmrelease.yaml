@@ -23,6 +23,18 @@ spec:
       enabled: false
     dcgmExporter:
       enabled: true
+      # KUBERNETES_ENABLE_DRA on its own is not enough: the operator ships the
+      # DaemonSet with automountServiceAccountToken=false and only overrides it
+      # for enablePodLabels/enablePodUID or a real DCGM_EXPORTER_CONFIGMAP_DATA
+      # (controllers/object_controls.go, dcgmExporterEnvRequiresAPIAccess). With
+      # no token the exporter logs "pod labels will not be available" and every
+      # GPU metric loses exported_pod/exported_namespace -- which the per-pod
+      # VRAM panels in ai/llmkube's NVIDIA dashboard query directly.
+      enablePodLabels: true
+      # Without an allowlist every pod label becomes a metric dimension,
+      # including pod-template-hash, which churns on each rollout.
+      podLabelAllowlistRegex:
+        - app.kubernetes.io/name
       env:
         # Map metrics back to pods through DRA ResourceClaims rather than the
         # device plugin's pod-resources view, which no longer exists. Needs
