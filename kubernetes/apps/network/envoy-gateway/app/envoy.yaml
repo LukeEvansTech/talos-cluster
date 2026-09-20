@@ -148,10 +148,19 @@ spec:
   targetSelectors:
     - group: gateway.networking.k8s.io
       kind: Gateway
-  tcpKeepalive: {}
+  # Explicit probes rather than the OS defaults {} inherits, so a dead upstream
+  # peer is detected in ~90s instead of hours.
+  tcpKeepalive:
+    idleTime: 60s
+    interval: 10s
+    probes: 3
   timeout:
     http:
       requestTimeout: 0s
+      # The listener default is 5 minutes, which cuts a stream that is held open
+      # without traffic -- an SSE notification channel, a long transcode decision.
+      # Ref: https://github.com/onedr0p/home-ops/pull/11707
+      streamIdleTimeout: 1h
 ---
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/gateway.envoyproxy.io/clienttrafficpolicy_v1alpha1.json
 apiVersion: gateway.envoyproxy.io/v1alpha1
@@ -174,7 +183,12 @@ spec:
   targetSelectors:
     - group: gateway.networking.k8s.io
       kind: Gateway
-  tcpKeepalive: {}
+  # Matches the BackendTrafficPolicy above; explicit probes rather than the OS
+  # defaults {} inherits.
+  tcpKeepalive:
+    idleTime: 60s
+    interval: 10s
+    probes: 3
   timeout:
     http:
       requestReceivedTimeout: 0s
