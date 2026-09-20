@@ -70,8 +70,41 @@ whose pre-installed-driver branch hardcodes `/`, and there is no values-level fi
 **Sharing.** The device plugin's `replicas: 5` has no equivalent in the driver's
 `sharing.strategy`, which only sets the CUDA time-slice duration. Oversubscription comes from
 the `ConsumableShares` feature gate with `consumableShares: 5` — the literal equivalent of
-the old replica count. `unlimited` removes the ceiling entirely; `memory` switches to VRAM
-accounting but caps sharing at one claim per GPU for any claim that omits a request.
+the old replica count.
+
+### Why not `consumableShares: memory`
+
+VRAM accounting looks like the obvious upgrade, and it was evaluated properly on 2026-09-20
+and rejected. Recording the reasoning so it is not re-proposed from first principles.
+
+Read `cmd/gpu-kubelet-plugin/consumable_shares.go` rather than the prose: **`memory` does not
+add accounting on top of the share ceiling, it replaces it.** Only the numeric branch publishes
+`dev.Capacity["shares"]` at all. The `memory` branch sets the memory request policy to
+`Default: maxMem`, so a claim that omits an explicit request consumes the **whole device**.
+
+Three consequences, in increasing order of seriousness:
+
+- The five `media` apps share one `ResourceClaimTemplate`, so they would all need the same
+  explicit `capacity.requests.memory`.
+- **That figure cannot be measured here.** Without MIG there is no per-process attribution:
+  `DCGM_FI_DEV_FB_USED` reports the device total and the exporter attributes that same total to
+  every co-tenant. Any value chosen is an estimate presented as a measurement.
+- **It converts a soft risk into a hard one.** Today a media pod landing on the inference card
+  is harmless to scheduling — it takes one of five shares and the model still fits. Under
+  `memory` the same event makes the model *unschedulable*, because it needs the whole device.
+  Pod anti-affinity is evaluated against running pods, so the model's `Recreate` rollout gap is
+  precisely when a restarting media pod could claim that card and leave it `Pending`.
+
+Closing that race needs a reservation that survives the pod being absent — a node taint or
+label — which on Talos is a machine-config change with a possible reboot, and pins the model to
+one node. Disproportionate, because the outcome it buys is already achieved: the preferred
+`podAntiAffinity` added in #5308 puts the model alone on its card, with the two transcoder
+cards at ~22565 MiB free.
+
+Revisit if a second heavy VRAM consumer appears, or if the hardware gains MIG.
+
+`unlimited` removes the per-node ceiling entirely and is not wanted here: spreading would then
+rest only on `topologySpreadConstraints`, which are `ScheduleAnyway` and therefore advisory.
 
 ## Workload pattern
 
