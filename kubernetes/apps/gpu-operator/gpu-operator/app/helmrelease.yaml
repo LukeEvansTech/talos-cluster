@@ -16,13 +16,19 @@ spec:
       enabled: false
     cdi:
       enabled: true
+    # Exactly one whole-GPU advertiser per node. dra-driver-nvidia-gpu now
+    # publishes the card, so the device plugin must stay off: the two keep
+    # independent ledgers and would allocate the same GPU twice.
     devicePlugin:
-      enabled: true
-      config:
-        name: time-slicing-config
-        default: any
+      enabled: false
     dcgmExporter:
       enabled: true
+      env:
+        # Map metrics back to pods through DRA ResourceClaims rather than the
+        # device plugin's pod-resources view, which no longer exists. Needs
+        # resource.k8s.io read access the operator does not grant; see rbac.yaml.
+        - name: KUBERNETES_ENABLE_DRA
+          value: "true"
       serviceMonitor:
         enabled: true
     gfd:

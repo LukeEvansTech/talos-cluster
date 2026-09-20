@@ -18,6 +18,10 @@ spec:
       tdarr:
         annotations:
           reloader.stakater.com/auto: "true"
+        pod:
+          resourceClaims:
+            - name: gpu
+              resourceClaimTemplateName: any-nvidia-gpu
         containers:
           app:
             image:
@@ -60,10 +64,10 @@ spec:
               requests:
                 cpu: 500m
                 memory: 512Mi
-                nvidia.com/gpu: 1
               limits:
                 memory: 4Gi
-                nvidia.com/gpu: 1
+              claims:
+                - name: gpu
     defaultPodOptions:
       labels:
         gpu-workload: "true"

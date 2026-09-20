@@ -1,0 +1,21 @@
+---
+# Every GPU pod in this namespace references this template, and each gets its
+# own generated ResourceClaim from it. The request is deliberately unqualified:
+# all three nodes carry an identical card, so there is nothing to select on. A
+# workload that later needs a particular device should get its own template
+# with a CEL selectors block rather than narrowing this one.
+#
+# ResourceClaimTemplate.spec is immutable. Changing the request later needs
+# force: true on the Kustomization, or a one-time manual delete.
+apiVersion: resource.k8s.io/v1
+kind: ResourceClaimTemplate
+metadata:
+  name: any-nvidia-gpu
+  namespace: media
+spec:
+  spec:
+    devices:
+      requests:
+        - name: nvidia-gpu
+          exactly:
+            deviceClassName: gpu.nvidia.com

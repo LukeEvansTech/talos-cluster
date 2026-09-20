@@ -8,4 +8,5 @@ components:
   - ../../components/alerts
 resources:
   - ./namespace.yaml
+  - ./dra-driver-nvidia-gpu/ks.yaml
   - ./gpu-operator/ks.yaml

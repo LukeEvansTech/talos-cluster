@@ -21,6 +21,7 @@ resources:
   - ./fetcharr/ks.yaml
   - ./fireshare/ks.yaml
   - ./dispatcharr/ks.yaml
+  - ./gpu-claim-templates/ks.yaml
   # - ./huntarr/ks.yaml  # Archived
   - ./imagemaid/ks.yaml
   - ./isponsorblocktv/ks.yaml
