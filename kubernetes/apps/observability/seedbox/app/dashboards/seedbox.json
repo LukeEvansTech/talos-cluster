@@ -2158,8 +2158,8 @@
     {
       "id": 27,
       "type": "stat",
-      "title": "games tracker Share Score",
-      "description": "Share Score 0-15. At 12 the required ratio is 0.00 at every download tier, which is the target. Seeding Size (max 6) + Seeding/Snatched (max 7) reach 13 on their own, so the 5-month seedtime component is not on the critical path.",
+      "title": "Games tracker share score",
+      "description": "Share score 0-15. At 12 the required ratio reaches 0.00 at every download tier, which is the target. The two fast components reach 13 on their own, so the 5-month seedtime component is not on the critical path.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
@@ -2229,8 +2229,8 @@
     {
       "id": 28,
       "type": "stat",
-      "title": "games tracker points to next class",
-      "description": "Achievement points still needed for the next user class. Gamer (600) unlocks the Mass Torrent Downloader; Pro Gamer (1,200) grants immunity from inactivity pruning; Elite Gamer (2,100) from Hit 'n' Runs.",
+      "title": "Games tracker points to next class",
+      "description": "Achievement points still needed for the next user class. The first tier unlocks bulk downloading; a later one grants immunity from inactivity pruning, and a later one from hit-and-runs.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
@@ -2292,8 +2292,8 @@
     {
       "id": 29,
       "type": "stat",
-      "title": "games tracker gold",
-      "description": "Gold is games tracker's bonus-point currency, earned per torrent every 15 minutes on torrent age and size. It buys Upload GB, Freeleech Tokens and HNR Removal. 2FA adds a flat 12/day.",
+      "title": "Games tracker bonus points",
+      "description": "The site's bonus-point currency, earned per torrent every 15 minutes on torrent age and size. It buys upload credit, freeleech tokens and hit-and-run removal. Two-factor auth adds a flat daily grant.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
@@ -2346,7 +2346,7 @@
           },
           "editorMode": "code",
           "expr": "games_gold{job=\"seedbox-node\"}",
-          "legendFormat": "gold",
+          "legendFormat": "bonus points",
           "range": true,
           "refId": "A"
         }
@@ -2355,8 +2355,8 @@
     {
       "id": 30,
       "type": "stat",
-      "title": "games tracker Hit 'n' Runs",
-      "description": "Six puts the account on H&R Watch, which blocks all downloading; downloading anyway disables leeching outright. Clears by seeding to the 80-hour minimum or buying an HNR Removal item.",
+      "title": "Games tracker hit-and-runs",
+      "description": "Six puts the account on hit-and-run watch, which blocks all downloading; downloading anyway disables leeching outright. Clears by seeding to the 80-hour minimum or buying a removal item.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
@@ -2426,8 +2426,8 @@
     {
       "id": 31,
       "type": "stat",
-      "title": "games tracker required ratio",
-      "description": "The minimum ratio to keep leeching privileges, derived purely from Share Score. Freeleech never moves the chargeable download total, so on freeleech-only intake this stays pinned at 0.00.",
+      "title": "Games tracker required ratio",
+      "description": "The minimum ratio to keep leeching privileges, derived purely from the share score. Freeleech never moves the chargeable download total, so on freeleech-only intake this stays pinned at 0.00.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
@@ -2489,8 +2489,8 @@
     {
       "id": 32,
       "type": "timeseries",
-      "title": "games tracker achievement tracks (counts)",
-      "description": "Four of the six tracks that drive user-class points. Strength is torrents uploaded to the site; Accuracy is snatches; Mining is IRC lines; Wood Cutting is forum posts. Mining and Wood Cutting are Luke's own participation - nothing here generates them.",
+      "title": "Games tracker achievement inputs (counts)",
+      "description": "Four of the six achievement tracks that drive user class. Uploads to the site, snatches, IRC lines and forum posts. The last two are human participation - nothing here generates them.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
@@ -2573,7 +2573,7 @@
           },
           "editorMode": "code",
           "expr": "games_torrents_uploaded{job=\"seedbox-node\"}",
-          "legendFormat": "Strength (uploads)",
+          "legendFormat": "torrents uploaded",
           "range": true,
           "refId": "A"
         },
@@ -2584,7 +2584,7 @@
           },
           "editorMode": "code",
           "expr": "games_snatched_torrents{job=\"seedbox-node\"}",
-          "legendFormat": "Accuracy (snatches)",
+          "legendFormat": "snatches",
           "range": true,
           "refId": "B"
         },
@@ -2595,7 +2595,7 @@
           },
           "editorMode": "code",
           "expr": "games_irc_lines{job=\"seedbox-node\"}",
-          "legendFormat": "Mining (IRC lines)",
+          "legendFormat": "IRC lines",
           "range": true,
           "refId": "C"
         },
@@ -2606,7 +2606,7 @@
           },
           "editorMode": "code",
           "expr": "games_forum_posts{job=\"seedbox-node\"}",
-          "legendFormat": "Wood Cutting (forum posts)",
+          "legendFormat": "forum posts",
           "range": true,
           "refId": "D"
         }
@@ -2615,8 +2615,8 @@
     {
       "id": 33,
       "type": "timeseries",
-      "title": "games tracker traffic and seeding size",
-      "description": "Attack and Defense are the byte-denominated achievement tracks, and freeleech counts toward BOTH while never touching the chargeable download total. Seeding Size is the fastest-moving Share Score component - past ~1 TB it is worth roughly 5 of the 6 points.",
+      "title": "Games tracker traffic and seeding size",
+      "description": "The two byte-denominated achievement tracks. Freeleech counts toward BOTH while never touching the chargeable download total. Seeding size is the fastest-moving score component - past ~1 TB it is worth roughly 5 of its 6 points.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
@@ -2699,7 +2699,7 @@
           },
           "editorMode": "code",
           "expr": "games_uploaded_bytes{job=\"seedbox-node\"}",
-          "legendFormat": "Attack (uploaded)",
+          "legendFormat": "uploaded",
           "range": true,
           "refId": "A"
         },
@@ -2710,7 +2710,7 @@
           },
           "editorMode": "code",
           "expr": "games_downloaded_bytes{job=\"seedbox-node\"}",
-          "legendFormat": "Defense (downloaded)",
+          "legendFormat": "downloaded",
           "range": true,
           "refId": "B"
         },
@@ -2721,7 +2721,7 @@
           },
           "editorMode": "code",
           "expr": "games_seeding_size_bytes{job=\"seedbox-node\"}",
-          "legendFormat": "Seeding Size",
+          "legendFormat": "seeding size",
           "range": true,
           "refId": "C"
         }
