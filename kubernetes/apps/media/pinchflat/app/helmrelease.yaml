@@ -14,6 +14,10 @@ spec:
       pinchflat:
         annotations:
           reloader.stakater.com/auto: "true"
+        pod:
+          resourceClaims:
+            - name: gpu
+              resourceClaimTemplateName: any-nvidia-gpu
         containers:
           app:
             image:
@@ -43,10 +47,10 @@ spec:
             resources:
               requests:
                 cpu: 10m
-                nvidia.com/gpu: 1
               limits:
-                nvidia.com/gpu: 1
                 memory: 2Gi
+              claims:
+                - name: gpu
     defaultPodOptions:
       labels:
         gpu-workload: "true"

@@ -1,0 +1,19 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/source.toolkit.fluxcd.io/ocirepository_v1.json
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: dra-driver-nvidia-gpu
+spec:
+  # The project moved from NVIDIA/k8s-dra-driver-gpu to
+  # kubernetes-sigs/dra-driver-nvidia-gpu; registry.k8s.io is the only place
+  # the chart is published, and it carries no cosign signature, so there is no
+  # verify block. The ghcr.io/nvidia path only has stale pre-release tags.
+  interval: 1h
+  layerSelector:
+    mediaType: application/vnd.cncf.helm.chart.content.v1.tar+gzip
+    operation: copy
+  url: oci://registry.k8s.io/dra-driver-nvidia/charts/dra-driver-nvidia-gpu
+  ref:
+    # renovate: datasource=docker
+    tag: 0.5.0

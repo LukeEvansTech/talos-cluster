@@ -1,0 +1,37 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/kustomize.toolkit.fluxcd.io/kustomization_v1.json
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: &app dra-driver-nvidia-gpu
+  namespace: &namespace gpu-operator
+spec:
+  targetNamespace: *namespace
+  commonMetadata:
+    labels:
+      app.kubernetes.io/name: *app
+  # The device plugin must be gone before the kubelet plugin advertises the
+  # GPU, or the two allocators hand out the same card twice. gpu-operator's
+  # Kustomization carries a HelmRelease health check so this dependency means
+  # "the operator reconciled with devicePlugin off" rather than merely "the
+  # manifests applied". It is still only defence in depth: the operator
+  # removes the device plugin DaemonSet asynchronously after the Helm upgrade
+  # returns, so the drain in docs/docs/migrations/gpu-time-slicing-to-dra.md
+  # is what actually makes the swap safe.
+  dependsOn:
+    - name: gpu-operator
+  path: ./kubernetes/apps/gpu-operator/dra-driver-nvidia-gpu/app
+  prune: true
+  retryInterval: 2m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+    namespace: flux-system
+  wait: false
+  interval: 1h
+  timeout: 5m
+  healthChecks:
+    - apiVersion: helm.toolkit.fluxcd.io/v2
+      kind: HelmRelease
+      name: *app
+      namespace: *namespace

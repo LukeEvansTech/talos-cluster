@@ -23,3 +23,12 @@ spec:
   wait: false
   interval: 30m
   timeout: 5m
+  # dra-driver-nvidia-gpu dependsOn this Kustomization. Without a health check
+  # a Kustomization reports Ready as soon as its manifests apply, which would
+  # let the kubelet plugin come up while the device plugin was still being
+  # removed. This makes the dependency mean "the HelmRelease reconciled".
+  healthChecks:
+    - apiVersion: helm.toolkit.fluxcd.io/v2
+      kind: HelmRelease
+      name: *app
+      namespace: *namespace
