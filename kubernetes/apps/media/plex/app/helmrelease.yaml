@@ -168,38 +168,48 @@ spec:
           - name: envoy-external
             namespace: network
         rules:
+          # Plex needs long-lived connections beyond Envoy's default route timeout:
+          # transcode decisions can take >15s, streams run for hours, and
+          # /:/eventsource/notifications is an SSE stream held open all session.
+          # Envoy otherwise returns 504 "upstream request timeout". 0s disables it.
+          - name: app
+            matches:
+              - path:
+                  type: PathPrefix
+                  value: /
+            filters:
+              - type: RequestHeaderModifier
+                requestHeaderModifier: &pipeline
+                  # Plex closes an idle keep-alive connection after ~20s unless
+                  # this is set, so Envoy can hand a request to a connection the
+                  # backend is already tearing down. Letting Envoy own pool
+                  # lifetime removes the race.
+                  # Ref: https://github.com/onedr0p/home-ops/pull/11702
+                  set:
+                    - name: X-Plex-Http-Pipeline
+                      value: infinite
+            backendRefs: &backendRefs
+              - identifier: app
+                port: *port
+            timeouts: &timeouts
+              request: 0s
+              backendRequest: 0s
           # Strip Range on external-subtitle fetches, SRT subtitles break through a
           # reverse proxy otherwise.
           # Ref: https://forums.plex.tv/t/external-srt-subtitles-are-not-working-w-reverse-proxy/886540
-          - matches:
+          - name: subtitles
+            matches:
               - path:
                   type: PathPrefix
                   value: /library/streams
             filters:
               - type: RequestHeaderModifier
                 requestHeaderModifier:
+                  <<: *pipeline
                   remove:
                     - "Range"
-            backendRefs:
-              - identifier: app
-                port: *port
-            timeouts:
-              request: 0s
-              backendRequest: 0s
-          # Plex needs long-lived connections beyond Envoy's default route timeout:
-          # transcode decisions can take >15s, streams run for hours, and
-          # /:/eventsource/notifications is an SSE stream held open all session.
-          # Envoy otherwise returns 504 "upstream request timeout". 0s disables it.
-          - matches:
-              - path:
-                  type: PathPrefix
-                  value: /
-            backendRefs:
-              - identifier: app
-                port: *port
-            timeouts:
-              request: 0s
-              backendRequest: 0s
+            backendRefs: *backendRefs
+            timeouts: *timeouts
     persistence:
       config:
         existingClaim: "{{ .Release.Name }}"
