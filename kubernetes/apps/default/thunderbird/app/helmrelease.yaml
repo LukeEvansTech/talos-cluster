@@ -18,7 +18,7 @@ spec:
           app:
             image:
               repository: ghcr.io/linuxserver/thunderbird
-              tag: 1140.15.0@sha256:59c6ca272976c77d00d1d519e31617af7b1c6a75c2bced66094b7d756331b83e
+              tag: 1140.16.0@sha256:483ca2ea649031debad626df3f122e4399849d911483aed1f1623a78b56e7d79
             env:
               TZ: ${TIMEZONE}
               PUID: "1000"
