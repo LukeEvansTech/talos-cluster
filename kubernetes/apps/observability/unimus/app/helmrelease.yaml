@@ -28,7 +28,7 @@ spec:
             # the digest pin covers the application and not just a wrapper.
             image:
               repository: docker.io/croc/unimus
-              tag: 2.9.1@sha256:8ca4e659db76a1f80d3eae4cd20d10aced8e3ea32db3200edb1a2662a04ee50e
+              tag: 2.9.1@sha256:2687d7de2fb1623c33fb49b835daa955671f634673e3775349afca2e0926d54c
             env:
               TZ: ${TIMEZONE}
               # start.sh maps XMS/XMX straight onto the JVM flags. Capped below
