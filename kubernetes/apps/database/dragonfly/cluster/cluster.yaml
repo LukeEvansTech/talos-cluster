@@ -18,6 +18,12 @@ spec:
     - --cluster_mode=emulated
     - --default_lua_flags=allow-undeclared-keys
     - --lock_on_hashtags
+    # v2.0.0 changed the replication backlog from a fixed 8192-entry ring
+    # (minutes of history on a quiet broker) to a 5 s age window, so any
+    # replica reconnecting after a pod restart, node drain or the operator's
+    # own CLIENT KILL during a role change fell back to a full sync. Keep a
+    # comparable window so those reconnects stay partial syncs.
+    - --shard_repl_backlog_time_ms=60000
   authentication:
     passwordFromSecret:
       name: dragonfly-secret
