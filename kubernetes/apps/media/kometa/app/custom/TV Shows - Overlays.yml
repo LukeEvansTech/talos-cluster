@@ -20,7 +20,6 @@ overlays:
       vertical_offset: 0
     suppress_overlays:
       - TMDb Trending
-      - Trakt Trending
     imdb_chart: top_shows
 
   TMDb Trending Shows:
@@ -38,7 +37,6 @@ overlays:
       horizontal_offset: 0
       vertical_offset: 0
     suppress_overlays:
-      - Trakt Trending
     tmdb_trending_weekly: 50
 
   # Additional Streaming with suppress logic
