@@ -1,10 +1,9 @@
+---
 # Kometa Configuration Template
 # This file will be processed by External Secrets to inject values from 1Password
 # Variables available from 1Password (kometa + plex items):
 #   {{ .PLEX_TOKEN }}
 #   {{ .TMDB_API_KEY }}
-#   {{ .TRAKT_CLIENT_ID }}
-#   {{ .TRAKT_CLIENT_SECRET }}
 #   etc.
 
 libraries:
@@ -80,22 +79,12 @@ tmdb:
   cache_expiration: 60
   region:
 
-# Uncomment and configure as needed:
-# trakt:
-#   client_id: "{{ .TRAKT_CLIENT_ID }}"
-#   client_secret: "{{ .TRAKT_CLIENT_SECRET }}"
-#   authorization:
-#     access_token: "{{ .TRAKT_ACCESS_TOKEN }}"
-#     token_type: Bearer
-#     expires_in: "{{ .TRAKT_EXPIRES_IN }}"
-#     refresh_token: "{{ .TRAKT_REFRESH_TOKEN }}"
-#     scope: public
-#     created_at: "{{ .TRAKT_CREATED_AT }}"
+  # Uncomment and configure as needed:
 
-# omdb:
-#   apikey: "{{ .OMDB_API_KEY }}"
-#   cache_expiration: 60
+  # omdb:
+  #   apikey: "{{ .OMDB_API_KEY }}"
+  #   cache_expiration: 60
 
-# mdblist:
-#   apikey: "{{ .MDBLIST_API_KEY }}"
-#   cache_expiration: 60
+  # mdblist:
+  #   apikey: "{{ .MDBLIST_API_KEY }}"
+  #   cache_expiration: 60

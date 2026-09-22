@@ -14,7 +14,7 @@ overlays:
       vertical_align: bottom
       horizontal_offset: 70
       vertical_offset: 15
-    trakt_list: https://trakt.tv/users/jawann2002/lists/marvel-cinematic-universe-movies
+    imdb_list: https://www.imdb.com/list/ls536593982/ # MCU films
 
   DC:
     overlay:
@@ -30,7 +30,7 @@ overlays:
       vertical_align: bottom
       horizontal_offset: 70
       vertical_offset: 15
-    trakt_list: https://trakt.tv/users/donxy/lists/dc-extended-universe
+    imdb_list: https://www.imdb.com/list/ls046609392/ # DCEU + DCU films
 
   Pixar:
     overlay:

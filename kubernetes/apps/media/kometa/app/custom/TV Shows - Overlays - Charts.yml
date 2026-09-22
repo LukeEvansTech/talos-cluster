@@ -16,18 +16,18 @@ overlays:
       vertical_offset: 0
     imdb_chart: top_shows
 
-  Trakt Trending:
+  TMDb Trending:
     overlay:
       name: text(Trending)
       group: charts
       weight: 40
       font_size: 45
       font_color: "#FFFFFF"
-      back_color: "#ED1C24"
+      back_color: "#01B4E4"
       back_width: 200
       back_height: 60
       horizontal_align: left
       vertical_align: top
       horizontal_offset: 0
       vertical_offset: 0
-    trakt_trending: 50
+    tmdb_trending_weekly: 50
