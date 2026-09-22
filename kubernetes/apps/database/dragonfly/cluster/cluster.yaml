@@ -4,7 +4,7 @@ kind: Dragonfly
 metadata:
   name: dragonfly
 spec:
-  image: ghcr.io/dragonflydb/dragonfly:v1.40.2@sha256:18afa43e911f1dff18c7d1eb452361876d9702bb1cdff5c5d75c69617a4065c9
+  image: ghcr.io/dragonflydb/dragonfly:v2.0.0@sha256:7426fdb31ddcf7bd9499b4205f36ebaa83b26149ba1609a0d5f8f474b3631233
   replicas: 3
   env:
     - name: MAX_MEMORY
@@ -18,6 +18,12 @@ spec:
     - --cluster_mode=emulated
     - --default_lua_flags=allow-undeclared-keys
     - --lock_on_hashtags
+    # v2.0.0 changed the replication backlog from a fixed 8192-entry ring
+    # (minutes of history on a quiet broker) to a 5 s age window, so any
+    # replica reconnecting after a pod restart, node drain or the operator's
+    # own CLIENT KILL during a role change fell back to a full sync. Keep a
+    # comparable window so those reconnects stay partial syncs.
+    - --shard_repl_backlog_time_ms=60000
   authentication:
     passwordFromSecret:
       name: dragonfly-secret
