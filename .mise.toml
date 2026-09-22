@@ -5,6 +5,12 @@ lockfile = true
 # Required by the [hooks] block below; mise gates hooks behind experimental.
 # Scoped to this config, so it does not change mise behaviour in other repos.
 experimental = true
+# Resolve aqua packages from the live aquaproj/aqua-registry (cloned once into
+# the mise cache) instead of the registry snapshot baked into the mise binary.
+# A baked snapshot goes stale as soon as upstream renames a release asset or
+# binary (editorconfig-checker 4.0.0 did both), and then `mise install` fails
+# on any mise older than that registry change.
+aqua.baked_registry = false
 
 [env]
 BOOTSTRAP_DIR = "{{config_root}}/bootstrap"
@@ -39,9 +45,10 @@ run = "uv pip install -r docs/requirements.txt"
 "aqua:cue-lang/cue" = "0.17.1"
 # editorconfig-checker / yamllint / codespell / markdownlint-cli mirror the
 # linters super-linter v8 bundles, so lefthook catches their findings locally
-# before CI. Versions pinned to match super-linter@9e863354 (v8): bumping
-# super-linter may require bumping these in lockstep to avoid local/CI drift.
-"aqua:editorconfig-checker/editorconfig-checker" = "3.11.3"
+# before CI. Local pins may run ahead of what super-linter@9e863354 (v8.6.0)
+# bundles (it ships editorconfig-checker 3.6.1); that is fine as long as the
+# newer version is only stricter, so local catches a superset of CI.
+"aqua:editorconfig-checker/editorconfig-checker" = "4.0.2"
 # The hook runner itself. It was referenced by .lefthook.toml and the comment
 # above long before it was ever a pinned tool, so `.git/hooks/` sat empty and
 # none of the "pre-commit" checks actually ran locally. Run `lefthook install`
