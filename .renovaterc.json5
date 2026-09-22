@@ -229,9 +229,14 @@
       // A dashboard "major" is just a revision bump, not a breaking change, so
       // this opts them back into auto-merge. The preset leaves majors with no
       // automerge rule, and separately queues them behind a dashboard checkbox.
-      // automergeType/ignoreTests are deliberately NOT set: Renovate already
-      // defaults to a CI-gated PR merge, and restating them here is what caused
-      // the branch-merge incident (see the note at the top of packageRules).
+      // automergeType/ignoreTests are deliberately NOT set here. The inherited
+      // type is NOT Renovate's default: the upstream home-operations preset
+      // extends :automergeBranch, and until 2026-09-22 this rule inherited it,
+      // so dashboard bumps were parked as branch automerges that never ran a
+      // check (#5357 needed a dashboard tick to become a PR). The shared
+      // LukeEvansTech/renovate-config preset now sets automergeType "pr" +
+      // platformAutomerge false at the top level, which is where the fix
+      // belongs (see the note at the top of packageRules).
       automerge: true,
       commitMessageExtra: "({{currentVersion}} → {{newVersion}})",
       commitMessageTopic: "dashboard {{depName}}",
