@@ -592,7 +592,7 @@ collections:
     # Single builder on purpose: collection_order: custom (the list's chronological rank)
     # is only allowed with one builder, so the fan-edit plex_search lives on the
     # release-order MCU collection above instead.
-    imdb_list: https://www.imdb.com/list/ls536593982/ # MCU films in chronological order
+    imdb_list: https://www.imdb.com/list/ls503787885/ # MCU films in chronological order
     collection_order: custom
     file_poster: /config/assets/Marvel Cinematic Universe.png
   Pixar:
