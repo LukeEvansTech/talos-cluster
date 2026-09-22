@@ -28,7 +28,7 @@ spec:
           app:
             image:
               repository: lissy93/domain-locker
-              tag: 0.2.8@sha256:d3c95edc0a8b3206e91d2eac2a17194eb9a89fffd56c449f362bbc950ae54917
+              tag: 0.2.9@sha256:a2141520f9c705fc036bacb05b6b642a8d67acb7316a9422d7d4016dcd9b862c
             env:
               TZ: ${TIMEZONE}
               DL_ENV_TYPE: selfHosted
