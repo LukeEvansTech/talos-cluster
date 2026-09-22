@@ -215,7 +215,7 @@ collections:
     imdb_list: https://www.imdb.com/list/ls559825762/ # Rotten Tomatoes top 100 of all time, adjusted score
   Rotten Tomatoes - Best Horror:
     template: { name: Best Of - Rotten Tomatoes - Genres }
-    imdb_list: https://www.imdb.com/list/ls040476917/ # Rotten Tomatoes 150 best horror movies
+    imdb_list: https://www.imdb.com/list/ls082336543/ # Rotten Tomatoes 200 best horror movies (2020)
   Rotten Tomatoes - Best LGBT:
     template: { name: Best Of - Rotten Tomatoes - Genres }
     icheckmovies_list: https://www.icheckmovies.com/lists/rotten+tomatoes+200+best+lgbt+movies+of+all+time/moviedearest/
@@ -589,12 +589,11 @@ collections:
           - "Marvel's Infinity Saga: The Sacred Timeline" # Fan edit
   Marvel Cinematic Universe (Chronological):
     template: { name: Studios }
+    # Single builder on purpose: collection_order: custom (the list's chronological rank)
+    # is only allowed with one builder, so the fan-edit plex_search lives on the
+    # release-order MCU collection above instead.
     imdb_list: https://www.imdb.com/list/ls536593982/ # MCU films in chronological order
     collection_order: custom
-    plex_search:
-      any:
-        title:
-          - "Marvel's Infinity Saga: The Sacred Timeline" # Fan edit
     file_poster: /config/assets/Marvel Cinematic Universe.png
   Pixar:
     template: { name: Studios }
