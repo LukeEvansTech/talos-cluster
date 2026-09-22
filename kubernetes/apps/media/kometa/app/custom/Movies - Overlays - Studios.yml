@@ -14,7 +14,7 @@ overlays:
       vertical_align: bottom
       horizontal_offset: 70
       vertical_offset: 15
-    imdb_list: https://www.imdb.com/list/ls536593982/ # MCU films
+    imdb_list: https://www.imdb.com/list/ls503787885/ # MCU films
 
   DC:
     overlay:
