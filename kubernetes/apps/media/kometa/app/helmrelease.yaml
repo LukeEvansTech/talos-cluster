@@ -16,7 +16,12 @@ spec:
         annotations:
           reloader.stakater.com/auto: "true"
         cronjob:
-          schedule: "@daily"
+          # Start after MDBList's daily quota resets at 00:00 UTC. Kometa 2.5.0 honours
+          # Retry-After on a 429 with no cap, so a run that starts while yesterday's
+          # 1000 requests are spent sleeps until the reset instead of failing fast.
+          # 02:00 local is 01:00 UTC in summer and 02:00 UTC in winter, and unlike
+          # 01:00 it exists on the spring DST night (01:00 -> 02:00), so no run is skipped.
+          schedule: "0 2 * * *"
           timeZone: &timeZone ${TIMEZONE}
           concurrencyPolicy: Forbid
           successfulJobsHistory: 1
