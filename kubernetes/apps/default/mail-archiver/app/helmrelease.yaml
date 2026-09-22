@@ -28,7 +28,7 @@ spec:
           app:
             image:
               repository: ghcr.io/s1t5/mailarchiver
-              tag: 2607.5@sha256:296af6847dc1be84f50b167f1cbf45b1df876098d72f4fe825bb2179be077a13
+              tag: 2609.1@sha256:8a05e3c99f63c03ab2599c04078c7de4ee5ecf1988e8adec8d233a457913ab44
             env:
               TZ: ${TIMEZONE}
               Authentication__Enabled: "true"
@@ -44,13 +44,28 @@ spec:
               - secretRef:
                   name: mailarchiver-secret
             probes:
-              liveness: &probes
+              # Startup migrations run before Kestrel listens, and from 2609.1
+              # one of them builds a full index on ArchivedEmails under an
+              # exclusive lock, so startup time scales with archive size. Give
+              # it 5 minutes before liveness applies, otherwise a slow build
+              # gets killed mid-transaction and restarts from scratch.
+              startup:
                 enabled: true
                 custom: true
                 spec:
                   httpGet:
                     path: /health
                     port: &port 5000
+                  periodSeconds: 10
+                  timeoutSeconds: 1
+                  failureThreshold: 30
+              liveness: &probes
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /health
+                    port: *port
                   initialDelaySeconds: 0
                   periodSeconds: 10
                   timeoutSeconds: 1
