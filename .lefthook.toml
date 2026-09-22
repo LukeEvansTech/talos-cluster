@@ -101,9 +101,10 @@ run = "mise x -- markdownlint --config .github/linters/.markdown-lint.yml {stage
 glob = ["*.md"]
 exclude = ["docs/**"]
 
-# editorconfig-checker (super-linter EDITORCONFIG). The `ec` binary applies
+# editorconfig-checker (super-linter EDITORCONFIG). The binary is named
+# `editorconfig-checker` from v4.0.0 (it was `ec` before). It applies
 # .editorconfig rules + its own .editorconfig-checker.json excludes (Markdown,
 # fixtures, smokeping Targets), so no glob is needed here.
 [pre-commit.commands.lint-editorconfig]
-run = "mise x -- ec -config .github/linters/.editorconfig-checker.json {staged_files}"
+run = "mise x -- editorconfig-checker -config .github/linters/.editorconfig-checker.json {staged_files}"
 exclude = ["docs/**"]
