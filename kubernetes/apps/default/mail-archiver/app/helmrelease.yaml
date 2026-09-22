@@ -44,13 +44,28 @@ spec:
               - secretRef:
                   name: mailarchiver-secret
             probes:
-              liveness: &probes
+              # Startup migrations run before Kestrel listens, and from 2609.1
+              # one of them builds a full index on ArchivedEmails under an
+              # exclusive lock, so startup time scales with archive size. Give
+              # it 5 minutes before liveness applies, otherwise a slow build
+              # gets killed mid-transaction and restarts from scratch.
+              startup:
                 enabled: true
                 custom: true
                 spec:
                   httpGet:
                     path: /health
                     port: &port 5000
+                  periodSeconds: 10
+                  timeoutSeconds: 1
+                  failureThreshold: 30
+              liveness: &probes
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /health
+                    port: *port
                   initialDelaySeconds: 0
                   periodSeconds: 10
                   timeoutSeconds: 1
