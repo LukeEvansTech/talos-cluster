@@ -45,6 +45,10 @@ libraries:
           use_memorial: false
           use_labor: false
           use_veteran: false
+          # US-dated heritage months, off for this server.
+          use_aapi: false
+          use_latinx: false
+          use_black_history: false
           visible_home: true
           visible_shared: true
           visible_library: true
@@ -133,6 +137,27 @@ libraries:
           region: GB
       - default: network
         schedule: weekly(sunday)
+        template_variables:
+          # The default list makes ~110 collections, most holding one or two
+          # shows. Keep the main UK channels plus the big US ones.
+          include:
+            - BBC One
+            - BBC Two
+            - BBC Three
+            - BBC Four
+            - ITV1
+            - ITV2
+            - Channel 4
+            - E4
+            - "5"
+            - Sky
+            - HBO
+            - AMC
+            - FX
+            - NBC
+            - ABC
+            - CBS
+            - FOX
       - default: universe
         schedule: weekly(sunday)
     overlay_files:
