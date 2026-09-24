@@ -49,7 +49,7 @@ spec:
   # chaski's ClusterIP rather than out through the gateway and back. Additive
   # to the namespace-wide policy above (Cilium unions allows), which otherwise
   # admits only the network namespace.
-  description: "Allow the curatorjudge job (media) to reach chaski"
+  description: "Allow the curatorjudge and kometa jobs (media) to reach chaski"
   endpointSelector:
     matchLabels:
       app.kubernetes.io/name: chaski
@@ -58,3 +58,6 @@ spec:
         - matchLabels:
             io.kubernetes.pod.namespace: media
             app.kubernetes.io/name: curatorjudge
+        - matchLabels:
+            io.kubernetes.pod.namespace: media
+            app.kubernetes.io/name: kometa

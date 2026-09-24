@@ -31,6 +31,10 @@ spec:
         triage:
           apprise:
             url: pover://{{ env "PUSHOVER_USER_KEY" }}@{{ env "RADARR_PUSHOVER_TOKEN" }}
+        # Kometa's nightly run webhooks. Same Pushover application as triage.
+        kometa:
+          apprise:
+            url: pover://{{ env "PUSHOVER_USER_KEY" }}@{{ env "RADARR_PUSHOVER_TOKEN" }}
       routes:
         radarr-download:
           target: radarr
@@ -111,6 +115,31 @@ spec:
             token:
               header: X-Chaski-Token
               secret: '{{ env "TRIAGE_WEBHOOK_TOKEN" }}'
+        # Kometa exits 0 even when collections fail to build, so its own
+        # webhooks are the only failure signal. In-cluster sender, no token,
+        # same as the arr routes.
+        kometa-error:
+          target: kometa
+          title: "Kometa error{{ if .payload.critical }} (critical){{ end }}"
+          message: |-
+            <b>{{ .payload.library_name | default "global" }}{{ if .payload.collection }} / {{ .payload.collection }}{{ end }}</b>
+            <small>{{ .payload.error | ellipsis 500 }}</small>
+          params:
+            format: html
+            priority: high
+          whenExpr: payload.event == "error"
+        kometa-run:
+          target: kometa
+          title: Kometa run finished
+          message: |-
+            <b>{{ .payload.run_time }}</b>
+            <small>Collections: {{ .payload.collections_created }} created, {{ .payload.collections_modified }} modified, {{ .payload.collections_deleted }} deleted</small>
+            <small>Items: {{ .payload.items_added }} added, {{ .payload.items_removed }} removed</small>
+            <small>Sent to Radarr: {{ .payload.added_to_radarr }}, Sonarr: {{ .payload.added_to_sonarr }}</small>
+          params:
+            format: html
+            priority: low
+          whenExpr: payload.event == "run_end"
     monitoring:
       serviceMonitor:
         enabled: true
