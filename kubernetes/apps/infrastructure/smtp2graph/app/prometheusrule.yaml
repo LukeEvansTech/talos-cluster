@@ -34,12 +34,22 @@ spec:
         # Backlog that is not draining. Distinct from the above: these have not
         # been given up on yet, so this catches a slow or wedged Graph path
         # before messages start expiring into failed/.
+        #
+        # It is also the ONLY alert for a stranded message. smtp2graph treats
+        # three Graph errors (invalid content, access denied, size exceeded) as
+        # permanent: it neither retries them nor moves them to failed/, so the
+        # file sits in queue/ forever and UndeliverableMail never sees it. One
+        # constant queued message while later mail still delivers is that case,
+        # not a stall. KB-035.
         - alert: SMTP2GraphQueueStalled
           annotations:
             description: >-
               smtp2graph has had mail queued for over 30 minutes (oldest is
-              {{ $value | humanizeDuration }}). Delivery to Graph is stalled or
-              throttled.
+              {{ $value | humanizeDuration }}). If the queue is growing, delivery to
+              Graph is stalled or throttled. If it is one message stuck while later
+              mail still delivers, that message is stranded (a "permanent" Graph error
+              smtp2graph never retries): check /data/logs/error.log in the app
+              container and re-queue it, see KB-035 (troubleshooting/kb/035).
             summary: smtp2graph delivery queue is not draining.
           expr: smtp2graph_oldest_queued_seconds > 1800
           for: 10m

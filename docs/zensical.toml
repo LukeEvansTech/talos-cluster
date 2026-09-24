@@ -107,6 +107,7 @@ nav = [
       { "032: NetBox housekeeping removed command + wedged system job" = "troubleshooting/kb/032-netbox-housekeeping-removed-command-and-wedged-system-job.md" },
       { "033: OPNsense record exists but is unowned" = "troubleshooting/kb/033-opnsense-record-exists-but-is-unowned.md" },
       { "034: OPNsense delete blocked by alias" = "troubleshooting/kb/034-opnsense-delete-blocked-by-alias.md" },
+      { "035: smtp2graph message stranded in queue" = "troubleshooting/kb/035-smtp2graph-message-stranded-in-queue.md" },
     ] },
   ] },
   { "FAQ" = "faq.md" },
