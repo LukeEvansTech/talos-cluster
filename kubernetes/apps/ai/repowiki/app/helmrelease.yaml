@@ -83,6 +83,7 @@ spec:
       repowiki-gen:
         type: cronjob
         cronjob:
+          ttlSecondsAfterFinished: 86400
           schedule: "0 */12 * * *"
           timeZone: "${TIMEZONE}"
           concurrencyPolicy: Forbid

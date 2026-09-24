@@ -18,6 +18,7 @@ spec:
       gickup:
         type: cronjob
         cronjob:
+          ttlSecondsAfterFinished: 86400
           schedule: "0 2 * * *"
           timeZone: "${TIMEZONE}"
           concurrencyPolicy: Forbid

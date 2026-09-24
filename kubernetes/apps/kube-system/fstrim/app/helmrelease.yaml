@@ -19,6 +19,7 @@ spec:
       fstrim:
         type: cronjob
         cronjob:
+          ttlSecondsAfterFinished: 86400
           schedule: "@weekly"
           parallelism: 3 # Set to my total number of nodes
           successfulJobsHistory: 1

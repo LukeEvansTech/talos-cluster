@@ -16,6 +16,7 @@ spec:
         annotations:
           reloader.stakater.com/auto: "true"
         cronjob:
+          ttlSecondsAfterFinished: 86400
           schedule: "@daily"
           timeZone: "${TIMEZONE}"
           concurrencyPolicy: Forbid
