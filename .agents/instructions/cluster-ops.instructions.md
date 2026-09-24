@@ -6,7 +6,7 @@ Read before running the local linter, querying the live cluster, or merging a ba
 
 - **Lint a throwaway sandbox, never the full checkout.** A super-linter run against this repository can hang in file enumeration for 12+ minutes, even with a correctly anchored `FILTER_REGEX_INCLUDE`, because the filter narrows what gets linted, not what gets enumerated. The tell is a log whose last line is `PARALLEL_COMMAND: parallel ...` with nothing after it. Copy the changed files plus `.editorconfig` and `.github/linters/` into a temporary directory, `git init`, commit, and lint that: about 90 seconds, with real per-linter results.
 - **Kill a stuck container instead of waiting** (`docker kill`), and check for stale ones first: `docker ps --filter ancestor=ghcr.io/super-linter/super-linter:<version>`. A backgrounded wrapper around a killed run still reports exit code 0, which is not a pass.
-- **Prove the run happened.** Capture `LOG_LEVEL=DEBUG` to a file; `grep -c 'Successfully linted'` should be 5 or more and every target path should appear. A filter regex is matched against `/tmp/lint/<path>`, so a repository-relative anchor matches nothing and exits 0 having linted nothing.
+- **Prove the run happened.** Capture `LOG_LEVEL=DEBUG` to a file; `grep -c 'Successfully linted'` should be 5 or more and every target path should appear. A filter regular expression is matched against `/tmp/lint/<path>`, so a repository-relative anchor matches nothing and exits 0 having linted nothing.
 
 ## Querying the live cluster
 
