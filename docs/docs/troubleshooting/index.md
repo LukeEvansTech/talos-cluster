@@ -42,6 +42,8 @@ Work down from what you observe to the most likely entry:
     - One `KubeJobFailed` a day for `netbox-housekeeping` (`Unknown command: 'housekeeping'`), or NetBox housekeeping silently stopped with a `scheduled` job stuck in the past → [KB-032](kb/032-netbox-housekeeping-removed-command-and-wedged-system-job.md)
 - **Monitoring / Grafana**
     - Every panel on one dashboard shows "No data" / "Datasource Prometheus was not found" → [KB-021](kb/021-grafana-dashboard-panels-blank-datasource-case.md)
+- **Mail relay (smtp2graph)**
+    - `SMTP2GraphQueueStalled` holds at one queued message for hours while the canary and later mail deliver fine; the log shows a single `Failed to send message` and no retries → [KB-035](kb/035-smtp2graph-message-stranded-in-queue.md)
 - **Plex playback**
     - 4K direct-play freezes for ~60s every ~6 minutes on LAN Apple TVs → [KB-002](kb/002-plex-direct-play-buffering-bbr-mtu-probing.md)
     - "Server unavailable" / connection drops at session start, pod otherwise healthy → [KB-003](kb/003-plex-advertises-broken-connection-urls.md)
@@ -92,3 +94,4 @@ Work down from what you observe to the most likely entry:
 - [KB-032: NetBox Housekeeping Fails Two Ways at Once (Removed Command, Wedged System Job)](kb/032-netbox-housekeeping-removed-command-and-wedged-system-job.md)
 - [KB-033: OPNsense Record Exists but Is Unowned (No Registry TXT Row)](kb/033-opnsense-record-exists-but-is-unowned.md)
 - [KB-034: OPNsense Delete Blocked by a Hand-Made Alias](kb/034-opnsense-delete-blocked-by-alias.md)
+- [KB-035: smtp2graph Message Stranded in the Queue (Never Retried, Never Failed)](kb/035-smtp2graph-message-stranded-in-queue.md)
