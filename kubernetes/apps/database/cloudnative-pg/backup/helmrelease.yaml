@@ -15,6 +15,7 @@ spec:
       postgres-backup:
         type: cronjob
         cronjob:
+          ttlSecondsAfterFinished: 86400
           schedule: "0 * * * *" # Every hour
           concurrencyPolicy: Forbid
           successfulJobsHistory: 1

@@ -23,6 +23,7 @@ spec:
       curatorjudge:
         type: cronjob
         cronjob:
+          ttlSecondsAfterFinished: 86400
           # Half an hour after curator, which needs a couple of minutes cold.
           schedule: "30 8 * * 6"
           timeZone: "${TIMEZONE}"

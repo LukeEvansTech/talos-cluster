@@ -18,6 +18,7 @@ spec:
       curator:
         type: cronjob
         cronjob:
+          ttlSecondsAfterFinished: 86400
           schedule: "0 8 * * 6"
           timeZone: "${TIMEZONE}"
           concurrencyPolicy: Forbid

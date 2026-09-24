@@ -14,6 +14,7 @@ spec:
       opnsense-config-backup:
         type: cronjob
         cronjob:
+          ttlSecondsAfterFinished: 86400
           # Daily at 03:30, pulls the full OPNsense config.xml over the API,
           # age-encrypts it, and commits the ciphertext to network-configs.
           # Replaces the plaintext dump Oxidized used to push (removed in

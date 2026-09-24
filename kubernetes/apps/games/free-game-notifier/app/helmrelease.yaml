@@ -14,6 +14,7 @@ spec:
       free-game-notifier:
         type: cronjob
         cronjob:
+          ttlSecondsAfterFinished: 86400
           schedule: "0 16 * * THU"
           successfulJobsHistory: 1
           failedJobsHistory: 1
