@@ -79,14 +79,20 @@ kubectl -n infrastructure exec deploy/smtp2graph -c metrics -- python -c \
   | grep -E '^smtp2graph_(messages|oldest)'
 ```
 
-`messages_queued 0` and `messages_failed 0` mean it was delivered. If it fails again with the
-same error, the error really is permanent:
+`messages_queued 0` and `messages_failed 0` mean it was delivered. If it fails again, the
+message is still mail the relay has accepted, so leave it in `queue/` until you have fixed the
+cause:
 
 - **Access denied:** the Exchange RBAC-for-Applications scope on the app registration changed.
-  See the `send.forceMailbox` note in `externalsecret.yaml`.
-- **Size exceeded:** the sender has to send something smaller.
+  See the `send.forceMailbox` note in `externalsecret.yaml`. Repair the scope, then re-queue.
+- **Invalid content, again:** check the file for real MIME damage (truncation, 8-bit bytes in a
+  7-bit part). If it looks well-formed, wait and re-queue later rather than giving up after two
+  tries.
+- **Size exceeded:** this is the only case that can never succeed as-is. Tell the sender, then
+  delete the file.
 
-Either way, delete the file once you have the details you need.
+Only delete a message once you have confirmed it can never be sent. Copy it out with
+`kubectl cp` first if anyone might still want what it says.
 
 Do **not** clear it by deleting the pod. The queue is on an `emptyDir`, so a new pod silently
 drops every queued message with it.
