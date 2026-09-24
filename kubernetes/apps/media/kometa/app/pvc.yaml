@@ -1,0 +1,16 @@
+---
+# Kometa's lookup cache (config.cache) only. It is fully rebuildable, so it is
+# deliberately left out of VolSync; without it every run re-fetches every
+# rating and blows the MDBList daily quota.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: kometa-cache
+  namespace: media
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: ceph-block

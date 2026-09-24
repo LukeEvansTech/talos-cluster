@@ -1,90 +1,248 @@
 ---
-# Kometa Configuration Template
-# This file will be processed by External Secrets to inject values from 1Password
-# Variables available from 1Password (kometa + plex items):
-#   {{ .PLEX_TOKEN }}
-#   {{ .TMDB_API_KEY }}
-#   etc.
+# Kometa config for a shared, UK-based Plex server. Built from Kometa's
+# maintained defaults (https://kometa.wiki/en/latest/defaults/guide/) tuned
+# with template_variables, rather than forked collection files.
+#
+# Visibility plan: Home (owner and shared users) carries Newly Released,
+# Trending and Seasonal only. Library Recommended adds the IMDb charts and
+# Plex Popular. Everything else lives in the Collections tab.
+#
+# Schedules: charts, seasonal, overlays and cleanup run nightly; the slow-moving
+# families, the awards and the rating operations run on Sunday.
+# <<VAR>> placeholders come from KOMETA_* env vars (kometa-secret).
 
 libraries:
   Movies:
+    template_variables:
+      collection_mode: hide
     collection_files:
       - default: basic
+        template_variables:
+          visible_home_released: true
+          visible_shared_released: true
+          visible_library_released: true
+      - default: tmdb
+        template_variables:
+          visible_home_trending: true
+          visible_shared_trending: true
+          visible_library_trending: true
       - default: imdb
+        template_variables:
+          use_lowest: false
+          visible_library_top: true
+          visible_library_popular: true
+      - default: tautulli
+        template_variables:
+          use_watched: false
+          list_days: 30
+          list_size: 20
+          visible_library_popular: true
+      - default: seasonal
+        template_variables:
+          # UK audience: drop the US-only holidays.
+          use_independence: false
+          use_thanksgiving: false
+          use_memorial: false
+          use_labor: false
+          use_veteran: false
+          visible_home: true
+          visible_shared: true
+          visible_library: true
+      - default: genre
+        schedule: weekly(sunday)
+      - default: streaming
+        schedule: weekly(sunday)
+        template_variables:
+          region: GB
+      - default: franchise
+        schedule: weekly(sunday)
+      - default: universe
+        schedule: weekly(sunday)
+      - default: separator_award
+        schedule: weekly(sunday)
+      - default: oscars
+        schedule: weekly(sunday)
+        template_variables:
+          data:
+            starting: latest-10
+            ending: latest
+      - default: bafta
+        schedule: weekly(sunday)
+        template_variables:
+          data:
+            starting: latest-10
+            ending: latest
+      - default: golden
+        schedule: weekly(sunday)
+        template_variables:
+          data:
+            starting: latest-10
+            ending: latest
     overlay_files:
-      - file: config/overlays.yml
+      - remove_overlays: false
+      - reapply_overlays: false
+      - default: resolution
+      - default: ribbon
+        template_variables:
+          use_all: false
+          use_imdb: true
+          use_oscars: true
+          use_bafta: true
+          use_golden: true
     operations:
-      mass_critic_rating_update: tmdb
-      mass_audience_rating_update: tmdb
-  TV Shows:
+      - delete_collections:
+          configured: false
+          managed: true
+      - schedule: weekly(sunday)
+        mass_genre_update: tmdb
+        mass_audience_rating_update: imdb
+        mass_critic_rating_update: mdb_tomatoes
+
+  TV:
+    template_variables:
+      collection_mode: hide
     collection_files:
       - default: basic
+        template_variables:
+          visible_home_released: true
+          visible_shared_released: true
+          visible_library_released: true
+          visible_home_episodes: true
+          visible_shared_episodes: true
+          visible_library_episodes: true
+      - default: tmdb
+        template_variables:
+          visible_home_trending: true
+          visible_shared_trending: true
+          visible_library_trending: true
       - default: imdb
+        template_variables:
+          visible_library_top: true
+          visible_library_popular: true
+      - default: tautulli
+        template_variables:
+          use_watched: false
+          list_days: 30
+          list_size: 20
+          visible_library_popular: true
+      - default: genre
+        schedule: weekly(sunday)
+      - default: streaming
+        schedule: weekly(sunday)
+        template_variables:
+          region: GB
+      - default: network
+        schedule: weekly(sunday)
+      - default: universe
+        schedule: weekly(sunday)
     overlay_files:
-      - file: config/overlays.yml
+      - remove_overlays: false
+      - reapply_overlays: false
+      - default: resolution
+      - default: ribbon
+        template_variables:
+          use_all: false
+          use_imdb: true
+      - default: status
     operations:
-      mass_critic_rating_update: tmdb
-      mass_audience_rating_update: tmdb
+      - delete_collections:
+          configured: false
+          managed: true
+      - schedule: weekly(sunday)
+        mass_genre_update: tmdb
+        mass_audience_rating_update: imdb
+        mass_critic_rating_update: mdb_tomatoes
+
+webhooks:
+  error: http://chaski.default.svc.cluster.local:8080/hooks/kometa-error
+  run_end: http://chaski.default.svc.cluster.local:8080/hooks/kometa-run
 
 settings:
+  run_order:
+    - operations
+    - metadata
+    - collections
+    - overlays
   cache: true
   cache_expiration: 60
-  asset_directory: config/assets
-  asset_folders: true
+  asset_directory: /config/assets
+  asset_folders: false
   asset_depth: 0
   create_asset_folders: false
   prioritize_assets: false
   dimensional_asset_rename: false
-  download_url_assets: false
+  download_url_assets: true
   show_missing_season_assets: false
   show_missing_episode_assets: false
   show_asset_not_needed: true
-  sync_mode: append
+  sync_mode: sync
   minimum_items: 1
-  default_collection_order:
   delete_below_minimum: true
   delete_not_scheduled: false
   run_again_delay: 2
   missing_only_released: false
   only_filter_missing: false
-  show_unmanaged: true
+  show_unmanaged: false
   show_unconfigured: true
   show_filtered: false
   show_options: false
-  show_missing: true
-  show_missing_assets: true
+  show_missing: false
+  show_missing_assets: false
   save_report: false
   tvdb_language: eng
-  ignore_ids:
-  ignore_imdb_ids:
   item_refresh_delay: 0
   playlist_sync_to_user: all
-  playlist_exclude_users:
   playlist_report: false
   verify_ssl: true
-  custom_repo:
   check_nightly: false
 
 plex:
   url: http://plex.media.svc.cluster.local:32400
-  token: "{{ .PLEX_TOKEN }}"
+  token: <<PLEX_API_KEY>>
   timeout: 60
   clean_bundles: false
   empty_trash: false
   optimize: false
 
 tmdb:
-  apikey: "{{ .TMDB_API_KEY }}"
+  apikey: <<TMDB_API_KEY>>
   language: en
+  region: GB
   cache_expiration: 60
-  region:
 
-  # Uncomment and configure as needed:
+mdblist:
+  apikey: <<MDBLIST_API_KEY>>
+  cache_expiration: 60
 
-  # omdb:
-  #   apikey: "{{ .OMDB_API_KEY }}"
-  #   cache_expiration: 60
+tautulli:
+  url: http://tautulli.media.svc.cluster.local
+  apikey: <<TAUTULLI_API_KEY>>
 
-  # mdblist:
-  #   apikey: "{{ .MDBLIST_API_KEY }}"
-  #   cache_expiration: 60
+# Acquisition stays off until the second rollout step, which enables it for
+# the IMDb Top 250, Best Picture and Trending collections only.
+radarr:
+  url: http://radarr.media.svc.cluster.local
+  token: <<RADARR_API_KEY>>
+  add_missing: false
+  add_existing: false
+  root_folder_path: /media/movies
+  monitor: true
+  availability: announced
+  quality_profile: 2160p Quality
+  search: false
+  upgrade_existing: false
+
+sonarr:
+  url: http://sonarr.media.svc.cluster.local
+  token: <<SONARR_API_KEY>>
+  add_missing: false
+  add_existing: false
+  root_folder_path: /media/tv
+  monitor: all
+  quality_profile: 2160p Quality
+  language_profile: English
+  series_type: standard
+  season_folder: true
+  search: false
+  cutoff_search: false
+  upgrade_existing: false
