@@ -204,12 +204,22 @@ spec:
         # pages for the whole 7d window. Four fired across the 2026-08-03
         # maintenance and were still paging six days later. Scoped to the exact
         # code rather than the PWR- prefix, which also carries real PSU faults.
+        #
+        # SYS-0067 (runtime critical stop, i.e. a Windows blue screen) and
+        # SYS-0069 (OS graceful shutdown) excluded for the WORKSTATION only. The
+        # BMC logs the host OS's own lifecycle at Warning, so every reboot or
+        # crash of a desktop paged for the full 7d window. On a workstation that
+        # is the user's machine telling the user something they saw happen. The
+        # servers keep both: an unattended server blue-screening is exactly the
+        # silent failure this alert exists to catch.
         - alert: BmcEventLogWarning
           annotations:
             summary: "{{ $labels.instance }} logged {{ $value }} {{ $labels.severity }} hardware event(s) in the last 7d: {{ $labels.message }}"
           expr: |-
             count by (job, instance, severity, message) (
               idrac_events_log_entry{job=~"bmc-exporter.*", message!~".*PWR-0020.*"}
+              unless
+              idrac_events_log_entry{job="bmc-exporter-workstation", message=~".*SYS-006[79].*"}
             ) > 0
           for: 5m
           labels:
