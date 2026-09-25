@@ -7,3 +7,11 @@ resources:
   - ./ocirepository.yaml
   - ./helmrelease.yaml
   - ./servicemonitor.yaml
+configMapGenerator:
+  - name: qbittorrent-scripts
+    files:
+      - apply-settings.sh=./resources/apply-settings.sh
+generatorOptions:
+  disableNameSuffixHash: true
+  annotations:
+    kustomize.toolkit.fluxcd.io/substitute: disabled

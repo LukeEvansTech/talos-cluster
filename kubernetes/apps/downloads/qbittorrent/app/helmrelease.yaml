@@ -18,26 +18,19 @@ spec:
         containers:
           app:
             nameOverride: qbittorrent
-            image:
+            image: &image
               # libtorrent v1.2.x build (vs the default libtorrent v2), better
               # private-tracker compatibility and fewer libtorrent-v2 disk/memory
               # quirks; matches the onedr0p/home-ops reference.
               repository: ghcr.io/home-operations/qbittorrent-libtorrentv1
               tag: 5.2.3@sha256:8a15de24cabfca8041788773436cb176378ff7735e5cb0b2fd94984d4fac6968
+            # Everything else in qBittorrent.conf (disk cache, queue, share limits,
+            # WebUI auth) is written by the apply-settings init container below.
+            # QBT_* env vars only reach qBittorrent's command-line options.
             env:
               QBT_WEBUI_PORT: &port 80
               # Must equal the AirVPN reserved forwarded port (FIREWALL_VPN_INPUT_PORTS below).
               QBT_TORRENTING_PORT: &BT-port 28812
-              # Require WebUI auth even on localhost so the metrics sidecar must present
-              # real credentials (from the ExternalSecret) instead of riding an
-              # unauthenticated localhost bypass.
-              QBT_Preferences__WebUI__LocalHostAuth: true
-              # libtorrent-v1 auto-sizes its disk cache from *detected* host RAM,
-              # which inside a container is the whole node, so the cache (and RSS)
-              # balloon until the cgroup OOMKills it mid-download. Pin the cache to
-              # 256 MiB to keep memory flat (~330Mi steady-state). Set as a QBT_ env
-              # (GitOps) so it survives a PVC recreate, not just the live PVC config.
-              QBT_BitTorrent__Session__DiskCacheSize: 256
             probes:
               liveness:
                 enabled: true
@@ -79,8 +72,8 @@ spec:
                 cpu: 10m
                 memory: 512Mi
               limits:
-                # Disk cache is pinned to 256 MiB (QBT_BitTorrent__Session__DiskCacheSize
-                # above), so RSS stays ~330Mi and 2Gi is ample headroom. (onedr0p runs
+                # Disk cache is pinned to 256 MiB (Session\DiskCacheSize in
+                # resources/apply-settings.sh), so RSS stays ~330Mi and 2Gi is ample headroom. (onedr0p runs
                 # this same image at a 32Gi limit only because they leave the cache
                 # uncapped and let it size off host RAM.)
                 memory: 2Gi
@@ -171,6 +164,28 @@ spec:
               limits:
                 memory: 128Mi
         initContainers:
+          # Declares qBittorrent.conf settings in Git: libtorrent-v1 disk-cache pin (the
+          # OOMKill fix), WebUI auth (no localhost or subnet bypass, so the metrics
+          # sidecar must use the ExternalSecret credentials), and the queue and share
+          # limits. Every torrent here is on a public tracker and home upload is very
+          # limited, so torrents stop the moment they complete (ratio 0 / 0 min -> Stop)
+          # and upload is capped at 10 KiB/s. The settings list lives in the script.
+          apply-settings:
+            image: *image
+            command:
+              - "/scripts/apply-settings.sh"
+            securityContext:
+              runAsUser: 1000
+              runAsGroup: 1000
+              runAsNonRoot: true
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop:
+                  - ALL
+            resources:
+              limits:
+                memory: 64Mi
           gluetun:
             image:
               repository: ghcr.io/qdm12/gluetun
@@ -313,6 +328,17 @@ spec:
           qbittorrent:
             app:
               - path: /config
+            apply-settings:
+              - path: /config
+      scripts:
+        type: configMap
+        name: qbittorrent-scripts
+        defaultMode: 0755
+        advancedMounts:
+          qbittorrent:
+            apply-settings:
+              - path: /scripts
+                readOnly: true
       media:
         type: nfs
         server: ${SECRET_STORAGE_SERVER:-localhost}
