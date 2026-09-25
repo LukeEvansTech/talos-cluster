@@ -31,10 +31,11 @@ spec:
         triage:
           apprise:
             url: pover://{{ env "PUSHOVER_USER_KEY" }}@{{ env "RADARR_PUSHOVER_TOKEN" }}
-        # Kometa's nightly run webhooks. Same Pushover application as triage.
+        # Kometa's nightly run webhooks, on their own Pushover application so
+        # they are labelled Kometa rather than Radarr.
         kometa:
           apprise:
-            url: pover://{{ env "PUSHOVER_USER_KEY" }}@{{ env "RADARR_PUSHOVER_TOKEN" }}
+            url: pover://{{ env "PUSHOVER_USER_KEY" }}@{{ env "KOMETA_PUSHOVER_TOKEN" }}
       routes:
         radarr-download:
           target: radarr
