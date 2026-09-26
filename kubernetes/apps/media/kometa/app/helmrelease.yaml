@@ -23,6 +23,11 @@ spec:
           schedule: "0 2 * * *"
           timeZone: &timeZone ${TIMEZONE}
           concurrencyPolicy: Forbid
+          # With Forbid, a run that never finishes silently skips every later
+          # night: one run stuck in rate-limit sleeps blocked three nights in a
+          # row. Kill any run still going 20h after it starts, before the next
+          # 02:00. A full run takes about 4h.
+          activeDeadlineSeconds: 72000
           successfulJobsHistory: 1
           failedJobsHistory: 1
         containers:
