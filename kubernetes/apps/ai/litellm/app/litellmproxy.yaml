@@ -96,6 +96,14 @@ spec:
       port: os.environ/REDIS_PORT
       password: os.environ/REDIS_PASSWORD
       ttl: 300
+      # Scope the cache to embeddings. LiteLLM's default supported_call_types
+      # includes completion/acompletion, so leaving it unset replayed a cached
+      # reply to any chat request repeated inside the TTL, keyed on the request
+      # body rather than the caller. Embeddings are the only deterministic call
+      # type here, so they are the only ones that should be cached.
+      supported_call_types:
+        - embedding
+        - aembedding
     # drop_params is deliberately OFF: with it enabled LiteLLM silently strips
     # reasoning_effort before it reaches the llama.cpp backend (treated as
     # unsupported for the openai/ provider entry), which defeats disabling Qwen3.8's
