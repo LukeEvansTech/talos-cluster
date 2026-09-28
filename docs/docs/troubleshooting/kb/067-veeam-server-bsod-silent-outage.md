@@ -10,9 +10,9 @@ nothing paged when it went down, and nothing paged when its backup jobs stopped 
 ## Cause
 
 In August 2026 the server crashed mid-job (`CRITICAL_PROCESS_DIED` during a HotAdd operation) and
-sat at the crash screen for 12 days before anyone noticed. Both domain controllers ran on Veeam
-temp snapshots for the whole outage. No error event was ever produced. The backup schedule simply
-stopped advancing, and nothing was watching for that.
+sat at the crash screen for 12 days before anyone noticed. Protected workloads ran on Veeam's
+temporary snapshots for the entire outage. No error event was ever produced. The backup schedule
+simply stopped advancing, and nothing was watching for that.
 
 ## Fix
 
