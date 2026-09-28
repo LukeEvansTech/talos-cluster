@@ -41,8 +41,6 @@ class Ledger:
         self.dry_run = dry_run
         self.prefix = "dry-run/" if dry_run else ""
 
-    # --- plumbing ---------------------------------------------------------
-
     def _key(self, key: str) -> str:
         """Namespace a key so a dry run cannot overwrite real state."""
         return f"{self.prefix}{key}"
@@ -61,8 +59,6 @@ class Ledger:
         """Write one JSON object."""
         self.client.put(self._key(key), json.dumps(payload, indent=2, sort_keys=True).encode())
 
-    # --- baseline ---------------------------------------------------------
-
     def read_baseline(self) -> dict | None:
         """The last snapshot that passed validation, or None on first run."""
         return self._read("baseline/current.json")
@@ -70,8 +66,6 @@ class Ledger:
     def write_baseline(self, snapshot: dict[str, Any]) -> None:
         """Record a validated snapshot as the new yardstick."""
         self._write("baseline/current.json", {**snapshot, "recorded_by_run": self.run_id})
-
-    # --- standing human / routine decisions -------------------------------
 
     def read_decisions(self) -> dict[int, dict]:
         """Every standing spare or dismissal, keyed by Radarr movie id."""
@@ -92,8 +86,6 @@ class Ledger:
     def write_decision(self, record: dict) -> None:
         """Persist one spare/dismissal so next week does not re-judge it."""
         self._write(f"decisions/{record['movie_id']}.json", record)
-
-    # --- availability fallback -------------------------------------------
 
     def read_first_seen(self) -> dict[int, datetime]:
         """Persisted first-observed-playable timestamps."""
@@ -118,8 +110,6 @@ class Ledger:
             merged.setdefault(str(movie_id), stamp.isoformat())
         self._write("firstseen/index.json", merged)
 
-    # --- Plex identity crosswalk -----------------------------------------
-
     def read_crosswalk(self) -> dict[int, dict]:
         """Cached rating-key -> external-id map, including retired keys."""
         raw = self._read("crosswalk/plex.json") or {}
@@ -134,8 +124,6 @@ class Ledger:
         merged = {str(k): v for k, v in self.read_crosswalk().items()}
         merged.update({str(k): v for k, v in crosswalk.items()})
         self._write("crosswalk/plex.json", merged)
-
-    # --- the action ledger ------------------------------------------------
 
     def record_plan(self, payload: dict) -> None:
         """Store the whole assessed population for this run."""
@@ -234,8 +222,6 @@ class Ledger:
                 if not record.get("simulated"):
                     intents[(run_id, movie_id)] = record
         return [record for ident, record in intents.items() if ident not in outcomes]
-
-    # --- overlap guard ----------------------------------------------------
 
     def acquire_lock(self) -> tuple[bool, str]:
         """Best-effort guard against two runs acting at once.

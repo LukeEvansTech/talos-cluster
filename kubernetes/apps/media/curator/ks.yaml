@@ -10,11 +10,8 @@ spec:
     labels:
       app.kubernetes.io/name: *app
   components:
-    # The ledger lives on this volume: the validated baseline, standing
-    # spare/dismissal decisions, the Plex identity crosswalk, and the
-    # intent/outcome records for every deletion. Losing it does not just lose
-    # history -- anomaly detection has no yardstick and every settled judgement
-    # is re-litigated, so it is worth snapshotting.
+    # Holds the baseline, standing decisions, the Plex crosswalk, and every deletion's
+    # intent/outcome; losing it re-litigates every settled judgement.
     - ../../../../components/volsync
   dependsOn:
     - name: onepassword-connect
