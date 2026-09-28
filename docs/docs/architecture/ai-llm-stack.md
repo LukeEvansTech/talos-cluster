@@ -84,7 +84,8 @@ and the `self-hosted` model (with the `openrouter/auto` cloud fallback in scope)
 All five live outside the `ai` namespace, so none of them mounts an `ai` Secret directly. Each
 gets an operator-issued **scoped** key instead of the account-wide master key: a
 `LiteLLMVirtualKey` CR in `litellm/app/virtualkeys/<app>.yaml` (`ai` namespace, scoped to
-`self-hosted` + `openrouter/auto`) mints the key and writes it to an in-namespace Secret; a
+`self-hosted` + `openrouter/auto` so the router's cloud fallback doesn't 401 the key when the
+local backend cools down) mints the key and writes it to an in-namespace Secret; a
 paired `PushSecret` then writes that key back to the `litellm` 1Password item as property
 `LITELLM_<APP>_API_KEY` (`updatePolicy: Replace`, `refreshInterval: 1h`). The consumer's own
 ExternalSecret extracts that property like any other `litellm`-item field, with no cross-namespace
