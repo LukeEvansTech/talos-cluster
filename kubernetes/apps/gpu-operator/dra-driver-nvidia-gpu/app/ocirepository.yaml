@@ -5,10 +5,9 @@ kind: OCIRepository
 metadata:
   name: dra-driver-nvidia-gpu
 spec:
-  # The project moved from NVIDIA/k8s-dra-driver-gpu to
-  # kubernetes-sigs/dra-driver-nvidia-gpu; registry.k8s.io is the only place
-  # the chart is published, and it carries no cosign signature, so there is no
-  # verify block. The ghcr.io/nvidia path only has stale pre-release tags.
+  # Renamed from NVIDIA/k8s-dra-driver-gpu to kubernetes-sigs/dra-driver-nvidia-gpu; ghcr.io/nvidia
+  # only carries stale pre-release tags. See docs/docs/migrations/gpu-time-slicing-to-dra.md for
+  # why there's no verify block.
   interval: 1h
   layerSelector:
     mediaType: application/vnd.cncf.helm.chart.content.v1.tar+gzip

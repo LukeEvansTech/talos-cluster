@@ -10,27 +10,18 @@ spec:
     kind: OCIRepository
     name: dra-driver-nvidia-gpu
   values:
-    # Talos ships the driver as a system extension rooted at /usr/local, not at
-    # host root. This value is the whole reason for using the standalone chart
-    # rather than gpu-operator's GPUCluster CR, whose validator hardcodes / for
-    # a preinstalled driver and cannot be overridden.
+    # Why the standalone chart exists at all; see docs/docs/migrations/gpu-time-slicing-to-dra.md.
     nvidiaDriverRoot: /usr/local
-    # Acknowledges that the device plugin is off (gpu-operator
-    # devicePlugin.enabled=false). The chart refuses to advertise GPUs without
-    # it, as a guard against two allocators handing out the same card.
+    # Acknowledges devicePlugin.enabled=false on gpu-operator; see the migration doc above.
     gpuResourcesEnabledOverride: true
     resources:
       gpus:
         enabled: true
-      # Multi-node NVLink; there is no NVSwitch fabric here. Leaving this off
-      # is also what keeps the chart down to a DaemonSet with no controller or
-      # webhook Deployment.
+      # Multi-node NVLink; there is no NVSwitch fabric here. Leaving this off also keeps the
+      # chart down to a DaemonSet with no controller or webhook Deployment.
       computeDomains:
         enabled: false
-    # Stands in for the device plugin's time-slicing replicas: 5. The GPU is
-    # published with allowMultipleAllocations and five consumable shares, so
-    # the per-node admission ceiling is unchanged by this migration and the
-    # only variable that moves is the allocator itself.
+    # The literal equivalent of the device plugin's replicas: 5; see the migration doc above.
     featureGates:
       ConsumableShares: true
     consumableShares: 5
