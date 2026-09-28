@@ -1,19 +1,16 @@
 ---
-# ServiceAccount for Certwarden to create IPMI deployment Jobs
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: certwarden
   namespace: infrastructure
 ---
-# Role allowing Certwarden to create Jobs for IPMI certificate deployment
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: certwarden-supermicro-deployer
   namespace: infrastructure
 rules:
-  # Allow managing Jobs for certificate deployment
   - apiGroups:
       - "batch"
     resources:
@@ -24,7 +21,6 @@ rules:
       - "list"
       - "watch"
       - "delete"
-  # Allow reading pods (for job logs)
   - apiGroups:
       - ""
     resources:
@@ -33,9 +29,8 @@ rules:
     verbs:
       - "get"
       - "list"
-  # Allow managing secrets (for IPMI credentials and temporary cert secrets).
-  # "patch" is needed to set the ownerReference that binds a temporary cert
-  # Secret to its Job, so the two are garbage-collected together.
+  # "patch" sets the ownerReference binding a temporary cert Secret to its Job,
+  # so the two are garbage-collected together.
   - apiGroups:
       - ""
     resources:
@@ -47,7 +42,6 @@ rules:
       - "patch"
       - "delete"
 ---
-# RoleBinding to grant Certwarden the ability to create Jobs
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:

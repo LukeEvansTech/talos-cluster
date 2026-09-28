@@ -1,6 +1,5 @@
 ---
 # yaml-language-server: $schema=https://json.schemastore.org/kustomization
-# Certwarden Certificate Deployment
 # Organized by device type: IPMI servers, APC UPS, Brother printers, etc.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization

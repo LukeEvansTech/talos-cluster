@@ -3,19 +3,8 @@
 # (Embeds a YAML Job manifest in a heredoc; YAML uses 2-space indent and
 # editorconfig-checker can't distinguish that from the shell-script body.)
 #
-# Certwarden Post-Process Script for NVIDIA Onyx Switch Certificate Deployment (CONTAINERIZED)
-#
-# This script is called by Certwarden after certificate renewal.
-# It creates a Kubernetes Job to deploy the certificate to the NVIDIA Onyx switch.
-# Uses the pre-built ghcr.io/lukeevanstech/onyx-deployer container.
-#
-# Environment variables from Certwarden:
-#   CERTIFICATE_NAME - Name of the certificate
-#   CERTIFICATE_PEM - Certificate data (PEM format)
-#   PRIVATE_KEY_PEM - Private key data (PEM format)
-#   ONYX_SWITCH - Custom env var: Onyx switch identifier (e.g., cr-sw-core)
-#   NAMESPACE - Optional: Kubernetes namespace (default: infrastructure)
-#
+# Certwarden calls this after certificate renewal. Deploys via the
+# ghcr.io/lukeevanstech/onyx-deployer container.
 
 set -euo pipefail
 
@@ -43,7 +32,6 @@ if [[ -z "${PRIVATE_KEY_PEM:-}" ]]; then
     exit 1
 fi
 
-# Now safe to use variables with set -u
 NAMESPACE="${NAMESPACE:-infrastructure}"
 SECRET_NAME="onyx-${ONYX_SWITCH}"
 
@@ -53,10 +41,8 @@ echo "Target Onyx Switch: ${ONYX_SWITCH}"
 echo "Namespace: ${NAMESPACE}"
 echo "Container: ghcr.io/lukeevanstech/onyx-deployer:latest"
 
-# Create a unique job name with timestamp
 JOB_NAME="onyx-cert-deploy-${ONYX_SWITCH}-$(date +%s)"
 
-# Create a temporary secret for the certificate
 CERT_SECRET_NAME="${JOB_NAME}-cert"
 echo "Creating temporary secret: ${CERT_SECRET_NAME}"
 
@@ -65,10 +51,6 @@ kubectl create secret generic "${CERT_SECRET_NAME}" \
     --from-literal=cert.pem="${CERTIFICATE_PEM}" \
     --from-literal=key.pem="${PRIVATE_KEY_PEM}"
 
-# Note: Secret cleanup is handled by the Job's ownerReferences
-# The secret will be garbage collected when the Job is deleted via ttlSecondsAfterFinished
-
-# Create the deployment Job
 echo "Creating deployment Job: ${JOB_NAME}"
 cat <<EOF | kubectl apply -f -
 apiVersion: batch/v1
@@ -126,15 +108,12 @@ spec:
             secretName: ${CERT_SECRET_NAME}
 EOF
 
-# Wait for the job to complete
 echo "Waiting for Job to complete..."
 kubectl wait --for=condition=complete --timeout=5m "job/${JOB_NAME}" -n "${NAMESPACE}"
 
-# Get the job logs
 echo "=== Job Logs ==="
 kubectl logs "job/${JOB_NAME}" -n "${NAMESPACE}"
 
-# Check if the job succeeded
 JOB_STATUS=$(kubectl get job "${JOB_NAME}" -n "${NAMESPACE}" -o jsonpath='{.status.conditions[?(@.type=="Complete")].status}')
 if [[ "${JOB_STATUS}" == "True" ]]; then
     echo "✅ Certificate deployed successfully to ${ONYX_SWITCH} (containerized)"
