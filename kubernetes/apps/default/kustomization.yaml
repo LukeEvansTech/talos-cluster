@@ -6,8 +6,7 @@ namespace: default
 components:
   - ../../components/global-vars
   - ../../components/alerts
-  # Drops kopiur-nas-secret (KOPIA_PASSWORD) into the default namespace so
-  # kopiur movers can read it locally (replaces credentialProjection).
+  # Drops kopiur-nas-secret (KOPIA_PASSWORD) in locally, replacing credentialProjection.
   - ../../components/kopiur/secret
 resources:
   - ./namespace.yaml

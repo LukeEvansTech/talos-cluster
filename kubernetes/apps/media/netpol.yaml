@@ -22,11 +22,8 @@ kind: CiliumNetworkPolicy
 metadata:
   name: allow-arrmcp-from-ai
 spec:
-  # The `arrmcp` app (ai namespace) queries the media services over their APIs.
-  # Additive to the namespace-wide policy above (Cilium unions allows), scoped
-  # to those endpoints and to the arrmcp pod as the source. Unlike the ToolHive
-  # servers above it is a plain app-template workload, so the source label is
-  # `app.kubernetes.io/name` rather than `toolhive-name`.
+  # Additive to the namespace-wide policy above (Cilium unions allows); arrmcp (ai namespace)
+  # is a plain app-template workload, not a ToolHive server, so it needs its own rule.
   description: "Allow the arrmcp app (ai) to reach the media services"
   endpointSelector:
     matchExpressions:
