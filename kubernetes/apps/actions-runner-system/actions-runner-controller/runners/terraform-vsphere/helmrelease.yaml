@@ -29,28 +29,19 @@ spec:
             storage: 5Gi
     template:
       spec:
-        # miroir-local provisions a real ext4 block device, whose root directory
-        # comes up root:root 0755. The openebs-hostpath directory it replaced
-        # (#3583) was already writable, so nothing here needed fsGroup before.
-        # This image runs as uid/gid 1001, so without the chown below the runner
-        # cannot create _work/_tool and every job dies in ~2s with
-        # UnauthorizedAccessException before a single step executes.
-        # miroir's CSIDriver is fsGroupPolicy: ReadWriteOnceWithFSType and this
-        # claim is RWO + ext4, so kubelet honours fsGroup and chowns the volume.
+        # uid 1001 needs fsGroup to write miroir-local's root:root ext4 volume (#3739).
         securityContext:
           fsGroup: 1001
         serviceAccountName: terraform-vsphere-runner
         containers:
           - name: runner
-            # Generic home-operations runner (same digest as talos-cluster-runner).
-            # The IaC binary (tofu/terraform) is installed by the workflow in Plan 4.
-            # Renovate manages this digest.
+            # Same digest as talos-cluster-runner; Renovate manages it.
+            # The workflow installs tofu/terraform itself; it isn't baked into this image.
             image: ghcr.io/home-operations/actions-runner:2.337.0@sha256:8b8e8326b5a08e658a0a41cfd2867afab69ca4194a152f986aa6fcd5430d09e7
             command:
               - "/home/runner/run.sh"
             env:
-              # kubernetes mode defaults this to "true" (refuses plain run: jobs).
-              # Our steps run directly on the runner, so it must be "false".
+              # kubernetes mode defaults this true, refusing plain `run:` jobs; ours needs false.
               - name: ACTIONS_RUNNER_REQUIRE_JOB_CONTAINER
                 value: "false"
             envFrom:

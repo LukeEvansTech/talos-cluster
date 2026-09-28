@@ -1,9 +1,6 @@
 ---
-# Intentionally no pod-management Role: this SA suppresses the chart's
-# auto-created kube-mode SA, so `container:` jobs, service containers, and
-# docker:// actions will fail on this runner. Plain `run:` steps only.
-# terraform-vsphere talks to vCenter + Cloudflare R2, never the Kubernetes API,
-# so no cluster permissions are required.
+# No pod-management Role, so container/docker steps fail; only plain `run:` steps work.
+# terraform-vsphere only talks to vCenter and Cloudflare R2, never the Kubernetes API.
 apiVersion: v1
 kind: ServiceAccount
 metadata:
