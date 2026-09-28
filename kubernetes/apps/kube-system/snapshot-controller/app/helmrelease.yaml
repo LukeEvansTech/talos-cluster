@@ -9,11 +9,8 @@ spec:
   chartRef:
     kind: OCIRepository
     name: snapshot-controller
-  # This chart ships CRDs in crds/ (Helm never upgrades or deletes them), so
-  # the old piraeus-era keep-policy postRenderer is gone. The flip side: after
-  # an appVersion bump, apply the matching CRDs by hand:
-  #   helm show crds oci://ghcr.io/home-operations/charts/snapshot-controller \
-  #     | kubectl apply --server-side -f -
+  # Helm never upgrades or deletes this chart's CRDs; apply them by hand after an appVersion
+  # bump. See docs/docs/apps/snapshot-controller.md.
   values:
     replicaCount: 2
     monitoring:
