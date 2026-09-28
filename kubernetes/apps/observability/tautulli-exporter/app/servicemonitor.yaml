@@ -17,8 +17,7 @@ spec:
       interval: 30s
       scrapeTimeout: 10s
       relabelings:
-        # This exporter emits `plex_*` metrics (same prefix as the PPE Plex
-        # exporter); pin job/instance so the dashboard can disambiguate the two.
+        # Shares `plex_*` with the PPE Plex exporter; pinned so dashboards tell them apart.
         - action: replace
           targetLabel: job
           replacement: tautulli-exporter

@@ -19,9 +19,7 @@ spec:
         - alert: TautulliUnreachable
           annotations:
             summary: "Tautulli exporter is up but cannot reach the Tautulli API."
-          # v1.0.0+ (Go rewrite): on a failed scrape only plex_up and
-          # plex_scrape_failures_total move; the stream/bandwidth gauges freeze at
-          # their last value instead of disappearing, so absent() never fires.
+          # v1.0.0+ freezes gauges on failure instead of clearing, so absent() never fires.
           expr: |-
             plex_up{job="tautulli-exporter"} == 0
           for: 15m
