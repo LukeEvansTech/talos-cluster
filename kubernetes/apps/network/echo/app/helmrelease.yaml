@@ -12,16 +12,12 @@ spec:
   values:
     replicaCount: 2
     config:
-      # Upstream ships this on, but echo is public here and the block reports
-      # pod/node/namespace to any caller. This cluster is long past the
-      # fresh-bootstrap check the block serves, so keep it off.
+      # Off, against upstream default: echo is public and this leaks pod/node/namespace to callers.
       kubernetes: false
       # Trust the in-cluster Envoy Gateway proxy so echo reports the real client IP
       trustedProxies:
         - ${CLUSTER_PODS_CIDR}
-    # External-only, matching the cluster-template: echo is the canary that
-    # proves the public chain (external-dns -> DNS -> envoy-external -> wildcard
-    # cert -> pod), so an internal route would not exercise anything.
+    # External-only: echo canaries the public chain (external-dns, DNS, envoy-external, cert, pod).
     httpRoute:
       enabled: true
       hostnames:
