@@ -7,11 +7,8 @@ metadata:
 spec:
   backend:
     filesystem:
-      # `path` is the volume MOUNTPOINT inside mover pods (the repo lives at
-      # its root), so isolation from the volsync kopia repo at the export
-      # root must happen at the NFS layer: mount the /kopiur subdirectory of
-      # the export (pre-created on the NAS). Promote to a dedicated TrueNAS
-      # dataset if the trial sticks.
+      # `path` is only the in-pod mountpoint; isolation from the volsync kopia
+      # repo happens at the NFS layer, via a separate subdirectory of the export.
       path: /repo
       volume:
         nfs:
@@ -24,30 +21,25 @@ spec:
       key: KOPIA_PASSWORD
   create:
     enabled: true
-  # credentialProjection dropped (0.6.0 still supports it): movers now read
-  # KOPIA_PASSWORD from a per-namespace ExternalSecret (components/kopiur/secret)
-  # dropped into each backup namespace, rather than the operator copying it in.
+  # credentialProjection stays unset; movers read KOPIA_PASSWORD from a
+  # per-namespace ExternalSecret instead (components/kopiur/secret).
   allowedNamespaces:
-    # Trial scope: the namespace holding the trial apps (apprise, atuin) PLUS
-    # the operator's own namespace. The managed Maintenance CR is created in
-    # kopiur-system and is webhook-gated by this same list. Widen after the
-    # evaluation period.
+    # Trial scope: default (apprise, atuin) plus kopiur-system, since the
+    # webhook gates the operator's own Maintenance CR on this same list.
     list:
       - default
       - kopiur-system
   identityDefaults:
-    # Unchanged from the 0.4.x trial so existing snapshots stay addressable
-    # under the same kopia identity across the bump.
+    # Unchanged since the 0.4.x trial, so existing snapshots stay addressable
+    # under the same kopia identity.
     hostnameExpr: namespace
     usernameExpr: namespace + '-' + policyName
   scheduleDefaults:
-    # Timezone now lives here (DRY) instead of per SnapshotSchedule.
+    # Timezone lives here (DRY) instead of per SnapshotSchedule.
     timezone: Europe/London
   moverDefaults:
-    # cache/scratch left unset on purpose: both fall back to an emptyDir,
-    # which fits the tiny trial apps. Size real PVCs only when bigger apps
-    # join (cache CRD example: 10Gi; deep-verify scratch must hold a FULL
-    # restore). Token values like 1Mi would ENOSPC immediately.
+    # cache/scratch stay unset on purpose and fall back to an emptyDir, which
+    # fits these tiny trial apps; a token value like 1Mi would ENOSPC a real one.
     securityContext:
       runAsUser: 1000
       runAsGroup: 1000
@@ -58,13 +50,11 @@ spec:
   maintenance:
     enabled: true
     schedule:
-      # Hourly quick maintenance so closed epochs get compacted promptly and
-      # live index blob growth stays bounded as the trial widens (default is
-      # 6-hourly / 30m jitter). `full` restates the operator default because
-      # the CRD requires both halves of `schedule` once either is set.
-      # No `timezone` here on purpose: maintenance crons fall back to the
-      # controller default (UTC), and `scheduleDefaults.timezone` above governs
-      # SnapshotSchedules only, so naming one would move `full` an hour.
+      # Hourly quick maintenance bounds index blob growth as the trial widens
+      # (default: 6-hourly, 30m jitter). `full` restates the operator default
+      # since the CRD requires both once `schedule` is set.
+      # No `timezone` here: maintenance crons fall back to the controller's UTC
+      # default; `scheduleDefaults.timezone` above covers SnapshotSchedules only.
       quick:
         cron: "0 * * * *"
         jitter: 10m
@@ -73,7 +63,6 @@ spec:
         jitter: 1h
   parameters:
     epoch:
-      # Pairs with the hourly quick maintenance above: a 1h floor (kopia's
-      # default is 24h) lets an epoch close and be compacted the same day
-      # rather than accumulating a day of index blobs first.
+      # 1h floor (kopia's default is 24h) pairs with the hourly quick
+      # maintenance above so epochs close and compact the same day.
       minDuration: 1h
