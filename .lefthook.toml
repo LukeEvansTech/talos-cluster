@@ -1,21 +1,16 @@
 # ---------------------------------------------------------------------------
-# Commit message hygiene.
-#
-# This repository is PUBLIC. AGENTS.md forbids committing LAN IPs, internal
-# hostnames and topology detail, but that rule reads as "in files", so the one
-# surface nobody linted was prose. A squash merge copies the PR body verbatim
-# into the commit message on main, which is how a LAN IP and the internal zone
-# name became permanent history in #3803. This reuses the SAME patterns and
-# BENIGN list as the tracked-file scan in security-scans.yaml, so prose and
-# files can never drift apart; pr-hygiene.yml runs it against PR title + body.
-#
-# Deliberate exception: git commit --no-verify
+# Commit message hygiene. AGENTS.md forbids LAN IPs and internal hostnames "in files", but prose
+# was the one surface nobody linted; a squash merge copying a PR body verbatim into main's commit
+# message is how a LAN IP and the internal zone name became permanent history in #3803. Reuses the
+# same patterns and BENIGN list as the tracked-file scan in security-scans.yaml, so prose and files
+# can't drift apart; pr-hygiene.yml runs the same check against PR title + body.
+# Exception: git commit --no-verify
 # ---------------------------------------------------------------------------
 [commit-msg]
 
 [commit-msg.commands.check-internal-identifiers]
-# Via `mise x` so the gitignored .mise.local.toml [env] reaches the script: a
-# git hook does not inherit an activated mise shell.
+# Via `mise x` so the gitignored .mise.local.toml [env] reaches the script; a git hook does not
+# inherit an activated mise shell.
 run = "mise x -- python3 .github/scripts/check_internal_identifiers.py --strip-git-comments --text-file {1}"
 
 [pre-commit]
@@ -24,23 +19,20 @@ parallel = true
 [pre-commit.commands.format-yaml]
 run = "mise x -- yamlfmt {staged_files}"
 glob = ["*.yaml", "*.yml"]
-# .markdownlint.yml must byte-match the shared-workflows canonical (zensical
-# drift check); yamlfmt would add a `---` document-start and break that match.
+# .markdownlint.yml must byte-match the shared-workflows canonical (zensical drift check);
+# yamlfmt would add a `---` document-start and break that match.
 exclude = ["**/.markdownlint.yml", ".markdownlint.yml"]
 stage_fixed = true
 
-# Lint shell scripts with shellcheck if any are staged.
 [pre-commit.commands.lint-shell]
 run = "mise x -- shellcheck -x {staged_files}"
 glob = ["*.sh"]
 
-# Lint GitHub Actions workflows when they change.
 [pre-commit.commands.lint-actions]
 run = "mise x -- actionlint -no-color"
 glob = [".github/workflows/*.yml", ".github/workflows/*.yaml"]
 
-# Audit GitHub Actions workflows for security issues (template injection,
-# dangerous triggers, credential leaks). Complements actionlint.
+# Complements actionlint: audits for template injection, dangerous triggers, credential leaks.
 [pre-commit.commands.lint-zizmor]
 run = "mise x -- zizmor --offline {staged_files}"
 glob = [".github/workflows/*.yml", ".github/workflows/*.yaml", ".github/actions/**/action.yaml"]
@@ -50,17 +42,14 @@ run = "mise x --quiet -- prettier -w --log-level warn {staged_files}"
 glob = ["*.json", "*.json5"]
 stage_fixed = true
 
-# Match super-linter's YAML_PRETTIER rule locally so flow-style brace
-# spacing / quote style normalizations land at commit time, not CI time.
+# Matches super-linter's YAML_PRETTIER rule so brace-spacing/quote-style fixes land at commit time.
 [pre-commit.commands.format-yaml-prettier]
 run = "mise x --quiet -- prettier -w --log-level warn {staged_files}"
 glob = ["*.yaml", "*.yml"]
 stage_fixed = true
 
-# Match super-linter's MARKDOWN_PRETTIER rule locally. JSON and YAML were
-# covered but Markdown was not, so emphasis/wrapping normalizations only
-# surfaced in CI. docs/ is excluded for the same reason as lint-markdownlint
-# below: the zensical toolchain owns that tree.
+# Matches super-linter's MARKDOWN_PRETTIER rule: JSON and YAML were covered but Markdown was not,
+# so its normalizations only surfaced in CI. docs/ is excluded because zensical owns that tree.
 [pre-commit.commands.format-markdown-prettier]
 run = "mise x --quiet -- prettier -w --log-level warn {staged_files}"
 glob = ["*.md"]
@@ -68,43 +57,32 @@ exclude = ["docs/**"]
 stage_fixed = true
 
 # ---------------------------------------------------------------------------
-# super-linter parity (report-only: these block the commit, they don't fix).
-#
-# The checks above auto-format; the four below mirror the remaining
-# non-Docker super-linter linters so their findings surface at commit time
-# instead of in CI. Each points at the SAME config super-linter uses under
-# .github/linters/, and is scoped to staged files, matching CI's
-# changed-files-only behaviour on PRs. docs/ is excluded everywhere because
-# the zensical toolchain (canonical root .markdownlint.yml, 2-space indent)
-# owns it and super-linter excludes it too. Tool versions are pinned in
-# .mise.toml to match the super-linter v8 pin in shared-workflows.
+# super-linter parity (report-only: these block the commit, they don't fix). The four below mirror
+# the remaining non-Docker super-linter linters, pointing at the same config under .github/linters/
+# and scoped to staged files like CI's changed-files-only PRs. docs/ is excluded everywhere: the
+# zensical toolchain owns it. Tool versions in .mise.toml match the super-linter v8 pin.
 # ---------------------------------------------------------------------------
 
-# yamllint (super-linter YAML). Non-strict to match CI: level:warning rules
-# (line-length, braces, indentation, ...) are reported but only error-level
-# rules (key-duplicates, CRLF line endings) fail the commit.
+# Non-strict to match CI: level:warning rules (line-length, braces, indentation, …) are reported,
+# only error-level rules (key-duplicates, CRLF line endings) fail the commit.
 [pre-commit.commands.lint-yamllint]
 run = "mise x -- yamllint -c .github/linters/.yaml-lint.yml {staged_files}"
 glob = ["*.yaml", "*.yml"]
 exclude = ["docs/**"]
 
-# codespell (super-linter spell check). No glob, so it scans every staged file;
-# codespell auto-skips binaries. Honours ignore-words-list from .codespellrc.
+# No glob, so it scans every staged file; codespell auto-skips binaries.
 [pre-commit.commands.lint-codespell]
 run = "mise x -- codespell --config .github/linters/.codespellrc {staged_files}"
 exclude = ["docs/**"]
 
-# markdownlint (super-linter MARKDOWN). Uses the indent-4 .markdown-lint.yml;
-# docs/ (indent-2) is excluded to avoid the MD007 indent conflict.
+# Uses the indent-4 .markdown-lint.yml; docs/ (indent-2) is excluded to avoid the MD007 conflict.
 [pre-commit.commands.lint-markdownlint]
 run = "mise x -- markdownlint --config .github/linters/.markdown-lint.yml {staged_files}"
 glob = ["*.md"]
 exclude = ["docs/**"]
 
-# editorconfig-checker (super-linter EDITORCONFIG). The binary is named
-# `editorconfig-checker` from v4.0.0 (it was `ec` before). It applies
-# .editorconfig rules + its own .editorconfig-checker.json excludes (Markdown,
-# fixtures, smokeping Targets), so no glob is needed here.
+# Binary renamed from `ec` to `editorconfig-checker` in v4.0.0. No glob needed: its own
+# .editorconfig-checker.json already excludes Markdown, fixtures and smokeping Targets.
 [pre-commit.commands.lint-editorconfig]
 run = "mise x -- editorconfig-checker -config .github/linters/.editorconfig-checker.json {staged_files}"
 exclude = ["docs/**"]
