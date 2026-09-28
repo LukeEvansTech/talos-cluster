@@ -8,7 +8,9 @@ points at. Two Flux Kustomizations apply it. `actions-runner-controller` renders
 `actions-runner-controller-runners`, which `dependsOn` the first, renders `runners/`: one directory
 per GitHub org or repository scale set.
 
-Ten scale sets exist, each a self-hosted runner pool for one GitHub target:
+Ten scale sets exist, each a self-hosted runner pool for one GitHub target. The scale set name
+matches its `runners/` directory name except for `packer`, whose `runnerScaleSetName` is
+`packer-vsphere`:
 
 | Scale set           | Target                           | Mode       | `maxRunners` | Work storage |
 | ------------------- | -------------------------------- | ---------- | ------------ | ------------ |
@@ -16,15 +18,17 @@ Ten scale sets exist, each a self-hosted runner pool for one GitHub target:
 | `lurcher`           | LukeEvansTech/lurcher            | dind       | 1            | 40Gi         |
 | `networkops`        | LukeEvansTech/network-ops        | dind       | 1            | 40Gi         |
 | `nut`               | LukeEvansTech/nut-apps           | dind       | 1            | 40Gi         |
-| `packer`            | codelooks-com/packer-vsphere     | kubernetes | 3            | 40Gi         |
+| `packer-vsphere`    | codelooks-com/packer-vsphere     | kubernetes | 3            | 40Gi         |
 | `seedbox`           | LukeEvansTech/seedbox-apps       | dind       | 1            | 40Gi         |
 | `subspy`            | LukeEvansTech/subspy             | dind       | 1            | 40Gi         |
 | `talos-cluster`     | LukeEvansTech/talos-cluster      | dind       | 3            | 25Gi         |
 | `terraform-vsphere` | codelooks-com/terraform-vsphere  | kubernetes | 2            | 5Gi          |
 | `truenas`           | LukeEvansTech/truenas-apps       | dind       | 1            | 40Gi         |
 
-Every repository-scoped `maxRunners` starts at 1 and is meant to grow once real usage justifies it.
-`codelooks-org`, the shared pool, starts at 2 for the same reason.
+The six newest scale sets (`lurcher`, `networkops`, `nut`, `seedbox`, `subspy`, `truenas`) start
+their `maxRunners` at 1 and are meant to grow once real usage justifies it. `codelooks-org`, the
+shared pool, starts at 2 for the same reason. `talos-cluster`, `packer-vsphere` and
+`terraform-vsphere` predate that pilot convention and already run at higher ceilings.
 
 ## GitHub App authentication
 
@@ -74,12 +78,14 @@ chart's default dind wiring the way the newer scale sets do.
 
 ## Kubernetes-mode runners: no pod-management RBAC
 
-`packer` and `terraform-vsphere` run in `containerMode: kubernetes`, whose chart normally
+`packer-vsphere` and `terraform-vsphere` run in `containerMode: kubernetes`, whose chart normally
 auto-creates a permissive ServiceAccount that lets `container:` jobs, service containers and
 `docker://` actions run. Both scale sets instead point `serviceAccountName` at a ServiceAccount
-with no pod-management Role, which suppresses that auto-created one and leaves only plain `run:`
-steps able to execute. Both also override `ACTIONS_RUNNER_REQUIRE_JOB_CONTAINER` from kubernetes
-mode's default of `true` to `false` for the same reason. `terraform-vsphere` needs no Kubernetes
+with no pod-management Role, which suppresses that auto-created one, so those three step types
+fail; plain `run:` steps and non-container actions such as JavaScript or composite actions still
+execute normally, since they run in the runner's own process rather than a separate pod. Both also
+override `ACTIONS_RUNNER_REQUIRE_JOB_CONTAINER` from kubernetes mode's default of `true` to
+`false`, because their steps run directly on the runner. `terraform-vsphere` needs no Kubernetes
 permissions at all: its steps only talk to vCenter and Cloudflare R2.
 
 ## talos-cluster: os:admin access and its guardrail
@@ -90,7 +96,7 @@ permissions at all: its steps only talk to vCenter and Cloudflare R2.
 themselves carry no Kubernetes RBAC, because their only privileged job runs `talosctl image pull`,
 never `kubectl`.
 
-Two mistakes have hit this wiring before. Pointing the volume at the similarly named
+This wiring has broken once already. Pointing the volume at the similarly named
 `talos-cluster-runner-secret` (the GitHub App credentials, which carry no `talosconfig` key) with
 `subPath: talosconfig` rendered an empty directory instead of a file, and `talosctl` failed with
 "is a directory" on every image-pull run until #4329 fixed it. Because this runner holds

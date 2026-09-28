@@ -1,5 +1,5 @@
 ---
-# No pod-management Role, so container/docker steps fail; only plain `run:` steps work.
+# No pod-management Role, so `container:` jobs, service containers and docker actions fail.
 # terraform-vsphere only talks to vCenter and Cloudflare R2, never the Kubernetes API.
 apiVersion: v1
 kind: ServiceAccount
