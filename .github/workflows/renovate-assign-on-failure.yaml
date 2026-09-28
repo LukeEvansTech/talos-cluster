@@ -2,20 +2,15 @@
 # yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
 name: "Renovate Assign On Failure"
 
-# Renovate self-gates on CI (platformAutomerge:false), so a failed check means the
-# auto-merge PR stays open and needs a human. Auto-merge PRs are intentionally NOT
-# assigned (assignAutomerge:false in .renovaterc.json5), so they don't reach my
-# "Participating" notifications on a quiet watch level. This workflow closes that
-# gap: when a CI workflow fails on a Renovate PR, assign me, assignment notifies
-# regardless of repo Watch level, so a broken bump emails me while clean ones stay
-# silent. (Manual PRs, protected-infra + major, are already assigned at creation.)
+# Renovate self-gates on CI, so a failed check leaves the auto-merge PR open needing a human, but
+# auto-merge PRs are deliberately unassigned (assignAutomerge:false) so they skip "Participating"
+# notifications. This workflow assigns the owner on failure instead, which notifies regardless of
+# Watch level, so a broken bump emails while clean ones stay silent.
 
 on:
   # zizmor: ignore[dangerous-triggers]
-  # workflow_run runs in the base-repo context with a write token, but this
-  # workflow never checks out PR code or runs PR-supplied commands. It only
-  # calls gh to assign the repo owner, so the code-injection risk this audit
-  # flags does not apply.
+  # workflow_run runs in the base-repo context with a write token, but this workflow never checks
+  # out PR code or runs PR-supplied commands, only calls gh to assign the owner; no injection risk.
   workflow_run:
     workflows:
       - "security-scans"
@@ -32,7 +27,6 @@ jobs:
     name: Assign owner on CI failure
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    # Only act on failed runs that originated from a pull request.
     if: >-
       github.event.workflow_run.conclusion == 'failure' &&
       github.event.workflow_run.event == 'pull_request'

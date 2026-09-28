@@ -1,13 +1,8 @@
 ---
-# The PR body is a leak surface, not just a description: GitHub's squash merge
-# copies it verbatim into the commit message on main, where it is permanent and
-# world-visible. This repository is PUBLIC (see AGENTS.md), so gate the title
-# and body on the same rules the local commit-msg hook enforces.
-#
-# Deliberately a separate workflow from security-scans.yaml even though both
-# call check_internal_identifiers.py: this one needs the `edited` trigger so a
-# reworded body is re-checked, and firing Checkov/Trivy on every body edit
-# would be wasteful.
+# A PR body is a leak surface: squash merge copies it verbatim, permanently and world-visibly,
+# into the commit message on main (this repository is PUBLIC), so it is gated like the commit-msg
+# hook. Separate from security-scans.yaml, which shares the same script call, because this one
+# needs the `edited` trigger to recheck a reworded body, without firing Checkov/Trivy on every edit.
 name: PR Hygiene
 
 on:
@@ -25,9 +20,8 @@ jobs:
   scan-pr-text:
     name: Scan PR title and body
     runs-on: ubuntu-latest
-    # Renovate bodies are machine-generated upstream release notes. They can
-    # legitimately quote an example IP from a changelog and carry no narrative
-    # about this network. Skip them rather than grow an allowlist forever.
+    # Renovate bodies are machine-generated release notes that can legitimately quote an example
+    # IP from a changelog with no narrative about this network; skipped rather than allowlisted.
     if: >-
       github.event.pull_request.user.login != 'renovate[bot]' &&
       github.event.pull_request.user.login != 'renovate'
@@ -40,29 +34,21 @@ jobs:
           persist-credentials: false
 
       - name: Scan title and body
-        # PR text is untrusted input: bind it to env and reference it as a shell
-        # variable, never interpolate ${{ }} into the run block
-        # (zizmor template-injection).
+        # PR text is untrusted: bind it to env and reference as a shell variable, never
+        # interpolate ${{ }} into the run block (zizmor template-injection).
         env:
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_BODY: ${{ github.event.pull_request.body }}
-          # The internal zone regex is NOT hardcoded in the script: that file is
-          # public, so a literal there would re-disclose what the guard exists to
-          # hide. Unset, the check skips and every other pattern still applies.
-          # A dedicated GitHub Environment would gate this behind approval
-          # rules, which is wrong for an always-on lint check that must run
-          # unattended on every PR. The value is a low-sensitivity regex, not
-          # a credential, and it is a secret only so it stays out of a public
-          # file -- see the script docstring.
+          # Not hardcoded in the script (that file is public); unset, the check just skips this
+          # pattern. Not a GitHub Environment secret either: that gates behind approval, wrong for
+          # an always-on unattended check. It's a secret only to keep it out of a public file.
           INTERNAL_DOMAIN_RE: ${{ secrets.INTERNAL_DOMAIN_RE }} # zizmor: ignore[secrets-outside-env]
         run: |-
           printf '%s\n\n%s\n' "$PR_TITLE" "$PR_BODY" \
             | python3 .github/scripts/check_internal_identifiers.py --text-file -
 
-  # Deliberately NOT gated on the Renovate skip above. The body check exempts
-  # Renovate because its bodies are machine-generated upstream release notes,
-  # but a human fix pushed onto a Renovate branch is authored normally -- and
-  # that is a real path for an assistant-authored commit to reach main.
+  # Not gated on the Renovate skip above: that exempts machine-generated release-note bodies, but
+  # a human fix pushed onto a Renovate branch is authored normally, a real path to reaching main.
   scan-commit-authors:
     name: Scan commit authorship
     runs-on: ubuntu-latest
@@ -71,18 +57,14 @@ jobs:
       pull-requests: read
     steps:
       - name: Checkout
-        # Needed for the commit-message scan step below, which shells out to
-        # the tracked check_internal_identifiers.py script.
+        # Needed by the commit-message scan step below, which shells out to the tracked script.
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
       - name: Reject assistant-authored commits
-        # The body scan above is not sufficient. GitHub's squash merge derives
-        # Co-authored-by trailers from COMMIT AUTHORSHIP and appends them after
-        # this workflow has run, so a spotless body still lands a trailer on
-        # main if any commit carries an assistant identity. AGENTS.md forbids
-        # those trailers, so catch the authorship itself.
+        # The body scan isn't enough: squash merge derives Co-authored-by trailers from commit
+        # authorship after this workflow runs, so a spotless body can still land one on main.
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -99,16 +81,10 @@ jobs:
           echo "No assistant-authored commits."
 
       - name: Scan commit messages for internal identifiers / co-author trailers
-        # The author-identity check above only sees GitHub's derived author
-        # metadata. A human-authored commit can still carry a literal
-        # `Co-authored-by: Claude <noreply@anthropic.com>` trailer (or a LAN
-        # IP / internal hostname) in its MESSAGE body, which scan-pr-text
-        # never sees either -- that job only reads $PR_TITLE/$PR_BODY, not
-        # per-commit messages. GitHub's squash-merge default body aggregates
-        # individual commit messages, so that trailer text can reach main
-        # verbatim. Reuse the same script and pattern set the PR-body and
-        # commit-msg-hook checks use, so prose can't drift between the three
-        # enforcement points.
+        # The author-identity check only sees GitHub's derived metadata; a human-authored commit
+        # can still carry a literal Co-authored-by trailer (or a LAN IP) in its message body, which
+        # scan-pr-text never sees either. Squash merge aggregates commit messages into the default
+        # body, so that text can reach main verbatim; reuses the same script as the other checks.
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
