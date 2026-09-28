@@ -25,7 +25,7 @@ spec:
           successfulJobsHistory: 3
           failedJobsHistory: 3
           # Never retry: this pipeline ends in DELETEs, and a retry would re-run judgement against
-          # an already-acted plan (docs/apps/curatorjudge.md).
+          # an already-acted plan (docs/docs/apps/curatorjudge.md).
           backoffLimit: 0
           activeDeadlineSeconds: 3600
         pod:

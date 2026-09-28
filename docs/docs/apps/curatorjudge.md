@@ -36,7 +36,7 @@ playback, not membership of the candidate list itself.
 The CronJob sets `backoffLimit: 0` and `concurrencyPolicy: Forbid`. This pipeline ends in DELETEs,
 and a Kubernetes-driven retry would re-run judgement and execution against a plan the previous
 attempt may have already partly acted on. A non-zero exit here only marks the Job failed; it never
-makes Kubernetes itself retry the pipeline. `docs/apps/curator.md` has the code-level detail on
+makes Kubernetes itself retry the pipeline. `docs/docs/apps/curator.md` has the code-level detail on
 what `cmd_execute` does with an ambiguous deletion instead (it records the outcome and leaves it
 there, rather than being retried).
 
