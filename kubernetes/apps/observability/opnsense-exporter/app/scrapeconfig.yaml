@@ -5,13 +5,9 @@ kind: ScrapeConfig
 metadata:
   name: &name opnsense-node
 spec:
-  # node-exporter (os-node_exporter plugin, :9100) on the firewall, kernel-level
-  # CPU/memory/ZFS/disk/netdev that the API-based opnsense-exporter above cannot
-  # see. Added 2026-08-02: the WAN-wedge outage that day had to be reconstructed
-  # from cluster-side probes because the box exposed no OS-level metrics.
-  #
-  # Plain LAN scrape, no egress Service, the nut-appliance shape, not the
-  # seedbox one (nothing here crosses the tailnet).
+  # Kernel-level metrics the API-based opnsense-exporter can't see, added after a WAN-wedge
+  # outage had to be reconstructed from cluster-side probes with no OS-level metrics.
+  # Plain LAN scrape (the nut-appliance shape), no egress Service like the seedbox.
   staticConfigs:
     - targets:
         - ${OPNSENSE_ADDR}:9100
@@ -27,10 +23,9 @@ spec:
       # jobs' series join on the same instance.
       replacement: opnsense
   metricRelabelings:
-    # Same load-bearing drop as nut-appliance and the seedbox: ceph-mixin ships
-    # alerts with no job selector that join through node_uname_info
-    # (`* on(cluster, instance) group_left(nodename) node_uname_info`) and would
-    # otherwise adopt this target; dropping the metric breaks that join.
+    # Same load-bearing drop as nut-appliance and the seedbox: unscoped ceph-mixin alerts
+    # join through this metric and would otherwise adopt this target; see
+    # docs/docs/apps/nut-appliance.md.
     - action: drop
       sourceLabels:
         - __name__
