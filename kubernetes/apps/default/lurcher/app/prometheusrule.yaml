@@ -1,0 +1,49 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: lurcher
+  namespace: default
+spec:
+  groups:
+    - name: lurcher
+      rules:
+        # From 2026-09-16 every daily run died out of memory straight after
+        # the Quality Contracts dump, and for twelve days nothing noticed: the
+        # pod crashed once a day (too slowly for KubePodCrashLooping) and
+        # /health answered ok in between. So this alerts on the OUTCOME, the
+        # age of the last run that delivered. Delivering, per lurcher, means
+        # closed success, not a dry run, at least one board returned listings,
+        # and no send failures. That covers every way a run can fail to finish.
+        #
+        # Runs daily at 10:00 London and take about an hour. 36h plus for: 30m
+        # tolerates one missed or failed run and pages on the second.
+        - alert: LurcherNotDelivering
+          annotations:
+            summary: >-
+              lurcher has not completed a delivering run in over 36h, so
+              contract alerts have stopped.
+            description: >-
+              The last lurcher run that delivered (success, at least one board
+              scraped, no send failures) finished {{ $value | humanizeDuration }}
+              ago. Check the run log on /ops, or
+              kubectl -n default logs deploy/lurcher for a heap-limit crash or a
+              board or proxy failure.
+          expr: |-
+            time() - lurcher_last_success_timestamp_seconds > 129600
+          for: 30m
+          labels:
+            severity: warning
+        # The alert above says nothing when the metric is gone, and gone is
+        # exactly what a crash-looping or unscrapeable pod looks like.
+        - alert: LurcherMetricsMissing
+          annotations:
+            summary: >-
+              lurcher /metrics has not been scraped for 30m, so run delivery
+              is unmonitored.
+          expr: |-
+            absent(lurcher_last_success_timestamp_seconds)
+          for: 30m
+          labels:
+            severity: warning
