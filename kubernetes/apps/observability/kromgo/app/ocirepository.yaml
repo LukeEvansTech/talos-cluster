@@ -12,9 +12,7 @@ spec:
   ref:
     tag: 0.16.1
   url: oci://ghcr.io/home-operations/charts/kromgo
-  # Canary for chart-layer cosign verification. Each home-operations chart is
-  # signed by its OWN repository's release workflow, so the subject is
-  # per-chart, not a shared charts/* identity.
+  # Each home-operations chart signs from its own release workflow, so the subject is per-chart.
   verify:
     provider: cosign
     matchOIDCIdentity:
