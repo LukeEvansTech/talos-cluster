@@ -22,7 +22,7 @@ spec:
               # below, from the auth-credentials Secret) it authenticates to
               # plugs that have auth on, and is a clean no-op on those that
               # don't (digest only engages on a 401).
-              tag: 0.4.0@sha256:807220f4c0ea659e8e7c72fe52b74ef430bafd660b4ea3b56e83cc14f5a03648
+              tag: 0.4.1@sha256:a64977f1bbb38b71da946526953b57aa139973c8c274d4187065e2aca0ea08bc
             args:
               - --config
               - /config/config.yaml
