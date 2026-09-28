@@ -10,6 +10,11 @@ question that comes first: **should I be touching this at all?**
 
 ## How to use this page
 
+When someone describes an alert in their own words ("the blue screen one"), find it with
+`just kube alert-history "<phrase>"`: it searches every label of every alert that fired in the last
+14 days (the Prometheus retention), including a BMC event's `message`, which the alert name never
+mentions.
+
 1. **A match means "do not remediate". It does not mean "ignore".** Record which entry matched and
    why, in the PR, the issue or the session notes, so a wrong match is auditable afterwards. An
    alert closed with no note is indistinguishable from an outage nobody handled.
@@ -45,8 +50,10 @@ kubectl -n <ns> get cronjob <name> -o jsonpath='{.status.lastSuccessfulTime}'
 ```
 
 **Do instead:** delete the stale Job (`kubectl -n <ns> delete job <name>`). Silencing or
-reconciling does nothing. House style is `ttlSecondsAfterFinished: 86400` on every CronJob so
-this self-clears; check the CronJob has it. See
+reconciling does nothing. Every CronJob in Git sets `ttlSecondsAfterFinished: 86400`, so this
+self-clears within a day; `.github/scripts/check_cronjob_ttl.py` enforces that in CI. A CronJob a
+chart renders itself (memini, VolSync) is outside the check. The failed pod's logs outlive the Job in
+VictoriaLogs (see "Inspecting the live cluster" in `AGENTS.md`). See
 [KB-032](kb/032-netbox-housekeeping-removed-command-and-wedged-system-job.md) for the latching
 behaviour in context.
 

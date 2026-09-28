@@ -62,3 +62,7 @@ jobs:
       # offline before it merges. See the script for the allowlist + rationale.
       - name: Route hostname pair check
         run: python3 .github/scripts/check_route_hostname_pairs.py
+      # Every CronJob in git must set ttlSecondsAfterFinished, or one failed Job
+      # latches KubeJobFailed until history rotation (11 days in Sep 2026).
+      - name: CronJob TTL check
+        run: python3 .github/scripts/check_cronjob_ttl.py
