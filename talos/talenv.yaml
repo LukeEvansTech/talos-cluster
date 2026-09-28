@@ -1,5 +1,5 @@
 ---
-# Versions used by Taskfile helpers
+# Versions used by the mod.just helpers and talhelper
 # renovate: datasource=custom.talos-factory depName=siderolabs/talos
 talosVersion: v1.14.1
 # renovate: datasource=docker depName=ghcr.io/siderolabs/kubelet
