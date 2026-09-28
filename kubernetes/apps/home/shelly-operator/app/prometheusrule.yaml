@@ -1,13 +1,6 @@
 ---
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
-#
-# Fleet-health alerts on the shelly-operator's per-device metrics
-# (shelly_device_online / _in_sync / _update_available / _restart_required /
-# _firmware_update_refused), scraped via the
-# operator's already-enabled ServiceMonitor. These metrics ship in operator
-# v0.3.x; before that they are absent and the rules simply never fire.
-# Power/temperature alerts live in the shelly-prometheus-exporter PrometheusRule -- not
-# duplicated here.
+# Power and temperature alerts live in the shelly-prometheus-exporter PrometheusRule, not here.
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
@@ -34,7 +27,7 @@ spec:
               {{ $labels.name }}{{ with $labels.room }} in {{ . }}{{ end }}
               ({{ $labels.mac }}) is online but its config has not matched its
               profile for over 1h (enforcement failing or damped).
-          # Online only -- an offline device is covered by ShellyDeviceOffline.
+          # Excludes offline devices; ShellyDeviceOffline covers those already.
           expr: (shelly_device_in_sync == 0) and on(mac, name) (shelly_device_online == 1)
           for: 1h
           labels:
@@ -60,9 +53,8 @@ spec:
               ({{ $labels.mac }}) refused the operator's Shelly.Update and the
               version is still pending. The device's answer is in
               status.lastFirmwareUpdate.error on its ShellyDevice.
-            # The device's own 00:00 job fails without trace; this is the one
-            # place a refusal becomes visible. 30m lets the rest of the
-            # 09:00-10:00 window retry before it fires.
+            # The device's own daily update job fails silently; a refusal is visible only here.
+            # 30m lets the rest of the operator's update window retry before this fires.
           expr: shelly_device_firmware_update_refused == 1
           for: 30m
           labels:
@@ -79,10 +71,8 @@ spec:
               such a device reads as fully in sync. Clear it by rebooting the
               device, or set rebootWhenRequired on its profile if that load
               tolerates an interruption.
-            # 6h, not 24h: unlike a pending firmware update there is no daily
-            # window that clears this on its own -- it waits for a human
-            # indefinitely. Four devices sat pending before this alert existed,
-            # the oldest for four and a half days.
+            # 6h, not 24h: unlike a pending firmware update, nothing clears this on its own; it
+            # waits for a human indefinitely (docs/docs/apps/shelly-operator.md).
           expr: shelly_device_restart_required == 1
           for: 6h
           labels:

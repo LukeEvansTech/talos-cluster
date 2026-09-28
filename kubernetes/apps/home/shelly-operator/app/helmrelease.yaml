@@ -9,9 +9,7 @@ spec:
   chartRef:
     kind: OCIRepository
     name: shelly-operator
-  # The chart ships CRDs in crds/; helm-controller skips CRD upgrades by
-  # default, so 0.2.0's new fields (firmware section, availableFirmware)
-  # need an explicit CreateReplace policy.
+  # helm-controller skips CRD upgrades by default; CreateReplace applies new CRD fields on a bump.
   install:
     crds: CreateReplace
   upgrade:
@@ -21,28 +19,13 @@ spec:
       repository: ghcr.io/lukeevanstech/shelly-operator
       tag: 0.7.1@sha256:678fc44ae2189bc44e18ad6b1c1682a7411bcbca526e663071212575f15b8828
     discovery:
-      # Substituted from cluster-secrets (public repo: no literal LAN CIDRs).
-      # IOT_TRUSTED_NETWORK_CIDR is the IoT VLAN the whole fleet lives on
-      # (migration completed 2026-06-12; the old flat-LAN CIDR was dropped
-      # from the sweep in Phase 5 cleanup).
       cidrs:
         - "${IOT_TRUSTED_NETWORK_CIDR}"
     deviceNamespace: home
     nameMap: shelly-names
     exporterConfigMap: shelly-prometheus-exporter-config
-    # How often the exporter polls EACH device. This is ~98% of all RPC load on
-    # the fleet: the exporter makes ~6 calls per device per cycle, against
-    # ~1 per device per reconcileInterval from the operator itself.
-    #
-    # 60s deliberately MATCHES the exporter ServiceMonitor scrape interval. The
-    # chart default is 30s, which is a 2x oversample: those extra samples are
-    # overwritten before Prometheus ever reads them, so they buy no stored
-    # resolution and cost double the device traffic. Device firmware 2.0.0
-    # rate-limits and starts answering HTTP 429 under that load, leaving the
-    # operator unable to read config and reporting InSync=Unknown -- which is
-    # unverified, not the same as healthy.
-    #
-    # Raise the scrape interval and this together, never one alone.
+    # 60s matches the ServiceMonitor scrape interval; the chart's 30s default doubled device RPC
+    # and tripped firmware rate-limiting (docs/docs/apps/shelly-operator.md). Raise both together.
     exporterDeviceUpdateInterval: 60s
     dashboard:
       enabled: true
