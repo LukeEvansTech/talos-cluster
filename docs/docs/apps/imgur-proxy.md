@@ -21,7 +21,7 @@ this one's hardening exposed:
 
 A follow-up (#3950) levelled qbittorrent, sabnzbd and prowlarr up to the identical pattern rather
 than relaxing this one back down, so all four gluetun sidecars in `downloads` now drop every
-capability and carry the same `PUID`/`PGID`/`gluetun-tmp` workaround.
+capability except `NET_ADMIN` and carry the same `PUID`/`PGID`/`gluetun-tmp` workaround.
 
 ## The blocklist and the memory limit
 
