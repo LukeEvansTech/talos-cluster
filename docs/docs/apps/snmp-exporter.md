@@ -14,8 +14,8 @@ scraped as separate targets rather than one target running both modules. A scrap
 healthy as its slowest module. Measured against the switch on 2026-08-27, 8 walks each through the
 exporter's own `/snmp` endpoint:
 
-| Walk                 | Success rate | Avg time | Max time |
-| -------------------- | ------------ | -------- | -------- |
+| Walk                  | Success rate | Avg time | Max time |
+| --------------------- | ------------ | -------- | -------- |
 | `if_mib` alone        | 8/8          | 0.3s     | 1.9s     |
 | `entity_sensor` alone | 5/8          | 11.3s    | 20.1s    |
 | both together         | 4/8          | 11.0s    | 20.1s    |
