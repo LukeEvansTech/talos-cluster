@@ -22,39 +22,30 @@ spec:
       sentinel-syslog:
         annotations:
           reloader.stakater.com/auto: "true"
-        # Run as the SA whose token the Entra federated credential trusts
-        # (subject = system:serviceaccount:security:sentinel-syslog).
+        # Entra's federated credential trusts system:serviceaccount:security:sentinel-syslog.
         serviceAccount:
           identifier: sentinel-syslog
         containers:
           app:
             image:
-              # Custom image: Logstash + microsoft-sentinel output plugin (LukeEvansTech/containers).
-              # 9.5.2 carries plugin 2.5.0. The 2.1.0 pin installed but failed to LOAD under the
-              # JRuby 10 runtime Logstash 9.4+ ships, crashlooping every rebuilt digest since
-              # 2026-08-17 while the (mis-tagged) 9.1.10 builds moved their base to 9.4/9.5.
+              # A digest bump once moved this image's runtime to JRuby 10 under an unchanged
+              # tag and broke the plugin (docs/docs/troubleshooting/kb/157-digest-bump-jruby.md).
               repository: ghcr.io/lukeevanstech/logstash-sentinel
               tag: 9.5.4@sha256:187348ccf43043663258514942115848cf8f7ec023c94a0fe79a7ce7c430d7bd
             env:
               TZ: ${TIMEZONE}
-              # Bound the JVM heap AND Netty/direct off-heap for the semi-hyperconverged
-              # nodes. Without -XX:MaxDirectMemorySize the syslog input's Netty buffers
-              # creep uncapped past the 1536Mi container limit (OOMKilled ~every 4h).
+              # Also bounds Netty's off-heap growth; uncapped it OOMKilled about every 4h
+              # (docs/docs/troubleshooting/kb/012-jvm-container-rss-oom-malloc-arena-max.md).
               LS_JAVA_OPTS: "-Xms512m -Xmx512m -XX:MaxDirectMemorySize=256m"
-              # Cap glibc malloc arenas. On a 24-core node glibc defaults to up to
-              # 8*ncpu per-thread arenas (~64MB each) for native allocs (JRuby, the
-              # Azure SDK's token churn, Netty native) and never returns them to the OS
-              #, smaps showed 6x ~64MB arenas creeping ~138Mi/h past the 1536Mi limit,
-              # which Xmx/MaxDirectMemorySize don't bound. Pin to 2.
+              # glibc's per-thread malloc arenas leaked ~138Mi/h until this cap
+              # (docs/docs/troubleshooting/kb/012-jvm-container-rss-oom-malloc-arena-max.md).
               MALLOC_ARENA_MAX: "2"
-              # Workload identity (federated, NO secret). The plugin's managed_identity mode
-              # auto-detects these. Identifiers are sourced from cluster-secrets (1Password) because
-              # this repo is public. Populate after terraform-entra + -azure-platform apply.
+              # Federated workload identity, no secret; populate the client ID after
+              # terraform-entra and terraform-azure-platform apply.
               AZURE_CLIENT_ID: "${SECRET_SENTINEL_SYSLOG_CLIENT_ID}"
               AZURE_TENANT_ID: "${SECRET_AZURE_TENANT_ID}"
               AZURE_AUTHORITY_HOST: "https://login.microsoftonline.com/"
               AZURE_FEDERATED_TOKEN_FILE: "/var/run/secrets/azure/tokens/azure-identity-token"
-              # Non-secret DCE/DCR coordinates (also via cluster-secrets for public-repo hygiene).
               DCE_URI: "${SECRET_SYSLOG_DCE_URI}"
               DCR_IMMUTABLE_ID: "${SECRET_SYSLOG_DCR_ID}"
             probes:
@@ -110,19 +101,12 @@ spec:
         controller: sentinel-syslog
         type: LoadBalancer
         annotations:
-          # The shared LAN syslog endpoint. Any source ships here. The real address is in
-          # cluster-secrets (SVC_SYSLOG_ADDR, 1Password), with a CI placeholder in
-          # components/global-vars/cluster-secrets.yaml, kept out of this PUBLIC repo per the
-          # internal-identifier scan, same pattern as the other SVC_*_ADDR LB services.
+          # The shared LAN syslog endpoint; any source can ship logs here.
           lbipam.cilium.io/ips: ${SVC_SYSLOG_ADDR}
-        # Cluster, not Local: Cilium's L2 announcement elects a lease-holder node
-        # without regard to backend locality, so with Local the LB IP is ARP'd by a
-        # node that then refuses the traffic whenever the pod lands elsewhere,
-        # external senders got TCP RST / silent UDP loss while in-cluster socket-LB
-        # kept working (found 2026-08-02: the firewall had been refused on every
-        # syslog write for days). Client source IP is SNAT'd under Cluster, which
-        # is acceptable here: the pipeline keys on [program] and the in-message
-        # hostname (logsource), not the peer address.
+        # Cluster, not Local: Cilium's L2 lease-holder can ARP the LB IP without the pod,
+        # dropping traffic for days before anyone noticed (#4070).
+        # SNATs the client IP, fine here since the pipeline keys on [program] and the
+        # in-message hostname, not the peer address.
         externalTrafficPolicy: Cluster
         ports:
           syslog-udp:
@@ -226,8 +210,7 @@ spec:
             pipeline.workers: 2
 
     persistence:
-      # Projected SA token Azure federates against (no webhook; projected manually).
-      # audience api://AzureADTokenExchange is what Entra expects for the client assertion.
+      # Projected manually (no webhook); audience must be api://AzureADTokenExchange for Entra.
       azure-token:
         type: custom
         volumeSpec:
