@@ -37,10 +37,7 @@ spec:
     persistence:
       enabled: true
       existingClaim: netbox
-    # The web, worker and housekeeping pods all mount the same RWO `media` PVC
-    # (ceph-block), so they must run on one node. The worker is the stable anchor
-    # (web rolls on every image update); pin the web pod to the worker's node so a
-    # rollout's surge pod can't land elsewhere and deadlock on multi-attach.
+    # Web and worker share the RWO media PVC, so pin web to the worker to avoid multi-attach.
     affinity:
       podAffinity:
         requiredDuringSchedulingIgnoredDuringExecution:
@@ -53,16 +50,13 @@ spec:
     resources:
       requests:
         cpu: 100m
-        # Web pod's real steady-state is ~500Mi+ with Granian; 256Mi under-reserved it.
+        # The web pod's steady-state usage is above 500Mi; 256Mi under-reserved it.
         memory: 512Mi
       limits:
-        # NetBox v4 serves HTTP via Granian; each worker loads the full Django app.
-        # At 4 workers the pod crept to ~956Mi and got OOMKilled against a 1Gi limit.
-        # GRANIAN_WORKERS=2 (below) halves the footprint; 1.5Gi gives headroom.
+        # 4 Granian workers pushed the pod to ~956Mi and OOMKilled it against a 1Gi limit.
         memory: 1536Mi
     extraEnvs:
-      # Default is 4 (`${GRANIAN_WORKERS:-4}` in launch-netbox.sh), overkill for this
-      # low-concurrency homelab instance and the main driver of the OOM. Drop to 2.
+      # The chart defaults to 4 workers, more than this low-traffic instance needs.
       - name: GRANIAN_WORKERS
         value: "2"
     initContainers:
@@ -106,24 +100,9 @@ spec:
     worker:
       enabled: true
     housekeeping:
-      # Disabled because the command this CronJob runs no longer exists. NetBox
-      # deprecated `manage.py housekeeping` in v4.6 and removed it in v4.7.0;
-      # the work now runs as an internal RQ system job that `manage.py rqworker`
-      # schedules itself (it sets `with_scheduler` and calls `enqueue_once` on
-      # startup), so the worker above is the only thing that has to be running.
-      # The chart has not caught up: 8.3.74 still defaults this to true with the
-      # removed command, so every run exits non-zero with
-      # `Unknown command: 'housekeeping'` and fires KubeJobFailed once a day.
-      # Tracked upstream as netbox-chart#1391; re-enable only if the chart gains
-      # a command that exists. There is no CLI equivalent to point it at in the
-      # meantime - the v4.7.0 image ships no management command for any of the
-      # constituent steps, despite the release note implying otherwise.
+      # Disabled: v4.7.0 removed the command this CronJob runs; the worker covers it now (kb/032).
       enabled: false
-      # Retained for a future re-enable: the CronJob mounts the RWO `media` PVC
-      # (ceph-block), which is attached to whichever node runs the netbox
-      # web/worker pods. Without affinity the job can schedule onto a different
-      # node and hang forever in ContainerCreating (multi-attach). Pin it to the
-      # node holding the volume.
+      # Kept for a future re-enable: pins the job to the media PVC's node to avoid multi-attach.
       affinity:
         podAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
