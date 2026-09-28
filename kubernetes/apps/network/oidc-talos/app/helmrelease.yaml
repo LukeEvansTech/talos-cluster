@@ -18,17 +18,13 @@ spec:
       retries: 3
       strategy: rollback
   values:
-    # Publishes THIS cluster's OIDC discovery doc + JWKS publicly so Entra (and any other cloud) can
-    # federate the cluster's service-account tokens, no apiserver exposure, just two JSON files. The
-    # apiserver's `service-account-issuer` (talos/patches/controller/cluster.yaml) must equal
-    # https://oidc-talos.${SECRET_DOMAIN}. Only PUBLIC keys are served. The private SA signing key
-    # never leaves the apiserver. The JWKS is fetched LIVE from the apiserver's discovery endpoint at
-    # pod start (init container) and refreshed hourly (sidecar), so there is no committed,
-    # cluster-specific key material, so this bootstraps clean on any cluster reusing the name. The
-    # discovery doc is static (URLs only). Cluster-scoped name so other clusters get their own.
+    # Publishes OIDC discovery and JWKS so Entra can federate SA tokens without apiserver exposure.
+    # The apiserver's `service-account-issuer` (talos/patches/controller/cluster.yaml) must equal
+    # https://oidc-talos.${SECRET_DOMAIN}.
+    # Only public keys are served; the private SA signing key never leaves the apiserver.
+    # Fetched live at pod start and refreshed hourly, so no key material is committed (#3263).
     defaultPodOptions:
-      # The init/refresh containers authenticate to the apiserver with this token (app-template
-      # disables the automount by default).
+      # The init/refresh containers need this token; app-template disables automount by default.
       automountServiceAccountToken: true
       securityContext:
         runAsUser: 101
@@ -42,15 +38,13 @@ spec:
       oidc-talos:
         annotations:
           reloader.stakater.com/auto: "true"
-        # Run as a dedicated SA bound to system:service-account-issuer-discovery (rbac.yaml) so the
-        # fetch/refresh containers can read the apiserver JWKS without the cluster-wide binding.
+        # Bound to system:service-account-issuer-discovery (rbac.yaml), not the cluster-wide
+        # binding, so this bootstraps clean.
         serviceAccount:
           identifier: oidc-talos
         initContainers:
-          # Populate the served JWKS from the live apiserver before nginx starts. Authn = the SA's
-          # auto-mounted token; authz = the discovery ClusterRoleBinding. Retries, validates the
-          # payload, writes atomically. KUBERNETES_SERVICE_HOST/_PORT are injected by kubelet, so no
-          # cluster-internal addresses are committed here.
+          # Authenticates with the pod's SA token, authorized by rbac.yaml's ClusterRoleBinding.
+          # Uses kubernetes.default.svc, not ${KUBERNETES_SERVICE_*}, which Flux would blank.
           fetch-jwks:
             image: &curlImage
               repository: docker.io/curlimages/curl
@@ -58,9 +52,7 @@ spec:
             command:
               - /bin/sh
               - -c
-              # NB: $$ escapes Flux postBuild substitution so $(cat ...) reaches the shell intact;
-              # the URL uses kubernetes.default.svc (no ${KUBERNETES_SERVICE_*}, which Flux would eat).
-              # curl does the retries; set -e + the grep make a bad/empty payload fail the init.
+              # $$ escapes Flux postBuild substitution so $(cat ...) reaches the shell intact.
               - |
                 set -eu
                 curl --fail --silent --show-error --max-time 10 --retry 5 --retry-delay 2 --retry-all-errors \
@@ -80,16 +72,15 @@ spec:
                 memory: 16Mi
               limits:
                 memory: 32Mi
-          # Native sidecar: re-fetch hourly so a cluster SA-key rotation is picked up without a pod
-          # restart. Failures are non-fatal. The last good JWKS keeps being served.
+          # Refreshes hourly so a rotated SA key is picked up without a pod restart; a failed
+          # refresh keeps serving the last good JWKS.
           refresh-jwks:
             restartPolicy: Always
             image: *curlImage
             command:
               - /bin/sh
               - -c
-              # $$ escapes Flux postBuild substitution (see fetch-jwks). Failures are non-fatal:
-              # the previously written /jwks/jwks keeps being served.
+              # $$ escapes Flux postBuild substitution again (see fetch-jwks).
               - |
                 while true; do
                   sleep 3600
@@ -141,8 +132,7 @@ spec:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: true
               capabilities: { drop: ["ALL"] }
-    # Create the SA the controller references above; the discovery ClusterRoleBinding (rbac.yaml)
-    # targets this name (network/oidc-talos).
+    # The discovery ClusterRoleBinding (rbac.yaml) targets this SA (network/oidc-talos).
     serviceAccount:
       oidc-talos: {}
     service:
@@ -164,8 +154,8 @@ spec:
     configMaps:
       content:
         data:
-          # OIDC discovery document. `issuer` + `jwks_uri` MUST match the apiserver
-          # service-account-issuer and terraform-entra var.sentinel_syslog_oidc_issuer.
+          # `issuer` and `jwks_uri` must match the apiserver service-account-issuer and
+          # terraform-entra var.sentinel_syslog_oidc_issuer.
           openid-configuration: |-
             {
               "issuer": "https://oidc-talos.${SECRET_DOMAIN}",
@@ -196,7 +186,7 @@ spec:
               location / { return 404; }
             }
     persistence:
-      # Live JWKS, fetched from the apiserver by the init/refresh containers (rw) and served by nginx (ro).
+      # Live JWKS: the init/refresh containers write it (rw), nginx serves it (ro).
       jwks:
         type: emptyDir
         globalMounts:
