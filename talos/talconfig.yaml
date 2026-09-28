@@ -35,11 +35,11 @@ nodes:
     controlPlane: true
     patches:
       # TPM-sealed LUKS (slot 0) with a static-passphrase fallback (slot 1): a known-buggy BIOS
-      # update line wipes Secure Boot keys, changing the PCR 7 value slot 0 is sealed to, and Talos
-      # has no recovery path for that. Passphrase comes from 1Password at genconfig time; never
-      # commit it. NEVER remove slot 1 without a replacement: talhelper's syncKeys() deletes any
-      # slot missing from config. See kb/207 for the incident, why slot 0 still binds to PCR 7, and
-      # the manual TPM-slot rotation procedure.
+      # update line wipes Secure Boot keys, which would change the PCR 7 value slot 0 is sealed to.
+      # Passphrase comes from 1Password at genconfig time; never commit it. NEVER remove slot 1
+      # without a replacement: applying a config that omits a slot makes Talos delete it on the
+      # node, not talhelper. See kb/207 for the risk this insures against, why slot 0 still binds
+      # to PCR 7, and the recovery procedure.
       - |-
         machine:
           systemDiskEncryption:
@@ -89,11 +89,11 @@ nodes:
     controlPlane: true
     patches:
       # TPM-sealed LUKS (slot 0) with a static-passphrase fallback (slot 1): a known-buggy BIOS
-      # update line wipes Secure Boot keys, changing the PCR 7 value slot 0 is sealed to, and Talos
-      # has no recovery path for that. Passphrase comes from 1Password at genconfig time; never
-      # commit it. NEVER remove slot 1 without a replacement: talhelper's syncKeys() deletes any
-      # slot missing from config. See kb/207 for the incident, why slot 0 still binds to PCR 7, and
-      # the manual TPM-slot rotation procedure.
+      # update line wipes Secure Boot keys, which would change the PCR 7 value slot 0 is sealed to.
+      # Passphrase comes from 1Password at genconfig time; never commit it. NEVER remove slot 1
+      # without a replacement: applying a config that omits a slot makes Talos delete it on the
+      # node, not talhelper. See kb/207 for the risk this insures against, why slot 0 still binds
+      # to PCR 7, and the recovery procedure.
       - |-
         machine:
           systemDiskEncryption:
@@ -143,11 +143,11 @@ nodes:
     controlPlane: true
     patches:
       # TPM-sealed LUKS (slot 0) with a static-passphrase fallback (slot 1): a known-buggy BIOS
-      # update line wipes Secure Boot keys, changing the PCR 7 value slot 0 is sealed to, and Talos
-      # has no recovery path for that. Passphrase comes from 1Password at genconfig time; never
-      # commit it. NEVER remove slot 1 without a replacement: talhelper's syncKeys() deletes any
-      # slot missing from config. See kb/207 for the incident, why slot 0 still binds to PCR 7, and
-      # the manual TPM-slot rotation procedure.
+      # update line wipes Secure Boot keys, which would change the PCR 7 value slot 0 is sealed to.
+      # Passphrase comes from 1Password at genconfig time; never commit it. NEVER remove slot 1
+      # without a replacement: applying a config that omits a slot makes Talos delete it on the
+      # node, not talhelper. See kb/207 for the risk this insures against, why slot 0 still binds
+      # to PCR 7, and the recovery procedure.
       - |-
         machine:
           systemDiskEncryption:
