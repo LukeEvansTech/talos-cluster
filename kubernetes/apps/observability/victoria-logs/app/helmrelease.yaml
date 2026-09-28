@@ -12,7 +12,7 @@ spec:
   values:
     fullnameOverride: victoria-logs
     server:
-      # Local syslog sink: ESXi ships here (CIS 4.2/4.9) instead of via sentinel-syslog.
+      # Local syslog sink: some hosts log here by compliance requirement, kept off sentinel-syslog.
       extraArgs:
         # 5514, not 514: the pod is non-root. The LB Service below remaps 514 -> 5514.
         syslog.listenAddr.tcp: ":5514"

@@ -7,11 +7,11 @@ and its log collector DaemonSet (`collector/`), which ships Kubernetes pod logs 
 
 ## Native syslog listener
 
-The server's syslog listener is a local sink for devices that don't fit the sentinel-syslog
-pipeline. ESXi hosts ship logs directly here to close a CIS finding (4.2/4.9) that flagged them
-with no remote log target at all, and VMware logs stay on this local pipeline by decision rather
-than being routed through the shared relay. Any other sender that wants a full local copy
-alongside that relay can use the same listener.
+The server's syslog listener is a local sink for senders that don't fit the sentinel-syslog
+pipeline. Some hosts ship logs directly here to close a compliance finding that flagged them with
+no remote log target at all, and stay on this local pipeline by decision rather than being routed
+through the shared relay. Any other sender that wants a full local copy alongside that relay can
+use the same listener.
 
 - It listens on both TCP and UDP, but senders should prefer TCP. Syslog over UDP truncates at 480
   bytes, and both current senders can lose the tail of a longer message that way.
