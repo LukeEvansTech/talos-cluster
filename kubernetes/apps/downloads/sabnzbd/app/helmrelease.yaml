@@ -307,7 +307,7 @@ spec:
         globalMounts:
           - path: /media
       # Pre-created (mode 1777): gluetun's own MkdirAll leaves no execute bit, which blocked the
-      # public-IP write under this container's drop-ALL caps (docs/docs/apps/imgur-proxy.md).
+      # public-IP write under this drop-ALL container. Paired with PUID/PGID 0 in the gluetun env.
       gluetun-tmp:
         type: emptyDir
         medium: Memory
