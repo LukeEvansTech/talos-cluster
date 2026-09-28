@@ -32,23 +32,21 @@ Garage exposes Prometheus metrics on its admin API port. `metrics_token` is unse
 ## Anonymous GET on the S3 API returns 403
 
 The Gatus health check on the `s3` route treats both 200 and 403 as healthy, because Garage's S3
-API answers an anonymous `GET /` with 403 rather than a normal error page.
+API answers an anonymous GET with 403.
 
-## Image held at v2.4.0 (resolved)
+## v2.4.0 startup panic (resolved)
 
 Garage 2.4.0 panicked at startup with `kubernetes_discovery` enabled: its kube client built a
 rustls `ClientConfig` with no crypto provider installed, which crashlooped the pod and stalled the
-Helm rollback (#4980). `.renovaterc.json5` still carries a standalone rule that blocks that exact
-version of `docker.io/dxflrs/garage` by name, so a republished `v2.4.0` tag can never come back
-through Renovate. Version 2.4.1 fixed the crash and is what runs today (#5009).
+Helm rollback, so the image was held at v2.3.0 (#4980). `.renovaterc.json5` blocks only that one
+release, so later patches flow through Renovate normally; 2.4.1 is what runs today (#5009).
 
 ## Cluster-to-NAS sync
 
 `sync-cronjob.yaml` runs an hourly `rclone sync` from the in-cluster Garage to a Garage instance
 on the NAS, because Garage has no native cross-cluster replication of its own. The NAS copy sits
 on a ZFS-snapshotted dataset, which gives a point-in-time recovery option independent of this job.
-A separate NAS bucket used for direct backups by other tooling is left out of the sync on purpose,
-since mirroring it back would create a round trip with whatever writes there directly.
+The NAS `veeam` bucket is left out of the sync on purpose, because Veeam writes to it directly.
 
 The job's two Garage access keys come from the `garage` 1Password item: one scoped to read the
 in-cluster bucket, one scoped to write the NAS side. `RCLONE_VERBOSE` stays unset because pairing
