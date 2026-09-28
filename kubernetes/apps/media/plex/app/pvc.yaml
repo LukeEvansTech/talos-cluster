@@ -12,10 +12,8 @@ spec:
       storage: 100Gi
   storageClassName: ceph-block
 ---
-# Plex's "Media" directory: generated trickplay / BIF preview bundles. ~247G of
-# the ~291G on the config volume, regenerable from the library, and shipped to
-# both VolSync targets for no benefit. Same reasoning as plex-cache, far larger.
-# Cutover runbook: docs/docs/migrations/plex-media-bundles-volume.md
+# Same reasoning as plex-cache, far larger: generated trickplay/BIF preview bundles,
+# regenerable from the library (docs/docs/migrations/plex-media-bundles-volume.md).
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
