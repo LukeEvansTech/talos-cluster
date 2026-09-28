@@ -11,35 +11,20 @@ spec:
   interval: 1h
   values:
     config:
-      # Public repo → App auth lifts the API rate limit and supplies the write
-      # identity. A missed-webhook backstop re-renders open PRs (and reconciles
-      # the PR list) on this interval.
+      # Public repository: needs the GitHub App identity for the rate limit and write-back.
       repo: github://LukeEvansTech/talos-cluster
+      # Backstop that re-renders open PRs when a webhook delivery is missed.
       refreshInterval: 15m
       logFormat: json
-      # Post the native `Konflate` commit status + PR summary comment per
-      # render (replaced the deleted flate.yaml/konflate.yaml CI workflows;
-      # PR validation now happens entirely in-cluster). statusCheckName left
-      # unset → defaults to "Konflate".
+      # Posts the native Konflate commit status/PR comment; replaces workflows dropped in #3375.
       statusChecks: true
       prComments: true
       publicUrl: "https://konflate.${SECRET_DOMAIN}"
-      # Konflate templates charts offline with no API server to discover from,
-      # so without these it renders against helm's built-in core API set and
-      # whatever Kubernetes version the helm SDK was built against. A chart
-      # gated on `.Capabilities.APIVersions.Has` (a CRD, a feature-gated API)
-      # or on `.Capabilities.KubeVersion` then renders differently in a PR
-      # diff than it does in-cluster. The chart `tpl`s both values, and
-      # helm-controller resolves capabilities against this cluster — which is
-      # also konflate's render target — so they track it with nothing static
-      # to maintain.
+      # Capabilities come from this cluster; konflate renders offline (docs/docs/apps/konflate.md).
       kubeVersion: "{{ .Capabilities.KubeVersion.Version }}"
       helmApiVersions: '{{ join "," .Capabilities.APIVersions }}'
     secret:
-      # KONFLATE_PUSH_TOKEN, bearer for POST /api/prs/{n}/refresh, forcing a
-      # re-render of a PR's new head ahead of the 15m poll. With the CI
-      # workflows gone the webhook is the primary trigger; the token remains
-      # for manual/scripted refreshes.
+      # KONFLATE_PUSH_TOKEN backs manual refreshes; the webhook is now the primary trigger.
       existingSecret: konflate-secret
     httpRoute:
       enabled: true
@@ -49,14 +34,7 @@ spec:
       hostnames:
         - "{{ .Release.Name }}.${SECRET_DOMAIN}"
     persistence:
-      # Ephemeral cache on the node filesystem (chart default). Konflate's
-      # source/render/stage caches are millions of tiny files (~1.3M inodes
-      # at only ~5.6GB), which exhaust a fixed-inode ceph-block RBD volume
-      # long before its byte budget (repeatedly fired
-      # KubePersistentVolumeInodesFillingUp). The caches are bounded by bytes
-      # + TTL, not inodes, so emptyDir on Talos /var (xfs, dynamic inodes) is
-      # the right home. Tradeoff: open-PR diffs re-render and the merged-PR
-      # shelf is lost on a konflate restart, acceptable for a diff UI.
+      # emptyDir avoids inode fill (docs/docs/troubleshooting/kb/011-konflate-render-failures.md).
       enabled: false
     monitoring:
       serviceMonitor:
@@ -65,7 +43,6 @@ spec:
       requests:
         cpu: 50m
       limits:
-        # With persistence off, a restart re-renders every open PR from cold
-        # (~18 concurrent renders); 1Gi OOM-killed the pod in a crash loop.
-        # GOMEMLIMIT is derived from this (90%), so the GC tracks the ceiling.
+        # Cold restarts OOM-killed the pod at 1Gi re-rendering ~18 open PRs at once.
+        # GOMEMLIMIT is derived from this limit (90%), so the GC tracks the container ceiling.
         memory: 2Gi
