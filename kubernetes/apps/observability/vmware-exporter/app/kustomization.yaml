@@ -18,6 +18,5 @@ configMapGenerator:
 generatorOptions:
   disableNameSuffixHash: true
   annotations:
-    # Dashboard JSON uses Grafana's own ${datasource}/${__interval} macros;
-    # disable Flux postBuild substitution so they are not clobbered to empty.
+    # Grafana's own ${datasource}/${__interval} macros would be blanked by Flux substitution.
     kustomize.toolkit.fluxcd.io/substitute: disabled

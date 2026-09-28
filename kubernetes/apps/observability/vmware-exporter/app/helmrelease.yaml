@@ -20,9 +20,8 @@ spec:
               repository: docker.io/pryorda/vmware_exporter
               tag: v0.18.4@sha256:79925e63e59ffe962762697da3c9f14bc1c132e0b0ca873f75d0e2cadaff361e
             env:
-              # The target vCenter is supplied per-scrape via the ServiceMonitor
-              # `?vsphere_host=` param (see servicemonitor.yaml); creds come from
-              # the secret (envFrom). vCenter presents an untrusted VMCA cert.
+              # vsphere_host comes from the ServiceMonitor's query param, not an env var here.
+              # vCenter presents its own untrusted VMCA certificate.
               VSPHERE_IGNORE_SSL: "True"
               VSPHERE_SPECS_SIZE: "2000"
             envFrom:
@@ -52,8 +51,7 @@ spec:
         runAsUser: 65534
         runAsGroup: 65534
     persistence:
-      # pyvmomi/requests write transient files; give them a writable /tmp so the
-      # root filesystem can stay read-only.
+      # pyvmomi/requests write transient files, so /tmp stays writable despite the read-only root.
       tmp:
         type: emptyDir
         globalMounts:
