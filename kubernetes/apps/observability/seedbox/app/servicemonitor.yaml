@@ -25,8 +25,8 @@ spec:
           targetLabel: instance
           replacement: seedbox
       metricRelabelings:
-        # Per-torrent series churn on every cull and nothing read them (36k to 5.5k series, 2026-08-27).
-        # Drop-list on purpose: a keep-list could silently eat `up`. Re-check after bumps: docs/apps/seedbox.md.
+        # Nothing read per-torrent series, and every cull churns them (36k cut to 5.5k, 2026-08-27).
+        # A keep-list could remove `up`, so this is a drop-list. After a bump: docs/apps/seedbox.md.
         - action: drop
           sourceLabels:
             - __name__

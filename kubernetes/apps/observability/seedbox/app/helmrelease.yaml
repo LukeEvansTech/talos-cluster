@@ -23,15 +23,17 @@ spec:
               QBITTORRENT_BASE_URL: http://seedbox.observability.svc.cluster.local:8080
               QBITTORRENT_COOKIE_NAME: QBT_SID_8080
               EXPORTER_PORT: &port 9710
-              # Per-torrent tracker fetches blocked startup under iowait and crashlooped it (2026-07-08); unused.
+              # Per-torrent tracker fetches blocked startup under iowait and crashlooped the
+              # exporter (2026-07-08). No dashboard uses tracker metrics.
               ENABLE_TRACKER: "false"
               ENABLE_LABEL_WITH_TRACKER: "false"
-              # Unused high-cardinality series.
+              # Nothing reads these high-cardinality series.
               ENABLE_HIGH_CARDINALITY: "false"
             envFrom:
               - secretRef:
                   name: seedbox-qbittorrent-exporter-secret
-            # Startup qBit fetch lags under iowait; the default 1s TCP probe killed it before it bound.
+            # The startup qBit fetch lags under iowait, and the default 1s TCP probe
+            # killed the exporter before it could bind.
             probes:
               liveness:
                 enabled: true

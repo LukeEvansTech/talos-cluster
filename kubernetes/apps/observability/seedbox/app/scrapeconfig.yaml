@@ -10,7 +10,7 @@ spec:
         - seedbox.observability.svc.cluster.local:9100
   metricsPath: /metrics
   scrapeInterval: 60s
-  # Tailnet egress scrapes pass 10s under torrent iowait: 30s stops false up=0 flaps.
+  # Tailnet scrapes exceed 10s under torrent iowait, and the 30s timeout stops false up=0 flaps.
   scrapeTimeout: 30s
   relabelings:
     - action: replace
@@ -19,7 +19,7 @@ spec:
     - action: replace
       targetLabel: instance
       replacement: seedbox
-  # ceph-mixin node alerts join on node_uname_info; dropping it keeps the torrent disk out of them.
+  # The ceph-mixin node alerts join on node_uname_info, so dropping it keeps the torrent disk out.
   metricRelabelings:
     - action: drop
       sourceLabels:
@@ -72,7 +72,7 @@ kind: ScrapeConfig
 metadata:
   name: &name seedbox-qui
 spec:
-  # Host port 9476: autobrr already holds the shared 9074 default.
+  # The host uses port 9476 because autobrr already holds the shared 9074 default.
   staticConfigs:
     - targets:
         - seedbox.observability.svc.cluster.local:9476
@@ -113,12 +113,12 @@ kind: ScrapeConfig
 metadata:
   name: &name seedbox-smartctl
 spec:
-  # SMART sector counts warn before mdstat sees a dropped disk.
+  # SMART sector counts give warning before mdstat sees a dropped disk.
   staticConfigs:
     - targets:
         - seedbox.observability.svc.cluster.local:9633
   metricsPath: /metrics
-  # Attributes move over days, and each scrape shells out to four disks.
+  # SMART attributes change over days, and each scrape shells out to four disks.
   scrapeInterval: 300s
   scrapeTimeout: 30s
   relabelings:
@@ -135,7 +135,7 @@ kind: ScrapeConfig
 metadata:
   name: &name seedbox-docker
 spec:
-  # Source of container_state_* for the estate's container-lifecycle alerts; netdata lacks it.
+  # The estate's container-lifecycle alerts need container_state_*, which netdata does not provide.
   staticConfigs:
     - targets:
         - seedbox.observability.svc.cluster.local:9419
@@ -150,8 +150,8 @@ spec:
       targetLabel: instance
       replacement: seedbox
   metricRelabelings:
-    # Allow-list: a new container label needs adding here before any rule can use it.
-    # Kept: doco-cd manager (alert scope) and alerts_oneshot (SeedboxContainerDown exclusion).
+    # This is an allow-list, so add a new container label here before any rule uses it. The doco-cd
+    # manager label scopes alerts; alerts_oneshot drives the SeedboxContainerDown exclusion.
     - action: labelkeep
       regex: __name__|job|instance|name|status|health_status|container_label_cd_doco_metadata_manager|container_label_alerts_oneshot
 ---
@@ -161,7 +161,7 @@ kind: ScrapeConfig
 metadata:
   name: &name seedbox-prowlarr
 spec:
-  # Prowlarr's own /metrics serves the SPA's HTML; exportarr is the only metrics source.
+  # Prowlarr's own /metrics returns the web UI's HTML, so exportarr is the only metrics source.
   staticConfigs:
     - targets:
         - seedbox.observability.svc.cluster.local:9707
@@ -176,7 +176,7 @@ spec:
       targetLabel: instance
       replacement: seedbox
   metricRelabelings:
-    # exportarr stamps the target URL on every series: redundant, and leaks an internal address.
+    # exportarr adds the target URL to every series, which duplicates instance and leaks an address.
     - action: labeldrop
       regex: url
 ---
@@ -186,8 +186,8 @@ kind: ScrapeConfig
 metadata:
   name: &name seedbox-backrest
 spec:
-  # Only source of forget/prune/check outcomes; the textfile leg covers backups alone.
-  # Host-side prerequisite is documented in the private host repository.
+  # This is the only source of forget, prune and check results; the textfile metrics cover backups.
+  # A host-side prerequisite is documented in the private host repository.
   staticConfigs:
     - targets:
         - seedbox.observability.svc.cluster.local:9898

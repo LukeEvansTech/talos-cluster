@@ -1,5 +1,5 @@
 ---
-# Tailscale egress: pods cannot reach tailnet IPs; the operator proxies every seedbox port.
+# Pods cannot reach tailnet IPs, so the Tailscale operator proxies every seedbox port here.
 apiVersion: v1
 kind: Service
 metadata:

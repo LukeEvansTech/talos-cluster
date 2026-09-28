@@ -2,82 +2,84 @@
 
 ## Purpose
 
-The seedbox is a remote host outside the cluster. `kubernetes/apps/observability/seedbox` scrapes it
-over a Tailscale egress Service, probes its public address, and alerts on its disks, traffic cap,
-containers, backups and the torrent tooling that runs on it. The host itself is provisioned from a
-separate private repository.
+The seedbox is a remote host outside the cluster, provisioned from a separate private repository.
+`kubernetes/apps/observability/seedbox` scrapes it over a Tailscale egress Service, probes its
+public address, and alerts on its disks, traffic cap, containers, backups and torrent tooling.
 
-## Two paths, two meanings
+## Scrape path and box probe
 
-Every metric scrape rides one tailnet egress, which blips through DERP relays and slows under
-torrent iowait. `up{instance="seedbox"}` therefore measures the **monitoring path**, not the box.
-The blackbox TCP probe to the public address (`probe_success{job="seedbox-public"}`) is the box-up
-anchor.
+Every metric scrape uses one tailnet egress, which drops out through DERP relays and slows under
+torrent iowait. So `up{instance="seedbox"}` reports on the monitoring path. The blackbox TCP probe
+to the public address, `probe_success{job="seedbox-public"}`, reports whether the box is up.
 
-- `SeedboxDown` keys on the probe. The previous rule keyed on the tailnet scrape and false-paged
-  about 43 times a week.
-- `SeedboxScrapePathDegraded` is the only in-band alert on scrape health: the chart's generic
-  `TargetDown` excludes `instance="seedbox"` (postRenderer in `kube-prometheus-stack`). Narrowing
-  its `up{instance="seedbox"}` selector drops a job out of alerting entirely.
-- Its 20m `for` is measured: over the 7 days to 2026-08-30 the path was partially degraded for 818
-  of 10,081 samples (8.1%), yet the rule fired for about 45 minutes across 14 days of retention.
-  The degradation is short bursts, and 20m sits above them.
-- There is no cluster-side dead man's switch. The cluster's own Watchdog already covers
-  Prometheus, Alertmanager and egress; the remaining gap is the box being in a different failure
-  domain, so the box pings its heartbeat check itself. A second pinger on the same check would keep
-  it green whenever either side lived, defeating the switch.
+- `SeedboxDown` uses the probe. The earlier rule used the tailnet scrape and false-paged about 43
+  times a week.
+- `SeedboxScrapePathDegraded` is the only in-band alert on scrape health, because the chart's
+  generic `TargetDown` excludes `instance="seedbox"` (see the postRenderer in
+  `kube-prometheus-stack`). If you narrow its `up{instance="seedbox"}` selector, the job you drop
+  has no scrape alert at all.
+- Its 20m `for` comes from measurement. In the 7 days to 2026-08-30 the path was partly degraded
+  for 818 of 10,081 samples (8.1%), yet the rule fired for about 45 minutes in 14 days of
+  retention. The degradation comes in short bursts, and 20m is longer than they last.
+- The cluster runs no dead man's switch for the box. Its own Watchdog already covers Prometheus,
+  Alertmanager and egress. The gap left is that the box sits in a different failure domain, so the
+  box pings its own heartbeat check. A second pinger on that check would keep it green while either
+  side was alive, which defeats the switch.
 
-## Verifying rules are live
+## Checking that rules still match
 
-Several seedbox rules have been **structurally dead**: they selected label values that stopped
-existing (the 2026-07-20 rebuild onto Fedora CoreOS renamed arrays and mountpoints), matched zero
-series, and could never fire. After any change to the box's storage layout, an exporter bump, or a
-new container label, invert each comparison and confirm the expression still returns series.
+Several seedbox rules have matched zero series and could never fire. They selected label values
+that disappeared when the box was rebuilt onto Fedora CoreOS on 2026-07-20, which renamed arrays
+and mountpoints. After a change to the box's storage layout, an exporter upgrade, or a new
+container label, invert each comparison and confirm the expression still returns series.
 
-| Check                                                                                                         | Expected                          |
-| ------------------------------------------------------------------------------------------------------------- | --------------------------------- |
-| `node_md_disks{job="seedbox-node",state="failed"} >= 0`                                                       | 3 series                          |
-| `node_filesystem_avail_bytes{job="seedbox-node",mountpoint=~"/var\|/var/mnt/seedbox"}`                        | 2 series                          |
-| `predict_linear(node_filesystem_avail_bytes{job="seedbox-node",mountpoint="/var/mnt/seedbox"}[7d], 10*86400)` | 1 series                          |
-| `count({job="seedbox-qbittorrent",__name__=~"qbittorrent_torrent_.+"})`                                       | stable after a bump               |
-| `count(container_state_status{container_label_<x>="..."})`                                                    | non-zero before a rule uses `<x>` |
+| Query                                                                                                         | Expected                                 |
+| ------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| `node_md_disks{job="seedbox-node",state="failed"} >= 0`                                                       | 3 series                                 |
+| `node_filesystem_avail_bytes{job="seedbox-node",mountpoint=~"/var\|/var/mnt/seedbox"}`                        | 2 series                                 |
+| `predict_linear(node_filesystem_avail_bytes{job="seedbox-node",mountpoint="/var/mnt/seedbox"}[7d], 10*86400)` | 1 series                                 |
+| `count({job="seedbox-qbittorrent",__name__=~"qbittorrent_torrent_.+"})`                                       | unchanged by the upgrade                 |
+| `count(container_state_status{container_label_<x>="..."})`                                                    | above zero before a rule relies on `<x>` |
 
-Arrays at the rebuild: `md125` is the 23.8 TB RAID5 data array at `/var/mnt/seedbox`, `md126` is
-`/boot`, `md127` is `/var` (also mounted at `/etc`, `/sysroot` and the ostree deploy path). mdadm
-renumbers arrays it cannot match to `mdadm.conf`, which is what killed the old RAID rule, so the
-rules never name an array.
+At the rebuild, `md125` became the 23.8 TB RAID5 data array at `/var/mnt/seedbox`, `md126` became
+`/boot`, and `md127` became `/var`, which also appears at `/etc`, `/sysroot` and the ostree deploy
+path. mdadm renumbers any array it cannot match to `mdadm.conf`. That renumbering broke the old RAID
+rule, so the current rules name no array.
 
 ## Disk fill
 
-`SeedboxDiskFillHigh` at 85% cannot stand alone on the data array. 85% of 21.6 TiB leaves about
-3.25 TiB; at the ~1.0 TiB/day fill rate seen in the week to 2026-08-27 that is about 3.2 days. The
-remedy, a qbit-manage retention cull, only moves data to `.RecycleBin` on the same filesystem, which
-holds it for 3 days. `SeedboxDiskFillProjected` keys on the 7-day trend over a 10-day horizon so a
-cull still has time to land.
+On the data array, `SeedboxDiskFillHigh` at 85% warns too late to act on. 85% of 21.6 TiB leaves
+about 3.25 TiB free, which lasts about 3.2 days at the 1.0 TiB a day seen in the week to
+2026-08-27. The fix is a qbit-manage retention cull, and a cull moves data to `.RecycleBin` on the
+same filesystem, where it stays for 3 days. `SeedboxDiskFillProjected` therefore alerts on the
+7-day trend over a 10-day horizon, which leaves time for a cull to free space.
 
-Backtest on 2026-08-27: the projection crossed zero at 22:29 on 2026-08-22 and stayed negative for
-55 of 55 later samples, five days before the trend was spotted by hand. With 14 days of retention
-and a 7-day window, 2026-08-20 is the earliest evaluable point.
+A backtest on 2026-08-27 found the projection crossed zero at 22:29 on 2026-08-22 and stayed
+negative for all 55 later samples. That was five days before anyone noticed the trend by hand. With
+14 days of retention and a 7-day window, 2026-08-20 is the earliest point the rule can evaluate.
 
 ## Per-torrent cardinality
 
-The qBittorrent exporter emits about 18 series per torrent. At 1,834 torrents that was 36,427
-series, 5.3% of the cluster's active series, and 30,905 were read by nothing. Series key on the
-torrent name, so every cull and grab churns the set. `ENABLE_HIGH_CARDINALITY` does not govern the
-base per-torrent gauges, so `servicemonitor.yaml` drops them at ingest (to 5,522 series).
+The qBittorrent exporter emits about 18 series per torrent. At 1,834 torrents that came to 36,427
+series, 5.3% of the cluster's active series, and nothing read 30,905 of them. The series are keyed
+on the torrent name, so every cull and every new download replaces part of the set.
+`ENABLE_HIGH_CARDINALITY` does not control these base per-torrent gauges, so `servicemonitor.yaml`
+drops them at ingest, which leaves 5,522 series.
 
-- It is a drop-list. Whether Prometheus exempts the synthetic `up` and `scrape_*` series from
-  `metric_relabel_configs` is undocumented, and a keep-list that ate `up` would silence
-  `SeedboxQbittorrentExporterDown`, `seedbox:up:ratio` and the availability panel.
-- `qbittorrent_torrent_states` is an aggregate (its `name` label is the state) that feeds a panel;
-  a regular expression written as `qbittorrent_torrent_.+` would eat it.
-- `size_bytes`, `ratio` and `total_uploaded_bytes` stay because live panels and
-  `SeedboxDeadWeightHigh` read them. Drop them too if those consumers go.
+- The relabelling drops named metrics and keeps the rest. Prometheus does not document whether
+  `metric_relabel_configs` can remove the synthetic `up` and `scrape_*` series. A keep-list that
+  removed `up` would silence `SeedboxQbittorrentExporterDown`, `seedbox:up:ratio` and the
+  availability panel.
+- `qbittorrent_torrent_states` is an aggregate whose `name` label holds the state, and a dashboard
+  panel reads it. A regular expression written as `qbittorrent_torrent_.+` would remove it.
+- `size_bytes`, `ratio` and `total_uploaded_bytes` stay because dashboard panels and
+  `SeedboxDeadWeightHigh` read them. If those readers go, drop these metrics too.
 
-## Container one-shots
+## One-shot containers
 
-Restore and config inits run, exit 0 and stay exited. They carry the container label
-`alerts.oneshot=true`, which `SeedboxContainerDown` excludes. A name-matching regular expression did this job until
-2026-08-23 and missed an init named `-init-` rather than `-restore-`. Intent cannot be derived from
-the exporter, which publishes no exit code or restart policy. A new one-shot without the label pages,
-the safe failure direction.
+Restore and config init containers run, exit 0 and stay exited. Each carries the container label
+`alerts.oneshot=true`, and `SeedboxContainerDown` excludes that label. Until 2026-08-23 a
+name-matching regular expression did this job, and it missed an init named `-init-` instead of
+`-restore-`. The exporter publishes no exit code or restart policy, so the intent has to be
+declared on the container. A new one-shot container without the label will page, which is the
+safer way to fail.

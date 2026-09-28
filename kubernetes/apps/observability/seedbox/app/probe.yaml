@@ -5,8 +5,8 @@ kind: Probe
 metadata:
   name: seedbox-public
 spec:
-  # Public IP, off the tailnet: SeedboxDown means box down rather than a DERP blip.
-  # SSH: reliably open and firewalled to stay so.
+  # The public IP bypasses the tailnet, so SeedboxDown fires for a real outage and not a DERP blip.
+  # Port 22 is reliably open and firewalled to stay that way.
   jobName: seedbox-public
   interval: 1m
   module: tcp_connect

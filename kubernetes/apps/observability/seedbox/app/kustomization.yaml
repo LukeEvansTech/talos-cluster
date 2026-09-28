@@ -19,5 +19,5 @@ configMapGenerator:
 generatorOptions:
   disableNameSuffixHash: true
   annotations:
-    # Keeps Grafana's ${DS_PROMETHEUS} and $__rate_interval macros from being blanked.
+    # This keeps Grafana's ${DS_PROMETHEUS} and $__rate_interval macros from being blanked.
     kustomize.toolkit.fluxcd.io/substitute: disabled

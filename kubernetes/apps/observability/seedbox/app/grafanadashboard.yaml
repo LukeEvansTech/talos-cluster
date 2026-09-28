@@ -1,5 +1,5 @@
 ---
-# Explicit [5m] windows: $__rate_interval assumes a 15s scrape, too narrow for 60s jobs (#3919).
+# $__rate_interval assumes a 15s scrape and misses 60s jobs, so panels use a fixed [5m] (#3919).
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/grafana.integreatly.org/grafanadashboard_v1beta1.json
 apiVersion: grafana.integreatly.org/v1beta1
 kind: GrafanaDashboard
