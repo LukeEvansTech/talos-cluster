@@ -10,10 +10,8 @@ spec:
     labels:
       app.kubernetes.io/name: *app
   components:
-    # kopiur trial (local NFS CSI snapshots) runs ALONGSIDE VolSync, which still
-    # owns this PVC + the offsite R2 copy. Keep scoped to trial apps: the kopiur
-    # webhook is failurePolicy: Fail, so this Kustomization's apply depends on
-    # the kopiur operator being healthy.
+    # kopiur trial (local NFS CSI snapshots) runs alongside VolSync, which owns the PVC and R2 copy.
+    # Scoped to trial apps: kopiur's webhook is failurePolicy: Fail, so apply needs kopiur healthy.
     - ../../../../components/kopiur/backup
     - ../../../../components/volsync
   dependsOn:
