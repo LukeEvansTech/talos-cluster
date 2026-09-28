@@ -47,10 +47,8 @@ spec:
               requests:
                 cpu: 500m
               limits:
-                # Baseline sits flat at ~390Mi; a subtitle-sync spike on large
-                # 4K files occasionally blows past the limit and OOM-kills
-                # (~2x/30d, self-heals). 1Gi->2Gi (#3383) cut the rate but a
-                # big-enough spike still breached; 3Gi buys more headroom.
+                # Baseline ~390Mi; a subtitle-sync spike on large 4K files still OOMs at 2Gi
+                # (#3383) about 2x/30d and self-heals. 3Gi buys more headroom (#3469).
                 memory: 3Gi
           subcleaner:
             image:
@@ -60,9 +58,8 @@ spec:
               GITSYNC_REPO: https://github.com/KBlixt/subcleaner
               GITSYNC_REF: master
               GITSYNC_PERIOD: 24h
-              # Sync into the shared `subcleaner` volume mounted at /opt so the app
-              # container resolves /opt/subcleaner/subcleaner.py (git-sync creates the
-              # `subcleaner` symlink -> current worktree by default).
+              # GITSYNC_ROOT/LINK put the synced repo at /opt/subcleaner (git-sync's default
+              # symlink), where the app container expects subcleaner.py.
               GITSYNC_ROOT: /opt
               GITSYNC_LINK: subcleaner
             resources:
