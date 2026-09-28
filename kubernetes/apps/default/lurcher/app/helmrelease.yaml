@@ -36,6 +36,13 @@ spec:
               # openrouter/auto cloud fallback. LLM_API_KEY arrives via lurcher-secret.
               LLM_BASE_URL: http://litellm.ai.svc.cluster.local:4000/v1
               LLM_MODEL: self-hosted
+              # Node sizes its heap to ~half the cgroup limit, so 512Mi meant a
+              # ~256MB heap. From 2026-09-16 every daily run died at that ceiling
+              # ("Reached heap limit") straight after the Quality Contracts dump
+              # (~24k listings, up from ~1k before that source) and sent nothing
+              # for 12 days. Pinned explicitly so the ceiling is visible here and
+              # stays under the container limit with room for native memory.
+              NODE_OPTIONS: --max-old-space-size=768
             envFrom:
               - secretRef:
                   name: lurcher-secret
@@ -72,7 +79,7 @@ spec:
                 cpu: 25m
                 memory: 128Mi
               limits:
-                memory: 512Mi
+                memory: 1Gi
     defaultPodOptions:
       automountServiceAccountToken: false
       securityContext:
