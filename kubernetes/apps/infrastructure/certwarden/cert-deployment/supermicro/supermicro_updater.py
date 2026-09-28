@@ -19,8 +19,8 @@ import re
 import sys
 from datetime import datetime
 
-import requests
-from OpenSSL import crypto as openssl_crypto
+import requests  # pylint: disable=import-error  # missing from the linter image
+from OpenSSL import crypto as openssl_crypto  # pylint: disable=import-error  # missing from image
 
 REQUEST_TIMEOUT = 30.0
 
