@@ -145,8 +145,7 @@ spec:
               - name: "{{ .Release.Name }}-server"
                 port: *serverPort
       web:
-        # Homepage discovers annotated HTTPRoutes (not Services). The route is
-        # named yourspotify-web, so pin the pod selector to the release name.
+        # gethomepage.dev/app is pinned to yourspotify; the route itself is named yourspotify-web.
         annotations:
           gethomepage.dev/enabled: "true"
           gethomepage.dev/app: yourspotify
