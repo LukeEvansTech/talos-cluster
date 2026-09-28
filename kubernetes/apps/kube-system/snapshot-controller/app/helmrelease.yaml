@@ -9,8 +9,8 @@ spec:
   chartRef:
     kind: OCIRepository
     name: snapshot-controller
-  # Helm never upgrades or deletes this chart's CRDs; apply them by hand after an appVersion
-  # bump. See docs/docs/apps/snapshot-controller.md.
+  # This chart ships CRDs in crds/; the root Kustomization's CreateReplace patch keeps them
+  # current on every install and upgrade. See docs/docs/apps/snapshot-controller.md.
   values:
     replicaCount: 2
     monitoring:

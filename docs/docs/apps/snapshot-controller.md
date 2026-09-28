@@ -7,14 +7,17 @@ that backs `VolumeSnapshot` and `VolumeSnapshotClass` resources for the cluster'
 
 ## CRD lifecycle
 
-The chart ships its CRDs under `crds/`, which Helm installs once and never upgrades or deletes.
-This replaced an older postRenderer that stamped `helm.sh/resource-policy: keep` onto templated
-CRDs from a previous chart, a workaround this chart's packaging no longer needs.
+The chart ships its CRDs under `crds/`. The root Kustomization
+(`kubernetes/flux/cluster/ks.yaml`) patches every HelmRelease with `install.crds: CreateReplace`
+and `upgrade.crds: CreateReplace`, so helm-controller server-side applies this chart's `crds/` on
+every install and upgrade, keeping the CRDs current without a manual step.
 
-The trade-off is that Helm will not pick up CRD changes on its own. After bumping the chart's
-`appVersion`, apply the matching CRDs by hand:
+This chart replaced an older one that templated its CRDs, guarded by a postRenderer stamping
+`helm.sh/resource-policy: keep` onto them. Shipping CRDs in `crds/` instead of templating them
+removed the need for that workaround.
 
-```bash
-helm show crds oci://ghcr.io/home-operations/charts/snapshot-controller \
-  | kubectl apply --server-side -f -
-```
+A manual apply, `helm show crds oci://ghcr.io/home-operations/charts/snapshot-controller |
+kubectl apply --server-side -f -`, is only the break-glass path for a HelmRelease that wedges
+before completing its CRD pass. See
+[KB-029](../troubleshooting/kb/029-chart-migration-deletes-keep-annotated-crds.md) for that
+recovery procedure and the CRD-deletion incident it covers.
