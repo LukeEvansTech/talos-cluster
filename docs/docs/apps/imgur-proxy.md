@@ -25,10 +25,12 @@ capability and carry the same `PUID`/`PGID`/`gluetun-tmp` workaround.
 
 ## The blocklist and the memory limit
 
-`BLOCK_MALICIOUS` defaults to `true` and is a live filter, not dormant config. It stays on for
-qbittorrent, sabnzbd and prowlarr, whose resolvers see real tracker and indexer traffic. It is off
-only here, because nginx's SNI map already drops every lookup that isn't `.imgur.com` before a
-connection opens, so the blocklist download has nothing left to filter.
+`BLOCK_MALICIOUS` defaults to `true` and is a live filter, not dormant config. It is off only here,
+because nginx's SNI map already drops every lookup that isn't `.imgur.com` before a connection
+opens, so the blocklist download has nothing left to filter. qbittorrent, sabnzbd and prowlarr leave
+it at the default; all three also set `DNS_KEEP_NAMESERVER: "on"`, which keeps CoreDNS as their
+resolver rather than gluetun's own, so whether the filter sees their traffic at all is a separate
+question this page does not answer.
 
 Turning it off was also the main response to an OOM crashloop: the sidecar OOMKilled 240+ times at
 a 256Mi limit. cAdvisor never sampled this container above ~86Mi in 7 days (steady state ~26Mi),
