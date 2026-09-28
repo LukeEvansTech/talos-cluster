@@ -6,8 +6,7 @@ metadata:
   name: openrouter-auto
   namespace: ai
 spec:
-  # Cloud fallback for the self-hosted group (see litellmproxy.yaml
-  # routerSettings.fallbacks).
+  # Cloud fallback for the self-hosted group (litellmproxy.yaml routerSettings.fallbacks).
   modelName: openrouter/auto
   proxyRef: litellm
   params:

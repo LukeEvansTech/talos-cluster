@@ -55,6 +55,111 @@ See the [AI / LLM stack](../architecture/ai-llm-stack.md) page for how it fits t
 - The dashboard ConfigMap and every `LiteLLMProxy`/`LiteLLMModel`/`LiteLLMMCPServer` CR set
   `metadata.namespace` explicitly (Checkov CKV_K8S_21 for the ConfigMap; the CRs are namespaced by
   convention with the rest of the app).
+- **Liveness `initialDelaySeconds: 180`:** the `mcp_semantic_tool_filter` embeds the whole MCP
+  tool registry synchronously on every start into a `LocalIndex` that is never persisted. A cold
+  start measured ~17s with the embedding backend idle and 104s when it was busy. The previous
+  30s + 6x10s probe killed the container at ~90s, before it served a request; because the proxy
+  exits 0 on SIGTERM this never showed as `CrashLoopBackOff`, only `KubePodNotReady`, and each
+  kill re-queued the whole registry onto the embedder's two slots, making the next start slower
+  still: 62 restarts in two hours
+  ([#5058](https://github.com/LukeEvansTech/talos-cluster/pull/5058)).
+  The `LiteLLMProxy` CRD has no `startupProbe` field, so `initialDelaySeconds` is the only knob;
+  `periodSeconds`/`failureThreshold` still apply once the pod is past that window.
+
+## Timeouts
+
+`request_timeout` and `TimeoutErrorRetries` in `litellmproxy.yaml` are tuned together:
+
+- `request_timeout: 1500` must stay under the tightest caller budget, repowiki's `LLM_TIMEOUT`
+  at 1800s (`kubernetes/apps/ai/repowiki/app/configmap.yaml`).
+- `TimeoutErrorRetries: 0` overrides the default `num_retries: 2` for timeouts only; every other
+  exception class still gets two retries. Without this override, a timing-out call burned three
+  times `request_timeout` before failing over, well past the point the caller had already given
+  up, and the retries just re-queued a doomed prompt onto the same two GPU slots that caused the
+  timeout in the first place. Retrying a timeout is close to useless here regardless, since
+  `self-hosted` has a single deployment (`llama-nvidia`): a retry re-queues onto the same GPU.
+
+## Alerting
+
+`prometheusrule.yaml` thresholds and windows:
+
+- Thresholds sit lower than a busier, multi-replica upstream default: with one replica,
+  `increase()` is the true event count, with no cross-replica summing, so small counts already
+  mean something.
+- The `*_fallbacks_total` counters only appear after the first fallback event (LiteLLM registers
+  them lazily), so `LiteLLMFallbackChainExhausted` and `LiteLLMModelFailover` carry no `absent()`
+  guard: their absence is the healthy steady state, not a stale metric.
+- `LiteLLMDeploymentOutage`'s `rate()` window (3m) is kept well under its `for:` (10m) on
+  purpose. A window at or above `for:` lets one isolated failure extrapolate `rate() > 0` across
+  the whole `for:` period, so the alert would keep firing after the deployment recovered. A
+  shorter window needs failures recurring in every window across the full `for:` duration.
+- `InferenceServiceDown` reads `up` from the llmkube-models ServiceMonitor and aggregates with
+  `max by (service)`, so it only fires once every scrape endpoint of a backend is unreachable.
+  Its 15m `for:` absorbs pod restarts and cold GGUF loads; a fully-scaled-to-zero pod drops its
+  endpoint entirely and goes stale rather than reporting `up == 0`, which this alert doesn't cover.
+
+## Adding a cloud provider
+
+`litellm/app/models/kustomization.yaml` used to carry these as commented-out `LiteLLMModel`
+templates from Jory's fleet; they're kept here instead, disabled until wired up so a missing key
+can't fail the deploy. To enable one: add its key to the `litellm` 1Password item, add the
+matching line to `externalsecret.yaml`'s `target.template.data`, then add the `LiteLLMModel` CR
+to `litellm/app/models/` and list it in that directory's `kustomization.yaml`.
+
+```yaml
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMModel
+metadata:
+  name: kimi-k2 # Moonshot
+  namespace: ai
+spec:
+  modelName: kimi-k2
+  proxyRef: litellm
+  params:
+    model: moonshot/kimi-k2
+    apiBase: https://api.moonshot.ai/v1
+    apiKey: os.environ/MOONSHOT_API_KEY
+  info:
+    mode: chat
+    supportsFunctionCalling: true
+---
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMModel
+metadata:
+  name: minimax # MiniMax (Anthropic-format)
+  namespace: ai
+spec:
+  modelName: MiniMax
+  proxyRef: litellm
+  params:
+    model: minimax/MiniMax-M2
+    apiBase: https://api.minimax.io/anthropic/v1/messages
+    apiKey: os.environ/MINIMAX_API_KEY
+    additional:
+      cache_control_injection_points:
+        - { location: message, role: system }
+        - { location: message, index: -1 }
+  info:
+    mode: messages
+    supportsFunctionCalling: true
+    supportsVision: true
+---
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMModel
+metadata:
+  name: zen-glm # OpenCode "zen" (one key, many models)
+  namespace: ai
+spec:
+  modelName: zen/glm
+  proxyRef: litellm
+  params:
+    model: openai/glm-4.6
+    apiBase: https://opencode.ai/zen/go/v1
+    apiKey: os.environ/OPENCODE_API_KEY
+  info:
+    mode: chat
+    supportsFunctionCalling: true
+```
 
 ## Operational notes
 

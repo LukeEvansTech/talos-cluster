@@ -6,17 +6,9 @@ metadata:
   name: litellm
 spec:
   groups:
-    # LiteLLM router health, built on the litellm_deployment_* counters the
-    # existing ServiceMonitor already scrapes at /metrics/. Thresholds are tuned
-    # down from a busier upstream for this single-replica, single-self-hosted-
-    # backend gateway: with one replica each increase() is the true event count
-    # (no cross-replica summing), so small counts are already meaningful.
-    #
-    # Note on absent(): the *_fallbacks_total series only materialise after the
-    # first fallback event (LiteLLM registers them lazily). increase()>N over an
-    # empty series simply yields nothing, so these alerts stay silent until a
-    # real fallback happens. No absent() liveness guard is added on them, since
-    # their absence is the healthy steady state, not a fault.
+    # Thresholds assume one replica, so increase() counts real events, not a cross-replica sum.
+    # *_fallbacks_total appears only after the first fallback; absence is healthy, not stale
+    # (docs/apps/litellm.md Alerting).
     - name: litellm.rules
       rules:
         - alert: LiteLLMFallbackChainExhausted
@@ -43,14 +35,8 @@ spec:
           labels:
             severity: warning
         - alert: LiteLLMDeploymentOutage
-          # deployment_state latches at 2 via the cooldown callback's pool label and
-          # never resets (success callbacks label by requested model). Require
-          # ongoing failures so a recovered deployment doesn't alert forever. The
-          # rate() window is kept well under the for: duration on purpose: with a
-          # window >= for:, a single isolated failure extrapolates rate()>0 across
-          # the whole for: period and still fires the alert once it recovers. A
-          # short window instead needs failures recurring inside every window for
-          # the full for: duration before it trips.
+          # rate()'s 3m window stays under the 10m for:, so one failure can't
+          # extrapolate positive for the whole period (docs/apps/litellm.md Alerting).
           expr: |-
             max by (litellm_model_name) (litellm_deployment_state) >= 2
             and on (litellm_model_name)
@@ -74,15 +60,9 @@ spec:
               (auth/quota, check the upstream key or plan cap)
           labels:
             severity: warning
-    # Direct backend-down signal for the llmkube InferenceServices that back
-    # `self-hosted`. `up` is the per-target scrape health already produced by the
-    # llmkube-models ServiceMonitor (service label = the InferenceService's
-    # Service name, e.g. llama-nvidia). max by (service)
-    # collapses multiple scrape endpoints of a backend so it only fires when
-    # every scrape of that backend is unreachable. A long `for:` absorbs pod
-    # restarts and cold GGUF loads (the startup probe allows a lengthy first
-    # load); a fully-scaled-to-zero pod drops its endpoint and would go stale
-    # rather than up==0, which is out of scope for this cheap check.
+    # up comes from the llmkube-models ServiceMonitor; max by (service) fires only
+    # when every endpoint of a backend is down. 15m absorbs restarts and cold GGUF
+    # loads; a scaled-to-zero pod goes stale, not up==0 (docs/apps/litellm.md Alerting).
     - name: llmkube.rules
       rules:
         - alert: InferenceServiceDown

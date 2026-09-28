@@ -126,9 +126,9 @@ truth.
   within the group.
 - **Add a cloud provider**: add the key to the `litellm` 1Password item, add a line to
   `externalsecret.yaml`'s `target.template.data`, then add a `LiteLLMModel` CR under
-  `litellm/app/models/` (commented examples for Jory's set live in that directory's
-  `kustomization.yaml`). Don't reference an `os.environ/KEY` that isn't in the secret. The pod env
-  read fails at startup.
+  `litellm/app/models/` (ready-made templates for Jory's set are in
+  [LiteLLM: Adding a cloud provider](../apps/litellm.md#adding-a-cloud-provider)). Don't reference
+  an `os.environ/KEY` that isn't in the secret. The pod env read fails at startup.
 - **Fallbacks**: `litellmproxy.yaml`'s `routerSettings.fallbacks` is a list of
   `{model_name: [fallback, …]}`.
 - **A consumer's scoped key (same namespace)**: add a `LiteLLMVirtualKey` CR in the consumer's own

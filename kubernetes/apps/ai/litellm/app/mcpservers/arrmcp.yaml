@@ -6,10 +6,8 @@ metadata:
   name: arrmcp
   namespace: ai
 spec:
-  # bardesss/arr-mcp: the whole media stack (radarr/sonarr/bazarr/prowlarr/
-  # seerr/sabnzbd/qbittorrent/plex) behind one native streamable-http endpoint,
-  # so no ToolHive proxy hop. Unlike every sibling here it authenticates:
-  # `/mcp` refuses anything without `Authorization: Bearer <token>`.
+  # bardesss/arr-mcp fronts the whole media stack directly, no ToolHive proxy hop, and
+  # unlike its siblings here /mcp requires a bearer token.
   proxyRef: litellm
   url: http://arrmcp.ai.svc.cluster.local:6060/mcp
   authType: bearer_token

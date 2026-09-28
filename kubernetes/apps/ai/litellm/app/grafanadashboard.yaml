@@ -20,10 +20,7 @@ kind: GrafanaDashboard
 metadata:
   name: litellm-detail
 spec:
-  # Bespoke dashboard from Jory's fleet (joryirving/home-ops), scoped to this
-  # gateway: request/latency/error panels keyed on litellm_* series, no
-  # __inputs block to templatize (uses a plain ${datasource} template
-  # variable instead), so no `datasources` field here.
+  # From Jory's fleet; no __inputs block, so no datasources field (uses a plain ${datasource} var).
   allowCrossNamespaceImport: true
   instanceSelector:
     matchLabels:

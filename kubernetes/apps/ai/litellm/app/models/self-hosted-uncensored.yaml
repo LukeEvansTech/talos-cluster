@@ -6,11 +6,8 @@ metadata:
   name: self-hosted-uncensored
   namespace: ai
 spec:
-  # Alias for the SAME llama-nvidia backend (the model is abliterated, so the
-  # dedicated uncensored InferenceService is gone). Kept as its own group
-  # because existing clients (opencode etc.) keep working and because its
-  # fallback semantics differ: deliberately NOT in routerSettings.fallbacks.
-  # A cloud fallback would reintroduce refusals and defeat the point.
+  # Same backend as self-hosted; kept separate since it has no cloud fallback by design
+  # (docs/architecture/ai-llm-stack.md Model groups).
   modelName: self-hosted-uncensored
   proxyRef: litellm
   params:

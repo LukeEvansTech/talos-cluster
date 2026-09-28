@@ -6,7 +6,6 @@ metadata:
   name: hamcp
   namespace: ai
 spec:
-  # Home Assistant tools (ha-mcp in ha-mcp-web mode). Native streamable-http
-  # container like seerr, so the Service is mcp-hamcp:8080 directly.
+  # ha-mcp runs native streamable-http (like seerr), so this points straight at mcp-hamcp:8080.
   proxyRef: litellm
   url: http://mcp-hamcp.ai.svc.cluster.local:8080/mcp
