@@ -97,10 +97,11 @@ libraries:
       - delete_collections:
           configured: false
           managed: true
+      # Ratings come from Plex itself: the Movies library's ratings source is
+      # Rotten Tomatoes. A per-item MDBList rating update cannot fit the free
+      # 1,000-request daily quota and stalls the whole run until midnight UTC.
       - schedule: weekly(sunday)
         mass_genre_update: tmdb
-        mass_audience_rating_update: imdb
-        mass_critic_rating_update: mdb_tomatoes
 
   TV:
     template_variables:
@@ -173,10 +174,10 @@ libraries:
       - delete_collections:
           configured: false
           managed: true
+      # IMDb audience rating is free. No MDBList critic rating: see Movies.
       - schedule: weekly(sunday)
         mass_genre_update: tmdb
         mass_audience_rating_update: imdb
-        mass_critic_rating_update: mdb_tomatoes
 
 webhooks:
   error: http://chaski.default.svc.cluster.local:8080/hooks/kometa-error
