@@ -90,18 +90,15 @@ spec:
             namespace: network
 
     persistence:
-      # App data persistence (settings, credentials if not using env vars)
       data:
         existingClaim: "{{ .Release.Name }}"
         globalMounts:
           - path: /data
-      # Home Assistant live config - mounts the same PVC as homeassistant
-      # Note: This shares the PVC with Home Assistant. Writes only occur during restore operations.
+      # Shares the homeassistant PVC; this app only writes to it during a restore.
       config:
         existingClaim: homeassistant
         globalMounts:
           - path: /config
-      # Backup storage - configure NFS path to your backup location
       media:
         type: nfs
         server: ${SECRET_STORAGE_SERVER:-localhost}
