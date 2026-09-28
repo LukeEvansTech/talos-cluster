@@ -54,12 +54,12 @@ loudly (hits a dead address) instead of silently succeeding against the wrong ho
   Brother printer fleet, polled by `snmp-exporter` over SNMPv3. Real addresses live in the
   `cluster-secrets` 1Password item.
 
-## volsync: shared kopia cache size
+## volsync: shared kopia cache size (NFS path only)
 
-`cacheCapacity: 16Gi` in the `volsync` component's `nfs` and `remote` ReplicationSource templates
-is a shared size, not a per-app one: the cache holds the shared kopia repository's index set, so
-every mover converges on the same footprint regardless of the app's own data size. A tiny app
-peaks within 0.1Gi of a large one.
+`cacheCapacity: 16Gi` in the `volsync` component's `nfs` ReplicationSource template is a shared
+size, not a per-app one: the cache holds the shared kopia repository's index set, so every mover
+converges on the same footprint regardless of the app's own data size. A tiny app peaks within
+0.1Gi of a large one.
 
 That footprint grows about 25MiB a day with the repository (7.23Gi on 2026-08-29, 7.57Gi on
 2026-09-12), so a size chosen against today's number expires: the old 8Gi per-app override went
@@ -68,3 +68,9 @@ at the measured rate. `miroir-local` is thin-provisioned (1.1TiB allocated again
 provisioned) and real usage stays at the shared ~7.5Gi, so declaring more capacity costs almost
 nothing on disk. Raising this value only buys time; the lever on the growth itself is kopia
 retention, not cache size or more frequent maintenance.
+
+This does not apply to the `remote` templates. Those use `spec.restic` with a distinct
+`RESTIC_REPOSITORY` per app (`kubernetes/components/volsync/remote/externalsecret.yaml` templates
+it with a `/${APP}` suffix), so there is no shared repository index and this growth math does not
+transfer. Their `cacheCapacity: 16Gi` is the same literal default, unverified against any
+per-app-repository growth measurement.

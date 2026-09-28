@@ -12,7 +12,8 @@ spec:
       - ${VOLSYNC_ACCESSMODES:=ReadWriteOnce}
     cacheAccessModes:
       - ReadWriteOnce
-    # See docs/docs/apps/components.md for why 16Gi and not a per-app size.
+    # Default cache size, not measured against this per-app restic repository's growth; see
+    # docs/docs/apps/components.md.
     cacheCapacity: ${VOLSYNC_CACHE_CAPACITY:=16Gi}
     cacheStorageClassName: miroir-local
     capacity: ${VOLSYNC_CAPACITY:=5Gi}
