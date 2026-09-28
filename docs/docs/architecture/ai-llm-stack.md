@@ -45,7 +45,7 @@ idle, instead of a fixed 64k-per-slot cap.
 Weight files are declared as `hf://` URIs pointing to single-file public GGUFs on Hugging Face.
 llmkube downloads and caches them on the shared CephFS RWX `modelCache` PVC (`ceph-filesystem`
 storage class, 100Gi: ~35Gi of GGUFs today plus headroom), so a cold start auto-heals without
-manual staging. This PVC replaced per-model RWO `ceph-block` PVCs plus curl staging Jobs, which
+manual staging. This PVC replaced per-model RWO `ceph-block` PVCs plus cURL staging Jobs, which
 existed only because of the "Talos has no ceph kernel module" misdiagnosis (KB-025); CephFS
 mounts natively. Weights are re-downloadable, so the cache carries no VolSync.
 
@@ -84,7 +84,7 @@ recipe (tunable 2-4); the gain shrinks as concurrent slots rise, which is fine a
 
 The mmproj projector stays on the GPU, unlike Jory's `--no-mmproj-offload` (added in #4579 to
 free ~0.6Gi of VRAM by moving it to host RAM). A post-merge measurement on 2026-08-25 found that
-tradeoff wrong for this cluster: three vision requests against a 64x64 image took 59.7s / 53.8s /
+trade-off wrong for this cluster: three vision requests against a 64x64 image took 59.7s / 53.8s /
 53.3s off-GPU (correct answers, all CPU-bound on the 1024-token image encode) versus low
 single-digit seconds with the projector on the GPU. `loupe` depends on this vision path, so
 latency wins over the 0.6Gi. `--image-min-tokens 1024` (Jory's value) keeps vision quality
