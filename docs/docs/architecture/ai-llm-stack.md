@@ -6,16 +6,16 @@ re-targeted to this cluster: **NVIDIA L4 GPUs + llama.cpp (llmkube)**.
 
 ## Components
 
-| App           | Role                                                                               | Status |
-| ------------- | ---------------------------------------------------------------------------------- | ------ |
-| `litellm`     | OpenAI-compatible gateway: routing, fallbacks, cache, metrics, MCP                 | live   |
-| `llmkube`     | llama.cpp model-serving operator (CUDA); 1 model active                            | live   |
-| `open-webui`  | chat UI (SearXNG web search, Dragonfly websockets)                                 | live   |
-| `toolhive`    | MCP servers (9 read-only) + a VirtualMCPServer gateway                             | live   |
-| `memini`      | agent long-term memory (SQLite + CPU embed/rerank)                                 | live   |
-| `hermes`      | NousResearch hermes-agent gateway + dashboard (memini-backed, ToolHive VMCP-wired) | live   |
-| `hermeswebui` | chat web frontend for hermes (via its API server)                                  | live   |
-| `repowiki`    | AI-generated per-repository wiki (mkdocs-material + CronJob)                       | live   |
+| App           | Role                                                                               | Status   |
+| ------------- | ---------------------------------------------------------------------------------- | -------- |
+| `litellm`     | OpenAI-compatible gateway: routing, fallbacks, cache, metrics, MCP                 | live     |
+| `llmkube`     | llama.cpp model-serving operator (CUDA); 1 model active                            | live     |
+| `open-webui`  | chat UI (SearXNG web search, Dragonfly websockets)                                 | live     |
+| `toolhive`    | MCP servers (9 read-only) + a VirtualMCPServer gateway                             | live     |
+| `memini`      | agent long-term memory (SQLite + CPU embed/rerank)                                 | live     |
+| `hermes`      | NousResearch hermes-agent gateway + dashboard (memini-backed, ToolHive VMCP-wired) | live     |
+| `hermeswebui` | chat web frontend for hermes (via its API server)                                  | live     |
+| `repowiki`    | AI-generated per-repository wiki (mkdocs-material + CronJob)                       | live     |
 | `foreman`     | LLMKube coder/gate/reviewer control plane. Trialled, manifests in `.archive/`      | archived |
 
 LiteLLM persists to CNPG `postgres18` (`litellm` db) and caches in Dragonfly. Internal-only route
@@ -84,7 +84,8 @@ and the `self-hosted` model (with the `openrouter/auto` cloud fallback in scope)
 All five live outside the `ai` namespace, so none of them mounts an `ai` Secret directly. Each
 gets an operator-issued **scoped** key instead of the account-wide master key: a
 `LiteLLMVirtualKey` CR in `litellm/app/virtualkeys/<app>.yaml` (`ai` namespace, scoped to
-`self-hosted` + `openrouter/auto`) mints the key and writes it to an in-namespace Secret; a
+`self-hosted` + `openrouter/auto` so the router's cloud fallback doesn't 401 the key when the
+local backend cools down) mints the key and writes it to an in-namespace Secret; a
 paired `PushSecret` then writes that key back to the `litellm` 1Password item as property
 `LITELLM_<APP>_API_KEY` (`updatePolicy: Replace`, `refreshInterval: 1h`). The consumer's own
 ExternalSecret extracts that property like any other `litellm`-item field, with no cross-namespace
@@ -126,9 +127,9 @@ truth.
   within the group.
 - **Add a cloud provider**: add the key to the `litellm` 1Password item, add a line to
   `externalsecret.yaml`'s `target.template.data`, then add a `LiteLLMModel` CR under
-  `litellm/app/models/` (commented examples for Jory's set live in that directory's
-  `kustomization.yaml`). Don't reference an `os.environ/KEY` that isn't in the secret. The pod env
-  read fails at startup.
+  `litellm/app/models/` (ready-made templates for Jory's set are in
+  [LiteLLM: Adding a cloud provider](../apps/litellm.md#adding-a-cloud-provider)). Don't reference
+  an `os.environ/KEY` that isn't in the secret. The pod env read fails at startup.
 - **Fallbacks**: `litellmproxy.yaml`'s `routerSettings.fallbacks` is a list of
   `{model_name: [fallback, …]}`.
 - **A consumer's scoped key (same namespace)**: add a `LiteLLMVirtualKey` CR in the consumer's own
