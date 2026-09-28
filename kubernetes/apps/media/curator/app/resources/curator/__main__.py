@@ -857,8 +857,8 @@ def cmd_execute(args: argparse.Namespace) -> int:
             f"deleted={len(result.deleted)} skipped={len(result.skipped)} "
             f"failed={len(result.failed)} uncertain={len(result.uncertain)}"
         )
-        # A failed deletion is a safe no-op to retry; an uncertain one may have landed, so
-        # it's left for the next run to reconcile by looking (docs/apps/curator.md).
+        # A failed deletion is a safe no-op to retry; an uncertain one is recorded and left,
+        # since a retry could double up on a DELETE that already landed (docs/docs/apps/curator.md).
         if result.uncertain:
             log(
                 f"exiting non-zero: {len(result.uncertain)} deletion(s) could not be "
