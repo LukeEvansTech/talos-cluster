@@ -12,5 +12,7 @@ configMapGenerator:
     namespace: media
     files:
       - config.yml=./resources/config.yml
+      - review-movies.yml=./resources/review-movies.yml
+      - review-tv.yml=./resources/review-tv.yml
 generatorOptions:
   disableNameSuffixHash: true

@@ -1,0 +1,18 @@
+---
+# Owner-only review collection: everything Kometa asked Radarr or Sonarr to add
+# (tag "kometa") that has been in the library for 30 days without a single
+# play. Kept off every Home and Recommended row; the per-source tags
+# (kometa-top250, kometa-bestpicture, kometa-trending) say which list added it.
+collections:
+  Kometa Adds - Unwatched After 30 Days:
+    sonarr_taglist: kometa
+    filters:
+      added.not: 30
+      plays.lt: 1
+    sync_mode: sync
+    collection_mode: hide
+    visible_home: false
+    visible_shared: false
+    visible_library: false
+    sort_title: "~Kometa Adds"
+    summary: Titles Kometa added from the IMDb Top 250, Oscar Best Picture and TMDb Trending lists that nobody has watched 30 days after they arrived.

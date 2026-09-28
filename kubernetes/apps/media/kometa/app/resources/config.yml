@@ -26,11 +26,17 @@ libraries:
           visible_home_trending: true
           visible_shared_trending: true
           visible_library_trending: true
+          radarr_add_missing_trending: true
+          radarr_search_trending: true
+          radarr_tag_trending: kometa, kometa-trending
       - default: imdb
         template_variables:
           use_lowest: false
           visible_library_top: true
           visible_library_popular: true
+          radarr_add_missing_top: true
+          radarr_search_top: true
+          radarr_tag_top: kometa, kometa-top250
       - default: tautulli
         template_variables:
           use_watched: false
@@ -67,6 +73,9 @@ libraries:
       - default: oscars
         schedule: weekly(sunday)
         template_variables:
+          radarr_add_missing_best_picture: true
+          radarr_search_best_picture: true
+          radarr_tag_best_picture: kometa, kometa-bestpicture
           data:
             starting: latest-10
             ending: latest
@@ -76,6 +85,7 @@ libraries:
           data:
             starting: latest-10
             ending: latest
+      - file: /config/review-movies.yml
       - default: golden
         schedule: weekly(sunday)
         template_variables:
@@ -120,10 +130,18 @@ libraries:
           visible_home_trending: true
           visible_shared_trending: true
           visible_library_trending: true
+          sonarr_add_missing_trending: true
+          sonarr_search_trending: true
+          sonarr_monitor_trending: all
+          sonarr_tag_trending: kometa, kometa-trending
       - default: imdb
         template_variables:
           visible_library_top: true
           visible_library_popular: true
+          sonarr_add_missing_top: true
+          sonarr_search_top: true
+          sonarr_monitor_top: all
+          sonarr_tag_top: kometa, kometa-top250
       - default: tautulli
         template_variables:
           use_watched: false
@@ -136,6 +154,7 @@ libraries:
         schedule: weekly(sunday)
         template_variables:
           region: GB
+      - file: /config/review-tv.yml
       - default: network
         schedule: weekly(sunday)
         template_variables:
@@ -244,8 +263,11 @@ tautulli:
   url: http://tautulli.media.svc.cluster.local
   apikey: <<TAUTULLI_API_KEY>>
 
-# Acquisition stays off until the second rollout step, which enables it for
-# the IMDb Top 250, Best Picture and Trending collections only.
+# Global add_missing stays off. Only IMDb Top 250, Oscar Best Picture and TMDb
+# Trending add missing titles (see their template_variables above), 2160p with
+# search on add, tagged "kometa" plus a per-source tag so each list's additions
+# can be found and judged in Radarr, Sonarr and the owner-only review
+# collection.
 radarr:
   url: http://radarr.media.svc.cluster.local
   token: <<RADARR_API_KEY>>

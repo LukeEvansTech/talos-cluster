@@ -82,6 +82,12 @@ spec:
           - path: /config/config.yml
             subPath: config.yml
             readOnly: true
+          - path: /config/review-movies.yml
+            subPath: review-movies.yml
+            readOnly: true
+          - path: /config/review-tv.yml
+            subPath: review-tv.yml
+            readOnly: true
       assets:
         type: emptyDir
         globalMounts:
