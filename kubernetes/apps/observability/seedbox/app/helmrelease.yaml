@@ -20,26 +20,18 @@ spec:
               repository: ghcr.io/martabal/qbittorrent-exporter
               tag: v2.0.3@sha256:bc4fa09481634ee894ebfb4d47c8aa239a32a12567b043afa01fa42a3075d1a5
             env:
-              # Seedbox qBittorrent WebUI via the tailscale egress Service (see ./egress.yaml).
               QBITTORRENT_BASE_URL: http://seedbox.observability.svc.cluster.local:8080
               QBITTORRENT_COOKIE_NAME: QBT_SID_8080
               EXPORTER_PORT: &port 9710
-              # 2026-07-08: the exporter did a PER-TORRENT tracker fetch (~500 qBit API calls,
-              # one per torrent). Under RAID-scrub iowait qBit is too slow to serve that, so the
-              # exporter blocked BEFORE opening :9710 → the (1s) liveness probe saw connection
-              # refused and killed it → crashloop, up=0, SeedboxQbittorrentExporterDown. Disabling
-              # the tracker features (no dashboard uses tracker metrics/labels) leaves one cheap
-              # bulk torrents/info call, so it binds and serves fast even while the box is busy.
+              # Per-torrent tracker fetches blocked startup under iowait and crashlooped it (2026-07-08); unused.
               ENABLE_TRACKER: "false"
               ENABLE_LABEL_WITH_TRACKER: "false"
-              # high-cardinality (qbittorrent_torrent_info + qbittorrent_tracker_info) also unused.
+              # Unused high-cardinality series.
               ENABLE_HIGH_CARDINALITY: "false"
             envFrom:
               - secretRef:
                   name: seedbox-qbittorrent-exporter-secret
-            # Default app-template probe (tcp :9710, timeout 1s, no delay, 3 failures) is too
-            # tight for this box: the exporter's startup qBit fetch can lag under torrent iowait,
-            # tripping liveness before it binds. Give it startup room so it isn't killed mid-fetch.
+            # Startup qBit fetch lags under iowait; the default 1s TCP probe killed it before it bound.
             probes:
               liveness:
                 enabled: true
