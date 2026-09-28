@@ -21,7 +21,9 @@ L2/L3/workload/application diagrams by continuously scanning the infrastructure.
   during a rollout. `SCANOPY_NAME: scanopy-codelooks` is a fixed static identity (previously
   derived from `spec.nodeName` when the daemon was a DaemonSet). `SCANOPY_INTERFACES=enp1s0np0`
   restricts L2 scanning to the physical LAN NIC, preventing the hostNetwork daemon from
-  auto-scanning Cilium pod/service CIDRs and saturating node conntrack.
+  auto-scanning Cilium pod/service CIDRs and saturating node conntrack. This only limits L2
+  scanning, though: Scanopy still L3-scans remote subnets it discovers via SNMP routing tables, so
+  its conntrack footprint grows as more routable subnets appear on the network.
   `SCANOPY_CONCURRENT_SCANS=5` caps simultaneous host scans. Requires
   `dnsPolicy: ClusterFirstWithHostNet`. Multus was rejected: the only existing NAD is a macvlan
   on the same primary NIC, so it adds nothing over hostNetwork without authoring VLAN-tagged NADs.
@@ -69,6 +71,12 @@ L2/L3/workload/application diagrams by continuously scanning the infrastructure.
   namespace has no PSA labels, so the privileged hostNetwork daemon admits cleanly.
 - **Image digests are pinned** for both server and daemon (kept in lockstep by Renovate) and the
   `postgres-init` initContainer.
+- **Server strategy is `Recreate`, not `RollingUpdate`.** The single replica mounts an RWO
+  ceph-block PVC, so a surge pod scheduled on another node during a rolling update would deadlock
+  on multi-attach; Recreate tears the old pod down first. If the old pod sticks in `Terminating`,
+  Helm's 5-minute timeout can thrash between upgrade and rollback: recover by suspending the
+  HelmRelease, force-deleting the pod, then resuming (`cleanupOnFail` and `remediation.retries`
+  bound the blast radius).
 
 ## Operational notes
 
@@ -105,4 +113,10 @@ L2/L3/workload/application diagrams by continuously scanning the infrastructure.
   relays via the internal SMTP relay.
 - The server container runs with no restrictive `securityContext` (writes `/data`, reads
   `/app/static`); harden to `runAsNonRoot`/`readOnlyRootFilesystem` only after confirming it stays up.
+- **Watch daemon conntrack usage as the network grows.** The daemon's L3 SNMP-discovered scanning
+  is not limited by `SCANOPY_INTERFACES` (see Design decisions), so node conntrack usage grows as
+  more subnets become routable. The validated peak was about 9% of the default `nf_conntrack_max`
+  (262144) before that growth. If usage nears the limit, raise `net.netfilter.nf_conntrack_max` via
+  `talos/talconfig.yaml`'s `machine.sysctls`, or narrow the scan scope per-discovery in the Scanopy
+  UI.
 - Follow-ups out of scope for v1: OIDC/SSO and Prometheus metrics.
