@@ -10,8 +10,9 @@ Between 2026-08-10 and 2026-08-19 the relay accepted mail and then failed every 
 `ErrorSendAsDenied`: 353 messages lost, 2,824 errors, zero delivered. The SMTP listener stayed
 healthy the whole time, so a liveness probe, a TCP check or a Gatus probe would all have stayed
 green. Nothing noticed for nine days. Root cause was fixed separately, outside this repository;
-the metrics sidecar and `prometheusrule.yaml` (PR #4402) exist so the next occurrence is caught
-in minutes.
+the metrics sidecar and `prometheusrule.yaml` (PR #4402) exist so a failure is caught within
+minutes whenever mail is flowing. During a quiet period the 6-hourly canary is the only signal,
+and `SMTP2GraphCanaryFailing` does not fire until it has missed for about 14 hours.
 
 smtp2graph v1.1.5 exposes no metrics of its own: it listens on `:25` and nothing else, and its
 config schema has no metrics or health options. The sidecar in `helmrelease.yaml`
