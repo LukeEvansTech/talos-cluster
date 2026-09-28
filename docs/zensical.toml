@@ -68,6 +68,7 @@ nav = [
     { "changedetection.io" = "apps/changedetection.md" },
     { "Scrypted" = "apps/scrypted.md" },
     { "Forgejo" = "apps/forgejo.md" },
+    { "Seedbox monitoring" = "apps/seedbox.md" },
   ] },
   { "Troubleshooting" = [
     { "Symptom ladder" = "troubleshooting/index.md" },

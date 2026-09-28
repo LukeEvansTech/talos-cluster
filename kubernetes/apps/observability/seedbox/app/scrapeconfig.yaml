@@ -5,16 +5,12 @@ kind: ScrapeConfig
 metadata:
   name: &name seedbox-node
 spec:
-  # node-exporter on the seedbox host (:9100), CPU/memory/disk/network.
   staticConfigs:
     - targets:
         - seedbox.observability.svc.cluster.local:9100
   metricsPath: /metrics
   scrapeInterval: 60s
-  # The scrape path is the tailnet egress (DERP-relay-prone): scrapes average
-  # ~3.4s and, with the default 10s timeout, spike to the ceiling under torrent
-  # iowait → false up=0 flaps (~12% baseline, ~25% during the monthly RAID scrub).
-  # 30s (≤ interval) absorbs the slow-but-alive scrapes so they stop reading as down.
+  # Tailnet scrapes exceed 10s under torrent iowait, and the 30s timeout stops false up=0 flaps.
   scrapeTimeout: 30s
   relabelings:
     - action: replace
@@ -23,10 +19,7 @@ spec:
     - action: replace
       targetLabel: instance
       replacement: seedbox
-  # The ceph-mixin node alerts (CephNodeDiskspaceWarning et al) join every
-  # node-exporter target via node_uname_info, so the seedbox's spiky torrent
-  # disk flaps them. Dropping the metric here breaks that join; nothing else
-  # (dashboard, seedbox.rules) reads it.
+  # The ceph-mixin node alerts join on node_uname_info, so dropping it keeps the torrent disk out.
   metricRelabelings:
     - action: drop
       sourceLabels:
@@ -39,13 +32,12 @@ kind: ScrapeConfig
 metadata:
   name: &name seedbox-traefik
 spec:
-  # Traefik metrics entrypoint (:8082), per-router/service request stats.
   staticConfigs:
     - targets:
         - seedbox.observability.svc.cluster.local:8082
   metricsPath: /metrics
   scrapeInterval: 60s
-  scrapeTimeout: 30s # tailnet-egress scrapes are slow; 30s stops false up=0 (see node job)
+  scrapeTimeout: 30s
   relabelings:
     - action: replace
       targetLabel: job
@@ -60,13 +52,12 @@ kind: ScrapeConfig
 metadata:
   name: &name seedbox-autobrr
 spec:
-  # autobrr built-in metrics endpoint (:9074), IRC/filter/push activity.
   staticConfigs:
     - targets:
         - seedbox.observability.svc.cluster.local:9074
   metricsPath: /metrics
   scrapeInterval: 60s
-  scrapeTimeout: 30s # tailnet-egress scrapes are slow; 30s stops false up=0 (see node job)
+  scrapeTimeout: 30s
   relabelings:
     - action: replace
       targetLabel: job
@@ -81,14 +72,13 @@ kind: ScrapeConfig
 metadata:
   name: &name seedbox-qui
 spec:
-  # qui (qBittorrent WebUI) metrics. Host port 9476 (in-container default 9074 is
-  # taken on the host by autobrr, same project family, same default).
+  # The host uses port 9476 because autobrr already holds the shared 9074 default.
   staticConfigs:
     - targets:
         - seedbox.observability.svc.cluster.local:9476
   metricsPath: /metrics
   scrapeInterval: 60s
-  scrapeTimeout: 30s # tailnet-egress scrapes are slow; 30s stops false up=0 (see node job)
+  scrapeTimeout: 30s
   relabelings:
     - action: replace
       targetLabel: job
@@ -103,13 +93,12 @@ kind: ScrapeConfig
 metadata:
   name: &name seedbox-doco-cd
 spec:
-  # doco-cd native metrics (:9120), GitOps deploy/poll status on the seedbox.
   staticConfigs:
     - targets:
         - seedbox.observability.svc.cluster.local:9120
   metricsPath: /metrics
   scrapeInterval: 60s
-  scrapeTimeout: 30s # tailnet-egress scrapes are slow; 30s stops false up=0 (see node job)
+  scrapeTimeout: 30s
   relabelings:
     - action: replace
       targetLabel: job
@@ -124,18 +113,14 @@ kind: ScrapeConfig
 metadata:
   name: &name seedbox-smartctl
 spec:
-  # smartctl-exporter on the seedbox host (:9633), per-disk SMART attributes.
-  # netdata's mdstat alarms only catch a disk once it has DROPPED OUT of the
-  # array; this is the upstream signal (reallocated/pending sectors) that
-  # precedes that. See seedbox-apps apps/smartctl-exporter.
+  # SMART sector counts give warning before mdstat sees a dropped disk.
   staticConfigs:
     - targets:
         - seedbox.observability.svc.cluster.local:9633
   metricsPath: /metrics
-  # 300s not 60s: smartctl shells out to all four spinning disks per scrape, and
-  # the attributes move on a timescale of days, so a 5x cheaper scrape loses nothing.
+  # SMART attributes change over days, and each scrape shells out to four disks.
   scrapeInterval: 300s
-  scrapeTimeout: 30s # tailnet-egress scrapes are slow; 30s stops false up=0 (see node job)
+  scrapeTimeout: 30s
   relabelings:
     - action: replace
       targetLabel: job
@@ -150,17 +135,13 @@ kind: ScrapeConfig
 metadata:
   name: &name seedbox-docker
 spec:
-  # docker_state_exporter on the seedbox (:9419), per-container state, health,
-  # restart count and OOM-kill, keyed by container NAME. Landed with the
-  # 2026-07-30 fleet convergence (seedbox-apps): the seedbox was the one box
-  # without it, netdata sees containers, but the estate's container-lifecycle
-  # alerting keys on container_state_* series only this exposes.
+  # The estate's container-lifecycle alerts need container_state_*, which netdata does not provide.
   staticConfigs:
     - targets:
         - seedbox.observability.svc.cluster.local:9419
   metricsPath: /metrics
   scrapeInterval: 60s
-  scrapeTimeout: 30s # tailnet-egress scrapes are slow; 30s stops false up=0 (see node job)
+  scrapeTimeout: 30s
   relabelings:
     - action: replace
       targetLabel: job
@@ -169,21 +150,8 @@ spec:
       targetLabel: instance
       replacement: seedbox
   metricRelabelings:
-    # Drop the noisy per-container label set but KEEP two container labels:
-    #   - cd_doco_metadata_manager, so "container down" can be scoped to the
-    #     GitOps-managed fleet and a hand-run throwaway never pages.
-    #   - alerts_oneshot, which marks a container that is SUPPOSED to sit in
-    #     exited (0) forever (the restore/config inits in seedbox-apps, every
-    #     service with `restart: "no"`). SeedboxContainerDown excludes on it.
-    # Otherwise the shape matches the truenas and appliance jobs.
-    #
-    # ⚠️ This labelkeep is an ALLOW-LIST: a label the exporter publishes but
-    # that is not named here simply does not exist in Prometheus. Adding a new
-    # container label to seedbox-apps is therefore only half the job, verify
-    # with `count(container_state_status{container_label_<x>="..."})` against
-    # the real Prometheus before writing a rule that depends on it. Forgetting
-    # this on 2026-08-23 made a corrected SeedboxContainerDown match 8
-    # containers instead of 0, i.e. worse than the bug it fixed.
+    # This is an allow-list, so add a new container label here before any rule uses it. The doco-cd
+    # manager label scopes alerts; alerts_oneshot drives the SeedboxContainerDown exclusion.
     - action: labelkeep
       regex: __name__|job|instance|name|status|health_status|container_label_cd_doco_metadata_manager|container_label_alerts_oneshot
 ---
@@ -193,19 +161,13 @@ kind: ScrapeConfig
 metadata:
   name: &name seedbox-prowlarr
 spec:
-  # exportarr against the seedbox's Prowlarr (:9707). Prowlarr serves no metrics
-  # of its own — its :9696/metrics returns the SPA's HTML, which reads as a
-  # broken exporter rather than an absent feature — so this is the only source of
-  # per-indexer query/grab/failure counts on that box. Same exporter and pinned
-  # version the cluster runs as a sidecar for the home Prowlarr, so the two
-  # instances share one metric vocabulary; they stay separate jobs because this
-  # one arrives over the tailnet egress and needs that path's slower timeout.
+  # Prowlarr's own /metrics returns the web UI's HTML, so exportarr is the only metrics source.
   staticConfigs:
     - targets:
         - seedbox.observability.svc.cluster.local:9707
   metricsPath: /metrics
   scrapeInterval: 60s
-  scrapeTimeout: 30s # tailnet-egress scrapes are slow; 30s stops false up=0 (see node job)
+  scrapeTimeout: 30s
   relabelings:
     - action: replace
       targetLabel: job
@@ -214,10 +176,7 @@ spec:
       targetLabel: instance
       replacement: seedbox
   metricRelabelings:
-    # exportarr v2 stamps the target URL onto every series. It is the same
-    # single value for every sample of this job, so it adds a label to each
-    # series while distinguishing nothing, and it publishes an internal address
-    # into metric labels. `instance` above already names the source.
+    # exportarr adds the target URL to every series, which duplicates instance and leaks an address.
     - action: labeldrop
       regex: url
 ---
@@ -227,17 +186,8 @@ kind: ScrapeConfig
 metadata:
   name: &name seedbox-backrest
 spec:
-  # backrest's own metrics (:9898). This is the only source of per-task outcome
-  # for the backup engine: the node-exporter textfile leg publishes the BACKUP
-  # operation's exit code and last-success time, and nothing else, so a failing
-  # forget, prune or check was invisible by construction. Wiring this up
-  # immediately surfaced a stale restic lock that had been failing all three
-  # against one repo for four hours, with backups still succeeding and every
-  # existing metric still green.
-  #
-  # The endpoint is auth-gated, hence basicAuth below. Reaching it also has a
-  # host-side prerequisite that this repository deliberately does not describe;
-  # it is documented in the private repository that provisions the host.
+  # This is the only source of forget, prune and check results; the textfile metrics cover backups.
+  # A host-side prerequisite is documented in the private host repository.
   staticConfigs:
     - targets:
         - seedbox.observability.svc.cluster.local:9898
@@ -250,7 +200,7 @@ spec:
       name: seedbox-backrest-secret
       key: password
   scrapeInterval: 60s
-  scrapeTimeout: 30s # tailnet-egress scrapes are slow; 30s stops false up=0 (see node job)
+  scrapeTimeout: 30s
   relabelings:
     - action: replace
       targetLabel: job
