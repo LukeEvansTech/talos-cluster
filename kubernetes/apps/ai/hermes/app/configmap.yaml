@@ -6,10 +6,7 @@ metadata:
   name: hermes-config
   namespace: ai
 data:
-  # NOTE: `$${VAR}` is intentional. Flux postBuild collapses it to a literal
-  # `${VAR}`, which Hermes' own config loader (_expand_env_vars) then resolves
-  # against the pod environment (populated by envFrom the `hermes` Secret) at
-  # startup. A single `${VAR}` would be consumed, and blanked, by Flux first.
+  # $${VAR} survives Flux's postBuild; Hermes' own loader (_expand_env_vars) expands it at startup.
   config.yaml: |-
     model:
       default: self-hosted
