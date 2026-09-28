@@ -31,8 +31,9 @@ spec:
             securityContext:
               runAsUser: 0
           # Native sidecar (restartPolicy: Always), so every playlist fetch, EPG refresh and
-          # stream pull leaves through the tunnel from the first byte. Shape copied from
-          # downloads/prowlarr; see that file for the full rationale behind these settings.
+          # stream pull leaves through the tunnel from the first byte. The kill-switch approach is
+          # copied from downloads/prowlarr; the probe and recovery settings below differ on purpose
+          # (docs/docs/apps/dispatcharr.md).
           gluetun:
             image:
               repository: ghcr.io/qdm12/gluetun

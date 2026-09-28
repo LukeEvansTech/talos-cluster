@@ -1,8 +1,10 @@
 # Dispatcharr
 
 IPTV playlist/EPG manager in the `media` namespace, routed through a gluetun VPN sidecar. The
-sidecar's shape (native sidecar ordering, kubelet probes, the memory-limit exception) is copied
-from `downloads/prowlarr`; this page covers what is specific to dispatcharr.
+kill-switch approach (native sidecar ordering, the memory-limit exception) is copied from
+`downloads/prowlarr`; the probe and recovery settings deliberately differ (see below and
+[hardening backlog H-20](../operations/hardening-backlog.md#h-20-three-gluetun-sidecars-have-no-tunnel-gate-at-start-and-no-recovery-after-it)).
+This page covers what is specific to dispatcharr.
 
 ## Why this pod's DNS goes out the tunnel
 
