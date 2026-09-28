@@ -65,12 +65,10 @@ spec:
                     values:
                       - "true"
         podAntiAffinity:
-          # Keep transcoders off the card holding the inference model: it uses
-          # ~21 of 23 GiB and time-slicing gives no VRAM isolation, so a
-          # co-scheduled transcode can fail to allocate. Preferred rather than
-          # required -- three nodes and no workers means a hard rule wedges
-          # these Pending whenever one drains. `namespaces` is load-bearing:
-          # pod affinity is namespace-scoped and the model runs in `ai`.
+          # Avoids the GPU running the inference model (~21/23 GiB used, no VRAM isolation
+          # under time-slicing). Preferred, not required, or 3 nodes with no worker pool
+          # would wedge pods Pending on a drain. `namespaces: [ai]` matters: pod affinity is
+          # namespace-scoped and the model runs there.
           preferredDuringSchedulingIgnoredDuringExecution:
             - weight: 100
               podAffinityTerm:
