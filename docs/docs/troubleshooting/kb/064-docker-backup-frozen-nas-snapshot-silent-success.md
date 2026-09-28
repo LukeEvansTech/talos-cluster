@@ -20,11 +20,12 @@ nothing to catch: the backup genuinely succeeded, just against a source that had
 Added two PrometheusRule alerts on metrics the refresh script now publishes:
 
 - `DockerBackupSourceStale` (`time() - restic_snapshot_source_last_success_timestamp_seconds >
-129600`, 30m, critical) catches the cron never running at all, since a script that never runs
-  never writes a timestamp update.
+129600`, 30m, critical) catches a timestamp that stops advancing after the refresh has run at
+  least once; the subtraction only fires once the metric already has a series to go stale.
 - `DockerBackupSourceRefreshFailing` (`restic_snapshot_source_refresh_ok == 0`, 15m, warning)
   catches a refresh that ran and failed, since the script traps `EXIT` and writes `0` on every
-  failure path.
+  failure path. If the refresh cron has never run at all, neither metric has a series yet;
+  `DockerBackupMetricsMissing`'s `absent()` arm catches that case after 2h instead.
 
 ## How to recognise fast
 
