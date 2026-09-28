@@ -1,6 +1,6 @@
 ---
 # 0bserverx RVN Heretic-abliterated Qwen3.8-27B; the cluster's only GPU model, serving both
-# self-hosted and self-hosted-uncensored (docs/architecture/ai-llm-stack.md Model serving).
+# self-hosted and self-hosted-uncensored (docs/docs/architecture/ai-llm-stack.md Model serving).
 apiVersion: inference.llmkube.dev/v1alpha1
 kind: Model
 metadata:
@@ -29,19 +29,19 @@ metadata:
 spec:
   modelRef: qwen3.8-27b-heretic
   # Never set skipModelInit: on llmkube 0.9.x it also blanks --model, serving zero models
-  # (#3792; docs/architecture/ai-llm-stack.md Rollout and staging safety).
+  # (#3792; docs/docs/architecture/ai-llm-stack.md Rollout and staging safety).
   runtime: llamacpp
   image: ghcr.io/ggml-org/llama.cpp:server-cuda@sha256:5d0812fe45cb5dcb4ac5c588148a601aca63b6b224601f8d1f6f01fdfb07a111
   # Waits for both /slots to go idle before rolling, instead of killing an in-flight session
-  # (docs/architecture/ai-llm-stack.md Rollout and staging safety).
+  # (docs/docs/architecture/ai-llm-stack.md Rollout and staging safety).
   rolloutPolicy:
     waitForIdle: true
     idleTimeoutSeconds: 86400
   replicas: 1
   runtimeClassName: nvidia
   priorityClassName: gpu-preemptible
-  # VRAM budget: ≥1.5Gi must stay free after an OOM at 22.5Gi (docs/architecture/ai-llm-stack.md
-  # Resource budget on the L4).
+  # VRAM budget: ≥1.5Gi must stay free after an OOM at 22.5Gi
+  # (docs/docs/architecture/ai-llm-stack.md Resource budget on the L4).
   contextSize: 131072
   parallelSlots: 2
   flashAttention: true
@@ -69,7 +69,7 @@ spec:
             matchLabels:
               llm-gpu-model: "true"
   # No runAsNonRoot: the cache-prep init container needs scoped root to chown CephFS
-  # (docs/architecture/ai-llm-stack.md Rollout and staging safety).
+  # (docs/docs/architecture/ai-llm-stack.md Rollout and staging safety).
   podSecurityContext:
     runAsUser: 1000
     runAsGroup: 1000
@@ -83,7 +83,7 @@ spec:
     type: ClusterIP
   # No manual --mmproj: the operator injects it from Model.spec.mmproj with the correct cache path.
   # Samplers are the vanilla Qwen3.8 thinking-mode recommendations, to keep the abliterated build
-  # close to stock. MTP decoding is covered in docs/architecture/ai-llm-stack.md Resource budget.
+  # close to stock. MTP decoding: docs/docs/architecture/ai-llm-stack.md Resource budget on the L4.
   extraArgs:
     - --spec-type
     - draft-mtp
@@ -105,7 +105,7 @@ spec:
     - --cont-batching
     - --cache-prompt
     # Projector stays on the GPU unlike Jory's --no-mmproj-offload; --kv-unified lets one request
-    # use the full 128k window (docs/architecture/ai-llm-stack.md Vision projector placement).
+    # use the full 128k window (docs/docs/architecture/ai-llm-stack.md Vision projector placement).
     - --image-min-tokens
     - "1024"
     - --kv-unified

@@ -10,9 +10,8 @@ spec:
   instanceSelector:
     matchLabels:
       grafana.internal/instance: grafana
-  # Ported from Jory Irving's home-ops with three verified deviations (namespace, DCGM's
-  # exported_namespace/pod, and the hostname-keyed $$instance): docs/architecture/ai-llm-stack.md
-  # Grafana dashboards.
+  # Ported with three verified deviations (namespace, DCGM's exported_namespace/pod, and
+  # the hostname-keyed $$instance): docs/docs/architecture/ai-llm-stack.md Grafana dashboards.
   json: |-
     {
       "id": null,

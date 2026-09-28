@@ -10,7 +10,7 @@ spec:
     matchLabels:
       grafana.internal/instance: grafana
   # Ported from joryirving/home-ops; dropped panels and variable escaping are covered in
-  # docs/architecture/ai-llm-stack.md Grafana dashboards.
+  # docs/docs/architecture/ai-llm-stack.md Grafana dashboards.
   json: |-
     {
       "id": null,

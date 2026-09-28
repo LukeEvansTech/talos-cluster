@@ -18,7 +18,7 @@ spec:
       retries: 3
   values:
     # Shared cache so any node can serve any model without re-staging
-    # (docs/architecture/ai-llm-stack.md Model serving).
+    # (docs/docs/architecture/ai-llm-stack.md Model serving).
     modelCache:
       enabled: true
       mode: shared
