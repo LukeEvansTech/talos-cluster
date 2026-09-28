@@ -24,7 +24,7 @@ spec:
       # KUBERNETES_ENABLE_DRA alone leaves automountServiceAccountToken=false; see
       # docs/docs/apps/gpu-operator.md.
       enablePodLabels: true
-      # No allowlist: every pod label becomes a metric dimension, including the churning
+      # Without this, every pod label becomes a metric dimension, including the churning
       # pod-template-hash.
       podLabelAllowlistRegex:
         - app.kubernetes.io/name
