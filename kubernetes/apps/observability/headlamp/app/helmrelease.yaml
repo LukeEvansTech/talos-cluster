@@ -21,7 +21,6 @@ spec:
       - name: TZ
         value: ${TIMEZONE}
 
-    # Init container to install Flux plugin
     initContainers:
       - name: install-flux-plugin
         image: ghcr.io/headlamp-k8s/headlamp-plugin-flux:v0.7.0@sha256:636c7a5ae0d4eb196c192f8f1cde06f20f1f5ebdf1863f6e57d22444d8b8360c
@@ -40,7 +39,6 @@ spec:
             drop:
               - ALL
 
-    # Volume for plugins (shared between init container and main container)
     volumes:
       - name: headlamp-plugins
         emptyDir: {}
@@ -63,7 +61,6 @@ spec:
       limits:
         memory: 512Mi
 
-    # Security contexts
     podSecurityContext:
       runAsNonRoot: true
       runAsUser: 100
@@ -80,16 +77,13 @@ spec:
         drop:
           - ALL
 
-    # Service account configuration - use existing admin SA
     serviceAccount:
       create: false
       name: headlamp-admin
 
-    # RBAC configuration - use existing ClusterRoleBinding
     rbac:
       create: false
 
-    # Config for Headlamp
     config:
       baseURL: ""
       pluginsDir: "/build/plugins"
