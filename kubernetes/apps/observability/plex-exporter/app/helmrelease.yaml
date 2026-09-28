@@ -12,7 +12,7 @@ spec:
   values:
     controllers:
       plex-exporter:
-        # High restarts are expected; no reconnect backoff (docs/apps/plex-exporter.md).
+        # High restarts are expected; no reconnect backoff (docs/docs/apps/plex-exporter.md).
         annotations:
           reloader.stakater.com/auto: "true"
         containers:
