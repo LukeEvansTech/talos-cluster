@@ -22,6 +22,5 @@ spec:
     namespace: flux-system
   targetNamespace: *namespace
   timeout: 5m
-  # CR-only app (the exporter itself runs on TrueNAS as a Custom App), nothing
-  # in-cluster to health-check, so don't block reconciliation waiting.
+  # CR-only app: exporter runs on TrueNAS, nothing in-cluster to health-check.
   wait: false

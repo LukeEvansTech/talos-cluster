@@ -5,9 +5,8 @@ kind: ScrapeConfig
 metadata:
   name: &name truenas-graphite-exporter
 spec:
-  # TrueNAS netdata pushes Graphite metrics into the bundled graphite_exporter
-  # (ingest :9109), which re-exposes them in Prometheus format on :9108.
-  # See docs/docs/operations/truenas-monitoring.md for the TrueNAS-side Custom App + Reporting setup.
+  # Graphite ingest bridge: netdata pushes to :9109, re-exposed as Prometheus on :9108.
+  # Setup: docs/docs/operations/truenas-monitoring.md.
   staticConfigs:
     - targets:
         - ${SECRET_STORAGE_SERVER}:9108
@@ -23,13 +22,10 @@ kind: ScrapeConfig
 metadata:
   name: &name truenas-docker-exporter
 spec:
-  # docker_state_exporter on the NAS (truenas-apps apps/monitoring), per-container
-  # state/health/restartcount/oomkilled keyed by container name on :9419. Drives the
-  # truenas-docker.rules lifecycle alerts (the graphite bridge's cgroup_* series are
-  # keyed by container ID and disappear once a container stops, so they can't).
-  # metricRelabelings drop the ~25 noisy container_label_* values (compose/doco-cd
-  # shas) but keep cd_doco_metadata_manager so "container down" scopes to the
-  # GitOps-managed fleet, so non-doco-cd containers never page.
+  # docker_state_exporter (:9419), keyed by container name so it survives restarts,
+  # unlike the graphite bridge's ID-keyed cgroup_* series.
+  # metricRelabelings drop noisy container_label_* but keep cd_doco_metadata_manager,
+  # which only TrueNASContainerDown uses to scope to the GitOps-managed fleet.
   staticConfigs:
     - targets:
         - ${SECRET_STORAGE_SERVER}:9419
@@ -41,36 +37,9 @@ spec:
   metricRelabelings:
     - action: labelkeep
       regex: __name__|job|instance|name|status|health_status|container_label_cd_doco_metadata_manager
-# The NAS's node-exporter (:9100) and smartctl-exporter (:9633) are NOT scraped
-# from here. `truenas-node` and `truenas-smartctl` used to live at this point in
-# the file and were removed 2026-08-09: kube-prometheus-stack's own
-# scrapeconfig.yaml had been scraping both of those ports since long before,
-# under the `node-exporter` and `smartctl-exporter` job names, so every series
-# from this host arrived TWICE and every alert on it fired twice.
-#
-# The premise they were added on. "the NAS is the only Docker box in the estate
-# with no host metrics at all". Was simply wrong. It had them; they were just
-# under the cluster's job names rather than a truenas-* one.
-#
-# The duplication was not merely cosmetic. Only the truenas-node copy dropped
-# node_uname_info, so the unfiltered `node-exporter` copy kept publishing it and
-# the unscoped ceph-mixin rules went on adopting this host anyway. The drop
-# protected nothing while both existed. That drop now lives on the surviving
-# `node-exporter` ScrapeConfig, where it actually bites.
-#
-# Kept the cluster job names rather than the estate's `<box>-*` convention,
-# which is the one place this host deliberately differs from the seedbox and the
-# NUT appliance. Two reasons, both checked rather than assumed:
-#   - 22 default node alert rules select job="node-exporter" (filesystem fill,
-#     RAID degraded, bonding degraded, clock skew, systemd unit failed…). This
-#     is the box the whole estate depends on and it has a bond0; dropping all 22
-#     to gain a naming convention is a bad trade. None of them are firing on
-#     this host today, so they are not noisy either.
-#   - This app's OWN prometheusrule.yaml and truenas-zfs.json hardcode
-#     job="smartctl-exporter" in five places. Renaming would have silently
-#     blanked the drive-temperature alert and four dashboard panels.
-# Checked before deleting: nothing anywhere referenced truenas-node or
-# truenas-smartctl.
+# node-exporter (:9100) and smartctl-exporter (:9633) are NOT scraped here: kube-prometheus-stack's
+# own ScrapeConfig already covers both ports under those job names
+# (docs/docs/troubleshooting/kb/038-truenas-double-scraped-on-both-ports.md).
 ---
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/scrapeconfig_v1alpha1.json
 apiVersion: monitoring.coreos.com/v1alpha1
@@ -78,16 +47,12 @@ kind: ScrapeConfig
 metadata:
   name: &name truenas-traefik
 spec:
-  # Traefik metrics entrypoint (:8082), per-router/service request stats for
-  # the NAS dashboards and the Garage S3 routes, matching the seedbox-traefik
-  # job. Traefik always had --metrics.prometheus on this box, but until the
-  # 2026-07-30 fleet convergence (truenas-apps) there was no reachable metrics
-  # entrypoint to scrape.
+  # Traefik metrics (:8082) for the NAS dashboards + Garage S3 routes; unreachable until
+  # the 2026-07-30 truenas-apps convergence exposed the entrypoint.
   staticConfigs:
     - targets:
-        # SECRET_STORAGE_INGRESS, not SECRET_STORAGE_SERVER: Traefik and doco-cd
-        # publish on the NAS's dedicated ingress alias address (the bind is the
-        # guard), not the primary address the host-network exporters answer on.
+        # SECRET_STORAGE_INGRESS, not _SERVER: Traefik binds the NAS's dedicated ingress
+        # alias, not the primary address the host-network exporters answer on.
         - ${SECRET_STORAGE_INGRESS}:8082
   metricsPath: /metrics
   scrapeInterval: 60s
@@ -105,21 +70,12 @@ kind: ScrapeConfig
 metadata:
   name: &name truenas-doco-cd
 spec:
-  # doco-cd's own metrics (:9120), GitOps poll and deploy status for the NAS,
-  # matching the seedbox-doco-cd and nut-appliance-doco-cd jobs.
-  #
-  # Strictly better than "the container is running", which the
-  # truenas-docker-exporter job already covers: doco_cd_polls_total is the
-  # signal that the repo is actually being polled. A doco-cd that is up but has
-  # stopped polling deploys nothing, and the box drifts from truenas-apps with
-  # no other symptom. Unlike the appliance, publishing the port IS
-  # GitOps-adjacent here. It lives in bootstrap/compose.yaml, applied by the
-  # NAS's hourly bootstrap cron rather than by doco-cd itself.
+  # doco-cd metrics (:9120): doco_cd_polls_total catches a doco-cd that's up but has
+  # stopped polling, which the truenas-docker-exporter job's "container is running" can't.
   staticConfigs:
     - targets:
-        # SECRET_STORAGE_INGRESS, not SECRET_STORAGE_SERVER: Traefik and doco-cd
-        # publish on the NAS's dedicated ingress alias address (the bind is the
-        # guard), not the primary address the host-network exporters answer on.
+        # SECRET_STORAGE_INGRESS, not _SERVER: doco-cd binds the NAS's dedicated ingress
+        # alias, not the primary address the host-network exporters answer on.
         - ${SECRET_STORAGE_INGRESS}:9120
   metricsPath: /metrics
   scrapeInterval: 60s

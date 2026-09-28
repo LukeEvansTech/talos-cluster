@@ -6,24 +6,17 @@ metadata:
   name: truenas-exporter.rules
 spec:
   groups:
-    # ------------------------------------------------------------------
-    # Recording rules, bridge TrueNAS SCALE 25.10's raw netdata arcstats
-    # into conventional zfs_arc_* series. 25.10 emits `truenas_arcstats{type=...}`
-    # (a rawer chart than vanilla netdata's zfs.arc_size), so the upstream
-    # dashboard's zfs_arc_size panel is otherwise empty. Verified against live
-    # /metrics 2026-06-14, see docs/docs/operations/truenas-monitoring.md "metric reality".
-    # ------------------------------------------------------------------
+    # Bridges 25.10's raw truenas_arcstats{type=...} into zfs_arc_* series (truenas-monitoring.md).
     - name: truenas-exporter.recording
       rules:
-        # Current ARC size (bytes). op="arcsz" matches the upstream panel's
-        # zfs_arc_size{op=~"arcsz|target"} (no separate "target" series exists).
+        # Matches the upstream panel's op=~"arcsz|target"; no separate "target" series exists.
         - record: zfs_arc_size
           expr: |-
             label_replace(truenas_arcstats{job="truenas-graphite-exporter", type="size"}, "op", "arcsz", "", "")
         - record: zfs_arc_free_bytes
           expr: |-
             truenas_arcstats{job="truenas-graphite-exporter", type="free"}
-        # ARC hit ratio (%), from demand data+metadata hits vs hits+misses.
+        # dmhit/ddhit = demand data+metadata hits; dmmis/ddmis = corresponding misses.
         - record: zfs_arc_hit_ratio
           expr: |-
             100
@@ -40,9 +33,7 @@ spec:
           for: 5m
           labels:
             severity: critical
-        # Disk temperature comes from smartctl-exporter (per-device, already scraped),
-        # NOT the graphite bridge: TrueNAS 25.10 netdata does not export a
-        # disk_temperature series (only cpu_temperature). See docs/docs/operations/truenas-monitoring.md.
+        # smartctl-exporter, not the graphite bridge: 25.10 netdata has no disk_temperature series.
         - alert: TrueNASDiskTemperatureHigh
           annotations:
             summary: "TrueNAS disk {{ $labels.device }} temperature is {{ $value }}°C."
@@ -59,20 +50,9 @@ spec:
           for: 10m
           labels:
             severity: warning
-            # NOTE: no ZFS pool-state alert here. TrueNAS 25.10 netdata exposes no
-            # zfs_pool/scrub-state metric via the graphite bridge (only the absent
-            # truenas_pool.usage chart). Pool degradation/scrub failures are covered by
-            # TrueNAS's own real-time ZFS event detection + system alerts. Revisit if a
-            # pool-state metric becomes available (e.g. the netdata.conf swap, declined
-            # for its impact on the TrueNAS Reporting UI).
+            # No ZFS pool-state alert: the graphite bridge exposes no zfs_pool/scrub metric;
+            # TrueNAS's own native ZFS event detection covers pool/scrub failures instead.
 
-    # ------------------------------------------------------------------
-    # Docker container lifecycle alerts, fed by docker_state_exporter on
-    # the NAS (:9419, scraped as job=truenas-docker-exporter). Container
-    # CPU/mem already come from the graphite bridge's cgroup_* series (by
-    # ID); these add up/down, health, restart and OOM by container NAME.
-    # severity=critical routes to Pushover via the existing AlertmanagerConfig.
-    # ------------------------------------------------------------------
     - name: truenas-docker.rules
       rules:
         - alert: TrueNASDockerStateExporterDown
@@ -83,19 +63,8 @@ spec:
           for: 5m
           labels:
             severity: critical
-        # "exited|dead" scoped to the doco-cd-managed fleet so containers outside
-        # that fleet (or intentionally stopped) never page.
-        # The declarative restore inits (apps/*/compose.yaml, service
-        # restore-<app>) are one-shots: they run, exit 0 and STAY exited. That
-        # is their steady state, so they are excluded from TrueNASContainerDown
-        # above, without the exclusion every one of them pages forever, which
-        # is exactly what happened when they first landed (13 across the fleet).
-        #
-        # A restore init that FAILS is still caught, just not here. It exits
-        # non-zero, so compose never starts the app it gates, and the app is
-        # left in `created` rather than `exited`, which is why `created` was
-        # added to the status list above. Nothing sits in `created` for
-        # 5m in normal operation; a deploy moves through it in seconds.
+        # Restore inits excluded by NAME (exit 0, stay exited); `created` catches a failed one.
+        # Same fleet-wide incident as seedbox's (#4088), but matched by name, not their label.
         - alert: TrueNASContainerDown
           annotations:
             summary: "TrueNAS container {{ $labels.name }} is not running (state: {{ $labels.status }})."
@@ -137,28 +106,13 @@ spec:
           labels:
             severity: warning
 
-    # ------------------------------------------------------------------
-    # Off-site ZFS replication health. The netdata graphite bridge exports no
-    # replication (or pool) series. Same reason there is no pool-state alert
-    # above, so the signal is produced host-side: a cron collector on the NAS
-    # writes zfs_replication_*.prom and node-exporter's textfile collector
-    # re-exposes it. Metrics are generic over every replication task (labelled by
-    # task name); the DR task is the load-bearing one.
-    #
-    # Same philosophy as docker-backup.rules: alert on the ABSENCE OF SUCCESS,
-    # not the presence of errors. Every rule pages (the root route sends all
-    # severities to Pushover) and each fires ~never and is actionable.
-    #
-    # SEED CAVEAT: the first full replication runs for days with state=RUNNING and
-    # last_success=0. The Stale rule's `> 0` guard keeps it quiet until the first
-    # completion; a genuine stall still pages via Failing (state=ERROR).
+    # Host-side cron + textfile collector (the graphite bridge has no replication series);
+    # metrics are generic over every task, the DR task is the load-bearing one. Alert design
+    # (absence-of-success philosophy, seed-period caveat): docs/docs/apps/truenas-exporter.md.
     - name: truenas-replication.rules
       rules:
-        # THE load-bearing alert: the off-site copy is stale. 36h gives a daily
-        # replication one full missed cycle plus slack. Guards: last_success > 0
-        # (never fires before the first completion, silent through the initial
-        # seed and for any deliberately-disabled task, both at 0); state != 1 so a
-        # long in-progress run is not called stale.
+        # Load-bearing: 36h covers a missed daily cycle plus slack; last_success>0 and
+        # state!=1 guard the initial seed, disabled tasks, and a long in-progress run.
         - alert: TrueNASReplicationStale
           annotations:
             summary: >-
@@ -171,10 +125,8 @@ spec:
           for: 30m
           labels:
             severity: critical
-        # A run that errored. Fires well before Stale would, when the cause is
-        # fixable now (off-site box unreachable, credentials, a full destination).
-        # zettarepl retries within a run, so a brief blip stays RUNNING; only a
-        # terminal ERROR reaches this, and the 15m fuse rides out the retry window.
+        # Fires on terminal ERROR only; zettarepl retries transient blips within a run,
+        # and the 15m fuse rides out that retry window.
         - alert: TrueNASReplicationFailing
           annotations:
             summary: >-
@@ -185,11 +137,8 @@ spec:
           for: 15m
           labels:
             severity: warning
-        # The DR task silently disabled, an absence-of-success mode with no error
-        # to catch. Scoped to the DR task by its middleware id (11), so a second
-        # replication task that is deliberately disabled never pages. This and the
-        # MetricsMissing selector below are the only task-specific ones; update
-        # the id if the task is ever recreated.
+        # Scoped to the DR task's middleware id=11 so other disabled tasks don't page;
+        # update the id if the task is ever recreated.
         - alert: TrueNASReplicationDisabled
           annotations:
             summary: >-
@@ -200,10 +149,8 @@ spec:
           for: 15m
           labels:
             severity: warning
-        # The series vanishing entirely, which Stale cannot see. Causes: the
-        # collector cannot reach middleware, the textfile was deleted, or the task
-        # was removed. Scoped to the DR task's own series, like docker-backup's
-        # per-box absent(). 2h fuse; a real box outage is covered elsewhere.
+        # Catches the series vanishing entirely, which Stale can't see; scoped to id=11
+        # like Disabled above. 2h fuse; a real box outage is covered elsewhere.
         - alert: TrueNASReplicationMetricsMissing
           annotations:
             summary: >-
@@ -214,10 +161,8 @@ spec:
           for: 2h
           labels:
             severity: warning
-        # The collector cron stopped while its textfile persists (series present
-        # but frozen), which MetricsMissing cannot see. Attributes a stalled
-        # collector to the collector, in 1h rather than as a false Stale 36h later.
-        # Cron runs every 15m, so >1h is four missed runs.
+        # Catches a frozen textfile (series present but not updating), which
+        # MetricsMissing can't see; 1h is four missed 15m cron runs.
         - alert: TrueNASReplicationCollectorStale
           annotations:
             summary: >-
@@ -228,17 +173,8 @@ spec:
           for: 15m
           labels:
             severity: warning
-        # Backstop for the one absence-of-success mode the five rules above
-        # cannot see: an enabled task whose schedule never actually triggers a
-        # run (state stays at its initial value, never RUNNING or ERROR), or
-        # one stuck in RUNNING and never completing. Both keep last_success at
-        # 0 forever, so Stale's `last_success > 0` guard and Failing's
-        # `state == 2` guard both stay quiet indefinitely. Deliberately does
-        # NOT exclude any state. A run wedged in RUNNING is exactly what this
-        # is for. 168h (7d) stays well clear of the multi-day initial-seed
-        # window noted above; an enabled task still at last_success=0 after a
-        # week is stuck, not seeding. Tune the window if real seed durations
-        # turn out longer than that.
+        # Backstop: a task that never triggers or never finishes keeps last_success=0
+        # forever, invisible to Stale and Failing; 168h clears the multi-day seed window.
         - alert: TrueNASReplicationNeverSucceeded
           annotations:
             summary: >-
