@@ -20,16 +20,11 @@ from .model import (
     utc,
 )
 
-# A play is a "completion" at or above this much of the runtime. Below the
-# abandonment mark it is evidence somebody bounced off the film, not evidence of
-# value, and between the two it is neither.
+# 85%+ counts as watched; below 20% is a bounce, not value; between is neither.
 COMPLETION_PERCENT = 85
 ABANDONED_PERCENT = 20
 
 IMPORT_EVENT = "downloadFolderImported"
-
-
-# --- 1. Provenance --------------------------------------------------------
 
 
 def resolve_provenance(film: Film, requests_by_tmdb: dict[int, dict]) -> Provenance:
@@ -61,9 +56,6 @@ def resolve_provenance(film: Film, requests_by_tmdb: dict[int, dict]) -> Provena
     )
 
 
-# --- 2. Availability ------------------------------------------------------
-
-
 def first_import_from_history(history: list[dict]) -> datetime | None:
     """Earliest successful import for a film, from its Radarr history.
 
@@ -91,9 +83,8 @@ def resolve_availability(
     """
     imported = first_import_from_history(history)
     if imported and ledger_first_seen and ledger_first_seen < imported:
-        # The original import has aged out of retained history and a later
-        # upgrade wrote a fresh one. Taking the upgrade would restart a window
-        # that has already run, so the earlier observation wins.
+        # History aged out and a later upgrade wrote a fresh import; the earlier
+        # ledger observation wins so an already-run window can't restart.
         return Availability(
             first_playable=ledger_first_seen,
             source="ledger",
@@ -119,9 +110,8 @@ def resolve_availability(
             evidence=("no file on disk and no import event",),
         )
 
-    # A file with no import event: history aged out, or the file arrived outside
-    # Radarr. Use a persisted observation if there is one; otherwise start the
-    # clock now, which delays the window rather than cutting it short.
+    # No import event: history aged out, or the file arrived outside Radarr. Use a
+    # persisted observation if any, else start the clock now, delaying not cutting the window.
     if ledger_first_seen:
         return Availability(
             first_playable=ledger_first_seen,
@@ -137,9 +127,6 @@ def resolve_availability(
         has_file=True,
         evidence=(f"no import event in retained history{horizon}; first observed now",),
     )
-
-
-# --- 3. Viewing evidence --------------------------------------------------
 
 
 def build_crosswalk(metadata: dict[int, dict]) -> dict[int, dict]:
@@ -172,9 +159,8 @@ def _match_rating_keys(film: Film, crosswalk: dict[int, dict]) -> tuple[list[int
     if by_imdb:
         return by_imdb, "imdb"
 
-    # Title and year are a fallback, not a confirmation: remakes share titles and
-    # years drift between sources. A hit is enough to suspect a match, which is
-    # enough to refuse a deletion.
+    # A fallback, not confirmation, since remakes share titles and years drift; a hit
+    # is enough to refuse a deletion, not to confirm a match.
     target = normalise_title(film.title)
     by_title = [
         key

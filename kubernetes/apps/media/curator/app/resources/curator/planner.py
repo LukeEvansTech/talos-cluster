@@ -29,17 +29,12 @@ from .model import (
     Viewing,
 )
 
-# Batch rails.
 MAX_DELETIONS_PER_RUN = 30
-# Subject counts below this are fingerprinted exactly; above it, bucketed.
 SUBJECT_EXACT_BELOW = 25
-# How long a spare stands before the same film is judged again. Long enough that
-# a weekly run is not re-litigating the same 500 films, short enough that a
-# changed fact is picked up within a season.
+# Long enough not to re-litigate weekly, short enough to catch a change within a season.
 DEFAULT_RECONSIDER_DAYS = 180
 
-# Anomaly thresholds. Each one answers "what shrank so much that something is
-# broken rather than merely different?"
+# Each limit is the drop that means something broke, not merely changed.
 ANOMALY_LIMITS = {
     "library_size_drop_pct": 10.0,
     "keep_tag_drop_pct": 2.0,
@@ -60,9 +55,7 @@ class PlanContext:
     history_ok: bool
     decisions: dict[int, dict] = field(default_factory=dict)
     collections_loaded: bool = True
-    # Keep-reason evidence, computed once over the library. Held here rather
-    # than attached after assessment, because the decision fingerprint is taken
-    # during assessment and has to cover it.
+    # Computed once over the library; assessment needs it to build the fingerprint.
     siblings_owned: dict[int, int] = field(default_factory=dict)
     genre_counts: dict[str, int] = field(default_factory=dict)
 
@@ -100,18 +93,10 @@ def fact_fingerprint(
         "monitored_collection": monitored,
         "collection": film.collection_title,
         "has_file": film.has_file,
-        # The evidence the keep reasons are stated in terms of. A spare granted
-        # on collection support must not survive the sibling being removed;
-        # subject counts are bucketed so ordinary library growth does not
-        # reopen every decision each week.
+        # A spare must not survive its sibling being removed from the collection.
         "siblings_owned": siblings_owned,
-        # Exact below 25, bucketed above. A subject collapsing from 20 films to
-        # one is the evidence disappearing and must reopen the decision; a
-        # library of 1,002 action films gaining six is not.
-        # Exact below the threshold, coarsely bucketed above, and the two
-        # ranges cannot collide. A subject collapsing from 20 films to one is
-        # the keep reason evaporating and must reopen the decision; a library
-        # of 1,002 action films gaining six is not.
+        # Bucketed so ordinary library growth doesn't reopen a decision; a subject
+        # collapsing from 20 films to one still does.
         "subjects": {g: _subject_bucket(c) for g, c in sorted((subject_counts or {}).items())},
     }
     blob = json.dumps(payload, sort_keys=True).encode()
@@ -151,10 +136,8 @@ def _protection_gate(
         result.protections.append(f"carries {', '.join(vetoes)}")
         return True
 
-    # Qualifying for the allow list protects a film immediately, not once the
-    # tag has been written. Assessment runs before tag maintenance, so without
-    # this a film could be judged and deleted in the same run that was about to
-    # mark it permanently protected.
+    # Protects on qualifying, not on the tag: assessment runs before tag maintenance,
+    # so this stops a film being deleted in the run that would have protected it.
     if meets_keep_bar(film) and TAG_HUMAN_ELIGIBLE not in film.tags:
         result.outcome = Outcome.PROTECTED
         result.protections.append(f"meets the allow-list bar ({film.imdb_votes} votes at {film.imdb_score})")
@@ -274,9 +257,7 @@ def assess(
     if _evidence_gate(viewing, result):
         return result
 
-    # Delete-by-default needs an authorisation, and there are two: feed
-    # provenance, or an explicit human decision. The human tag is a parallel
-    # authorisation, not a relabelling -- the origin still reports "unknown".
+    # Feed provenance or a human tag authorises deletion; the tag doesn't relabel the origin.
     authorised_by = None
     if provenance.origin is Origin.FEED:
         authorised_by = "import-list provenance"
@@ -303,9 +284,7 @@ def assess(
         return result
 
     if TAG_HUMAN_DISMISSED in film.tags:
-        # A person applies this tag in the UI, which writes no ledger record, so
-        # requiring one would make the tag inert -- the opposite of a human
-        # decision outranking an automatic one.
+        # Applied via the UI with no ledger record, so requiring one would make the tag inert.
         if not (stored and stored.get("fact_fingerprint") != fingerprint):
             result.outcome = Outcome.REVIEW
             result.reasons.append("dismissed by a person; no relevant fact has changed since")
@@ -315,8 +294,6 @@ def assess(
     result.reasons.append(f"eligible: authorised by {authorised_by}, past its {window}-day window")
     return result
 
-
-# --- allow-list maintenance ----------------------------------------------
 
 KEEP_BAR_VOTES = 5000
 KEEP_BAR_SCORE = 6.5
@@ -356,9 +333,6 @@ def keep_tag_applies(film: Film) -> bool:
     return not (TAG_HUMAN_ELIGIBLE in film.tags or TAG_HUMAN_DISMISSED in film.tags)
 
 
-# --- batching -------------------------------------------------------------
-
-
 def select_batch(
     approved: list[Assessment],
     cap: int = MAX_DELETIONS_PER_RUN,
@@ -373,9 +347,6 @@ def select_batch(
     remaining = max(cap - already_deleted_this_window, 0)
     ordered = sorted(approved, key=lambda a: a.film.size_bytes, reverse=True)
     return ordered[:remaining], ordered[remaining:]
-
-
-# --- anomaly detection ----------------------------------------------------
 
 
 def _drop_pct(current: float, baseline: float) -> float:
@@ -409,9 +380,8 @@ def snapshot_valid(snapshot: dict[str, Any]) -> list[str]:
     rows = snapshot.get("history_rows")
     if isinstance(snapshot.get("library_size"), int) and snapshot["library_size"] > 0:
         if not isinstance(rows, int) or rows <= 0:
-            # Recorded, this baseline is self-ratifying: the next run sees no
-            # history-drop anomaly (zero against zero), has no coverage start to
-            # bound it, and reads every film as a verified zero.
+            # Self-ratifying if recorded: the next run compares zero to zero and
+            # reads every film as a verified zero.
             problems.append("play history is empty, which cannot be a baseline for a stocked library")
     return problems
 

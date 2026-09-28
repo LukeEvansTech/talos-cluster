@@ -182,10 +182,8 @@ def fetch_history(tautulli: Tautulli) -> tuple[list[dict], dict, bool, str]:
     if not meta["complete"]:
         return rows, meta, False, "retrieved fewer rows than the service declared"
     if not rows:
-        # A wiped or freshly deployed Tautulli answers perfectly well and
-        # declares zero rows, so every check downstream reads "complete". Nobody
-        # has watched anything is not a state this library is ever in; treating
-        # it as one would mark the whole library unwatched at once.
+        # A wiped or fresh Tautulli answers cleanly with zero rows, reading as complete;
+        # nobody having watched anything isn't a state this library is ever in.
         return rows, meta, False, "history is healthy but empty, which is not a believable state"
     return rows, meta, True, ""
 
@@ -211,10 +209,8 @@ def resolve_identities(
         try:
             meta = tautulli.metadata(key)
         except SourceError as exc:
-            # A lookup that failed for infrastructure reasons is not evidence
-            # that the key is retired, but it is also no reason to abandon the
-            # whole run. Recording it unresolved taints the zero, which sends
-            # any film sharing the title to review.
+            # An infrastructure failure isn't evidence the key retired, but isn't reason
+            # to abort either; marking it unresolved taints the zero and sends the film to review.
             log(f"  rating key {key} could not be resolved ({exc}); treating it as unresolved")
             meta, answered = None, False
         if meta:
@@ -234,12 +230,8 @@ def resolve_identities(
     crosswalk.update(retired)
     if fresh or retired:
         ledger.write_crosswalk(crosswalk)
-    # Merged after the write, never into it. The crosswalk is durable and is
-    # only consulted for keys it does not already hold, so persisting an outage
-    # would mean never asking about that key again -- and a play that stays
-    # unattributed can only be matched back by title, which finds nothing at all
-    # when Plex and Radarr disagree about the title. The film then reads as
-    # never watched, permanently, on the strength of one timeout.
+    # Merged after the write, never into it: persisting a timeout here would mean never
+    # re-asking about that key, misreading the film as never-watched permanently.
     crosswalk.update(unreachable)
 
     unattributed_keys = {k for k, v in crosswalk.items() if v.get("unresolved")}
@@ -411,11 +403,8 @@ def gather_library(sources: Sources) -> Library:
             requests_ok = True
             log(f"request system: {len(requests)} movie requests")
         except SourceError as exc:
-            # An empty request set is indistinguishable from "nobody asked for
-            # any of this", and for a film carrying an import-list provenance
-            # tag that difference is the whole authorisation. Execution only
-            # re-reads requests made *since* the plan, so a request made before
-            # an outage would never be seen again.
+            # Execution only re-reads requests made *since* the plan, so a request made
+            # before this outage would never be seen again.
             log(f"request system unavailable: {exc}")
 
     monitored = monitored_collection_ids(collections)
@@ -487,9 +476,8 @@ def source_blocks(
     if not history_ok:
         blocks.append(f"play history not usable: {history_note}")
     if not requests_ok:
-        # Without it an empty request set is indistinguishable from "nobody
-        # asked for any of this", and for a film carrying an import-list
-        # provenance tag that difference is the entire authorisation.
+        # An empty request set reads like nobody asked; for an import-list film that
+        # gap is the whole authorisation to delete it.
         blocks.append("request system unreachable: a requested film could not be told from a feed pull")
     return blocks
 
@@ -617,9 +605,8 @@ def rehydrate(planned: dict, film: Film, reason: str = "") -> Assessment:
             status=HistoryStatus(planned["history_status"]),
             identity_via=planned.get("identity_via", "unresolved"),
             rating_keys=tuple(planned.get("rating_keys") or ()),
-            # Carried through because the decision fingerprint counts completers.
-            # Dropped, a spare is recorded against completers=0 while the next
-            # plan computes the real number -- stale on the day it was made.
+            # Carried through: the fingerprint counts completers, and dropping it would
+            # record a spare against completers=0, stale the day it's made.
             completions=tuple(
                 Completion(user_id=int(c["user_id"]), percent=int(c["percent"]))
                 for c in (planned.get("completions") or [])
@@ -757,23 +744,16 @@ def cmd_execute(args: argparse.Namespace) -> int:
     """Apply Claude's recommendations, re-validating every safeguard first."""
     sources = build_sources()
     radarr, ledger = sources.radarr, sources.ledger
-    # The scheduled CronJob passes --read-only. Acting therefore takes two
-    # deliberate edits in different places rather than one word in a manifest,
-    # and a half-made change refuses loudly instead of deleting quietly. It is
-    # not a security boundary -- anyone who can change one file can change both
-    # -- it is a guard against the change nobody meant to make.
+    # The CronJob passes --read-only, so acting needs edits in two places; a half-made
+    # change then refuses loudly rather than deleting quietly (README: read-only runs).
     if getattr(args, "read_only", False) and not ledger.dry_run:
         log("refusing to execute: --read-only was passed but CLEANUP_MODE is act")
         return 5
     plan = json.loads(Path(args.plan).read_text(encoding="utf-8"))
     recommendations = json.loads(Path(args.recommendations).read_text(encoding="utf-8"))
     if isinstance(recommendations, dict):
-        # The pipeline's own recommendations file names the plan it was judged
-        # against. Both files outlive the run on the same volume, so a judging
-        # step that died before rewriting its output leaves last week's verdicts
-        # in place -- and a film still on this week's candidate list would then
-        # be deleted on a judgement nobody made about it. A bare list is still
-        # accepted, for the hand-made file of a manual run.
+        # Both files outlive the run on the same volume; without this check a judging
+        # step that died leaves last week's verdicts to act on this week's candidates.
         if recommendations.get("plan_run_id") != plan.get("run_id"):
             log(
                 "refusing to execute: recommendations were judged against plan "
@@ -800,9 +780,8 @@ def cmd_execute(args: argparse.Namespace) -> int:
     accepted, rejected = validate_recommendations(recommendations, by_id)
     for bad in rejected:
         log(f"  rejected recommendation: {bad}")
-    # A candidate the judge simply left out is not acted on, which is safe, but
-    # it reaches nobody either -- it is neither deleted nor put in front of a
-    # person. Counting it is the only thing that makes that visible.
+    # A candidate the judge left out is safe but reaches nobody: neither deleted nor
+    # put in front of a person. Counting it is what makes that visible.
     unjudged = sorted(set(by_id) - {item["movie_id"] for item in accepted})
     if unjudged:
         log(f"  {len(unjudged)} candidate(s) came back with no usable verdict")
@@ -829,10 +808,8 @@ def cmd_execute(args: argparse.Namespace) -> int:
             for item in accepted
             if item["verdict"] == "delete" and item["movie_id"] in movies
         ]
-        # Before anything is deleted. Assessment now protects anything meeting
-        # the bar, so the two sets should not overlap -- applying first means a
-        # plan built before that rule still cannot delete a film it was about
-        # to permanently protect.
+        # Applied before any deletion: catches a plan built before this protection rule
+        # from deleting a film assessment would now protect.
         tagged = apply_keep_tags(
             radarr,
             plan.get("keep_tag_additions") or [],
@@ -864,10 +841,8 @@ def cmd_execute(args: argparse.Namespace) -> int:
         escalated = record_judge_decisions(accepted, movies, by_id, tag_labels, monitored, ledger, sources.run_id)
         summary = {
             "run_id": sources.run_id,
-            # The plan and the execution are separate CronJobs and generate
-            # their own run ids, so this is the only thing tying a result to
-            # the plan it came from. The digest needs it to tell this week's
-            # result from one left on the volume by an earlier week.
+            # Separate CronJobs generate their own run ids; this ties the result back to
+            # the plan, so the digest can tell this week's result from an older one.
             "plan_run_id": plan.get("run_id"),
             "unjudged": unjudged,
             "mode": "dry-run" if ledger.dry_run else "act",
@@ -882,17 +857,8 @@ def cmd_execute(args: argparse.Namespace) -> int:
             f"deleted={len(result.deleted)} skipped={len(result.skipped)} "
             f"failed={len(result.failed)} uncertain={len(result.uncertain)}"
         )
-        # A failed deletion is safe to surface as a Job failure: nothing was
-        # destroyed, so a retry re-attempts a no-op. An *uncertain* one is not:
-        # the DELETE may have landed, and re-running the pipeline would issue it
-        # again -- exactly what _delete_one refuses to do. Those are left for
-        # the next run's reconciliation, which resolves them by looking.
-        # Both surface as a Job failure. That was unsafe while the CronJob could
-        # retry -- a retry would re-run judgement and re-issue a DELETE that may
-        # already have landed -- but backoffLimit is 0, so a non-zero exit now
-        # only marks the Job failed. An ambiguous destructive operation is
-        # exactly what should be visible, and the next scheduled run still
-        # reconciles it by looking rather than by repeating the call.
+        # A failed deletion is a safe no-op to retry; an uncertain one may have landed, so
+        # it's left for the next run to reconcile by looking (docs/apps/curator.md).
         if result.uncertain:
             log(
                 f"exiting non-zero: {len(result.uncertain)} deletion(s) could not be "
@@ -927,8 +893,8 @@ def cmd_report(args: argparse.Namespace) -> int:
     try:
         log(reporting.post(url, env("CLEANUP_WEBHOOK_TOKEN", required=False), digest))
     except reporting.NotificationError as exc:
-        # Loud on purpose. An undelivered digest is indistinguishable, from the
-        # phone, from a week in which the job never ran.
+        # Loud on purpose: an undelivered digest looks, from the phone, like a week
+        # the job never ran at all.
         log(f"DIGEST NOT DELIVERED: {exc}")
         return 6
     return 0

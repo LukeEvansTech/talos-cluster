@@ -12,9 +12,8 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 
-# --- Tag vocabulary -------------------------------------------------------
-# Two legacy tags are absolute vetoes and predate this engine. Three decision
-# tags are set by a person in the Radarr UI and outrank every automatic rule.
+# Two legacy tags are absolute vetoes predating this engine. Three decision tags
+# are set by a person in the Radarr UI and outrank every automatic rule.
 
 TAG_KEEP = "keep"
 TAG_KEEP_REVIEW = "keep-review"
@@ -178,10 +177,8 @@ class Assessment:
     reasons: list[str] = field(default_factory=list)
     blockers: list[str] = field(default_factory=list)
     protections: list[str] = field(default_factory=list)
-    # Evidence the keep reasons are stated in terms of. Without these the judge
-    # is asked to prove a collection is partly owned, or that the library
-    # follows a subject, from information it was never given -- and a rule that
-    # defaults to deletion resolves that absence as "delete".
+    # Without these the judge can't verify a keep reason (partial collection, a
+    # followed subject), and the default-to-delete rule reads that gap as delete.
     siblings_owned: int = 0
     subject_counts: dict[str, int] = field(default_factory=dict)
 
@@ -211,9 +208,8 @@ class Assessment:
             "subject_counts": dict(self.subject_counts),
             "genres": list(self.film.genres),
             "studio": self.film.studio,
-            # The judge is asked to read this, and the prompt's injection
-            # handling is written against it. Omitted, it arrived as null and
-            # both were silently inert.
+            # The judge reads this field and injection handling is written against
+            # it; omit it and both go silently inert.
             "overview": self.film.overview,
             "history_status": self.viewing.status.value,
             "identity_via": self.viewing.identity_via,
