@@ -12,8 +12,7 @@ spec:
   values:
     fullnameOverride: reloader
     reloader:
-      # No enableHA: it turns on leader election, and with the single replica this
-      # runs that only buys a lease to acquire before the controller does any work.
+      # No enableHA: with a single replica, that only adds a lease to acquire before work starts.
       readOnlyRootFileSystem: true
       podMonitor:
         enabled: true
