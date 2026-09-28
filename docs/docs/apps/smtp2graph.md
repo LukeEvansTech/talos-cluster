@@ -38,11 +38,14 @@ for the symptom, cause and fix; do not duplicate that runbook here.
 
 ## PodMonitor, not ServiceMonitor
 
-The metrics sidecar is scraped by `podmonitor.yaml` rather than through its own Service. Giving it
-one would push app-template past one Service on the controller, which renames the existing
-`smtp2graph` Service to `smtp2graph-app`. That breaks `smtp2graph.infrastructure.svc.cluster.local`,
-the address every in-cluster mail sender (pocket-id, tandoor, epicgames, scanopy) and the
-LoadBalancer VIP depend on. Scraping the pod directly avoids the rename entirely.
+The metrics sidecar is scraped by `podmonitor.yaml` rather than through its own Service. This was a
+live regression, not foresight: PR #4402 first gave the sidecar its own Service, and app-template
+5.x suffixes every Service on a controller the moment there is more than one, so `smtp2graph`
+became `smtp2graph-app`. That broke `smtp2graph.infrastructure.svc.cluster.local`, the address
+every in-cluster mail sender (pocket-id, tandoor, epicgames, scanopy) uses, and closed the
+LoadBalancer VIP the NMC fleet sends through. `primary: true` does not opt out of the suffixing,
+confirmed against the chart schema and by rendering it. PR #4407 fixed it by dropping the second
+Service: the sidecar declares a named container port and `PodMonitor` scrapes the pod directly.
 
 ## References
 
