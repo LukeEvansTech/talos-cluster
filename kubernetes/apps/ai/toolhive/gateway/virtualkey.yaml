@@ -5,9 +5,6 @@ kind: LiteLLMVirtualKey
 metadata:
   name: toolhive
 spec:
-  # proxyRef targets the LiteLLMProxy created by the litellm-operator cutover
-  # (a separate, currently-open PR). Until that merges, no LiteLLMProxy named
-  # "litellm" exists in this namespace and the operator cannot admit this key.
   keyAlias: toolhive-vmcp
   models:
     - all-minilm

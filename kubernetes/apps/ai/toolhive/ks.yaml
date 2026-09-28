@@ -9,11 +9,9 @@ spec:
   commonMetadata:
     labels:
       app.kubernetes.io/name: toolhive-embed
-  # Deliberately depends on nothing: both consumers order themselves after it.
-  # litellm's mcp_semantic_tool_filter resolves its embedding model ONCE at
-  # startup and stays silently inactive if the backend is missing, so this must
-  # reconcile before litellm, which rules out living in toolhive-gateway,
-  # since that depends on litellm for its LiteLLMVirtualKey.
+  # Depends on nothing: litellm's semantic filter resolves its embedding model once at startup
+  # and goes silently inactive if this isn't ready first (docs/docs/architecture/ai-llm-stack.md
+  # MCP tools).
   interval: 1h
   path: ./kubernetes/apps/ai/toolhive/embed
   prune: true
@@ -24,9 +22,8 @@ spec:
     namespace: flux-system
   targetNamespace: *namespace
   timeout: 15m
-  # wait: true, unlike its siblings. A dependsOn is only satisfied when this
-  # goes Ready, and "applied" is not good enough here: the pod pulls a 610MB
-  # GGUF on first start, so litellm must wait for it to actually serve.
+  # Unlike its siblings: the pod pulls a 610MB GGUF on first start, so dependents must
+  # wait for it to actually serve, not just apply.
   wait: true
 ---
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/kustomize.toolkit.fluxcd.io/kustomization_v1.json

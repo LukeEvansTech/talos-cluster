@@ -5,10 +5,8 @@ kind: MCPServer
 metadata:
   name: hamcp
 spec:
-  # ha-mcp (github.com/homeassistant-ai/ha-mcp) run in its `ha-mcp-web` mode,
-  # native FastMCP streamable-http (endpoint /mcp), so LiteLLM talks to the
-  # mcp-hamcp Service directly like seerr, no proxy hop. The image's default
-  # entrypoint is the stdio variant, hence the command override below.
+  # ha-mcp-web mode: native streamable-http, no proxy hop, like seerr. The image
+  # defaults to the stdio entrypoint, hence the command override below.
   image: ghcr.io/homeassistant-ai/ha-mcp:8.5.0@sha256:e1538bcdadb13a5467bbb8258fba3262a05518585e18115742da638adec7057c
   transport: streamable-http
   mcpPort: 8080

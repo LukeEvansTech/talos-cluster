@@ -1,15 +1,13 @@
 ---
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/toolhive.stacklok.dev/mcpserverentry_v1alpha1.json
-# Registers the externally-deployed mcp-searxng into the mcp-tools group (for a
-# future VirtualMCPServer aggregate). LiteLLM reaches it directly via its
-# mcp_servers config; this entry is harmless without the aggregate.
+# For a future VirtualMCPServer aggregate; LiteLLM already reaches mcp-searxng directly.
 apiVersion: toolhive.stacklok.dev/v1alpha1
 kind: MCPServerEntry
 metadata:
   name: searxng
 spec:
-  # ToolHive rejects remoteUrl hosts containing "cluster.local" (RemoteURLInvalid).
-  # The short svc.ns form resolves the same address and is accepted.
+  # Short svc.ns form, not cluster.local
+  # (docs/docs/architecture/ai-llm-stack.md Adding an MCP server).
   remoteUrl: http://mcp-searxng.ai:3000/mcp
   transport: streamable-http
   groupRef:

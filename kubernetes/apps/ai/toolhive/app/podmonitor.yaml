@@ -5,11 +5,8 @@ kind: PodMonitor
 metadata:
   name: mcp-servers
 spec:
-  # Scrapes the ToolHive proxy pods (one Deployment per MCPServer: kubectl, flux,
-  # talos, github, grafana), which expose Prometheus metrics on the proxy port
-  # once the MCPTelemetryConfig above enables them. No `release:
-  # kube-prometheus-stack` label. This cluster's Prometheus selects monitors
-  # without it, so copying that selector would silently drop the target.
+  # No release: kube-prometheus-stack label; this cluster's Prometheus selects monitors
+  # without it (docs/docs/architecture/ai-llm-stack.md Metrics scraping).
   selector:
     matchLabels:
       app.kubernetes.io/name: mcpserver
@@ -17,10 +14,8 @@ spec:
     matchNames:
       - ai
   podMetricsEndpoints:
-    # The ToolHive operator names the proxy container port `http` (not `8080`);
-    # prometheus-operator matches podMetricsEndpoints[].port by port NAME, so a
-    # numeric value here would resolve no target. /metrics is served on the same
-    # proxy port once telemetryConfigRef is set on each MCPServer.
+    # Port matched by name, not number: a numeric value resolves no target
+    # (docs/docs/architecture/ai-llm-stack.md Metrics scraping).
     - port: http
       path: /metrics
       interval: 15s
