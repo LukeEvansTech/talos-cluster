@@ -9,8 +9,8 @@ described the TTL as house style that 14 CronJobs did not actually have.
 
 Checked shapes:
   - app-template HelmRelease: every controller with `type: cronjob` needs
-    `cronjob.ttlSecondsAfterFinished`.
-  - plain `kind: CronJob`: needs `spec.jobTemplate.spec.ttlSecondsAfterFinished`.
+    `cronjob.ttlSecondsAfterFinished` of at most 86400.
+  - plain `kind: CronJob`: needs `spec.jobTemplate.spec.ttlSecondsAfterFinished` of at most 86400.
 
 CronJobs a third-party chart renders itself (memini-fsck, volsync's kopia
 maintenance) are not in git and so never seen here. ALLOWLIST is for a
@@ -29,6 +29,7 @@ import yaml  # pylint: disable=import-error  # on the runner image; not in the l
 
 # "path::controller-or-name": reason
 ALLOWLIST: dict[str, str] = {}
+MAX_TTL = 86400
 
 # Tolerate the custom tags some manifests carry instead of refusing the whole file.
 yaml.SafeLoader.add_multi_constructor("", lambda _loader, _suffix, _node: None)
@@ -42,6 +43,11 @@ def _tracked_manifests() -> list[pathlib.Path]:
         text=True,
     ).stdout.split()
     return sorted({pathlib.Path(p) for p in out})
+
+
+def _reaps_within_a_day(ttl: object) -> bool:
+    """True for an integer TTL of at most a day; a longer one latches the alert for longer."""
+    return isinstance(ttl, int) and not isinstance(ttl, bool) and 0 <= ttl <= MAX_TTL
 
 
 def _problems_in(path: pathlib.Path) -> tuple[list[str], int]:
@@ -68,22 +74,22 @@ def _problems_in(path: pathlib.Path) -> tuple[list[str], int]:
                 if not isinstance(ctl, dict) or ctl.get("type") != "cronjob":
                     continue
                 seen += 1
-                if (ctl.get("cronjob") or {}).get("ttlSecondsAfterFinished") is None:
+                if not _reaps_within_a_day((ctl.get("cronjob") or {}).get("ttlSecondsAfterFinished")):
                     key = f"{path}::{name}"
                     if key not in ALLOWLIST:
                         found.append(
                             f"{path}: controller '{name}' is type cronjob without "
-                            "cronjob.ttlSecondsAfterFinished (use 86400)"
+                            "cronjob.ttlSecondsAfterFinished <= 86400"
                         )
         elif kind == "CronJob":
             seen += 1
             name = (doc.get("metadata") or {}).get("name", "?")
             job_spec = ((spec.get("jobTemplate") or {}).get("spec")) or {}
-            if job_spec.get("ttlSecondsAfterFinished") is None:
+            if not _reaps_within_a_day(job_spec.get("ttlSecondsAfterFinished")):
                 key = f"{path}::{name}"
                 if key not in ALLOWLIST:
                     found.append(
-                        f"{path}: CronJob '{name}' has no " "spec.jobTemplate.spec.ttlSecondsAfterFinished (use 86400)"
+                        f"{path}: CronJob '{name}' has no spec.jobTemplate.spec.ttlSecondsAfterFinished <= 86400"
                     )
     return found, seen
 

@@ -12,7 +12,8 @@ question that comes first: **should I be touching this at all?**
 
 When someone describes an alert in their own words ("the blue screen one"), find it with
 `just kube alert-history "<phrase>"`: it searches every label of every alert that fired in the last
-30 days, including a BMC event's `message`, which the alert name never mentions.
+14 days (the Prometheus retention), including a BMC event's `message`, which the alert name never
+mentions.
 
 1. **A match means "do not remediate". It does not mean "ignore".** Record which entry matched and
    why, in the PR, the issue or the session notes, so a wrong match is auditable afterwards. An

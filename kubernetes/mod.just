@@ -53,11 +53,12 @@ zeroscaler state:
         kubectl -n "$ns" patch hpa "$name" --type merge -p '{"spec":{"minReplicas":{{ if state == "suspend" { "1" } else { "0" } }}}}'
     done
 
-[doc('Find past alerts whose labels match a phrase (case-insensitive regex), e.g. "blue screen"')]
-alert-history pattern window="30d":
-    q=$(python3 -c 'import sys,urllib.parse; print(urllib.parse.quote(sys.argv[1]))' 'last_over_time(ALERTS_FOR_STATE[{{ window }}])'); \
+[doc('Find past alerts whose labels match a phrase (case-insensitive regex), e.g. "blue screen". Window is capped by Prometheus retention (14d).')]
+alert-history pattern window="14d":
+    # Positional args (set positional-arguments): the phrase never passes through shell quoting.
+    q=$(python3 -c 'import sys,urllib.parse; print(urllib.parse.quote(sys.argv[1]))' "last_over_time(ALERTS_FOR_STATE[$2])"); \
     kubectl get --raw "/api/v1/namespaces/observability/services/prometheus-operated:9090/proxy/api/v1/query?query=$q" \
-      | jq -r --arg p '{{ pattern }}' '.data.result[] | .metric | del(.__name__) | select(tostring | test($p; "i"))
+      | jq -r --arg p "$1" '.data.result[] | .metric | del(.__name__) | select(tostring | test($p; "i"))
           | "\(.alertname)\t\(to_entries | map(select(.key != "alertname" and (.value | test($p; "i")))) | map("\(.key)=\(.value)") | join(" "))"' \
       | sort | uniq -c | sort -rn
 
