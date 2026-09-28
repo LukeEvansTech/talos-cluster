@@ -12,7 +12,7 @@ spec:
   interval: 1h
   path: ./kubernetes/apps/kube-system/generic-device-plugin/app
   postBuild: {}
-  prune: false # let's not make happy accidents
+  prune: false # Prune stays off so a bad apply cannot delete this core component.
   retryInterval: 2m
   sourceRef:
     kind: GitRepository
