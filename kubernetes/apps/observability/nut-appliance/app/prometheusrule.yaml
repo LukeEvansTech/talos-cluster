@@ -6,9 +6,9 @@ metadata:
   name: nut-appliance.rules
 spec:
   groups:
-    # Four rules, wide margins: every severity here pages (docs/apps/nut-appliance.md).
+    # Four host-level rules, wide margins: every severity pages (docs/docs/apps/nut-appliance.md).
     # No RAPL power-regression alert: the tuning delta sits inside run-to-run noise
-    # (docs/apps/nut-appliance.md); graphed on the dashboard instead.
+    # (docs/docs/apps/nut-appliance.md); graphed on the dashboard instead.
     - name: nut-appliance.rules
       rules:
         # Not "box is down" (UPSUnreachable covers that): gated on nut-exporter still
@@ -31,10 +31,10 @@ spec:
           labels:
             severity: warning
         # Three rules, not truenas-docker.rules' five: OOM and exporter-down are
-        # already covered above (docs/apps/nut-appliance.md). Scoped to the doco-cd
+        # already covered above (docs/docs/apps/nut-appliance.md). Scoped to the doco-cd
         # fleet so a hand-run throwaway container never pages.
         # Restore-init one-shots exit 0 and stay exited, excluded by name (#4088,
-        # docs/apps/seedbox.md). `created` catches one that fails instead.
+        # docs/docs/apps/seedbox.md). `created` catches one that fails instead.
         - alert: NutApplianceContainerDown
           annotations:
             description: >-
@@ -87,7 +87,7 @@ spec:
           labels:
             severity: warning
         # mountpoint="/var" is load-bearing: FCOS mounts the same xfs at four places, and
-        # "/" is a composefs overlay permanently 100% full (docs/apps/nut-appliance.md).
+        # "/" isn't exposed by node-exporter here at all (docs/docs/apps/nut-appliance.md).
         # /boot excluded: already too full for rpm-ostree to stage a kernel, so this
         # threshold would be useless there; needs its own rule if it needs watching.
         - alert: NutApplianceDiskFillHigh

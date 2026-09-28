@@ -2,20 +2,19 @@
 
 ## Purpose
 
-The NUT appliance is a small FCOS box running `nut-apps`: `nut-upsd` reads the UPS over USB, plus
-a handful of doco-cd-managed containers (traefik, peanut, the restore inits). `kubernetes/apps/
-observability/nut-appliance` scrapes its host, SMART, Docker and doco-cd exporters over a plain LAN
-address and provisions its dashboard and alerts.
+The NUT appliance is a small FCOS box that exports UPS status alongside a handful of
+doco-cd-managed containers. `kubernetes/apps/observability/nut-appliance` scrapes its host, SMART,
+Docker and doco-cd exporters over a plain LAN address and provisions its dashboard and alerts.
 
 ## Why a bespoke dashboard
 
 The upstream "Node Exporter Full" (grafana.com 1860) doesn't fit this box for two reasons: it has
-no RAPL panel, and RAPL power is the whole reason node-exporter runs as root here, and its rootfs
-panel keys on `mountpoint="/"`, which on FCOS 44 is a 5 MB composefs overlay permanently reporting
-100% full. The headline disk panel would read as a false alarm rather than merely empty, so the
-bespoke `nut-appliance` dashboard uses `/var` instead (see "The mountpoint quirk" below). Every
-query was validated against live data before merge, same shape as the seedbox and truenas-zfs
-dashboards.
+no RAPL panel, and RAPL power is the whole reason node-exporter runs as root here; and its rootfs
+panel keys on `mountpoint="/"`, which node-exporter does not expose on this host at all (confirmed
+against live Prometheus: zero series). The panel would render empty rather than useful, so the
+bespoke `nut-appliance` dashboard uses `/var` instead, the filesystem FCOS actually exposes (see
+"The mountpoint quirk" below). Every query was validated against live data before merge, same
+shape as the seedbox and truenas-zfs dashboards.
 
 ## The `$__rate_interval` bug (#3919)
 
@@ -31,16 +30,18 @@ the macro entirely and is deterministic regardless of datasource settings. Any o
 estate that pairs `$__rate_interval` with a scrape interval slower than 15s has the same latent
 problem; seedbox's own dashboard carries the same fix and points back here.
 
-## Alert design: four rules, wide margins
+## Alert design: four host-level rules, wide margins
 
-Every alert here pages. Alertmanager's root route sends all severities to Pushover, so `warning` is
-not a quiet tier here, and the seedbox learned the cost of forgetting that (an iowait alert
-calibrated at the textbook threshold "would have paged perpetually"). So the rule set is deliberately
-small, with margins wide enough that only a real problem crosses them, rather than a comprehensive
-sweep of everything a generic exporter can measure.
+`nut-appliance.rules` carries eight alerts in total: four host-level ones covered in this section,
+three container-lifecycle alerts, and the GitOps-stalled alert (both covered further down). Every
+alert in this host-level group pages. Alertmanager's root route sends all severities to Pushover,
+so `warning` is not a quiet tier here, and the seedbox learned the cost of forgetting that (an
+iowait alert calibrated at the textbook threshold "would have paged perpetually"). So the group is
+deliberately small, with margins wide enough that only a real problem crosses them, rather than a
+comprehensive sweep of everything a generic exporter can measure.
 
-The four rules are calibrated against values observed on the box on 2026-07-28, not textbook
-defaults:
+The four host-level rules are calibrated against values observed on the box on 2026-07-28, not
+textbook defaults:
 
 | Metric    | Observed baseline               |
 | --------- | ------------------------------- |
@@ -93,16 +94,22 @@ These overlap `UPSUnreachable` when `nut-upsd` itself dies, deliberately: "conta
 is directly actionable where "UPS monitoring is blind" is only a symptom, and the two alerts use
 different names so the critical-to-warning inhibit rule doesn't couple them.
 
-The restore-init one-shot exclusion (`name!~".*-restore-.*-[0-9]+"`) and the `created` status are the
-same fleet-wide fix as seedbox's: see [seedbox monitoring](seedbox.md#one-shot-containers) (#4088).
+The restore-init one-shot exclusion (`name!~".*-restore-.*-[0-9]+"`) and the `created` status trace
+back to the same fleet-wide incident as seedbox's (#4088, see
+[seedbox monitoring](seedbox.md#one-shot-containers)): restore inits exit 0 and stay exited, and a
+failed one lands in `created` instead of `exited`. Seedbox later moved to an `alerts.oneshot=true`
+label; this app still excludes by name, so a new one-shot container here needs a name matching
+`.*-restore-.*-[0-9]+` or it will page.
 
 ## The mountpoint quirk
 
 `mountpoint="/var"` is load-bearing in `NutApplianceDiskFillHigh`. FCOS mounts the same xfs
 filesystem at four places (`/var`, `/etc`, `/sysroot`, `/sysroot/ostree/deploy/...`), all reporting
 identical numbers, so an unpinned expression would fire four identical alerts for one problem.
-`"/"` must not be used: it's the 5 MB composefs overlay described above, permanently 100% full, so
-the textbook rootfs rule would page from the moment this target came up.
+`"/"` must not be used either: FCOS mounts it as a small composefs overlay that's permanently full
+at the OS level, but node-exporter doesn't expose that mountpoint as a metric on this host at all
+(confirmed live). A rule keyed on it wouldn't misfire, it would simply never evaluate, a silent gap
+rather than a working safety net.
 
 `/boot` is deliberately excluded from disk-fill alerting. It sits at 350 MB, 48% used, and 85% of
 that is only 52 MB free, already past the point where `rpm-ostree` can stage a kernel. A threshold
@@ -122,5 +129,5 @@ The other two unscoped ceph node alerts were checked against this box rather tha
 
 | Rule                         | Check                                                                                                                                                                                                                                                  |
 | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `CephNodeRootFilesystemFull` | Keys on `mountpoint="/"`, which FCOS doesn't expose to node-exporter at all (see above).                                                                                                                                                               |
+| `CephNodeRootFilesystemFull` | Keys on `mountpoint="/"`, which node-exporter doesn't expose on this host at all (see "The mountpoint quirk" above), so the rule can never fire here.                                                                                                  |
 | `CephNodeInconsistentMTU`    | Compares each device against the cluster-wide median for that device name. Verified: `eno1` 1500, `docker0` 1500 and `tailscale0` 1280 all match the existing medians, and the `br-*`/`veth*` names are unique to this host so each is its own median. |

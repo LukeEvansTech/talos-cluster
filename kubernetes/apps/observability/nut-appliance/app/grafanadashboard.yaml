@@ -1,8 +1,8 @@
 ---
-# Bespoke rather than upstream "Node Exporter Full": no RAPL panel there, and its rootfs
-# panel keys on mountpoint="/", permanently 100% full here (see docs/apps/nut-appliance.md).
+# Bespoke rather than upstream "Node Exporter Full": no RAPL panel there, and node-exporter
+# doesn't expose mountpoint="/" on this host at all (docs/docs/apps/nut-appliance.md).
 # rate() panels use a fixed [5m] window, not $__rate_interval, which breaks on this 60s
-# job (#3919, docs/apps/nut-appliance.md).
+# job (#3919, docs/docs/apps/nut-appliance.md).
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/grafana.integreatly.org/grafanadashboard_v1beta1.json
 apiVersion: grafana.integreatly.org/v1beta1
 kind: GrafanaDashboard

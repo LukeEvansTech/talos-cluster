@@ -22,7 +22,7 @@ spec:
   metricRelabelings:
     # Load-bearing: unscoped ceph-mixin alerts adopt every node-exporter target, and
     # CephNodeDiskspaceWarning joins on node_uname_info, so dropping it keeps a 5-day
-    # predict_linear from paging on this appliance (docs/apps/nut-appliance.md).
+    # predict_linear from paging on this appliance (docs/docs/apps/nut-appliance.md).
     - action: drop
       sourceLabels:
         - __name__
