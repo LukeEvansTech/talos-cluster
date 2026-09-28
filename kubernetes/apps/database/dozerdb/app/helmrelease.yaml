@@ -45,10 +45,7 @@ spec:
             envFrom:
               - secretRef:
                   name: dozerdb-secret
-            # NOTE: capabilities.drop is intentionally omitted, DozerDB's
-            # entrypoint chowns /var/lib/neo4j at startup and needs CAP_CHOWN.
-            # Dropping all caps causes "Operation not permitted" on chown
-            # and the container CrashLoops.
+            # No capabilities.drop: the entrypoint needs CAP_CHOWN for /var/lib/neo4j at startup.
             securityContext:
               allowPrivilegeEscalation: false
             probes:
@@ -88,9 +85,7 @@ spec:
                 - path: /data
 
     defaultPodOptions:
-      # DozerDB's entrypoint writes to /var/lib/neo4j inside the image; runs as
-      # uid/gid 7474 in upstream Neo4j. We let the image set its own user and
-      # only force fsGroup so the PVC is writable.
+      # The image sets its own user (uid/gid 7474 upstream); only fsGroup is forced for the PVC.
       securityContext:
         fsGroup: 7474
         fsGroupChangePolicy: OnRootMismatch
