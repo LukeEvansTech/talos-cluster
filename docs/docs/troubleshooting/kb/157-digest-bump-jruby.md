@@ -10,8 +10,9 @@ separate versions) applies to any digest-pinned, custom-built image.
 bumps ([#4343](https://github.com/LukeEvansTech/talos-cluster/pull/4343),
 [#4351](https://github.com/LukeEvansTech/talos-cluster/pull/4351),
 [#4432](https://github.com/LukeEvansTech/talos-cluster/pull/4432), merged 2026-08-17 to
-2026-08-20). Flux's install remediation (`retries: 3`, `strategy: rollback`) rolled each one back
-to the last working digest, so the HelmRelease quietly kept running a three-week-old image and
+2026-08-20). Each bump upgraded an already-running release, so Flux's upgrade remediation
+(`spec.upgrade.remediation`: `retries: 3`, `strategy: rollback`) rolled each one back to the last
+working digest, and the HelmRelease quietly kept running a three-week-old image and
 only the `FluxHelmReleaseNotReady` alert, firing from 2026-08-20 22:48, surfaced the problem.
 
 ## Cause
