@@ -24,8 +24,7 @@ spec:
               SEARCH_INTERVAL: 1hour
               SEARCH_AMOUNT: "5"
               MONITORED_ONLY: "true"
-              # Missing-only: Profilarr v2 Upgrades now owns quality upgrades
-              # (cutoff-unmet re-search). fetcharr only acquires missing items.
+              # Missing-only: Profilarr v2 Upgrades owns quality upgrades (cutoff-unmet re-search).
               MISSING_ONLY: "true"
               RADARR_0_URL: http://radarr.media.svc.cluster.local
               SONARR_0_URL: http://sonarr.media.svc.cluster.local
