@@ -9,17 +9,21 @@ general:
   enable_metrics: false
 search:
   safe_search: 0
-  # autocomplete/favicon_resolver fire one upstream request per keystroke or row, which
-  # triggers captchas on this automation-only instance (mcp-searxng, open-webui RAG).
+  # autocomplete + favicon_resolver each fire one upstream request per keystroke
+  # and per result row. This instance is automation-driven (mcp-searxng,
+  # open-webui RAG), so those calls add no value and drive upstream captcha /
+  # rate-limits. Empty string disables both.
   autocomplete: ""
   favicon_resolver: ""
   default_lang: "en"
-  # mcp-searxng and open-webui RAG call /search?format=json, which 403s unless listed here.
+  # Upstream default is html only. mcp-searxng and open-webui RAG both call
+  # /search?format=json, which webapp.py 403s unless the format is listed here.
   formats:
     - html
     - json
 server:
-  # secret_key comes from SEARXNG_SECRET; this file isn't env-expanded, so none is set here.
+  # server.secret_key comes from the SEARXNG_SECRET env var (searx/settings_defaults.py),
+  # SearXNG does not expand env-style placeholders in this file, so no key is set here.
   limiter: false
   image_proxy: true
   method: "GET"
