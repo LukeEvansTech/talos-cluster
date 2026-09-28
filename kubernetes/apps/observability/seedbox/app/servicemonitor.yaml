@@ -26,7 +26,7 @@ spec:
           replacement: seedbox
       metricRelabelings:
         # Nothing read per-torrent series, and every cull churns them (36k cut to 5.5k, 2026-08-27).
-        # A keep-list could remove `up`, so this is a drop-list. After a bump: docs/apps/seedbox.md.
+        # A keep-list could remove `up`, hence a drop-list. After a bump: docs/docs/apps/seedbox.md.
         - action: drop
           sourceLabels:
             - __name__

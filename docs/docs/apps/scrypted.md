@@ -10,11 +10,9 @@ Reolink cameras in a later phase.
   Home Assistant-only setup because it ships first-party **Ring** _and_
   **Reolink** plugins plus the strongest HKSV pipeline.
 - **Phase 0 (current):** the official Ring plugin bridges the existing Ring
-  fleet (2× Doorbell Pro 2, Doorbell 2nd Gen, Stick Up Cam Battery, Floodlight
-  Cam Wired Plus, Spotlight Cam Plus Battery, Indoor Cam) into HomeKit. Traffic
+  cameras and doorbells into HomeKit. Traffic
   is cloud-relayed through the Ring account, which is expected at this stage.
-- **Phase 1+:** Reolink cameras (Doorbell PoE/Wi-Fi, Duo/Elite Floodlight, Argus
-  4 Pro, E1 Pro) via `@scrypted/reolink`. Nothing here blocks local RTSP/ONVIF.
+- **Phase 1+:** Reolink cameras and doorbells via `@scrypted/reolink`. Nothing here blocks local RTSP/ONVIF.
 - Internal-only: `scrypted.${SECRET_DOMAIN}` on `envoy-internal`.
 
 ## Division of labour with Homebridge
@@ -28,12 +26,12 @@ Scrypted is **additive**: Homebridge stays.
   to avoid duplicate accessories in Apple Home.
 
 !!! warning "Homebridge is currently an empty, unpaired bridge"
-    At the time Scrypted was added, Homebridge had `pairedClients: {}` (never
-    paired to HomeKit), an empty `cachedAccessories`, only the `homebridge-dummy`
-    plugin, and a crash-looping Avahi (`Failed to create runtime directory
+At the time Scrypted was added, Homebridge had `pairedClients: {}` (never
+paired to HomeKit), an empty `cachedAccessories`, only the `homebridge-dummy`
+plugin, and a crash-looping Avahi (`Failed to create runtime directory
     /run/avahi-daemon/`). It is therefore **not** a working reference for
-    HomeKit networking. See the Avahi fix tracked separately. Scrypted does not
-    depend on it.
+HomeKit networking. See the Avahi fix tracked separately. Scrypted does not
+depend on it.
 
 ## Design decisions
 
@@ -41,7 +39,7 @@ Scrypted is **additive**: Homebridge stays.
   HomeKit pairing (HAP) needs L2 adjacency with the HomeKit hubs, or an mDNS
   reflector. An mDNS probe run on both segments settled it empirically: both
   Apple TVs answered `_airplay._tcp` / `_companion-link._tcp` / `_sleep-proxy._udp`
-  on the **untagged legacy LAN**, while **VLAN 68 returned zero services**, so
+  on the **untagged legacy LAN**, while **the IoT VLAN returned zero services**, so
   no reflection exists into the IoT VLAN. Scrypted therefore attaches to
   `iot-legacy` (like `matter-server`), _not_ the `iot` NAD used by Home
   Assistant, zigbee2mqtt and mosquitto. Upstream's own compose uses
@@ -120,4 +118,4 @@ The admin account for the management UI is likewise created on first launch.
 - **Pairing state is precious.** Restoring the PVC from a volsync snapshot
   restores pairing; deleting it silently forces a re-pair of everything.
 - **The IoT VLAN is not an option for HomeKit** until an mDNS reflector exists
-  between VLAN 68 and the LAN the Apple TVs sit on.
+  between the IoT VLAN and the LAN the Apple TVs sit on.
