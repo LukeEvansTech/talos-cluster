@@ -39,6 +39,9 @@ spec:
                 enabled: true
               readiness:
                 enabled: true
+                # This container needs SETUID/SETGID to drop from root to PUID/PGID; do not
+                # add the repo's standard hardening securityContext here (capabilities.drop:
+                # [ALL], readOnlyRootFilesystem, allowPrivilegeEscalation: false).
           parser:
             image:
               repository: ghcr.io/dictionarry-hub/profilarr-parser
@@ -76,8 +79,7 @@ spec:
         # "Operation not permitted".
         fsGroup: 1000
         fsGroupChangePolicy: OnRootMismatch
-        # The app starts as root to drop to PUID/PGID 1000 itself, so leave runAsUser and
-        # runAsNonRoot unset here and on the container.
+        # Leave runAsUser and runAsNonRoot unset: the app entrypoint must start as root.
         supplementalGroups:
           - 10000
         seccompProfile:
