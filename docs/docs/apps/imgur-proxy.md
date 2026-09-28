@@ -5,11 +5,11 @@ and its subdomains, reached through a `gluetun` WireGuard sidecar to the VPN pro
 [split-dns](../architecture/split-dns.md) for how OPNsense redirects the zone to it). This page
 keeps the incident detail behind the sidecar's hardening, which does not fit as manifest comments.
 
-## The gluetun sidecar drops every capability
+## The gluetun sidecar's capability workaround
 
-Every other gluetun sidecar in `downloads` (qbittorrent, sabnzbd, prowlarr) keeps root's default
-capability set. This one sets `capabilities.drop: [ALL]`, which surfaced two upstream behaviours
-that the other three silently tolerate:
+`imgur-proxy` was originally the only gluetun sidecar in `downloads` setting `capabilities.drop:
+[ALL]`; the other three kept root's default capability set and never hit two upstream behaviours
+this one's hardening exposed:
 
 - `cmd/gluetun/main.go` creates its status directory with `os.MkdirAll("/tmp/gluetun", 0644)`, a
   directory with no execute bit, so traversing into it needs `CAP_DAC_OVERRIDE`. The container pre-
@@ -18,6 +18,10 @@ that the other three silently tolerate:
   which needs `CAP_CHOWN`. Both `PUID` and `PGID` are set to `0` so the chown targets the file's
   existing owner, a permitted no-op. `PUID` otherwise only feeds the unused OpenVPN process user,
   since this tunnel is WireGuard.
+
+A follow-up (#3950) levelled qbittorrent, sabnzbd and prowlarr up to the identical pattern rather
+than relaxing this one back down, so all four gluetun sidecars in `downloads` now drop every
+capability and carry the same `PUID`/`PGID`/`gluetun-tmp` workaround.
 
 ## The blocklist and the memory limit
 
