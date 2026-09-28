@@ -11,8 +11,8 @@ spec:
     name: multus
   values:
     cni:
-      binPath: /opt/cni/bin # Talos CNI binary path
-      netPath: /etc/cni/net.d # Talos CNI config path
+      binPath: /opt/cni/bin
+      netPath: /etc/cni/net.d
     multus:
       resources:
         requests:
