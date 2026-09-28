@@ -1,11 +1,8 @@
 ---
-# Periodic fstrim of Talos-managed volumes (STATE, EPHEMERAL, user volumes).
-# Talos 1.14+ emits this document for new clusters; clusters upgraded from
-# older versions have to add it explicitly or trimming stays off.
-#
-# This does NOT replace the kube-system/fstrim CronJob: Talos only trims
-# volumes it mounts itself. The Ceph RBD PVC filesystems and the miroir loop
-# devices are kubelet CSI mounts, which only the CronJob trims.
+# Periodic fstrim of Talos-managed volumes (STATE, EPHEMERAL, user volumes). Talos 1.14+ emits this
+# for new clusters; a cluster upgraded from an older version must add it explicitly or trimming
+# stays off. Does NOT replace the kube-system/fstrim CronJob: Talos only trims volumes it mounts
+# itself, not the Ceph RBD and miroir loop devices that are kubelet CSI mounts.
 apiVersion: v1alpha1
 kind: FilesystemTrimConfig
 interval: 168h0m0s

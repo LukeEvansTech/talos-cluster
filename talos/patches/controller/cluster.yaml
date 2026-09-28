@@ -1,12 +1,11 @@
 ---
 # etcd has no multi-document form yet and stays in v1alpha1.
 cluster:
-  # KubeNodeConfig is the 1.14 home for this, but talhelper 3.1.17 does not
-  # know it yet, so it stays v1alpha1 (deprecated, still supported).
+  # KubeNodeConfig is the 1.14 home for this, but talhelper 3.1.17 doesn't know it yet, so this
+  # stays v1alpha1 (deprecated, still supported).
   allowSchedulingOnControlPlanes: true
-  # CoreDNS is Flux-managed. talhelper 3.1.17 (machinery 1.14.0-alpha.2) does
-  # not know KubeCoreDNSConfig yet, so this stays v1alpha1 (deprecated, still
-  # supported; no KubeCoreDNSConfig document exists to conflict with).
+  # CoreDNS is Flux-managed. talhelper 3.1.17 (machinery 1.14.0-alpha.2) doesn't know
+  # KubeCoreDNSConfig yet, so this stays v1alpha1 (no KubeCoreDNSConfig document to conflict with).
   coreDNS:
     disabled: true
   etcd:
@@ -23,9 +22,8 @@ $$patch: delete
 ---
 apiVersion: v1alpha1
 kind: KubeAPIServerConfig
-# talhelper 3.1.17 does not carry additionalApiServerCertSans into the 1.14
-# contract, so the extra SANs are restated here. Keep in sync with the &sans
-# anchor in talconfig.yaml.
+# talhelper 3.1.17 doesn't carry additionalApiServerCertSans into the 1.14 contract, so the extra
+# SANs are restated here. Keep in sync with the &sans anchor in talconfig.yaml.
 certExtraSANs:
   - "127.0.0.1"
   - "10.32.8.85"
@@ -34,17 +32,15 @@ certExtraSANs:
 extraArgs:
   # https://kubernetes.io/docs/tasks/extend-kubernetes/configure-aggregation-layer/
   enable-aggregator-routing: true
-  # Required here AND under KubeControllerManagerConfig below for the zeroscaler HPAs to
-  # use minReplicas=0: the apiserver validates the field (rejects 0 without the gate), the
-  # controller-manager does the scaling. Control-plane change (rolling apiserver restart).
-  # See KB-024.
+  # Required here AND under KubeControllerManagerConfig below for zeroscaler's minReplicas=0: the
+  # apiserver validates the field, the controller-manager does the scaling. Control-plane change
+  # (rolling apiserver restart). See KB-024.
   feature-gates: HPAScaleToZero=true
-  # Public OIDC issuer so Entra (and other clouds) can federate the cluster's service-account
-  # tokens, backs the sentinel-syslog workload identity (no secrets). Served as static OIDC
-  # discovery + JWKS by the `network/oidc-talos` app at this exact URL. MUST match byte-for-byte:
-  # the oidc-talos openid-configuration `issuer` + terraform-entra var.sentinel_syslog_oidc_issuer.
-  # ── OPS: control-plane change (rolling apiserver restart). Apply in a maintenance window;
-  #     existing pods re-auth as their projected SA tokens rotate (self-healing, brief).
+  # Public OIDC issuer so Entra can federate the cluster's service-account tokens, backing the
+  # sentinel-syslog workload identity. Served as static OIDC discovery + JWKS by the
+  # `network/oidc-talos` app; MUST match byte-for-byte with that app's `issuer` and
+  # terraform-entra's var.sentinel_syslog_oidc_issuer. Control-plane change (rolling apiserver
+  # restart); existing pods re-auth as their projected SA tokens rotate (self-healing, brief).
   service-account-issuer: https://oidc-talos.codelooks.com
 resources:
   requests:
@@ -68,12 +64,11 @@ apiVersion: v1alpha1
 kind: KubeProxyConfig
 enabled: false
 ---
-# talhelper 3.1.17 (machinery 1.14.0-alpha.2) renders this document with the
-# secretbox key named "key1". Talos has always rendered the v1alpha1
-# secretboxEncryptionSecret as "key2", and etcd ciphertext carries the key
-# NAME, so a "key1" config leaves every kube-apiserver unable to decrypt
-# Secrets (2026-09-03 outage). Drop the generated document; the correct one
-# is restated in etcd-encryption.yaml, which is listed after this file.
+# talhelper 3.1.17 (machinery 1.14.0-alpha.2) renders this document with the secretbox key named
+# "key1", but Talos has always rendered v1alpha1's secretboxEncryptionSecret as "key2", and etcd
+# ciphertext carries the key name, so a "key1" config leaves every kube-apiserver unable to decrypt
+# Secrets (2026-09-03 outage). Drop the generated document; the correct one is restated in
+# etcd-encryption.yaml, listed after this file.
 apiVersion: v1alpha1
 kind: KubeEtcdEncryptionConfig
 $$patch: delete
