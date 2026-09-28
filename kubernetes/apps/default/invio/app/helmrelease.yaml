@@ -28,9 +28,7 @@ spec:
               # renovate: datasource=docker depName=ghcr.io/kittendevv/invio
               repository: ghcr.io/kittendevv/invio
               tag: v2.2.0@sha256:d8eae8d8872c3a55c4ee7c4284f3bd8899a4ab133722cf445f26b9420b2c4ec3
-            # The image's default Cmd lets supervisord default its main logfile
-            # to $CWD/supervisord.log = /app/supervisord.log, which user 1000
-            # cannot write to. `-l /tmp/supervisord.log` redirects it.
+            # Default Cmd logs where user 1000 can't write; -l redirects the logfile to /tmp.
             command:
               - "/usr/bin/supervisord"
             args:
@@ -42,13 +40,9 @@ spec:
             env:
               TZ: ${TIMEZONE}
               DATABASE_PATH: /app/data/invio.db
-              # SvelteKit CSRF: must match the route's hostname exactly, or
-              # state-changing requests get CSRF-rejected. The route only
-              # serves ${SECRET_DOMAIN} (the internal-domain alias was
-              # dropped), so ORIGIN follows it.
+              # SvelteKit's CSRF check requires ORIGIN to match the route's exact hostname.
               ORIGIN: https://invio.${SECRET_DOMAIN}
-              # Envoy terminates TLS upstream; backend pod sees HTTP. Without
-              # this, SvelteKit refuses to set login cookies.
+              # The pod sees plain HTTP behind Envoy's TLS; SvelteKit needs this to set cookies.
               COOKIE_SECURE: "false"
             envFrom:
               - secretRef:
@@ -71,14 +65,8 @@ spec:
                   - ALL
               readOnlyRootFilesystem: false
         initContainers:
-          # The image ships /app/backend root-owned with a stale deno.lock that
-          # deno 2.6.8 insists on rewriting at startup. User 1000 can't write the
-          # root-owned dir, so `deno task start` fails ("Failed writing lockfile
-          # ... Permission denied") and the backend crash-loops into FATAL,
-          # which makes the frontend return 500 ("Unable to connect"). Copy
-          # /app/backend into a writable emptyDir (cp runs as uid 1000, so the
-          # copies become user-owned) and mount it over /app/backend so deno can
-          # refresh its lockfile in place.
+          # The image ships /app/backend root-owned; deno 2.6.8 rewrites its lockfile at startup,
+          # user 1000 can't write there, so this copies it into a writable emptyDir instead (#2739).
           init-backend:
             image:
               # renovate: datasource=docker depName=ghcr.io/kittendevv/invio
@@ -87,10 +75,7 @@ spec:
             command:
               - sh
               - -c
-              # cp -r (not -a): cp as uid 1000 can't preserve timestamps on the
-              # emptyDir mount root, and we don't want to preserve the source's
-              # root ownership anyway. Files copied as uid 1000 are what makes
-              # deno.lock writable.
+              # cp -r, not -a: uid 1000 can't preserve timestamps, and ownership shouldn't survive.
               - cp -r /app/backend/. /writable-backend/
 
     defaultPodOptions:
@@ -132,16 +117,13 @@ spec:
           app:
             app:
               - path: /app/data
-      # Deno's npm cache lives at /.cache/deno; bare image runs as user 1000
-      # which can't write to /.cache. emptyDir gives it somewhere writable.
+      # Deno's npm cache lives at /.cache/deno, unwritable by user 1000; emptyDir makes it writable.
       cache:
         type: emptyDir
         advancedMounts:
           app:
             app:
               - path: /.cache
-      # Writable copy of the image's /app/backend (populated by the
-      # init-backend initContainer) so deno can rewrite its stale lockfile.
       backend:
         type: emptyDir
         advancedMounts:
