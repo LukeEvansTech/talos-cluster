@@ -2,7 +2,8 @@
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
 #
 # Fleet-health alerts on the shelly-operator's per-device metrics
-# (shelly_device_online / _in_sync / _update_available), scraped via the
+# (shelly_device_online / _in_sync / _update_available / _restart_required /
+# _firmware_update_refused), scraped via the
 # operator's already-enabled ServiceMonitor. These metrics ship in operator
 # v0.3.x; before that they are absent and the rules simply never fire.
 # Power/temperature alerts live in the shelly-prometheus-exporter PrometheusRule -- not
@@ -44,12 +45,28 @@ spec:
             description: >-
               {{ $labels.name }}{{ with $labels.room }} in {{ . }}{{ end }}
               ({{ $labels.mac }}) has had a stable firmware update available for
-              over 24h -- auto-update may not be working (it should apply at the
-              device's daily 00:00 window).
+              over 24h. Neither the device's own 00:00 job nor the operator's
+              09:00-10:00 update window installed it; kubectl get shellydevice
+              shows why in status.lastFirmwareUpdate.
           expr: shelly_device_update_available == 1
           for: 24h
           labels:
             severity: info
+        - alert: ShellyDeviceFirmwareUpdateRefused
+          annotations:
+            summary: Shelly device refused the operator's firmware update.
+            description: >-
+              {{ $labels.name }}{{ with $labels.room }} in {{ . }}{{ end }}
+              ({{ $labels.mac }}) refused the operator's Shelly.Update and the
+              version is still pending. The device's answer is in
+              status.lastFirmwareUpdate.error on its ShellyDevice.
+            # The device's own 00:00 job fails without trace; this is the one
+            # place a refusal becomes visible. 30m lets the rest of the
+            # 09:00-10:00 window retry before it fires.
+          expr: shelly_device_firmware_update_refused == 1
+          for: 30m
+          labels:
+            severity: warning
         - alert: ShellyDeviceRestartRequired
           annotations:
             summary: Shelly device needs a restart for a setting to take effect.
