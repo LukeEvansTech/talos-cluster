@@ -7,7 +7,7 @@ resources:
   - ./helmrelease.yaml
   - ./pvc.yaml
 patches:
-  # The shared volsync component defaults sourcePVC to the wrong PVC here; patched below (kb/145).
+  # Repoints sourcePVC to sf-gamedata; this may be backing up the wrong claim, see kb/145.
   - target:
       kind: ReplicationSource
     patch: |-
