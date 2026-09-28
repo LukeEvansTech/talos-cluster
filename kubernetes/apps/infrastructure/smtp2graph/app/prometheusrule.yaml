@@ -2,7 +2,7 @@
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
 apiVersion: monitoring.coreos.com/v1
 # Delivery can fail while the SMTP listener stays healthy (Aug 2026 outage), so
-# these rules measure delivery outcome, not reachability (docs/apps/smtp2graph.md).
+# these rules measure delivery outcome, not reachability (docs/docs/apps/smtp2graph.md).
 kind: PrometheusRule
 metadata:
   name: smtp2graph

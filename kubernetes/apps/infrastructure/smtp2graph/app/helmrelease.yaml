@@ -34,7 +34,7 @@ spec:
               limits:
                 memory: 256Mi
           # smtp2graph has no metrics of its own; this sidecar reads the queue
-          # and canaries delivery end to end (Aug 2026 outage, docs/apps/smtp2graph.md).
+          # and canaries delivery end to end (Aug 2026 outage, docs/docs/apps/smtp2graph.md).
           metrics:
             image:
               repository: python
