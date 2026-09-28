@@ -6,5 +6,4 @@ resources:
   - externalsecret.yaml
   - scripts-configmap.yaml
 
-# NOTE: ConfigMap is created as a direct resource (scripts-configmap.yaml) instead of using
-# configMapGenerator to avoid Kustomize's variable expansion which replaces ${VAR} with empty strings
+# Direct resource, not configMapGenerator: Kustomize expansion would blank the ${VAR} placeholders.

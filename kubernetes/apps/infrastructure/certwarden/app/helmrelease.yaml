@@ -15,7 +15,6 @@ spec:
         annotations:
           reloader.stakater.com/auto: "true"
         initContainers:
-          # Install kubectl for post-processing scripts
           install-tools:
             image:
               repository: docker.io/library/alpine
@@ -46,7 +45,6 @@ spec:
               repository: ghcr.io/gregtwallace/certwarden
               tag: v0.30.1@sha256:df553c2242b2a8b972b5281c5e5e94db005bbfe33dc321501890342b95b34e2d
             env:
-              # Add kubectl to PATH for post-processing scripts
               - name: PATH
                 value: "/shared-bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
             resources:
@@ -56,9 +54,8 @@ spec:
               limits:
                 memory: 2Gi
     defaultPodOptions:
-      # The device cert-deploy post-process scripts run kubectl in-pod (create Secret +
-      # spawn deploy Job) with the certwarden SA's RBAC. app-template disables the token
-      # automount by default, which strands kubectl on localhost:8080, mount it back.
+      # kubectl needs its own RBAC: app-template disables automountServiceAccountToken by
+      # default, which would strand kubectl on localhost:8080 for the post-process scripts.
       automountServiceAccountToken: true
     service:
       app:
@@ -81,33 +78,32 @@ spec:
         existingClaim: "{{ .Release.Name }}"
         globalMounts:
           - path: /app/data
-      # Shared binaries (kubectl)
       shared-bin:
         type: emptyDir
         globalMounts:
           - path: /shared-bin
-      # Post-processing scripts for Supermicro IPMI deployment
+      # Supermicro IPMI post-process scripts
       supermicro-scripts:
         type: configMap
         name: certwarden-supermicro-scripts
         defaultMode: 0755
         globalMounts:
           - path: /app/scripts/supermicro
-      # Post-processing scripts for APC deployment
+      # APC post-process scripts
       apc-scripts:
         type: configMap
         name: certwarden-apc-scripts
         defaultMode: 0755
         globalMounts:
           - path: /app/scripts/apc
-      # Post-processing scripts for Brother printer deployment
+      # Brother printer post-process scripts
       brother-scripts:
         type: configMap
         name: certwarden-brother-scripts
         defaultMode: 0755
         globalMounts:
           - path: /app/scripts/brother
-      # Post-processing scripts for core switch deployment
+      # Core switch post-process scripts
       onyx-scripts:
         type: configMap
         name: certwarden-onyx-scripts

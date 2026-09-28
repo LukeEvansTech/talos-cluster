@@ -8,14 +8,8 @@ spec:
   groups:
     - name: certwarden-cert-deploy
       rules:
-        # Certwarden post-processing failures were previously invisible: a
-        # deploy Job that failed every retry only left a line in Certwarden's
-        # own log, and one device served an expired certificate for months
-        # before anyone noticed. The Jobs have ttlSecondsAfterFinished: 300,
-        # so kube-state-metrics only exposes a failed Job for ~5 minutes -
-        # "for: 1m" fires within that window while still absorbing a single
-        # odd scrape. The certificate-expiry probes in blackbox-exporter-lan
-        # are the slow-burn backstop; this is the real-time signal.
+        # Deploy failures used to be invisible: a device served an expired cert for
+        # months (#4052). ttlSecondsAfterFinished: 300 leaves a ~5m window to catch it.
         - alert: CertDeployJobFailed
           expr: |-
             kube_job_failed{namespace="infrastructure", condition="true", job_name=~"(supermicro|apc|brother|onyx)-cert-deploy-.*"} == 1
