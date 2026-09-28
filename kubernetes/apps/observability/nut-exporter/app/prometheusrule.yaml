@@ -8,28 +8,11 @@ spec:
   groups:
     - name: nut-exporter
       rules:
-        # UPS monitoring is blind. nut-exporter returns no metrics for >3m.
-        # When the NUT server is down/unreachable the exporter fails its whole
-        # scrape, so up == 0 (verified); `absent()` covers the target vanishing
-        # entirely. 3m (not the 15m built-in TargetDown) because the main UPS
-        # battery measures only ~13m at present load, see UPSBatteryRuntimeLow.
-        #
-        # The NUT server is now an appliance OUTSIDE the cluster, so this alert
-        # additionally covers the LAN path to it, not just a pod.
-        #
-        # 3m was checked against real history 2026-07-28 rather than left on trust,
-        # because the appliance runs FCOS with Zincati auto-updates and therefore
-        # reboots itself. Every routine reboot in the 14d retention window measured
-        # 45-120s of up==0 (07-27 60s, 07-26 60s/90s, 07-23 120s, 07-22 105s,
-        # 07-21 105s/45s), so 180s clears them all with ~50% margin and this has
-        # NOT been false-firing on reboots. Raising it to 5m was considered and
-        # rejected: it would buy nothing measurable and cost 2 of the ~13 battery
-        # minutes before anyone learns UPS monitoring has gone blind.
-        # Caveat: no Zincati UPGRADE reboot has occurred since the appliance became
-        # the only NUT server (last upgrade 07-20, Phase C landed 07-22), so that
-        # case is unmeasured. On FCOS the new deployment is staged before reboot,
-        # so it should be comparable, but if this ever does false-fire, measure
-        # the actual window before changing the number.
+        # up == 0 covers a failed scrape; absent() covers the target disappearing entirely.
+        # 3m beats the default 15m TargetDown because the main UPS has only ~13m of
+        # runtime at present load, see UPSBatteryRuntimeLow.
+        # Checked against 14 days of reboot history rather than assumed
+        # (docs/docs/apps/nut-exporter.md).
         - alert: UPSUnreachable
           annotations:
             description: >-
@@ -42,8 +25,7 @@ spec:
           labels:
             severity: critical
             pushover_priority: emergency
-        # Mains lost. Fires within ~1m. `max by (ups)` collapses the ServiceMonitor's
-        # instance cross-product to one alert per real UPS.
+        # max by (ups) collapses the per-endpoint instance labels to one alert per real UPS.
         - alert: UPSOnBattery
           annotations:
             description: >-
@@ -55,21 +37,11 @@ spec:
           labels:
             severity: critical
             pushover_priority: emergency
-        # On battery AND (runtime < 5m OR charge < 50%). by(ups) aggregation also fixes
-        # the old UpsLowRuntime, whose `status`-labelled `and` operand never matched.
-        #
-        # Threshold was 900s (15m) and had to come down: the main UPS delivers only
-        # ~780s on a FULL battery at ~25% load, so a 15m test was true the instant
-        # it went on battery and this alert was an exact duplicate of UPSOnBattery
-        # rather than an escalation of it. 300s is below any plausible full-charge
-        # runtime for either UPS, so it once again means what it says.
-        #
-        # That 780s is a measured figure, not an estimate. A runtime calibration
-        # discharged the pack 100%->25% in ~10-11min at 27% load. It is roughly 40%
-        # of what this frame should deliver, and the leading theory is a half-seated
-        # battery tray rather than worn cells (the pack is ~17 months old). If that
-        # is found and fixed, runtime roughly doubles and this threshold should be
-        # revisited. 300s would then be too twitchy to be a useful escalation.
+        # by (ups) also fixes UpsLowRuntime: its status-labelled `and` operand never matched.
+        # 300s replaces 900s: at the measured ~780s of full-battery runtime, a 15m test just
+        # duplicated UPSOnBattery instead of escalating it.
+        # That 780s is roughly 40% of the pack's expected runtime and still unexplained
+        # (docs/docs/apps/nut-exporter.md).
         - alert: UPSBatteryRuntimeLow
           annotations:
             description: >-
@@ -81,15 +53,10 @@ spec:
           labels:
             severity: critical
             pushover_priority: emergency
-        # One snmp-ups driver can fail while upsd and the other driver keep
-        # serving, so that UPS's metrics vanish on their own and UPSUnreachable
-        # (which needs the whole scrape to fail) never fires. absent() carries
-        # the ups label from its matcher, so this stays per-UPS.
-        #
-        # This matters MORE since the move to the appliance, not less: the
-        # retired in-cluster deployment isolated each driver in its own
-        # container, whereas the appliance runs both under one entrypoint. This
-        # is the only rule that catches a single UPS going quiet.
+        # Catches one snmp-ups driver failing while upsd and the other driver keep serving;
+        # UPSUnreachable needs the whole scrape to fail.
+        # absent() carries the ups label from its matcher, so this is the only rule that
+        # flags a single UPS going quiet.
         - alert: UPSMetricsMissing
           annotations:
             description: >-
@@ -101,9 +68,8 @@ spec:
           for: 5m
           labels:
             severity: critical
-        # A UPS can shut its output down during an outage and never restart it
-        # (seen 2026-07-14: mains restored, battery 100%, output 0V, downstream
-        # devices dark), no other rule covers status OFF.
+        # A UPS can shut its output off during an outage and never restart it on its own
+        # (seen 2026-07-14); no other rule covers status OFF.
         - alert: UPSOutputOff
           annotations:
             description: >-

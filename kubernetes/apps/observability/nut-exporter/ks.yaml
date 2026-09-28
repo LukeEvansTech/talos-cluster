@@ -9,8 +9,7 @@ spec:
   commonMetadata:
     labels:
       app.kubernetes.io/name: *app
-  # The NUT server it proxies is now an out-of-cluster appliance; only the
-  # monitoring stack that consumes the metrics is still an in-cluster dependency.
+  # The NUT server is an external appliance, so only the monitoring stack is in-cluster.
   dependsOn:
     - name: kube-prometheus-stack
   interval: 1h
