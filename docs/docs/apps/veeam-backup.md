@@ -25,9 +25,11 @@ log every 10 minutes and writes it into node-exporter-style textfiles:
 
 ## Alert design
 
-Every rule alerts on the absence of a successful run rather than on an error event, because the
-2026-08 outage that motivated this app (see below) produced no error at all, just a schedule that
-stopped advancing. `VeeamBackupStale` is the load-bearing alert: 36 hours tolerates one missed
+The two core rules, `VeeamBackupStale` and `VeeamBackupMetricsMissing`, alert on the absence of a
+successful run rather than on an error event, because the 2026-08 outage that motivated this app
+(see below) produced no error at all, just a schedule that stopped advancing. The other two detect
+failure directly: `VeeamBackupFailed` on a Failed result code, and `VeeamWindowsExporterDown` on a
+failed scrape. `VeeamBackupStale` is the load-bearing alert: 36 hours tolerates one missed
 nightly run plus a 12-hour buffer, so a single transient failure self-heals without paging, and it
 keeps working even while the box is dead, since Prometheus holds the last scraped value until the
 staleness window expires. `VeeamBackupMetricsMissing` picks up from there once that value goes

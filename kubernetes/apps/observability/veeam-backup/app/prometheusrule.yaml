@@ -6,7 +6,7 @@ metadata:
   name: veeam-backup.rules
 spec:
   groups:
-    # Models docker-backup.rules: alert on the absence of a successful run, not an error event.
+    # Models docker-backup.rules: the core rules alert on the absence of a successful run.
     # The Aug 2026 outage is KB-067; every rule pages, so each should fire almost never.
     - name: veeam-backup.rules
       rules:
