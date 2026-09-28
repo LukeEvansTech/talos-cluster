@@ -6,10 +6,8 @@ metadata:
   name: hermes
   namespace: ai
 spec:
-  # The operator mints this key on the litellm proxy and writes it to the
-  # named Secret; scope is limited to the models hermes actually routes to
-  # (including litellm's own self-hosted fallback target) so a leak can't
-  # reach the master key's full account access.
+  # Scoped to the models hermes actually routes to, so a leak can't reach the
+  # master key's full account access.
   proxyRef: litellm
   keyAlias: hermes
   secretName: litellm-key-hermes
