@@ -9,7 +9,7 @@ metadata:
     checkov.io/skip3: "CKV_K8S_40=uid is baked into the upstream images (1000 indexer/dashboard, 101 manager). Raising it means rebuilding the vendor's containers. These pods mount no host paths and set no hostPID/hostIPC/hostNetwork, so host uid collision is not a live risk."
     checkov.io/skip4: "CKV_K8S_25=Capabilities are added back only after dropping ALL, which is tighter than upstream (drops nothing). The sets are empirically verified against the images; a smaller set crashes the manager."
     # Not reloader auto: it also watches the wazuh Secret, whose passwords rotate on a
-    # different clock than the indexer accepts new hashes (docs/apps/wazuh.md).
+    # different clock than the indexer accepts new hashes (docs/docs/apps/wazuh.md).
     configmap.reloader.stakater.com/reload: wazuh-indexer-conf
     secret.reloader.stakater.com/reload: wazuh-certs
   name: wazuh-indexer
@@ -47,8 +47,8 @@ spec:
               - key: internal_users.yml
                 path: internal_users.yml
       initContainers:
-        # No privileged sysctl init container (PSA baseline); vm.max_map_count=262144 lives
-        # in talos/patches/global/machine-sysctls.yaml, apply to nodes first (docs/apps/wazuh.md).
+        # No privileged sysctl init container (PSA baseline); vm.max_map_count=262144
+        # comes from talos/patches/global/machine-sysctls.yaml, applied to every node first.
         - name: chown-data
           image: docker.io/library/busybox:1.38.0@sha256:fd7dc98638c8e305f4dc34e979f1c0fdfdcaeb0fbf8fcff77ae834b6da3d7e6e
           command:

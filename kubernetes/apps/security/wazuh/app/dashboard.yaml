@@ -9,7 +9,7 @@ metadata:
     checkov.io/skip3: "CKV_K8S_35=The Wazuh images read these credentials from environment variables in their entrypoints; there is no file-based option without forking the image. Values come from a Secret built by ExternalSecret, never from Git."
     checkov.io/skip4: "CKV_K8S_40=uid is baked into the upstream images (1000 indexer/dashboard, 101 manager). Raising it means rebuilding the vendor's containers. These pods mount no host paths and set no hostPID/hostIPC/hostNetwork, so host uid collision is not a live risk."
     # Not reloader auto: it also watches the wazuh Secret, whose passwords rotate on a
-    # different clock than the indexer accepts new hashes (docs/apps/wazuh.md).
+    # different clock than the indexer accepts new hashes (docs/docs/apps/wazuh.md).
     configmap.reloader.stakater.com/reload: wazuh-dashboard-conf
     secret.reloader.stakater.com/reload: wazuh-certs
   name: wazuh-dashboard
@@ -88,7 +88,7 @@ spec:
             periodSeconds: 10
             failureThreshold: 60
           # Not /api/status: it authenticates, so an unauthenticated probe 401-loops a
-          # healthy pod; /app/login returns 200 once every plugin has loaded (docs/apps/wazuh.md).
+          # healthy pod; /app/login returns 200 once every plugin loads (docs/docs/apps/wazuh.md).
           readinessProbe:
             httpGet:
               path: /app/login

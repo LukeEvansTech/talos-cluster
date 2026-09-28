@@ -11,7 +11,7 @@ metadata:
     checkov.io/skip5: "CKV_K8S_25=Capabilities are added back only after dropping ALL, which is tighter than upstream (drops nothing). The sets are empirically verified against the images; a smaller set crashes the manager."
     checkov.io/skip6: "CKV_K8S_23=The manager entrypoint must start as root to chroot and fix ownership on the data volume before stepping the daemons down to the wazuh user."
     # Not reloader auto: it also watches the wazuh Secret, whose passwords rotate on a
-    # different clock than the indexer accepts new hashes (docs/apps/wazuh.md).
+    # different clock than the indexer accepts new hashes (docs/docs/apps/wazuh.md).
     configmap.reloader.stakater.com/reload: wazuh-manager-conf
     secret.reloader.stakater.com/reload: wazuh-certs
   name: wazuh-manager
@@ -62,7 +62,7 @@ spec:
               drop:
                 - "ALL"
               # Runtime default minus NET_RAW/MKNOD/AUDIT_WRITE, empirically verified: a
-              # smaller set crashes wazuh-clusterd or wazuh-apid (docs/apps/wazuh.md).
+              # smaller set crashes wazuh-clusterd or wazuh-apid (docs/docs/apps/wazuh.md).
               add:
                 - "SYS_CHROOT"
                 - "SETUID"
