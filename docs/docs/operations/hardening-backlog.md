@@ -21,6 +21,27 @@ instance but not the class, say so; the class is what stays open.
 
 ## Open
 
+### H-21: A comment claimed NextDNS is enforced on every pod except one, which is not true
+
+**Found:** 2026-09-28, while trimming comments on `media/dispatcharr`.
+
+A comment on `media/dispatcharr`'s `DNS_KEEP_NAMESERVER` setting said taking that one pod off
+estate DNS "leaves NextDNS fully enforced for every other device". `downloads/imgur-proxy` also
+does not use estate DNS for its proxied traffic: its nginx config sets `resolver 127.0.0.1` and
+gluetun's own DoT resolver is on (`downloads/imgur-proxy/app/helmrelease.yaml:77-88`), so imgur
+lookups go out the tunnel the same way dispatcharr's do, by a different mechanism (an nginx
+directive instead of `DNS_KEEP_NAMESERVER`). The claim predates this comment sweep; carried
+forward into `docs/docs/apps/dispatcharr.md` at first, then qualified there once Codex caught it.
+
+**Mitigation in place:** none needed for safety, since NextDNS's ad/malware filtering not covering
+this one proxy's fetches was already the point of imgur-proxy's own setup. The risk is purely that
+the original claim could lead someone to assume NextDNS covers more of the fleet's egress than it
+does.
+
+**What would close it:** an accurate one-line note near `DNS_KEEP_NAMESERVER` on both apps (or a
+shared page) naming every gluetun sidecar that bypasses estate DNS and by what mechanism, so the
+next person doesn't have to re-derive the exception list from source.
+
 ### H-20: Three gluetun sidecars have no tunnel gate at start and no recovery after it
 
 **Found:** 2026-09-28, while trimming comments on `media/dispatcharr` (KB-042 covers the kubelet

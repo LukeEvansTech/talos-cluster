@@ -18,9 +18,12 @@ rotating No-IP hostname (six such domains in use at one count, the set moving ov
 Allowlisting them one at a time is a moving target, and the failure mode when a new one hits the
 sinkhole is a played-fine, authed-fine, spinner-forever player, which reads exactly like a dead
 provider rather than a DNS block. Taking this one pod off estate DNS resolves the whole class of
-hostname permanently, and leaves NextDNS enforced everywhere else. The OPNsense `:53` redirect
-doesn't see this traffic at all: it matches plaintext port 53 to public destinations, and this is
-DoT (853) carried inside WireGuard.
+hostname permanently. `downloads/imgur-proxy` also bypasses estate DNS, by a different mechanism
+(its nginx config, not `DNS_KEEP_NAMESERVER`; see
+[hardening backlog H-21](../operations/hardening-backlog.md#h-21-a-comment-claimed-nextdns-is-enforced-on-every-pod-except-one-which-is-not-true)),
+so this is not the only exception to estate DNS in the fleet. The OPNsense `:53` redirect doesn't
+see this pod's traffic at all: it matches plaintext port 53 to public destinations, and this is DoT
+(853) carried inside WireGuard.
 
 The cost is that `.cluster.local` no longer resolves inside this pod. Dragonfly is the one
 in-cluster dependency, and it's pinned via `hostAliases` in `app/helmrelease.yaml` instead.
