@@ -53,8 +53,8 @@ spec:
               FIREWALL_INPUT_PORTS: 9191,3000,9999
               FIREWALL_OUTBOUND_SUBNETS: '"${CLUSTER_PODS_CIDR},${CLUSTER_SVCS_CIDR},${CR_LAN_CIDR},${GH_LAN_CIDR}"'
               HEALTH_SERVER_ADDRESS: ":9999"
-              # `off` means don't disable the loop: with both kubelet probes disabled (KB-042), this
-              # is the only thing left reconnecting a degraded tunnel; `on` leaves no recovery path.
+              # `off` means don't disable the loop: with liveness disabled (KB-042), this is the
+              # only thing left reconnecting a degraded tunnel; `on` leaves no recovery path.
               HEALTH_SERVER_DISABLE_LOOP: off
               HEALTH_VPN_DURATION_INITIAL: 60s
               LOG_LEVEL: info
