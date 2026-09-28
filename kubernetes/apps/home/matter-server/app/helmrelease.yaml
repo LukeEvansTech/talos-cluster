@@ -30,7 +30,8 @@ spec:
               runAsNonRoot: false
               runAsUser: 0
               runAsGroup: 0
-              # NET_ADMIN cannot write /proc/sys, so this needs privileged, scoped to net1.
+              # NET_ADMIN cannot write /proc/sys, so this container is fully privileged.
+              # Only the sysctls above are net1-scoped; the privilege itself is not.
               privileged: true
         containers:
           app:
