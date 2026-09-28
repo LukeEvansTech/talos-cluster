@@ -8,11 +8,11 @@ spec:
   policyRef:
     name: ${APP}
   schedule:
-    # Jenkins-style H pins a deterministic per-schedule minute. Timezone now
-    # comes from the ClusterRepository scheduleDefaults (Europe/London).
+    # Jenkins-style H pins a deterministic per-schedule minute; timezone comes from the
+    # ClusterRepository's scheduleDefaults.
     cron: "H 4 * * *"
     jitter: 2m
-    # Trial: take a first snapshot immediately on creation so the repository
-    # and identity wiring are validated without waiting a day.
+    # Trial: runs once on creation to validate repository and identity wiring without
+    # waiting a day.
     runOnCreate: true
     suspend: false
