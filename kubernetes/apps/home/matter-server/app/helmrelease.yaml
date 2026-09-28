@@ -15,9 +15,7 @@ spec:
         annotations:
           reloader.stakater.com/auto: "true"
         initContainers:
-          # Thread devices are reached via IPv6 routes the OTBR advertises in
-          # RAs (Route Information Options) on the multus interface; the kernel
-          # ignores RIOs unless accept_ra_rt_info_max_plen > 0.
+          # The kernel needs accept_ra_rt_info_max_plen > 0 to accept OTBR's Thread routes.
           sysctl:
             image:
               repository: ghcr.io/matter-js/matterjs-server
@@ -32,17 +30,12 @@ spec:
               runAsNonRoot: false
               runAsUser: 0
               runAsGroup: 0
-              # /proc/sys is mounted read-only for non-privileged containers;
-              # NET_ADMIN alone cannot write sysctls. Privileged here is scoped
-              # to this pod's own netns (the sysctls touch only net1).
+              # NET_ADMIN cannot write /proc/sys, so this needs privileged, scoped to net1.
               privileged: true
         containers:
           app:
             image:
-              # Open Home Foundation matter.js server. drop-in replacement for
-              # the archived python-matter-server (same ws API on :5580, same
-              # CLI flags), and what HA's Matter integration targets going
-              # forward.
+              # matter.js replaces the archived python-matter-server: same ws API and CLI flags.
               repository: ghcr.io/matter-js/matterjs-server
               tag: 1.4.0@sha256:54232d0d3e7dff5a54759469d2753399270412b4c30c55b31750a4595e4cb236
             args:
@@ -68,9 +61,7 @@ spec:
                 memory: 512Mi
     defaultPodOptions:
       annotations:
-        # Temporary legacy flat-LAN attachment (L2 adjacency with the
-        # coordinator's on-device OTBR), move to the `iot` NAD when the
-        # coordinator re-homes to VLAN 68.
+        # iot-legacy is temporary, for L2 adjacency with the Thread router until it relocates.
         k8s.v1.cni.cncf.io/networks: |-
           [{
             "name": "iot-legacy",
