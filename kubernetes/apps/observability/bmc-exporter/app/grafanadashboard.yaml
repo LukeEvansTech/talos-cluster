@@ -9,15 +9,9 @@ spec:
   instanceSelector:
     matchLabels:
       grafana.internal/instance: grafana
-  # Grafana template variables are written bare ($instance, not $${instance}):
-  # Flux postBuild only consumes the braced ${VAR} form, verified against the
-  # live onyx-core-switch dashboard which has carried bare $instance unharmed.
-  #
-  # Fleet draw is taken from idrac_power_control_consumed_watts (the system-level
-  # reading) rather than by summing idrac_power_supply_output_watts. On these
-  # H13 boards the two disagree by an order of magnitude: a node drawing 95W at
-  # the system level reports ~450W per PSU, so the PSU figure is shown on its
-  # own panel, labelled as reported, and is not to be read as consumption.
+  # $instance stays bare: Flux postBuild only touches braced ${VAR}, not this JSON.
+  # Fleet draw sums idrac_power_control_consumed_watts, not the PSU output watts: on
+  # H13 boards the two disagree by an order of magnitude (docs/apps/bmc-exporter.md).
   json: |-
     {
       "annotations": {"list": []},
