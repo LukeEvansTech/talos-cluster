@@ -6,15 +6,13 @@ metadata:
   name: nextdns-linkip
   namespace: infrastructure
 spec:
-  # Run every hour at minute 0
   schedule: "0 * * * *"
   successfulJobsHistoryLimit: 3
   failedJobsHistoryLimit: 3
   concurrencyPolicy: Forbid
   jobTemplate:
     spec:
-      # Reap finished jobs after 24h so a failed run cannot pin KubeJobFailed
-      # (the alert clears only when the Job object is gone)
+      # Reaping after 24h clears KubeJobFailed, which stays pinned until the Job object is gone.
       ttlSecondsAfterFinished: 86400
       template:
         metadata:
