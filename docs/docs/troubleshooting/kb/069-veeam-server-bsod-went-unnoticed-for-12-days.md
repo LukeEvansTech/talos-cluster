@@ -6,8 +6,8 @@
 
 In August 2026, the Veeam B&R server crashed with a BSOD (`CRITICAL_PROCESS_DIED` during a
 HotAdd operation) and sat at the crash screen from 2026-08-04 22:00 UTC to 2026-08-16 23:00 UTC,
-about 12 days. Nothing paged. Both domain controllers ran on Veeam-managed temporary snapshots for
-the entire outage, since the crash landed mid-backup-job.
+about 12 days. Nothing paged, and the outage carried real risk: whatever the crash had been
+backing up mid-job stayed on a Veeam-managed temporary snapshot for that whole window.
 
 ## Cause
 
