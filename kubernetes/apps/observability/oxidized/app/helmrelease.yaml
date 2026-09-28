@@ -98,7 +98,7 @@ spec:
               requests: { cpu: 50m, memory: 128Mi }
               limits: { memory: 256Mi }
             securityContext:
-              # Bootstraps as root; runit/gosu then drops to uid 30000 (docs/apps/oxidized.md).
+              # Bootstraps as root; runit/gosu then drops to uid 30000 (docs/docs/apps/oxidized.md).
               runAsNonRoot: false
               runAsUser: 0
               runAsGroup: 0
