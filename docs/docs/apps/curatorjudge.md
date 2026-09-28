@@ -25,22 +25,20 @@ directly.
 ## The judge never sees the state volume
 
 `persistence.state` in `app/helmrelease.yaml` is an `advancedMounts`, not a `globalMount`:
-`prompt` gets it mounted read-only, `app` gets read-write, and `judge` gets no mount at all.
-With write access, a compromised judge step (a malicious npm dependency, or a tool escape) could
-rewrite `plan.json` to insert a protected film into `candidates`. The executor's live re-checks
-cover tags, collections, status, file presence and playback, none of which is "was this ID in the
-plan's candidate list", so that particular forgery would go unnoticed. Denying `judge` the mount
-entirely removes the attack rather than relying on a check that doesn't cover it.
+`prompt` gets it mounted read-only, `app` gets read-write, and `judge` gets no mount at all. With
+write access, a compromised judge step (a malicious npm dependency, or a tool escape) could
+rewrite `plan.json` to insert a protected film into `candidates`, which the executor trusts as the
+base set. The executor's live re-checks cover tags, collections, status, file presence and
+playback, not membership of the candidate list itself.
 
 ## Never retry: `backoffLimit: 0`
 
 The CronJob sets `backoffLimit: 0` and `concurrencyPolicy: Forbid`. This pipeline ends in DELETEs,
 and a Kubernetes-driven retry would re-run judgement and execution against a plan the previous
-attempt may have already partly acted on. `docs/apps/curator.md` has the code-level detail
-(`cmd_execute`'s failed-vs-uncertain distinction); at the CronJob level, the short version is that
-a non-zero exit here only marks the Job failed, and whatever it left ambiguous waits for the next
-scheduled run to reconcile by reading live Radarr state, not by the platform repeating the call
-underneath it.
+attempt may have already partly acted on. A non-zero exit here only marks the Job failed; it never
+makes Kubernetes itself retry the pipeline. `docs/apps/curator.md` has the code-level detail on
+what `cmd_execute` does with an ambiguous deletion instead (it records the outcome and leaves it
+there, rather than being retried).
 
 ## The CLI installs at start-up
 
