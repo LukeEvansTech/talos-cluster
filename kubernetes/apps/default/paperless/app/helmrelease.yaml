@@ -44,13 +44,8 @@ spec:
               PAPERLESS_DATA_DIR: /data/data
               PAPERLESS_EXPORT_DIR: /data/export
               PAPERLESS_MEDIA_ROOT: /data/media
-              # v3.0.0 rewrote the consumer around watchfiles and RENAMED this key
-              # (PAPERLESS_CONSUMER_POLLING -> _INTERVAL, upstream #11753).
-              # CONSUMER_POLLING_DELAY / _RETRY_COUNT / CONSUMER_INOTIFY_DELAY are
-              # gone too. Same seconds semantics. Keep polling rather than taking the
-              # v3 default of 0 (native filesystem notifications): /data/consume is a
-              # subPath mount on a PVC, where inotify does not fire reliably, so the
-              # default would silently miss newly dropped files.
+              # /data/consume is a subPath mount, so inotify doesn't fire reliably; this keeps
+              # polling instead of v3's default native watch.
               PAPERLESS_CONSUMER_POLLING_INTERVAL: "360"
               PAPERLESS_CONSUMER_RECURSIVE: "true"
               PAPERLESS_CONSUMER_SUBDIRS_AS_TAGS: "true"
@@ -58,12 +53,8 @@ spec:
               PAPERLESS_TASK_WORKERS: "2"
               PAPERLESS_WEBSERVER_WORKERS: "2"
               PAPERLESS_URL: "https://paperless.${SECRET_DOMAIN}"
-              # Namespace every broker/cache key (kombu global_keyprefix).
-              # Dragonfly runs cluster_mode=emulated (db 0 only), and prowler's
-              # Celery worker also consumes the default "celery" queue there,
-              # without a prefix it steals paperless tasks (observed as
-              # KeyError: paperless_mail.tasks.process_mail_accounts in the
-              # prowler worker once it finally started consuming).
+              # Dragonfly's cluster_mode=emulated forces every app onto db 0, so this prefixes
+              # paperless's Celery keys away from prowler's worker.
               PAPERLESS_REDIS_PREFIX: "paperless:"
               PAPERLESS_DBENGINE: postgresql
               PAPERLESS_APPS: allauth.socialaccount.providers.openid_connect
