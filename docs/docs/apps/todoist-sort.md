@@ -18,7 +18,7 @@ routing rules are mounted from a ConfigMap built from `app/resources/`.
   `config.toml`) is tracked per process, so a k8s-level retry would start a second process that
   could promote up to `max_today` more tasks, breaking the daily cap. A transient LLM blip (for
   example, a LiteLLM cooldown seen on 2026-07-24) is instead absorbed in-process by `[llm]
-  retry_backoff` (todoist-sort >= 0.2.5), which shares the one budget. Whatever the in-pod retry
+retry_backoff` (todoist-sort >= 0.2.5), which shares the one budget. Whatever the in-pod retry
   can't recover self-heals at the next day's run.
 
 ## Renovate gotcha
