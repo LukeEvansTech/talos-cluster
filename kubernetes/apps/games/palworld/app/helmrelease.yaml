@@ -1,7 +1,6 @@
 ---
 # yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
-# TODO: Add palworld-exporter sidecar for Prometheus metrics once world has save data
-# See: https://github.com/bostrt/palworld-exporter
+# TODO: add a palworld-exporter sidecar once the world has save data (bostrt/palworld-exporter).
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
@@ -23,22 +22,17 @@ spec:
               tag: v2.7.3@sha256:be3ad49e373045a7b60478fd8b7f7411c1e293713dfa4733e563e798f276d688
             env:
               TZ: "${TIMEZONE}"
-              # User configuration
               PUID: "1000"
               PGID: "1000"
-              # Server settings
               PORT: &port 8211
               PLAYERS: "16"
               MULTITHREADING: "true"
               COMMUNITY: "false"
               SERVER_NAME: "Palworld Server"
               SERVER_DESCRIPTION: "Private Palworld Server"
-              # RCON configuration
               RCON_ENABLED: "true"
               RCON_PORT: &rcon-port 25575
-              # Update settings
               UPDATE_ON_BOOT: "true"
-              # Gameplay settings
               DEATH_PENALTY: "None"
             envFrom:
               - secretRef:
