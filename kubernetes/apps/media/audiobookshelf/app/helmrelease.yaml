@@ -91,12 +91,3 @@ spec:
                 subPath: logs
               - path: /tmp
                 subPath: tmp
-                # NFS media mount - uncomment and configure when ready
-                # media:
-                #   type: nfs
-                #   server: ${SECRET_STORAGE_SERVER}
-                #   path: /path/to/audiobooks
-                #   advancedMounts:
-                #     audiobookshelf:
-                #       app:
-                #         - path: /audiobooks
