@@ -61,7 +61,7 @@ spec:
           labels:
             severity: warning
         # The shared smartctl rules cover status and temperature; these add two predictive counts.
-        # Normalised values count down from 100, hence raw. sdc holds a stable 8, so watch growth.
+        # Normalised values count down from 100, hence raw. One disk holds a stable 8, so watch growth.
         - alert: SeedboxDiskReallocatedSectorsGrowing
           annotations:
             summary: "Seedbox disk {{ $labels.device }} reallocated {{ $value }} more sectors in 24h (drive is consuming spares), plan a replacement."
@@ -159,8 +159,8 @@ spec:
           for: 5m
           labels:
             severity: critical
-        # FCOS never reports `/`, and md127 appears at four paths, so the two mountpoints are
-        # pinned. /boot is left out because at 367 MB it needs its own threshold.
+        # FCOS never reports `/`, and the OS array appears at four paths, so two mountpoints are pinned.
+        # /boot is left out because at 367 MB it needs its own threshold.
         - alert: SeedboxDiskFillHigh
           annotations:
             summary: "Seedbox {{ $labels.mountpoint }} is above 85% full ({{ $value | humanizePercentage }} used)."

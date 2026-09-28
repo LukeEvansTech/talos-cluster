@@ -41,10 +41,8 @@ container label, invert each comparison and confirm the expression still returns
 | `count({job="seedbox-qbittorrent",__name__=~"qbittorrent_torrent_.+"})`                                       | unchanged by the upgrade                 |
 | `count(container_state_status{container_label_<x>="..."})`                                                    | above zero before a rule relies on `<x>` |
 
-At the rebuild, `md125` became the 23.8 TB RAID5 data array at `/var/mnt/seedbox`, `md126` became
-`/boot`, and `md127` became `/var`, which also appears at `/etc`, `/sysroot` and the ostree deploy
-path. mdadm renumbers any array it cannot match to `mdadm.conf`. That renumbering broke the old RAID
-rule, so the current rules name no array.
+mdadm renumbers any array it cannot match to `mdadm.conf`. That renumbering broke the old RAID
+rule at the rebuild, so the current rules name no array.
 
 ## Disk fill
 
