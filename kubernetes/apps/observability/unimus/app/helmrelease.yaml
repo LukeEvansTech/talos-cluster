@@ -14,26 +14,20 @@ spec:
       unimus:
         annotations:
           reloader.stakater.com/auto: "true"
-        # One RWO volume: a rolling update would start the replacement before
-        # the old pod releases the RBD attach and stall.
+        # One RWO volume; a rolling update would stall waiting for the old pod's RBD attach.
         strategy: Recreate
         containers:
           app:
-            # No vendor-published image exists: Unimus ships .deb/.rpm/tarballs
-            # and its own wiki points at this community build, which is the
-            # actively maintained one. The abandoned netcore-jsa/unimus-docker
-            # calls itself official but has not been touched since 2019.
-            # The jar is baked in at build time rather than fetched at start,
-            # and files/start.sh jarsigner-verifies it before exec'ing java, so
-            # the digest pin covers the application and not just a wrapper.
+            # No vendor image exists; Unimus's wiki points at this community build over the
+            # abandoned netcore-jsa/unimus-docker, which calls itself official.
+            # The jar is baked in at build time and jarsigner-verified by start.sh before
+            # exec'ing java, so the digest pin covers the app, not just a wrapper.
             image:
               repository: docker.io/croc/unimus
               tag: 2.9.1@sha256:a69e549437f49b7fcca761b37d4d4386de14f228ffdb57e5ebb032051aa70f37
             env:
               TZ: ${TIMEZONE}
-              # start.sh maps XMS/XMX straight onto the JVM flags. Capped below
-              # the container limit so the heap cannot be what pushes the pod
-              # into an OOM kill.
+              # Capped below the container limit so the heap can't be what OOM-kills the pod.
               XMS: 256M
               XMX: 1024M
             probes:
@@ -62,19 +56,15 @@ spec:
                   httpGet:
                     path: /
                     port: *port
-                  # First boot creates the embedded HSQLDB before the web
-                  # listener comes up, on top of ordinary JVM start, so this
-                  # budgets ~5 minutes rather than the chart's default.
+                  # First boot creates the embedded HSQLDB before the web listener comes up,
+                  # so this budgets ~5 minutes rather than the chart's default.
                   initialDelaySeconds: 20
                   periodSeconds: 10
                   failureThreshold: 30
             securityContext:
-              # The image is plain debian with no USER, and start.sh writes
-              # /etc/localtime and /etc/timezone before handing off to the JVM.
-              # So it needs to run as root with a writable root filesystem, the
-              # same concession tdarr and gameyfin make. Set explicitly, because
-              # a fresh app-template render otherwise inherits runAsNonRoot and
-              # the container fails to start rather than falling back.
+              # start.sh writes /etc/localtime and /etc/timezone before handing off to the
+              # JVM, so it needs root and a writable root filesystem, same as tdarr and
+              # gameyfin. Set explicitly, or app-template's default runAsNonRoot applies.
               runAsNonRoot: false
               runAsUser: 0
               runAsGroup: 0
@@ -89,11 +79,8 @@ spec:
                 memory: 512Mi
               limits:
                 memory: 1536Mi
-      # Daily reconcile of credentials and devices into Unimus from 1Password
-      # (ExternalSecret unimus-seed): credentials and enable passwords through
-      # API v3, devices through API v2 (this Unimus build serves no v3 device
-      # endpoints). Additive and idempotent; see the seed.py docstring in
-      # configmap.yaml.
+      # Daily reconcile of credentials and devices from 1Password; see the seed.py
+      # docstring in configmap.yaml for the API-version split and why.
       seed:
         type: cronjob
         cronjob:
@@ -104,9 +91,8 @@ spec:
           successfulJobsHistory: 3
           failedJobsHistory: 3
           backoffLimit: 2
-        # Set here rather than in defaultPodOptions: the controller above runs
-        # as root by necessity, and a shared default would have to be widened
-        # to accommodate it. The job has no such constraint.
+        # Set here, not in defaultPodOptions: the controller runs as root by necessity,
+        # and a shared default would have to be widened to accommodate it.
         pod:
           automountServiceAccountToken: false
           securityContext:
@@ -119,9 +105,8 @@ spec:
               type: RuntimeDefault
         containers:
           app:
-            # Stock upstream python and no build step: seed.py is standard
-            # library only and is mounted from the unimus-seed ConfigMap, so
-            # there is nothing to install and nothing to publish.
+            # Stock python, no build step: seed.py is standard library only and mounted
+            # from the ConfigMap, so there is nothing to install or publish.
             image:
               repository: docker.io/library/python
               tag: 3.14-slim@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d
@@ -130,16 +115,13 @@ spec:
               - /scripts/seed.py
             env:
               TZ: ${TIMEZONE}
-              # Nothing is writable, and the log is the only output that
-              # matters, so no .pyc files and no buffering.
+              # Nothing is writable, and the log is the only output that matters.
               PYTHONDONTWRITEBYTECODE: "1"
               PYTHONUNBUFFERED: "1"
-              # The in-cluster Service the controller above publishes.
               UNIMUS_URL: http://unimus:8085
               SEED_SECRETS_DIR: /secrets
-              # The two lists are data, not secrets: descriptions and the names
-              # of the keys to read, so they live in the ConfigMap beside the
-              # script that consumes them.
+              # Data, not secrets: descriptions and the key names to read, so these live in
+              # the ConfigMap beside the script that consumes them.
               SEED_DEVICES:
                 valueFrom:
                   configMapKeyRef:
@@ -163,16 +145,13 @@ spec:
                 drop:
                   - ALL
     persistence:
-      # Unimus keeps its configuration, the embedded HSQLDB, and the device
-      # credentials it connects with all under /etc/unimus. Unlike oxidized,
-      # where the device table is templated into a Secret and never touches
-      # disk, here they live on the volume, so this is VolSync-backed.
+      # Unlike oxidized, where the device table is templated into a Secret and never
+      # touches disk, Unimus keeps its config, HSQLDB and device credentials on this
+      # volume, so it is VolSync-backed.
       config:
         existingClaim: unimus
-        # Scoped rather than global: the claim is ReadWriteOnce, and a global
-        # mount would attach it to the seed job's pod as well, which stalls the
-        # job whenever it is scheduled anywhere but the node already holding
-        # the attachment. The job needs no access to it.
+        # Scoped, not global: the claim is ReadWriteOnce, and a global mount would attach
+        # it to the seed job too, stalling it off the node already holding the attachment.
         advancedMounts:
           unimus:
             app:

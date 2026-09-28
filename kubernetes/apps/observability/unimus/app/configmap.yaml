@@ -6,18 +6,14 @@ metadata:
   name: unimus-seed
   namespace: observability
 data:
-  # Credential definitions: names and the secret keys they read, never values.
-  # username_field reads the username from the Secret too; enable names an
-  # enable password created from the same secret and bound to the devices that
-  # use this credential.
+  # Names and the secret keys they read, never values (public repo).
   credentials.json: |
     [
       {"name": "unimus-ssh",     "type": "USERNAME_SSH",      "username": "unimus", "secret_field": "UNIMUS_SSH_KEY"},
       {"name": "unimus-ssh-rsa", "type": "USERNAME_SSH",      "username": "unimus", "secret_field": "UNIMUS_RSA_SSH_KEY"},
       {"name": "ruckus-admin",   "type": "USERNAME_PASSWORD", "username_field": "RUCKUS_USERNAME", "secret_field": "RUCKUS_PASSWORD", "enable": "ruckus-enable"}
     ]
-  # Device list: descriptions only. Every address arrives through the Secret
-  # (this repository is public); a device whose host field is empty is skipped.
+  # Descriptions only; every address arrives through the Secret (public repo).
   # core-switch takes the RSA key: its firmware negotiates no other SSH key type.
   devices.json: |
     [
