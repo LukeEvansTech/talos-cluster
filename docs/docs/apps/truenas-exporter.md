@@ -27,12 +27,12 @@ A seed caveat runs through the design. The first full replication run reports
 Each alert covers one blind spot the others can't see:
 
 - `TrueNASReplicationStale`: the off-site copy hasn't succeeded in 36h, a missed daily
-  cycle plus slack. Guarded by `last_success > 0` (quiet through the seed and any disabled
+  cycle plus headroom. Guarded by `last_success > 0` (quiet through the seed and any disabled
   task) and `state != 1` (a long in-progress run isn't stale).
 - `TrueNASReplicationFailing`: a terminal `ERROR`. zettarepl retries transient blips
   within a run, so the 15m fuse rides those out before paging.
 - `TrueNASReplicationDisabled`: the DR task turned off, an absence-of-success mode with
-  no error to catch. Scoped to the DR task's middleware id (`id="11"`) so an unrelated,
+  no error to catch. Scoped to the DR task's middleware ID (`id="11"`) so an unrelated,
   deliberately-disabled task never pages.
 - `TrueNASReplicationMetricsMissing`: the series vanishes entirely, which Stale can't
   see with no series to compare. Same `id="11"` scope, a 2h fuse; a full box outage is
@@ -46,8 +46,8 @@ Each alert covers one blind spot the others can't see:
   isn't mistaken for a still-seeding one.
 
 `TrueNASReplicationDisabled` and `TrueNASReplicationMetricsMissing` are the only two rules
-scoped to a specific task id. If the DR replication task is ever recreated in TrueNAS, it
-gets a new middleware id, and both expressions need updating to match.
+scoped to a specific task ID. If the DR replication task is ever recreated in TrueNAS, it
+gets a new middleware ID, and both expressions need updating to match.
 
 ## Scrapeconfig job naming
 
