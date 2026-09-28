@@ -19,7 +19,7 @@ spec:
         # Alerts use each device's own firmware power_limit as a percentage: a fixed wattage
         # would either never fire (the plug self-limits first) or fire at a normal peak.
         # The join uses shelly_device_online (operator registry): the exporter's own
-        # device_name is usually unset. Bare $1 survives Flux, which substitutes only ${VAR}.
+        # device_name is usually unset. Bare $1 survives Flux, which substitutes only $${VAR}.
         - alert: ShellyPowerNearLimit
           annotations:
             description: >-
