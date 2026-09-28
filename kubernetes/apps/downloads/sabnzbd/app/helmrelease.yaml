@@ -20,9 +20,8 @@ spec:
             image:
               repository: ghcr.io/home-operations/sabnzbd
               tag: 5.1.3@sha256:b1795982db498ed5691a7b1231f0fac7eed2a1d53e9c81b8e834d02695e76104
-            # Start the post-processing watchdog (resources/pp-watchdog.sh) in the
-            # background, then hand over to the image's own entrypoint. It runs in
-            # this container so it can see par2/unrar without shareProcessNamespace.
+            # Watchdog (pp-watchdog.sh, KB-059) for a stalled par2/unrar/7z helper, run in this
+            # container: a sidecar would need shareProcessNamespace, exposing this pod's secrets.
             command:
               - "/usr/bin/catatonit"
               - "--"
@@ -158,11 +157,10 @@ spec:
               repository: ghcr.io/qdm12/gluetun
               tag: v3.41.3@sha256:fa19cc76b2af13d57a8d3dc3066f2ada061b1c761b8aecf989b3877c0486e027
             env:
-              # BLOCK_MALICIOUS: off # save 300MB of RAM; https://github.com/qdm12/gluetun/issues/2054
               DOT: "on"
               DOT_CACHING: "on"
               DOT_IPV6: off
-              # is absolutely needed if the container is expected to be able to resolve or communicate to any cluster services, without it cluster services cannot be resolved consistently or at all in many setups.
+              # Keeps CoreDNS as the resolver, so cluster services stay resolvable in-tunnel.
               DNS_KEEP_NAMESERVER: "on"
               FIREWALL: true
               FIREWALL_DEBUG: on
@@ -172,20 +170,11 @@ spec:
               HEALTH_SERVER_DISABLE_LOOP: on
               HEALTH_VPN_DURATION_INITIAL: 60s
               LOG_LEVEL: debug
-              # Run as root (0) rather than gluetun's default 1000: gluetun
-              # chowns its public-IP status file to PUID:PGID after every
-              # write, which needs CAP_CHOWN, and this container drops ALL
-              # capabilities. Chowning to the file's existing owner is a
-              # permitted no-op instead. PUID otherwise only feeds the
-              # OpenVPN process user, unused on a WireGuard tunnel.
+              # Root (0) avoids EPERM chowning the public-IP file to PUID:PGID under drop-ALL.
               PGID: 0
-              # Public IP check provider. gluetun only accepts "ipinfo" or
-              # "ip2location"; ipinfo rate-limits (HTTP 429) on its free monthly
-              # tier, so use ip2location for the (cosmetic) public-IP display.
-              # https://github.com/qdm12/gluetun-wiki/blob/main/setup/options/others.md
+              # ip2location avoids ipinfo's 429 on its free tier; the display is cosmetic.
               PUBLICIP_API: ip2location
               PUID: 0 # see PGID above
-              # STORAGE_FILEPATH: "" # prevent memory spike and avoid I/O
               TZ: ${TIMEZONE}
               UPDATER_PERIOD: 12h
               VERSION_INFORMATION: off
@@ -317,12 +306,8 @@ spec:
         path: /mnt/pool/media
         globalMounts:
           - path: /media
-      # gluetun creates its status directory with os.MkdirAll("/tmp/gluetun",
-      # 0644), a directory with no execute bit, so nothing can traverse into
-      # it without CAP_DAC_OVERRIDE (cmd/gluetun/main.go). Pre-creating the
-      # path as an emptyDir (mode 1777) makes that MkdirAll a no-op and keeps
-      # the mode sane, so the public-IP file stays writable with all
-      # capabilities dropped. Paired with PUID/PGID 0 in the gluetun env.
+      # Pre-created (mode 1777): gluetun's own MkdirAll leaves no execute bit, which blocked the
+      # public-IP write under this drop-ALL container. Paired with PUID/PGID 0 in the gluetun env.
       gluetun-tmp:
         type: emptyDir
         medium: Memory
