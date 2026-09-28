@@ -31,7 +31,7 @@ spec:
               # Left unset: macvlan already reaches the HomeKit hubs directly, and
               # Homebridge's bundled Avahi crash-loops here.
             # A macvlan pod cannot reach its own node, so a kubelet httpGet probe blackholes;
-            # exec bypasses the pod network entirely.
+            # exec checks localhost inside the pod instead.
             probes:
               liveness: &probes
                 enabled: true
@@ -56,7 +56,7 @@ spec:
                 enabled: false
             securityContext:
               allowPrivilegeEscalation: false
-              # False: Scrypted npm-installs plugins into /server/volume at runtime.
+              # False: Scrypted unpacks helper binaries onto the image filesystem at runtime.
               readOnlyRootFilesystem: false
               capabilities:
                 drop:
@@ -69,8 +69,7 @@ spec:
                 # Headroom for HKSV transcoding spikes when several cameras record at once.
                 memory: 4Gi
 
-    # Multus macvlan on the `iot-legacy` NAD, matching matter-server: HomeKit needs L2
-    # adjacency with its hubs, which the `iot` NAD used by Home Assistant and mosquitto lacks.
+    # Multus macvlan on the `iot-legacy` NAD: HomeKit needs L2 adjacency with its hubs.
     defaultPodOptions:
       annotations:
         k8s.v1.cni.cncf.io/networks: |-

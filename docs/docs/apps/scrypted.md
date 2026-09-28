@@ -75,7 +75,8 @@ Scrypted is **additive**: Homebridge stays.
   `runtimeClassName: nvidia` pattern are available, but Phase 0 needs no GPU.
 - **`exec` probes, not httpGet.** The macvlan pod cannot route back to its own node, so a
   kubelet httpGet probe blackholes even though the app answers on its own address. Liveness
-  and readiness instead run `curl` through the container, which bypasses the pod network.
+  and readiness instead run `curl` against `127.0.0.1` inside the container, avoiding the
+  kubelet-to-PodIP path rather than the pod's network stack as a whole.
 
 ## Storage
 
