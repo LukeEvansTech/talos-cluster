@@ -1,9 +1,7 @@
 ---
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/gateway.networking.k8s.io/httproute_v1.json
-# Reached by the daily queue-triage routine, which runs outside the cluster and
-# gets in over the tailnet subnet route to this gateway. A tailnet device was
-# tried first and is unreachable from there -- the subnet router is permitted,
-# tagged devices are not. Inbound is gated by the route's own verify.token.
+# Reached by the off-cluster queue-triage routine. A tailnet device was tried first, but that
+# path only allows the subnet router, not tagged devices. verify.token in helmrelease.yaml gates it.
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
