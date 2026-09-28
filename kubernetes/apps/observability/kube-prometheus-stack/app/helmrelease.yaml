@@ -88,8 +88,7 @@ spec:
         scrapeConfigSelectorNilUsesHelmValues: false
         serviceMonitorSelectorNilUsesHelmValues: false
         retention: 14d
-        # ~80% of the 50Gi PVC. Leaves headroom for the WAL and compaction
-        # churn, which retentionSize does not account for.
+        # 40GiB is about 80% of the 50Gi PVC, leaving headroom for WAL and compaction churn.
         retentionSize: 40GiB
         resources:
           requests:
@@ -178,20 +177,8 @@ spec:
                 expr: node_zfs_zpool_state{state!="online"} > 0
                 labels:
                   severity: critical
-  # Teach the chart's generic TargetDown about targets whose `up` is not a
-  # reachability signal: the label printers, two slow SNMP walks, and the
-  # seedbox's tailnet-egress scrapes.
-  #
-  # The Brother label printers power themselves off by design, so snmp-exporter's
-  # own SnmpTargetDown already excludes device_class="printer" (see
-  # observability/snmp-exporter). But TargetDown aggregates by job, so one
-  # sleeping printer out of five snmp targets is 20% > 10% and fires anyway,
-  # defeating that deliberate exclusion and training us to ignore TargetDown,
-  # which is the alert that would catch a real switch outage.
-  #
-  # Absent labels satisfy a != matcher in PromQL, so this drops only targets
-  # explicitly labelled device_class="printer". Verified live: 173 up series,
-  # 169 kept, exactly the 4 printers excluded. Every other job still alerts.
+  # Excludes idle printers, two slow SNMP walks, and the seedbox's relayed scrapes from the
+  # chart's generic TargetDown alert (docs/docs/apps/kube-prometheus-stack.md).
   postRenderers:
     - kustomize:
         patches:
