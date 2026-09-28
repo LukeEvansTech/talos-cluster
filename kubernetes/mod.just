@@ -53,6 +53,14 @@ zeroscaler state:
         kubectl -n "$ns" patch hpa "$name" --type merge -p '{"spec":{"minReplicas":{{ if state == "suspend" { "1" } else { "0" } }}}}'
     done
 
+[doc('Find past alerts whose labels match a phrase (case-insensitive regex), e.g. "blue screen"')]
+alert-history pattern window="30d":
+    q=$(python3 -c 'import sys,urllib.parse; print(urllib.parse.quote(sys.argv[1]))' 'last_over_time(ALERTS_FOR_STATE[{{ window }}])'); \
+    kubectl get --raw "/api/v1/namespaces/observability/services/prometheus-operated:9090/proxy/api/v1/query?query=$q" \
+      | jq -r --arg p '{{ pattern }}' '.data.result[] | .metric | del(.__name__) | select(tostring | test($p; "i"))
+          | "\(.alertname)\t\(to_entries | map(select(.key != "alertname" and (.value | test($p; "i")))) | map("\(.key)=\(.value)") | join(" "))"' \
+      | sort | uniq -c | sort -rn
+
 [doc('Suspend or resume VolSync')]
 volsync state:
     flux -n volsync-system {{ state }} kustomization volsync
