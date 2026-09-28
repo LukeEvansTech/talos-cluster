@@ -21,8 +21,7 @@ spec:
   postBuild:
     substitute:
       APP: *app
-      # 290G of 294G used and growing ~7.5G/week, almost all of it generated
-      # trickplay thumbnails under Media/. 500Gi buys ~6 months.
+      # 290G of 294G used, growing ~7.5G/week (trickplay thumbnails); 500Gi buys ~6 months.
       VOLSYNC_CAPACITY: 500Gi
       VOLSYNC_CACHE_CAPACITY: 100Gi
       HOMEPAGE_NAME: Plex
@@ -38,25 +37,3 @@ spec:
   targetNamespace: *namespace
   timeout: 5m
   wait: false
-  # ---
-  # # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/kustomize.toolkit.fluxcd.io/kustomization_v1.json
-  # apiVersion: kustomize.toolkit.fluxcd.io/v1
-  # kind: Kustomization
-  # metadata:
-  #   name: &app plex-tools
-  #   namespace: &namespace default
-  # spec:
-  #   commonMetadata:
-  #     labels:
-  #       app.kubernetes.io/name: *app
-  #   interval: 1h
-  #   path: ./kubernetes/apps/default/plex/tools
-  #   prune: true
-  #   retryInterval: 2m
-  #   sourceRef:
-  #     kind: GitRepository
-  #     name: flux-system
-  #     namespace: flux-system
-  #   targetNamespace: *namespace
-  #   timeout: 5m
-  #   wait: false
