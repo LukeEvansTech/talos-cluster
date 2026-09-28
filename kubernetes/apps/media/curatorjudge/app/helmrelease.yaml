@@ -11,15 +11,9 @@ spec:
     name: curatorjudge
   values:
     controllers:
-      # Reads the plan the curator job left on the volume, asks Claude which of
-      # the candidates are worth keeping, and applies the answer.
-      #
-      # Three steps, because the judge is the least trusted part of this and is
-      # kept as small as possible: build the prompt, ask, act. Only the middle
-      # step talks to Claude, and it holds no credential except the OAuth token.
-      # The executor independently re-checks every protection against live
-      # Radarr and refuses any id the plan did not offer, so a wrong -- or
-      # hostile -- answer can only choose badly among films already cleared.
+      # Three steps (prompt, ask, act) keep the least-trusted part of the pipeline small: only
+      # 'ask' talks to Claude, holding no credential but the OAuth token. The executor re-checks
+      # every protection live, so a hostile answer can only choose among films already cleared.
       curatorjudge:
         type: cronjob
         cronjob:
@@ -30,18 +24,15 @@ spec:
           concurrencyPolicy: Forbid
           successfulJobsHistory: 3
           failedJobsHistory: 3
-          # Never retry. This pipeline ends in DELETEs, and a retry would
-          # re-run judgement and execution against the same plan. Anything
-          # ambiguous is left for the next scheduled run, which reconciles it
-          # by looking at live state rather than by repeating the call.
+          # Never retry: this pipeline ends in DELETEs, and a retry would re-run judgement against
+          # an already-acted plan (docs/apps/curatorjudge.md).
           backoffLimit: 0
           activeDeadlineSeconds: 3600
         pod:
           automountServiceAccountToken: false
         initContainers:
-          # 1. Plan -> prompt. Refuses a stale plan, one the engine blocked, or
-          #    one with nothing to judge, and leaves a marker the next steps
-          #    honour rather than paying for a judgement that would be rejected.
+          # 1. Plan -> prompt. Refuses a stale or blocked plan, or one with nothing to judge,
+          #    leaving a marker so later steps skip paying for a rejected judgement.
           prompt:
             image: &python
               repository: docker.io/library/python
@@ -65,14 +56,11 @@ spec:
               capabilities:
                 drop:
                   - ALL
-          # 2. Ask Claude. Anthropic publishes no public image, so the CLI is
-          #    installed at start-up -- into a writable prefix under /tmp,
-          #    because the root filesystem is read-only and this runs as a
-          #    non-root user. The version is pinned so it is visible in git.
+          # 2. Ask Claude. No public Anthropic image exists, so the CLI installs at start-up into a
+          #    writable /tmp prefix (root filesystem is read-only); version pinned, visible in git.
           judge:
-            # The chart topologically sorts initContainers and falls back to key
-            # order, which is alphabetical -- so without this, `judge` ran first
-            # and read a prompt file that did not exist yet, every time.
+            # The chart falls back to alphabetical key order for initContainers, so without this
+            # `judge` ran before `prompt` existed, every time.
             dependsOn: prompt
             image:
               repository: docker.io/library/node
@@ -129,9 +117,8 @@ spec:
                 memory: 1Gi
             securityContext: *hardened
         containers:
-          # 3. Validate the answer, apply what the engine still agrees with,
-          #    then send the digest. Exits non-zero if any step failed, so the
-          #    Job surfaces it rather than reporting success.
+          # 3. Validate the answer, apply what the engine still agrees with, then send the digest.
+          #    Exits non-zero if any step failed, so the Job surfaces it, not a false success.
           app:
             image: *python
             command:
@@ -166,14 +153,8 @@ spec:
               SEERR_URL: http://seerr.media.svc.cluster.local
               LEDGER_DIR: /state/ledger
               CLEANUP_SCOPE_START: "2026-03-01"
-              # Must match the curator job's mode: the ledger namespaces
-              # dry-run state separately, and execute refuses a plan made in
-              # the other mode rather than mixing the two.
-              #
-              # Scheduled runs are read-only, and --read-only on the command
-              # above enforces that independently: flipping this alone makes
-              # execute refuse rather than delete. Acting on a schedule is
-              # therefore two deliberate edits, not one word.
+              # Must match curator's mode (ledger namespaces dry-run state separately); --read-only
+              # above enforces the same rule independently, so acting needs two deliberate edits.
               CLEANUP_MODE: dry-run
               # Fans out to Pushover. The route verifies its own token, which
               # is why the digest carries one.
@@ -207,12 +188,9 @@ spec:
         globalMounts:
           - path: /app/curator
             readOnly: true
-      # Deliberately NOT a globalMount. The judge container never sees the
-      # volume at all: with write access it could rewrite plan.json to insert a
-      # protected film into `candidates`, and the executor trusts that set --
-      # its live re-checks cover tags, collections, status, file presence and
-      # playback, not membership of the candidate list. The prompt builder gets
-      # it read-only; only the executor needs to write.
+      # Deliberately not a globalMount: the judge never sees this volume. With write access it
+      # could rewrite plan.json to add a protected film to `candidates`, which the executor's live
+      # re-checks don't cover; the prompt builder gets it read-only, only the executor writes.
       state:
         existingClaim: curator
         advancedMounts:
