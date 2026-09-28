@@ -1,22 +1,6 @@
 ---
-# Model: operator-managed HF repo source. The operator stages the GGUF and the
-# mmproj projector into the shared llmkube-model-cache PVC (CephFS RWX) and
-# passes the projector to the runtime itself, no staging Job, no hand-rolled
-# --mmproj path.
-#
-# Qwen3.8-27B Heretic abliteration (0bserverx RVN refinement of the
-# trohrbaugh heretic-ara pass): the "as close to vanilla as possible"
-# uncensored build, KL divergence ~0.0085 vs the base model on harmless
-# prompts, refusals 0–1/100, official Qwen3.8 chat template embedded. This is
-# the cluster's ONLY GPU model: it serves both the `self-hosted` and
-# `self-hosted-uncensored` LiteLLM aliases (see litellm/app/configmap.yaml).
-#
-# Base arch: dense 27B, hybrid Gated-DeltaNet linear attention (48/64 layers),
-# native VLM, 262k native context, embedded MTP head (the -mtp file carries
-# the nextn tensors, +0.42Gi). Only the 16 full-attention layers hold KV cache
-# (~32KB/token at q8_0), which is what makes 128k affordable on a 24GB L4.
-# Requires a llama.cpp build from release week (2026-08-14) or later, older
-# builds don't register the qwen35 arch and refuse to load the GGUF.
+# 0bserverx RVN Heretic-abliterated Qwen3.8-27B; the cluster's only GPU model, serving both
+# self-hosted and self-hosted-uncensored (docs/docs/architecture/ai-llm-stack.md Model serving).
 apiVersion: inference.llmkube.dev/v1alpha1
 kind: Model
 metadata:
@@ -44,47 +28,20 @@ metadata:
     krr/ignore: "true"
 spec:
   modelRef: qwen3.8-27b-heretic
-  # Do NOT set skipModelInit here. It looks safe: the controller does stage the
-  # GGUF (+ mmproj) into the shared cache PVC, so the model-downloader init
-  # container only logs "already cached", but on llmkube 0.9.x the flag ALSO
-  # blanks the rendered `--model` arg, because the /models/<cacheKey>/ path is
-  # derived from the init-container staging step. llama.cpp then starts in
-  # router mode with zero models: the pod goes 1/1 Ready and every request fails
-  # with "model not found". See #3792 (which set it) and the revert that
-  # followed.
+  # Never set skipModelInit: on llmkube 0.9.x it also blanks --model, serving zero models
+  # (#3792; docs/docs/architecture/ai-llm-stack.md Rollout and staging safety).
   runtime: llamacpp
   image: ghcr.io/ggml-org/llama.cpp:server-cuda@sha256:5d0812fe45cb5dcb4ac5c588148a601aca63b6b224601f8d1f6f01fdfb07a111
-  # Defer a pod-template rollout (e.g. a Renovate image bump) until llama.cpp's
-  # own /slots endpoint reports both slots idle, instead of killing an
-  # in-flight opencode/agent session mid-response. Falls back to proceeding
-  # anyway after idleTimeoutSeconds so a genuinely stuck slot can't block
-  # upgrades forever. Field verified present on this llmkube CRD version via
-  # `kubectl explain inferenceservice.spec.rolloutPolicy` (crib:
-  # joryirving/home-ops litellm/llama-strix.yaml).
+  # Waits for both /slots to go idle before rolling, instead of killing an in-flight session
+  # (docs/docs/architecture/ai-llm-stack.md Rollout and staging safety).
   rolloutPolicy:
     waitForIdle: true
     idleTimeoutSeconds: 86400
   replicas: 1
   runtimeClassName: nvidia
   priorityClassName: gpu-preemptible
-  # VRAM budget on a 24GB L4 (~22.4Gi usable): 14.9Gi weights (Q4_K_S + MTP
-  # head) + 0.6Gi mmproj projector (stays on the GPU, see the extraArgs
-  # comment below for why --no-mmproj-offload is deliberately NOT used
-  # here) + 3Gi KV (128k, K q8_0 + V q4_0; only 16/64 layers are full
-  # attention) + compute buffers. With MTP on and q8/q8 KV the card sat at
-  # 22.0/22.5Gi and the FIRST real prompt crashed llama-server with "CUDA
-  # error: out of memory" in ggml_cuda_pool_vmm::alloc. The mul_mat compute
-  # pool grows at decode time, so ~0.5Gi idle headroom is NOT enough; keep
-  # ≥1.5Gi free. V-cache q4_0 buys 1Gi (K stays q8_0, because K quantization is the
-  # recall-sensitive half) and uBatchSize 512 shrinks the CUDA compute
-  # buffers for the rest, at a modest prompt-processing cost. Idle free
-  # measured ~1.8Gi with the projector on the GPU and --kv-unified active
-  # (2026-08-25), still above the ≥1.5Gi floor.
-  # 128k unified across the 2 parallelSlots (--kv-unified below) covers every
-  # request, opencode's ~41k agent baseline included, is the window the old
-  # YaRN-extended uncensored model needed hacks for, with no YaRN and no
-  # --override-kv. A single request may borrow the full 128k while the other
-  # slot is idle, instead of a static 64k-per-slot split.
+  # VRAM budget: ≥1.5Gi must stay free after an OOM at 22.5Gi
+  # (docs/docs/architecture/ai-llm-stack.md Resource budget on the L4).
   contextSize: 131072
   parallelSlots: 2
   flashAttention: true
@@ -97,9 +54,7 @@ spec:
   uBatchSize: 512
   resources:
     gpu: 1
-    # cpu bumped for --threads/--threads-batch below, still worth it for
-    # prompt processing and tokenisation even with the mmproj projector back
-    # on the GPU (see the extraArgs comment below).
+    # Bumped for --threads/--threads-batch below; still help with the projector on the GPU.
     cpu: "6"
     memory: 20Gi
   nodeSelector:
@@ -113,11 +68,8 @@ spec:
           labelSelector:
             matchLabels:
               llm-gpu-model: "true"
-  # No runAsNonRoot: the operator's model-cache-prep init container must run as
-  # scoped root (drop ALL, add CHOWN+FOWNER only, no privesc, ro rootfs) to
-  # chown the shared cache on fsGroupPolicy:None backends like CephFS. This is the
-  # upstream-supported compatibility path (docs/MODEL-CACHE.md). Runtime
-  # containers still run as 1000 via runAsUser below.
+  # No runAsNonRoot: the cache-prep init container needs scoped root to chown CephFS
+  # (docs/docs/architecture/ai-llm-stack.md Rollout and staging safety).
   podSecurityContext:
     runAsUser: 1000
     runAsGroup: 1000
@@ -129,19 +81,9 @@ spec:
   endpoint:
     port: 8080
     type: ClusterIP
-  # NB: no manual --mmproj here. The operator injects the projector argument
-  # from Model.spec.mmproj with the correct cache path.
-  # Samplers are the vanilla Qwen3.8 thinking-mode recommendations
-  # (temp 1.0 / top-p 0.95 / top-k 20 / min-p 0), part of keeping the
-  # abliterated build's behaviour as close to stock as possible.
-  #
-  # MTP self-speculative decoding: drafts with the nextn head embedded in
-  # this GGUF and verifies with the main model, lossless (identical output
-  # distribution), it only changes tokens/step. Baseline without it measured
-  # 15.2 t/s decode on the L4; expect roughly +30–60% at typical ~0.75
-  # acceptance. n-max 2 is the consumer-GPU sweet spot per the qwen38-mtp
-  # recipe (tune 2–4); the gain shrinks as concurrent slots rise, which is
-  # fine at 2 slots. Both flags verified against this image digest's --help.
+  # No manual --mmproj: the operator injects it from Model.spec.mmproj with the correct cache path.
+  # Samplers are the vanilla Qwen3.8 thinking-mode recommendations, to keep the abliterated build
+  # close to stock. MTP decoding: docs/docs/architecture/ai-llm-stack.md Resource budget on the L4.
   extraArgs:
     - --spec-type
     - draft-mtp
@@ -149,10 +91,7 @@ spec:
     - "2"
     - --alias
     - self-hosted
-    # --no-mmap was removed upstream alongside --mmap; --load-mode
-    # replaces both. "none" is the equivalent of --no-mmap: no special
-    # loading mode, so the model is not memory-mapped. Fixed here too
-    # because the pinned server-cuda build still accepts the old flag.
+    # --load-mode replaces the removed --no-mmap/--mmap; "none" means not memory-mapped.
     - --load-mode
     - none
     - --temp
@@ -165,29 +104,8 @@ spec:
     - "0"
     - --cont-batching
     - --cache-prompt
-    # Unified KV + threads tuning (crib: joryirving/home-ops
-    # litellm/llama-nvidia.yaml), but the mmproj projector stays on the GPU
-    # here, deliberately NOT matching Jory's --no-mmproj-offload. That flag
-    # was added in #4579 to move the projector to host RAM for ~0.6Gi more
-    # VRAM headroom; post-merge measurement on 2026-08-25 showed the
-    # tradeoff was wrong for this cluster, three vision requests against a
-    # 64x64 image took 59.7s / 53.8s / 53.3s (correct answers, all CPU-bound
-    # on the 1024-token image encode) versus low single-digit seconds with
-    # the projector on the GPU. The `loupe` app depends on this vision path,
-    # so latency wins over the 0.6Gi; see the VRAM-budget comment above for
-    # the ~1.8Gi idle-free number measured with the projector back on the
-    # GPU. --image-min-tokens 1024 (Jory's value) keeps vision quality
-    # regardless of where the projector runs. --kv-unified lets one request
-    # use the whole 128k context when the other slot is idle instead of a
-    # hard 64k-per-slot ceiling; measured post-merge: /props reports
-    # `default_generation_settings.n_ctx == 131072` (the full unified size,
-    # not a per-slot share), and idle free VRAM is the ~1.8Gi above.
-    # --threads/--threads-batch below (and the matching cpu: "6" request in
-    # resources above) still help prompt processing and tokenisation even
-    # with the projector back on the GPU, so they're kept. All flags
-    # verified against this image digest's --help (llama.cpp server-cuda,
-    # digest above; ran `llama-server --help` inside the live llama-nvidia
-    # pod).
+    # Projector stays on the GPU unlike Jory's --no-mmproj-offload; --kv-unified lets one request
+    # use the full 128k window (docs/docs/architecture/ai-llm-stack.md Vision projector placement).
     - --image-min-tokens
     - "1024"
     - --kv-unified

@@ -12,9 +12,7 @@ spec:
   namespaceSelector:
     matchNames:
       - ai
-  # Copy the operator's per-InferenceService labels onto every series so the
-  # llama-server dashboard can filter per backend (app.kubernetes.io/instance is
-  # the InferenceService, e.g. llama-nvidia).
+  # Lets the llama-server dashboard filter by backend (app.kubernetes.io/instance).
   targetLabels:
     - app.kubernetes.io/instance
     - app.kubernetes.io/name
