@@ -15,18 +15,13 @@ spec:
         type: cronjob
         cronjob:
           ttlSecondsAfterFinished: 86400
-          # Start after MDBList's daily quota resets at 00:00 UTC. Kometa 2.5.0 honours
-          # Retry-After on a 429 with no cap, so a run that starts while yesterday's
-          # 1000 requests are spent sleeps until the reset instead of failing fast.
-          # 02:00 local is 01:00 UTC in summer and 02:00 UTC in winter, and unlike
-          # 01:00 it exists on the spring DST night (01:00 -> 02:00), so no run is skipped.
+          # Starts after MDBList's quota resets at midnight UTC; 02:00 also survives the
+          # spring DST jump that a 01:00 schedule would skip (docs/docs/apps/kometa.md).
           schedule: "0 2 * * *"
           timeZone: &timeZone ${TIMEZONE}
           concurrencyPolicy: Forbid
-          # With Forbid, a run that never finishes silently skips every later
-          # night: one run stuck in rate-limit sleeps blocked three nights in a
-          # row. Kill any run still going 20h after it starts, before the next
-          # 02:00. A full run takes about 4h.
+          # A hung run under Forbid once blocked three nights of runs (docs/docs/apps/kometa.md).
+          # This kills any run past 20h; a normal run takes about 4h.
           activeDeadlineSeconds: 72000
           successfulJobsHistory: 1
           failedJobsHistory: 1
@@ -38,8 +33,7 @@ spec:
             command:
               - /bin/sh
               - -c
-            # One invocation for both libraries: the review playlists span Movies
-            # and TV, and are only built once per run.
+            # One invocation covers both libraries because the review playlists span Movies and TV.
             args:
               - python3 kometa.py --run --read-only-config
             env:
@@ -69,8 +63,7 @@ spec:
         seccompProfile:
           type: RuntimeDefault
     persistence:
-      # Holds config.cache between runs. Each run is a fresh pod that mounts
-      # the current ConfigMap, so config changes need no rollout.
+      # Each run is a fresh pod, so a ConfigMap edit needs no rollout to take effect.
       config:
         existingClaim: kometa-cache
         globalMounts:
