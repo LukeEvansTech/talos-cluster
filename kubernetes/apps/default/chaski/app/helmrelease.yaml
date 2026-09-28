@@ -26,13 +26,11 @@ spec:
         sonarr:
           apprise:
             url: pover://{{ env "PUSHOVER_USER_KEY" }}@{{ env "SONARR_PUSHOVER_TOKEN" }}
-        # Reuses the Radarr Pushover application; swap the token here if the
-        # digest ever earns its own app.
+        # Reuses RADARR_PUSHOVER_TOKEN; swap it if the digest ever earns its own app.
         triage:
           apprise:
             url: pover://{{ env "PUSHOVER_USER_KEY" }}@{{ env "RADARR_PUSHOVER_TOKEN" }}
-        # Kometa's nightly run webhooks, on their own Pushover application so
-        # they are labelled Kometa rather than Radarr.
+        # Its own Pushover application, so notifications show as Kometa rather than Radarr.
         kometa:
           apprise:
             url: pover://{{ env "PUSHOVER_USER_KEY" }}@{{ env "KOMETA_PUSHOVER_TOKEN" }}
@@ -87,10 +85,8 @@ spec:
             url: "{{ .payload.applicationUrl }}/activity/queue"
             url_title: View Queue
           whenExpr: payload.eventType == "ManualInteractionRequired"
-        # Free-text digest from the daily queue-triage routine. That sender is
-        # on the tailnet rather than in-cluster, so this route carries its own
-        # token -- the global CHASKI_WEBHOOK_TOKEN would 401 the arr webhooks,
-        # which are configured in each arr's UI outside Git.
+        # This sender runs off-cluster, so the route needs its own token: the chart's global
+        # CHASKI_WEBHOOK_TOKEN would also 401 the arr webhooks, which send none.
         queue-triage:
           target: triage
           title: "{{ .payload.title }}"
@@ -101,10 +97,8 @@ spec:
             token:
               header: X-Chaski-Token
               secret: '{{ env "TRIAGE_WEBHOOK_TOKEN" }}'
-        # Free-text digest from the weekly Radarr library-cleanup routine. Same
-        # off-cluster sender as queue-triage so it reuses that token, but kept as
-        # its own route: a deletion digest and a stuck queue need to be tellable
-        # apart at a glance on a phone, and this one wants high priority.
+        # Same off-cluster sender and token as queue-triage, kept as its own route so a deletion
+        # digest doesn't read like a stuck queue.
         library-cleanup:
           target: triage
           title: "{{ .payload.title }}"
@@ -116,9 +110,7 @@ spec:
             token:
               header: X-Chaski-Token
               secret: '{{ env "TRIAGE_WEBHOOK_TOKEN" }}'
-        # Kometa exits 0 even when collections fail to build, so its own
-        # webhooks are the only failure signal. In-cluster sender, no token,
-        # same as the arr routes.
+        # Kometa exits 0 even when a collection fails to build; this is the only failure signal.
         kometa-error:
           target: kometa
           title: "Kometa error{{ if .payload.critical }} (critical){{ end }}"
