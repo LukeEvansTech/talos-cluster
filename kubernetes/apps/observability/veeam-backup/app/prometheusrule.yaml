@@ -6,29 +6,12 @@ metadata:
   name: veeam-backup.rules
 spec:
   groups:
-    # Backup-job health for the Veeam B&R server, modelled on docker-backup.rules.
-    # Same principle: alert on the ABSENCE OF SUCCESS, not the presence of
-    # errors. In Aug 2026 the server BSOD'd mid-job and stayed down for 12 days;
-    # no error event was ever produced, the schedule simply stopped advancing.
-    # These rules turn "the last success is getting old" into a page.
-    #
-    # Series come from a scheduled task on the box (veeam-config,
-    # powershell/Write-VeeamBackupMetrics.ps1) that parses event 190
-    # ("Backup job 'X' finished with Success|Warning|Failed") from the
-    # "Veeam Backup" event log into node-exporter-style textfiles:
-    #   veeam_backup_last_success_timestamp_seconds{veeam_job}  last Success/Warning
-    #   veeam_backup_last_run_timestamp_seconds{veeam_job}      last finish, any result
-    #   veeam_backup_last_result_code{veeam_job}                0 Success 1 Warning 2 Failed
-    #
-    # Every alert here pages (Alertmanager routes everything to Pushover), so
-    # each one is a boolean that fires approximately never, not a threshold.
+    # Models docker-backup.rules: alert on the absence of a successful run, not an error event.
+    # The Aug 2026 outage is KB-067; every rule pages, so each should fire almost never.
     - name: veeam-backup.rules
       rules:
-        # THE load-bearing alert. Jobs run nightly; 36h = one missed run plus
-        # 12h of slack, so a single transient failure self-heals without paging.
-        # Keeps working when the box is dead: the textfile stops advancing and
-        # Prometheus keeps the last scraped value for the staleness window, and
-        # once that expires VeeamBackupMetricsMissing below takes over.
+        # 36h tolerates one missed nightly run plus 12h slack, so a transient failure self-heals.
+        # Added after the Aug 2026 BSOD (KB-067); VeeamBackupMetricsMissing takes over once stale.
         - alert: VeeamBackupStale
           annotations:
             summary: >-
@@ -39,10 +22,8 @@ spec:
           for: 30m
           labels:
             severity: critical
-        # A run finished Failed. Veeam's own email covers the detail; this exists
-        # so a failure still pages when mail is broken. Warning (1) is not
-        # alerted here on purpose. It still wrote a restore point, and it
-        # already goes out by email.
+        # Backstops Veeam's failure email if mail breaks; Warning stays unpaged since it still
+        # wrote a restore point and already emails.
         - alert: VeeamBackupFailed
           annotations:
             summary: >-
@@ -52,12 +33,7 @@ spec:
           for: 15m
           labels:
             severity: critical
-        # The complement: the series vanishing, which the rules above cannot see
-        # because they have nothing left to evaluate. Exporter removed, textfile
-        # deleted, scheduled task disabled, box otherwise fine. Bare absent()
-        # is right here: one box, one exporter. 2h fuse and warning severity
-        # because a genuine box outage already pages via VeeamServerGuestDown
-        # and LanProbeFailed; this is for the box-up-but-metric-gone case.
+        # Bare absent() is fine for one box; VeeamServerGuestDown/LanProbeFailed page real outages.
         - alert: VeeamBackupMetricsMissing
           annotations:
             summary: >-
@@ -67,9 +43,7 @@ spec:
           for: 2h
           labels:
             severity: warning
-        # windows_exporter itself unreachable while the guest and Veeam are up
-        # (VeeamServerGuestDown / LanProbeFailed silent). Usually the exporter
-        # service stopped or the firewall rule went. 30m so a reboot never pages.
+        # Catches the exporter dying while the guest/Veeam stay up; 30m keeps a reboot from paging.
         - alert: VeeamWindowsExporterDown
           annotations:
             summary: >-
