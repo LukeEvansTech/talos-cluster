@@ -46,17 +46,13 @@ spec:
               DJANGO_LOGGING_FORMATTER: ndjson
               DJANGO_LOGGING_LEVEL: INFO
               DJANGO_MANAGE_DB_PARTITIONS: "True"
-              # Cap gunicorn workers, defaults to (CPU*2+1) which on a
-              # 24-core node was 49 workers * ~80MB each = 4GB just for api.
+              # Auto-detect hit 49 workers on a 24-core node, about 4GB before any traffic.
               DJANGO_WORKERS: "4"
-              # Same story for Celery's prefork pool, defaults to
-              # os.cpu_count() (24 here), and 24 Django children idle at ~4GB.
+              # Same problem hits Celery's prefork pool, which also defaults to the core count.
               DJANGO_CELERY_WORKER_CONCURRENCY: "4"
             envFrom: *envFrom
             probes:
-              # Django enforces ALLOWED_HOSTS on every request. The kubelet
-              # probes by pod IP, which Django rejects with HTTP 400. Override
-              # the Host header so the probe passes ALLOWED_HOSTS validation.
+              # Kubelet probes by pod IP, which fails Django's ALLOWED_HOSTS check; override Host.
               liveness: &apiProbe
                 enabled: true
                 custom: true
@@ -86,17 +82,7 @@ spec:
                 memory: 2Gi
           worker:
             image: *image
-            # Invoke celery directly instead of `../docker-entrypoint.sh worker`
-            # (which both defaults to `prod` mode without an explicit command
-            # AND hardcodes its flags): Celery 5.6's mingle/gossip startup
-            # steps kill the worker instantly + silently (exit 1, no
-            # traceback) against Dragonfly's pub/sub fanout, and the
-            # entrypoint can't pass `--without-mingle --without-gossip`
-            # through. Both are multi-worker coordination features; this is a
-            # single worker, so dropping them loses nothing. Command otherwise
-            # mirrors the entrypoint's start_worker() (queues, -E,
-            # --max-tasks-per-child); DJANGO_APP_COMPONENT tags pg
-            # application_name as the entrypoint would.
+            # Runs celery directly; the entrypoint's worker mode can't disable mingle/gossip.
             command:
               - "/bin/sh"
               - "-c"
