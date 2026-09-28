@@ -2,9 +2,8 @@
 
 CertWarden issues and renews certificates and pushes them to devices that cannot fetch one
 themselves, in the `infrastructure` namespace (`kubernetes/apps/infrastructure/certwarden`).
-Each device type (Supermicro IPMI, APC, Brother printers, the core switch) has its own
-post-processing script that CertWarden calls after a renewal; the script spawns a one-shot
-Kubernetes Job to deploy the certificate.
+Each supported device has its own post-processing script that CertWarden calls after a renewal;
+the script spawns a one-shot Kubernetes Job to deploy the certificate.
 
 ## kubectl needs its own RBAC
 
@@ -50,16 +49,15 @@ ssh -o KexAlgorithms=+diffie-hellman-group1-sha1,diffie-hellman-group14-sha1 \
     -v apc@<hostname> exit 2>&1 | grep "Server host key"
 ```
 
-### Onyx (core switch)
+### Onyx
 
-Required 1Password fields: `ONYX_HOSTNAME` (switch IP or hostname), `ONYX_USERNAME`,
-`ONYX_PASSWORD`. Optional: `ONYX_CERT_NAME` (defaults to `custom-cert`).
+Required 1Password fields: `ONYX_HOSTNAME`, `ONYX_USERNAME`, `ONYX_PASSWORD`. Optional:
+`ONYX_CERT_NAME` (defaults to `custom-cert`).
 
 ### Brother printer
 
-Required 1Password fields: `BROTHER_HOSTNAME`, `BROTHER_PASSWORD`. The cert tool has been
-tested on the MFC-L2710DW and MFC-L2750DW models, needs an RSA key (not ECDSA, 2048-bit
-recommended), and the certificate must carry a Common Name.
+Required 1Password fields: `BROTHER_HOSTNAME`, `BROTHER_PASSWORD`. The cert tool needs an RSA
+key (not ECDSA, 2048-bit recommended) and a certificate that carries a Common Name.
 
 ## References
 
