@@ -9,10 +9,8 @@ spec:
     kind: OCIRepository
     name: *app
   interval: 1h
-  # MEMINI_REEMBED_ON_MODEL_CHANGE re-embeds the whole store synchronously at
-  # startup and the startup probe budgets ~30 minutes for that (see
-  # probes.startup below); the default 5m Helm timeout would roll the
-  # upgrade back mid-re-embed before the probe ever gets a chance to pass.
+  # Startup probe budgets ~30m for a synchronous re-embed (probes.startup); the
+  # default 5m Helm timeout would roll back mid-re-embed before it could pass.
   timeout: 35m
   install:
     remediation:
@@ -36,24 +34,22 @@ spec:
               MEMINI_EMBED_BASE_URL: http://llama-embed.ai.svc.cluster.local:8080/v1
               MEMINI_EMBED_MODEL: sentence-transformers/all-MiniLM-L6-v2
               MEMINI_EMBED_DIMS: "384"
-              # Cap in-flight calls to the single-replica CPU embed backend so a
-              # recall burst can't queue behind it; bound the recall-path embed
-              # call so a stuck backend degrades to keyword-only search instead
-              # of hanging recall.
+              # Caps in-flight calls to the single-replica CPU embed backend, and
+              # bounds the recall-path call so a stuck backend degrades to
+              # keyword-only search instead of hanging recall.
               MEMINI_EMBED_MAX_CONCURRENCY: 2
               MEMINI_RECALL_EMBED_TIMEOUT: 5s
-              # Re-embed the store automatically on an embed-model swap instead
-              # of refusing to start.
+              # Re-embeds automatically on a model swap, instead of refusing to start.
               MEMINI_REEMBED_ON_MODEL_CHANGE: true
               MEMINI_RERANK: http://llama-rerank.ai.svc.cluster.local:8080/v1
               MEMINI_RERANK_MODEL: qwen3-reranker
               MEMINI_RERANK_MAX_CONCURRENCY: 2
               MEMINI_RERANK_TIMEOUT: 12s
-              # Widen the reranked candidate pool past the recall limit so the
-              # cross-encoder can promote a result the fused score buried below it.
+              # Wider than the recall limit, so the cross-encoder can promote a
+              # result the fused score buried below it.
               MEMINI_RERANK_POOL: "8"
-              # Consolidation LLM via LiteLLM's self-hosted group (-> llmkube/llama.cpp).
-              # Scoped LiteLLMVirtualKey (see virtualkey.yaml), not the master key.
+              # Consolidation LLM via LiteLLM's self-hosted group; scoped key from
+              # virtualkey.yaml, not the master key.
               MEMINI_LLM_BASE_URL: http://litellm.ai.svc.cluster.local:4000
               MEMINI_LLM_MODEL: self-hosted
               MEMINI_LLM_API_KEY:
@@ -61,9 +57,8 @@ spec:
                   secretKeyRef:
                     name: litellm-key-memini
                     key: api-key
-              # Coalesce a near-duplicate write into its nearest same-tier memory
-              # instead of just hinting, and keep the periodic dedup pass +
-              # short-term cap tuned to match.
+              # Coalesces a near-duplicate write into its nearest same-tier memory
+              # instead of hinting; keep the dedup pass and short-term cap tuned to match.
               MEMINI_WRITE_DEDUP_SCORE: "0.80"
               MEMINI_WRITE_DEDUP_ACTION: coalesce
               MEMINI_DEDUP_TIERS: episodic
@@ -85,8 +80,8 @@ spec:
                     port: 8080
                   initialDelaySeconds: 10
                   periodSeconds: 10
-                  # ~30 minutes: MEMINI_REEMBED_ON_MODEL_CHANGE re-embeds the whole
-                  # store synchronously at startup, one embed call per memory.
+                  # ~30m (180 * 10s): a synchronous re-embed of the whole store, one call
+                  # per memory, on a model swap.
                   failureThreshold: 180
             resources:
               requests:
@@ -99,10 +94,8 @@ spec:
         cronjob:
           schedule: "0 5 * * *"
         pod:
-          # The data PVC is ReadWriteOnce (ceph-block), shared with the main
-          # StatefulSet pod. Pin the fsck job to the node running main so both
-          # can mount the RWO volume; otherwise the fsck pod Multi-Attach-stalls
-          # in ContainerCreating until it happens to land on the right node.
+          # RWO ceph-block PVC shared with the main pod: pin fsck to main's node, or
+          # it Multi-Attach-stalls in ContainerCreating until it lands there by chance.
           affinity:
             podAffinity:
               requiredDuringSchedulingIgnoredDuringExecution:
@@ -111,8 +104,8 @@ spec:
                       app.kubernetes.io/name: memini
                       app.kubernetes.io/controller: main
                   topologyKey: kubernetes.io/hostname
-        # The chart's fsck curl uses --variable %MEMINI_API_KEY, so the fsck
-        # container needs the same bearer token as the main container.
+        # The chart's fsck curl uses --variable %MEMINI_API_KEY, needing the same
+        # bearer token as the main container.
         containers:
           fsck:
             env:
@@ -132,10 +125,9 @@ spec:
         parentRefs:
           - name: envoy-internal
             namespace: network
-        # Chart v0.7.5 split the web UI onto its own `ui` service port (8081);
-        # `http` (8080) is now API-only and 404s on `/`. This is a custom route
-        # key, so it inherits neither of the chart's `main`/`ui` route defaults
-        # and would otherwise fall back to the primary `http` port.
+        # Chart v0.7.5 split the UI onto its own `ui` port (8081); `http` (8080) is
+        # now API-only and 404s on `/`. This custom route key inherits neither chart
+        # default, so it would fall back to `http` without this.
         rules:
           - matches:
               - path:
