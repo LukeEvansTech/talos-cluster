@@ -116,8 +116,7 @@ spec:
                   periodSeconds: 5
                   timeoutSeconds: 5
                   failureThreshold: 60
-            # The upstream entrypoint configures system users and nginx as root,
-            # then drops the application to PUID/PGID with gosu.
+            # Upstream configures system users and nginx as root, then drops to PUID/PGID with gosu.
             securityContext:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: false
@@ -167,9 +166,8 @@ spec:
           - backendRefs:
               - identifier: app
                 port: *port
-            # Upstream marks video responses public for a year. A shared cache
-            # can otherwise keep serving them after a password is set or the
-            # video is deleted, without checking Fireshare's access gate again.
+            # Upstream marks video responses public for a year; stops a shared cache serving one
+            # after a password is set or it is deleted.
             filters:
               - type: ResponseHeaderModifier
                 responseHeaderModifier:
