@@ -32,8 +32,8 @@ publishing `CSIStorageCapacity` gives the scheduler information it was missing r
 the limit ([#5110](https://github.com/LukeEvansTech/talos-cluster/pull/5110)).
 
 This fix stops the imbalance from getting worse; it does not undo it. The 194 existing caches stay
-where they are unless their PVCs are deleted and recreated, which VolSync does automatically on the
-next sync at the cost of one cold run.
+where they are until an operator deletes their PVCs by hand. VolSync then recreates each one
+automatically on its next sync, on a node with room, at the cost of one cold run.
 
 Agents republish pool stats every 60s (`agent.poolStatsInterval`). Until the first publish after a
 rollout, the scheduler treats an unpublished (node, class) pair as unfit, so new `miroir-local`
