@@ -10,8 +10,7 @@ resources:
   - ./prometheusrule.yaml
   - ./grafanadashboard.yaml
 configMapGenerator:
-  # Kept as real files rather than inline YAML so both stay lintable and, in the
-  # exporter's case, unit-testable outside the cluster.
+  # Real files, not inline YAML, so both lint and the exporter is unit-testable.
   - name: smtp2graph-exporter
     files:
       - exporter.py=./exporter/exporter.py
@@ -19,10 +18,8 @@ configMapGenerator:
     files:
       - smtp2graph.json=./dashboards/smtp2graph.json
 generatorOptions:
-  # Stable names: the controller carries reloader.stakater.com/auto, so a
-  # content change restarts the pod without needing a new ConfigMap name.
+  # Stable names: reloader.stakater.com/auto restarts on content change, no new name needed.
   disableNameSuffixHash: true
   annotations:
-    # The dashboard JSON uses Grafana's own ${DS_PROMETHEUS} macro; disable Flux
-    # postBuild substitution so it is not clobbered to empty.
+    # Keeps Grafana's ${DS_PROMETHEUS} macro from being blanked by Flux postBuild substitution.
     kustomize.toolkit.fluxcd.io/substitute: disabled

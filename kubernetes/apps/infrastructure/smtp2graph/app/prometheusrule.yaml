@@ -1,12 +1,8 @@
 ---
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
 apiVersion: monitoring.coreos.com/v1
-# Why this exists at all: between 2026-08-10 and 2026-08-19 this relay accepted
-# mail and then failed EVERY Graph send with ErrorSendAsDenied, 353 messages
-# lost, 2,824 errors, zero delivered, and nothing noticed for nine days. The
-# SMTP listener was healthy the entire time, so any liveness or TCP check would
-# have stayed green. These rules therefore measure DELIVERY OUTCOME, never
-# reachability.
+# Delivery can fail while the SMTP listener stays healthy (Aug 2026 outage), so
+# these rules measure delivery outcome, not reachability (docs/docs/apps/smtp2graph.md).
 kind: PrometheusRule
 metadata:
   name: smtp2graph
@@ -14,11 +10,8 @@ spec:
   groups:
     - name: smtp2graph
       rules:
-        # The exact signature of the Aug 2026 outage. A file in failed/ is a
-        # message the relay has permanently given up on. It is not a backlog,
-        # it is lost mail. Healthy steady state is a hard zero, so this needs no
-        # threshold beyond "any". 15m only so a single transient retry burst
-        # does not page.
+        # failed/ means the relay gave up for good, so any nonzero count pages;
+        # 15m rides out a single retry burst.
         - alert: SMTP2GraphUndeliverableMail
           annotations:
             description: >-
@@ -31,16 +24,8 @@ spec:
           for: 15m
           labels:
             severity: critical
-        # Backlog that is not draining. Distinct from the above: these have not
-        # been given up on yet, so this catches a slow or wedged Graph path
-        # before messages start expiring into failed/.
-        #
-        # It is also the ONLY alert for a stranded message. smtp2graph treats
-        # three Graph errors (invalid content, access denied, size exceeded) as
-        # permanent: it neither retries them nor moves them to failed/, so the
-        # file sits in queue/ forever and UndeliverableMail never sees it. One
-        # constant queued message while later mail still delivers is that case,
-        # not a stall. KB-035.
+        # Catches a slow or wedged send before messages expire into failed/. A single
+        # stuck message while later mail flows is the stranded-message case, KB-035.
         - alert: SMTP2GraphQueueStalled
           annotations:
             description: >-
@@ -55,13 +40,8 @@ spec:
           for: 10m
           labels:
             severity: warning
-        # The queue metrics above only say anything when mail is actually
-        # flowing. Estate mail is bursty; the UPS alerts that exposed the
-        # original fault stopped entirely once the flapping calmed down, so a
-        # relay broken during a quiet spell would look perfectly healthy. The
-        # canary sends its own message every 6h and confirms it left the queue
-        # without landing in failed/, which exercises the real Graph call.
-        # 3x the interval plus slack: two consecutive misses before paging.
+        # Queue metrics only say anything when mail is flowing; the canary proves the
+        # Graph path during quiet spells. 14h covers two missed 6h canaries plus slack.
         - alert: SMTP2GraphCanaryFailing
           annotations:
             description: >-
@@ -75,8 +55,8 @@ spec:
           for: 15m
           labels:
             severity: critical
-        # Monitoring that can fail silently is how the original outage lasted
-        # nine days. If the exporter stops reporting, say so.
+        # A silent monitoring gap is how the Aug 2026 outage lasted nine days; a missing
+        # exporter must page too.
         - alert: SMTP2GraphMetricsMissing
           annotations:
             description: >-
