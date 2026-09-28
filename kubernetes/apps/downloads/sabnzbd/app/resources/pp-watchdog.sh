@@ -1,25 +1,8 @@
 #!/bin/sh
-# Kill SABnzbd post-processing helpers (par2, unrar, 7z) that have stopped
-# making progress.
-#
-# SABnzbd post-processes one job at a time and has no timeout on its helpers,
-# so a single hung helper stalls every job queued behind it. In September 2026
-# a par2 repair spun on one core for ~30 h without reading a byte while 3,800
-# downloaded jobs waited. SABnzbd's own mode=cancel_pp API cannot be relied on
-# to recover: PostProcessor.cancel_pp returns after checking only the first job
-# in its list, so it misses the active job whenever another job is ahead of it.
-#
-# Progress is rchar + wchar from /proc/<pid>/io. A helper whose counters have
-# not moved for STALL_SECONDS is sent SIGTERM (then SIGKILL if it survives);
-# SABnzbd marks that one job failed, Sonarr/Radarr blocklist the release and
-# search again, and post-processing moves on to the next job.
-#
-# A helper blocked reading a pipe is left alone: that is Direct Unpack's unrar
-# waiting for SABnzbd to hand it the next volume, not a hang. unrar blocked
-# *writing* a pipe is a hang (sabnzbd/sabnzbd#3638) and is killed.
-#
-# Runs in the background inside the SABnzbd container (see helmrelease.yaml),
-# so it sees the helpers without sharing the pod's process namespace.
+# Kills a par2/unrar/7z helper that stalls, so it can't hang the whole post-processing queue
+# behind it (docs/docs/troubleshooting/kb/059-sabnzbd-post-processing-helper-hang.md).
+# A pipe write-blocked unrar is a hang (sabnzbd/sabnzbd#3638); pipe read-blocked is Direct
+# Unpack waiting on the next volume, and is left alone.
 
 STALL_SECONDS="${PP_WATCHDOG_STALL_SECONDS:-1800}"
 INTERVAL_SECONDS="${PP_WATCHDOG_INTERVAL_SECONDS:-60}"
