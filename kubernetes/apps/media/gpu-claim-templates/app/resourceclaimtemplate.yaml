@@ -1,7 +1,7 @@
 ---
-# Unqualified on purpose -- all 3 nodes carry an identical card. A workload needing a specific
-# device should get its own template with a CEL selector, not narrow this one. spec is immutable,
-# so changing the request needs force: true on the Kustomization or a manual delete.
+# Unqualified on purpose: the available devices are interchangeable. A workload needing a specific
+# device should get its own template with a CEL selector, not narrow this one. spec is immutable, so
+# changing the request needs force: true on the Kustomization or a manual delete.
 apiVersion: resource.k8s.io/v1
 kind: ResourceClaimTemplate
 metadata:
