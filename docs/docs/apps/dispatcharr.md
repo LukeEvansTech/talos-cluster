@@ -39,9 +39,9 @@ environment back, since an unused env var would look identical either way.
 
 ## One VPN device key per pod
 
-`gluetun-dispatcharr` is its own 1Password item with its own AirVPN device key, not shared with any
-other gluetun sidecar. AirVPN device keys are single-connection: two pods authenticating with the
-same key at once flap both tunnels.
+`gluetun-dispatcharr` is its own 1Password item with its own VPN-provider device key, not shared
+with any other gluetun sidecar. The VPN provider's device keys are single-connection: two pods
+authenticating with the same key at once flap both tunnels.
 
 ## Worth checking: `BLOCK_MALICIOUS`
 

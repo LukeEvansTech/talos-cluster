@@ -73,7 +73,7 @@ spec:
               VPN_IPV6_SERVER: off
               VPN_TYPE: wireguard
             # WireGuard creds + exit location come from the per-app `gluetun-dispatcharr`
-            # 1Password item (its own AirVPN device key, SERVER_COUNTRIES=United Kingdom).
+            # 1Password item (its own VPN-provider device key, SERVER_COUNTRIES=United Kingdom).
             envFrom:
               - secretRef:
                   name: dispatcharr-secret

@@ -21,6 +21,27 @@ instance but not the class, say so; the class is what stays open.
 
 ## Open
 
+### H-20: Three gluetun sidecars have no automated recovery from a post-startup tunnel degradation
+
+**Found:** 2026-09-28, while trimming comments on `media/dispatcharr` (KB-042 covers the kubelet
+restart-loop this is adjacent to).
+
+`downloads/prowlarr`, `downloads/qbittorrent` and `downloads/sabnzbd` all disable gluetun's kubelet
+liveness probe (correctly, to avoid the KB-042 restart loop) **and** set
+`HEALTH_SERVER_DISABLE_LOOP: on`, which turns off gluetun's own internal health-check loop. Once
+the sidecar's startup probe has passed once, neither mechanism is left watching the tunnel: a
+degradation after startup (routing or DNS breaking while the WireGuard link itself stays up) has
+no automatic recovery path in any of these three pods. `media/dispatcharr` and
+`downloads/imgur-proxy` are the only two gluetun sidecars with `HEALTH_SERVER_DISABLE_LOOP: off`,
+so they do have the internal loop running.
+
+**Mitigation in place:** none identified. A degraded tunnel on one of the three affected apps would
+need a human to notice symptomatically (the app failing to reach its upstream) and recreate the pod.
+
+**What would close it:** set `HEALTH_SERVER_DISABLE_LOOP: off` on the three affected sidecars, the
+same fix `downloads/imgur-proxy` already carries (#4608), so gluetun's internal loop recovers a
+post-startup degradation without touching the pod network namespace.
+
 ### H-3: The Renovate review gate fails open on error, and its token expires
 
 **Found:** 2026-06-03 while building `.github/workflows/renovate-review.yaml`; accepted by design.
