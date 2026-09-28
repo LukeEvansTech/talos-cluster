@@ -9,16 +9,9 @@ spec:
   groups:
     - name: lurcher
       rules:
-        # From 2026-09-16 every daily run died out of memory straight after
-        # the Quality Contracts dump, and for twelve days nothing noticed: the
-        # pod crashed once a day (too slowly for KubePodCrashLooping) and
-        # /health answered ok in between. So this alerts on the OUTCOME, the
-        # age of the last run that delivered. Delivering, per lurcher, means
-        # closed success, not a dry run, at least one board returned listings,
-        # and no send failures. That covers every way a run can fail to finish.
-        #
-        # Runs daily at 10:00 London and take about an hour. 36h plus for: 30m
-        # tolerates one missed or failed run and pages on the second.
+        # Alerts on the outcome, not process health; a 2026-09 crash was invisible for 12 days. See
+        # docs/docs/troubleshooting/kb/085-lurcher-oom-invisible-to-health-check.md.
+        # Runs take about an hour; 36h plus the 30m wait tolerates one missed run before paging.
         - alert: LurcherNotDelivering
           annotations:
             summary: >-
@@ -35,8 +28,7 @@ spec:
           for: 30m
           labels:
             severity: warning
-        # The alert above says nothing when the metric is gone, and gone is
-        # exactly what a crash-looping or unscrapeable pod looks like.
+        # The rule above is silent when the metric vanishes, which a crash-looping pod also causes.
         - alert: LurcherMetricsMissing
           annotations:
             summary: >-
