@@ -37,10 +37,8 @@ spec:
               - secretRef:
                   name: deduparr-secret
             probes:
-              # deduparr runs a dedup cycle every DEDUPARR_SERVICE__INTERVAL (2m),
-              # during which its single-threaded HTTP server stalls /health/ready
-              # for ~13s. Tolerant liveness (3 x 30s, 10s timeout = ~90s) rides out
-              # the in-run stall while still restarting a genuinely hung process.
+              # Tolerates the ~13s per-cycle health stall (2m dedup interval): a 10s timeout can
+              # catch it once, but 3 consecutive 30s-apart failures are needed to actually restart.
               liveness:
                 enabled: true
                 custom: true
@@ -52,11 +50,8 @@ spec:
                   periodSeconds: 30
                   timeoutSeconds: 10
                   failureThreshold: 3
-              # Readiness has to ride the SAME ~13s stall. At 5s it timed out on
-              # roughly every dedup cycle, ~51 Unhealthy events/hour, never enough
-              # consecutive failures to actually drop the endpoint, so pure noise.
-              # A 15s timeout outlasts the stall so the probe passes, and the 30s
-              # period stops readiness adding load to the single-threaded server.
+              # 15s timeout outlasts the same stall; the old 5s one made this pure noise, see
+              # docs/docs/apps/deduparr.md.
               readiness:
                 enabled: true
                 custom: true
