@@ -6,55 +6,15 @@ metadata:
   name: nut-appliance.rules
 spec:
   groups:
-    # Host-level alerts for the NUT appliance. Deliberately FOUR rules, and all
-    # four are calibrated against values observed on the box on 2026-07-28 rather
-    # than against textbook defaults:
-    #
-    #   load 0.08 across 6 cores | RAM 836 MB of 7796 MB used, NO SWAP
-    #   /var 8.2 GB of 238 GB (3.4%) | coretemp 35-36 C | NVMe 33-35 C
-    #
-    # Every alert here PAGES. Alertmanager's root route sends all severities to
-    # Pushover, so `warning` is not a quiet tier and `info` is not either. The
-    # seedbox learned this the expensive way (an iowait alert calibrated at the
-    # textbook 0.4 "would have paged perpetually"). Hence a small set with wide
-    # margins, not a comprehensive one.
-    #
-    # NOT SHIPPED: a RAPL power-regression alert, despite the power series being
-    # the reason node-exporter runs as root on that box. POWER.md's tuning delta
-    # is 525 mW -> 411 mW package idle, and POWER.md itself records 394 vs 411 mW
-    # as indistinguishable run-to-run noise, so a threshold separating tuned from
-    # untuned sits inside the noise floor. Worse, a fresh 300s sample on
-    # 2026-07-28 read 261 mW, 36% below the figure recorded five days earlier,
-    # with package C-state residency moved from PC8 65% to PC9 85%. The band is
-    # not stable enough to threshold. It is graphed on the dashboard instead;
-    # revisit with a couple of weeks of history and a real working band. Shipping
-    # a number now would be guessing, which is the specific mistake the seedbox
-    # iowait alert exists to warn about.
+    # Four rules, wide margins: every severity here pages (docs/apps/nut-appliance.md).
+    # No RAPL power-regression alert: the tuning delta sits inside run-to-run noise
+    # (docs/apps/nut-appliance.md); graphed on the dashboard instead.
     - name: nut-appliance.rules
       rules:
-        # Deliberately NOT a "box is down" alert. UPSUnreachable already covers
-        # that, at Pushover EMERGENCY priority with a 3m fuse tuned to the main
-        # UPS's ~13 minute battery, and a second critical would only double-page.
-        #
-        # What that alert cannot see is host metrics dying while upsd keeps
-        # serving: a crashed exporter, a docker problem, a bad deploy. Gating on
-        # the nut-exporter scrape still succeeding turns this into exactly that
-        # statement. "the appliance is alive, but we have gone blind on it".
-        #
-        # The gate also keeps FCOS auto-updates quiet. Zincati is enabled on this
-        # box, so it reboots itself; a reboot takes upsd down too, so the gate is
-        # false and nothing fires here. 15m additionally clears the reboot itself
-        # (~2-3 min, including the consistent 50s NIC link-up delay this hardware
-        # shows on every boot).
-        #
-        # max() collapses nut-exporter's two ServiceMonitor endpoints (one per
-        # UPS) to a single scalar so `and on()` has an empty label set to match.
-        #
-        # min() over job=~"nut-appliance-.*" covers EVERY appliance scrape (node,
-        # smartctl, docker, doco-cd, traefik) in one rule rather than five
-        # near-identical ones. The operator response is the same for any of
-        # them, and every extra rule is another thing that can page. 15m also
-        # rides out the smartctl job's 300s interval (three missed scrapes).
+        # Not "box is down" (UPSUnreachable covers that): gated on nut-exporter still
+        # reading upsd, so this means only "alive, but blind on it". Covers every
+        # appliance scrape in one rule rather than five near-identical ones (Zincati
+        # reboots and the smartctl job's 300s interval both fit inside the 15m fuse).
         - alert: NutApplianceHostMetricsMissing
           annotations:
             description: >-
@@ -70,33 +30,11 @@ spec:
           for: 15m
           labels:
             severity: warning
-        # ---- container lifecycle (docker_state_exporter) -----------------------
-        # Deliberately THREE rules, not the five truenas-docker.rules carries. This
-        # box runs six containers, and two of the NAS's five are already covered
-        # here by something better: the exporter-down case is the rule above, and
-        # OOM is NutApplianceMemoryLow plus the down/flapping rules below showing
-        # the aftermath. `container_state_oomkilled` is also sticky until the
-        # container is recreated, so it re-pages every repeatInterval, a poor
-        # trade on a box this small.
-        #
-        # Scoped to the doco-cd-managed fleet so a hand-run throwaway container
-        # (exactly what the exporters were tested as) can never page.
-        #
-        # These overlap UPSUnreachable when nut-upsd itself dies. That is wanted,
-        # not redundant: "container nut-upsd exited" is directly actionable where
-        # "UPS monitoring is blind" is a symptom. Different alertnames, so the
-        # critical->warning inhibit rule does not couple them.
-        # The declarative restore inits (apps/*/compose.yaml, service
-        # restore-<app>) are one-shots: they run, exit 0 and STAY exited. That
-        # is their steady state, so they are excluded from NutApplianceContainerDown
-        # above, without the exclusion every one of them pages forever, which
-        # is exactly what happened when they first landed (13 across the fleet).
-        #
-        # A restore init that FAILS is still caught, just not here. It exits
-        # non-zero, so compose never starts the app it gates, and the app is
-        # left in `created` rather than `exited`, which is why `created` was
-        # added to the status list above. Nothing sits in `created` for
-        # 5m in normal operation; a deploy moves through it in seconds.
+        # Three rules, not truenas-docker.rules' five: OOM and exporter-down are
+        # already covered above (docs/apps/nut-appliance.md). Scoped to the doco-cd
+        # fleet so a hand-run throwaway container never pages.
+        # Restore-init one-shots exit 0 and stay exited, excluded by name (#4088,
+        # docs/apps/seedbox.md). `created` catches one that fails instead.
         - alert: NutApplianceContainerDown
           annotations:
             description: >-
@@ -120,20 +58,9 @@ spec:
           for: 5m
           labels:
             severity: warning
-        # ---- GitOps freshness (doco-cd's own metrics) --------------------------
-        # NutApplianceContainerDown catches doco-cd's container exiting; this
-        # catches the worse case, where the container is up and healthy but has
-        # stopped POLLING. Nothing deploys, the box drifts from nut-apps, and
-        # there is no other symptom, the failure this whole job exists for.
-        #
-        # doco_cd_polls_total only counts SUCCESSFUL polls, so a stalled or
-        # erroring poller shows up as the counter not moving; there is no error
-        # counter to key on instead. Poll interval is 3600s (poll-config.yml), so
-        # a 3h window is three consecutive missed polls before this says anything.
-        #
-        # No absent() arm needed: if the scrape itself dies the job stops
-        # reporting and NutApplianceHostMetricsMissing covers it, because that
-        # rule matches job=~"nut-appliance-.*" and this job is one of them.
+        # Catches the worse case ContainerDown misses: up and healthy but stopped polling.
+        # doco_cd_polls_total counts only successes, so 3h is three missed hourly polls.
+        # No absent() arm needed: NutApplianceHostMetricsMissing covers the scrape dying.
         - alert: NutApplianceGitOpsStalled
           annotations:
             description: >-
@@ -159,20 +86,10 @@ spec:
           for: 5m
           labels:
             severity: warning
-        # Baseline 3.4% used, so this needs ~202 GB of growth, a runaway-log or
-        # runaway-image safety net, not a routine capacity watch.
-        #
-        # mountpoint="/var" is load-bearing. FCOS 44 mounts the same xfs at four
-        # places (/var, /etc, /sysroot, /sysroot/ostree/deploy/...), all reporting
-        # identical numbers, so an unpinned expression would fire four identical
-        # alerts. And "/" must NOT be used: it is a 5 MB composefs overlay that is
-        # permanently 100% full, which is why the textbook rootfs rule would page
-        # from the moment this target came up.
-        #
-        # /boot is deliberately excluded. It is 350 MB at 48%, and 85% of that is
-        # 52 MB free. Already past the point where rpm-ostree can stage a kernel,
-        # so this threshold would be useless there. If /boot ever needs watching it
-        # needs its own rule and its own number, not a share of this one.
+        # mountpoint="/var" is load-bearing: FCOS mounts the same xfs at four places, and
+        # "/" is a composefs overlay permanently 100% full (docs/apps/nut-appliance.md).
+        # /boot excluded: already too full for rpm-ostree to stage a kernel, so this
+        # threshold would be useless there; needs its own rule if it needs watching.
         - alert: NutApplianceDiskFillHigh
           annotations:
             description: >-
@@ -188,15 +105,8 @@ spec:
           for: 30m
           labels:
             severity: warning
-        # Baseline 36 C against a Tjmax of 100 C. 75 C on a box that idles at ~1%
-        # CPU means a dead fan or a blocked intake, not work. This is a rack
-        # hardware alert wearing a temperature threshold. Set ~40 C above the
-        # working band so it cannot false-fire, and 25 C below Tjmax so it still
-        # arrives before thermal throttling rather than after.
-        #
-        # NVMe temperature is NOT covered here: the shared smartctl-exporter.rules
-        # already alert on smartctl_device_temperature > 65 with no job selector,
-        # so this target inherits it.
+        # 75C against a 36C idle baseline means a dead fan or blocked intake, not load.
+        # NVMe temperature is covered by the shared smartctl-exporter.rules instead.
         - alert: NutApplianceCPUTemperatureHigh
           annotations:
             description: >-
@@ -209,10 +119,8 @@ spec:
           for: 15m
           labels:
             severity: warning
-        # Baseline 89% available. This box has NO SWAP, so memory exhaustion does
-        # not degrade. The OOM killer picks a victim, and the candidates include
-        # upsd, which is the one process on this box that must not die quietly.
-        # Only a genuine leak can reach 10%.
+        # No swap on this box, so exhaustion goes straight to the OOM killer, and
+        # upsd is a candidate victim. Baseline is 89% available.
         - alert: NutApplianceMemoryLow
           annotations:
             description: >-
