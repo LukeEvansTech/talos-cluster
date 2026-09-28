@@ -19,17 +19,15 @@ spec:
           app:
             nameOverride: qbittorrent
             image: &image
-              # libtorrent v1.2.x build (vs the default libtorrent v2), better
-              # private-tracker compatibility and fewer libtorrent-v2 disk/memory
-              # quirks; matches the onedr0p/home-ops reference.
+              # libtorrent v1.2.x: better private-tracker compatibility, fewer libtorrent-v2
+              # disk/memory quirks.
               repository: ghcr.io/home-operations/qbittorrent-libtorrentv1
               tag: 5.2.3@sha256:8a15de24cabfca8041788773436cb176378ff7735e5cb0b2fd94984d4fac6968
-            # Everything else in qBittorrent.conf (disk cache, queue, share limits,
-            # WebUI auth) is written by the apply-settings init container below.
-            # QBT_* env vars only reach qBittorrent's command-line options.
+            # QBT_* vars are CLI options only; apply-settings below declares the rest of
+            # qBittorrent.conf.
             env:
               QBT_WEBUI_PORT: &port 80
-              # Must equal the AirVPN reserved forwarded port (FIREWALL_VPN_INPUT_PORTS below).
+              # Must equal the VPN provider's forwarded port (FIREWALL_VPN_INPUT_PORTS below).
               QBT_TORRENTING_PORT: &BT-port 28812
             probes:
               liveness:
@@ -72,10 +70,8 @@ spec:
                 cpu: 10m
                 memory: 512Mi
               limits:
-                # Disk cache is pinned to 256 MiB (Session\DiskCacheSize in
-                # resources/apply-settings.sh), so RSS stays ~330Mi and 2Gi is ample headroom. (onedr0p runs
-                # this same image at a 32Gi limit only because they leave the cache
-                # uncapped and let it size off host RAM.)
+                # Disk cache pinned to 256 MiB (apply-settings.sh) keeps RSS ~330Mi; 2Gi is
+                # generous headroom.
                 memory: 2Gi
           metrics:
             dependsOn: app
@@ -83,8 +79,7 @@ spec:
               repository: ghcr.io/martabal/qbittorrent-exporter
               tag: v2.0.3@sha256:bc4fa09481634ee894ebfb4d47c8aa239a32a12567b043afa01fa42a3075d1a5
             env:
-              # Authenticate to the qBittorrent WebUI with real credentials from the
-              # ExternalSecret (the localhost-auth bypass is disabled on the app container).
+              # Real ExternalSecret credentials: the app container's localhost-auth bypass is off.
               QBITTORRENT_BASE_URL: "http://localhost:80"
               QBITTORRENT_USERNAME: admin
               QBITTORRENT_PASSWORD:
@@ -92,9 +87,8 @@ spec:
                   secretKeyRef:
                     name: qbittorrent-secret
                     key: QBT_WEBUI_PASSWORD
-              # qBittorrent >= 5.2.0 names the WebUI session cookie QBT_SID_<port>
-              # (here QBT_SID_80); the exporter must track it or it loops re-auth
-              # once the localhost-auth bypass is off.
+              # qBittorrent >= 5.2.0 names the session cookie QBT_SID_<port>; untracked, the
+              # exporter loops re-auth with the bypass off.
               QBITTORRENT_COOKIE_NAME: QBT_SID_80
               EXPORTER_PORT: &metricsPort 9710
               # Per-torrent series (qbittorrent_torrent_info / qbittorrent_tracker_info)
@@ -164,12 +158,8 @@ spec:
               limits:
                 memory: 128Mi
         initContainers:
-          # Declares qBittorrent.conf settings in Git: libtorrent-v1 disk-cache pin (the
-          # OOMKill fix), WebUI auth (no localhost or subnet bypass, so the metrics
-          # sidecar must use the ExternalSecret credentials), and the queue and share
-          # limits. Every torrent here is on a public tracker and home upload is very
-          # limited, so torrents stop the moment they complete (ratio 0 / 0 min -> Stop)
-          # and upload is capped at 10 KiB/s. The settings list lives in the script.
+          # Declares qBittorrent.conf in Git (disk-cache OOMKill fix, WebUI auth, queue and
+          # share limits) so a PVC recreate can't drop it; see apply-settings.sh for the list.
           apply-settings:
             image: *image
             command:
@@ -191,38 +181,27 @@ spec:
               repository: ghcr.io/qdm12/gluetun
               tag: v3.41.3@sha256:fa19cc76b2af13d57a8d3dc3066f2ada061b1c761b8aecf989b3877c0486e027
             env:
-              # BLOCK_MALICIOUS: off # save 300MB of RAM; https://github.com/qdm12/gluetun/issues/2054
               DOT: "on"
               DOT_CACHING: "on"
               DOT_IPV6: off
-              # is absolutely needed if the container is expected to be able to resolve or communicate to any cluster services, without it cluster services cannot be resolved consistently or at all in many setups.
+              # Keeps CoreDNS as the resolver, so cluster services stay resolvable in-tunnel.
               DNS_KEEP_NAMESERVER: "on"
               FIREWALL: true
               FIREWALL_DEBUG: on
               FIREWALL_INPUT_PORTS: 80,3000,9710,9999
-              # AirVPN static forwarded port (reserved at airvpn.org/ports). Opens
-              # the tunnel for inbound peers so qBittorrent (QBT_TORRENTING_PORT) can
-              # seed. AirVPN ports are account-wide, so no port-forward sync sidecar.
+              # Opens the tunnel for inbound peers so qBittorrent can seed. The VPN provider's
+              # forwarded ports are account-wide, so no port-forward sync sidecar is needed.
               FIREWALL_VPN_INPUT_PORTS: 28812
               FIREWALL_OUTBOUND_SUBNETS: '"${CLUSTER_PODS_CIDR},${CLUSTER_SVCS_CIDR},${CR_LAN_CIDR},${GH_LAN_CIDR}"'
               HEALTH_SERVER_ADDRESS: ":9999"
               HEALTH_SERVER_DISABLE_LOOP: on
               HEALTH_VPN_DURATION_INITIAL: 60s
               LOG_LEVEL: debug
-              # Run as root (0) rather than gluetun's default 1000: gluetun
-              # chowns its public-IP status file to PUID:PGID after every
-              # write, which needs CAP_CHOWN, and this container drops ALL
-              # capabilities. Chowning to the file's existing owner is a
-              # permitted no-op instead. PUID otherwise only feeds the
-              # OpenVPN process user, unused on a WireGuard tunnel.
+              # Root (0) avoids EPERM chowning the public-IP file to PUID:PGID under drop-ALL.
               PGID: 0
-              # Public IP check provider. gluetun only accepts "ipinfo" or
-              # "ip2location"; ipinfo rate-limits (HTTP 429) on its free monthly
-              # tier, so use ip2location for the (cosmetic) public-IP display.
-              # https://github.com/qdm12/gluetun-wiki/blob/main/setup/options/others.md
+              # ip2location avoids ipinfo's 429 on its free tier; the display is cosmetic.
               PUBLICIP_API: ip2location
               PUID: 0 # see PGID above
-              # STORAGE_FILEPATH: "" # prevent memory spike and avoid I/O
               TZ: ${TIMEZONE}
               UPDATER_PERIOD: 12h
               VERSION_INFORMATION: off
@@ -269,12 +248,6 @@ spec:
         pod:
           labels:
             gluetun: "true"
-
-          # dnsdist:
-          #   image:
-          #     repository: docker.io/powerdns/dnsdist-19
-          #     tag: 1.9.7
-          #   restartPolicy: Always
     defaultPodOptions:
       terminationGracePeriodSeconds: 300
       securityContext:
@@ -283,7 +256,6 @@ spec:
     service:
       app:
         controller: qbittorrent
-        # nameOverride: qbittorrent
         ports:
           http:
             port: *port
@@ -291,7 +263,6 @@ spec:
             port: *metricsPort
       gluetun:
         controller: qbittorrent
-        # nameOverride: gluetun
         ports:
           http:
             port: 8888
@@ -345,29 +316,8 @@ spec:
         path: /mnt/pool/media
         globalMounts:
           - path: /media
-            # dnsdist:
-            #   type: configMap
-            #   name: qbittorrent-dnsdist
-            #   advancedMounts:
-            #     qbittorrent:
-            #       dnsdist:
-            #         - path: /etc/dnsdist/dnsdist.conf
-            #           subPath: dnsdist.conf
-            #           readOnly: true
-
-            # # TODO: Remove once snatches are sufficient
-            # tempmedia:
-            #   type: nfs
-            #   server: ${TRUENAS_IP}
-            #   path: /mnt/speed/snatch
-            #   globalMounts:
-            #     - path: /speed/snatch
-      # gluetun creates its status directory with os.MkdirAll("/tmp/gluetun",
-      # 0644), a directory with no execute bit, so nothing can traverse into
-      # it without CAP_DAC_OVERRIDE (cmd/gluetun/main.go). Pre-creating the
-      # path as an emptyDir (mode 1777) makes that MkdirAll a no-op and keeps
-      # the mode sane, so the public-IP file stays writable with all
-      # capabilities dropped. Paired with PUID/PGID 0 in the gluetun env.
+      # Pre-created (mode 1777): gluetun's own MkdirAll leaves no execute bit, which blocked the
+      # public-IP write under this drop-ALL container. Paired with PUID/PGID 0 in the gluetun env.
       gluetun-tmp:
         type: emptyDir
         medium: Memory
