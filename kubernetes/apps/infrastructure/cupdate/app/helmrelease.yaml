@@ -32,13 +32,9 @@ spec:
               pullPolicy: IfNotPresent
             env:
               TZ: ${TIMEZONE}
-              # Database file location (writable directory)
               CUPDATE_DB_PATH: /var/run/data/dbv1.sqlite
-              # Cache file location (writable directory)
               CUPDATE_CACHE_PATH: /var/run/data/cachev1.boltdb
-              # Include old replica sets in discovery
               CUPDATE_KUBERNETES_INCLUDE_OLD_REPLICAS: "false"
-              # Debounce interval for resource changes
               CUPDATE_KUBERNETES_DEBOUNCE_INTERVAL: "5s"
             probes:
               liveness:
@@ -63,7 +59,7 @@ spec:
               requests:
                 cpu: 10m
                 memory: 256Mi
-              # Scan-pass bursts peaked at the old 512Mi ceiling (five OOM kills 2026-09-03..07); steady state is ~200Mi.
+              # Scan bursts hit the old 512Mi ceiling (5 OOM kills, 2026-09-03 to 07).
               limits:
                 memory: 1Gi
             securityContext:
