@@ -26,7 +26,10 @@ skips completed downloads. Cleanuparr is torrent-only.
 `resources/pp-watchdog.sh`, run in the background inside the SABnzbd app container (`catatonit --
 sh -c "/pp-watchdog/pp-watchdog.sh & exec /entrypoint.sh"`), watches `rchar + wchar` from
 `/proc/<pid>/io` for every `par2`/`unrar`/`7z` process once a minute. A helper whose counters
-haven't moved for 30 minutes gets `SIGTERM`; one that survives 5 more minutes gets `SIGKILL`.
+have advanced less than 16 MiB in 30 minutes gets `SIGTERM`; one that survives 5 more minutes gets
+`SIGKILL`. The floor matters: a hung `par2` seen on 2026-09-28 sat at 97% CPU for 2 hours while
+still reading about 0.5 MB every few minutes, so a "no I/O at all" rule never fired. A healthy
+repair reads hundreds of MB a minute.
 SABnzbd then fails that one job, the arr blocklists the release and searches again, and
 post-processing moves on to the next job.
 

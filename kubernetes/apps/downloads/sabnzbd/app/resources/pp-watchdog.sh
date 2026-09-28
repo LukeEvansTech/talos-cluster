@@ -5,6 +5,9 @@
 # Unpack waiting on the next volume, and is left alone.
 
 STALL_SECONDS="${PP_WATCHDOG_STALL_SECONDS:-1800}"
+# Progress below this within STALL_SECONDS counts as stalled: a hung par2 can still trickle
+# ~0.5 MB every few minutes, which a "no I/O at all" rule never catches.
+MIN_PROGRESS_BYTES="${PP_WATCHDOG_MIN_PROGRESS_BYTES:-16777216}"
 INTERVAL_SECONDS="${PP_WATCHDOG_INTERVAL_SECONDS:-60}"
 STATE_DIR="${PP_WATCHDOG_STATE_DIR:-/tmp/pp-watchdog}"
 
@@ -14,7 +17,7 @@ log() {
 
 mkdir -p "$STATE_DIR" || exit 1
 rm -f "$STATE_DIR"/*
-log "started: stall=${STALL_SECONDS}s interval=${INTERVAL_SECONDS}s"
+log "started: stall=${STALL_SECONDS}s min_progress=${MIN_PROGRESS_BYTES}B interval=${INTERVAL_SECONDS}s"
 
 while :; do
     now=$(date +%s)
@@ -35,25 +38,25 @@ while :; do
         seen="$seen$key "
         state="$STATE_DIR/$key"
 
-        last_io=""
+        base_io=""
         since=$now
         if [ -f "$state" ]; then
-            read -r last_io since <"$state"
+            read -r base_io since <"$state"
         fi
         case "$wchan" in
-        anon_pipe_read | pipe_read) last_io="" ;;
+        anon_pipe_read | pipe_read) base_io="" ;;
         esac
-        if [ "$io" != "$last_io" ]; then
+        if [ -z "$base_io" ] || [ $((io - base_io)) -ge "$MIN_PROGRESS_BYTES" ]; then
             echo "$io $now" >"$state"
             continue
         fi
 
         stalled=$((now - since))
         if [ "$stalled" -ge $((STALL_SECONDS + 5 * INTERVAL_SECONDS)) ]; then
-            log "SIGKILL $comm pid $pid: survived SIGTERM, no I/O for ${stalled}s"
+            log "SIGKILL $comm pid $pid: survived SIGTERM, <${MIN_PROGRESS_BYTES}B I/O in ${stalled}s"
             kill -KILL "$pid" 2>/dev/null
         elif [ "$stalled" -ge "$STALL_SECONDS" ]; then
-            log "SIGTERM $comm pid $pid: no I/O for ${stalled}s (wchan ${wchan:-?})"
+            log "SIGTERM $comm pid $pid: $((io - base_io))B I/O in ${stalled}s (wchan ${wchan:-?})"
             kill -TERM "$pid" 2>/dev/null
         fi
     done
