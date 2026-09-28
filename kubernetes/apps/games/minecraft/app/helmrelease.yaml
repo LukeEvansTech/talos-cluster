@@ -21,25 +21,20 @@ spec:
               tag: java25@sha256:83c076bb24c87e5a5cf5d884d180c7be8896a4c1d5963d74a39a4325401cc2ba
             env:
               TZ: "${TIMEZONE}"
-              # Server type and version
               TYPE: "PAPER"
               # renovate: datasource=custom.minecraft-release
               VERSION: "26.2"
-              # Server settings
               EULA: "TRUE"
               SERVER_NAME: "Minecraft Server"
               MODE: "survival"
               DIFFICULTY: "normal"
               MAX_PLAYERS: "10"
               MOTD: "Welcome to the server!"
-              # Performance settings
               MEMORY: "4G"
               JVM_XX_OPTS: "-XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=200"
               VIEW_DISTANCE: "10"
               SIMULATION_DISTANCE: "8"
-              # Whitelist and ops
               ENABLE_WHITELIST: "false"
-              # RCON
               ENABLE_RCON: "true"
               RCON_PORT: "25575"
             envFrom:
