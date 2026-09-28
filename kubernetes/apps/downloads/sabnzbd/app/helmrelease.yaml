@@ -20,6 +20,15 @@ spec:
             image:
               repository: ghcr.io/home-operations/sabnzbd
               tag: 5.1.3@sha256:b1795982db498ed5691a7b1231f0fac7eed2a1d53e9c81b8e834d02695e76104
+            # Start the post-processing watchdog (resources/pp-watchdog.sh) in the
+            # background, then hand over to the image's own entrypoint. It runs in
+            # this container so it can see par2/unrar without shareProcessNamespace.
+            command:
+              - "/usr/bin/catatonit"
+              - "--"
+              - "/bin/sh"
+              - "-c"
+              - "/pp-watchdog/pp-watchdog.sh & exec /entrypoint.sh"
             env:
               TZ: ${TIMEZONE}
               SABNZBD__PORT: &port 80
@@ -286,6 +295,14 @@ spec:
         globalMounts:
           - path: /run
           - path: /var/run
+      pp-watchdog:
+        type: configMap
+        name: sabnzbd-pp-watchdog
+        defaultMode: 0755
+        advancedMounts:
+          sabnzbd:
+            app:
+              - path: /pp-watchdog
       scripts:
         type: configMap
         name: sabnzbd-scripts
