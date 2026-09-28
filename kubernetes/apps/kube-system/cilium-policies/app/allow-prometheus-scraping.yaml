@@ -20,9 +20,8 @@ spec:
       - key: app.kubernetes.io/name
         operator: NotIn
         values:
-          # Holds a signed-in mail session behind no authentication of its own,
-          # and is reached only by `kubectl port-forward`. allow-kube-apiserver
-          # still grants it host ingress, which is that path.
+          # thunderbird has no auth of its own; allow-kube-apiserver already grants
+          # it access over kubectl port-forward via host ingress.
           - thunderbird
   ingress:
     - fromEndpoints:
