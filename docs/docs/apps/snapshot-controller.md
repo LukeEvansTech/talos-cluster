@@ -16,8 +16,7 @@ This chart replaced an older one that templated its CRDs, guarded by a postRende
 `helm.sh/resource-policy: keep` onto them. Shipping CRDs in `crds/` instead of templating them
 removed the need for that workaround.
 
-A manual apply, `helm show crds oci://ghcr.io/home-operations/charts/snapshot-controller |
-kubectl apply --server-side -f -`, is only the break-glass path for a HelmRelease that wedges
-before completing its CRD pass. See
+A manual apply is only the break-glass path for a HelmRelease that wedges before completing its
+CRD pass. See
 [KB-029](../troubleshooting/kb/029-chart-migration-deletes-keep-annotated-crds.md) for that
-recovery procedure and the CRD-deletion incident it covers.
+recovery procedure, pinned to the deployed chart version, and the CRD-deletion incident it covers.
