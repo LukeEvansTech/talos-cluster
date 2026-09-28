@@ -3,11 +3,10 @@
 ## Purpose
 
 `kubernetes/apps/observability/docker-backup` is a CR-only Kustomization: it owns five
-PrometheusRule alerts and scrapes nothing itself. The backups run on Docker boxes outside the
-cluster (the seedbox, TrueNAS, and NUT-appliance hosts), push to Cloudflare R2, and publish run
-metrics through each box's own node-exporter textfile collector, already scraped by
-`kubernetes/apps/observability/seedbox` and the `truenas-exporter` jobs. This directory exists
-solely to alert on those metrics.
+PrometheusRule alerts and scrapes nothing itself. Several Docker hosts outside the cluster each run
+their own backup job, push to an offsite destination, and publish run metrics through a
+node-exporter textfile collector that each host's own scrape config in this repository covers.
+This directory exists solely to alert on those metrics.
 
 ## Design
 
@@ -28,7 +27,10 @@ writes no error event at all.
   textfile written to disk rather than a live process, and that file simply stops advancing.
 - `DockerBackupMetricsMissing` uses four per-box `absent()` selectors rather than one bare
   `absent()`, because with three boxes reporting, a single bare `absent()` would only fire once all
-  three had stopped, a case already covered by the other rules at a higher severity.
+  three had stopped, a case already covered by the other rules at a higher severity. A per-box
+  selector still misses a narrower case: if a box's other tier keeps reporting while one tier goes
+  silent, the box-level `absent()` never fires. `docs/docs/operations/hardening-backlog.md` (H-6)
+  tracks closing that gap with per-box-and-tier selectors.
 - No alert covers `restic_backup_duration_seconds` yet. The dataset is small enough today that a
   run takes seconds, so any duration threshold chosen now would be a guess; revisit if growth ever
   makes a slow-backup problem plausible.

@@ -13,6 +13,7 @@ spec:
     # Alerts fire on absence of success, not presence of errors: silence writes no error event.
     #
     # No alert on backup duration yet: not enough run history to pick a real threshold.
+    # Design notes and incident history: docs/docs/apps/docker-backup.md
     - name: docker-backup.rules
       rules:
         # 36h (129600s) gives a daily backup a missed run plus 12h slack before this pages.
