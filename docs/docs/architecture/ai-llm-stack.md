@@ -6,16 +6,16 @@ re-targeted to this cluster: **NVIDIA L4 GPUs + llama.cpp (llmkube)**.
 
 ## Components
 
-| App           | Role                                                                               | Status |
-| ------------- | ---------------------------------------------------------------------------------- | ------ |
-| `litellm`     | OpenAI-compatible gateway: routing, fallbacks, cache, metrics, MCP                 | live   |
-| `llmkube`     | llama.cpp model-serving operator (CUDA); 1 model active                            | live   |
-| `open-webui`  | chat UI (SearXNG web search, Dragonfly websockets)                                 | live   |
-| `toolhive`    | MCP servers (9 read-only) + a VirtualMCPServer gateway                             | live   |
-| `memini`      | agent long-term memory (SQLite + CPU embed/rerank)                                 | live   |
-| `hermes`      | NousResearch hermes-agent gateway + dashboard (memini-backed, ToolHive VMCP-wired) | live   |
-| `hermeswebui` | chat web frontend for hermes (via its API server)                                  | live   |
-| `repowiki`    | AI-generated per-repository wiki (mkdocs-material + CronJob)                       | live   |
+| App           | Role                                                                               | Status   |
+| ------------- | ---------------------------------------------------------------------------------- | -------- |
+| `litellm`     | OpenAI-compatible gateway: routing, fallbacks, cache, metrics, MCP                 | live     |
+| `llmkube`     | llama.cpp model-serving operator (CUDA); 1 model active                            | live     |
+| `open-webui`  | chat UI (SearXNG web search, Dragonfly websockets)                                 | live     |
+| `toolhive`    | MCP servers (9 read-only) + a VirtualMCPServer gateway                             | live     |
+| `memini`      | agent long-term memory (SQLite + CPU embed/rerank)                                 | live     |
+| `hermes`      | NousResearch hermes-agent gateway + dashboard (memini-backed, ToolHive VMCP-wired) | live     |
+| `hermeswebui` | chat web frontend for hermes (via its API server)                                  | live     |
+| `repowiki`    | AI-generated per-repository wiki (mkdocs-material + CronJob)                       | live     |
 | `foreman`     | LLMKube coder/gate/reviewer control plane. Trialled, manifests in `.archive/`      | archived |
 
 LiteLLM persists to CNPG `postgres18` (`litellm` db) and caches in Dragonfly. Internal-only route
@@ -44,7 +44,10 @@ idle, instead of a fixed 64k-per-slot cap.
 
 Weight files are declared as `hf://` URIs pointing to single-file public GGUFs on Hugging Face.
 llmkube downloads and caches them on the shared CephFS RWX `modelCache` PVC (`ceph-filesystem`
-storage class), so a cold start auto-heals without manual staging.
+storage class, 100Gi: ~35Gi of GGUFs today plus headroom), so a cold start auto-heals without
+manual staging. This PVC replaced per-model RWO `ceph-block` PVCs plus curl staging Jobs, which
+existed only because of the "Talos has no ceph kernel module" misdiagnosis (KB-025); CephFS
+mounts natively. Weights are re-downloadable, so the cache carries no VolSync.
 
 Anti-affinity (`podAntiAffinity`) keeps one resident model per L4: the cluster has 3 cards and
 runs 1 model, preserving two cards for other GPU workloads (Plex/Jellyfin transcodes, Whisper).
@@ -57,6 +60,86 @@ consumes via LiteLLM.
 
 To add a model: drop a `Model` + `InferenceService` manifest under `llmkube/models/`, add a
 `LiteLLMModel` CR under `litellm/app/models/`, and commit. Flux reconciles both.
+
+### Resource budget on the L4
+
+The 24GB L4 has ~22.4Gi usable, and `llama-nvidia`'s budget is tight: 14.9Gi weights (Q4_K_S +
+the embedded MTP head, +0.42Gi) plus 0.6Gi for the mmproj projector (kept on the GPU, see
+"Vision projector placement" below) plus 3Gi KV (128k context, K at q8_0 and V at q4_0; only the
+16 of 64 layers that are full-attention hold KV) plus compute buffers. With MTP on and both KV
+tensors at q8_0 the card sat at 22.0-22.5Gi and the first real prompt crashed llama-server with
+"CUDA error: out of memory" in `ggml_cuda_pool_vmm::alloc`: the mul_mat compute pool grows at
+decode time, so ~0.5Gi of idle headroom isn't enough. The floor kept free is ≥1.5Gi. Dropping the
+V-cache to q4_0 bought back 1Gi (K stays q8_0, the recall-sensitive half), and `uBatchSize: 512`
+trims the compute buffers further, at a modest prompt-processing cost. Idle free VRAM measured
+~1.8Gi with the projector on the GPU and `--kv-unified` active (2026-08-25).
+
+Speculative decoding (`--spec-type draft-mtp`) drafts with that embedded MTP head and verifies
+with the main model: lossless, same output distribution, it only changes tokens/step. Baseline
+decode without it measured 15.2 t/s on the L4; expect roughly +30-60% at the typical ~0.75
+acceptance rate. `--spec-draft-n-max 2` is the consumer-GPU sweet spot from the qwen38-mtp
+recipe (tunable 2-4); the gain shrinks as concurrent slots rise, which is fine at 2 slots.
+
+### Vision projector placement
+
+The mmproj projector stays on the GPU, unlike Jory's `--no-mmproj-offload` (added in #4579 to
+free ~0.6Gi of VRAM by moving it to host RAM). A post-merge measurement on 2026-08-25 found that
+tradeoff wrong for this cluster: three vision requests against a 64x64 image took 59.7s / 53.8s /
+53.3s off-GPU (correct answers, all CPU-bound on the 1024-token image encode) versus low
+single-digit seconds with the projector on the GPU. `loupe` depends on this vision path, so
+latency wins over the 0.6Gi. `--image-min-tokens 1024` (Jory's value) keeps vision quality
+regardless of where the projector runs.
+
+### Rollout and staging safety
+
+- `rolloutPolicy.waitForIdle` defers a pod-template rollout (a Renovate image bump, for example)
+  until llama.cpp's own `/slots` endpoint reports both slots idle, instead of killing an
+  in-flight agent session mid-response. It falls back to proceeding after
+  `idleTimeoutSeconds` (86400s) so a genuinely stuck slot can't block upgrades forever.
+- Never set `skipModelInit`. It looks safe, since the controller already stages the GGUF and
+  mmproj into the shared cache PVC and the init container would just log "already cached", but on
+  llmkube 0.9.x the flag also blanks the rendered `--model` argument, because that argument is
+  derived from the init container's staging step. llama.cpp then starts in router mode with zero
+  models: the pod goes `1/1 Ready` and every request fails with "model not found". This was set
+  and reverted once already (#3792).
+- No `runAsNonRoot`: the operator's model-cache-prep init container needs scoped root (drop ALL,
+  add CHOWN + FOWNER only, no privilege escalation, read-only rootfs) to chown the shared cache on
+  `fsGroupPolicy: None` backends like CephFS. This is llmkube's documented upstream compatibility
+  path. Runtime containers still run as uid 1000.
+- The image needs a llama.cpp build from release week 2026-08-14 or later; older builds don't
+  register the `qwen35` architecture and refuse to load the GGUF.
+
+### Grafana dashboards
+
+Two dashboards are ported from `joryirving/home-ops`, `llama-server` and `llm-nvidia-node`
+(the latter correlates DCGM GPU telemetry with llama.cpp's own throughput metrics so a slow
+request can be read against GPU or host pressure instead of guessed at). Both escape every
+Grafana template variable by doubling its leading `$` (`$${datasource}`, `$$service`, `$$node`,
+`$$instance`, `$$__range`, `$$__all`) so Flux `postBuild` passes the literal `${...}`/`$...`
+through to Grafana instead of blanking it, and both resolve the datasource variable to the
+lowercase `prometheus` datasource (KB-021).
+
+- `llama-server`: the upstream "Prompt cache (from logs)" panels were dropped, since they query a
+  `victoriametrics-logs-datasource` this cluster's Grafana doesn't have wired (only
+  `prometheus`/`alertmanager` `GrafanaDatasource`s exist).
+- `llm-nvidia-node`: three deviations from the source, each verified live against this cluster's
+  `kube-prometheus-stack` rather than assumed from the source repository:
+  - `namespace="llm"` becomes `namespace="ai"`; Jory's cluster names the LLM namespace `llm`.
+  - `DCGM_FI_DEV_FB_USED`'s pod-level panels ("Largest pod VRAM", "VRAM by pod") and the
+    `$$namespace`/`$$pod` variables key off `exported_namespace`/`exported_pod` instead of
+    `namespace`/`pod`. This cluster's dcgm-exporter `ServiceMonitor` keeps `namespace`/`pod` as
+    the exporter's own scrape-target identity (an `honor_labels` collision) and carries the real
+    workload mapping under `exported_namespace`/`exported_pod`, confirmed by querying
+    `DCGM_FI_DEV_FB_USED` directly: the raw `namespace`/`pod` labels read
+    `gpu-operator`/`nvidia-dcgm-exporter-xxxxx` (the exporter itself), while
+    `exported_namespace`/`exported_pod` correctly read `ai`/`llama-nvidia-...`.
+  - The `$$instance` variable populates from DCGM's `hostname` label instead of its `instance`
+    (scrape-endpoint IP:port) label, and every `DCGM_FI_DEV_*` query filters on
+    `hostname=~"$$instance"` accordingly. DCGM's `hostname` label is byte-identical to
+    node-exporter's `node_uname_info` `nodename` label (both report the node's short hostname),
+    which the Host CPU/RAM panels already join against; with the raw per-pod instance address,
+    `$$instance` could never match `nodename` and those two panels rendered empty in the
+    upstream JSON.
 
 ### Model groups
 
