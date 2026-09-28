@@ -19,6 +19,7 @@ spec:
       repository: ghcr.io/lukeevanstech/shelly-operator
       tag: 0.7.1@sha256:678fc44ae2189bc44e18ad6b1c1682a7411bcbca526e663071212575f15b8828
     discovery:
+      # Templated from cluster-secrets, so no literal LAN CIDR lands in this public repository.
       cidrs:
         - "${IOT_TRUSTED_NETWORK_CIDR}"
     deviceNamespace: home
