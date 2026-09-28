@@ -132,6 +132,7 @@ The order matters, and step 3 is the non-obvious one:
 
    `-nhnv` is required: the certs carry SANs, but transport hostname verification is disabled,
    matching `opensearch.yml`.
+
 5. Only now move the clients onto the new passwords:
    `kubectl rollout restart sts/wazuh-manager deploy/wazuh-dashboard -n security`.
 
