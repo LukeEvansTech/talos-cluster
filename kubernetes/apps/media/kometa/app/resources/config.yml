@@ -85,7 +85,6 @@ libraries:
           data:
             starting: latest-10
             ending: latest
-      - file: /config/review-movies.yml
       - default: golden
         schedule: weekly(sunday)
         template_variables:
@@ -154,7 +153,6 @@ libraries:
         schedule: weekly(sunday)
         template_variables:
           region: GB
-      - file: /config/review-tv.yml
       - default: network
         schedule: weekly(sunday)
         template_variables:
@@ -198,6 +196,10 @@ libraries:
         mass_genre_update: tmdb
         mass_audience_rating_update: imdb
 
+# Owner-only review playlists for the titles the lists above add.
+playlist_files:
+  - file: /config/review.yml
+
 webhooks:
   error: http://chaski.default.svc.cluster.local:8080/hooks/kometa-error
   run_end: http://chaski.default.svc.cluster.local:8080/hooks/kometa-run
@@ -236,7 +238,6 @@ settings:
   save_report: false
   tvdb_language: eng
   item_refresh_delay: 0
-  playlist_sync_to_user: all
   playlist_report: false
   verify_ssl: true
   check_nightly: false
@@ -267,7 +268,7 @@ tautulli:
 # Trending add missing titles (see their template_variables above), 2160p with
 # search on add, tagged "kometa" plus a per-source tag so each list's additions
 # can be found and judged in Radarr, Sonarr and the owner-only review
-# collection.
+# playlists.
 radarr:
   url: http://radarr.media.svc.cluster.local
   token: <<RADARR_API_KEY>>

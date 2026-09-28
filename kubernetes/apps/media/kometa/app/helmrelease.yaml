@@ -38,10 +38,10 @@ spec:
             command:
               - /bin/sh
               - -c
+            # One invocation for both libraries: the review playlists span Movies
+            # and TV, and are only built once per run.
             args:
-              - |
-                python3 kometa.py --run --read-only-config --run-libraries "Movies";
-                python3 kometa.py --run --read-only-config --run-libraries "TV";
+              - python3 kometa.py --run --read-only-config
             env:
               TZ: *timeZone
             envFrom:
@@ -82,11 +82,8 @@ spec:
           - path: /config/config.yml
             subPath: config.yml
             readOnly: true
-          - path: /config/review-movies.yml
-            subPath: review-movies.yml
-            readOnly: true
-          - path: /config/review-tv.yml
-            subPath: review-tv.yml
+          - path: /config/review.yml
+            subPath: review.yml
             readOnly: true
       assets:
         type: emptyDir
