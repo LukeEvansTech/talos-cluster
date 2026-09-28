@@ -5,7 +5,7 @@
 # orphan every stored series, so upstream's dashboards still apply unchanged.
 # A powered-off host drops all sensor series except idrac_system_power_on 0, which
 # the alert rules key off. What the boards return, measured against the fleet, and
-# why neither generation has storage metrics: docs/apps/bmc-exporter.md.
+# why neither generation has storage metrics: docs/docs/apps/bmc-exporter.md.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
@@ -63,7 +63,7 @@ spec:
       # no second host list to drift out of step with the ExternalSecret.
       #
       # 60s/55s, not the usual 30s: scrapes run longer than that on this hardware
-      # (docs/apps/bmc-exporter.md).
+      # (docs/docs/apps/bmc-exporter.md).
       scrapeConfig:
         enabled: true
         interval: 60s

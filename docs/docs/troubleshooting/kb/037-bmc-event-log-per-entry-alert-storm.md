@@ -1,7 +1,8 @@
 # KB-037: BmcEventLogWarning pages once per SEL entry instead of once per fault
 
-**Status:** Resolved (PR #4662). The exact-code exclusion added afterward (PR #4153, PR #5397)
-still depends on the fix described here.
+**Status:** Resolved (PR #4662, 2026-08-26). PR #4153 (2026-08-09) added the `PWR-0020` exclusion
+before this fix landed; PR #5397 (2026-09-25) added the workstation-only exclusion afterward. Both
+exclusions are message-label matchers that work independently of the `count by` aggregation below.
 
 ## Symptom
 
@@ -26,7 +27,8 @@ count into the summary text instead, which is the more useful signal anyway: "lo
 says more than 79 identical pages. It also stops a re-read of the log, from an exporter restart or
 a BMC reset, from re-firing the entire 7-day backlog at once.
 
-Two exclusions sit on top of the aggregation, both load-bearing for the same reason (an
+Two exclusions apply as `message` matchers on the underlying metric, independent of the
+aggregation above and added at different times, both load-bearing for the same reason (an
 uninteresting log entry that would otherwise page for the full 7-day window):
 
 - `PWR-0020` ("First AC Power on") is informational and fires once per node on every rack
@@ -48,7 +50,7 @@ collapsed onto the fields that actually identify a fault (host, severity, messag
 
 ## References
 
-- PR #4662: aggregate `BmcEventLogWarning` per fault, not per log entry.
-- PR #4153: exclude the informational `PWR-0020` code.
-- PR #5397: exclude `SYS-0067`/`SYS-0069` for the workstation deployment only.
+- PR #4153 (2026-08-09): exclude the informational `PWR-0020` code.
+- PR #4662 (2026-08-26): aggregate `BmcEventLogWarning` per fault, not per log entry.
+- PR #5397 (2026-09-25): exclude `SYS-0067`/`SYS-0069` for the workstation deployment only.
 - [BMC exporter monitoring](../../apps/bmc-exporter.md)

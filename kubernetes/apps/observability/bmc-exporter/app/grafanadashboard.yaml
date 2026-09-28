@@ -11,7 +11,7 @@ spec:
       grafana.internal/instance: grafana
   # $instance stays bare: Flux postBuild only touches braced ${VAR}, not this JSON.
   # Fleet draw sums idrac_power_control_consumed_watts, not the PSU output watts: on
-  # H13 boards the two disagree by an order of magnitude (docs/apps/bmc-exporter.md).
+  # H13 boards the two disagree by an order of magnitude (docs/docs/apps/bmc-exporter.md).
   json: |-
     {
       "annotations": {"list": []},

@@ -4,7 +4,7 @@
 # idrac_*_health metrics are an enum, not a boolean: 0=OK, 1=Warning, 2=Critical,
 # hence `> 0` throughout rather than `== 1`, so a jump straight to Critical is never missed.
 # Temperature thresholds are split by sensor class, measured against the running
-# fleet, since one blanket threshold cannot fit the spread (docs/apps/bmc-exporter.md).
+# fleet, since one blanket threshold cannot fit the spread (docs/docs/apps/bmc-exporter.md).
 # job=~"bmc-exporter.*" is the default; only BmcHostPoweredOff pins job="bmc-exporter"
 # to exclude the workstation.
 apiVersion: monitoring.coreos.com/v1
@@ -28,7 +28,7 @@ spec:
         # The gap this exporter exists to close: ICMP can't tell running from powered-off.
         # Pinned to job="bmc-exporter" to exclude the workstation (helmrelease-workstation.yaml).
         # Gated on 24h-ON history: a retired or cold-spare host stops paging after a day
-        # (docs/apps/bmc-exporter.md explains why that beats a hostname list).
+        # (docs/docs/apps/bmc-exporter.md explains why that beats a hostname list).
         - alert: BmcHostPoweredOff
           annotations:
             summary: "Host behind {{ $labels.instance }} is powered off (was on within 24h)."
@@ -84,7 +84,7 @@ spec:
           for: 10m
           labels:
             severity: critical
-        # CPU packages get their own band (docs/apps/bmc-exporter.md has the measured
+        # CPU packages get their own band (docs/docs/apps/bmc-exporter.md has the measured
         # spread). `CPU[0-9]* Temp` covers a second socket without catching the
         # cooler CPU_VRM0/SOC_VRM rails a bare `CPU` prefix would match.
         - alert: BmcCpuTemperatureHigh
@@ -105,7 +105,7 @@ spec:
           labels:
             severity: critical
         # Everything but the CPU band; these run far cooler, so 80C leaves real
-        # headroom here (docs/apps/bmc-exporter.md).
+        # headroom here (docs/docs/apps/bmc-exporter.md).
         - alert: BmcTemperatureHigh
           annotations:
             summary: "{{ $labels.name }} on {{ $labels.instance }} is at {{ $value }}C."

@@ -2,10 +2,9 @@
 
 ## Purpose
 
-`kubernetes/apps/observability/bmc-exporter` runs `idrac_exporter` against the Supermicro BMC
-fleet's Redfish API: the three control-plane nodes, the storage node, and the firewall. A second,
-single-target deployment covers the workstation BMC. Together they feed two Grafana dashboards and
-the `PrometheusRule` alerts in this directory.
+`kubernetes/apps/observability/bmc-exporter` runs `idrac_exporter` against a fleet of Supermicro
+BMCs over Redfish, plus a second, single-target deployment for a separate workstation BMC.
+Together they feed two Grafana dashboards and the `PrometheusRule` alerts in this directory.
 
 ## Naming and metric prefix
 
