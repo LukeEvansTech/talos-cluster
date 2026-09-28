@@ -22,9 +22,8 @@ kind: CiliumNetworkPolicy
 metadata:
   name: allow-arrmcp-from-ai
 spec:
-  # The `arrmcp` app (ai namespace) queries Prowlarr, SABnzbd and qBittorrent
-  # over their APIs. All three run behind a gluetun sidecar whose firewall
-  # already admits cluster ingress on their API port.
+  # arrmcp (ai namespace) queries these over their APIs; their gluetun sidecar firewall already
+  # admits cluster ingress on the API port.
   description: "Allow the arrmcp app (ai) to reach prowlarr/sabnzbd/qbittorrent"
   endpointSelector:
     matchExpressions:

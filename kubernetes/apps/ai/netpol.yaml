@@ -18,10 +18,8 @@ kind: CiliumNetworkPolicy
 metadata:
   name: allow-litellm-from-consumers
 spec:
-  # LiteLLM's OpenAI consumers that live outside the `ai` namespace
-  # (contracthound + subspy in `default`, loupe in `custom`) need pod-to-pod
-  # ingress to LiteLLM once they move off Ollama. Additive to the namespace-wide
-  # policy above (Cilium unions allows), scoped to the litellm endpoint only.
+  # contracthound + subspy (default) and loupe (custom) will need pod-to-pod ingress to LiteLLM
+  # once they move off Ollama; additive to the policy above, scoped to this endpoint only.
   description: "Allow LiteLLM consumers in default/custom to reach litellm"
   endpointSelector:
     matchLabels:

@@ -20,9 +20,8 @@ kind: CiliumNetworkPolicy
 metadata:
   name: allow-hamcp-from-ai
 spec:
-  # The `hamcp` ToolHive MCP server (ai namespace) drives Home Assistant over
-  # its API. Additive to the namespace-wide policy above (Cilium unions
-  # allows), scoped to the HA endpoint and to the hamcp MCP pod as the source.
+  # hamcp (ai namespace) drives Home Assistant over its API; additive to the namespace-wide
+  # policy above, scoped to just this endpoint and source pod.
   description: "Allow the hamcp MCP server (ai) to reach Home Assistant"
   endpointSelector:
     matchLabels:
