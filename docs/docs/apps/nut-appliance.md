@@ -17,7 +17,7 @@ bespoke `nut-appliance` dashboard uses `/var` instead (see "The mountpoint quirk
 query was validated against live data before merge, same shape as the seedbox and truenas-zfs
 dashboards.
 
-## The $__rate_interval bug (#3919)
+## The `$__rate_interval` bug (#3919)
 
 The rate() panels use an explicit `[5m]` window rather than Grafana's `$__rate_interval` macro.
 That macro expands to `max($__interval + scrape, 4 * scrape)`, where `scrape` is the **datasource's**
@@ -42,13 +42,13 @@ sweep of everything a generic exporter can measure.
 The four rules are calibrated against values observed on the box on 2026-07-28, not textbook
 defaults:
 
-| Metric        | Observed baseline                  |
-| ------------- | ----------------------------------- |
-| Load          | 0.08 across 6 cores                 |
-| Memory        | 836 MB of 7796 MB used, no swap     |
-| `/var`        | 8.2 GB of 238 GB (3.4%)              |
-| CPU temp      | 35-36°C                             |
-| NVMe temp     | 33-35°C                              |
+| Metric    | Observed baseline               |
+| --------- | ------------------------------- |
+| Load      | 0.08 across 6 cores             |
+| Memory    | 836 MB of 7796 MB used, no swap |
+| `/var`    | 8.2 GB of 238 GB (3.4%)         |
+| CPU temp  | 35-36°C                         |
+| NVMe temp | 33-35°C                         |
 
 ### Not shipped: a RAPL power-regression alert
 
@@ -75,7 +75,7 @@ itself. One comment in an earlier draft of this rule claimed a consistent 50-sec
 on every boot; that specific figure could not be re-verified from this repository and is not carried
 forward here as a stated fact.
 
-`min()` over `job=~"nut-appliance-.*"` covers every appliance scrape (node, smartctl, docker,
+`min()` over `job=~"nut-appliance-.*"` covers every appliance scrape (node, smartctl, Docker,
 doco-cd, traefik) in one rule rather than five near-identical ones. The operator response is the same
 whichever exporter dropped, and every extra rule is another thing that can page on its own.
 `max()` collapses nut-exporter's two ServiceMonitor endpoints (one per UPS) to a single scalar so
@@ -120,7 +120,7 @@ metric for the same reason.
 
 The other two unscoped ceph node alerts were checked against this box rather than assumed safe:
 
-| Rule                         | Check                                                                                   |
-| ----------------------------- | ---------------------------------------------------------------------------------------- |
-| `CephNodeRootFilesystemFull`  | Keys on `mountpoint="/"`, which FCOS doesn't expose to node-exporter at all (see above). |
-| `CephNodeInconsistentMTU`     | Compares each device against the cluster-wide median for that device name. Verified: `eno1` 1500, `docker0` 1500 and `tailscale0` 1280 all match the existing medians, and the `br-*`/`veth*` names are unique to this host so each is its own median. |
+| Rule                         | Check                                                                                                                                                                                                                                                  |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `CephNodeRootFilesystemFull` | Keys on `mountpoint="/"`, which FCOS doesn't expose to node-exporter at all (see above).                                                                                                                                                               |
+| `CephNodeInconsistentMTU`    | Compares each device against the cluster-wide median for that device name. Verified: `eno1` 1500, `docker0` 1500 and `tailscale0` 1280 all match the existing medians, and the `br-*`/`veth*` names are unique to this host so each is its own median. |
