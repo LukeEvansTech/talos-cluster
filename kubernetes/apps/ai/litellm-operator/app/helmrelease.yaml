@@ -15,9 +15,8 @@ spec:
       leaderElection:
         enabled: true
     llmkube:
-      # Off: we keep explicit LiteLLMModel CRs (mirroring the existing
-      # cloud + Ollama model list) rather than auto-registering from LLMKube
-      # InferenceServices. Revisit once llmkube backends are the norm.
+      # Off: explicit LiteLLMModel CRs mirror the existing cloud + Ollama list instead
+      # of auto-registering from llmkube InferenceServices; revisit once llmkube is the norm.
       autoRegister: false
     resources:
       requests:
