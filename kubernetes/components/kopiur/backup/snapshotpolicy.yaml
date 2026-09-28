@@ -5,9 +5,8 @@ kind: SnapshotPolicy
 metadata:
   name: ${APP}
   annotations:
-    # Permit re-identifying pre-existing (0.4.x trial) snapshots on the 0.7.0
-    # bump without the controller erroring, should the default identity
-    # computation differ. No-op while identityDefaults stays unchanged.
+    # Lets 0.7.0 re-identify pre-existing 0.4.x-trial snapshots without erroring if identity
+    # computation changes; a no-op while identityDefaults stays unchanged.
     kopiur.home-operations.com/allow-identity-change: "true"
 spec:
   # zstd trades a little mover CPU for materially smaller repository blobs.
@@ -19,14 +18,13 @@ spec:
   sources:
     - pvc:
         name: ${APP}
-  # Snapshot copyMethod backs up from a CSI VolumeSnapshot clone, so it never
-  # contends with the running app or the VolSync mover on the live RWO PVC
-  # (VolSync still owns this PVC and its offsite R2 copy in the hybrid).
+  # Backs up from a CSI VolumeSnapshot clone, so it never contends with the running app or
+  # the VolSync mover on the live RWO PVC; VolSync still owns that PVC and its offsite R2 copy.
   copyMethod: Snapshot
   volumeSnapshotClassName: ${KOPIUR_SNAPSHOTCLASS:=csi-ceph-blockpool}
   retention:
     keepLatest: 3
     keepDaily: 7
     keepWeekly: 4
-    # No verification schedules: repository maintenance (ClusterRepository
-    # maintenance.enabled) already runs kopia's verify pass.
+    # No verification schedules: ClusterRepository maintenance.enabled already runs kopia's
+    # verify pass.
