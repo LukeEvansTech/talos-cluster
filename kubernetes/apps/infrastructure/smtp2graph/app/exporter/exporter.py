@@ -99,7 +99,7 @@ def _submit(marker):
         client.send_message(msg)
         client.quit()
         return True
-    except OSError as exc:  # covers every socket/SMTP transport failure
+    except OSError as exc:  # also covers smtplib's SMTPException (a subclass)
         log(f"canary: submit failed: {exc}")
         return False
 
@@ -117,8 +117,7 @@ def canary_once():
         STATE["ok"] = 0
         STATE["failures"] += 1
         return
-    # smtp2graph writes the file to queue/ before returning 250, so a short
-    # settle avoids reading the directory before the file exists.
+    # A short settle avoids reading queue/ before smtp2graph finishes writing the file.
     time.sleep(CANARY_SETTLE)
     deadline = time.time() + CANARY_TIMEOUT
     while time.time() < deadline:
@@ -145,9 +144,7 @@ def canary_loop():
         try:
             canary_once()
         except Exception as exc:  # pylint: disable=broad-exception-caught
-            # Deliberately broad. This thread is the only thing proving mail
-            # works; if it dies the metric simply freezes, which reads as "no
-            # recent success" rather than as an alert.
+            # Broad on purpose: this loop is the only proof mail is delivered, so it must not die.
             log(f"canary: unexpected error: {exc}")
             STATE["ok"] = 0
             STATE["failures"] += 1
