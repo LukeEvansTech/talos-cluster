@@ -6,18 +6,16 @@ metadata:
   name: postgres18
 spec:
   instances: 3
-  # Digest seeded by hand once (2026-07-19): the preset's CNPG imageName custom
-  # manager can SUBSTITUTE an existing digest but has no autoReplaceStringTemplate
-  # to APPEND a first one. A first-time pinDigest throws update-failure and
-  # aborts Renovate's whole combined pin branch (renovate#24942; confirmed via
-  # local dry-run). With the digest present, Renovate maintains it normally.
+  # Digest seeded by hand once (2026-07-19): the preset's CNPG imageName custom manager can
+  # substitute an existing digest but can't append a first one, and a first-time pinDigest throws
+  # update-failure and aborts Renovate's whole combined pin branch (renovate#24942, confirmed via
+  # local dry-run). Renovate maintains the digest normally once it's present.
   imageName: ghcr.io/cloudnative-pg/postgresql:18.6@sha256:899d3ed526b659d77935dde0e6bf2d69dbbf17d3d8c6486ca8cfd04bd3c18533
 
   primaryUpdateStrategy: unsupervised
 
-  # Wait 60s before triggering failover after primary unhealthy. Prevents
-  # spurious failovers during control-plane restarts (Talos node apply,
-  # kube-controller-manager leader churn) which typically resolve in ~10-25s.
+  # 60s avoids spurious failovers during control-plane restarts (Talos node apply,
+  # kube-controller-manager leader churn), which typically resolve in ~10-25s.
   failoverDelay: 60
 
   storage:
@@ -55,12 +53,10 @@ spec:
   monitoring:
     enablePodMonitor: true
 
-  # TLS configuration for encrypted client connections
   certificates:
     serverTLSSecret: postgres18-tls
     serverCASecret: postgres18-tls
 
-  # Barman Cloud plugin configuration
   plugins:
     - name: barman-cloud.cloudnative-pg.io
       isWALArchiver: true
@@ -70,5 +66,4 @@ spec:
 
   backup:
     retentionPolicy: 90d
-    # Legacy barmanObjectStore removed - using plugin instead
-    # barmanObjectStore config moved to ObjectStore CR
+    # barmanObjectStore config moved to the ObjectStore CR when the plugin replaced it.
