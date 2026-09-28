@@ -14,7 +14,6 @@ spec:
       envoyDeployment:
         replicas: 2
         container:
-          # imageRepository: mirror.gcr.io/envoyproxy/envoy
           image: mirror.gcr.io/envoyproxy/envoy:v1.39.1@sha256:57e14a549d7bd43c8d3f6d03e8cfa653e037d4b38e133acd9b54f38c524401b4
           resources:
             requests:
@@ -63,9 +62,8 @@ spec:
     annotations:
       external-dns.alpha.kubernetes.io/hostname: *hostname
       lbipam.cilium.io/ips: 10.32.8.88
-  # https is listed first on purpose: homepage derives a discovered tile's URL
-  # scheme from listeners[0] when the HTTPRoute's parentRef has no sectionName
-  # (none of ours do), so http-first rendered every tile as http://.
+  # https is listed first: homepage derives a discovered tile's URL scheme from listeners[0]
+  # when the HTTPRoute's parentRef has no sectionName, so http-first rendered every tile as http://.
   listeners:
     - name: https
       protocol: HTTPS
@@ -104,9 +102,8 @@ spec:
     annotations:
       external-dns.alpha.kubernetes.io/hostname: *internalHost
       lbipam.cilium.io/ips: 10.32.8.87
-  # https is listed first on purpose: homepage derives a discovered tile's URL
-  # scheme from listeners[0] when the HTTPRoute's parentRef has no sectionName
-  # (none of ours do), so http-first rendered every tile as http://.
+  # https is listed first: homepage derives a discovered tile's URL scheme from listeners[0]
+  # when the HTTPRoute's parentRef has no sectionName, so http-first rendered every tile as http://.
   listeners:
     - name: https
       protocol: HTTPS
@@ -148,8 +145,7 @@ spec:
   targetSelectors:
     - group: gateway.networking.k8s.io
       kind: Gateway
-  # Explicit probes rather than the OS defaults {} inherits, so a dead upstream
-  # peer is detected in ~90s instead of hours.
+  # Explicit probes catch a dead upstream peer in ~90s; the OS defaults {} inherits take hours.
   tcpKeepalive:
     idleTime: 60s
     interval: 10s
@@ -157,9 +153,8 @@ spec:
   timeout:
     http:
       requestTimeout: 0s
-      # The listener default is 5 minutes, which cuts a stream that is held open
-      # without traffic -- an SSE notification channel, a long transcode decision.
-      # Ref: https://github.com/onedr0p/home-ops/pull/11707
+      # The listener default of 5 minutes cuts a stream held open without traffic, such as an SSE
+      # channel or a long transcode decision (https://github.com/onedr0p/home-ops/pull/11707).
       streamIdleTimeout: 1h
 ---
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/gateway.envoyproxy.io/clienttrafficpolicy_v1alpha1.json
