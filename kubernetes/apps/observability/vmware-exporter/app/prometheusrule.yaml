@@ -11,7 +11,7 @@ spec:
         - alert: VMwareExporterDown
           annotations:
             summary: "VMware exporter scrape of {{ $labels.instance }} is failing."
-          # Long `for`. Pryorda scrapes are slow and an occasional timeout is normal.
+          # 15m rides out an occasional slow pryorda scrape rather than a real outage.
           expr: |-
             up{job="vmware-exporter"} == 0
           for: 15m
@@ -32,22 +32,18 @@ spec:
         - alert: VMwareHostPoweredOff
           annotations:
             summary: "ESXi host {{ $labels.host_name }} is not powered on."
-          # vmware_host_power_state: 1 = poweredOn. Confirm encoding against live /metrics.
+          # vmware_host_power_state == 1 is poweredOn, unconfirmed against live metrics.
           expr: |-
             vmware_host_power_state{job="vmware-exporter"} != 1
           for: 5m
           labels:
             severity: critical
-        # The Veeam B&R server sat at a BSOD for 12 days in Aug 2026 with nothing
-        # to say so. This series was 1 with tools_status="toolsNotRunning" for the
-        # entire outage and flipped back to toolsOk on the reset, so it is the
-        # earliest, cheapest signal for "guest OS is dead", BSOD, hung boot,
-        # or an unexpected power-off (a powered-off VM also reports
-        # toolsNotRunning, verified live). 15m rides out a normal reboot.
-        # Deliberately no absent() clause: the exporter being down is already
-        # VMwareExporterDown, and absent() would echo tools_status="toolsOk"
-        # into the annotation. The VM name comes from cluster-secrets so the
-        # vCenter inventory name never lands in this public repo.
+        # toolsNotRunning also covers a powered-off VM (verified live), catching a BSOD or a
+        # shutdown alike; see KB-069 for the outage this alert was added for.
+        # No absent(): exporter-down is already VMwareExporterDown, and absent() would show
+        # toolsOk in the annotation instead of the missing series.
+        # VM name comes from cluster-secrets, keeping the vCenter inventory name out of this
+        # public repo.
         - alert: VeeamServerGuestDown
           annotations:
             summary: >-
