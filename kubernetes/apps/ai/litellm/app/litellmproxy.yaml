@@ -34,7 +34,8 @@ spec:
     httpGet:
       path: /health/liveliness
       port: 4000
-    # 180s covers a cold mcp_semantic_tool_filter embed, measured at 104s (docs/apps/litellm.md).
+    # 180s covers a cold mcp_semantic_tool_filter embed, measured at 104s
+    # (docs/docs/apps/litellm.md).
     initialDelaySeconds: 180
     periodSeconds: 10
     failureThreshold: 6
@@ -80,14 +81,14 @@ spec:
       password: os.environ/REDIS_PASSWORD
       ttl: 300
     # drop_params stays off, or LiteLLM strips reasoning_effort before llama.cpp sees it
-    # (verified 2026-08-25; docs/architecture/ai-llm-stack.md Gotchas).
+    # (verified 2026-08-25; docs/docs/architecture/ai-llm-stack.md Gotchas).
     num_retries: 2
     retry_after: 5
-    # 1500s must stay under repowiki's 1800s LLM_TIMEOUT (docs/apps/litellm.md Timeouts).
+    # 1500s must stay under repowiki's 1800s LLM_TIMEOUT (docs/docs/apps/litellm.md Timeouts).
     request_timeout: 1500
     set_verbose: false
     # Embeds via qwen3-embedding, not all-minilm, whose 512-token cap broke this at
-    # startup (docs/architecture/ai-llm-stack.md MCP tools).
+    # startup (docs/docs/architecture/ai-llm-stack.md MCP tools).
     mcp_semantic_tool_filter:
       enabled: true
       embedding_model: qwen3-embedding
@@ -95,7 +96,7 @@ spec:
       similarity_threshold: 0.3
   generalSettings:
     health_check_endpoint: /v1/health
-    # CRs are the model source of truth, not the DB (docs/apps/litellm.md Design decisions).
+    # CRs are the model source of truth, not the DB (docs/docs/apps/litellm.md Design decisions).
     store_model_in_db: false
   extraConfig:
     environment:

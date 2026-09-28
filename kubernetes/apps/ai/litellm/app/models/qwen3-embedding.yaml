@@ -7,7 +7,7 @@ metadata:
   namespace: ai
 spec:
   # Long-context embedder for the VMCP tool optimizer and the semantic filter; all-minilm's
-  # 512-token cap broke both (docs/architecture/ai-llm-stack.md MCP tools).
+  # 512-token cap broke both (docs/docs/architecture/ai-llm-stack.md MCP tools).
   modelName: qwen3-embedding
   proxyRef: litellm
   params:

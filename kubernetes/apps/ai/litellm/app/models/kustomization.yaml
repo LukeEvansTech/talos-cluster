@@ -9,4 +9,4 @@ resources:
   - ./self-hosted-uncensored.yaml
   - ./self-hosted.yaml
 
-# Cloud provider templates (Moonshot, MiniMax, opencode zen): docs/apps/litellm.md.
+# Cloud provider templates (Moonshot, MiniMax, opencode zen): docs/docs/apps/litellm.md.

@@ -61,9 +61,8 @@ See the [AI / LLM stack](../architecture/ai-llm-stack.md) page for how it fits t
   30s + 6x10s probe killed the container at ~90s, before it served a request; because the proxy
   exits 0 on SIGTERM this never showed as `CrashLoopBackOff`, only `KubePodNotReady`, and each
   kill re-queued the whole registry onto the embedder's two slots, making the next start slower
-  still: 62 restarts in two hours
-  ([#5058](https://github.com/LukeEvansTech/talos-cluster/pull/5058)).
-  The `LiteLLMProxy` CRD has no `startupProbe` field, so `initialDelaySeconds` is the only knob;
+  still: 62 restarts in two hours. The `LiteLLMProxy` CRD has no `startupProbe` field, so
+  `initialDelaySeconds` is the only knob;
   `periodSeconds`/`failureThreshold` still apply once the pod is past that window.
 
 ## Timeouts
@@ -71,7 +70,7 @@ See the [AI / LLM stack](../architecture/ai-llm-stack.md) page for how it fits t
 `request_timeout` and `TimeoutErrorRetries` in `litellmproxy.yaml` are tuned together:
 
 - `request_timeout: 1500` must stay under the tightest caller budget, repowiki's `LLM_TIMEOUT`
-  at 1800s (`kubernetes/apps/ai/repowiki/app/configmap.yaml`).
+  at 1800s.
 - `TimeoutErrorRetries: 0` overrides the default `num_retries: 2` for timeouts only; every other
   exception class still gets two retries. Without this override, a timing-out call burned three
   times `request_timeout` before failing over, well past the point the caller had already given
@@ -83,7 +82,7 @@ See the [AI / LLM stack](../architecture/ai-llm-stack.md) page for how it fits t
 
 `prometheusrule.yaml` thresholds and windows:
 
-- Thresholds sit lower than a busier, multi-replica upstream default: with one replica,
+- Thresholds sit lower than a busier upstream default: with one replica,
   `increase()` is the true event count, with no cross-replica summing, so small counts already
   mean something.
 - The `*_fallbacks_total` counters only appear after the first fallback event (LiteLLM registers

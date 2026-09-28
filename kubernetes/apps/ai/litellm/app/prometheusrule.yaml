@@ -8,7 +8,7 @@ spec:
   groups:
     # Thresholds assume one replica, so increase() counts real events, not a cross-replica sum.
     # *_fallbacks_total appears only after the first fallback; absence is healthy, not stale
-    # (docs/apps/litellm.md Alerting).
+    # (docs/docs/apps/litellm.md Alerting).
     - name: litellm.rules
       rules:
         - alert: LiteLLMFallbackChainExhausted
@@ -36,7 +36,7 @@ spec:
             severity: warning
         - alert: LiteLLMDeploymentOutage
           # rate()'s 3m window stays under the 10m for:, so one failure can't
-          # extrapolate positive for the whole period (docs/apps/litellm.md Alerting).
+          # extrapolate positive for the whole period (docs/docs/apps/litellm.md Alerting).
           expr: |-
             max by (litellm_model_name) (litellm_deployment_state) >= 2
             and on (litellm_model_name)
@@ -62,7 +62,7 @@ spec:
             severity: warning
     # up comes from the llmkube-models ServiceMonitor; max by (service) fires only
     # when every endpoint of a backend is down. 15m absorbs restarts and cold GGUF
-    # loads; a scaled-to-zero pod goes stale, not up==0 (docs/apps/litellm.md Alerting).
+    # loads; a scaled-to-zero pod goes stale, not up==0 (docs/docs/apps/litellm.md Alerting).
     - name: llmkube.rules
       rules:
         - alert: InferenceServiceDown

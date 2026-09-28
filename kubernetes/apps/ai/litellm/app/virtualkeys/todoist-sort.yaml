@@ -7,7 +7,7 @@ metadata:
   namespace: ai
 spec:
   # Cross-namespace key: PushSecret mirrors it to the litellm 1Password item
-  # (docs/architecture/ai-llm-stack.md In-cluster consumers).
+  # (docs/docs/architecture/ai-llm-stack.md In-cluster consumers).
   proxyRef: litellm
   keyAlias: todoist-sort
   secretName: litellm-key-todoist-sort
