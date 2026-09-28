@@ -1,6 +1,5 @@
 ---
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/core/service_v1.json
-# Headless service backing the indexer StatefulSet's stable network identity.
 apiVersion: v1
 kind: Service
 metadata:
@@ -17,9 +16,8 @@ spec:
       port: 9300
       targetPort: 9300
 ---
-# Indexer REST API. Consumed in-cluster by the manager's Filebeat and by the
-# dashboard. Upstream makes this a LoadBalancer, which would spend a LAN address
-# publishing the raw indexer API. Nothing outside the cluster needs it.
+# Indexer REST API, used in-cluster by Filebeat and the dashboard. Upstream makes it a
+# LoadBalancer; nothing outside the cluster needs the raw indexer API.
 apiVersion: v1
 kind: Service
 metadata:
@@ -85,10 +83,8 @@ spec:
       port: 5601
       targetPort: 5601
 ---
-# The LAN-facing endpoint: syslog from the firewall, hypervisors and network kit,
-# plus agent enrolment (1515) and agent events (1514). The real address lives in
-# the cluster-secrets 1Password item; components/global-vars/cluster-secrets.yaml
-# carries only a CI placeholder, per the public-repo rule.
+# LAN endpoint for syslog (firewall, hypervisors, network kit) plus agent enrolment
+# (1515) and events (1514); the real address is the cluster-secrets 1Password item.
 apiVersion: v1
 kind: Service
 metadata:
@@ -101,13 +97,8 @@ metadata:
     app: wazuh-manager
 spec:
   type: LoadBalancer
-  # Cluster, not Local. Cilium's L2 announcement elects a lease-holder node without
-  # regard to backend locality, so under Local the LB address is ARP'd by a node
-  # that then refuses the traffic whenever the pod sits elsewhere, external senders
-  # get TCP RST or silent UDP loss while in-cluster socket-LB keeps working. That
-  # cost days of missing firewall logs on the sentinel-syslog service (2026-08-02).
-  # The cost of Cluster is SNAT: senders arrive as a node address, which is why
-  # ossec.conf allows a CIDR and authd sets use_source_ip to no.
+  # Cluster, not Local: a Local lease can land off-pod and drop traffic (days of lost
+  # logs on sentinel-syslog, #4070); the SNAT cost is why ossec.conf allow-lists a CIDR.
   externalTrafficPolicy: Cluster
   selector:
     app: wazuh-manager
