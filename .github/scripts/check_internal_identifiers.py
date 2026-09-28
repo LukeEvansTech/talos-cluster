@@ -47,43 +47,31 @@ from fnmatch import fnmatch
 
 SELF_PATH = ".github/scripts/check_internal_identifiers.py"
 
-# --- Patterns that must not appear in tracked files (outside the allowlist) ---
-# NOTE: patterns are kept GENERIC on purpose -- this script is public, so it must
-# not itself enumerate device models or device-class names (that would re-disclose
-# what it is meant to keep out of git). It catches the structural naming scheme
-# (site-prefixed `cr-*` / `sw-*` hostnames, private IPs, MACs, internal TLDs).
+# Patterns stay generic on purpose: naming device models here would re-disclose what this
+# public script hides. It matches structural shape instead (site-prefixed cr-*/sw-* hostnames,
+# private IPs, MACs, internal TLDs).
 PATTERNS: dict[str, re.Pattern] = {
     "LAN IP": re.compile(r"(?<![\d.])(?:10\.32|192\.168|172\.(?:1[6-9]|2\d|3[01]))\.\d+\.\d+(?![\d.])"),
-    # Tailscale hands out addresses from the CGNAT range 100.64.0.0/10
-    # (100.64.x.x-100.127.x.x); a literal one maps a tailnet node.
+    # Tailscale CGNAT range 100.64.0.0/10 (100.64.x.x-100.127.x.x); a literal one maps a
+    # tailnet node.
     "tailnet IP (CGNAT)": re.compile(r"(?<![\d.])100\.(?:6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.\d+\.\d+(?![\d.])"),
     "node name": re.compile(r"cr-talos-\d+"),
-    # site-prefixed device hostnames, kept as two single-line patterns so black and
-    # ruff agree; both exclude cr-talos-* and "ghcr-auth"-style substrings.
-    #
-    # The trailing group is `*`, not `+`: requiring a second hyphenated segment
-    # meant a single-segment device name (cr-<word>) matched nothing, so the
-    # guard passed on both the tracked-file and the prose path and one such name
-    # reached main in a non-allowlisted file. The leading lookbehind still
-    # excludes "ghcr-auth"-style substrings.
+    # The leading lookbehind excludes "ghcr-auth"-style substrings. The trailing group is `*`,
+    # not `+`: `+` required a second hyphenated segment, so a single-segment device name
+    # (cr-<word>) once slipped past this guard and reached main.
     "device hostname (cr)": re.compile(r"(?<![a-z0-9])cr-(?!talos(?:-|\b))[a-z][a-z0-9]*(?:-[a-z0-9]+)*"),
     "device hostname (sw)": re.compile(r"(?<![a-z0-9])sw-(?:main|comms)-[a-z0-9]+"),
     "MAC address": re.compile(r"(?<![0-9a-fA-F:])(?:[0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}(?![0-9a-fA-F:])"),
     "internal hostname": re.compile(r"\b[a-z0-9_-]+\.(?:lan|internal)\b"),
 }
 
-# Prose-only patterns (--text-file). These are not identifiers a tracked file
-# would ever carry, but they do belong in commit messages and PR bodies: a
-# session link publicly attributes the work and points at a private session.
+# Prose-only: a tracked file would never carry these, but a commit message or PR body might,
+# and a session link publicly attributes the work and points at a private session.
 PROSE_PATTERNS: dict[str, re.Pattern] = {
     "AI session link / co-author trailer": re.compile(
-        # "generated with" is matched with the markdown link bracket OPTIONAL:
-        # the plain "Generated with Claude Code" form (no link) reached main
-        # several times while the bracketed-only pattern passed it through.
-        # The trailer match is by assistant NAME, not e-mail domain: every
-        # assistant that writes a trailer names itself, while their addresses
-        # vary (Copilot's numbered GitHub noreply address gets its own
-        # alternative below).
+        # The link bracket is optional: the plain "Generated with Claude Code" form (no link)
+        # reached main several times before this matched it too. Matched by assistant NAME, not
+        # e-mail domain, since addresses vary (Copilot gets its own alternative below).
         r"claude\.ai/code/session"
         r"|co-authored-by:\s*(?:claude|codex|copilot|chatgpt|openai|gemini|cursor|devin|aider)\b"
         r"|generated (?:with|by) \[?(?:claude|codex|copilot|chatgpt|gemini|cursor)"
@@ -93,24 +81,22 @@ PROSE_PATTERNS: dict[str, re.Pattern] = {
     ),
 }
 
-# A `git commit --verbose` message file carries the whole staged diff below this
-# marker; everything below it is diff content, not the author's prose.
+# Below this marker in a `git commit --verbose` message is the staged diff, not the author's prose.
 SCISSORS = re.compile(r"^# *-+ >8 -+")
 
-# Values that match a pattern but are public-safe (cluster-internal CIDRs, k8s
-# label keys, locally-administered placeholder MACs).
+# Values that match a pattern but are public-safe: cluster-internal CIDRs, k8s label keys,
+# locally-administered placeholder MACs.
 BENIGN = (
     re.compile(r"^10\.4[23]\."),  # Cilium pod/service CIDRs (10.42/10.43)
     re.compile(r"^grafana\.internal$"),  # k8s label key, not a hostname
     re.compile(r"^02:00:00:00:00"),  # locally-administered example MAC
-    # Guaranteed-dead top of the CGNAT range: the cluster-secrets CI placeholder
-    # for SEEDBOX_TAILNET_ADDR (real value comes from the ExternalSecret).
+    # Guaranteed-dead top of the CGNAT range: the CI placeholder for SEEDBOX_TAILNET_ADDR
+    # (the real value comes from the ExternalSecret).
     re.compile(r"^100\.127\.255\.254$"),
 )
 
-# Accepted functional configs (glob -> short reason). These are unavoidable values
-# that operate the cluster; the topology they expose is an informed, documented
-# acceptance (see the .private/ inventory report).
+# Accepted functional configs (glob -> reason): unavoidable values that operate the cluster.
+# The topology they expose is an informed, documented acceptance (see the .private/ inventory).
 ALLOWLIST: dict[str, str] = {
     "talos/**": "Talos machine config",
     "kubernetes/apps/infrastructure/certwarden/cert-deployment/**": "device cert deployment",

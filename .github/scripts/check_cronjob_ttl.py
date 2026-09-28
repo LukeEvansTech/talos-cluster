@@ -58,8 +58,7 @@ def _problems_in(path: pathlib.Path) -> tuple[list[str], int]:
     try:
         docs = list(yaml.safe_load_all(text))
     except yaml.YAMLError as err:
-        # Only a problem if a CronJob could be hiding in it; other files (a
-        # document using an alias from a sibling document) are not ours to judge.
+        # Only a problem if a CronJob could be hiding in it; an unrelated parse failure isn't ours.
         if "cronjob" in text.lower():
             return [f"{path}: unparsable YAML ({err.__class__.__name__}), cannot check its CronJob"], 0
         return [], 0

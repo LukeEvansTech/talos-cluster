@@ -19,17 +19,11 @@ jobs:
       pull-requests: write
     uses: LukeEvansTech/shared-workflows/.github/workflows/super-linter.yml@239610499ad65c397d8d90b1a139d041bf28598a # v1
     with:
-      # Kubeconform validates raw YAML source. On this Flux GitOps repo the
-      # source is meaningless until kustomize substitutes vars
-      # (${SECRET_DOMAIN}, ${SVC_*_ADDR}, ...) and merges components, so it
-      # false-positives on every CRD-shaped file regardless of schema config.
-      # Real K8s validation lives in flate (kustomize build pipeline).
+      # Raw YAML source is meaningless until kustomize substitutes vars and merges components, so
+      # kubeconform false-positives on every CRD-shaped file; real validation lives in flate.
       validate-kubernetes-kubeconform: false
-      # Graduate to blocking: with kubeconform off, the remaining super-linter
-      # checks (yamllint, prettier, actionlint, shellcheck, ...) are clean.
+      # Blocking: with kubeconform off, the remaining checks (yamllint, prettier, …) run clean.
       soft-launch: false
-      # The zensical docs tree (docs/) is owned by the canonical .markdownlint.yml
-      # + the docs-standard-check (drift) workflow, which use MD007 indent 2.
-      # Exclude it here so super-linter's indent-4 markdown config doesn't
-      # double-lint it with a conflicting rule. docs/superpowers/ is gitignored.
+      # docs/ is owned by .markdownlint.yml + docs-standard-check (MD007 indent 2); excluded here
+      # so super-linter's indent-4 markdown config doesn't double-lint it with a conflicting rule.
       filter-regex-exclude: '(^|/)(node_modules|\.venv|site)/|(^|/)docs/'
