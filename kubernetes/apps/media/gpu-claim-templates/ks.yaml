@@ -10,8 +10,7 @@ spec:
   commonMetadata:
     labels:
       app.kubernetes.io/name: *app
-  # The DeviceClass this template names is created by the DRA driver's chart,
-  # so the template is only satisfiable once that HelmRelease is up.
+  # The DeviceClass this template names comes from dra-driver-nvidia-gpu's HelmRelease.
   dependsOn:
     - name: dra-driver-nvidia-gpu
       namespace: gpu-operator
