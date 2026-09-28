@@ -98,13 +98,7 @@ spec:
               requests: { cpu: 50m, memory: 128Mi }
               limits: { memory: 256Mi }
             securityContext:
-              # The oxidized image bootstraps as root (uid 0): runsvdir
-              # initialises supervise dirs under /etc/service/*, runit's
-              # run script then 'chown -R oxidized:oxidized
-              # /home/oxidized/.config/oxidized' and 'gosu oxidized
-              # oxidized' to drop privileges. We must therefore start as
-              # root and grant the minimal caps needed for that handover.
-              # The actual oxidized process ends up running as uid 30000.
+              # Bootstraps as root; runit/gosu then drops to uid 30000 (docs/apps/oxidized.md).
               runAsNonRoot: false
               runAsUser: 0
               runAsGroup: 0
