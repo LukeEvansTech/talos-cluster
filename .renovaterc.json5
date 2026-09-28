@@ -1,15 +1,12 @@
 {
   $schema: "https://docs.renovatebot.com/renovate-schema.json",
   ignorePaths: [".archive/**"],
-  // The shared house standard (github>LukeEvansTech/renovate-config) provides
-  // the home-operations/renovate-presets base, docker:pinDigests,
-  // :timezone(Europe/London), Copilot reviewers, suppressNotifications,
-  // dependencies/security labels, and vulnerabilityAlerts: the single source of
-  // truth, so they are no longer duplicated here.
-  // Since renovate-presets 6.0.0 the app-specific presets are opt-in under
-  // apps/ (the base keeps only general-purpose rules), so the ones this
-  // cluster runs are extended here directly. phanpy is the only apps/ preset
-  // not deployed here.
+  // The shared house standard (github>LukeEvansTech/renovate-config) provides the
+  // home-operations/renovate-presets base, docker:pinDigests, :timezone(Europe/London), Copilot
+  // reviewers, suppressNotifications, dependencies/security labels and vulnerabilityAlerts: the
+  // single source of truth, not duplicated here. Since renovate-presets 6.0.0 the app-specific
+  // presets are opt-in under apps/ (the base keeps only general-purpose rules), so the ones this
+  // cluster runs are extended directly below. phanpy is the only apps/ preset not deployed here.
   extends: [
     "github>LukeEvansTech/renovate-config",
     "github>home-operations/renovate-presets//apps/cnpg.json5#8.1.0",
@@ -28,19 +25,18 @@
   // too, and clean auto-merges stay silent.
   assignees: ["LukeEvansTech"],
   assignAutomerge: false,
-  // Only rebase a PR when it actually conflicts, NOT every time it falls behind
-  // main (the default with automerge enabled). With high auto-merge volume every
-  // merge would otherwise re-rebase all open PRs and re-run the full CI suite on
-  // each (PRs accumulated ~55 redundant runs). Behind-base PRs still auto-merge
-  // when green: platformAutomerge:false self-merges and there is no ruleset
-  // requiring up-to-date branches.
+  // Only rebase a PR when it actually conflicts, not every time it falls behind main (the default
+  // with automerge enabled): with high auto-merge volume every merge would otherwise re-rebase all
+  // open PRs and re-run the full CI suite on each (PRs once accumulated ~55 redundant runs).
+  // Behind-base PRs still auto-merge when green: platformAutomerge:false self-merges, and no
+  // ruleset requires up-to-date branches.
   rebaseWhen: "conflicted",
   // ---------------------------------------------------------------------------
-  // Repo-specific config previously split across .renovate/*.json5 and pulled in
-  // via self-referencing `github>LukeEvansTech/talos-cluster//.renovate/*` extends.
-  // Inlined here so Renovate no longer re-fetches this repo as a remote preset
-  // (avoids the chicken-and-egg where edits to those files don't apply in the
-  // same PR). The home-operations/renovate-presets base above is still remote.
+  // Repo-specific config previously split across .renovate/*.json5 and pulled in via
+  // self-referencing `github>LukeEvansTech/talos-cluster//.renovate/*` extends. Inlined here so
+  // Renovate no longer re-fetches this repo as a remote preset (avoids the chicken-and-egg where
+  // edits to those files don't apply in the same PR). The home-operations/renovate-presets base
+  // above is still remote.
   // ---------------------------------------------------------------------------
 
   // --- Custom datasources (from .renovate/customManagers.json5) ---
@@ -58,21 +54,18 @@
   },
 
   // --- Custom managers (from customManagers.json5 + grafanaDashboards.json5) ---
-  // OCI and "# renovate:" annotated managers come from the renovate-presets
-  // base; CNPG imageName, Grafana download-URL, and Talos factory managers
-  // from the apps/ presets above. Only what no preset covers lives here:
-  // Minecraft, homebridge date tags, and this repo's GrafanaDashboard CRD
-  // layout (the preset's grafanaCom manager needs `id:` directly under
-  // `grafanaCom:`, but our files put the renovate comment between them).
+  // OCI and "# renovate:" annotated managers come from the renovate-presets base; CNPG imageName,
+  // Grafana download-URL, and Talos factory managers from the apps/ presets above. Only what no
+  // preset covers lives here: Minecraft, homebridge date tags, and this repo's GrafanaDashboard CRD
+  // layout (the preset's grafanaCom manager needs `id:` directly under `grafanaCom:`, but our files
+  // put the renovate comment between them).
   customManagers: [
     {
       customType: "regex",
-      // etcd-defrag fetches talosctl with a plain wget inside an inline shell
-      // script, which no built-in manager sees, so the pin silently drifted:
-      // it sat on v1.11.5 while every other Talos pin in the repo had moved to
-      // v1.13.7. Tracking it here keeps the client in step with the nodes it
-      // talks to, and because the package name is siderolabs/talos it joins the
-      // Talos group rather than arriving as its own PR.
+      // etcd-defrag fetches talosctl with a plain wget inside an inline shell script, which no
+      // built-in manager sees, so the pin silently drifted (it sat on v1.11.5 while every other
+      // Talos pin had moved to v1.13.7). Tracking it here keeps the client in step with the nodes
+      // it talks to, and the siderolabs/talos package name joins it to the Talos group below.
       description: "Track the talosctl binary fetched by etcd-defrag",
       managerFilePatterns: ["/(^|/)kubernetes/.+\\.ya?ml$/"],
       matchStrings: [
@@ -117,12 +110,10 @@
     },
     {
       customType: "regex",
-      // Wazuh's manifests are vendored (see the header in the app's
-      // kustomization.yaml), so the images sit in plain StatefulSet/Deployment
-      // YAML rather than a HelmRelease the OCI manager would see. Manager,
-      // indexer and dashboard are released in lockstep and MUST stay on the same
-      // version. A mixed set is the documented cause of "Wazuh dashboard server
-      // is not ready yet", so they are grouped into one PR below.
+      // Wazuh's manifests are vendored (see the header in the app's kustomization.yaml), so the
+      // images sit in plain StatefulSet/Deployment YAML rather than a HelmRelease the OCI manager
+      // would see. Manager, indexer and dashboard release in lockstep; a mixed set is the
+      // documented cause of "Wazuh dashboard server is not ready yet", so they group into one PR.
       description: "Track vendored Wazuh component images",
       managerFilePatterns: [
         "/(^|/)kubernetes/apps/security/wazuh/.+\\.ya?ml$/",
@@ -226,17 +217,14 @@
     // === Grafana dashboards (from grafanaDashboards.json5) ===
     {
       addLabels: ["renovate/grafana-dashboard"],
-      // A dashboard "major" is just a revision bump, not a breaking change, so
-      // this opts them back into auto-merge. The preset leaves majors with no
-      // automerge rule, and separately queues them behind a dashboard checkbox.
-      // automergeType/ignoreTests are deliberately NOT set here. The inherited
-      // type is NOT Renovate's default: the upstream home-operations preset
-      // extends :automergeBranch, and until 2026-09-22 this rule inherited it,
-      // so dashboard bumps were parked as branch automerges that never ran a
-      // check (#5357 needed a dashboard tick to become a PR). The shared
-      // LukeEvansTech/renovate-config preset now sets automergeType "pr" +
-      // platformAutomerge false at the top level, which is where the fix
-      // belongs (see the note at the top of packageRules).
+      // A dashboard "major" is just a revision bump, not a breaking change, so this opts them back
+      // into auto-merge; the preset leaves majors with no automerge rule and queues them behind a
+      // dashboard checkbox instead. automergeType/ignoreTests are deliberately NOT set here: until
+      // 2026-09-22 this rule inherited the upstream preset's :automergeBranch, so dashboard bumps
+      // were parked as branch automerges that never ran a check (#5357 needed a dashboard tick to
+      // become a PR). The shared LukeEvansTech/renovate-config preset now sets automergeType "pr" +
+      // platformAutomerge false at the top level, which is where that fix belongs (see the note at
+      // the top of packageRules).
       automerge: true,
       commitMessageExtra: "({{currentVersion}} → {{newVersion}})",
       commitMessageTopic: "dashboard {{depName}}",

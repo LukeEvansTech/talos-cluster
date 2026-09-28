@@ -1,18 +1,9 @@
 ---
-# Super-linter yamllint config.
-#
-# Materialized verbatim from super-linter v8's bundled TEMPLATES/.yaml-lint.yml
-# (super-linter@9e863354). Previously this repo had no yamllint config, so CI
-# used super-linter's hidden bundled default. Making it explicit here means:
-#   - CI behaviour is unchanged (super-linter auto-discovers configs in
-#     .github/linters/ and this is byte-identical to its bundled default), and
-#   - the lefthook `lint-yamllint` hook can point at the SAME file with `-c`,
-#     so local pre-commit and CI run identical rules (no local-pass/CI-fail
-#     drift). yamllint is NOT run in strict mode (matching super-linter), so
-#     `level: warning` problems are reported but do not fail, only the
-#     error-level rules (key-duplicates, new-lines) fail a commit.
-#
-# If you bump the super-linter pin in shared-workflows, re-sync this file.
+# Super-linter yamllint config, materialized verbatim from its v8 bundled TEMPLATES/.yaml-lint.yml
+# (super-linter@9e863354), so CI behaviour is unchanged and the lefthook `lint-yamllint` hook can
+# point at the same file with `-c`, keeping local pre-commit and CI in sync. Not strict mode
+# (matching super-linter): only the error-level rules (key-duplicates, new-lines) fail a commit,
+# `level: warning` ones just report. Re-sync if shared-workflows bumps the super-linter pin.
 
 rules:
   braces:

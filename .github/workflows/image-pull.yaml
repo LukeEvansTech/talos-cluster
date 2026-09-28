@@ -2,10 +2,8 @@
 # yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
 name: "Image Pull"
 
-# Runs post-merge on push to main (not pull_request): the `pull` job executes
-# on a self-hosted runner that mounts an os:admin talosconfig, so it must only
-# ever run code that has already been reviewed and merged, never untrusted
-# PR-head code on a public repo.
+# Runs post-merge on push to main, not pull_request: the `pull` job runs on a self-hosted runner
+# with an os:admin talosconfig, so it must only run reviewed, merged code, never untrusted PR code.
 on:
   push:
     branches:
@@ -26,10 +24,8 @@ jobs:
   filter:
     name: Filter
     runs-on: ubuntu-latest
-    # v0.6.0 renamed the input files→patterns and dropped the any_changed
-    # output for a changed_files JSON array ('[]' when empty). The old names
-    # were ignored silently, so extract never fired and the whole workflow
-    # was a no-op.
+    # v0.6.0 renamed input files->patterns and replaced any_changed with a changed_files JSON
+    # array ('[]' when empty); the old names were silently ignored, so extract never fired.
     outputs:
       any_changed: ${{ steps.changed-files.outputs.changed_files != '[]' }}
     steps:

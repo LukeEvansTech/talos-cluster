@@ -10,14 +10,8 @@ spec:
   commonMetadata:
     labels:
       app.kubernetes.io/name: *app
-  # The device plugin must be gone before the kubelet plugin advertises the
-  # GPU, or the two allocators hand out the same card twice. gpu-operator's
-  # Kustomization carries a HelmRelease health check so this dependency means
-  # "the operator reconciled with devicePlugin off" rather than merely "the
-  # manifests applied". It is still only defence in depth: the operator
-  # removes the device plugin DaemonSet asynchronously after the Helm upgrade
-  # returns, so the drain in docs/docs/migrations/gpu-time-slicing-to-dra.md
-  # is what actually makes the swap safe.
+  # Defence in depth only; the drain in docs/docs/migrations/gpu-time-slicing-to-dra.md is
+  # what actually makes the device-plugin-to-DRA swap safe.
   dependsOn:
     - name: gpu-operator
   path: ./kubernetes/apps/gpu-operator/dra-driver-nvidia-gpu/app

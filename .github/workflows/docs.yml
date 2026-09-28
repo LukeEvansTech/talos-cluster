@@ -1,7 +1,5 @@
 ---
-# Canonical docs workflow for zensical docs repos.
-# Thin caller of LukeEvansTech/shared-workflows zensical reusable.
-# Build-only repos override `publish: false`.
+# Canonical template shared across repos; build-only repos override `publish: false`.
 name: Docs
 
 on:

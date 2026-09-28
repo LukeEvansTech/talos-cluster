@@ -8,15 +8,12 @@ set quiet := true
 set script-interpreter := ['bash', '-euo', 'pipefail']
 set shell := ['bash', '-euo', 'pipefail', '-c']
 
-# Bootstrap Recipes
 [group: 'Bootstrap']
 mod bootstrap "bootstrap"
 
-# Kube Recipes
 [group: 'Kube']
 mod kube "kubernetes"
 
-# Talos Recipes
 [group: 'Talos']
 mod talos "talos"
 
@@ -28,15 +25,11 @@ log lvl msg *args:
 template file *args:
     minijinja-cli "{{ file }}" {{ args }} | vals eval -f -
 
-# Run super-linter locally with the same env flags as the shared CI workflow.
-# slim-v8 is amd64-only, so `--platform linux/amd64` enables Rosetta emulation
-# on Apple Silicon. RUN_LOCAL=true lints the working tree (skips git-diff logic).
-# FILTER_REGEX_EXCLUDE mirrors the `filter-regex-exclude` input in
-# .github/workflows/lint.yml (the shared workflow maps it to this same env var).
-# Keep the two in sync: without it, local lints the docs/ tree that CI excludes
-# docs/ is owned by the canonical .markdownlint.yml + docs-standard-check.
-# VALIDATE_ALL_CODEBASE stays true here on purpose: CI defaults it to false
-# (changed files only), but locally we want the whole working tree checked.
+# Runs super-linter locally with the same env flags as .github/workflows/lint.yml. slim-v8 is
+# amd64-only, so --platform linux/amd64 enables Rosetta on Apple Silicon, and RUN_LOCAL=true lints
+# the working tree instead of a git diff. Keep FILTER_REGEX_EXCLUDE in sync with lint.yml's
+# filter-regex-exclude, or local also lints the docs/ tree CI excludes. VALIDATE_ALL_CODEBASE is
+# true here (CI defaults to changed files only) so a local run checks everything.
 lint *args:
     docker run --rm --platform linux/amd64 \
       -e RUN_LOCAL=true \

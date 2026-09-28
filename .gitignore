@@ -1,4 +1,3 @@
-# Secrets
 *.pub
 *.key
 *.decrypted~*.yaml
@@ -6,25 +5,20 @@
 /github-deploy.key
 /github-deploy.key.pub
 /github-push-token.txt
-# Template config files
 /cluster.yaml
 /nodes.yaml
-# Kubernetes
 kubeconfig
 talosconfig
 # AI planning artifacts (superpowers specs/plans): local-only, may contain internal identifiers
 docs/superpowers/
-# Misc.
 .private/
 .task/
 .venv/
 .claude/*
 !.claude/settings.json
-# settings.json references hooks by path, so the hooks must be tracked with it
-# or a fresh clone gets a config pointing at scripts that do not exist, and the
-# `|| true` those hooks are invoked with turns that into silence, not an error.
-# The directory itself has to be un-ignored: git does not descend into an
-# excluded directory, so a negation on a file inside one never matches.
+# settings.json references hooks by path, and their `|| true` turns a missing script into silence,
+# not an error, so they must stay tracked. The directory itself needs the negation: git does not
+# descend into an excluded directory, so negating a file inside one never matches.
 !.claude/hooks/
 .playwright-mcp/
 .DS_Store
@@ -34,10 +28,8 @@ CLAUDE.md
 # kubectl cache (kubeconfig lives in-repo, so kubectl drops its cache here)
 .kube/
 
-# Python bytecode
 __pycache__/
 *.pyc
 
-# Local-only mise config: carries INTERNAL_DOMAIN_RE for the identifier guard.
-# Never commit: the whole point is to keep the internal zone out of git.
+# Local-only mise config, carries INTERNAL_DOMAIN_RE for the identifier guard; never commit it.
 .mise.local.toml
