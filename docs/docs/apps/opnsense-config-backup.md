@@ -18,8 +18,8 @@ only the ciphertext to a separate GitHub repository.
   pinned release, verified against its published sha256 checksum, and run from a writable
   `emptyDir`. That avoids an `apk` install, so the container keeps a read-only root filesystem and
   runs as a non-root, unprivileged user throughout.
-- **`$${VAR}` escaping in the job script.** Flux's `postBuild` substitution runs on every
-  HelmRelease value before Kustomize renders it, so a literal `$VAR` the container shell should
+- **`$${VAR}` escaping in the job script.** Flux's `postBuild` substitution runs on the Kustomize
+  output, before helm-controller renders the chart, so a literal `$VAR` the container shell should
   resolve at runtime has to be written as `$${VAR}` or Flux blanks it. `$(...)` command
   substitutions are untouched by that substitution and need no escaping.
 - **Age key split between the manifest and 1Password.** The public recipient is a plain HelmRelease
@@ -29,6 +29,3 @@ only the ciphertext to a separate GitHub repository.
 - **Deploy key scoped to one destination.** The `DEPLOY_KEY` ExternalSecret field is a GitHub
   deploy key with write access to the backup target only, paired with a `KNOWN_HOSTS` entry so the
   job's SSH client pins that host's key instead of trusting it on first connect.
-- **Push is a no-op when nothing changed.** The job stages the new ciphertext and only commits and
-  pushes if `git diff --cached` finds a difference, so an unchanged OPNsense config produces no
-  daily commit noise.
