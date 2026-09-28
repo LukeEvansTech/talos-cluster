@@ -78,10 +78,10 @@ spec:
               - secretRef:
                   name: dispatcharr-secret
             probes:
-              # Both kubelet probes stay disabled, matching every other gluetun sidecar here: a
-              # probe restarts the container while the pod netns survives, which self-sustains a
-              # restart loop (KB-042). HEALTH_SERVER_DISABLE_LOOP off recovers the same faults
-              # in-process instead.
+              # Liveness stays disabled, matching every other gluetun sidecar here: a probe
+              # restarts the container while the pod netns survives, which self-sustains a restart
+              # loop (KB-042). HEALTH_SERVER_DISABLE_LOOP off recovers the same faults in-process
+              # instead. Startup stays enabled below, deliberately; it gates the app container.
               liveness:
                 enabled: false
                 custom: true

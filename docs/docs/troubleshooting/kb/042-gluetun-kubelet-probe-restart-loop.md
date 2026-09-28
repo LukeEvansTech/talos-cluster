@@ -4,9 +4,9 @@
 [#4149](https://github.com/LukeEvansTech/talos-cluster/pull/4149) and corrected in
 [#4608](https://github.com/LukeEvansTech/talos-cluster/pull/4608). Every gluetun sidecar in this
 repository now disables the kubelet liveness probe on gluetun's own health server. Three of them
-(`downloads/prowlarr`, `downloads/qbittorrent`, `downloads/sabnzbd`) also disable gluetun's
-internal health loop, which trades this restart loop for a different gap; see
-[hardening backlog H-20](../../operations/hardening-backlog.md#h-20-three-gluetun-sidecars-have-no-automated-recovery-from-a-post-startup-tunnel-degradation).
+(`downloads/prowlarr`, `downloads/qbittorrent`, `downloads/sabnzbd`) also disable the startup probe
+and gluetun's internal health loop, which trades this restart loop for two different gaps; see
+[hardening backlog H-20](../../operations/hardening-backlog.md#h-20-three-gluetun-sidecars-have-no-tunnel-gate-at-start-and-no-recovery-after-it).
 
 ## Symptom
 
