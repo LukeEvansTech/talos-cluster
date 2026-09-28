@@ -43,8 +43,13 @@ seconds.
 with `backoffLimit: 0` does not retry, so a non-zero exit only marks the Job failed; it never
 triggers Kubernetes itself to re-run the pipeline.
 
-`cmd_execute` in `__main__.py` exits non-zero for two different reasons, deliberately conflated
-into the same Job-failure signal:
+`cmd_execute` in `__main__.py` also exits non-zero for several routine refusals that happen before
+any deletion is attempted: a blocked plan, a plan judged against a different plan's recommendations,
+a stale or wrong-mode plan, or lock contention with another run. None of these are ambiguous or
+destructive; they mean the run refused to start and nothing was touched. The distinction that
+matters, covered below, is specific to what happens once deletion is under way: `cmd_execute`
+distinguishes two different post-deletion outcomes, deliberately conflated into the same
+Job-failure signal:
 
 - **A failed deletion** (Radarr answered with a non-2xx status) is a safe no-op to retry: nothing
   was destroyed, so a human or a future run re-attempting it costs nothing.
