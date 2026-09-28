@@ -1,7 +1,6 @@
 ---
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/kustomize.toolkit.fluxcd.io/kustomization_v1.json
-# Syncs the private redfish-fleet repo (drift exporter Deployment/Service,
-# ServiceMonitor, PrometheusRule, and BMC metrics-credentials ExternalSecret).
+# The private repo has the drift exporter, monitoring rules, and BMC metrics-credentials secret.
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
