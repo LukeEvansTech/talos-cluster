@@ -1,8 +1,9 @@
 ---
 # Owner-only review playlists: everything Kometa asked Radarr or Sonarr to add
 # (tag "kometa") that arrived more than 30 days ago. Plex playlists belong to
-# one account, and exclude_users keeps these off every shared user's account,
-# unlike a collection, which anyone with library access can browse.
+# one account; with no sync_to_users here or in settings they stay on the
+# owner's account only, unlike a collection, which anyone with library access
+# can browse.
 #
 # There is deliberately no play-count filter: Kometa reads plays through the
 # owner's account only, so it cannot tell whether anyone else watched a title.
@@ -12,7 +13,6 @@
 playlists:
   Kometa Adds - Movies:
     libraries: Movies
-    exclude_users: all
     radarr_taglist: kometa
     filters:
       added.not: 30
@@ -20,7 +20,6 @@ playlists:
     summary: Films Kometa added from the IMDb Top 250, Oscar Best Picture and TMDb Trending lists, more than 30 days ago.
   Kometa Adds - TV:
     libraries: TV
-    exclude_users: all
     sonarr_taglist: kometa
     filters:
       added.not: 30
