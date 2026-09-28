@@ -1,3 +1,4 @@
 ---
-# Empty on purpose: gateway discovery (kubernetes.yaml) covers every in-cluster tile.
-# Add entries here only for services outside the cluster.
+# Intentionally empty: every tile is discovered from its HTTPRoute annotations
+# (see kubernetes.yaml `gateway: true` and kubernetes/components/homepage).
+# Add static entries here only for services that do not run in this cluster.
