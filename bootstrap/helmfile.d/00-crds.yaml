@@ -1,13 +1,8 @@
 ---
 # yaml-language-server: $schema=https://json.schemastore.org/helmfile
 
-# This helmfile is for extracting and installing Custom Resource Definitions (CRDs) from Helm charts.
-# It is not intended to be used with helmfile apply or helmfile sync.
-#
-# Charts listed here have their CRDs applied out-of-band at bootstrap so that app
-# Kustomizations can rely on them existing without a dependsOn edge on the
-# controller. The version pins are kept in step with each app's
-# ocirepository.yaml by Renovate's helmfile manager.
+# CRDs install out-of-band, not via `helmfile apply`/`sync`, so apps skip a dependsOn edge.
+# Renovate's helmfile manager keeps each version pin in step with the app's ocirepository.yaml.
 
 helmDefaults:
   args:
@@ -19,9 +14,7 @@ releases:
     namespace: network
     chart: oci://ghcr.io/home-operations/charts-mirror/external-dns
     version: 1.22.0
-    # Chart 1.22.0 makes `policy` a required value with no default, so a bare
-    # render fails schema validation before any CRD is emitted. The value is
-    # irrelevant to CRD extraction; it only has to satisfy the schema.
+    # Chart 1.22.0 requires `policy` with no default, or schema validation fails first.
     values:
       - policy: sync
 
