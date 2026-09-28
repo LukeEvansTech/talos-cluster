@@ -1,19 +1,12 @@
 ---
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
 #
-# All idrac_*_health metrics are an enum, not a boolean: 0=OK, 1=Warning,
-# 2=Critical. Hence `> 0` throughout rather than `== 1`, so a jump straight to
-# Critical is never missed.
-#
-# Temperature thresholds are split by sensor class, from `max by (name)` across
-# the whole running fleet rather than one sampled host: CPU Temp 77C, AOC_NIC1
-# 68C, MLP_NIC 66C, GPU0 63C, M2_SSD 53C, and every remaining rail at or below
-# 49C. A single fleet-wide threshold cannot fit that spread. 80C would sit 3C
-# off a normal CPU while letting a NIC reach 79C unnoticed.
-#
-# Job matchers: `job=~"bmc-exporter.*"` covers both exporter deployments and is
-# the default here. Only BmcHostPoweredOff pins job="bmc-exporter" exactly, to
-# exclude the workstation, see the comment on that rule.
+# idrac_*_health metrics are an enum, not a boolean: 0=OK, 1=Warning, 2=Critical,
+# hence `> 0` throughout rather than `== 1`, so a jump straight to Critical is never missed.
+# Temperature thresholds are split by sensor class, measured against the running
+# fleet, since one blanket threshold cannot fit the spread (docs/docs/apps/bmc-exporter.md).
+# job=~"bmc-exporter.*" is the default; only BmcHostPoweredOff pins job="bmc-exporter"
+# to exclude the workstation.
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
@@ -22,11 +15,8 @@ spec:
   groups:
     - name: bmc-exporter.rules
       rules:
-        # Covers both the exporter process dying and a single BMC becoming
-        # unreachable or rejecting the login. It cannot distinguish those, which
-        # is exactly why the ICMP probes in blackbox-exporter were kept: a BMC
-        # that is down there too is a network/BMC fault, one that is up there but
-        # down here is credentials, TLS or firmware.
+        # Can't tell the exporter dying from one BMC rejecting the login; the ICMP
+        # probes in blackbox-exporter tell a dead BMC from a broken one apart.
         - alert: BmcTargetDown
           annotations:
             summary: "Redfish scrape of {{ $labels.instance }} is failing, check the ICMP probe for the same host to tell a dead BMC from a broken login."
@@ -35,21 +25,10 @@ spec:
           for: 15m
           labels:
             severity: critical
-        # The gap this whole exporter exists to close: a BMC answers ICMP
-        # identically whether its host is running or powered off.
-        #
-        # This is the one rule pinned to job="bmc-exporter" exactly rather than
-        # the job=~"bmc-exporter.*" used everywhere else. The workstation is
-        # scraped by its own deployment under job="bmc-exporter-workstation"
-        # solely so this exact-match excludes it: a desk machine is off most of
-        # the time and would otherwise page on every shutdown. It stays covered
-        # by every other rule here. See helmrelease-workstation.yaml.
-        # Gated on the host having been ON within the last 24h: an unexpected
-        # power-off pages within 15m and keeps paging for a day, then the host
-        # is treated as deliberately parked and the alert self-silences. This is
-        # what stops the retired-firewall sled and the cold spare, off for good
-        # since the 2026-07-30 migration, from paging forever, without keeping
-        # a hostname list here (this repo is public) that would drift anyway.
+        # The gap this exporter exists to close: ICMP can't tell running from powered-off.
+        # Pinned to job="bmc-exporter" to exclude the workstation (helmrelease-workstation.yaml).
+        # Gated on 24h-ON history: a retired or cold-spare host stops paging after a day
+        # (docs/docs/apps/bmc-exporter.md explains why that beats a hostname list).
         - alert: BmcHostPoweredOff
           annotations:
             summary: "Host behind {{ $labels.instance }} is powered off (was on within 24h)."
@@ -76,9 +55,8 @@ spec:
           for: 15m
           labels:
             severity: warning
-        # Redundancy lost rather than the PSU itself faulting: the module is
-        # healthy but its feed is gone, which is what a tripped breaker or a
-        # pulled cable looks like. Both PSUs read ~237V in normal service.
+        # Redundancy lost, not a PSU fault: the module is healthy but its feed
+        # (~237V normal) is gone, as from a tripped breaker or a pulled cable.
         - alert: BmcPowerSupplyInputLost
           annotations:
             summary: "PSU {{ $labels.id }} on {{ $labels.instance }} has lost input voltage. The host is running unprotected on its remaining supply."
@@ -95,9 +73,8 @@ spec:
           for: 10m
           labels:
             severity: warning
-        # Guarded on power state so a deliberate shutdown does not read as a
-        # stopped fan. A powered-off host drops its sensor series entirely, but
-        # the guard also covers the window while it is spinning down.
+        # Guarded on power state: catches spin-down, not a deliberate shutdown
+        # reading as a stopped fan.
         - alert: BmcFanStopped
           annotations:
             summary: "Fan {{ $labels.name }} on {{ $labels.instance }} has stopped while the host is running."
@@ -107,12 +84,9 @@ spec:
           for: 10m
           labels:
             severity: critical
-        # CPU packages get their own band. Measured across the running fleet,
-        # CPU Temp peaks at 77C while the next hottest sensor of any kind is a
-        # NIC at 68C and everything else sits at or below 53C, so one blanket
-        # threshold cannot serve both. The matcher is `CPU[0-9]* Temp` rather
-        # than a `CPU` prefix so it covers a second socket ("CPU1 Temp") without
-        # catching the much cooler "CPU_VRM0 Temp" / "SOC_VRM Temp" rails.
+        # CPU packages get their own band (docs/docs/apps/bmc-exporter.md has the measured
+        # spread). `CPU[0-9]* Temp` covers a second socket without catching the
+        # cooler CPU_VRM0/SOC_VRM rails a bare `CPU` prefix would match.
         - alert: BmcCpuTemperatureHigh
           annotations:
             summary: "{{ $labels.name }} on {{ $labels.instance }} is at {{ $value }}C."
@@ -130,10 +104,8 @@ spec:
           for: 5m
           labels:
             severity: critical
-        # Everything that is not a CPU package: NICs, GPUs, VRMs, DIMMs, SSDs,
-        # inlet and board sensors. The hottest of these runs at 68C, so 80C is
-        # ~12C of headroom rather than the ~3C a single fleet-wide threshold
-        # would have left on the CPUs.
+        # Everything but the CPU band; these run far cooler, so 80C leaves real
+        # headroom here (docs/docs/apps/bmc-exporter.md).
         - alert: BmcTemperatureHigh
           annotations:
             summary: "{{ $labels.name }} on {{ $labels.instance }} is at {{ $value }}C."
@@ -143,9 +115,8 @@ spec:
           for: 15m
           labels:
             severity: warning
-        # Bounded away from the warning above because this Alertmanager has no
-        # inhibit_rules. An unbounded warning would page a second time for the
-        # same sensor alongside the critical.
+        # Bounded away from the warning: no inhibit_rules here, so an unbounded
+        # one would double-page alongside the critical.
         - alert: BmcTemperatureCritical
           annotations:
             summary: "{{ $labels.name }} on {{ $labels.instance }} is at {{ $value }}C, thermal shutdown territory."
@@ -154,8 +125,8 @@ spec:
           for: 5m
           labels:
             severity: critical
-        # Correctable ECC errors degrade a DIMM's health long before it fails
-        # outright, and nothing else in the estate can see this.
+        # Catches correctable ECC errors degrading a DIMM before outright failure;
+        # nothing else in the estate sees this.
         - alert: BmcMemoryModuleUnhealthy
           annotations:
             summary: "DIMM {{ $labels.id }} on {{ $labels.instance }} reports {{ $labels.status }}, likely ECC errors."
@@ -172,8 +143,7 @@ spec:
           for: 15m
           labels:
             severity: warning
-        # The BMC reporting on itself. Long `for` because a firmware update or a
-        # BMC reset trips this briefly and resolves on its own.
+        # Long `for`: a firmware update or BMC reset trips this briefly and self-resolves.
         - alert: BmcManagerUnhealthy
           annotations:
             summary: "BMC {{ $labels.instance }} reports its own health as {{ $labels.status }}."
@@ -182,36 +152,14 @@ spec:
           for: 30m
           labels:
             severity: warning
-        # SEL entries at warning or above, within the 7d window set in the
-        # exporter config. The raw metric's value is the entry's creation
-        # timestamp, so presence alone is the signal.
-        #
-        # Aggregated with `count by` deliberately. Every SEL entry carries its
-        # own `id` label, so the unaggregated form raises one alert, and one
-        # Pushover push, per log entry rather than per fault. A failing CR2032
-        # asserts and deasserts "Battery low" every few minutes as the cell sags
-        # under the sensor threshold and recovers: one board went 3 entries on
-        # 2026-08-23 to 20 on 08-25 to 79 by midday on 08-26, each its own page,
-        # and 44 of the 62 alerts then standing in Alertmanager were this rule.
-        # Collapsing on (instance, message, severity) keeps every distinct fault
-        # visible exactly once and moves the repeat count into the summary,
-        # which is the better signal anyway, "flapped 79 times" says more than
-        # 79 identical pages. It also stops a re-read of the log (an exporter
-        # restart, a BMC reset) re-firing the entire 7d backlog at once.
-        #
-        # PWR-0020 excluded: the BMC logs "First AC Power on" at Warning, but it
-        # is informational, every rack power-up emits one per node, which then
-        # pages for the whole 7d window. Four fired across the 2026-08-03
-        # maintenance and were still paging six days later. Scoped to the exact
-        # code rather than the PWR- prefix, which also carries real PSU faults.
-        #
-        # SYS-0067 (runtime critical stop, i.e. a Windows blue screen) and
-        # SYS-0069 (OS graceful shutdown) excluded for the WORKSTATION only. The
-        # BMC logs the host OS's own lifecycle at Warning, so every reboot or
-        # crash of a desktop paged for the full 7d window. On a workstation that
-        # is the user's machine telling the user something they saw happen. The
-        # servers keep both: an unattended server blue-screening is exactly the
-        # silent failure this alert exists to catch.
+        # idrac_events_log_entry's value is a timestamp; presence, not value, is the signal.
+        # Aggregated per fault (job, instance, severity, message), not per SEL entry's own `id`
+        # (docs/docs/troubleshooting/kb/037-bmc-event-log-per-entry-alert-storm.md).
+        # PWR-0020 ("First AC Power on") excluded by exact code, not the PWR- prefix,
+        # which also carries real PSU faults.
+        # SYS-0067/69 (OS crash/shutdown) excluded for the workstation only: that's the
+        # user's own machine telling them something they saw; servers keep both, since an
+        # unattended blue-screen is what this alert exists to catch.
         - alert: BmcEventLogWarning
           annotations:
             summary: "{{ $labels.instance }} logged {{ $value }} {{ $labels.severity }} hardware event(s) in the last 7d: {{ $labels.message }}"

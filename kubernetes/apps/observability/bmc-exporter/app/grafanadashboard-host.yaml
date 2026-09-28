@@ -9,15 +9,9 @@ spec:
   instanceSelector:
     matchLabels:
       grafana.internal/instance: grafana
-  # Single-host companion to the BMC Fleet dashboard: pick one machine and see
-  # everything Redfish reports about it. The fleet view answers "is anything
-  # wrong across the estate"; this one answers "what is wrong with this box".
-  #
-  # Grafana template variables are bare ($host). Flux postBuild only consumes
-  # the braced ${VAR} form.
-  #
-  # job=~"bmc-exporter.*" so the workstation, which is scraped by its own
-  # deployment under a separate job label, appears here alongside the servers.
+  # Single-host companion to the fleet dashboard, scoped by $host.
+  # $host stays bare: Flux postBuild only touches braced ${VAR}, not this JSON.
+  # job=~"bmc-exporter.*" so the workstation's own job label still shows up here.
   json: |-
     {
       "annotations": {"list": []},
