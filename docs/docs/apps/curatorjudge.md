@@ -36,9 +36,10 @@ playback, not membership of the candidate list itself.
 The CronJob sets `backoffLimit: 0` and `concurrencyPolicy: Forbid`. This pipeline ends in DELETEs,
 and a Kubernetes-driven retry would re-run judgement and execution against a plan the previous
 attempt may have already partly acted on. A non-zero exit here only marks the Job failed; it never
-makes Kubernetes itself retry the pipeline. `docs/docs/apps/curator.md` has the code-level detail on
-what `cmd_execute` does with an ambiguous deletion instead (it records the outcome and leaves it
-there, rather than being retried).
+makes Kubernetes itself retry the pipeline. In the shared `curator` engine code, `cmd_execute`
+treats a failed deletion (Radarr answered with a non-2xx status) as a safe no-op to retry, and an
+uncertain one (a transport error after issuing the DELETE) as unsafe to retry: `_delete_one`
+records it and leaves it rather than re-issuing the DELETE.
 
 ## The CLI installs at start-up
 
@@ -46,7 +47,10 @@ Anthropic publishes no public image for the Claude Code CLI, so the `judge` init
 it into a writable `/tmp` prefix at start-up (the root filesystem is read-only and the pod runs as
 a non-root user). `CLAUDE_CODE_VERSION` is pinned in the manifest so the exact version is visible
 in Git rather than resolved fresh on every run. The `judge` step calls it with `--max-turns 1` and
-every tool denied: a single structured judgement, not an agent with filesystem or network reach.
+every tool denied: the model itself has no tool to touch a filesystem or make a network call, a
+single structured judgement rather than an agent. This is a restriction on what the model can
+invoke, not a network boundary on the container: nothing here stops the CLI process or a malicious
+npm dependency from making its own outbound connection.
 
 ## Token lifetime
 
