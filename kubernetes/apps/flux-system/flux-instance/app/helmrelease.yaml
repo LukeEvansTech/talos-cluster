@@ -28,8 +28,7 @@ spec:
         interval: 1h
       kustomize:
         patches:
-          - # Increase the number of workers
-            patch: |-
+          - patch: |-
               - op: add
                 path: /spec/template/spec/containers/0/args/-
                 value: --concurrent=10
@@ -39,12 +38,10 @@ spec:
             target:
               kind: Deployment
               name: (kustomize-controller|helm-controller|source-controller)
-          - # Set resources for kustomize-controller.
-            # `cpu: null` strips the upstream `limits.cpu: 1000m` (a strategic
-            # merge only overrides keys it names, so memory-only limits left the
-            # CPU cap live). kustomize-controller was CFS-throttled in 83% of
-            # periods during merge bursts with `--concurrent=20`. Same on the
-            # other three controllers below.
+          - # `cpu: null` strips the upstream limits.cpu: 1000m; a strategic merge only overrides
+            # keys it names, so a memory-only limit left that cap live and CFS-throttled this
+            # controller in 83% of periods at --concurrent=20. The other three controllers below
+            # repeat this same fix.
             patch: |-
               apiVersion: apps/v1
               kind: Deployment
@@ -65,8 +62,7 @@ spec:
             target:
               kind: Deployment
               name: kustomize-controller
-          - # Set resources for helm-controller
-            patch: |-
+          - patch: |-
               apiVersion: apps/v1
               kind: Deployment
               metadata:
@@ -86,11 +82,8 @@ spec:
             target:
               kind: Deployment
               name: helm-controller
-          - # Set resources for source-controller
-            # 256Mi OOM-crashlooped during a burst of merges (artifact server
-            # rebuilds + 10-chart helm cache + --concurrent=10). Observed ~474Mi
-            # while re-fetching the full artifact set, so 512Mi left almost no
-            # headroom. Set 1Gi to survive future merge bursts.
+          - # 256Mi OOM-crashlooped during a merge burst (artifact rebuilds + 10-chart helm cache +
+            # --concurrent=10); observed ~474Mi mid-refetch, so 1Gi leaves real headroom over 512Mi.
             patch: |-
               apiVersion: apps/v1
               kind: Deployment
@@ -111,8 +104,7 @@ spec:
             target:
               kind: Deployment
               name: source-controller
-          - # Set resources for notification-controller
-            patch: |-
+          - patch: |-
               apiVersion: apps/v1
               kind: Deployment
               metadata:
@@ -132,8 +124,7 @@ spec:
             target:
               kind: Deployment
               name: notification-controller
-          - # Enable in-memory kustomize builds
-            patch: |-
+          - patch: |-
               - op: add
                 path: /spec/template/spec/containers/0/args/-
                 value: --concurrent=20
@@ -146,8 +137,7 @@ spec:
             target:
               kind: Deployment
               name: kustomize-controller
-          - # Enable Helm repositories caching
-            patch: |-
+          - patch: |-
               - op: add
                 path: /spec/template/spec/containers/0/args/-
                 value: --helm-cache-max-size=10
@@ -160,16 +150,14 @@ spec:
             target:
               kind: Deployment
               name: source-controller
-          - # Cache Secrets and ConfigMaps
-            patch: |-
+          - patch: |-
               - op: add
                 path: /spec/template/spec/containers/0/args/-
                 value: --feature-gates=CacheSecretsAndConfigMaps=true
             target:
               kind: Deployment
               name: source-controller
-          - # Flux near OOM detection for Helm
-            patch: |-
+          - patch: |-
               - op: add
                 path: /spec/template/spec/containers/0/args/-
                 value: --feature-gates=OOMWatch=true
@@ -182,24 +170,21 @@ spec:
             target:
               kind: Deployment
               name: helm-controller
-          - # Disable chart digest tracking
-            patch: |-
+          - patch: |-
               - op: add
                 path: /spec/template/spec/containers/0/args/-
                 value: --feature-gates=DisableChartDigestTracking=true
             target:
               kind: Deployment
               name: helm-controller
-          - # Watch configmaps and secrets attached to HelmReleases and Kustomizations
-            patch: |-
+          - patch: |-
               - op: add
                 path: /spec/template/spec/containers/0/args/-
                 value: --watch-configs-label-selector=owner!=helm
             target:
               kind: Deployment
               name: (helm-controller|kustomize-controller)
-          - # Cancel health checks on new Kustomizations revisions
-            patch: |-
+          - patch: |-
               - op: add
                 path: /spec/template/spec/containers/0/args/-
                 value: --feature-gates=CancelHealthCheckOnNewRevision=true
