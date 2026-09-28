@@ -9,10 +9,6 @@ spec:
   instanceSelector:
     matchLabels:
       grafana.internal/instance: grafana
-  # No `datasources:` remap: the upstream JSON has no `__inputs` block and
-  # hardcodes datasource uid "prometheus" directly rather than a ${DS_...}
-  # placeholder, so grafana-operator's string-substitution mechanism has
-  # nothing to replace. If panels show "datasource not found" after import,
-  # this cluster's provisioned Prometheus datasource UID doesn't match the
-  # literal "prometheus" the dashboard expects.
+  # No datasources remap: the upstream JSON hardcodes uid "prometheus" directly
+  # (docs/docs/architecture/ai-llm-stack.md MCP gateway).
   url: https://raw.githubusercontent.com/stacklok/toolhive/main/examples/otel/grafana-dashboards/toolhive-mcp-grafana-dashboard-otel-scrape.json

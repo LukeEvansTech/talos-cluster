@@ -5,12 +5,8 @@ kind: PodMonitor
 metadata:
   name: mcp-gateway
 spec:
-  # Scrapes the VirtualMCPServer's vmcp Deployment pod. Labels verified against
-  # the ToolHive operator source (labelsForVirtualMCPServer in
-  # cmd/thv-operator/controllers/virtualmcpserver_controller.go): every vmcp pod
-  # gets app.kubernetes.io/name=virtualmcpserver + app.kubernetes.io/instance=<CR
-  # name>. No `release: kube-prometheus-stack` label. This cluster's Prometheus
-  # selects monitors without it (see the sibling ../app/podmonitor.yaml).
+  # Labels verified against the operator source, not assumed (docs/docs/architecture/ai-llm-stack.md
+  # Metrics scraping).
   selector:
     matchLabels:
       app.kubernetes.io/instance: mcp-gateway
@@ -19,11 +15,8 @@ spec:
     matchNames:
       - ai
   podMetricsEndpoints:
-    # vmcp exposes one container port named `http` (buildContainerPortsForVmcp in
-    # virtualmcpserver_deployment.go), unlike the "8080" numeric port some
-    # upstream examples use, prometheus-operator matches podMetricsEndpoints[].
-    # port by NAME, so a numeric value here would resolve no target. /metrics is
-    # served on that same port once telemetryConfigRef is set (../gateway/virtualmcpserver.yaml).
+    # Port matched by name, not number: a numeric value resolves no target
+    # (docs/docs/architecture/ai-llm-stack.md Metrics scraping).
     - port: http
       path: /metrics
       interval: 15s

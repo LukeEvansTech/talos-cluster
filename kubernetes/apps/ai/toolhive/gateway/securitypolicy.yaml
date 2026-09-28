@@ -6,8 +6,7 @@ metadata:
   name: mcp-gateway-api-key
 spec:
   apiKeyAuth:
-    # Any key's value in the mcp-gateway-api-keys Secret (../gateway/externalsecret.yaml)
-    # is accepted; Envoy Gateway doesn't distinguish which key matched.
+    # Any key's value is accepted; Envoy Gateway doesn't distinguish which one matched.
     credentialRefs:
       - group: ""
         kind: Secret
@@ -15,8 +14,7 @@ spec:
     extractFrom:
       - headers:
           - x-api-key
-    # Strip the header before it reaches the vmcp backend, so the key is never
-    # forwarded past the gateway.
+    # The key is never forwarded past the gateway.
     sanitize: true
   targetRefs:
     - group: gateway.networking.k8s.io

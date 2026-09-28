@@ -6,16 +6,16 @@ re-targeted to this cluster: **NVIDIA L4 GPUs + llama.cpp (llmkube)**.
 
 ## Components
 
-| App           | Role                                                                               | Status |
-| ------------- | ---------------------------------------------------------------------------------- | ------ |
-| `litellm`     | OpenAI-compatible gateway: routing, fallbacks, cache, metrics, MCP                 | live   |
-| `llmkube`     | llama.cpp model-serving operator (CUDA); 1 model active                            | live   |
-| `open-webui`  | chat UI (SearXNG web search, Dragonfly websockets)                                 | live   |
-| `toolhive`    | MCP servers (9 read-only) + a VirtualMCPServer gateway                             | live   |
-| `memini`      | agent long-term memory (SQLite + CPU embed/rerank)                                 | live   |
-| `hermes`      | NousResearch hermes-agent gateway + dashboard (memini-backed, ToolHive VMCP-wired) | live   |
-| `hermeswebui` | chat web frontend for hermes (via its API server)                                  | live   |
-| `repowiki`    | AI-generated per-repository wiki (mkdocs-material + CronJob)                       | live   |
+| App           | Role                                                                               | Status   |
+| ------------- | ---------------------------------------------------------------------------------- | -------- |
+| `litellm`     | OpenAI-compatible gateway: routing, fallbacks, cache, metrics, MCP                 | live     |
+| `llmkube`     | llama.cpp model-serving operator (CUDA); 1 model active                            | live     |
+| `open-webui`  | chat UI (SearXNG web search, Dragonfly websockets)                                 | live     |
+| `toolhive`    | MCP servers (9 read-only) + a VirtualMCPServer gateway                             | live     |
+| `memini`      | agent long-term memory (SQLite + CPU embed/rerank)                                 | live     |
+| `hermes`      | NousResearch hermes-agent gateway + dashboard (memini-backed, ToolHive VMCP-wired) | live     |
+| `hermeswebui` | chat web frontend for hermes (via its API server)                                  | live     |
+| `repowiki`    | AI-generated per-repository wiki (mkdocs-material + CronJob)                       | live     |
 | `foreman`     | LLMKube coder/gate/reviewer control plane. Trialled, manifests in `.archive/`      | archived |
 
 LiteLLM persists to CNPG `postgres18` (`litellm` db) and caches in Dragonfly. Internal-only route
@@ -202,9 +202,18 @@ CRDs + operator charts, see `toolhive/app/ocirepository.yaml` for the current pi
 | `seerr`   | overseerr-mcp                   | Overseerr request + discovery tools                       |
 | `hamcp`   | ha-mcp                          | Home Assistant tools (scoped long-lived token)            |
 
-kubectl + flux share one read-only `ClusterRole` (`kubectl-mcp-readonly`) built from this cluster's
-API groups with core `secrets` omitted. Keep it in sync with `kubectl api-resources` as you add
-CRDs. The talos MCP mounts a `talos.dev` `ServiceAccount`-minted `os:reader` talosconfig.
+kubectl + flux share read-only access built from this cluster's API groups with core `secrets`
+omitted, split across two `ClusterRole`s bound to the same ServiceAccount (plus a second SA for
+flux-mcp; `kubectl-mcp-readonly` for the aggregation, `kubectl-mcp-readonly-explicit` for
+everything the aggregation doesn't cover). The split is mandatory, not a style choice: a
+`ClusterRole` carrying an `aggregationRule` has its `rules` field owned by the aggregation
+controller, which overwrites anything written alongside it, so any rules placed on that role are
+dead on arrival. `kubectl-mcp-readonly` mirrors the built-in `view` ClusterRole's selector and
+expands automatically as operators ship `aggregate-to-view` ClusterRoles; the explicit role lists
+the core group by name (`secrets` omitted) and this cluster's other API groups, minus `auth/*` and
+`onepassword.com`, as `resources: ["*"]`, which is safe there because Secret objects only exist in
+the core group. Keep the non-core group list in sync with `kubectl api-resources` as you add CRDs.
+The talos MCP mounts a `talos.dev` `ServiceAccount`-minted `os:reader` talosconfig.
 
 The `mcp_semantic_tool_filter` is **on** (top_k 8, embeddings via the `qwen3-embedding` model on
 the CPU `toolhiveembed` pod): with 9 servers' worth of tools it trims each request to the most
@@ -227,20 +236,80 @@ rather than LiteLLM's `all-minilm` (all-MiniLM-L6-v2): MiniLM's BERT architectur
 512-token limit and some kubectl tool descriptions exceed it, which used to terminate every VMCP
 session with an OpenAI 400 "input larger than max context size" error. The same cap turned out
 to be breaking LiteLLM's own `mcp_semantic_tool_filter` above, which now embeds here too;
-`all-minilm` stays in place for memini alone. Sessions are stored in Dragonfly so the
-Deployment can scale beyond one replica.
+`all-minilm` stays in place for memini alone.
 
 - **External URL**: `https://mcp.${SECRET_DOMAIN}/mcp`, header `x-api-key: <key>`. Keys live as
   fields on the `toolhive` 1Password item; the workstation's key is
   `TOOLHIVE_WORKSTATION_API_KEY`. Add a client by adding a field to that item plus a matching
   template key in `toolhive/gateway/externalsecret.yaml`'s `mcp-gateway-api-keys` ExternalSecret.
   Any key's value in the resulting Secret is accepted (Envoy Gateway's `SecurityPolicy` doesn't
-  distinguish which one matched).
+  distinguish which one matched), and the `SecurityPolicy` strips the header before it reaches the
+  vmcp backend, so the key is never forwarded past the gateway.
 - **In-cluster URL**: `http://vmcp-mcp-gateway.ai.svc.cluster.local:4483/mcp`, no auth (anonymous
   `incomingAuth`, because the API-key gate lives at the Envoy Gateway edge, not in the vmcp app
-  itself).
+  itself). The ToolHive operator names a `VirtualMCPServer`'s Service `vmcp-<name>`, distinct from
+  an `MCPServer`'s `mcp-<name>-proxy` pattern (see "Adding an MCP server" below).
+- The gateway's own `/health` is unauthenticated, but the `SecurityPolicy` requires `x-api-key` on
+  every path the `HTTPRoute` matches, `/health` included, so an unauthenticated Gatus probe would
+  get 401. `httproute.yaml` disables Gatus auto-monitoring for this route rather than carving out
+  an unauthenticated path just for the health check.
+- The optimizer's embedding call to `litellm.ai.svc.cluster.local` uses a scoped
+  `LiteLLMVirtualKey` (`toolhive/gateway/virtualkey.yaml`, models `all-minilm` +
+  `qwen3-embedding`), and `embeddingServiceTimeout: 600s`: a fresh session embeds every tool
+  description through the CPU embedder, measured at ~2 minutes for the full set, so the 60s value
+  from Jory's GPU-sized deployment timed out and stacked retries.
+- Sessions are stored in Dragonfly (`sessionStorage.provider: redis`) so the Deployment can scale
+  beyond one replica without pinning MCP clients to a specific pod.
 - Metrics are scraped from the same port via the existing `prometheus` `MCPTelemetryConfig`; a
-  Grafana dashboard is imported from ToolHive's upstream OTEL-scrape dashboard JSON.
+  Grafana dashboard is imported from ToolHive's upstream OTEL-scrape dashboard JSON. The upstream
+  JSON hardcodes the datasource uid `prometheus` directly rather than a `${DS_...}` placeholder, so
+  there is no `__inputs` block for `grafana-operator`'s substitution to target; if panels show
+  "datasource not found", this cluster's Prometheus datasource UID doesn't match that literal.
+
+### Metrics scraping
+
+Both `PodMonitor`s in this layer (`toolhive/app/podmonitor.yaml` for the per-`MCPServer` proxy
+pods, `toolhive/gateway/podmonitor.yaml` for the `vmcp` gateway pod) share two traps:
+
+- Neither carries a `release: kube-prometheus-stack` label; this cluster's Prometheus selects
+  monitors without it, so copying that selector from an upstream example would silently drop the
+  target.
+- The ToolHive operator names the container port `http`, not a numeric port. Prometheus matches
+  `podMetricsEndpoints[].port` by name, so a numeric value resolves no target at all. `/metrics` is
+  served on that same port once a `telemetryConfigRef` is set (`MCPTelemetryConfig`, created by the
+  `toolhive` Kustomization). The gateway `PodMonitor`'s label selector
+  (`app.kubernetes.io/name=virtualmcpserver`, `app.kubernetes.io/instance=<CR name>`) is verified
+  against the operator's `labelsForVirtualMCPServer` source, not assumed from an example.
+
+### Embedding server tuning
+
+The dedicated CPU embedder (`toolhive/embed/helmrelease.yaml`, `toolhiveembed`) runs
+Qwen3-Embedding-0.6B for both the VMCP tool optimizer and LiteLLM's `mcp_semantic_tool_filter`.
+Its `llama.cpp` flags were tuned against several OOM and timeout incidents, all on 2026-08-25:
+
+- `--ctx-size 8192` is the total KV budget, split evenly across `--parallel` slots. At 4 slots
+  that left 2048 tokens per input, and a batched tool-description upsert 400'd
+  (`exceed_context_size_error`). Two slots give 4096 tokens per input, comfortably above the
+  longest MCP tool description seen (~650 tokens), while keeping the 0.6B model's KV inside the
+  2Gi memory limit.
+- `--ubatch-size` must be at least the longest single input, since `llama.cpp` cannot split one
+  pooled-embedding sequence across micro-batches, and it sizes the attention scratch buffers
+  quadratically: `8192` OOM-killed the pod at 2Gi on the first multi-input request. `2048` is
+  ample for the ~650-token descriptions; `--batch-size 4096` matches the slot context.
+- The optimizer embeds every tool description (~540 inputs, ~100k tokens) when a session starts.
+  At 4 threads that took minutes and the optimizer's request timed out, then retried while the
+  first batch was still queued. Nodes have 24 cores, so this runs `--threads 12` with a matching
+  CPU request.
+- `llama-server`'s RAM prompt cache (`--cache-ram`, default 8192 MiB) keeps every processed
+  sequence's KV so later prompts sharing a prefix can reuse it, but embedding inputs never share
+  prefixes, so the cache only grows: it OOM-killed the pod at 3Gi after ~180 tool-description
+  inputs. `--cache-ram 0` plus `--no-cache-prompt` disables it entirely, but RSS still grows ~2Gi
+  transiently while working through the optimizer's ~540-input batch and settles back to ~1Gi
+  after; 3Gi OOM-killed the pod mid-batch three more times even with caching off, hence the 6Gi
+  memory limit.
+- `--mmap` was removed upstream in favor of `--load-mode`, and passing the old flag makes the
+  server exit with "invalid argument: --mmap" before it binds a port. `--load-mode` works on both
+  the old and new builds, so it's used here.
 
 ### flux-mcp write access (enabled)
 
@@ -250,8 +319,11 @@ The flux MCP has had write access to Flux CRDs since this was enabled: `flux-mcp
 cluster, one rule per apiGroup (`fluxcd.controlplane.io`, `helm.toolkit.fluxcd.io`,
 `kustomize.toolkit.fluxcd.io`, `notification.toolkit.fluxcd.io`, `source.toolkit.fluxcd.io`),
 each listing its resources by name rather than `resources: ["*"]`, because a wildcard trips Trivy
-KSV-0046 and Checkov's wildcard-RBAC check even when the apiGroups are this narrow. Nothing
-outside Flux CRDs, and no `secrets` access (core `""` is never included). `image.toolkit.fluxcd.io`
+KSV-0046 and Checkov's wildcard-RBAC check even when the apiGroups are this narrow. The resource
+list for each apiGroup comes from `kubectl api-resources --api-group=<group> -o name` against the
+live cluster, and deliberately excludes subresources like `<kind>/status`: `flux-operator-mcp`'s
+write tools only ever patch spec or annotations on the main object, never status. Nothing outside
+Flux CRDs, and no `secrets` access (core `""` is never included). `image.toolkit.fluxcd.io`
 has no rule because this cluster doesn't run the Flux image-automation controller. Add one
 (`imagepolicies`, `imagerepositories`, `imageupdateautomations`) if that ever changes, and add
 any other new Flux kind by hand when a component upgrade introduces one. This lets it (and
@@ -276,6 +348,10 @@ endpoint to LiteLLM's `mcp_servers`. The service name depends on the transport:
   spec's `mcpPort`.
 - **`stdio` transport with `proxyMode: streamable-http`** (e.g. `github`, grafana): ToolHive creates
   `mcp-<name>-proxy` on the spec's `proxyPort` (typically 8080).
+
+Registering an existing app's Service as an `MCPServerEntry` (`arrmcp`, `searxng`) hits one more
+trap: ToolHive rejects a `remoteUrl` host containing `cluster.local` unless `allowPrivateEndpoint`
+is set. The short `svc.ns` form resolves the same address and is accepted as-is.
 
 #### What clients actually see
 
