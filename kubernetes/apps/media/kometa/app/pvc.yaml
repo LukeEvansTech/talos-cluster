@@ -1,7 +1,6 @@
 ---
-# Kometa's lookup cache (config.cache) only. It is fully rebuildable, so it is
-# deliberately left out of VolSync; without it every run re-fetches every
-# rating and blows the MDBList daily quota.
+# Holds only the rebuildable MDBList/rating lookup cache, so it skips VolSync.
+# Losing it costs a full re-fetch of every rating against the daily MDBList quota.
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
