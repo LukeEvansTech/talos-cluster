@@ -22,12 +22,8 @@ spec:
     namespace: flux-system
   targetNamespace: *namespace
   timeout: 5m
-  # CR-only app. The backups run on the Docker boxes themselves and are scraped
-  # through their existing node-exporters, so there is nothing in-cluster to
-  # health-check. Same shape as nut-appliance and truenas-exporter.
+  # CR-only app: backups run on the Docker boxes, scraped via their own node-exporters.
+  # Same shape as nut-appliance and truenas-exporter.
   #
-  # Rules only, no scrapeconfig: the seedbox and TrueNAS node-exporters are
-  # already scraped (kubernetes/apps/observability/seedbox and the
-  # truenas-exporter jobs), so the metrics arrive without new plumbing. This
-  # directory exists solely to own the alerting.
+  # No scrapeconfig: the seedbox/TrueNAS jobs already scrape them; this owns only the alerting.
   wait: false
