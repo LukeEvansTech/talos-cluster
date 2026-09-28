@@ -1,19 +1,9 @@
 #!/usr/bin/env bash
-# Read-only cluster health snapshot. Prints one JSON document on stdout.
-#
-# Every check is isolated: a command that fails records {"blind": true, "error": "..."}
-# for its key instead of aborting the run, because a check that did not run must
-# never read as green. See docs/docs/operations/health-verdict.md for what each
-# field means and how to classify it.
-#
-# Requires: kubectl, flux, jq, and KUBECONFIG pointing at the cluster.
 set -uo pipefail
 
 : "${KUBECONFIG:?set KUBECONFIG to the repo kubeconfig}"
 export KUBECONFIG
 
-# run KEY CMD... : capture stdout as a JSON string under KEY, or a blind marker on failure.
-# Output is accumulated into $parts (one JSON object fragment per check).
 parts=()
 run() {
     local key=$1
@@ -22,8 +12,8 @@ run() {
     if out=$("$@" 2>/tmp/health-err.$$) && [ -n "$out" ] && jq -e . >/dev/null 2>&1 <<<"$out"; then
         parts+=("$(jq -n --arg k "$key" --argjson v "$out" '{($k): $v}')")
     else
-        # Covers a non-zero exit, an empty body from a proxy, and non-JSON output:
-        # all three are "did not run", never "nothing wrong".
+        # A non-zero exit, an empty proxy body, and non-JSON output are all "did not run",
+        # never "nothing wrong".
         err=$(head -c 400 /tmp/health-err.$$ | tr -d '\000')
         [ -n "$err" ] || err="empty or non-JSON output"
         parts+=("$(jq -n --arg k "$key" --arg e "$err" '{($k): {blind: true, error: $e}}')")
@@ -43,8 +33,7 @@ nodes() {
     }'
 }
 
-# flux_list KIND : "ns/name" JSON array of not-ready objects of KIND, or non-zero if flux failed.
-# stderr is left alone so a failure surfaces as blind, never as a bogus "not ready" entry.
+# stderr is left alone so a flux failure surfaces as blind, never as a bogus "not ready" entry.
 flux_list() {
     local raw
     raw=$(flux get "$@" -A --status-selector ready=false --no-header) || return 1
@@ -76,9 +65,8 @@ pods() {
     }'
 }
 
-# Presence guards: this cluster always has ExternalSecrets, ReplicationSources
-# and Gatus series. Zero of any of them means the read path is broken, not that
-# everything is healthy, so those cases return non-zero and record as blind.
+# Presence guards: this cluster always has ExternalSecrets, ReplicationSources and Gatus series.
+# Zero of any means the read path is broken, not a healthy cluster, so it returns blind.
 eso() {
     local store all es
     store=$(kubectl get clustersecretstore onepassword-connect -o json | jq '[.status.conditions[]? | select(.type=="Ready" and .status=="True")] | length > 0') || return 1
@@ -91,9 +79,8 @@ eso() {
     jq -n --argjson s "$store" --argjson e "$es" --argjson n "$(jq '.items | length' <<<"$all")" '{store_ready: $s, total: $n, not_synced: $e}'
 }
 
-# The always-firing Watchdog proves Prometheus is still evaluating rules and
-# delivering to Alertmanager. Without it an empty critical list means the
-# pipeline is dead, not that the cluster is quiet, so its absence is blind.
+# The always-firing Watchdog proves Prometheus still evaluates rules and delivers to Alertmanager.
+# Without it, an empty critical list means the pipeline is dead, not that the cluster is quiet.
 alerts() {
     local base wd crit
     base="/api/v1/namespaces/observability/services/kube-prometheus-stack-alertmanager:9093/proxy/api/v2/alerts"
@@ -121,9 +108,8 @@ volsync() {
         echo "no ReplicationSources returned" >&2
         return 1
     }
-    # stale: a source whose last successful sync is older than about twice its
-    # schedule (NFS/kopia every 4 h -> 9 h; R2/restic nightly -> 30 h). A backup
-    # path that quietly stops leaves every other field looking healthy.
+    # stale: no sync in over 9h for kopia (~2x its 4h schedule) or 30h for restic (nightly).
+    # A backup that quietly stops otherwise looks healthy on every other field.
     jq 'now as $n | {
         total: (.items | length),
         stale: [.items[] | (if .spec.kopia then 9 elif .spec.restic then 30 else 30 end) as $h
@@ -137,10 +123,8 @@ volsync() {
 gatus() {
     local base total failing
     base="/api/v1/namespaces/observability/services/kube-prometheus-stack-prometheus:9090/proxy/api/v1/query"
-    # Guard on the sidecar-DISCOVERED endpoints (group internal|external comes
-    # only from the Gateway annotation the sidecar inherits), not on the total:
-    # the six static endpoints in config.yaml keep the total non-zero even when
-    # discovery has lost every HTTPRoute.
+    # Guard on sidecar-discovered endpoints (group internal|external, from the Gateway annotation),
+    # not the total: six static endpoints in config.yaml keep that non-zero even if discovery dies.
     total=$(kubectl get --raw "${base}?query=count(gatus_results_endpoint_success%7Bgroup%3D~%22internal%7Cexternal%22%7D)" | jq -r '.data.result[0].value[1] // "0"') || return 1
     [ "$total" -gt 0 ] 2>/dev/null || {
         echo "no sidecar-discovered Gatus endpoints (group internal|external) in Prometheus: discovery is down" >&2
