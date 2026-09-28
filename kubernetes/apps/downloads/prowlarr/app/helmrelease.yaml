@@ -23,11 +23,10 @@ spec:
               repository: ghcr.io/qdm12/gluetun
               tag: v3.41.3@sha256:fa19cc76b2af13d57a8d3dc3066f2ada061b1c761b8aecf989b3877c0486e027
             env:
-              # BLOCK_MALICIOUS: off # save 300MB of RAM; https://github.com/qdm12/gluetun/issues/2054
               DOT: "on"
               DOT_CACHING: "on"
               DOT_IPV6: off
-              # is absolutely needed if the container is expected to be able to resolve or communicate to any cluster services, without it cluster services cannot be resolved consistently or at all in many setups.
+              # Keeps CoreDNS as the resolver, so cluster services stay resolvable in-tunnel.
               DNS_KEEP_NAMESERVER: "on"
               FIREWALL: true
               FIREWALL_DEBUG: on
@@ -37,20 +36,11 @@ spec:
               HEALTH_SERVER_DISABLE_LOOP: on
               HEALTH_VPN_DURATION_INITIAL: 60s
               LOG_LEVEL: debug
-              # Run as root (0) rather than gluetun's default 1000: gluetun
-              # chowns its public-IP status file to PUID:PGID after every
-              # write, which needs CAP_CHOWN, and this container drops ALL
-              # capabilities. Chowning to the file's existing owner is a
-              # permitted no-op instead. PUID otherwise only feeds the
-              # OpenVPN process user, unused on a WireGuard tunnel.
+              # Root (0) avoids EPERM chowning the public-IP file to PUID:PGID under drop-ALL.
               PGID: 0
-              # Public IP check provider. gluetun only accepts "ipinfo" or
-              # "ip2location"; ipinfo rate-limits (HTTP 429) on its free monthly
-              # tier, so use ip2location for the (cosmetic) public-IP display.
-              # https://github.com/qdm12/gluetun-wiki/blob/main/setup/options/others.md
+              # ip2location avoids ipinfo's 429 on its free tier; the display is cosmetic.
               PUBLICIP_API: ip2location
               PUID: 0 # see PGID above
-              # STORAGE_FILEPATH: "" # prevent memory spike and avoid I/O
               TZ: ${TIMEZONE}
               UPDATER_PERIOD: 12h
               VERSION_INFORMATION: off
@@ -103,29 +93,15 @@ spec:
               TZ: ${TIMEZONE}
               PROWLARR__APP__INSTANCENAME: Prowlarr
               PROWLARR__APP__THEME: dark
-              # Enabled, not DisabledForLocalAddresses. Prowlarr resolves "local"
-              # from the address it sees, and every request through the gateway
-              # presents an Envoy pod address -- which is RFC1918, so the local
-              # exemption would apply to all traffic regardless of the real
-              # client. Already the live posture via config.xml, which is not in
-              # Git; declaring it here is what stops a config reset or a UI
-              # change from silently reverting to the insecure default. Mirrors
-              # radarr. API-key clients (the exportarr sidecar, the *arr apps
-              # syncing indexers) authenticate separately and are unaffected.
+              # Enabled, not DisabledForLocalAddresses: an Envoy pod IP looks RFC1918-local on every
+              # request, so that exemption covers all traffic; also pins config.xml against a reset.
               PROWLARR__AUTH__REQUIRED: Enabled
               PROWLARR__LOG__LEVEL: info
-              # Host header allowlist. localhost, loopback and the pod hostname
-              # are always accepted, so the exportarr sidecar (http://localhost:80)
-              # needs no entry. The other *arr apps reach Prowlarr on the FQDN
-              # baked into the indexer definitions Prowlarr syncs to them, which
-              # is the service name and NOT the release name -- this app exposes
-              # two services, so the HTTP one is prowlarr-app. Verified against
-              # the live indexer list on both consumers.
+              # localhost/loopback/pod-hostname are auto-allowed for exportarr. Other *arr apps use
+              # the synced indexers' FQDN: the SERVICE name, prowlarr-app, not the release name.
               PROWLARR__SERVER__ALLOWEDHOSTS: prowlarr.${SECRET_DOMAIN},prowlarr-app.downloads.svc.cluster.local
               PROWLARR__SERVER__PORT: &port 80
-              # Trust X-Forwarded-* from the Envoy Gateway proxies (pod network)
-              # so the real client address is what Prowlarr sees and logs.
-              # Requires Prowlarr >= 2.6.3, where the setting was added.
+              # Trusts X-Forwarded-* from Envoy for real client logging; needs Prowlarr >= 2.6.3.
               PROWLARR__SERVER__TRUSTEDNETWORKS: ${CLUSTER_PODS_CIDR}
               PROWLARR__UPDATE__BRANCH: develop
             envFrom: *envFrom
@@ -283,12 +259,8 @@ spec:
         existingClaim: "{{ .Release.Name }}"
       tmp:
         type: emptyDir
-      # gluetun creates its status directory with os.MkdirAll("/tmp/gluetun",
-      # 0644), a directory with no execute bit, so nothing can traverse into
-      # it without CAP_DAC_OVERRIDE (cmd/gluetun/main.go). Pre-creating the
-      # path as an emptyDir (mode 1777) makes that MkdirAll a no-op and keeps
-      # the mode sane, so the public-IP file stays writable with all
-      # capabilities dropped. Paired with PUID/PGID 0 in the gluetun env.
+      # Pre-created (mode 1777): gluetun's own MkdirAll leaves no execute bit, which blocked the
+      # public-IP write under this drop-ALL container. Paired with PUID/PGID 0 in the gluetun env.
       gluetun-tmp:
         type: emptyDir
         medium: Memory
