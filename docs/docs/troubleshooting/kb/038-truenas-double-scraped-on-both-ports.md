@@ -5,8 +5,9 @@
 ## Symptom
 
 Every node-exporter and smartctl-exporter series from the storage host arrived twice, under
-two different job labels. Any rule or panel that selected on either job fired or counted
-twice for the same host.
+two different job labels. A query or panel scoped to exactly one job label (`node-exporter`
+alone, say) only ever matched its own copy and read correctly. An unscoped query, or one
+whose matcher spanned both job values, counted or fired for this host twice.
 
 ## Cause
 

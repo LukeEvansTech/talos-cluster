@@ -38,8 +38,10 @@ Each alert covers one blind spot the others can't see:
   see with no series to compare. Same `id="11"` scope, a 2h fuse; a full box outage is
   covered by other alerts.
 - `TrueNASReplicationCollectorStale`: the collector cron stopped but the textfile still
-  reads, so the series is present and frozen rather than missing. It attributes the fault
-  to the collector after four missed 15-minute runs.
+  reads, so the series is present and frozen rather than missing. Its `> 3600` condition
+  needs four missed 15-minute runs before it goes true, and the rule's own 15m `for` then
+  holds it pending for a fifth, so it attributes the fault to the collector roughly 75
+  minutes after it stops, not after four runs.
 - `TrueNASReplicationNeverSucceeded`: the backstop for a task that never triggers or
   never finishes. Both keep `last_success` at 0 forever, which leaves Stale's and Failing's
   guards quiet indefinitely. The 168h window sits well past the seed period so a stuck task
@@ -51,10 +53,12 @@ gets a new middleware ID, and both expressions need updating to match.
 
 ## Scrapeconfig job naming
 
-The seedbox and the NUT appliance both use the estate's `<box>-*` job-naming convention
-(see [seedbox](seedbox.md)), but this app's ScrapeConfigs keep the cluster's own
-`node-exporter` and `smartctl-exporter` job names instead. That's a deliberate exception,
-checked against two costs before it was kept:
+The seedbox and the NUT appliance both use the estate's `<box>-*` job-naming convention for
+every exporter on the host (see [seedbox](seedbox.md)). This storage host's node and SMART
+metrics are the deliberate exception: they keep the cluster's own `node-exporter` and
+`smartctl-exporter` job names, scraped by `kube-prometheus-stack`'s own ScrapeConfig rather
+than by this app (see below). That exception was checked against two costs before it was
+kept:
 
 - 22 of the default node-alert rules select `job="node-exporter"` (filesystem fill, RAID
   degraded, bonding degraded, clock skew, systemd unit failures and more). This host is the
@@ -64,8 +68,5 @@ checked against two costs before it was kept:
   `job="smartctl-exporter"` in five places. Renaming the job would have silently blanked
   the drive-temperature alert and four dashboard panels.
 
-This decision is also why the ScrapeConfigs for the NAS's node and SMART metrics don't live
-in this app at all: they're scraped by `kube-prometheus-stack`'s own ScrapeConfig under
-those same job names. See
-[KB-038](../troubleshooting/kb/038-truenas-double-scraped-on-both-ports.md) for the incident
-that established this.
+See [KB-038](../troubleshooting/kb/038-truenas-double-scraped-on-both-ports.md) for the
+incident that established this split of ownership.

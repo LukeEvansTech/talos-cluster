@@ -25,7 +25,7 @@ spec:
   # docker_state_exporter (:9419), keyed by container name so it survives restarts,
   # unlike the graphite bridge's ID-keyed cgroup_* series.
   # metricRelabelings drop noisy container_label_* but keep cd_doco_metadata_manager,
-  # scoping truenas-docker.rules to the GitOps-managed fleet.
+  # which only TrueNASContainerDown uses to scope to the GitOps-managed fleet.
   staticConfigs:
     - targets:
         - ${SECRET_STORAGE_SERVER}:9419

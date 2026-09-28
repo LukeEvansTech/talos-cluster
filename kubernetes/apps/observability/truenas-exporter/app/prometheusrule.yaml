@@ -63,9 +63,8 @@ spec:
           for: 5m
           labels:
             severity: critical
-        # Excludes doco-cd's one-shot restore inits (exit 0, stay exited by design); a failed
-        # init sticks in `created` instead, which is why that status is included. See
-        # docs/docs/apps/seedbox.md#one-shot-containers (#4088).
+        # Restore inits excluded by NAME (exit 0, stay exited); `created` catches a failed one.
+        # Same fleet-wide incident as seedbox's (#4088), but matched by name, not their label.
         - alert: TrueNASContainerDown
           annotations:
             summary: "TrueNAS container {{ $labels.name }} is not running (state: {{ $labels.status }})."
