@@ -7,7 +7,7 @@ Reolink cameras in a later phase.
 ## Purpose
 
 - Node/TypeScript camera hub (`ghcr.io/koush/scrypted`) chosen over Frigate or a
-  Home Assistant-only setup because it ships first-party **Ring** *and*
+  Home Assistant-only setup because it ships first-party **Ring** _and_
   **Reolink** plugins plus the strongest HKSV pipeline.
 - **Phase 0 (current):** the official Ring plugin bridges the existing Ring
   fleet (2× Doorbell Pro 2, Doorbell 2nd Gen, Stick Up Cam Battery, Floodlight
@@ -43,7 +43,7 @@ Scrypted is **additive**: Homebridge stays.
   Apple TVs answered `_airplay._tcp` / `_companion-link._tcp` / `_sleep-proxy._udp`
   on the **untagged legacy LAN**, while **VLAN 68 returned zero services**, so
   no reflection exists into the IoT VLAN. Scrypted therefore attaches to
-  `iot-legacy` (like `matter-server`), *not* the `iot` NAD used by Home
+  `iot-legacy` (like `matter-server`), _not_ the `iot` NAD used by Home
   Assistant, zigbee2mqtt and mosquitto. Upstream's own compose uses
   `network_mode: host` for exactly this reason; macvlan is the cluster's
   equivalent of real LAN presence.
@@ -56,7 +56,7 @@ Scrypted is **additive**: Homebridge stays.
   PVC; a RollingUpdate would briefly run two pods sharing one MAC/IP and
   deadlock on the volume.
 - **UI routed over plain HTTP (`11080`), not HTTPS (`10443`).** Scrypted serves
-  the *same* application on both ports (`SCRYPTED_INSECURE_PORT` /
+  the _same_ application on both ports (`SCRYPTED_INSECURE_PORT` /
   `SCRYPTED_SECURE_PORT`). Routing the gateway at `11080` avoids introducing a
   `BackendTLSPolicy` + skip-verify for Scrypted's self-signed cert. The
   repository has no such pattern anywhere today. The HTTPS port stays available on the pod
@@ -73,6 +73,9 @@ Scrypted is **additive**: Homebridge stays.
   within the same suffix family. The `-noble-nvidia` variant is the drop-in
   swap if GPU transcoding is ever wanted: the cluster's NVIDIA L4s and the
   `runtimeClassName: nvidia` pattern are available, but Phase 0 needs no GPU.
+- **`exec` probes, not httpGet.** The macvlan pod cannot route back to its own node, so a
+  kubelet httpGet probe blackholes even though the app answers on its own address. Liveness
+  and readiness instead run `curl` through the container, which bypasses the pod network.
 
 ## Storage
 
@@ -80,8 +83,8 @@ Scrypted is **additive**: Homebridge stays.
   treatment. This holds plugin installs, the device database and **the HomeKit
   pairing keys**. Losing it unpairs every accessory in Apple Home.
 - **No NVR volume.** HKSV clips live in iCloud, so Phase 0 provisions no bulk
-  storage. A commented TrueNAS NFS mount and the `SCRYPTED_NVR_VOLUME=/nvr`
-  variable are left in the HelmRelease for when the Reolink NVR plugin is
+  storage. Add a TrueNAS NFS mount alongside `config` and set
+  `SCRYPTED_NVR_VOLUME=/nvr` on the container when the Reolink NVR plugin is
   adopted.
 
 ## Secrets

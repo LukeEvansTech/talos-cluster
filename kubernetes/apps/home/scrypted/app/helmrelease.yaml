@@ -14,37 +14,24 @@ spec:
       scrypted:
         annotations:
           reloader.stakater.com/auto: "true"
-        # Recreate, not RollingUpdate: the pod owns a fixed macvlan IP/MAC
-        # (see defaultPodOptions) and a ReadWriteOnce PVC. Two pods alive at
-        # once would duplicate the L2 address and deadlock on the volume.
+        # Recreate avoids two pods sharing one macvlan MAC/IP and deadlocking the PVC.
         strategy: Recreate
         containers:
           app:
             image:
               repository: ghcr.io/koush/scrypted
-              # `-noble-full` is the variant upstream ships as :latest (identical
-              # digest). Renovate's docker versioning pins updates to the same
-              # suffix family, so this tracks v0.144.x-noble-full only.
+              # `-noble-full` mirrors upstream's `:latest` tag; Renovate stays within this suffix.
               tag: v0.147.0-noble-full@sha256:e78b4fcecdd6c61acaaf22b50ccef303c738da58cc0be57afdb116521df52296
             env:
               TZ: ${TIMEZONE}
-              # Scrypted serves the SAME app over HTTPS (10443, self-signed) and
-              # plain HTTP (11080). We route the gateway at 11080 so no
-              # BackendTLSPolicy is needed, and the repository has no such pattern today.
+              # Routing the gateway at this plain-HTTP port avoids a BackendTLSPolicy for
+              # the self-signed HTTPS port.
               SCRYPTED_INSECURE_PORT: &port 11080
               SCRYPTED_SECURE_PORT: 10443
-              # Deliberately NOT setting SCRYPTED_DOCKER_AVAHI. The pod has a
-              # real LAN presence via macvlan, so Scrypted's built-in mDNS
-              # advertiser reaches the HomeKit hubs directly. Homebridge's
-              # bundled Avahi crash-loops in this cluster ("Failed to create
-              # runtime directory /run/avahi-daemon/"), don't repeat it.
-            # exec, NOT httpGet. The macvlan interface cannot reach its own
-            # parent host (verified: EHOSTUNREACH to the node's LAN address), and
-            # this NAD puts the pod on the same subnet as the nodes. A kubelet
-            # httpGet arrives via eth0 but the reply routes out net1 and is
-            # blackholed, so the probe always times out even though the app is
-            # healthy. An exec probe goes through containerd, not the network.
-            # (This is why the other Multus apps here define no probes at all.)
+              # Left unset: macvlan already reaches the HomeKit hubs directly, and
+              # Homebridge's bundled Avahi crash-loops here.
+            # A macvlan pod cannot reach its own node, so a kubelet httpGet probe blackholes;
+            # exec bypasses the pod network entirely.
             probes:
               liveness: &probes
                 enabled: true
@@ -69,8 +56,7 @@ spec:
                 enabled: false
             securityContext:
               allowPrivilegeEscalation: false
-              # Scrypted installs plugins via npm into /server/volume at runtime
-              # and unpacks helpers to the image filesystem.
+              # False: Scrypted npm-installs plugins into /server/volume at runtime.
               readOnlyRootFilesystem: false
               capabilities:
                 drop:
@@ -80,22 +66,11 @@ spec:
                 cpu: 100m
                 memory: 512Mi
               limits:
-                # Generous headroom: HKSV transcoding spikes hard when several
-                # cameras record at once.
+                # Headroom for HKSV transcoding spikes when several cameras record at once.
                 memory: 4Gi
 
-    # KEY CONFIGURATION: Multus network attachment.
-    #
-    # HomeKit pairing (HAP) needs L2 adjacency with the HomeKit hubs, which an
-    # mDNS probe placed on the untagged legacy LAN, both Apple TVs answered
-    # there, and VLAN 68 returned zero services (no reflector). So Scrypted
-    # attaches to `iot-legacy`, matching matter-server, NOT the `iot` NAD that
-    # Home Assistant / zigbee2mqtt / mosquitto use.
-    #
-    # The address below was verified unused before assignment (the two preceding
-    # candidates both answered ping). Confirm it sits outside the OPNsense DHCP
-    # pool. MAC continues the 02:00:00:00:00:0X series (:01 HA, :02 z2m,
-    # :03 mosquitto, :04 matter-server).
+    # Multus macvlan on the `iot-legacy` NAD, matching matter-server: HomeKit needs L2
+    # adjacency with its hubs, which the `iot` NAD used by Home Assistant and mosquitto lacks.
     defaultPodOptions:
       annotations:
         k8s.v1.cni.cncf.io/networks: |-
@@ -105,9 +80,8 @@ spec:
             "ips": ["10.32.8.106/24"],
             "mac": "02:00:00:00:00:05"
           }]
-      # Scrypted's official image runs as root: its entrypoint manages the
-      # plugin runtime and npm-installs into /server/volume. Same documented
-      # exception as homebridge; most apps here run as UID 1000.
+      # Runs as root: the entrypoint manages the plugin runtime and npm-installs at
+      # runtime, the same documented exception as homebridge.
       securityContext:
         runAsNonRoot: false
         runAsUser: 0
@@ -132,19 +106,10 @@ spec:
           - name: envoy-internal
             namespace: network
 
-    # HKSV clips go to iCloud, so no local NVR volume is provisioned for Phase 0.
-    # When the Reolink NVR plugin lands, add a TrueNAS NFS volume alongside
-    # `config` below and set SCRYPTED_NVR_VOLUME=/nvr on the container:
-    #
-    #   nvr:
-    #     type: nfs
-    #     server: "${NAS_ADDR}"
-    #     path: /mnt/pool/scrypted
-    #     globalMounts:
-    #       - path: /nvr
+    # HKSV clips live in iCloud, so no NVR volume is provisioned yet; add one alongside
+    # `config` with SCRYPTED_NVR_VOLUME set when the Reolink plugin needs local storage.
     persistence:
-      # Scrypted state: plugin installs, device DB, HomeKit pairing keys.
-      # Losing this unpairs every accessory, so it is volsync-backed.
+      # Losing this PVC unpairs every HomeKit accessory, so it carries the standard volsync backup.
       config:
         existingClaim: "{{ .Release.Name }}"
         globalMounts:
