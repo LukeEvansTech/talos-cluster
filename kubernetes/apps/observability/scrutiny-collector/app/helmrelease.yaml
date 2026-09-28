@@ -43,8 +43,7 @@ spec:
               limits:
                 memory: 256Mi
             securityContext:
-              # Privileged + root is required for raw device I/O (smartctl ioctls);
-              # privileged also exposes the host's /dev to the container.
+              # Privileged root lets smartctl issue raw device ioctls and exposes host /dev.
               privileged: true
               readOnlyRootFilesystem: false
     defaultPodOptions:
