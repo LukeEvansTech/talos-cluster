@@ -9,9 +9,7 @@ spec:
   instanceSelector:
     matchLabels:
       grafana.internal/instance: grafana
-  # Inline dashboard for the snmp-exporter's live target set: the Onyx core
-  # switch, modules if_mib + entity_sensor. entPhySensorValue is raw; real
-  # readings are value / 10^entPhySensorPrecision, joined on entPhysicalIndex.
+  # entPhySensorValue is raw; scale by 10^entPhySensorPrecision, joined on entPhysicalIndex.
   json: |-
     {
       "annotations": {"list": []},
