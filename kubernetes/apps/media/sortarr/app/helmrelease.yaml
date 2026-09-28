@@ -27,13 +27,10 @@ spec:
               ENV_FILE_PATH: /app/secrets/.env
               PROTOCOL_HEADER: x-forwarded-proto
               HOST_HEADER: x-forwarded-host
-              # Sonarr configuration
               SONARR_URL: http://sonarr.media.svc.cluster.local
               SONARR_NAME: Sonarr
-              # Radarr configuration
               RADARR_URL: http://radarr.media.svc.cluster.local
               RADARR_NAME: Radarr
-              # Tautulli configuration
               TAUTULLI_URL: http://tautulli.media.svc.cluster.local
             envFrom:
               - secretRef:
