@@ -138,8 +138,9 @@ order, `rook-ceph` then `rook-ceph-csi-drivers` then `rook-ceph-cluster`. `app/`
 `csi-drivers/` the CSI drivers chart, `cluster/helmrelease.yaml` the `CephCluster`, pools,
 filesystem, `cephConfig` and health-check mutes. Deviations a bulk revert would drop:
 `drivers.rbd.name: rook-ceph.rbd.csi.ceph.com` and `drivers.rbd.snapshotPolicy: volumeSnapshot`
-in the drivers chart; `mon_clock_drift_allowed: "0.3"`, `security.cephx.csi.keyType: aes`,
-`keyGeneration: 2` and the `AUTH_INSECURE_*` mutes in the cluster chart.
+in the drivers chart; `mon_clock_drift_allowed: "0.3"` and the `security.cephx` block
+(`keyGeneration: 2` for the daemon, CSI and rbd-mirror-peer keys, `keyType: aes256k` on the
+latter two, and `allowedCiphers: [aes256k]`) in the cluster chart.
 
 **Read before merging:** the Rook release notes for every intervening minor (Rook supports only
 sequential minor upgrades), the Rook upgrade guide, the Ceph release notes for the chart's

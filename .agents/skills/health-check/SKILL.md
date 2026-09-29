@@ -69,6 +69,8 @@ skill mutates the cluster, and it must not be extended to.
   firing before the change is context, not a regression.
 - `startsAt` on an Alertmanager alert resets when Alertmanager restarts. Several alerts sharing
   one `startsAt` date that restart, not the fault.
-- Ceph `HEALTH_OK (muted: AUTH_INSECURE_...)` is healthy. The mutes are deliberate.
+- Ceph is healthy only as plain `HEALTH_OK`; nothing is muted since the cephx `aes256k` migration.
+  `AUTH_INSECURE_CLIENT_KEY_TYPE`, `_KEYS_ALLOWED` or `_KEYS_CREATABLE` means a live `aes` key or
+  cipher; other `AUTH_INSECURE_*` checks (global-ID reclaim) are separate regressions.
 - The `CephCluster` CR's health lags the toolbox by minutes after a reboot; the script uses the
   toolbox.
