@@ -9,7 +9,7 @@ only the ciphertext to a separate GitHub repository.
 - Give OPNsense an off-box, version-controlled config backup without ever putting the secrets it
   embeds (ddclient token, certificate private keys, a Tailscale pre-auth key) into Git unencrypted.
 - Replaces the plaintext config dump Oxidized used to push to the same repository. See
-  [KB-164](../troubleshooting/kb/164-opnsense-oxidized-leak.md) for the leak that prompted the
+  [KB-070](../troubleshooting/kb/070-firewall-backup-leaked-secrets.md) for the leak that prompted the
   change.
 
 ## Design decisions

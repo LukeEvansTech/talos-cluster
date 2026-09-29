@@ -39,7 +39,7 @@ spec:
           labels:
             severity: critical
         # toolsNotRunning also covers a powered-off VM (verified live), catching a BSOD or a
-        # shutdown alike; see KB-069 for the outage this alert was added for.
+        # shutdown alike; see KB-067 for the outage this alert was added for.
         # No absent(): exporter-down is already VMwareExporterDown, and absent() would show
         # toolsOk in the annotation instead of the missing series.
         # VM name comes from cluster-secrets, keeping the vCenter inventory name out of this

@@ -16,8 +16,8 @@ spec:
         cronjob:
           ttlSecondsAfterFinished: 86400
           # Age-encrypts before commit because the raw config carries live secrets; replaces
-          # Oxidized's plaintext push, removed in #3775, see KB-164
-          # (docs/docs/troubleshooting/kb/164-opnsense-oxidized-leak.md).
+          # Oxidized's plaintext push, removed in #3775, see KB-070
+          # (docs/docs/troubleshooting/kb/070-firewall-backup-leaked-secrets.md).
           schedule: "30 3 * * *"
           concurrencyPolicy: Forbid
           successfulJobsHistory: 3

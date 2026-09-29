@@ -32,5 +32,5 @@ machine) and a `PrometheusRule` round out the app.
   been confirmed against live `/metrics` output, so treat it as provisional until checked.
 - `VeeamServerGuestDown` watches one named VM's VMware Tools status rather than a generic
   host/datastore metric.
-  [KB-069](../troubleshooting/kb/069-veeam-server-bsod-went-unnoticed-for-12-days.md) covers the
+  [KB-067](../troubleshooting/kb/067-veeam-server-bsod-silent-outage.md) covers the
   outage that motivated it and why the alert has no `absent()` companion.

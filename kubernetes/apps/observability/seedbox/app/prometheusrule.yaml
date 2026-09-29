@@ -39,7 +39,7 @@ spec:
           labels:
             severity: critical
         # TargetDown excludes seedbox, so keep this aggregated or a job loses alerting.
-        # 20m sits above the short partial outages measured to 2026-08-30 (docs/apps/seedbox.md).
+        # 20m sits above the short partial outages seen to 2026-08-30 (docs/docs/apps/seedbox.md).
         - alert: SeedboxScrapePathDegraded
           annotations:
             summary: "Seedbox reachable on public IP but only {{ $value | humanizePercentage }} of tailnet scrapes are up for 20m, monitoring path degraded, not an outage."
@@ -141,7 +141,7 @@ spec:
           labels:
             severity: warning
         # mdadm renumbered the arrays at the FCOS rebuild, so none is named. md/degraded is a count.
-        # After a layout change, check each arm still returns series (docs/apps/seedbox.md).
+        # After a layout change, check each arm still returns series (docs/docs/apps/seedbox.md).
         - alert: SeedboxRAIDDegraded
           annotations:
             summary: "Seedbox RAID array {{ $labels.device }} is degraded. A member disk is failed, missing, or the array did not assemble."
