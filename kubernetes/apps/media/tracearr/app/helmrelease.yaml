@@ -6,6 +6,8 @@ metadata:
   name: &app tracearr
 spec:
   interval: 1h
+  # 2.5.1 bundles a ~500 MB basemap, so a cold pull can outlast the default 5m.
+  timeout: 15m
   chartRef:
     kind: OCIRepository
     name: tracearr
@@ -50,6 +52,9 @@ spec:
               # (default cap 3072 MB). Keep it under the emptyDir sizeLimit below,
               # or the kubelet evicts the pod when the cache fills.
               IMAGE_CACHE_MAX_MB: "2048"
+              # 2.5.0 bakes IMAGE_CACHE_DIR=/data/tracearr/image-cache into the image, which
+              # is inside the backed-up PVC; pin it to the emptyDir as upstream's chart does.
+              IMAGE_CACHE_DIR: /app/data/image-cache
             envFrom:
               - secretRef:
                   name: tracearr-secret
