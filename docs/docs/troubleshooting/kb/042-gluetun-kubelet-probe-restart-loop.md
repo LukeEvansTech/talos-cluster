@@ -37,7 +37,8 @@ tunnel in-process, without touching the pod network namespace, when the tunnel d
 startup. That loop is `HEALTH_RESTART_VPN`, on by default.
 
 `#4149` and `#4608` credited this recovery to `HEALTH_SERVER_DISABLE_LOOP: off`. gluetun v3.41.3
-never reads that variable, so it has no effect either way; the recovery was the default all along.
+never reads that variable, so it had no effect either way; the recovery was the default all along.
+The variable was removed from every gluetun sidecar on 2026-09-29.
 
 A kubelet **startup** probe is not automatically exempt from this same mechanism: the kubelet
 restarts a container whose startup probe fails past its threshold, exactly as it does for liveness,
