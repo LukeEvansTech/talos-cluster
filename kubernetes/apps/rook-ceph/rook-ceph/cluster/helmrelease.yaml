@@ -67,14 +67,13 @@ spec:
       # keyGeneration is append-only: the CRD rejects a CephCluster update that removes it, and
       # the HelmRelease then stops reconciling. Raise the number to rotate; never remove it.
       # aes256k for the kernel clients (KB-025) needs Talos v1.14+, whose 6.18 kernel backports the
-      # 7.0 libceph support. keepPriorKeyCountMax: 1 keeps the generation 1 aes key valid until every
-      # mount has re-staged (docs/docs/apps/rook-ceph.md).
+      # 7.0 libceph support (docs/docs/apps/rook-ceph.md).
       security:
         cephx:
           csi:
             keyRotationPolicy: KeyGeneration
             keyGeneration: 2
-            keepPriorKeyCountMax: 1
+            keepPriorKeyCountMax: 0
             keyType: aes256k
           rbdMirrorPeer:
             keyRotationPolicy: KeyGeneration
