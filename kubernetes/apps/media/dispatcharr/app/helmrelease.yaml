@@ -81,8 +81,8 @@ spec:
             probes:
               # Liveness stays disabled, matching every other gluetun sidecar here: a probe
               # restarts the container while the pod netns survives, which self-sustains a restart
-              # loop (KB-042). HEALTH_SERVER_DISABLE_LOOP off recovers the same faults in-process
-              # instead. Startup stays enabled below, deliberately; it gates the app container.
+              # loop (KB-042). gluetun's default HEALTH_RESTART_VPN recovers the same faults
+              # in-process instead. Startup stays enabled below, deliberately; it gates the app.
               liveness:
                 enabled: false
                 custom: true

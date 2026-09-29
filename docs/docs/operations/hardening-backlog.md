@@ -42,39 +42,6 @@ does.
 shared page) naming every gluetun sidecar that bypasses estate DNS and by what mechanism, so the
 next person doesn't have to re-derive the exception list from source.
 
-### H-20: Three gluetun sidecars have no tunnel gate at start and no recovery after it
-
-**Found:** 2026-09-28, while trimming comments on `media/dispatcharr` (KB-042 covers the kubelet
-restart-loop this is adjacent to).
-
-`downloads/prowlarr`, `downloads/qbittorrent` and `downloads/sabnzbd` all disable every kubelet
-probe on gluetun's health server, including `startup.enabled: false`
-(`prowlarr/app/helmrelease.yaml:74-75`, `qbittorrent/app/helmrelease.yaml:246-247`,
-`sabnzbd/app/helmrelease.yaml:209-210`), and all three also set `HEALTH_SERVER_DISABLE_LOOP: on`,
-turning off gluetun's own internal health-check loop. This is two separate gaps, not one:
-
-- **At pod start:** with no startup probe, Kubernetes does not wait for gluetun's health server to
-  answer before starting the main app container, the same leak window `media/dispatcharr`'s own
-  startup probe exists to close (it gates the app container until the tunnel and firewall are up).
-  These three pods have no such gate at all.
-- **After a successful start:** neither the kubelet nor gluetun's internal loop is watching the
-  tunnel, so a degradation after startup (routing or DNS breaking while the WireGuard link itself
-  stays up) has no automatic recovery path either.
-
-`media/dispatcharr` and `downloads/imgur-proxy` are the only two gluetun sidecars with
-`HEALTH_SERVER_DISABLE_LOOP: off`, so they have the post-startup recovery path; only
-`media/dispatcharr` also keeps a startup probe enabled, so it is the only one of the four with a
-startup gate.
-
-**Mitigation in place:** none identified. A leak at start or a degraded tunnel on one of the three
-affected apps would need a human to notice symptomatically (the app's traffic bypassing the VPN, or
-failing to reach its upstream) and act on it.
-
-**What would close it:** enable a startup probe on gluetun's health server for the three affected
-sidecars, matching `media/dispatcharr`'s shape, and set `HEALTH_SERVER_DISABLE_LOOP: off`, the same
-fix `downloads/imgur-proxy` already carries (#4608), so gluetun's internal loop recovers a
-post-startup degradation without touching the pod network namespace.
-
 ### H-3: The Renovate review gate fails open on error, and its token expires
 
 **Found:** 2026-06-03 while building `.github/workflows/renovate-review.yaml`; accepted by design.
@@ -202,6 +169,25 @@ included.
 ## Resolved
 
 Mark, do not delete. Each one is a pattern that will recur in a different place.
+
+### H-20: Three gluetun sidecars had no tunnel gate at start (resolved 2026-09-29, #5681)
+
+**Found:** 2026-09-28, while trimming comments on `media/dispatcharr`. `downloads/prowlarr`,
+`downloads/qbittorrent` and `downloads/sabnzbd` disabled the kubelet startup probe on gluetun's
+health server, so Kubernetes started the app container before the tunnel was up. It bit the same
+day: qBittorrent started one second before `wg0` existed, never listened on the tunnel address, and
+ran for 19 hours with 0 DHT nodes. `downloads/imgur-proxy` had the probe disabled too.
+
+**Fix:** every gluetun sidecar now runs `media/dispatcharr`'s startup probe (`httpGet :9999`,
+`initialDelaySeconds: 5`, `periodSeconds: 10`, `failureThreshold: 30`). gluetun v3.41.3 answers 500
+until the tunnel is up and its first health check passes, so the app container waits for it. The
+5-minute window bounds the KB-042 restart risk to a handshake that is genuinely stuck.
+
+**Correction to the original entry:** it also listed "no recovery after start" because these pods
+set `HEALTH_SERVER_DISABLE_LOOP: on`. gluetun v3.41.3 never reads that variable (no occurrence in
+its source), so it is a no-op wherever it is set, `on` or `off`. The in-process tunnel restart is
+`HEALTH_RESTART_VPN`, which defaults to on, and every pod's settings summary prints `Restart VPN on
+healthcheck failure: yes`. That half of the finding was never a gap.
 
 ### H-19: Cached Fireshare videos bypassed a newly set password (resolved 2026-09-17)
 

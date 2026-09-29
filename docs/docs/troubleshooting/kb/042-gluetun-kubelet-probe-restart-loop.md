@@ -1,12 +1,11 @@
 # KB-042: gluetun Kubelet Probes Cause a Self-Sustaining Restart Loop
 
 **Status:** Reference. Fixed for `imgur-proxy` in
-[#4149](https://github.com/LukeEvansTech/talos-cluster/pull/4149) and corrected in
+[#4149](https://github.com/LukeEvansTech/talos-cluster/pull/4149) and
 [#4608](https://github.com/LukeEvansTech/talos-cluster/pull/4608). Every gluetun sidecar in this
-repository now disables the kubelet liveness probe on gluetun's own health server. Three of them
-(`downloads/prowlarr`, `downloads/qbittorrent`, `downloads/sabnzbd`) also disable the startup probe
-and gluetun's internal health loop, which trades this restart loop for two different gaps; see
-[hardening backlog H-20](../../operations/hardening-backlog.md#h-20-three-gluetun-sidecars-have-no-tunnel-gate-at-start-and-no-recovery-after-it).
+repository disables the kubelet liveness probe on gluetun's own health server and, since #5681,
+enables a startup probe on it (see
+[H-20](../../operations/hardening-backlog.md#h-20-three-gluetun-sidecars-had-no-tunnel-gate-at-start-resolved-2026-09-29-5681)).
 
 ## Symptom
 
@@ -33,19 +32,17 @@ same memory usage as every other gluetun sidecar.
 ## Fix
 
 Disable the kubelet liveness probe on the gluetun sidecar's health server (`liveness.enabled:
-false`), matching every other gluetun sidecar in the fleet. Set `HEALTH_SERVER_DISABLE_LOOP: off`
-(gluetun's own wording: `off` means _do not_ disable the loop), so gluetun's internal health-check
-loop restarts the tunnel in-process, without touching the pod network namespace, when the tunnel
-degrades after startup.
+false`), matching every other gluetun sidecar in the fleet. gluetun's own health loop restarts the
+tunnel in-process, without touching the pod network namespace, when the tunnel degrades after
+startup. That loop is `HEALTH_RESTART_VPN`, on by default.
 
-`#4149` initially left this internal loop disabled while describing it as the recovery path; `#4608`
-found that mismatch (flagged by Codex) and corrected `HEALTH_SERVER_DISABLE_LOOP` to actually enable
-the loop it was already being credited for.
+`#4149` and `#4608` credited this recovery to `HEALTH_SERVER_DISABLE_LOOP: off`. gluetun v3.41.3
+never reads that variable, so it has no effect either way; the recovery was the default all along.
 
 A kubelet **startup** probe is not automatically exempt from this same mechanism: the kubelet
 restarts a container whose startup probe fails past its threshold, exactly as it does for liveness,
-and gluetun would carry the same accumulated netns state into that restart. `media/dispatcharr`
-keeps a startup probe enabled on gluetun deliberately, gating the app container's own start on it,
+and gluetun would carry the same accumulated netns state into that restart. Every gluetun
+sidecar keeps a startup probe enabled deliberately, gating the app container's own start on it,
 and accepts the bounded risk that a genuinely stuck tunnel handshake can trip it within its
 `failureThreshold * periodSeconds` window. This differs from the restart loop above in one
 respect: a startup probe only runs until it passes once, so the risk window is the pod's actual
