@@ -1,0 +1,15 @@
+---
+# Holds the saved Epic device login, which an emptyDir lost on every restart, so each run
+# emailed a fresh login link. Losing it only costs one re-confirm, so it skips VolSync.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: epicgames-config
+  namespace: games
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: ceph-block
