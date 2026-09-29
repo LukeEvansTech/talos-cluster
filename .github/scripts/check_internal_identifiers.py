@@ -66,6 +66,8 @@ PATTERNS: dict[str, re.Pattern] = {
     # Topology, not addresses: a VLAN ID or a host's storage device names map the network and
     # its hardware as surely as an IP does. Use a placeholder such as <iot-vlan-id>.
     "VLAN ID": re.compile(r"(?i)\bVLAN[ -]?#?\d{1,4}\b|\bvlan_?id\s*[:=]\s*[\"']?\d{1,4}\b"),
+    # A VLAN-tagged interface name (enp1s0np0.70, wan.70) carries the VLAN ID in its suffix.
+    "VLAN interface": re.compile(r"\b(?:en[a-z0-9]+|eth\d+|bond\d+|wan)\.\d{1,4}\b"),
     # Any md array number (md0, md4, md127), but not an md5 hash reference.
     "storage device name": re.compile(r"\bmd(?!5\b)\d{1,3}\b|/dev/sd[a-z]\b"),
 }
@@ -114,6 +116,7 @@ ALLOWLIST: dict[str, str] = {
     "kubernetes/apps/home/zigbee2mqtt/app/helmrelease.yaml": "multus static IP + MAC",
     "kubernetes/apps/kube-system/cilium/app/networks.yaml": "LB IP pool / API host",
     "kubernetes/apps/kube-system/etcd-defrag/app/configmap.yaml": "etcd-defrag node targets",
+    "kubernetes/apps/kube-system/multus/networks/iot.yaml": "multus VLAN master interface",
     "kubernetes/apps/network/envoy-gateway/app/envoy.yaml": "Envoy LB listener IPs",
     "kubernetes/apps/network/scanopy/app/daemon-helmrelease.yaml": "LAN scan ranges",
     "kubernetes/apps/observability/blackbox-exporter/lan/probes.yaml": "blackbox LAN probe targets",
@@ -252,8 +255,8 @@ def scan_files(paths: list[str]) -> list[str]:
         if path == SELF_PATH:
             continue
         active = names_only if allowlisted(path) else patterns
-        for kind, pat in names_only.items():
-            if pat.search(path):
+        for kind, pat in active.items():
+            if any(not any(b.search(m.group(0)) for b in BENIGN) for m in pat.finditer(path)):
                 violations.append(f"{path}: {kind} (in the file path)")
         if not active:
             continue

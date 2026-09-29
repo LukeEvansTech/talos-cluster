@@ -322,7 +322,7 @@ kubectl describe pod -n home $HA_POD
 ```bash
 # Verify VLAN interface exists on the node where pod is scheduled
 NODE=$(kubectl get pod -n home $HA_POD -o jsonpath='{.spec.nodeName}')
-talosctl -n $NODE get links | grep enp1s0np0.<iot-vlan-id>
+talosctl -n $NODE get links | grep "enp1s0np0.<iot-vlan-id>"
 
 # If missing, reapply Talos config
 talosctl apply-config -n $NODE -f talos/clusterconfig/kubernetes-$NODE.yaml
