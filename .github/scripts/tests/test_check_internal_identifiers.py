@@ -23,6 +23,7 @@ SPEC.loader.exec_module(guard)
 CAUGHT = [
     ("LAN IP", "gateway 192.168.99.99"),
     ("LAN IP", "host 172.20.1.2"),
+    ("LAN IP", "host 10.32.99.99"),
     ("tailnet IP (CGNAT)", "peer 100.100.1.1"),
     ("node name", "drain cr-talos-99"),
     ("device hostname (cr)", "ssh cr-example"),
@@ -42,6 +43,10 @@ CAUGHT = [
     ("storage device name", "/dev/sdz"),
     ("storage device name", "/dev/sdz1"),
     ("storage device name", "/dev/nvme9n1p2"),
+    ("AI session link / co-author trailer", "https://claude.ai/code/session_example"),
+    ("AI session link / co-author trailer", "Co-authored-by: Codex <bot@example.com>"),
+    ("AI session link / co-author trailer", "Generated with Claude Code"),
+    ("AI session link / co-author trailer", "noreply@anthropic.com"),
 ]
 
 # (text, reason): no pattern may flag the text.
@@ -56,13 +61,15 @@ ALLOWED = [
     ("svc.namespace.svc.cluster.local", "in-cluster DNS is derivable from the tree"),
     ("<iot-vlan-id>", "the placeholder form the docs use"),
     ("version 1.2.3", "a dotted version is not an address"),
+    ("host 10.33.1.1", "10.x outside 10.32 is not the LAN"),
+    ("reviewed by Claude", "naming an assistant is not a trailer"),
 ]
 
 
 def flagged(text: str) -> set[str]:
     """Return every pattern kind that flags text, applying BENIGN as scan_text does."""
     kinds = set()
-    for kind, pat in guard.PATTERNS.items():
+    for kind, pat in {**guard.PATTERNS, **guard.PROSE_PATTERNS}.items():
         for match in pat.finditer(text):
             if not any(b.search(match.group(0)) for b in guard.BENIGN):
                 kinds.add(kind)
@@ -86,7 +93,8 @@ class PatternTable(unittest.TestCase):
 
     def test_every_pattern_has_a_caught_row(self) -> None:
         """A new pattern needs at least one CAUGHT row."""
-        self.assertEqual(set(guard.PATTERNS) - {kind for kind, _ in CAUGHT}, set())
+        patterns = set(guard.PATTERNS) | set(guard.PROSE_PATTERNS)
+        self.assertEqual(patterns - {kind for kind, _ in CAUGHT}, set())
 
 
 if __name__ == "__main__":
