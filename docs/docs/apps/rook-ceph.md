@@ -33,13 +33,26 @@ runtime-settable, so Rook applies it without restarting the mons.
 
 ## CSI key rotation
 
-`security.cephx.csi.keyType` is pinned to `aes` rather than left to the chart default. `AES256K`
-needs a 7.0+ kernel, the fleet runs 6.18 even after upgrading to Talos v1.13.9, and both storage
-paths here are kernel clients: `krbd`, and the built-in CephFS kernel client (see
-`docs/docs/troubleshooting/kb/025-cephfs-modprobe-builtin-misdiagnosis.md`). Rook's rotation guide
-recommends always setting the type explicitly, so a future default change upstream can't hand CSI a
-key type the nodes can't use. No `keyRotationPolicy` is set for `csi`, so existing PV connections
-are left untouched.
+The CSI and `rbd-mirror-peer` keys move from `aes` to `aes256k` in four steps, the same sequence
+onedr0p/home-ops shipped as #11735 to #11738. Both storage paths here are kernel clients (`krbd`,
+and the built-in CephFS kernel client, see
+`docs/docs/troubleshooting/kb/025-cephfs-modprobe-builtin-misdiagnosis.md`), and Rook documents
+Linux 7.0 as the minimum for `aes256k` kernel mounts. Talos v1.14 backports that libceph support
+onto its 6.18 kernel (siderolabs/pkgs@84c1b87); every node exports the backported
+`ceph_crypto_key_prepare` symbol in `/proc/kallsyms`.
+
+1. Rotate `csi` and `rbdMirrorPeer` to generation 2, `keyType: aes256k`, with
+   `keepPriorKeyCountMax: 1` so the generation 1 `aes` CSI keys stay valid for existing mounts.
+2. Once every mounted `ceph-block` and `ceph-filesystem` PVC belongs to a pod started after the
+   rotation (a rolling node reboot guarantees it), set `keepPriorKeyCountMax: 0`. The operator then
+   deletes the generation 1 keys, which clears `AUTH_INSECURE_CLIENT_KEY_TYPE`.
+3. Set `allowedCiphers: [aes256k]` and flip the `AUTH_INSECURE_*` mutes to `unmute`, which clears
+   `AUTH_INSECURE_KEYS_ALLOWED` and `AUTH_INSECURE_KEYS_CREATABLE`.
+4. Remove the `muteHealthWarning` block. The operator applies mutes imperatively, so the block does
+   nothing once the unmutes have run.
+
+Keep `keyType` set explicitly throughout, as Rook's rotation guide recommends, so a default change
+upstream can't hand CSI a key type the nodes can't use.
 
 ## Tearing down the CephFS filesystem
 
