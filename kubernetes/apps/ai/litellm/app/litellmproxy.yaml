@@ -80,6 +80,12 @@ spec:
       port: os.environ/REDIS_PORT
       password: os.environ/REDIS_PASSWORD
       ttl: 300
+      # Cache embeddings only. LiteLLM's default supported_call_types includes
+      # completion/acompletion, which replayed chat replies inside the TTL, keyed
+      # on the request body rather than the caller.
+      supported_call_types:
+        - embedding
+        - aembedding
     # drop_params stays off, or LiteLLM strips reasoning_effort before llama.cpp sees it
     # (verified 2026-08-25; docs/docs/architecture/ai-llm-stack.md Gotchas).
     num_retries: 2
