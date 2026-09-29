@@ -66,7 +66,8 @@ PATTERNS: dict[str, re.Pattern] = {
     # Topology, not addresses: a VLAN ID or a host's storage device names map the network and
     # its hardware as surely as an IP does. Use a placeholder such as <iot-vlan-id>.
     "VLAN ID": re.compile(r"(?i)\bVLAN[ -]?#?\d{1,4}\b|\bvlan_?id\s*[:=]\s*[\"']?\d{1,4}\b"),
-    "storage device name": re.compile(r"\bmd\d{3}\b|/dev/sd[a-z]\b"),
+    # Any md array number (md0, md4, md127), but not an md5 hash reference.
+    "storage device name": re.compile(r"\bmd(?!5\b)\d{1,3}\b|/dev/sd[a-z]\b"),
 }
 
 # Prose-only: a tracked file would never carry these, but a commit message or PR body might,
@@ -251,6 +252,9 @@ def scan_files(paths: list[str]) -> list[str]:
         if path == SELF_PATH:
             continue
         active = names_only if allowlisted(path) else patterns
+        for kind, pat in names_only.items():
+            if pat.search(path):
+                violations.append(f"{path}: {kind} (in the file path)")
         if not active:
             continue
         try:

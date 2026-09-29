@@ -494,7 +494,7 @@ To add more VLANs (for example, one for cameras and one for VPN):
               "plugins": [
                 {
                   "type": "macvlan",
-                  "master": "enp1s0np0.80",
+                  "master": "enp1s0np0.<camera-vlan-id>",
                   "mode": "bridge",
                   "ipam": {
                     "type": "static"
