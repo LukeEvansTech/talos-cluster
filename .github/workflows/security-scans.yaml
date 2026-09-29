@@ -41,6 +41,10 @@ jobs:
       # all of main, and a full scan there once let a transient bad state on main fail every open
       # PR, whose stale FAILURE check-run then blocked Renovate self-merge forever. Push-to-main
       # and nightly runs still scan everything. See the script for the allowlist and rationale.
+      # The pattern table pins what each pattern must and must not match, including declined
+      # review requests, so a pattern edit that drops a case fails here.
+      - name: Test the identifier patterns
+        run: python3 -m unittest discover -s .github/scripts/tests
       - name: Scan tracked files for internal infrastructure identifiers
         env:
           DIFF_BASE: ${{ github.event_name == 'pull_request' && 'HEAD^1' || '' }}
