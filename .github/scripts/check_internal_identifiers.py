@@ -63,6 +63,13 @@ PATTERNS: dict[str, re.Pattern] = {
     "device hostname (sw)": re.compile(r"(?<![a-z0-9])sw-(?:main|comms)-[a-z0-9]+"),
     "MAC address": re.compile(r"(?<![0-9a-fA-F:])(?:[0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}(?![0-9a-fA-F:])"),
     "internal hostname": re.compile(r"\b[a-z0-9_-]+\.(?:lan|internal)\b"),
+    # Topology, not addresses: a VLAN ID or a host's storage device names map the network and
+    # its hardware as surely as an IP does. Use a placeholder such as <iot-vlan-id>.
+    "VLAN ID": re.compile(r"(?i)\bVLAN(?:[ _-]?ID)?[ :#=\"'-]*\d{1,4}\b|\bvlan_?id\s*[:=]\s*[\"']?\d{1,4}\b"),
+    # A VLAN-tagged interface name (enp1s0np0.70, wan.70) carries the VLAN ID in its suffix.
+    "VLAN interface": re.compile(r"\b(?:en[a-z0-9]+|eth\d+|bond\d+|wan)\.\d{1,4}\b"),
+    # Any md array number (md0, md4, md127), but not an md5 hash reference.
+    "storage device name": re.compile(r"\bmd(?!5\b)\d{1,3}\b|/dev/(?:sd[a-z]\d*|nvme\d+n\d+(?:p\d+)?)\b"),
 }
 
 # Prose-only: a tracked file would never carry these, but a commit message or PR body might,
@@ -109,6 +116,7 @@ ALLOWLIST: dict[str, str] = {
     "kubernetes/apps/home/zigbee2mqtt/app/helmrelease.yaml": "multus static IP + MAC",
     "kubernetes/apps/kube-system/cilium/app/networks.yaml": "LB IP pool / API host",
     "kubernetes/apps/kube-system/etcd-defrag/app/configmap.yaml": "etcd-defrag node targets",
+    "kubernetes/apps/kube-system/multus/networks/iot.yaml": "multus VLAN master interface",
     "kubernetes/apps/network/envoy-gateway/app/envoy.yaml": "Envoy LB listener IPs",
     "kubernetes/apps/network/scanopy/app/daemon-helmrelease.yaml": "LAN scan ranges",
     "kubernetes/apps/observability/blackbox-exporter/lan/probes.yaml": "blackbox LAN probe targets",
@@ -119,6 +127,27 @@ ALLOWLIST: dict[str, str] = {
     "kubernetes/apps/observability/snmp-exporter/app/configmap.yaml": "SNMP module config",
     "kubernetes/apps/observability/snmp-exporter/app/helmrelease.yaml": "SNMP scrape target",
 }
+
+
+def private_names_pattern() -> dict[str, re.Pattern]:
+    """Return the optional private-names pattern, supplied out-of-band like the internal zone.
+
+    Naming a private tracker, a paid service or the VPN provider discloses an account; listing
+    those names here would disclose them all at once. The regex arrives via PRIVATE_NAMES_RE,
+    a repository secret in CI and a gitignored .mise.local.toml locally; unset, it is skipped.
+    """
+    raw = os.environ.get("PRIVATE_NAMES_RE", "").strip()
+    if not raw:
+        # Fail closed in CI: a missing secret would otherwise pass every account-naming leak.
+        if os.environ.get("GITHUB_ACTIONS") == "true":
+            print("PRIVATE_NAMES_RE is not set in CI; refusing to skip the check", file=sys.stderr)
+            raise SystemExit(2)
+        return {}
+    try:
+        return {"private service name": re.compile(raw, re.IGNORECASE)}
+    except re.error as exc:
+        print(f"PRIVATE_NAMES_RE is not a valid regex: {exc}", file=sys.stderr)
+        raise SystemExit(2) from exc
 
 
 def internal_domain_pattern() -> dict[str, re.Pattern]:
@@ -159,6 +188,9 @@ def changed_files(base: str) -> list[str]:
     return [f for f in out.splitlines() if f in tracked]
 
 
+WITHHELD = ("internal domain", "private service name")
+
+
 def format_violation(kind: str, lineno: int, line: str) -> str:
     """Render one prose violation, withholding the line for the internal domain.
 
@@ -167,7 +199,7 @@ def format_violation(kind: str, lineno: int, line: str) -> str:
     string the check exists to suppress. Secret masking does not help here: it
     masks the regex, not the domain that regex matched.
     """
-    if kind == "internal domain":
+    if kind in WITHHELD:
         return f"  line {lineno}: {kind} (content withheld -- it is the leak)"
     return f"  line {lineno}: {kind}\n    {line.strip()[:120]}"
 
@@ -190,7 +222,7 @@ def scan_text(source: str, strip_git_comments: bool) -> int:
                 kept.append((lineno, line))
         numbered = kept
 
-    patterns = {**PATTERNS, **PROSE_PATTERNS, **internal_domain_pattern()}
+    patterns = {**PATTERNS, **PROSE_PATTERNS, **internal_domain_pattern(), **private_names_pattern()}
     violations: list[str] = []
     for lineno, line in numbered:
         for kind, pat in patterns.items():
@@ -218,10 +250,19 @@ def scan_text(source: str, strip_git_comments: bool) -> int:
 
 def scan_files(paths: list[str]) -> list[str]:
     """Return one 'path:line: kind' string per non-allowlisted identifier found."""
-    patterns = {**PATTERNS, **internal_domain_pattern()}
+    patterns = {**PATTERNS, **internal_domain_pattern(), **private_names_pattern()}
+    # The allowlist accepts functional coordinates, never an account-disclosing service name.
+    names_only = private_names_pattern()
     violations: list[str] = []
     for path in paths:
-        if allowlisted(path) or path == SELF_PATH:
+        # The guard's own source and allowlisted configs still must not name a private service.
+        active = names_only if (allowlisted(path) or path == SELF_PATH) else patterns
+        for kind, pat in active.items():
+            if any(not any(b.search(m.group(0)) for b in BENIGN) for m in pat.finditer(path)):
+                # A CI log is public: never echo a path that is itself the leak.
+                shown = "<path withheld>" if kind in WITHHELD else path
+                violations.append(f"{shown}: {kind} (in the file path)")
+        if not active:
             continue
         try:
             with open(path, encoding="utf-8", errors="ignore") as handle:
@@ -229,7 +270,7 @@ def scan_files(paths: list[str]) -> list[str]:
         except OSError:
             continue
         for lineno, line in enumerate(lines, 1):
-            for kind, pat in patterns.items():
+            for kind, pat in active.items():
                 for match in pat.finditer(line):
                     if any(b.search(match.group(0)) for b in BENIGN):
                         continue

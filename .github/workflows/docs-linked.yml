@@ -1,0 +1,30 @@
+---
+# zensical builds a page no nav entry names, even with --strict, so a page added beside a manifest
+# change is reachable only through search. docs.yml is a shared, drift-checked template, so this
+# check lives in its own workflow.
+name: Docs Linked
+
+on:
+  pull_request:
+    paths:
+      - "docs/**"
+      - ".github/scripts/check_docs_linked.py"
+      - ".github/workflows/docs-linked.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  docs-linked:
+    name: Docs pages linked
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Check every page is in the nav
+        run: python3 .github/scripts/check_docs_linked.py

@@ -74,7 +74,7 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
-      "description": "Projected calendar-month total from vnStat, the authoritative counter against Seedhost's 100 TB cap. Was extrapolated from node_network_*_bytes_total, which resets on every reboot (zincati reboots this box weekly) and is bounded by 14d retention, so it systematically under-reported.",
+      "description": "Projected calendar-month total from vnStat, the authoritative counter against the hosting provider's 100 TB cap. Was extrapolated from node_network_*_bytes_total, which resets on every reboot (zincati reboots this box weekly) and is bounded by 14d retention, so it systematically under-reported.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -316,7 +316,7 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
-      "description": "All mdadm arrays, not just the data array. Healthy is failed=0 and spare=0 everywhere, with active equal to the member count. Arrays are deliberately NOT pinned by name: mdadm renumbered them md4 -> md125/md126/md127 at the 2026-07-20 FCOS rebuild, which is exactly what silently emptied this panel and killed SeedboxRAIDDegraded. md125 = 23.8 TB RAID5 data array, md126 = /boot, md127 = OS.",
+      "description": "All mdadm arrays, not just the data array. Healthy is failed=0 and spare=0 everywhere, with active equal to the member count. Arrays are deliberately NOT pinned by name: mdadm renumbered them at the 2026-07-20 FCOS rebuild, which is exactly what silently emptied this panel and killed SeedboxRAIDDegraded.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -405,7 +405,7 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
-      "description": "The old query keyed on mountpoint=\"/\", which FCOS never reports (/ is a composefs overlay node-exporter does not surface), so this panel was permanently empty and SeedboxDiskFillHigh could never fire. /var and /var/mnt/seedbox are the real filesystems. /boot is excluded: at 367 MB the same percentage threshold is meaningless. md127 is mounted at four paths reporting identical numbers, so mountpoints are pinned rather than matched loosely.",
+      "description": "The old query keyed on mountpoint=\"/\", which FCOS never reports (/ is a composefs overlay node-exporter does not surface), so this panel was permanently empty and SeedboxDiskFillHigh could never fire. /var and /var/mnt/seedbox are the real filesystems. /boot is excluded: at 367 MB the same percentage threshold is meaningless. The OS array is mounted at four paths reporting identical numbers, so mountpoints are pinned rather than matched loosely.",
       "fieldConfig": {
         "defaults": {
           "color": {

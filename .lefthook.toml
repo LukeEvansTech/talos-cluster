@@ -37,6 +37,11 @@ glob = [".github/workflows/*.yml", ".github/workflows/*.yaml"]
 run = "mise x -- zizmor --offline {staged_files}"
 glob = [".github/workflows/*.yml", ".github/workflows/*.yaml", ".github/actions/**/action.yaml"]
 
+# A docs page no nav entry names still builds under --strict; this makes it fail instead.
+[pre-commit.commands.docs-linked]
+run = "python3 .github/scripts/check_docs_linked.py"
+glob = ["docs/docs/**/*.md", "docs/zensical.toml"]
+
 [pre-commit.commands.format-json]
 run = "mise x --quiet -- prettier -w --log-level warn {staged_files}"
 glob = ["*.json", "*.json5"]

@@ -43,6 +43,7 @@ jobs:
           # pattern. Not a GitHub Environment secret either: that gates behind approval, wrong for
           # an always-on unattended check. It's a secret only to keep it out of a public file.
           INTERNAL_DOMAIN_RE: ${{ secrets.INTERNAL_DOMAIN_RE }} # zizmor: ignore[secrets-outside-env]
+          PRIVATE_NAMES_RE: ${{ secrets.PRIVATE_NAMES_RE }} # zizmor: ignore[secrets-outside-env]
         run: |-
           printf '%s\n\n%s\n' "$PR_TITLE" "$PR_BODY" \
             | python3 .github/scripts/check_internal_identifiers.py --text-file -
@@ -91,6 +92,7 @@ jobs:
           REPO: ${{ github.repository }}
           # See the matching comment in scan-pr-text above.
           INTERNAL_DOMAIN_RE: ${{ secrets.INTERNAL_DOMAIN_RE }} # zizmor: ignore[secrets-outside-env]
+          PRIVATE_NAMES_RE: ${{ secrets.PRIVATE_NAMES_RE }} # zizmor: ignore[secrets-outside-env]
         run: |-
           set -o pipefail
           # The commits endpoint lists at most 250 commits however far you

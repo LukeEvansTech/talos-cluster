@@ -257,7 +257,7 @@ Flag consequential, repository-specific breakage. Prefer silence over style comm
 ### Always flag
 
 - **Internal coordinates in a public repository.** LAN IPs, `.lan` / `.internal` hostnames, device or
-  node names, deployment topology, MACs, disk serials, in files and equally in the PR title and body,
+  node names, deployment topology (VLAN IDs, storage array and disk names), MACs, disk serials, in files and equally in the PR title and body,
   since a squash merge copies the body into `main` permanently. Safe path: the `${SECRET_DOMAIN}` /
   `${SECRET_INTERNAL_DOMAIN}` placeholders, or a real address templated inside an `ExternalSecret`'s
   `target.template.data` and mounted from the rendered Secret. Never a `ConfigMap` in Git.
@@ -293,6 +293,8 @@ Flag consequential, repository-specific breakage. Prefer silence over style comm
   Rook-Ceph, Flux, Talos, cert-manager, external-secrets, Envoy Gateway, CloudNativePG, …).
 - A GPU workload missing `runtimeClassName: nvidia`.
 - A new comment that narrates the manifest or runs past two short sentences.
+- Documentation moved out of a comment that states more than the comment did: a wider scope, two
+  facts merged into one, or a conclusion the comment never drew.
 - A new scheduled pipeline (a CronJob, or an app with its own in-process scheduler) with no
   absence-of-success alert. Liveness and `/health` stay green while the work fails: lurcher crashed
   mid-run every day for twelve days with its pod healthy. Mirror `GickupBackupStale` or

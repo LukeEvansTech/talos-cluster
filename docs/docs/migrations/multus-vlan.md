@@ -17,21 +17,21 @@ This guide documents the process of migrating Home Assistant from the management
 
 - **Primary Network**: Cilium (unchanged)
 - **Management Network**: <mgmt-net>/24 (unchanged)
-- **IoT VLAN**: VLAN 70 - <iot-vlan-net>/24 (new)
+- **IoT VLAN**: VLAN `<iot-vlan-id>` - `<iot-vlan-net>/24` (new)
 - **Home Assistant Multus IP**: <ha-iot-ip>/24
-- **Physical Interface**: enp1s0np0.70 (VLAN tagged)
+- **Physical Interface**: `enp1s0np0.<iot-vlan-id>` (VLAN tagged)
 
 ## Prerequisites
 
 ### Network switch configuration
 
-1. **Create VLAN 70** on your managed switch
+1. **Create VLAN `<iot-vlan-id>`** on your managed switch
 2. **Configure trunk port** to Kubernetes nodes:
 
     ```text
     # Example for most switches:
     - Set port mode to "Trunk" or "Tagged"
-    - Allow VLANs: 1 (untagged/native), 70 (tagged)
+    - Allow VLANs: 1 (untagged/native), <iot-vlan-id> (tagged)
     ```
 
 3. **Configure DHCP/Gateway** for IoT VLAN:
@@ -88,7 +88,7 @@ nodes:
                 ip: "<vip>"
             # ADD THIS SECTION:
             vlans:
-                - vlanId: 70
+                - vlanId: <iot-vlan-id>
                   dhcp: false
                   mtu: 1500
                   # No IP address needed - used only for container networking
@@ -111,12 +111,12 @@ talosctl apply-config -n <node2-ip> -f talos/clusterconfig/kubernetes-<node2>.ya
 talosctl apply-config -n <node3-ip> -f talos/clusterconfig/kubernetes-<node3>.yaml
 
 # Verify VLAN interface exists on each node
-talosctl -n <node1-ip> get links | grep "enp1s0np0.70"
-talosctl -n <node2-ip> get links | grep "enp1s0np0.70"
-talosctl -n <node3-ip> get links | grep "enp1s0np0.70"
+talosctl -n <node1-ip> get links | grep "enp1s0np0.<iot-vlan-id>"
+talosctl -n <node2-ip> get links | grep "enp1s0np0.<iot-vlan-id>"
+talosctl -n <node3-ip> get links | grep "enp1s0np0.<iot-vlan-id>"
 ```
 
-**Expected output**: You should see the VLAN interface listed with VLAN ID 70.
+**Expected output**: You should see the VLAN interface listed with VLAN ID `<iot-vlan-id>`.
 
 ### Step 3: Update Cilium device configuration (optional)
 
@@ -129,7 +129,7 @@ If you want Cilium to also be aware of the VLAN interface (recommended for bette
 devices: enp+
 
 # To:
-devices: enp+,enp+.70
+devices: enp+,enp+.<iot-vlan-id>
 ```
 
 Then reconcile:
@@ -159,7 +159,7 @@ spec:
           "plugins": [
             {
               "type": "macvlan",
-              "master": "enp1s0np0.70",
+              "master": "enp1s0np0.<iot-vlan-id>",
               "mode": "bridge",
               "ipam": {
                 "type": "static"
@@ -171,7 +171,7 @@ spec:
 
 **Key changes**:
 
-- `master`: `enp1s0np0` → `enp1s0np0.70` (adds VLAN tagging)
+- `master`: `enp1s0np0` → `enp1s0np0.<iot-vlan-id>` (adds VLAN tagging)
 
 ### Step 5: Update Home Assistant IP configuration
 
@@ -206,9 +206,9 @@ git add talos/talconfig.yaml \
         kubernetes/apps/home/homeassistant/app/helmrelease.yaml
 
 # Commit with descriptive message
-git commit -m "feat(network): migrate Home Assistant to IoT VLAN 70
+git commit -m "feat(network): migrate Home Assistant to IoT VLAN <iot-vlan-id>
 
-- Add VLAN 70 interface to all Talos nodes
+- Add VLAN <iot-vlan-id> interface to all Talos nodes
 - Update Multus NetworkAttachmentDefinition to use VLAN interface
 - Change Home Assistant IP from <ha-mgmt-ip> to <ha-iot-ip>
 - Enables network isolation for IoT devices"
@@ -322,7 +322,7 @@ kubectl describe pod -n home $HA_POD
 ```bash
 # Verify VLAN interface exists on the node where pod is scheduled
 NODE=$(kubectl get pod -n home $HA_POD -o jsonpath='{.spec.nodeName}')
-talosctl -n $NODE get links | grep enp1s0np0.70
+talosctl -n $NODE get links | grep "enp1s0np0.<iot-vlan-id>"
 
 # If missing, reapply Talos config
 talosctl apply-config -n $NODE -f talos/clusterconfig/kubernetes-$NODE.yaml
@@ -349,7 +349,7 @@ kubectl exec -n home $HA_POD -- ip route show
 
 ```bash
 # Test from Talos node itself
-talosctl -n <node1-ip> get addresses | grep 192.168.70
+talosctl -n <node1-ip> get addresses | grep "<iot-vlan-net>"
 
 # If node can't reach VLAN, check switch configuration
 ```
@@ -446,7 +446,7 @@ talosctl apply-config -n <node3-ip> -f talos/clusterconfig/kubernetes-<node3>.ya
 
 ## Post-migration checklist
 
-- [ ] VLAN 70 created on switch
+- [ ] VLAN `<iot-vlan-id>` created on switch
 - [ ] Trunk ports configured for Kubernetes nodes
 - [ ] Firewall rules configured for IoT isolation
 - [ ] Talos VLAN interfaces created on all nodes
@@ -463,16 +463,16 @@ talosctl apply-config -n <node3-ip> -f talos/clusterconfig/kubernetes-<node3>.ya
 
 ## Additional VLAN networks
 
-To add more VLANs (e.g., VLAN 80 for Cameras, VLAN 90 for VPN):
+To add more VLANs (for example, one for cameras and one for VPN):
 
 1. **Add VLAN to Talos** (`talconfig.yaml`):
 
     ```yaml
     vlans:
-        - vlanId: 70 # IoT
+        - vlanId: <iot-vlan-id> # IoT
           dhcp: false
           mtu: 1500
-        - vlanId: 80 # Cameras (new)
+        - vlanId: <camera-vlan-id> # Cameras (new)
           dhcp: false
           mtu: 1500
     ```
@@ -494,7 +494,7 @@ To add more VLANs (e.g., VLAN 80 for Cameras, VLAN 90 for VPN):
               "plugins": [
                 {
                   "type": "macvlan",
-                  "master": "enp1s0np0.80",
+                  "master": "enp1s0np0.<camera-vlan-id>",
                   "mode": "bridge",
                   "ipam": {
                     "type": "static"
