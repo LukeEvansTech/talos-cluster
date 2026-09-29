@@ -207,11 +207,8 @@ def late_evidence(tautulli, seerr, crosswalk: dict[int, dict] | None, since: dat
 
         entry = by_key.get(int(key))
         if entry is None:
-            # The crosswalk is built from keys already present in history when
-            # the plan ran, so a film played for the FIRST time since then is
-            # missing from it -- and a zero-play film is exactly what a
-            # candidate is. Without resolving it here the gate would be blind
-            # to the one completion it exists to catch.
+            # The crosswalk only has keys seen by the plan; a film played for the first
+            # time since is missing from it, exactly the completion this gate exists to catch.
             entry = _resolve_key(tautulli, int(key))
             by_key[int(key)] = entry
         identified = False
@@ -222,9 +219,8 @@ def late_evidence(tautulli, seerr, crosswalk: dict[int, dict] | None, since: dat
             watched.add(("imdb", str(entry["imdb"])))
             identified = True
         if not identified:
-            # A completed play we cannot attribute to any film. Refusing the
-            # whole run is the safe reading: something was watched and we
-            # cannot say what.
+            # An unattributable completed play: refusing the whole run is the safe
+            # reading when something was watched and we can't say what.
             return requests_by_tmdb, watched, False
     return requests_by_tmdb, watched, True
 
@@ -260,9 +256,8 @@ def late_evidence_block(film, requests_by_tmdb: dict[int, dict], watched_ids: se
     if film.tmdb_id and film.tmdb_id in requests_by_tmdb:
         who = (requests_by_tmdb[film.tmdb_id] or {}).get("requested_by") or "someone"
         return f"requested by {who} since the plan was made"
-    # Either identifier will do. The crosswalk holds IMDb-only entries, so
-    # matching on tmdb alone dropped those completions silently -- the same
-    # blindness one identifier further along.
+    # Either identifier will do: the crosswalk holds IMDb-only entries, so matching
+    # tmdb alone silently dropped those completions.
     identity = {("tmdb", str(film.tmdb_id))} if film.tmdb_id else set()
     if film.imdb_id:
         identity.add(("imdb", str(film.imdb_id)))
@@ -384,9 +379,8 @@ def execute(  # pylint: disable=too-many-arguments,too-many-positional-arguments
             result.skipped.append({**record, "why": why})
             continue
 
-        # Last, because it is the check closest in time to the delete. Run in
-        # dry-run too: a report that skipped this would describe a batch nobody
-        # is going to run.
+        # Last, the check closest in time to the delete; run in dry-run too, or a report
+        # would describe a batch nobody is going to run.
         moved = volatile_block(film, tautulli, seerr, crosswalk, planned_at)
         if moved:
             result.skipped.append({**record, "why": moved})

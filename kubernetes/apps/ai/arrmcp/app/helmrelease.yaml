@@ -20,9 +20,8 @@ spec:
     controllers:
       arrmcp:
         annotations:
-          # config.yaml is a subPath secret mount, and subPath mounts do not
-          # receive updates in place — a 1Password rotation only lands on a
-          # pod restart, which this provides.
+          # config.yaml is a subPath secret mount, which doesn't update in place;
+          # only a pod restart picks up a 1Password rotation, which this provides.
           reloader.stakater.com/auto: "true"
         # One RWO volume: a rolling update would start the replacement before
         # the old pod releases the RBD attach and stall.
@@ -60,12 +59,8 @@ spec:
               limits:
                 memory: 512Mi
     persistence:
-      # Holds only the SQLite log and write-audit databases: LogStore.open()
-      # and WriteAudit.open() both open a database inside the config dir, and
-      # WriteAudit throws if it cannot, so this directory has to be writable
-      # even though config.yaml itself is not. Deliberately not VolSync-backed
-      # — nothing here is irreplaceable, and keeping it out of the backups is
-      # what keeps the media stack's API keys out of them too.
+      # Writable for LogStore/WriteAudit's SQLite databases; not VolSync-backed on
+      # purpose (docs/docs/apps/arrmcp.md).
       config:
         type: persistentVolumeClaim
         storageClass: ceph-block
@@ -73,10 +68,8 @@ spec:
         size: 1Gi
         globalMounts:
           - path: /config
-      # Overlaid read-only on top of the volume above. arr-mcp writes
-      # config.yaml only when it is absent or missing `bearer_token`
-      # (src/config/load.ts), and the ExternalSecret seeds both, so startup
-      # performs no write and the credentials never reach the PVC.
+      # Read-only: arr-mcp only writes config.yaml when it's absent or missing
+      # bearer_token, and the ExternalSecret seeds both, so startup never writes.
       config-file:
         type: secret
         name: arrmcp-secret

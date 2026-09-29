@@ -1,7 +1,5 @@
 ---
-# Canonical docs-standard-check workflow.
-# Calls the zensical-drift-check reusable on every PR touching docs/ or workflows.
-# Build-only repos override `allow-no-pages: true`.
+# Canonical template shared across repos; build-only repos override `allow-no-pages: true`.
 name: Docs Standard Check
 
 on:

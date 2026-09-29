@@ -11,10 +11,7 @@ spec:
     name: gickup
   values:
     controllers:
-      # Nightly: list GitHub (own repositories, the codelooks-com org and
-      # starred repositories) and register each one as a Forgejo pull mirror.
-      # Forgejo then fetches on its own 24h timer, so this job only has to
-      # discover new repositories and stars; see conf.yml in configmap.yaml.
+      # Registers GitHub repos/stars as Forgejo pull mirrors; Forgejo syncs on its own 24h timer.
       gickup:
         type: cronjob
         cronjob:
@@ -25,17 +22,14 @@ spec:
           successfulJobsHistory: 3
           failedJobsHistory: 3
           backoffLimit: 1
-          # Forgejo's migrate endpoint is synchronous, so the first pass over
-          # ~480 repositories is measured in hours; later runs are minutes.
+          # Migrate is synchronous, so the first pass over several hundred repositories takes hours
+          # (docs/docs/apps/forgejo.md).
           activeDeadlineSeconds: 21600
         pod:
           automountServiceAccountToken: false
         initContainers:
-          # Mints the Forgejo API token for this run (mint_token.py in the
-          # ConfigMap). Forgejo shows a token exactly once, at creation, and
-          # only the basic-auth token endpoints create one, so nothing durable
-          # holds it: the admin credentials in forgejo-secret mint a fresh
-          # token named "gickup" each night and hand it over on an emptyDir.
+          # Forgejo shows an access token once, so mint_token.py deletes and recreates it each run
+          # (docs/docs/apps/forgejo.md).
           token:
             image:
               repository: docker.io/library/python
@@ -46,11 +40,9 @@ spec:
             env:
               PYTHONDONTWRITEBYTECODE: "1"
               PYTHONUNBUFFERED: "1"
-              # The in-cluster Service the forgejo chart publishes.
               FORGEJO_URL: http://forgejo-http:3000
               TOKEN_NAME: gickup
-              # read:misc covers the /version probe the Gitea SDK makes on
-              # connect, which REQUIRE_SIGNIN_VIEW otherwise rejects.
+              # read:misc covers the SDK's /version probe; REQUIRE_SIGNIN_VIEW otherwise rejects it.
               TOKEN_SCOPES: read:misc,read:user,write:organization,write:repository
               TOKEN_PATH: /token/forgejo
               FORGEJO_ADMIN_USERNAME:
@@ -119,8 +111,7 @@ spec:
         globalMounts:
           - path: /secrets
             readOnly: true
-      # Hand-off from the token init container to gickup; lives and dies with
-      # the pod.
+      # Hand-off from the token init container to the gickup container.
       token:
         type: emptyDir
         globalMounts:

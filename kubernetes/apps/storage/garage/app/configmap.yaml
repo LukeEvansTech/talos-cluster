@@ -1,8 +1,6 @@
 ---
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/v1/configmap.json
-# garage.toml (non-secret). Flux postBuild substitutes ${SECRET_DOMAIN}.
-# rpc_secret / admin_token are NOT here. They are injected as env (GARAGE_RPC_SECRET,
-# GARAGE_ADMIN_TOKEN) from the garage-secret Secret, so no secrets live in this ConfigMap.
+# rpc_secret and admin_token arrive as env vars from garage-secret, not through this ConfigMap.
 apiVersion: v1
 kind: ConfigMap
 metadata:

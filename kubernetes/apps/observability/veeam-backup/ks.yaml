@@ -22,8 +22,5 @@ spec:
     namespace: flux-system
   targetNamespace: *namespace
   timeout: 5m
-  # CR-only app, same shape as docker-backup: the Veeam B&R server runs
-  # windows_exporter itself (LukeEvansTech/veeam-config, ansible/monitoring.yml)
-  # and publishes job-result metrics through its textfile collector, so the
-  # cluster is only in the alerting path. Nothing in-cluster to health-check.
+  # CR-only app: the Veeam server publishes its own metrics, nothing in-cluster to health-check.
   wait: false

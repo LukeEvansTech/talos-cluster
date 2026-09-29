@@ -19,18 +19,8 @@ spec:
       type: dind
     template:
       spec:
-        # miroir-local provisions a real ext4 block device, whose root directory
-        # comes up root:root 0755. The openebs-hostpath directory it replaced
-        # (#3583) was already writable, so nothing here needed fsGroup before.
-        # This image runs as uid/gid 1001, so without the chown below the runner
-        # cannot create _work/_tool and every job dies in ~2s with
-        # UnauthorizedAccessException before a single step executes.
-        # miroir's CSIDriver is fsGroupPolicy: ReadWriteOnceWithFSType and this
-        # claim is RWO + ext4, so kubelet honours fsGroup and chowns the volume.
-        # This dind runner is affected too: its live _work is root:root 0755. It
-        # just fails silently: the kubernetes-mode runners failed visibly
-        # because jobs ran, while this one's only consumer (image-pull) has kept
-        # skipping, so no job has exercised _work/_tool since the flip.
+        # uid 1001 needs fsGroup to write miroir-local's root:root ext4 volume (#3739).
+        # This dind runner fails the same way but silently: image-pull is its only _work consumer.
         securityContext:
           fsGroup: 1001
         containers:
@@ -52,11 +42,7 @@ spec:
                 mountPath: /home/runner/_work
               - name: talos-secrets
                 mountPath: /home/runner/.talos/config
-                # Minted talosconfig secrets carry the config under key `config`
-                # (matches the talos MCP mount). The old `talosconfig` key never
-                # existed, so this subPath came up as an empty *directory* and
-                # `talosctl … --talosconfig ~/.talos/config` failed with
-                # "is a directory" on every image-pull run.
+                # subPath must be `config`; `talosconfig` isn't a real key (empty dir, #4329).
                 subPath: config
                 readOnly: true
         volumes:
@@ -72,10 +58,7 @@ spec:
                       storage: 25Gi
           - name: talos-secrets
             secret:
-              # The os:admin talosconfig minted by the talos.dev ServiceAccount
-              # in rbac.yaml (Secret `talos-cluster-runner`), NOT the GitHub App
-              # creds (`talos-cluster-runner-secret`), which was wired here by
-              # mistake and carries no talosconfig.
+              # This is the os:admin talosconfig from rbac.yaml, not the GitHub App secret (#4329).
               secretName: talos-cluster-runner
     controllerServiceAccount:
       name: actions-runner-controller

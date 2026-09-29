@@ -14,8 +14,7 @@ spec:
       jobops:
         annotations:
           reloader.stakater.com/auto: "true"
-        # RWO ceph-block PVC: single replica, recreate on rollout to avoid a
-        # multi-attach deadlock (the new pod can't mount until the old releases).
+        # RWO ceph-block PVC: Recreate avoids a multi-attach deadlock waiting on the old pod.
         strategy: Recreate
         containers:
           app:
@@ -24,16 +23,12 @@ spec:
               tag: v0.13.1@sha256:42831cacd2021d65f808c9f0363e53d081fb55cb2626da7c9d233616618276c9
             env:
               TZ: ${TIMEZONE}
-              # Unquoted int so the *port anchor is valid in httpGet/service ports
-              # (a quoted "3001" fails K8s probe validation: "must contain a letter").
               PORT: &port 3001
               # Self-hosted (not the multi-tenant "hosted" SaaS) mode.
               JOBOPS_APP_MODE: local
               JOBOPS_PUBLIC_BASE_URL: "https://{{ .Release.Name }}.${SECRET_DOMAIN}"
-              # LLM: OpenAI-compatible endpoint -> in-cluster LiteLLM gateway.
-              # MODEL "self-hosted" routes to llama.cpp (llmkube) with an
-              # automatic openrouter/auto cloud fallback configured in LiteLLM.
-              # Provider/base-URL/model/key are also overridable in the app UI.
+              # MODEL self-hosted routes to llmkube's llama.cpp backend, with an openrouter/auto
+              # fallback in LiteLLM; provider, URL, model and key are overridable in the app UI.
               LLM_PROVIDER: openai_compatible
               LLM_BASE_URL: http://litellm.ai.svc.cluster.local:4000/v1
               MODEL: self-hosted
@@ -77,8 +72,8 @@ spec:
                 memory: 2Gi
 
     defaultPodOptions:
-      # Upstream image ships no USER and runs as root; Playwright/Camoufox write
-      # to /root/.cache, /ms-playwright and /tmp on the (writable) rootfs.
+      # Upstream image has no USER and runs as root; Playwright/Camoufox write to /root/.cache,
+      # /ms-playwright and /tmp on the writable rootfs.
       securityContext:
         runAsNonRoot: false
         runAsUser: 0

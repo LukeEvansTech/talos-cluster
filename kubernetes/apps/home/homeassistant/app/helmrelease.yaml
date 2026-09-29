@@ -6,8 +6,7 @@ metadata:
   name: homeassistant
 spec:
   interval: 1h
-  # HA cold-boots in 4-6 minutes and the readiness probe now gates the helm
-  # wait, so the default 5m timeout rolls the upgrade back mid-boot.
+  # HA cold-boots in 4-6 minutes, and the readiness probe gates the Helm wait past the default 5m.
   timeout: 10m
   chartRef:
     kind: OCIRepository
@@ -21,12 +20,10 @@ spec:
           app:
             image:
               repository: ghcr.io/home-operations/home-assistant
-              tag: 2026.9.3@sha256:638c4c8d62caad377e70bfa7beef75f70c9343a49aed64aad824f2cd06843c1c
+              tag: 2026.9.4@sha256:cd5ffc0a3bc873b35f20189ef22ee7ee9e8875fe666928dfee263cd464cc053d
             env:
               TZ: ${TIMEZONE}
-              # Install HACS at startup (built-in to the home-operations image).
-              # Custom components (Rako, MG/SAIC, etc.) are added via the HACS UI
-              # - the standard home-ops pattern for this image.
+              # HACS installs at startup; components still go in through its UI afterward.
               HOME_ASSISTANT__HACS_INSTALL: "true"
             probes:
               liveness:
@@ -40,9 +37,7 @@ spec:
                 custom: true
                 spec:
                   httpGet:
-                    # Unauthenticated 200 on stock HA, /healthz 404s on this
-                    # instance (it is not a core endpoint) and wedged every
-                    # upgrade in a readiness-timeout rollback loop.
+                    # /healthz 404s here, wedging every upgrade in rollback; /manifest.json works.
                     path: /manifest.json
                     port: &port 8123
                   periodSeconds: 10
@@ -66,7 +61,6 @@ spec:
               limits:
                 memory: 2Gi
 
-    # KEY CONFIGURATION: Multus network attachment
     defaultPodOptions:
       annotations:
         k8s.v1.cni.cncf.io/networks: |-

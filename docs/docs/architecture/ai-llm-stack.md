@@ -6,16 +6,16 @@ re-targeted to this cluster: **NVIDIA L4 GPUs + llama.cpp (llmkube)**.
 
 ## Components
 
-| App           | Role                                                                               | Status |
-| ------------- | ---------------------------------------------------------------------------------- | ------ |
-| `litellm`     | OpenAI-compatible gateway: routing, fallbacks, cache, metrics, MCP                 | live   |
-| `llmkube`     | llama.cpp model-serving operator (CUDA); 1 model active                            | live   |
-| `open-webui`  | chat UI (SearXNG web search, Dragonfly websockets)                                 | live   |
-| `toolhive`    | MCP servers (9 read-only) + a VirtualMCPServer gateway                             | live   |
-| `memini`      | agent long-term memory (SQLite + CPU embed/rerank)                                 | live   |
-| `hermes`      | NousResearch hermes-agent gateway + dashboard (memini-backed, ToolHive VMCP-wired) | live   |
-| `hermeswebui` | chat web frontend for hermes (via its API server)                                  | live   |
-| `repowiki`    | AI-generated per-repository wiki (mkdocs-material + CronJob)                       | live   |
+| App           | Role                                                                               | Status   |
+| ------------- | ---------------------------------------------------------------------------------- | -------- |
+| `litellm`     | OpenAI-compatible gateway: routing, fallbacks, cache, metrics, MCP                 | live     |
+| `llmkube`     | llama.cpp model-serving operator (CUDA); 1 model active                            | live     |
+| `open-webui`  | chat UI (SearXNG web search, Dragonfly websockets)                                 | live     |
+| `toolhive`    | MCP servers (9 read-only) + a VirtualMCPServer gateway                             | live     |
+| `memini`      | agent long-term memory (SQLite + CPU embed/rerank)                                 | live     |
+| `hermes`      | NousResearch hermes-agent gateway + dashboard (memini-backed, ToolHive VMCP-wired) | live     |
+| `hermeswebui` | chat web frontend for hermes (via its API server)                                  | live     |
+| `repowiki`    | AI-generated per-repository wiki (mkdocs-material + CronJob)                       | live     |
 | `foreman`     | LLMKube coder/gate/reviewer control plane. Trialled, manifests in `.archive/`      | archived |
 
 LiteLLM persists to CNPG `postgres18` (`litellm` db) and caches in Dragonfly. Internal-only route
@@ -44,7 +44,10 @@ idle, instead of a fixed 64k-per-slot cap.
 
 Weight files are declared as `hf://` URIs pointing to single-file public GGUFs on Hugging Face.
 llmkube downloads and caches them on the shared CephFS RWX `modelCache` PVC (`ceph-filesystem`
-storage class), so a cold start auto-heals without manual staging.
+storage class, 100Gi: ~35Gi of GGUFs today plus headroom), so a cold start auto-heals without
+manual staging. This PVC replaced per-model RWO `ceph-block` PVCs plus cURL staging Jobs, which
+existed only because of the "Talos has no ceph kernel module" misdiagnosis (KB-025); CephFS
+mounts natively. Weights are re-downloadable, so the cache carries no VolSync.
 
 Anti-affinity (`podAntiAffinity`) keeps one resident model per L4: the cluster has 3 cards and
 runs 1 model, preserving two cards for other GPU workloads (Plex/Jellyfin transcodes, Whisper).
@@ -57,6 +60,86 @@ consumes via LiteLLM.
 
 To add a model: drop a `Model` + `InferenceService` manifest under `llmkube/models/`, add a
 `LiteLLMModel` CR under `litellm/app/models/`, and commit. Flux reconciles both.
+
+### Resource budget on the L4
+
+The 24GB L4 has ~22.4Gi usable, and `llama-nvidia`'s budget is tight: 14.9Gi weights (Q4_K_S +
+the embedded MTP head, +0.42Gi) plus 0.6Gi for the mmproj projector (kept on the GPU, see
+"Vision projector placement" below) plus 3Gi KV (128k context, K at q8_0 and V at q4_0; only the
+16 of 64 layers that are full-attention hold KV) plus compute buffers. With MTP on and both KV
+tensors at q8_0 the card sat at 22.0-22.5Gi and the first real prompt crashed llama-server with
+"CUDA error: out of memory" in `ggml_cuda_pool_vmm::alloc`: the mul_mat compute pool grows at
+decode time, so ~0.5Gi of idle headroom isn't enough. The floor kept free is ≥1.5Gi. Dropping the
+V-cache to q4_0 bought back 1Gi (K stays q8_0, the recall-sensitive half), and `uBatchSize: 512`
+trims the compute buffers further, at a modest prompt-processing cost. Idle free VRAM measured
+~1.8Gi with the projector on the GPU and `--kv-unified` active (2026-08-25).
+
+Speculative decoding (`--spec-type draft-mtp`) drafts with that embedded MTP head and verifies
+with the main model: lossless, same output distribution, it only changes tokens/step. Baseline
+decode without it measured 15.2 t/s on the L4; expect roughly +30-60% at the typical ~0.75
+acceptance rate. `--spec-draft-n-max 2` is the consumer-GPU sweet spot from the qwen38-mtp
+recipe (tunable 2-4); the gain shrinks as concurrent slots rise, which is fine at 2 slots.
+
+### Vision projector placement
+
+The mmproj projector stays on the GPU, unlike Jory's `--no-mmproj-offload` (added in #4579 to
+free ~0.6Gi of VRAM by moving it to host RAM). A post-merge measurement on 2026-08-25 found that
+trade-off wrong for this cluster: three vision requests against a 64x64 image took 59.7s / 53.8s /
+53.3s off-GPU (correct answers, all CPU-bound on the 1024-token image encode) versus low
+single-digit seconds with the projector on the GPU. `loupe` depends on this vision path, so
+latency wins over the 0.6Gi. `--image-min-tokens 1024` (Jory's value) keeps vision quality
+regardless of where the projector runs.
+
+### Rollout and staging safety
+
+- `rolloutPolicy.waitForIdle` defers a pod-template rollout (a Renovate image bump, for example)
+  until llama.cpp's own `/slots` endpoint reports both slots idle, instead of killing an
+  in-flight agent session mid-response. It falls back to proceeding after
+  `idleTimeoutSeconds` (86400s) so a genuinely stuck slot can't block upgrades forever.
+- Never set `skipModelInit`. It looks safe, since the controller already stages the GGUF and
+  mmproj into the shared cache PVC and the init container would just log "already cached", but on
+  llmkube 0.9.x the flag also blanks the rendered `--model` argument, because that argument is
+  derived from the init container's staging step. llama.cpp then starts in router mode with zero
+  models: the pod goes `1/1 Ready` and every request fails with "model not found". This was set
+  and reverted once already (#3792).
+- No `runAsNonRoot`: the operator's model-cache-prep init container needs scoped root (drop ALL,
+  add CHOWN + FOWNER only, no privilege escalation, read-only rootfs) to chown the shared cache on
+  `fsGroupPolicy: None` backends like CephFS. This is llmkube's documented upstream compatibility
+  path. Runtime containers still run as uid 1000.
+- The image needs a llama.cpp build from release week 2026-08-14 or later; older builds don't
+  register the `qwen35` architecture and refuse to load the GGUF.
+
+### Grafana dashboards
+
+Two dashboards are ported from `joryirving/home-ops`, `llama-server` and `llm-nvidia-node`
+(the latter correlates DCGM GPU telemetry with llama.cpp's own throughput metrics so a slow
+request can be read against GPU or host pressure instead of guessed at). Both escape every
+Grafana template variable by doubling its leading `$` (`$${datasource}`, `$$service`, `$$node`,
+`$$instance`, `$$__range`, `$$__all`) so Flux `postBuild` passes the literal `${...}`/`$...`
+through to Grafana instead of blanking it, and both resolve the datasource variable to the
+lowercase `prometheus` datasource (KB-021).
+
+- `llama-server`: the upstream "Prompt cache (from logs)" panels were dropped, since they query a
+  `victoriametrics-logs-datasource` this cluster's Grafana doesn't have wired (only
+  `prometheus`/`alertmanager` `GrafanaDatasource`s exist).
+- `llm-nvidia-node`: three deviations from the source, each verified live against this cluster's
+  `kube-prometheus-stack` rather than assumed from the source repository:
+  - `namespace="llm"` becomes `namespace="ai"`; Jory's cluster names the LLM namespace `llm`.
+  - `DCGM_FI_DEV_FB_USED`'s pod-level panels ("Largest pod VRAM", "VRAM by pod") and the
+    `$$namespace`/`$$pod` variables key off `exported_namespace`/`exported_pod` instead of
+    `namespace`/`pod`. This cluster's dcgm-exporter `ServiceMonitor` keeps `namespace`/`pod` as
+    the exporter's own scrape-target identity (an `honor_labels` collision) and carries the real
+    workload mapping under `exported_namespace`/`exported_pod`, confirmed by querying
+    `DCGM_FI_DEV_FB_USED` directly: the raw `namespace`/`pod` labels read
+    `gpu-operator`/`nvidia-dcgm-exporter-xxxxx` (the exporter itself), while
+    `exported_namespace`/`exported_pod` correctly read `ai`/`llama-nvidia-...`.
+  - The `$$instance` variable populates from DCGM's `hostname` label instead of its `instance`
+    (scrape-endpoint IP:port) label, and every `DCGM_FI_DEV_*` query filters on
+    `hostname=~"$$instance"` accordingly. DCGM's `hostname` label is byte-identical to
+    node-exporter's `node_uname_info` `nodename` label (both report the node's short hostname),
+    which the Host CPU/RAM panels already join against; with the raw per-pod instance address,
+    `$$instance` could never match `nodename` and those two panels rendered empty in the
+    upstream JSON.
 
 ### Model groups
 
@@ -84,7 +167,8 @@ and the `self-hosted` model (with the `openrouter/auto` cloud fallback in scope)
 All five live outside the `ai` namespace, so none of them mounts an `ai` Secret directly. Each
 gets an operator-issued **scoped** key instead of the account-wide master key: a
 `LiteLLMVirtualKey` CR in `litellm/app/virtualkeys/<app>.yaml` (`ai` namespace, scoped to
-`self-hosted` + `openrouter/auto`) mints the key and writes it to an in-namespace Secret; a
+`self-hosted` + `openrouter/auto` so the router's cloud fallback doesn't 401 the key when the
+local backend cools down) mints the key and writes it to an in-namespace Secret; a
 paired `PushSecret` then writes that key back to the `litellm` 1Password item as property
 `LITELLM_<APP>_API_KEY` (`updatePolicy: Replace`, `refreshInterval: 1h`). The consumer's own
 ExternalSecret extracts that property like any other `litellm`-item field, with no cross-namespace
@@ -126,9 +210,9 @@ truth.
   within the group.
 - **Add a cloud provider**: add the key to the `litellm` 1Password item, add a line to
   `externalsecret.yaml`'s `target.template.data`, then add a `LiteLLMModel` CR under
-  `litellm/app/models/` (commented examples for Jory's set live in that directory's
-  `kustomization.yaml`). Don't reference an `os.environ/KEY` that isn't in the secret. The pod env
-  read fails at startup.
+  `litellm/app/models/` (ready-made templates for Jory's set are in
+  [LiteLLM: Adding a cloud provider](../apps/litellm.md#adding-a-cloud-provider)). Don't reference
+  an `os.environ/KEY` that isn't in the secret. The pod env read fails at startup.
 - **Fallbacks**: `litellmproxy.yaml`'s `routerSettings.fallbacks` is a list of
   `{model_name: [fallback, …]}`.
 - **A consumer's scoped key (same namespace)**: add a `LiteLLMVirtualKey` CR in the consumer's own
@@ -202,9 +286,18 @@ CRDs + operator charts, see `toolhive/app/ocirepository.yaml` for the current pi
 | `seerr`   | overseerr-mcp                   | Overseerr request + discovery tools                       |
 | `hamcp`   | ha-mcp                          | Home Assistant tools (scoped long-lived token)            |
 
-kubectl + flux share one read-only `ClusterRole` (`kubectl-mcp-readonly`) built from this cluster's
-API groups with core `secrets` omitted. Keep it in sync with `kubectl api-resources` as you add
-CRDs. The talos MCP mounts a `talos.dev` `ServiceAccount`-minted `os:reader` talosconfig.
+kubectl + flux share read-only access built from this cluster's API groups with core `secrets`
+omitted, split across two `ClusterRole`s bound to the same ServiceAccount (plus a second SA for
+flux-mcp; `kubectl-mcp-readonly` for the aggregation, `kubectl-mcp-readonly-explicit` for
+everything the aggregation doesn't cover). The split is mandatory, not a style choice: a
+`ClusterRole` carrying an `aggregationRule` has its `rules` field owned by the aggregation
+controller, which overwrites anything written alongside it, so any rules placed on that role are
+dead on arrival. `kubectl-mcp-readonly` mirrors the built-in `view` ClusterRole's selector and
+expands automatically as operators ship `aggregate-to-view` ClusterRoles; the explicit role lists
+the core group by name (`secrets` omitted) and this cluster's other API groups, minus `auth/*` and
+`onepassword.com`, as `resources: ["*"]`, which is safe there because Secret objects only exist in
+the core group. Keep the non-core group list in sync with `kubectl api-resources` as you add CRDs.
+The talos MCP mounts a `talos.dev` `ServiceAccount`-minted `os:reader` talosconfig.
 
 The `mcp_semantic_tool_filter` is **on** (top_k 8, embeddings via the `qwen3-embedding` model on
 the CPU `toolhiveembed` pod): with 9 servers' worth of tools it trims each request to the most
@@ -227,20 +320,80 @@ rather than LiteLLM's `all-minilm` (all-MiniLM-L6-v2): MiniLM's BERT architectur
 512-token limit and some kubectl tool descriptions exceed it, which used to terminate every VMCP
 session with an OpenAI 400 "input larger than max context size" error. The same cap turned out
 to be breaking LiteLLM's own `mcp_semantic_tool_filter` above, which now embeds here too;
-`all-minilm` stays in place for memini alone. Sessions are stored in Dragonfly so the
-Deployment can scale beyond one replica.
+`all-minilm` stays in place for memini alone.
 
 - **External URL**: `https://mcp.${SECRET_DOMAIN}/mcp`, header `x-api-key: <key>`. Keys live as
   fields on the `toolhive` 1Password item; the workstation's key is
   `TOOLHIVE_WORKSTATION_API_KEY`. Add a client by adding a field to that item plus a matching
   template key in `toolhive/gateway/externalsecret.yaml`'s `mcp-gateway-api-keys` ExternalSecret.
   Any key's value in the resulting Secret is accepted (Envoy Gateway's `SecurityPolicy` doesn't
-  distinguish which one matched).
+  distinguish which one matched), and the `SecurityPolicy` strips the header before it reaches the
+  vmcp backend, so the key is never forwarded past the gateway.
 - **In-cluster URL**: `http://vmcp-mcp-gateway.ai.svc.cluster.local:4483/mcp`, no auth (anonymous
   `incomingAuth`, because the API-key gate lives at the Envoy Gateway edge, not in the vmcp app
-  itself).
+  itself). The ToolHive operator names a `VirtualMCPServer`'s Service `vmcp-<name>`, distinct from
+  an `MCPServer`'s `mcp-<name>-proxy` pattern (see "Adding an MCP server" below).
+- The gateway's own `/health` is unauthenticated, but the `SecurityPolicy` requires `x-api-key` on
+  every path the `HTTPRoute` matches, `/health` included, so an unauthenticated Gatus probe would
+  get 401. `httproute.yaml` disables Gatus auto-monitoring for this route rather than carving out
+  an unauthenticated path just for the health check.
+- The optimizer's embedding call to `litellm.ai.svc.cluster.local` uses a scoped
+  `LiteLLMVirtualKey` (`toolhive/gateway/virtualkey.yaml`, models `all-minilm` +
+  `qwen3-embedding`), and `embeddingServiceTimeout: 600s`: a fresh session embeds every tool
+  description through the CPU embedder, measured at ~2 minutes for the full set, so the 60s value
+  from Jory's GPU-sized deployment timed out and stacked retries.
+- Sessions are stored in Dragonfly (`sessionStorage.provider: redis`) so the Deployment can scale
+  beyond one replica without pinning MCP clients to a specific pod.
 - Metrics are scraped from the same port via the existing `prometheus` `MCPTelemetryConfig`; a
-  Grafana dashboard is imported from ToolHive's upstream OTEL-scrape dashboard JSON.
+  Grafana dashboard is imported from ToolHive's upstream OTEL-scrape dashboard JSON. The upstream
+  JSON hardcodes the datasource uid `prometheus` directly rather than a `${DS_...}` placeholder, so
+  there is no `__inputs` block for `grafana-operator`'s substitution to target; if panels show
+  "datasource not found", this cluster's Prometheus datasource UID doesn't match that literal.
+
+### Metrics scraping
+
+Both `PodMonitor`s in this layer (`toolhive/app/podmonitor.yaml` for the per-`MCPServer` proxy
+pods, `toolhive/gateway/podmonitor.yaml` for the `vmcp` gateway pod) share two traps:
+
+- Neither carries a `release: kube-prometheus-stack` label; this cluster's Prometheus selects
+  monitors without it, so copying that selector from an upstream example would silently drop the
+  target.
+- The ToolHive operator names the container port `http`, not a numeric port. Prometheus matches
+  `podMetricsEndpoints[].port` by name, so a numeric value resolves no target at all. `/metrics` is
+  served on that same port once a `telemetryConfigRef` is set (`MCPTelemetryConfig`, created by the
+  `toolhive` Kustomization). The gateway `PodMonitor`'s label selector
+  (`app.kubernetes.io/name=virtualmcpserver`, `app.kubernetes.io/instance=<CR name>`) is verified
+  against the operator's `labelsForVirtualMCPServer` source, not assumed from an example.
+
+### Embedding server tuning
+
+The dedicated CPU embedder (`toolhive/embed/helmrelease.yaml`, `toolhiveembed`) runs
+Qwen3-Embedding-0.6B for both the VMCP tool optimizer and LiteLLM's `mcp_semantic_tool_filter`.
+Its `llama.cpp` flags were tuned against several OOM and timeout incidents, all on 2026-08-25:
+
+- `--ctx-size 8192` is the total KV budget, split evenly across `--parallel` slots. At 4 slots
+  that left 2048 tokens per input, and a batched tool-description upsert 400'd
+  (`exceed_context_size_error`). Two slots give 4096 tokens per input, comfortably above the
+  longest MCP tool description seen (~650 tokens), while keeping the 0.6B model's KV inside the
+  2Gi memory limit.
+- `--ubatch-size` must be at least the longest single input, since `llama.cpp` cannot split one
+  pooled-embedding sequence across micro-batches, and it sizes the attention scratch buffers
+  quadratically: `8192` OOM-killed the pod at 2Gi on the first multi-input request. `2048` is
+  ample for the ~650-token descriptions; `--batch-size 4096` matches the slot context.
+- The optimizer embeds every tool description (~540 inputs, ~100k tokens) when a session starts.
+  At 4 threads that took minutes and the optimizer's request timed out, then retried while the
+  first batch was still queued. Nodes have 24 cores, so this runs `--threads 12` with a matching
+  CPU request.
+- `llama-server`'s RAM prompt cache (`--cache-ram`, default 8192 MiB) keeps every processed
+  sequence's KV so later prompts sharing a prefix can reuse it, but embedding inputs never share
+  prefixes, so the cache only grows: it OOM-killed the pod at 3Gi after ~180 tool-description
+  inputs. `--cache-ram 0` plus `--no-cache-prompt` disables it entirely, but RSS still grows ~2Gi
+  transiently while working through the optimizer's ~540-input batch and settles back to ~1Gi
+  after; 3Gi OOM-killed the pod mid-batch three more times even with caching off, hence the 6Gi
+  memory limit.
+- `--mmap` was removed upstream in favor of `--load-mode`, and passing the old flag makes the
+  server exit with "invalid argument: --mmap" before it binds a port. `--load-mode` works on both
+  the old and new builds, so it's used here.
 
 ### flux-mcp write access (enabled)
 
@@ -250,8 +403,11 @@ The flux MCP has had write access to Flux CRDs since this was enabled: `flux-mcp
 cluster, one rule per apiGroup (`fluxcd.controlplane.io`, `helm.toolkit.fluxcd.io`,
 `kustomize.toolkit.fluxcd.io`, `notification.toolkit.fluxcd.io`, `source.toolkit.fluxcd.io`),
 each listing its resources by name rather than `resources: ["*"]`, because a wildcard trips Trivy
-KSV-0046 and Checkov's wildcard-RBAC check even when the apiGroups are this narrow. Nothing
-outside Flux CRDs, and no `secrets` access (core `""` is never included). `image.toolkit.fluxcd.io`
+KSV-0046 and Checkov's wildcard-RBAC check even when the apiGroups are this narrow. The resource
+list for each apiGroup comes from `kubectl api-resources --api-group=<group> -o name` against the
+live cluster, and deliberately excludes subresources like `<kind>/status`: `flux-operator-mcp`'s
+write tools only ever patch spec or annotations on the main object, never status. Nothing outside
+Flux CRDs, and no `secrets` access (core `""` is never included). `image.toolkit.fluxcd.io`
 has no rule because this cluster doesn't run the Flux image-automation controller. Add one
 (`imagepolicies`, `imagerepositories`, `imageupdateautomations`) if that ever changes, and add
 any other new Flux kind by hand when a component upgrade introduces one. This lets it (and
@@ -276,6 +432,10 @@ endpoint to LiteLLM's `mcp_servers`. The service name depends on the transport:
   spec's `mcpPort`.
 - **`stdio` transport with `proxyMode: streamable-http`** (e.g. `github`, grafana): ToolHive creates
   `mcp-<name>-proxy` on the spec's `proxyPort` (typically 8080).
+
+Registering an existing app's Service as an `MCPServerEntry` (`arrmcp`, `searxng`) hits one more
+trap: ToolHive rejects a `remoteUrl` host containing `cluster.local` unless `allowPrivateEndpoint`
+is set. The short `svc.ns` form resolves the same address and is accepted as-is.
 
 #### What clients actually see
 
@@ -353,9 +513,9 @@ Increase `MAX_REPOS_PER_RUN` only if the model has headroom.
   Reloader annotation or manual restart needed.
 - **open-webui's database is still SQLite**: on a `ReadWriteOnce` ceph-block PVC, with `strategy:
 Recreate` and `TIMER_POLL_INTERVAL: "30"` working around a full-table-scan bug in the unused
-  scheduler loop (see the HelmRelease comments). Web search, RAG embeddings, and Dragonfly-backed
-  websockets are independent of this. Postgres migration is a separate, not-yet-scheduled
-  decision.
+  scheduler loop (see [Open WebUI](../apps/open-webui.md)). Web search, RAG embeddings, and
+  Dragonfly-backed websockets are independent of this. Postgres migration is a separate,
+  not-yet-scheduled decision.
 - **Cross-namespace netpol**: `kubernetes/apps/ai/netpol.yaml` allows ingress to the `ai`
   namespace from the `network` namespace (gateway), plus a second `CiliumNetworkPolicy`
   (`allow-litellm-from-consumers`) that grants the `default` and `custom` namespaces ingress to the

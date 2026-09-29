@@ -25,18 +25,13 @@ ALLOWLIST = {
     "kubernetes/apps/cert-manager/cert-manager/tls/certificate.yaml": "wildcard cert SAN",
 }
 
-# Anchored to a real YAML list item (`<indent>- "value"` or `<indent>- value`),
-# not just any hyphen in the line -- an unanchored `-` also matches inside
-# literal text like "prowler-api", which corrupts the captured hostname prefix
-# and produces a false-positive orphan (see kubernetes/apps/security/prowler/
-# app/helmrelease-api.yaml's comma-joined DJANGO_ALLOWED_HOSTS env value).
+# Anchored to a real YAML list item, not any hyphen in the line: an unanchored `-` also
+# matches literal text like "prowler-api" (prowler's helmrelease-api.yaml
+# DJANGO_ALLOWED_HOSTS), corrupting the captured prefix into a false orphan.
 #
-# The prefix capture excludes only the closing quote, not whitespace: most
-# routes use the `{{ .Release.Name }}.${SECRET_INTERNAL_DOMAIN}` Helm template
-# idiom, which contains spaces inside the quotes. Excluding `\s` too (as a
-# naive first cut would) makes the regex blind to that idiom -- the majority
-# of hostnames in this repo -- while still passing on unrelated files, which
-# defeats the guard silently instead of loudly.
+# The prefix capture excludes only the closing quote, not whitespace: most routes use the
+# `{{ .Release.Name }}.` Helm idiom, which has spaces inside the quotes, and excluding `\s`
+# too would blind the regex to most hostnames in this repository while still passing quietly.
 HOSTNAME_RE = re.compile(r'^\s*-\s*"?([^"]*)\$\{SECRET_INTERNAL_DOMAIN\}"?\s*$')
 
 

@@ -15,12 +15,9 @@ spec:
         type: cronjob
         cronjob:
           ttlSecondsAfterFinished: 86400
-          # Daily at 03:30, pulls the full OPNsense config.xml over the API,
-          # age-encrypts it, and commits the ciphertext to network-configs.
-          # Replaces the plaintext dump Oxidized used to push (removed in
-          # #3775): the raw config.xml carries secrets (ddclient token, cert
-          # private keys, tailscale pre-auth key) that must never land in git
-          # unencrypted.
+          # Age-encrypts before commit because the raw config carries live secrets; replaces
+          # Oxidized's plaintext push, removed in #3775, see KB-070
+          # (docs/docs/troubleshooting/kb/070-firewall-backup-leaked-secrets.md).
           schedule: "30 3 * * *"
           concurrencyPolicy: Forbid
           successfulJobsHistory: 3
@@ -28,19 +25,15 @@ spec:
           backoffLimit: 2
         containers:
           app:
-            # alpine/git provides git + openssh + busybox (wget/tar/sha256sum).
-            # age is fetched as a pinned, checksum-verified static binary into
-            # the writable emptyDir at runtime, so the container stays non-root
-            # with a read-only rootfs (no apk, no package installs).
+            # Age is fetched as a pinned, checksum-verified binary at runtime so apk installs
+            # are not needed and the rootfs stays read-only and non-root.
             image:
               repository: docker.io/alpine/git
-              tag: v2.54.0@sha256:ae0f6f4bce38d2b8c40becc0d6241a08d9f57186ea03029de2189a2b5e722d94
+              tag: v2.54.0@sha256:832b1cd1a271509f3d5272a1a62d4cb2ab1a53426ebde1f6c2cb7349f907dc6f
             command:
               - /bin/sh
               - -c
-              # NOTE: shell $${...} / $$VAR are escaped so Flux's strict
-              # envsubst leaves them for the container shell to resolve at
-              # runtime; $(...) command substitutions are not touched by envsubst.
+              # Escape $${VAR} so Flux's postBuild skips it for the shell; $(...) passes through.
               - |
                 set -eu
                 AGE_VER=v1.2.1
@@ -86,8 +79,8 @@ spec:
               TZ: UTC
               HOME: /work
               REPO_URL: git@github.com:LukeEvansTech/network-configs.git
-              # age public recipient, not a secret; the matching identity
-              # lives only in 1Password (op://Talos/opnsense-config-backup).
+              # Public age recipient; the matching private identity lives only in 1Password
+              # (op://Talos/opnsense-config-backup).
               AGE_RECIPIENT: age1l3w3p2aljz77zmgd54tccg88tryynuu4h54cgxd3w9eux85e6cvs63gzt5
             resources:
               requests:

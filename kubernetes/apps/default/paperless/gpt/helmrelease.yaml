@@ -27,12 +27,8 @@ spec:
             image:
               repository: docker.io/icereed/paperless-gpt
               tag: v0.28.0@sha256:413af73ff5415e1f61327ccb1c63cb14e84e86b761969be6eaaee61b4f39bef4
-            # v0.26.0 introduced a rootless entrypoint.sh (addgroup/chown/su-exec
-            # for PUID/PGID support) that cannot run under this pod's hardened
-            # context (runAsUser 1000, readOnlyRootFilesystem, all caps dropped).
-            # The securityContext already provides everything the entrypoint
-            # would set up, so exec the binary directly, same runtime shape as
-            # v0.25.1. If a future bump moves the binary, startup fails loudly.
+            # v0.26.0's rootless entrypoint (chown/su-exec for PUID/PGID) cannot run under this
+            # pod's hardened context, so this execs the binary directly, same as v0.25.1.
             command:
               - "/app/paperless-gpt"
             env:

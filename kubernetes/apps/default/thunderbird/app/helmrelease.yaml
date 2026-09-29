@@ -18,18 +18,15 @@ spec:
           app:
             image:
               repository: ghcr.io/linuxserver/thunderbird
-              tag: 1140.16.0@sha256:483ca2ea649031debad626df3f122e4399849d911483aed1f1623a78b56e7d79
+              tag: 1140.16.0@sha256:0a3ba3d267fe1790360db9168b6f1b8be4d319022034b1f6dd2e3c7aa88458ac
             env:
               TZ: ${TIMEZONE}
               PUID: "1000"
               PGID: "1000"
-              # The desktop ships a terminal with passwordless sudo. This
-              # container holds a signed-in mail session, so both are removed.
+              # The desktop terminal has passwordless sudo, and this holds a signed-in mail session.
               DISABLE_SUDO: "true"
               DISABLE_TERMINALS: "true"
-              # Relaunch Thunderbird if it is ever closed. Without this the
-              # window can be shut from the desktop and mail sync stops with
-              # the pod still Running and the web UI still answering.
+              # A closed window stops sync while the pod stays Running and the web UI still answers.
               RESTART_APP: "true"
             probes:
               liveness: &probes

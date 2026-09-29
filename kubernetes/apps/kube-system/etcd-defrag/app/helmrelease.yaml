@@ -15,7 +15,7 @@ spec:
         type: cronjob
         cronjob:
           ttlSecondsAfterFinished: 86400
-          schedule: "0 4 * * *" # Daily at 4 AM - checks fragmentation and defrags if needed
+          schedule: "0 4 * * *" # Daily; defrag.sh only defrags past its fragmentation threshold.
           concurrencyPolicy: Forbid
           successfulJobsHistory: 1
           failedJobsHistory: 1
@@ -54,7 +54,7 @@ spec:
                   - ALL
     defaultPodOptions:
       securityContext:
-        # talosctl requires root access to connect to Talos API
+        # talosctl needs root to reach the Talos API.
         runAsNonRoot: false
         runAsUser: 0
         fsGroup: 0

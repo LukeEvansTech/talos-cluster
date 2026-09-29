@@ -30,8 +30,6 @@ In this repository, app-template apps do **not** share a single chart. Each app 
 
 ### Sorting rules
 
-Whenever asked to sort these files, follow these instructions.
-
 Whenever there is an `enabled` field, it should be the first field within its section, unless a more specific rule below dictates otherwise.
 
 Within the `spec` section, sort the items in this order (this repository orders `interval` before `chartRef`):

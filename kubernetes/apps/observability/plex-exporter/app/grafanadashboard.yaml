@@ -10,10 +10,7 @@ spec:
     matchLabels:
       grafana.internal/instance: grafana
   resyncPeriod: 1h
-  # The vendored dashboard has empty `__inputs` and uses a built-in `$datasource`
-  # template variable, so there is no DS_PROMETHEUS input to remap. A `datasources`
-  # block here would be a no-op. Same as the vmware-exporter dashboards: the picker
-  # defaults to the Prometheus datasource. (Verify panels populate post-deploy.)
+  # The vendored dashboard has empty `__inputs`, so a `datasources` block here would be a no-op.
   configMapRef:
     name: plex-exporter-dashboard
     key: plex.json

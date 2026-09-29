@@ -19,6 +19,5 @@ configMapGenerator:
 generatorOptions:
   disableNameSuffixHash: true
   annotations:
-    # Dashboard JSON uses Grafana ${DS_PROMETHEUS}/$__rate_interval macros;
-    # disable Flux postBuild substitution so they are not clobbered to empty.
+    # This keeps Grafana's ${DS_PROMETHEUS} and $__rate_interval macros from being blanked.
     kustomize.toolkit.fluxcd.io/substitute: disabled

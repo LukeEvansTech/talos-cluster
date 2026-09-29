@@ -43,11 +43,9 @@ spec:
                   export RCLONE_CONFIG_CLOUDFLARE_ENDPOINT=$(cat /secrets/R2_ENDPOINT)
                   exec rclone copy --verbose --stats-one-line --stats=5m --fast-list garage:cnpg/ cloudflare:cnpg/
               env:
-                # Logging
                 - name: RCLONE_VERBOSE
                   value: "1"
 
-                # Garage (source) configuration
                 - name: RCLONE_CONFIG_GARAGE_TYPE
                   value: s3
                 - name: RCLONE_CONFIG_GARAGE_PROVIDER
@@ -57,7 +55,6 @@ spec:
                 - name: RCLONE_CONFIG_GARAGE_ACL
                   value: private
 
-                # Cloudflare R2 (destination) configuration
                 - name: RCLONE_CONFIG_CLOUDFLARE_TYPE
                   value: s3
                 - name: RCLONE_CONFIG_CLOUDFLARE_PROVIDER

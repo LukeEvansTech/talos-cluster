@@ -37,9 +37,8 @@ spec:
             image:
               repository: docker.io/metabase/metabase
               tag: v0.63.18@sha256:1160b570cb11c107bce00e71293552df8a8363e01a32c2c7a048cee002dc8a73
-            # Explicit named container ports are required for the PodMonitor
-            # to match `port: metrics`. bjw-s app-template does not synthesise
-            # container ports from the service spec.
+            # Named ports are required: app-template doesn't synthesise them, and the
+            # PodMonitor needs port: metrics.
             ports:
               - name: http
                 containerPort: 3000
@@ -49,9 +48,8 @@ spec:
               TZ: ${TIMEZONE}
               MB_JETTY_PORT: "3000"
               MB_PROMETHEUS_SERVER_PORT: "9191"
-              # JDK 17+ requires --add-opens for the Prometheus collector's
-              # native NIO access. Documented at
-              # https://www.metabase.com/docs/latest/installation-and-operation/observability-with-prometheus
+              # JDK 17+ needs --add-opens for the Prometheus collector's NIO access;
+              # see docs/docs/apps/metabase.md.
               JAVA_OPTS: "--add-opens java.base/java.nio=ALL-UNNAMED"
             envFrom:
               - secretRef:

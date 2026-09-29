@@ -1,6 +1,5 @@
 ---
-# ZFS servers use ARC (Adaptive Replacement Cache) which consumes all available RAM by design.
-# This is expected behavior - the ARC will release memory when applications need it.
+# ZFS ARC deliberately uses all available RAM and releases it under memory pressure.
 apiVersion: monitoring.giantswarm.io/v1alpha1
 kind: Silence
 metadata:

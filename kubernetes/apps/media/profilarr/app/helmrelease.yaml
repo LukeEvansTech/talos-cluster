@@ -39,10 +39,9 @@ spec:
                 enabled: true
               readiness:
                 enabled: true
-                # NOTE: No container-level securityContext.
-                # The profilarr container starts as root and drops to PUID/PGID internally (LSIO-style).
-                # Do NOT add at container level: allowPrivilegeEscalation: false, capabilities drop ALL,
-                # readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser/Group: 1000.
+                # This container needs SETUID/SETGID to drop from root to PUID/PGID; do not
+                # add the repo's standard hardening securityContext here (capabilities.drop:
+                # [ALL], readOnlyRootFilesystem, allowPrivilegeEscalation: false).
           parser:
             image:
               repository: ghcr.io/dictionarry-hub/profilarr-parser
@@ -75,17 +74,12 @@ spec:
                   timeoutSeconds: 5
                   failureThreshold: 3
     defaultPodOptions:
-      # The app container starts as root and drops to UID/GID 1000 via PUID/PGID.
-      # fsGroup adjusts /config volume ownership so the dropped user can write.
-      # References:
-      # - https://github.com/Dictionarry-Hub/profilarr (README, Production section)
       securityContext:
-        # CRITICAL: fsGroup + fsGroupChangePolicy let kubelet chown the volume,
-        # otherwise the container errors with "Operation not permitted" on /config.
+        # fsGroup and fsGroupChangePolicy let kubelet chown /config, or the app fails with
+        # "Operation not permitted".
         fsGroup: 1000
         fsGroupChangePolicy: OnRootMismatch
-        # DO NOT set pod-level runAsUser/runAsGroup/runAsNonRoot - the app
-        # entrypoint must start as root to perform its user switch.
+        # Leave runAsUser and runAsNonRoot unset: the app entrypoint must start as root.
         supplementalGroups:
           - 10000
         seccompProfile:

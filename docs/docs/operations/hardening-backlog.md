@@ -21,6 +21,60 @@ instance but not the class, say so; the class is what stays open.
 
 ## Open
 
+### H-21: A comment claimed NextDNS is enforced on every pod except one, which is not true
+
+**Found:** 2026-09-28, while trimming comments on `media/dispatcharr`.
+
+A comment on `media/dispatcharr`'s `DNS_KEEP_NAMESERVER` setting said taking that one pod off
+estate DNS "leaves NextDNS fully enforced for every other device". `downloads/imgur-proxy` also
+does not use estate DNS for its proxied traffic: its nginx config sets `resolver 127.0.0.1` and
+gluetun's own DoT resolver is on (`downloads/imgur-proxy/app/helmrelease.yaml:77-88`), so imgur
+lookups go out the tunnel the same way dispatcharr's do, by a different mechanism (an nginx
+directive instead of `DNS_KEEP_NAMESERVER`). The claim predates this comment sweep; carried
+forward into `docs/docs/apps/dispatcharr.md` at first, then qualified there once Codex caught it.
+
+**Mitigation in place:** none needed for safety, since NextDNS's ad/malware filtering not covering
+this one proxy's fetches was already the point of imgur-proxy's own setup. The risk is purely that
+the original claim could lead someone to assume NextDNS covers more of the fleet's egress than it
+does.
+
+**What would close it:** an accurate one-line note near `DNS_KEEP_NAMESERVER` on both apps (or a
+shared page) naming every gluetun sidecar that bypasses estate DNS and by what mechanism, so the
+next person doesn't have to re-derive the exception list from source.
+
+### H-20: Three gluetun sidecars have no tunnel gate at start and no recovery after it
+
+**Found:** 2026-09-28, while trimming comments on `media/dispatcharr` (KB-042 covers the kubelet
+restart-loop this is adjacent to).
+
+`downloads/prowlarr`, `downloads/qbittorrent` and `downloads/sabnzbd` all disable every kubelet
+probe on gluetun's health server, including `startup.enabled: false`
+(`prowlarr/app/helmrelease.yaml:74-75`, `qbittorrent/app/helmrelease.yaml:246-247`,
+`sabnzbd/app/helmrelease.yaml:209-210`), and all three also set `HEALTH_SERVER_DISABLE_LOOP: on`,
+turning off gluetun's own internal health-check loop. This is two separate gaps, not one:
+
+- **At pod start:** with no startup probe, Kubernetes does not wait for gluetun's health server to
+  answer before starting the main app container, the same leak window `media/dispatcharr`'s own
+  startup probe exists to close (it gates the app container until the tunnel and firewall are up).
+  These three pods have no such gate at all.
+- **After a successful start:** neither the kubelet nor gluetun's internal loop is watching the
+  tunnel, so a degradation after startup (routing or DNS breaking while the WireGuard link itself
+  stays up) has no automatic recovery path either.
+
+`media/dispatcharr` and `downloads/imgur-proxy` are the only two gluetun sidecars with
+`HEALTH_SERVER_DISABLE_LOOP: off`, so they have the post-startup recovery path; only
+`media/dispatcharr` also keeps a startup probe enabled, so it is the only one of the four with a
+startup gate.
+
+**Mitigation in place:** none identified. A leak at start or a degraded tunnel on one of the three
+affected apps would need a human to notice symptomatically (the app's traffic bypassing the VPN, or
+failing to reach its upstream) and act on it.
+
+**What would close it:** enable a startup probe on gluetun's health server for the three affected
+sidecars, matching `media/dispatcharr`'s shape, and set `HEALTH_SERVER_DISABLE_LOOP: off`, the same
+fix `downloads/imgur-proxy` already carries (#4608), so gluetun's internal loop recovers a
+post-startup degradation without touching the pod network namespace.
+
 ### H-3: The Renovate review gate fails open on error, and its token expires
 
 **Found:** 2026-06-03 while building `.github/workflows/renovate-review.yaml`; accepted by design.

@@ -77,8 +77,7 @@ spec:
           query: alertmanager_alerts{state="active"} - 1 # Ignore Watchdog
           colorExpr: 'colorScale(result, [1.0], ["green", "red"])'
 
-        # Gatus-backed service checks. min()/max() collapse the per-replica
-        # series so these keep working if gatus scales beyond one replica.
+        # min()/max() collapse per-replica series in case gatus ever scales past one replica.
         - title: Internet
           id: gatus_connectivity
           query: min(gatus_results_endpoint_success{group="connectivity"}) # Cloudflare + Google + Quad9

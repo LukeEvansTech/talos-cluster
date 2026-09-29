@@ -126,10 +126,9 @@ misconfigurations:
       values. See that statement for where the real secrets live.
 
   # --- Wazuh (kubernetes/apps/security/wazuh) -------------------------------
-  # Accepted risks, not false positives, except where noted. Recorded here so the
-  # security dashboard stays a signal rather than a wall of known-and-decided
-  # findings. KSV-0014 (read-only root filesystem) is deliberately NOT listed:
-  # that one is real hardening debt, tracked in the manifests, not accepted.
+  # Accepted risks, not false positives except where noted, kept here so the security dashboard
+  # stays a signal, not a wall of known findings. KSV-0014 (read-only root filesystem) is
+  # deliberately NOT listed: that's real hardening debt, tracked in the manifests, not accepted.
   - id: KSV-0125
     paths: &wazuh_workloads
       - "kubernetes/apps/security/wazuh/app/indexer.yaml"

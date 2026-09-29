@@ -5,16 +5,13 @@ kind: ObjectStore
 metadata:
   name: postgres18-garage
 spec:
-  # Retention policy
   retentionPolicy: 90d
 
-  # Barman configuration
   configuration:
-    # S3 destination (in-cluster Garage)
+    # In-cluster Garage, not AWS S3.
     destinationPath: s3://cnpg/
     endpointURL: http://garage.storage.svc.cluster.local:3900
 
-    # Credentials from existing secret
     s3Credentials:
       accessKeyId:
         name: cloudnative-pg-secret
@@ -23,12 +20,10 @@ spec:
         name: cloudnative-pg-secret
         key: AWS_SECRET_ACCESS_KEY
 
-    # WAL configuration
     wal:
       compression: zstd
       maxParallel: 4
 
-    # Data backup configuration
     data:
       compression: bzip2
       jobs: 2

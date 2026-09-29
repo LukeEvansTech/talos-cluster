@@ -11,9 +11,8 @@ spec:
       - key: app.kubernetes.io/name
         operator: NotIn
         values:
-          # Holds a signed-in mail session behind no authentication of its own,
-          # and is reached only by `kubectl port-forward`. allow-kube-apiserver
-          # still grants it host ingress, which is that path.
+          # Holds a signed-in mail session with no auth of its own, reached only by `kubectl
+          # port-forward`; allow-kube-apiserver already grants that host-ingress path.
           - thunderbird
   ingress:
     - fromEndpoints:
@@ -26,10 +25,8 @@ kind: CiliumNetworkPolicy
 metadata:
   name: allow-searxng-from-ai
 spec:
-  # open-webui and mcp-searxng (both in `ai`) call SearXNG directly by its
-  # ClusterIP DNS name for web search rather than through the envoy-internal
-  # route. Additive to the namespace-wide policy above (Cilium unions
-  # allows), scoped to the searxng endpoint only.
+  # open-webui and mcp-searxng (ai) call SearXNG directly by its ClusterIP DNS name rather than
+  # through the envoy-internal route; additive to the namespace-wide policy above.
   description: "Allow ai namespace pods to reach searxng"
   endpointSelector:
     matchLabels:
@@ -45,10 +42,8 @@ kind: CiliumNetworkPolicy
 metadata:
   name: allow-chaski-from-media
 spec:
-  # The curatorjudge CronJob (media) posts its weekly digest straight to
-  # chaski's ClusterIP rather than out through the gateway and back. Additive
-  # to the namespace-wide policy above (Cilium unions allows), which otherwise
-  # admits only the network namespace.
+  # curatorjudge and kometa (media) post straight to chaski's ClusterIP rather than out through
+  # the gateway and back; additive to the policy above, which otherwise admits only `network`.
   description: "Allow the curatorjudge and kometa jobs (media) to reach chaski"
   endpointSelector:
     matchLabels:

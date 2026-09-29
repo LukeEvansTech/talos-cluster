@@ -74,14 +74,7 @@ spec:
               repository: ghcr.io/qdm12/gluetun
               tag: v3.41.3@sha256:fa19cc76b2af13d57a8d3dc3066f2ada061b1c761b8aecf989b3877c0486e027
             env:
-              # gluetun blocks malicious domains at its DNS layer by default.
-              # That is dead weight here and nowhere else: nginx below runs
-              # `resolver 127.0.0.1` and its SNI map drops anything that is
-              # not .imgur.com before a connection is opened, so the only
-              # lookups this resolver ever sees are imgur hostnames. Turning
-              # it off also removes the blocklist download, the likeliest
-              # cause of the startup memory spike that OOMKilled this
-              # container against its (previously 256Mi) limit.
+              # Off here only: nginx's SNI map already limits lookups to .imgur.com.
               BLOCK_MALICIOUS: off
               DOT: "on"
               DOT_CACHING: "on"
@@ -92,30 +85,14 @@ spec:
               FIREWALL_INPUT_PORTS: "8443,9999"
               FIREWALL_OUTBOUND_SUBNETS: '"${CLUSTER_PODS_CIDR},${CLUSTER_SVCS_CIDR},${CR_LAN_CIDR},${GH_LAN_CIDR}"'
               HEALTH_SERVER_ADDRESS: ":9999"
-              # Keep gluetun's internal health-check loop running (`off` means
-              # "do not disable it"). With the kubelet probe below turned off,
-              # this loop is the only thing left that notices a degraded
-              # tunnel and restarts it in-process, without touching the pod
-              # netns the way a kubelet-triggered container restart would.
-              # Leave this `off`: flipping it back to `on` silently removes
-              # that recovery path again while the comment on the probes
-              # below still claims it is active.
+              # `off` keeps gluetun's tunnel-recovery loop enabled (double negative; don't flip it).
+              # The kubelet probe below is off, so this loop is the only recovery path left (#4608).
               HEALTH_SERVER_DISABLE_LOOP: off
               HEALTH_VPN_DURATION_INITIAL: 60s
               LOG_LEVEL: info
-              # Run as root (0) rather than gluetun's default 1000. gluetun
-              # chowns the public-IP status file to PUID:PGID after every
-              # write (internal/publicip/fs.go), and this container drops ALL
-              # capabilities, so a 0 -> 1000 chown fails EPERM without
-              # CAP_CHOWN. Chowning to the existing owner is a permitted
-              # no-op, which keeps the drop-ALL context intact. Only the
-              # unused OpenVPN process user is otherwise derived from PUID
-              # (this tunnel is WireGuard), so nothing else is affected.
+              # Root (0) avoids EPERM chowning the public-IP file to PUID:PGID under drop-ALL.
               PGID: 0
-              # Public IP check provider. gluetun only accepts "ipinfo" or
-              # "ip2location"; ipinfo rate-limits (HTTP 429) on its free monthly
-              # tier, so use ip2location for the (cosmetic) public-IP display.
-              # https://github.com/qdm12/gluetun-wiki/blob/main/setup/options/others.md
+              # ip2location avoids ipinfo's 429 on its free tier; the display is cosmetic.
               PUBLICIP_API: ip2location
               PUID: 0 # see PGID above
               TZ: ${TIMEZONE}
@@ -124,28 +101,12 @@ spec:
               VPN_INTERFACE: wg0
               VPN_IPV6_SERVER: off
               VPN_TYPE: wireguard
-            # WireGuard creds + exit location come from the per-app
-            # `gluetun-imgur-proxy` 1Password item (its own AirVPN device key /
-            # internal IP, SERVER_COUNTRIES=Netherlands), merged into
-            # imgur-proxy-secret by the ExternalSecret.
+            # VPN creds come from the `gluetun-imgur-proxy` 1Password item via the ExternalSecret.
             envFrom:
               - secretRef:
                   name: imgur-proxy-secret
-            # Both probes are disabled, matching the gluetun sidecars in
-            # qbittorrent / sabnzbd / prowlarr. A kubelet probe on the health
-            # server restarts the *container*, but gluetun keeps the pod's
-            # network namespace across container restarts and re-appends its
-            # firewall rules on every start. One transient tunnel failure
-            # therefore becomes self-sustaining: probe 500 -> restart ->
-            # more accumulated netns state -> slower/failed start -> probe
-            # 500. This container sat in exactly that loop for 4+ days and
-            # 1352 restarts, ending in OOMKills against the limit below, and
-            # only a pod recreation could break it. gluetun's own internal
-            # healthcheck loop already restarts the *tunnel* in-process on
-            # failure (kept enabled via HEALTH_SERVER_DISABLE_LOOP above),
-            # which recovers the same faults without touching the netns, so
-            # the kubelet probe adds a failure mode without adding a
-            # recovery path.
+            # Probes off, matching the sibling gluetun sidecars, avoids a kubelet restart storm
+            # from shared netns state (1352 restarts in 4+ days; docs/docs/apps/imgur-proxy.md).
             probes:
               liveness:
                 enabled: false
@@ -168,12 +129,8 @@ spec:
                   periodSeconds: 10
                   failureThreshold: 30
             restartPolicy: Always
-            # gluetun shares the pod netns across container restarts, so an
-            # abrupt exit leaves an orphaned policy-routing rule for the
-            # wireguard table. The next start then fails with
-            # "adding ip rule 101 ... table 51820: file exists" and never
-            # connects. Clear stale v4/v6 rules on (re)start so gluetun can
-            # re-add them cleanly. See gluetun-wiki setup/advanced/kubernetes.
+            # Clears stale v4/v6 wireguard ip rules left by an abrupt exit, so gluetun can
+            # re-add them on (re)start instead of failing with "table 51820: file exists".
             lifecycle:
               postStart:
                 exec:
@@ -195,15 +152,8 @@ spec:
                 cpu: 25m
                 memory: 64Mi
               limits:
-                # Steady state is ~26Mi and the highest figure cAdvisor ever
-                # sampled in 7 days is ~86Mi, but this container still
-                # OOMKilled 240+ times at 256Mi: the spike lands ~2s into
-                # startup and dies inside one scrape interval, so it is
-                # invisible to sampling and cannot be sized from metrics.
-                # BLOCK_MALICIOUS: off above should remove it; this is the
-                # belt to that pair of braces, since the 7MB servers.json
-                # parse is an unmeasured second candidate. The other three
-                # gluetun sidecars set no memory limit at all.
+                # Insurance, not a measurement: this container OOMKilled 240+ times at 256Mi from a
+                # startup spike too brief for cAdvisor to sample (docs/docs/apps/imgur-proxy.md).
                 memory: 512Mi
                 kernel.org/tun: 1
         pod:
@@ -217,15 +167,10 @@ spec:
         controller: imgur-proxy
         type: LoadBalancer
         annotations:
-          # Pin the LB IP from the Cilium pool. Add SVC_IMGUR_PROXY_ADDR
-          # to cluster-secrets in 1Password before applying.
+          # Add SVC_IMGUR_PROXY_ADDR to cluster-secrets before applying; pins the Cilium pool IP.
           lbipam.cilium.io/ips: ${SVC_IMGUR_PROXY_ADDR}
-        # externalTrafficPolicy: Cluster (default). Cilium L2 picks any
-        # node as announcer; with Local the announcer must coincide with
-        # the pod's node, which Cilium L2 doesn't currently guarantee
-        # (announcer is hash-selected from the policy's nodeSelector).
-        # Source IP visibility isn't useful here. The proxy is
-        # SNI-allowlisted and doesn't do per-client policy.
+        # Cluster (default): Local needs Cilium's L2 announcer on the pod's node, not guaranteed.
+        # Source IP isn't useful here; the proxy is SNI-allowlisted, not per-client.
         externalTrafficPolicy: Cluster
         ports:
           https:
@@ -314,16 +259,8 @@ spec:
           imgur-proxy:
             gluetun:
               - path: /gluetun
-      # gluetun creates its status directory with os.MkdirAll("/tmp/gluetun",
-      # 0644), a directory with no execute bit, so nothing can traverse into
-      # it without CAP_DAC_OVERRIDE (cmd/gluetun/main.go). The other gluetun
-      # sidecars in this namespace only survive that because they keep root's
-      # default capability set; this one drops ALL, so writing the public-IP
-      # file failed with "clearing public IP data: open /tmp/gluetun/ip:
-      # permission denied" on every tunnel teardown. Pre-creating the path as
-      # an emptyDir (mode 1777) makes gluetun's MkdirAll a no-op and keeps the
-      # mode sane, with no capability grant. Nested under the `tmp` mount
-      # above; the kubelet orders nested mounts by path.
+      # Pre-created (mode 1777): gluetun's own MkdirAll leaves no execute bit, which blocked the
+      # public-IP write under this container's drop-ALL caps (docs/docs/apps/imgur-proxy.md).
       gluetun-tmp:
         type: emptyDir
         medium: Memory

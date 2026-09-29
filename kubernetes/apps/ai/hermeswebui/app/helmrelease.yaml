@@ -20,32 +20,27 @@ spec:
           app:
             image:
               repository: ghcr.io/nesquena/hermes-webui
-              tag: 0.52.339@sha256:3e7b216e342a6e607c47c87da9093efd0d28c71bf4af5b8f4341243a552ba561
+              tag: 0.52.379@sha256:daa38097ab602e4e7af757a8b1f2e3107ae50074634ff6fa58b8db830ee9da13
             env:
               TZ: ${TIMEZONE}
               # Image already bakes 0.0.0.0:8787; kept explicit for clarity.
               HERMES_WEBUI_HOST: 0.0.0.0
               HERMES_WEBUI_PORT: &port 8787
-              # Sessions, settings, the auth signing key, and attachments live
-              # here. It is the ONLY stateful path, persisted on the volsync PVC
-              # (mounted at /data below); losing it logs every user out.
+              # Sessions, settings, the signing key, and attachments: the only stateful
+              # path, persisted on the volsync PVC. Losing it logs everyone out.
               HERMES_WEBUI_STATE_DIR: /data
-              # Chat through hermes-app's OpenAI-compatible gateway API server
-              # rather than the WebUI's own legacy backend.
+              # gateway: hermes-app's OpenAI-compatible API, not the WebUI's own legacy backend.
               HERMES_WEBUI_CHAT_BACKEND: gateway
-              # Base URL only. The WebUI appends /v1/* and /api/* itself, so no
-              # /v1 suffix here (matches upstream's default of http://127.0.0.1:8642).
+              # Base URL only: the WebUI appends /v1/* and /api/* itself (matches
+              # upstream's 127.0.0.1:8642 default).
               HERMES_WEBUI_GATEWAY_BASE_URL: http://hermes-app.ai.svc.cluster.local:8642
-              # REQUIRED: the gateway runs approvals.mode: manual, and without the
-              # runs API the approval cards never surface. Tool calls would hang
-              # invisibly. Truthy value opts into the runs-API approval path.
+              # Required: the gateway's approvals.mode: manual needs the runs API, or
+              # approval cards never surface and tool calls hang invisibly.
               HERMES_WEBUI_GATEWAY_USE_RUNS_API: "true"
             envFrom:
-              # HERMES_WEBUI_GATEWAY_API_KEY + HERMES_WEBUI_PASSWORD.
               - secretRef:
                   name: hermeswebui
             probes:
-              # The WebUI serves an unauthenticated GET /health on :8787.
               liveness: &probe
                 enabled: true
                 custom: true
@@ -58,10 +53,9 @@ spec:
                   timeoutSeconds: 5
                   failureThreshold: 3
               readiness: *probe
-              # First boot (and every pod start, since the venv lives on the ephemeral
-              # image layer, not the PVC) builds a Python venv via `uv pip install`
-              # before /health answers, so gate liveness/readiness on a generous
-              # startup probe (~5 min) instead of a long initialDelaySeconds.
+              # Every start builds a venv via `uv pip install` before /health answers
+              # (the venv lives on the image layer, not the PVC); the startup probe
+              # covers that instead of a long initialDelaySeconds.
               startup:
                 enabled: true
                 custom: true
@@ -73,8 +67,7 @@ spec:
                   failureThreshold: 30
             securityContext:
               allowPrivilegeEscalation: false
-              # The entrypoint seeds /app and builds the venv on the writable
-              # image layer, so the root FS cannot be read-only.
+              # Entrypoint writes the venv to the image layer, so root FS can't be read-only.
               readOnlyRootFilesystem: false
               capabilities:
                 drop:
@@ -91,13 +84,8 @@ spec:
                 protocol: TCP
     defaultPodOptions:
       securityContext:
-        # The image bakes `groupadd -g 1024 / useradd -u 1024 hermeswebui`. Its
-        # /hermeswebui_init.bash entrypoint normally starts as root only to align
-        # the runtime UID/GID with mounted volumes, then execs the server as 1024.
-        # Started directly as 1024 it detects the non-root start, skips that root
-        # branch, seeds /app + builds the venv as 1024, and asserts UID/GID == 1024
-        #, so we bypass the root init entirely (no self-chown needed). fsGroup
-        # 1024 makes the /data PVC group-writable so HERMES_WEBUI_STATE_DIR persists.
+        # Starting directly as UID 1024 skips the entrypoint's root/self-chown branch
+        # (docs/docs/apps/hermeswebui.md). fsGroup 1024 covers the /data PVC instead.
         runAsNonRoot: true
         runAsUser: 1024
         runAsGroup: 1024
@@ -114,9 +102,8 @@ spec:
     route:
       app:
         annotations:
-          # Probe /health, not /: once HERMES_WEBUI_PASSWORD is set the app root
-          # redirects to the login page, which a bare uptime check would read as
-          # down. /health is unauthenticated and always 200.
+          # Probes /health, not /: once HERMES_WEBUI_PASSWORD is set, / redirects to
+          # login, which a bare uptime check would read as down.
           gatus.home-operations.com/endpoint: |-
             url: https://{{ .Release.Name }}.${SECRET_DOMAIN}/health
             conditions: ["[STATUS] == 200"]

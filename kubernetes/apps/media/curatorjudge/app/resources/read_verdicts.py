@@ -78,9 +78,7 @@ def main() -> int:
         return finish("not asked", (WORK / "skip").read_text(encoding="utf-8").strip(), 0)
 
     if (WORK / "judge-failed").is_file():
-        # The judge container records its failure here and exits 0 on purpose, so
-        # that a judgement this pipeline could not obtain still gets reported
-        # rather than killing the pod before the digest is sent.
+        # Recorded here and exits 0 on purpose, so it gets reported rather than killing the pod.
         return finish("failed", (WORK / "judge-failed").read_text(encoding="utf-8").strip(), 1)
 
     raw = WORK / "claude.json"

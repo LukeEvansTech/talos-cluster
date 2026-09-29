@@ -18,26 +18,11 @@ spec:
           app:
             image:
               repository: homebridge/homebridge
-              tag: "2026-09-02@sha256:77c685a40911b3b95448f3550be0c8b94cd7b4e66daecc1cc39a8285be75b245"
+              tag: "2026-09-25@sha256:22cdfca31934661ef9aaaa2e3fa74daa84a803fbf4c4a6c38c6bc1460b9f0596"
             env:
               TZ: ${TIMEZONE}
-              # Must be explicitly "0". The image bakes in ENV ENABLE_AVAHI=1,
-              # so merely omitting this falls back to the image default and the
-              # daemon still starts. /etc/s6-overlay/s6-rc.d/avahi/run gates on
-              # `[ "$ENABLE_AVAHI" = "1" ]`.
-              #
-              # Avahi crash-looped forever on "Failed to create runtime directory
-              # /run/avahi-daemon/": it chowns that dir to the avahi user then
-              # verifies ownership, but CAP_CHOWN is dropped below, so the chown
-              # returns EPERM and the check fails. Granting CHOWN clears that but
-              # only exposes the next wall: dbus cannot bind
-              # /run/dbus/system_bus_socket as root (an unprivileged user can,
-              # which points at SELinux rather than capabilities).
-              #
-              # Not worth chasing: config.json sets `advertiser: bonjour-hap`,
-              # so Avahi was never used for HomeKit advertisement anyway. Note
-              # that HAP still cannot work over Cilium pod networking, pairing
-              # needs LAN presence (see the Multus attachment used by scrypted).
+              # Must be the string "0": the image bakes in a default of "1", so omitting
+              # this override leaves that default in place (docs/docs/apps/homebridge.md).
               ENABLE_AVAHI: "0"
             probes:
               liveness:
@@ -60,15 +45,12 @@ spec:
                   periodSeconds: 10
               startup:
                 enabled: false
-            # Container-level security context
-            # Note: Less restrictive than other apps due to homebridge requirements
             securityContext:
               allowPrivilegeEscalation: false
-              readOnlyRootFilesystem: false # Homebridge needs to write to /run and /tmp
+              readOnlyRootFilesystem: false # Homebridge writes to /run and /tmp at runtime
               capabilities:
                 add:
-                  # SETUID/SETGID required for dbus-daemon to drop privileges
-                  # Without these, dbus fails with "Failed to drop capabilities"
+                  # dbus-daemon needs these to drop privileges; without them it fails to do so
                   - SETGID
                   - SETUID
                 drop:
@@ -80,23 +62,16 @@ spec:
               limits:
                 memory: 1Gi
 
-    # Pod-level security context
-    # IMPORTANT: Homebridge container requires root (UID 0) to manage system services
-    # This differs from most other apps in this cluster which run as non-root users (UID 1000 or 568)
-    # The s6-overlay init system needs root to manage /run directory ownership
-    #
-    # Note: Many homebridge deployments omit securityContext entirely, relying on image defaults
-    # We explicitly set it here to be clear about security posture and maintain consistency
-    # with cluster security policies
+    # The s6-overlay init system needs root to manage /run directory ownership.
     defaultPodOptions:
       securityContext:
-        runAsNonRoot: false # Must be false - homebridge container expects root
-        runAsUser: 0 # Run as root (required by homebridge/homebridge image)
-        runAsGroup: 0 # Root group
-        fsGroup: 0 # File system group set to root
+        runAsNonRoot: false
+        runAsUser: 0
+        runAsGroup: 0
+        fsGroup: 0
         fsGroupChangePolicy: OnRootMismatch
         seccompProfile:
-          type: RuntimeDefault # Still use default seccomp profile for syscall filtering
+          type: RuntimeDefault
 
     service:
       app:

@@ -61,10 +61,16 @@ Kubernetes cluster, with a queryable findings dashboard.
     attack-paths-scans) and `--without-mingle --without-gossip`. Celery 5.6's mingle/gossip
     startup steps kill the worker instantly against Dragonfly's pub/sub emulation, and the
     entrypoint's own `worker` mode can't pass those flags through, so direct invocation is the
-    only way to disable them.
-  The `command` override is required in the beat and worker cases. Without it, an appended
-  `args` value is tacked onto the image's hardcoded `["../docker-entrypoint.sh", "prod"]`,
-  which still runs gunicorn and causes a port 8080 collision with the API container.
+    only way to disable them. The failure is silent: the worker connects, logs
+    `mingle: searching for neighbors`, and exits 1 a few seconds later with no traceback.
+    The command otherwise mirrors the entrypoint's own `start_worker()` (same queues, `-E`,
+    `--max-tasks-per-child`), and sets `DJANGO_APP_COMPONENT=worker` so the connection is
+    tagged in Postgres' `application_name` the way the entrypoint would.
+    The `command` override is required in the beat and worker cases. Without it, an appended
+    `args` value is tacked onto the image's hardcoded `["../docker-entrypoint.sh", "prod"]`,
+    which still runs gunicorn: for the worker, which shares a Pod with the API, that means a
+    port 8080 collision; `prowler-beat` doesn't share a Pod, so it OOMs instead, against a
+    memory limit sized for the scheduler alone.
 - **`NEO4J_AUTH` cannot contain a `/`.** The value is `neo4j/<password>` and DozerDB
   parses it by splitting on the first `/`, so a generated password containing `/`
   silently corrupts the credential. Generate the DozerDB password without `/` (or
@@ -80,10 +86,18 @@ Kubernetes cluster, with a queryable findings dashboard.
   probe, because the liveness/readiness probes override the request's `Host` header
   to `prowler-api` instead. Expand the allowed-hosts list if Django still rejects a
   `Host` header (e.g. when traffic arrives under a different service DNS).
+- **The UI probe targets `/api/auth/session`, not `/`.** Probing `/` works (kubelet accepts
+  NextAuth's 307 redirect to `/sign-in` as healthy) but logs a `ProbeWarning` every cycle, and
+  `/api/health` returned 404 on the deployed UI version. `/api/auth/session` is a standard
+  NextAuth endpoint that returns a clean `200` with `{}` for an unauthenticated request.
 - **gunicorn auto-worker count blows memory.** Left to auto-detect, gunicorn spawns a
   worker per CPU core, which on a multi-core node far exceeds the container memory
   limit and OOMKills the API. Pin the worker count explicitly to a small value so
-  memory stays within the request/limit.
+  memory stays within the request/limit. On the cluster's 24-core nodes, gunicorn's
+  default `(CPU*2+1)` formula meant 49 workers at about 4GB before any traffic; the
+  same defaulting hits Celery's prefork pool through `DJANGO_CELERY_WORKER_CONCURRENCY`
+  (`os.cpu_count()`), which idled 24 Django worker children at a similar memory cost.
+  Both are pinned to `4`.
 - **Service `nameOverride` (resolved by renaming the HelmRelease).** The UI's
   `API_BASE_URL` and Django's `ALLOWED_HOSTS` require the API Service to resolve as
   `prowler-api`. app-template names the Service after the HelmRelease, so the
@@ -108,4 +122,7 @@ Kubernetes cluster, with a queryable findings dashboard.
 - **Health and verification.** A gatus `guarded` check covers the endpoint. After a
   reconcile, confirm the `init-db` initContainer created the database and role, the
   `api` container applied migrations and bound gunicorn on its port, the `worker`
-  connected to the broker, and `prowler-beat` started its scheduler.
+  connected to the broker, and `prowler-beat` started its scheduler. A broker auth failure
+  is invisible from the route's uptime check, since the API and UI both work without it;
+  check the `worker` and `prowler-beat` logs directly
+  ([KB-159](../troubleshooting/kb/159-prowler-dragonfly-auth-silent-failure.md)).

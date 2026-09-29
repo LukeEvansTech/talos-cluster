@@ -5,25 +5,8 @@ metadata:
   name: kubectl-mcp-readonly
   namespace: ai
 ---
-# Broad read-only access for the kubectl + flux MCP servers, split across two
-# ClusterRoles. Kubernetes Secrets (core v1) are deliberately excluded from
-# both so the LLM can inspect cluster state but never read secret values.
-#
-# The split is mandatory, not stylistic: a ClusterRole that carries an
-# aggregationRule has its `rules` field owned by the aggregation controller,
-# which overwrites anything written alongside it, any rules on a role like
-# that are dead on arrival. Both roles below are bound to the same
-# ServiceAccount (and, for flux-mcp, a second SA, see flux/rbac.yaml).
-#
-# - kubectl-mcp-readonly: aggregation only, `rules: []`. Same selector as the
-#   built-in "view" ClusterRole. Expands automatically as operators ship
-#   rbac.authorization.k8s.io/aggregate-to-view ClusterRoles (CRDs, etc.).
-# - kubectl-mcp-readonly-explicit: the rules the aggregation does not cover.
-#   - Core group "": explicit resource list with `secrets` omitted (and no
-#     exec/attach/proxy subresources).
-#   - Non-core API groups: `resources: ["*"]` is safe because Secret objects
-#     only exist in the core group. The list is this cluster's actual API
-#     groups (kubectl api-resources), minus auth/* and onepassword.com.
+# Secrets (core v1) excluded from both roles; the split is mandatory, not stylistic
+# (docs/docs/architecture/ai-llm-stack.md MCP tools).
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -53,7 +36,7 @@ rules:
       - /version/
     verbs:
       - get
-  # Core v1, everything except secrets.
+  # Core v1, secrets excluded.
   - apiGroups:
       - ""
     resources:
@@ -87,8 +70,7 @@ rules:
       - get
       - list
       - watch
-  # All non-core API groups present on this cluster (Secret objects are not in
-  # these groups). Keep in sync with `kubectl api-resources` after adding CRDs.
+  # Non-core groups have no Secret objects; keep in sync with `kubectl api-resources`.
   - apiGroups:
       - acme.cert-manager.io
       - actions.github.com

@@ -25,7 +25,7 @@ spec:
           app:
             image:
               repository: docker.io/nginxinc/nginx-unprivileged
-              tag: 1.31-alpine@sha256:6a23acdfca2b9cfbcec61419e3f1426bcbedb91362f2f19306a8567423bb4612
+              tag: 1.31-alpine@sha256:26b0bf6fbf07297983cb341998d79c831508787de26627dd2a112321b9c3a4af
             env:
               TZ: ${TIMEZONE}
             probes:
@@ -60,7 +60,7 @@ spec:
     route:
       app:
         annotations:
-          # static IPA source; skip Gatus auto-monitoring (mirrors rackula)
+          # Gatus stays off for this static IPA source, matching rackula's route.
           gatus.home-operations.com/enabled: "false"
         hostnames:
           - "{{ .Release.Name }}.${SECRET_DOMAIN}"
@@ -68,9 +68,7 @@ spec:
           - name: envoy-internal
             namespace: network
     persistence:
-      # Served content, read-only over NFS from the TrueNAS sideload export.
-      # Fed by: Mac ~/sideload --Syncthing--> /mnt/pool/apps/syncthing/data/sideload (NFS share id 25, ro).
-      # Dataset consolidated under pool/apps/ 2026-06-15 (was /mnt/pool/syncthing/sideload).
+      # Fed by Syncthing from a personal Mac's ~/sideload folder, mounted read-only from TrueNAS.
       www:
         type: custom
         volumeSpec:
@@ -80,7 +78,7 @@ spec:
         globalMounts:
           - path: /usr/share/nginx/html
             readOnly: true
-      # writable scratch for nginx with a read-only root filesystem
+      # Nginx needs writable scratch here because the root filesystem is read-only.
       tmp:
         type: emptyDir
         globalMounts:

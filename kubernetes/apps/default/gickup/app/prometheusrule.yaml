@@ -8,17 +8,10 @@ spec:
   groups:
     - name: gickup
       rules:
-        # The nightly gickup CronJob registers new GitHub repositories and
-        # stars as Forgejo pull mirrors (schedule 0 2 * * *). Existing mirrors
-        # keep syncing on Forgejo's own timer, so a broken run is otherwise
-        # invisible: only newly created or newly starred repositories stop
-        # arriving, and nothing else changes.
-        #
-        # Same shape as UnimusSeedStale: time since the last successful run,
-        # not a count of failed Jobs, so it fires whether the Job is failing,
-        # not being scheduled, or stuck. 86400s plus for: 2h fires at ~26h, so
-        # one missed night is tolerated; the fallback to the CronJob's
-        # creation time means a run that has never succeeded still alerts.
+        # Time since last success, not failed-Job count, so this also catches a stuck or unscheduled
+        # CronJob (same shape as UnimusSeedStale).
+        # 86400s + 2h `for` tolerates one missed night; the creation-time fallback still alerts if a
+        # run has never succeeded.
         - alert: GickupBackupStale
           annotations:
             summary: >-

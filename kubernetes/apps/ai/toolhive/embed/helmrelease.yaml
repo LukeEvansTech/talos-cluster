@@ -27,23 +27,8 @@ spec:
         annotations:
           reloader.stakater.com/auto: "true"
         initContainers:
-          # Qwen3-Embedding-0.6B is a public GGUF (no HF token needed). Downloaded
-          # once into the RWO model PVC, reused on restart. Mirrors the
-          # llama-embed / llama-rerank pattern (../../../memini/models/).
-          #
-          # Long-context CPU embedder for the VMCP tool optimizer (see
-          # ../virtualmcpserver.yaml). LiteLLM's existing all-minilm model
-          # (served by the CPU llama-embed pod, ../../../memini/models/llama-embed.yaml)
-          # is all-MiniLM-L6-v2, a BERT model with a hard 512-token absolute
-          # position limit, and some kubectl tool descriptions exceed that,
-          # which previously terminated every VMCP session with an OpenAI 400
-          # "input larger than max context size" error. Qwen3-Embedding-0.6B
-          # supports 32k context; we run it at 8k here, well above the 512-token
-          # ceiling. all-minilm stays in place for memini and LiteLLM's own
-          # semantic tool filter, which never hit that limit. Mirrors Jory's
-          # dedicated toolhive-embed llama.cpp server (see
-          # docs/docs/operations/jory-homeops-adoption.md), but on CPU since
-          # the cluster's GPUs are already spoken for.
+          # Public GGUF, no HF token needed; downloaded once into the RWO PVC and reused on
+          # restart (docs/docs/architecture/ai-llm-stack.md MCP gateway).
           model-download:
             image:
               repository: python
@@ -76,7 +61,7 @@ spec:
           app:
             image:
               repository: ghcr.io/ggml-org/llama.cpp
-              tag: server@sha256:6257697a7f5d034b8fb499ddb07af3e250506352f94102054252a23f3b85e0af
+              tag: server@sha256:f9115c95639e60abc09d4ea83b26fd4d56c66aa1174594393335a514da00c283
             args:
               - --host
               - 0.0.0.0
@@ -89,49 +74,30 @@ spec:
               - --embeddings
               - --pooling
               - last
-              # --ctx-size is the TOTAL KV budget and llama.cpp divides it evenly
-              # across --parallel slots, so 8192/4 gave each input only 2048 tokens
-              # and a batched tool-description upsert still 400'd
-              # (exceed_context_size_error, 2026-08-25). Two slots = 4096 tokens per
-              # input, well above the longest MCP tool description seen (~650),
-              # while keeping the 0.6B model's KV within the 2Gi memory limit.
+              # 2 slots gives 4096 tokens/input; 4 slots 400'd on the longest tool description
+              # (docs/docs/architecture/ai-llm-stack.md Embedding server tuning).
               - --ctx-size
               - "8192"
               - --parallel
               - "2"
               - --cont-batching
-              # llama.cpp cannot split one pooled-embedding sequence across
-              # micro-batches, so --ubatch-size must be >= the longest single
-              # input. It also sizes the attention scratch buffers quadratically:
-              # 8192 OOM-killed this pod at 2Gi on the first multi-input request
-              # (2026-08-25). The longest MCP tool description seen is ~650
-              # tokens, so 2048 is ample; --batch-size 4096 matches the slot ctx.
+              # --ubatch-size must cover the longest input; 8192 OOM-killed this pod at 2Gi
+              # (docs/docs/architecture/ai-llm-stack.md Embedding server tuning).
               - --batch-size
               - "4096"
               - --ubatch-size
               - "2048"
-              # The VMCP optimizer embeds every tool description (~540 inputs,
-              # ~100k tokens) when a session starts; at 4 threads that took
-              # minutes and the optimizer's request timed out, then retried while
-              # the first batch was still queued (2026-08-25). Nodes have 24
-              # cores. Give it 12 threads and a matching CPU request.
+              # 4 threads timed out the optimizer's full-batch embed on session start
+              # (docs/docs/architecture/ai-llm-stack.md Embedding server tuning).
               - --threads
               - "12"
-              # llama-server keeps a RAM prompt cache (--cache-ram, default 8192
-              # MiB) of every processed sequence's KV so later prompts sharing a
-              # prefix can reuse it. Embedding inputs never share prefixes, so the
-              # cache only grows: the pod was OOM-killed at 3Gi after ~180
-              # tool-description inputs from the VMCP optimizer (2026-08-25).
-              # Disable prompt caching entirely (both flags verified in this
-              # image's --help).
+              # Embeddings never share a prefix, so the RAM prompt cache only grows; disabled
+              # after an OOM (docs/docs/architecture/ai-llm-stack.md Embedding server tuning).
               - --cache-ram
               - "0"
               - --no-cache-prompt
               - --metrics
-              # --mmap was removed upstream; --load-mode replaces it.
-              # Passing --mmap now makes the server exit with
-              # "invalid argument: --mmap" before it binds a port.
-              # --load-mode works on both the old and new builds.
+              # --load-mode replaces the removed --mmap and works on both old and new builds.
               - --load-mode
               - mmap
             resources:
@@ -139,10 +105,8 @@ spec:
                 cpu: "4"
                 memory: 2Gi
               limits:
-                # llama-server RSS grows ~2Gi transiently while it works through
-                # the optimizer ~540-input batch (measured 2026-08-25 with prompt
-                # caching off) and returns to ~1Gi afterwards; 3Gi OOM-killed it
-                # mid-batch three times. Nodes have ~190Gi allocatable.
+                # RSS grows ~2Gi transiently during the optimizer's full batch; 3Gi OOM-killed it
+                # mid-batch (docs/docs/architecture/ai-llm-stack.md Embedding server tuning).
                 memory: 6Gi
             probes:
               liveness: &probe

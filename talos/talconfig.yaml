@@ -34,36 +34,12 @@ nodes:
     talosImageURL: factory.talos.dev/installer-secureboot/44186a005dfca322f81df634a457384455475fbfa518777f3ee58d35f173d73b
     controlPlane: true
     patches:
-      # Encrypt system disk with TPM.
-      #
-      # slot 1 is a NON-NEGOTIABLE fallback. Talos seals slot 0 to PCR 7, which measures
-      # UEFI Secure Boot state + the PK/KEK/db/dbx certificates. A Supermicro H13SRD-F BIOS
-      # update from the 1.x "buggy line" WIPES those keys (proven on cr-node-02, 2026-07-15;
-      # PreserveSECBOOTKEY is honoured only by an already-fixed OUTGOING BIOS). PCR 7 then
-      # changes, slot 0 cannot unseal, and with a single slot the node does not boot at all.
-      # All three nodes are control-plane, so a fleet-wide flash would take out etcd quorum.
-      #
-      # Talos does NOT self-heal a failed TPM slot (a PCR mismatch is not ErrTokenInvalid, so
-      # it never re-seals). Upstream declined to add recovery keys (siderolabs/talos#7868), so
-      # we provide our own.
-      #
-      # The passphrase is injected at `talhelper genconfig` time from 1Password
-      # (op://Talos/talos-luks-fallback/password). NEVER commit it. This repo is public.
-      # The rendered configs land in talos/clusterconfig/, which is gitignored.
-      #
-      # CAUTION: syncKeys() REMOVES slots absent from config. Always keep one working key.
-      # See: Scratch/homelab/biosfirmware/runlog/2026-07-15-VERDICT-buggy-line-wipes.md
-      #
-      # NOTE: slot 0 stays bound to PCR 7. Deliberately, after a failed attempt to drop it.
-      # `pcrs: []` on a VolumeConfig document does NOT survive talhelper: the empty list is
-      # dropped during serialisation, rendering as `options: {}`, which Talos then treats as
-      # unset and defaults straight back to PCR 7. Verified live on cr-talos-03 (2026-07-15):
-      # `talosctl get volumestatus STATE` still reported `tpmEncryptionOptions.pcrs: [7]`.
-      # It is a silent no-op, so the migration was reverted rather than left as dead config.
-      #
-      # Consequence, accepted: the BIOS flash wipes the Secure Boot keys -> PCR 7 changes ->
-      # slot 0 breaks. slot 1 keeps the node bootable; the TPM slot is then rotated by hand
-      # (remove tpm key -> apply+reboot -> re-add -> apply+reboot). Talos does not self-heal.
+      # TPM-sealed LUKS (slot 0) with a static-passphrase fallback (slot 1): a known-buggy BIOS
+      # update line wipes Secure Boot keys, which would change the PCR 7 value slot 0 is sealed to.
+      # Passphrase comes from 1Password at genconfig time; never commit it. NEVER remove slot 1
+      # without a replacement: applying a config that omits a slot makes Talos delete it on the
+      # node, not talhelper. See kb/207 for the risk this insures against, why slot 0 still binds
+      # to PCR 7, and the recovery procedure.
       - |-
         machine:
           systemDiskEncryption:
@@ -83,20 +59,17 @@ nodes:
                 - slot: 1
                   static:
                     passphrase: ${TALOS_LUKS_FALLBACK}
-      # Watchdog timer configuration
       - |-
         apiVersion: v1alpha1
         kind: WatchdogTimerConfig
         device: /dev/watchdog0
         timeout: 5m
-      # Network: Link alias for WAN interface
       - |-
         apiVersion: v1alpha1
         kind: LinkAliasConfig
         name: wan
         selector:
           match: mac(link.permanent_addr) == "0c:c4:7a:ea:bf:0e"
-      # Network: Static IP configuration
       - |-
         apiVersion: v1alpha1
         kind: LinkConfig
@@ -115,36 +88,12 @@ nodes:
     talosImageURL: factory.talos.dev/installer-secureboot/44186a005dfca322f81df634a457384455475fbfa518777f3ee58d35f173d73b
     controlPlane: true
     patches:
-      # Encrypt system disk with TPM.
-      #
-      # slot 1 is a NON-NEGOTIABLE fallback. Talos seals slot 0 to PCR 7, which measures
-      # UEFI Secure Boot state + the PK/KEK/db/dbx certificates. A Supermicro H13SRD-F BIOS
-      # update from the 1.x "buggy line" WIPES those keys (proven on cr-node-02, 2026-07-15;
-      # PreserveSECBOOTKEY is honoured only by an already-fixed OUTGOING BIOS). PCR 7 then
-      # changes, slot 0 cannot unseal, and with a single slot the node does not boot at all.
-      # All three nodes are control-plane, so a fleet-wide flash would take out etcd quorum.
-      #
-      # Talos does NOT self-heal a failed TPM slot (a PCR mismatch is not ErrTokenInvalid, so
-      # it never re-seals). Upstream declined to add recovery keys (siderolabs/talos#7868), so
-      # we provide our own.
-      #
-      # The passphrase is injected at `talhelper genconfig` time from 1Password
-      # (op://Talos/talos-luks-fallback/password). NEVER commit it. This repo is public.
-      # The rendered configs land in talos/clusterconfig/, which is gitignored.
-      #
-      # CAUTION: syncKeys() REMOVES slots absent from config. Always keep one working key.
-      # See: Scratch/homelab/biosfirmware/runlog/2026-07-15-VERDICT-buggy-line-wipes.md
-      #
-      # NOTE: slot 0 stays bound to PCR 7. Deliberately, after a failed attempt to drop it.
-      # `pcrs: []` on a VolumeConfig document does NOT survive talhelper: the empty list is
-      # dropped during serialisation, rendering as `options: {}`, which Talos then treats as
-      # unset and defaults straight back to PCR 7. Verified live on cr-talos-03 (2026-07-15):
-      # `talosctl get volumestatus STATE` still reported `tpmEncryptionOptions.pcrs: [7]`.
-      # It is a silent no-op, so the migration was reverted rather than left as dead config.
-      #
-      # Consequence, accepted: the BIOS flash wipes the Secure Boot keys -> PCR 7 changes ->
-      # slot 0 breaks. slot 1 keeps the node bootable; the TPM slot is then rotated by hand
-      # (remove tpm key -> apply+reboot -> re-add -> apply+reboot). Talos does not self-heal.
+      # TPM-sealed LUKS (slot 0) with a static-passphrase fallback (slot 1): a known-buggy BIOS
+      # update line wipes Secure Boot keys, which would change the PCR 7 value slot 0 is sealed to.
+      # Passphrase comes from 1Password at genconfig time; never commit it. NEVER remove slot 1
+      # without a replacement: applying a config that omits a slot makes Talos delete it on the
+      # node, not talhelper. See kb/207 for the risk this insures against, why slot 0 still binds
+      # to PCR 7, and the recovery procedure.
       - |-
         machine:
           systemDiskEncryption:
@@ -164,20 +113,17 @@ nodes:
                 - slot: 1
                   static:
                     passphrase: ${TALOS_LUKS_FALLBACK}
-      # Watchdog timer configuration
       - |-
         apiVersion: v1alpha1
         kind: WatchdogTimerConfig
         device: /dev/watchdog0
         timeout: 5m
-      # Network: Link alias for WAN interface
       - |-
         apiVersion: v1alpha1
         kind: LinkAliasConfig
         name: wan
         selector:
           match: mac(link.permanent_addr) == "0c:c4:7a:ea:be:7a"
-      # Network: Static IP configuration
       - |-
         apiVersion: v1alpha1
         kind: LinkConfig
@@ -196,36 +142,12 @@ nodes:
     talosImageURL: factory.talos.dev/installer-secureboot/44186a005dfca322f81df634a457384455475fbfa518777f3ee58d35f173d73b
     controlPlane: true
     patches:
-      # Encrypt system disk with TPM.
-      #
-      # slot 1 is a NON-NEGOTIABLE fallback. Talos seals slot 0 to PCR 7, which measures
-      # UEFI Secure Boot state + the PK/KEK/db/dbx certificates. A Supermicro H13SRD-F BIOS
-      # update from the 1.x "buggy line" WIPES those keys (proven on cr-node-02, 2026-07-15;
-      # PreserveSECBOOTKEY is honoured only by an already-fixed OUTGOING BIOS). PCR 7 then
-      # changes, slot 0 cannot unseal, and with a single slot the node does not boot at all.
-      # All three nodes are control-plane, so a fleet-wide flash would take out etcd quorum.
-      #
-      # Talos does NOT self-heal a failed TPM slot (a PCR mismatch is not ErrTokenInvalid, so
-      # it never re-seals). Upstream declined to add recovery keys (siderolabs/talos#7868), so
-      # we provide our own.
-      #
-      # The passphrase is injected at `talhelper genconfig` time from 1Password
-      # (op://Talos/talos-luks-fallback/password). NEVER commit it. This repo is public.
-      # The rendered configs land in talos/clusterconfig/, which is gitignored.
-      #
-      # CAUTION: syncKeys() REMOVES slots absent from config. Always keep one working key.
-      # See: Scratch/homelab/biosfirmware/runlog/2026-07-15-VERDICT-buggy-line-wipes.md
-      #
-      # NOTE: slot 0 stays bound to PCR 7. Deliberately, after a failed attempt to drop it.
-      # `pcrs: []` on a VolumeConfig document does NOT survive talhelper: the empty list is
-      # dropped during serialisation, rendering as `options: {}`, which Talos then treats as
-      # unset and defaults straight back to PCR 7. Verified live on cr-talos-03 (2026-07-15):
-      # `talosctl get volumestatus STATE` still reported `tpmEncryptionOptions.pcrs: [7]`.
-      # It is a silent no-op, so the migration was reverted rather than left as dead config.
-      #
-      # Consequence, accepted: the BIOS flash wipes the Secure Boot keys -> PCR 7 changes ->
-      # slot 0 breaks. slot 1 keeps the node bootable; the TPM slot is then rotated by hand
-      # (remove tpm key -> apply+reboot -> re-add -> apply+reboot). Talos does not self-heal.
+      # TPM-sealed LUKS (slot 0) with a static-passphrase fallback (slot 1): a known-buggy BIOS
+      # update line wipes Secure Boot keys, which would change the PCR 7 value slot 0 is sealed to.
+      # Passphrase comes from 1Password at genconfig time; never commit it. NEVER remove slot 1
+      # without a replacement: applying a config that omits a slot makes Talos delete it on the
+      # node, not talhelper. See kb/207 for the risk this insures against, why slot 0 still binds
+      # to PCR 7, and the recovery procedure.
       - |-
         machine:
           systemDiskEncryption:
@@ -245,20 +167,17 @@ nodes:
                 - slot: 1
                   static:
                     passphrase: ${TALOS_LUKS_FALLBACK}
-      # Watchdog timer configuration
       - |-
         apiVersion: v1alpha1
         kind: WatchdogTimerConfig
         device: /dev/watchdog0
         timeout: 5m
-      # Network: Link alias for WAN interface
       - |-
         apiVersion: v1alpha1
         kind: LinkAliasConfig
         name: wan
         selector:
           match: mac(link.permanent_addr) == "0c:c4:7a:ea:bf:0f"
-      # Network: Static IP configuration
       - |-
         apiVersion: v1alpha1
         kind: LinkConfig
@@ -269,7 +188,6 @@ nodes:
           - gateway: 10.32.8.10
         mtu: 1500
 
-# Global patches
 patches:
   - "@./patches/global/machine-files.yaml"
   - "@./patches/global/machine-fstrim.yaml"
@@ -281,7 +199,6 @@ patches:
   - "@./patches/global/machine-sysctls.yaml"
   - "@./patches/global/machine-time.yaml"
 
-# Controller patches
 controlPlane:
   patches:
     - "@./patches/controller/cluster.yaml"

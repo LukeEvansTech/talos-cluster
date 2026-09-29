@@ -9,14 +9,8 @@ spec:
   instanceSelector:
     matchLabels:
       grafana.internal/instance: grafana
-  # Ported from joryirving/home-ops llama-server.json. Every Grafana variable is
-  # escaped by doubling its leading `$` ($${datasource}, $$service, $$node,
-  # $$__range) so Flux postBuild passes the literal ${...}/$... through to Grafana
-  # instead of blanking it. Datasource variable resolves to the lowercase
-  # `prometheus` datasource (KB-021). The upstream "Prompt cache (from logs)"
-  # panels were dropped: they query a victoriametrics-logs-datasource that this
-  # cluster's Grafana does not have wired (only `prometheus`/`alertmanager`
-  # GrafanaDatasources exist).
+  # Ported from joryirving/home-ops; dropped panels and variable escaping are covered in
+  # docs/docs/architecture/ai-llm-stack.md Grafana dashboards.
   json: |-
     {
       "id": null,

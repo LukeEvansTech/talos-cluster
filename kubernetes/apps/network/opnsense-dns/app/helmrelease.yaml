@@ -41,10 +41,7 @@ spec:
                 key: api-secret
           - name: OPNSENSE_DOMAINS
             value: ${SECRET_DOMAIN},${SECRET_INTERNAL_DOMAIN}
-            # The firewall serves a publicly trusted certificate for its FQDN, and
-            # OPNSENSE_HOST names that FQDN, so the provider's default verification
-            # applies. Do not point the host at the bare IP: the certificate carries
-            # no IP subject alternative name and every call would fail.
+            # OPNSENSE_HOST must be the FQDN: the cert has no IP SAN, so a bare IP fails.
         livenessProbe:
           httpGet:
             path: /healthz
@@ -63,9 +60,7 @@ spec:
             memory: 128Mi
           limits:
             memory: 256Mi
-    # One apply can take OPNSENSE_APPLY_TIMEOUT + OPNSENSE_RECONFIGURE_TIMEOUT
-    # (165s); the controller's write timeout and the pod's grace period sit
-    # above that.
+    # Both 180s timeouts clear the ~165s apply budget (docs/docs/apps/opnsense-dns.md).
     deploymentStrategy:
       type: Recreate
     terminationGracePeriodSeconds: 180
@@ -73,12 +68,8 @@ spec:
     registry: txt
     txtOwnerId: main
     txtPrefix: k8s.main.%{record_type}-
-    # Pinned rather than left to the chart default: external-dns 1.22.0 flips
-    # the default annotation prefix to the GA `external-dns.kubernetes.io/`,
-    # and every annotation in this repository still uses the alpha prefix.
-    # With `policy: sync` an unpinned bump would read zero annotations and
-    # delete every record it owns. Drop the pin only as part of rewriting the
-    # annotations to the GA prefix.
+    # Pinned ahead of external-dns 1.22.0's GA annotation-prefix default flip, which under
+    # `policy: sync` would delete every owned record (docs/docs/apps/opnsense-dns.md).
     annotationPrefix: external-dns.alpha.kubernetes.io/
     sources:
       - gateway-httproute

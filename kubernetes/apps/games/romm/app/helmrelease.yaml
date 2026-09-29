@@ -31,9 +31,7 @@ spec:
               tag: 5.3.1@sha256:0d66b4ea152a237c7f24b95e87459f46d3c596a7c0b35a82f26bc971487278b3
             env:
               TZ: ${TIMEZONE}
-              # Disable download endpoint authentication
               DISABLE_DOWNLOAD_ENDPOINT_AUTH: "true"
-              # Enable scheduled rescan daily at 3 AM
               ENABLE_SCHEDULED_RESCAN: "true"
               RESCAN_ON_FILESYSTEM_CHANGE: "false"
               SCHEDULED_RESCAN_CRON: "0 3 * * *"
@@ -95,14 +93,6 @@ spec:
             subPath: resources
           - path: /romm/assets
             subPath: assets
-      # library:
-      #   type: custom
-      #   volumeSpec:
-      #     nfs:
-      #       server: ${SECRET_NFS_SERVER}
-      #       path: ${SECRET_NFS_GAMES_PATH}
-      #   globalMounts:
-      #     - path: /romm/library
       redis-data:
         type: emptyDir
         globalMounts:

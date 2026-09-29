@@ -5,13 +5,8 @@ kind: Probe
 metadata:
   name: seedbox-public
 spec:
-  # True box-liveness: TCP-connect to the seedbox's PUBLIC datacenter IP, which does
-  # NOT traverse the tailnet egress the metric scrapes use. So probe_success stays up
-  # when only the tailnet path is flaky (DERP-relay blips) and drops only when the box
-  # is genuinely unreachable. Letting SeedboxDown mean "box down", not "scrape blip".
-  # Port 22 (SSH) is the target: it is reliably open, load-bearing, and firewalled to
-  # stay so. Public IP comes from cluster-secrets (${SEEDBOX_PUBLIC_IP}), never
-  # a literal in this public repo.
+  # The public IP bypasses the tailnet, so SeedboxDown fires for a real outage and not a DERP blip.
+  # Port 22 is reliably open and firewalled to stay that way.
   jobName: seedbox-public
   interval: 1m
   module: tcp_connect

@@ -44,6 +44,8 @@ shared `postgres18` CloudNativePG cluster.
 
 - **`--add-opens` is required for the metrics collector.** On JDK 17+ the native Prometheus collector
   needs `JAVA_OPTS: "--add-opens java.base/java.nio=ALL-UNNAMED"`, or `/metrics` fails to start.
+  Documented in [Metabase's Prometheus
+  guide](https://www.metabase.com/docs/latest/installation-and-operation/observability-with-prometheus).
   Future versions may need more `--add-opens` flags; the pod logs the JVM error on start, so append as
   needed.
 

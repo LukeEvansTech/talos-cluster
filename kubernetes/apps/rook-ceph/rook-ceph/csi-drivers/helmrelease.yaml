@@ -10,49 +10,32 @@ spec:
     kind: OCIRepository
     name: ceph-csi-drivers
   values:
-    # Rook v1.20 split CSI driver deployment out of the operator chart into the
-    # ceph-csi-operator-managed ceph-csi-drivers chart. RBD (ceph-block) and
-    # CephFS (ceph-filesystem, the cluster's RWX StorageClass) are enabled;
-    # NFS/NVMeoF disabled.
-    # The earlier "Talos has no `ceph` kernel module, so CephFS can't be
-    # kernel-mounted" note was a misdiagnosis, see KB-025
-    # (docs/docs/troubleshooting/kb/025-cephfs-modprobe-builtin-misdiagnosis.md):
-    # CONFIG_CEPH_FS=y is built into the Talos v1.13.5+ kernel, so `modprobe ceph`
-    # reports "module not found" even though the in-kernel CephFS client is
-    # present. It mounts natively, no FUSE mounter or ceph-module image needed.
+    # Rook v1.20 split CSI driver deployment into this ceph-csi-operator-managed chart. RBD
+    # (ceph-block) and CephFS (ceph-filesystem) are enabled; NFS/NVMeoF are not. The kernel CephFS
+    # client is built into Talos, not missing
+    # (docs/docs/troubleshooting/kb/025-cephfs-modprobe-builtin-misdiagnosis.md).
     drivers:
       rbd:
         enabled: true
-        # MUST match the existing StorageClass provisioner and all in-use PVs.
-        # This mirror packages the upstream ceph-csi-operator chart, which
-        # defaults the driver name to the unprefixed "rbd.csi.ceph.com"; Rook's
-        # convention (and our ceph-block SC) prefixes the operator namespace.
+        # MUST match the existing StorageClass provisioner and all in-use PVs. The chart defaults
+        # to unprefixed "rbd.csi.ceph.com"; Rook's convention (and our ceph-block SC) prefixes it.
         name: rook-ceph.rbd.csi.ceph.com
-        # Deploy the csi-snapshotter sidecar. The chart defaults this to "none",
-        # which omits the sidecar entirely -- so the cluster snapshot-controller
-        # creates VolumeSnapshotContents that nothing ever calls CreateSnapshot
-        # on (stuck ReadyToUse=false). The pre-v1.20 rook-managed CSI shipped the
-        # snapshotter by default; VolSync's copyMethod: Snapshot movers depend on
-        # it for every *-nfs/-r2 ReplicationSource.
+        # The chart defaults this to "none", which stops VolumeSnapshotContents from ever
+        # completing (stuck ReadyToUse=false); VolSync's copyMethod: Snapshot movers need this
+        # sidecar for every *-nfs/-r2 ReplicationSource.
         snapshotPolicy: volumeSnapshot
       cephfs:
         enabled: true
-        # Same operator-namespace prefix requirement as RBD above: the chart
-        # defaults the CephFS driver to the unprefixed "cephfs.csi.ceph.com",
-        # but the rook-ceph-cluster chart names the ceph-filesystem SC
-        # provisioner {operatorNamespace}.cephfs.csi.ceph.com, so PVCs only bind
-        # if the Driver name matches.
+        # Same prefix requirement as RBD above: the ceph-filesystem SC provisioner is
+        # {operatorNamespace}.cephfs.csi.ceph.com, so PVCs only bind if this name matches.
         name: rook-ceph.cephfs.csi.ceph.com
-        # Mirror the RBD snapshotter: deploy the csi-snapshotter sidecar so the
-        # csi-ceph-filesystem VolumeSnapshotClass and VolSync copyMethod:
+        # Mirrors the RBD snapshotter so csi-ceph-filesystem's VolumeSnapshotClass and VolSync's
         # Snapshot movers have a working CreateSnapshot path.
         snapshotPolicy: volumeSnapshot
-        # msgr2-only cluster (cephClusterSpec.network.connections.requireMsgr2:
-        # true). The in-kernel CephFS client must negotiate msgr2 or it falls
-        # back to the v1 wire protocol the mons no longer accept and the mount
-        # hangs. prefer-crc = msgr2 with CRC32c integrity (not full encryption).
-        # NB: kernelMountOptions is a map (csi.ceph.io/v1 Driver spec), not the
-        # "key=value" string the legacy rook operator config used.
+        # The cluster requires msgr2 (cephClusterSpec.network.connections.requireMsgr2), so the
+        # kernel client must negotiate it or the mount hangs against the v1-refusing mons.
+        # prefer-crc = msgr2 with CRC32c integrity, not full encryption.
+        # kernelMountOptions is a map (csi.ceph.io/v1 Driver spec), not a "key=value" string.
         kernelMountOptions:
           ms_mode: prefer-crc
       nfs:

@@ -5,11 +5,8 @@ kind: HTTPRoute
 metadata:
   name: mcp-gateway
   annotations:
-    # vmcp's own /health is unauthenticated (pkg/vmcp/server/server.go), but the
-    # SecurityPolicy below (../gateway/securitypolicy.yaml) requires x-api-key on
-    # every path matched by this route, including /health. An unauthenticated
-    # Gatus probe would get 401, not 200. Disable auto-monitoring rather than
-    # carve out an unauthenticated path just for the health check.
+    # A Gatus probe would get 401 on /health under the SecurityPolicy below
+    # (docs/docs/architecture/ai-llm-stack.md MCP gateway).
     gatus.home-operations.com/enabled: "false"
 spec:
   hostnames:
@@ -19,8 +16,7 @@ spec:
       namespace: network
   rules:
     - backendRefs:
-        # The ToolHive operator names the VirtualMCPServer's Service "vmcp-<name>"
-        # (vmcpServiceName in cmd/thv-operator/controllers/virtualmcpserver_controller.go),
-        # distinct from MCPServer's "mcp-<name>-proxy" pattern.
+        # vmcp-<name>, distinct from MCPServer's mcp-<name>-proxy
+        # (docs/docs/architecture/ai-llm-stack.md Adding an MCP server).
         - name: vmcp-mcp-gateway
           port: 4483

@@ -1,16 +1,11 @@
 ---
-# Tailscale-operator egress: the operator replaces `externalName` with a proxy
-# pod that joins the tailnet, giving cluster workloads a route to the seedbox
-# (tailnet address injected via SEEDBOX_TAILNET_ADDR, because pods cannot reach
-# tailnet IPs directly). One Service covers every seedbox port. First use of
-# this operator feature in the cluster.
+# Pods cannot reach tailnet IPs, so the Tailscale operator proxies every seedbox port here.
 apiVersion: v1
 kind: Service
 metadata:
   name: seedbox
   annotations:
     tailscale.com/tailnet-ip: ${SEEDBOX_TAILNET_ADDR}
-    # Namespace comes from the Flux Kustomization targetNamespace (observability)
     checkov.io/skip1: CKV_K8S_21=Namespace provided by Flux Kustomization targetNamespace
 spec:
   type: ExternalName

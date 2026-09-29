@@ -12,7 +12,7 @@ spec:
   interval: 1h
   path: ./kubernetes/apps/kube-system/generic-device-plugin/app
   postBuild: {}
-  prune: false # let's not make happy accidents
+  prune: false # Kustomize-controller won't garbage-collect this if it drops from the inventory.
   retryInterval: 2m
   sourceRef:
     kind: GitRepository

@@ -6,12 +6,8 @@ metadata:
   name: subspy
   namespace: ai
 spec:
-  # The operator mints this key on the litellm proxy and writes it to the
-  # named Secret. subspy lives in another namespace and can't mount an ai
-  # Secret directly, so the PushSecret below writes the generated key back
-  # to the litellm 1Password item; subspy's own ExternalSecret then extracts
-  # it. openrouter/auto is in scope alongside self-hosted so the router's
-  # cloud fallback doesn't 401 this key when the local backend cools down.
+  # Cross-namespace key: PushSecret mirrors it to the litellm 1Password item
+  # (docs/docs/architecture/ai-llm-stack.md In-cluster consumers).
   proxyRef: litellm
   keyAlias: subspy
   secretName: litellm-key-subspy

@@ -6,19 +6,13 @@ resources:
   - ./grafanadatasource.yaml
   - ./grafana.yaml
   - ./servicemonitor.yaml
-  # Backups only, see the note in gatus. Grafana's volume is declared inline in
-  # the Grafana CR (grafana.yaml: persistentVolumeClaim -> grafana-pvc), not via
-  # the app-template persistence pattern, so the component's own pvc.yaml would
-  # fight the operator for ownership.
-  # Scope: the 33 dashboards in this repo are GrafanaDashboard CRs and are already
-  # safe in Git. What this protects is the operator's SQLite state, local users,
-  # preferences, annotations, alert-rule state and any dashboard created ad hoc in
-  # the UI. None of which is reconstructable from Git.
+  # nfs+remote only, not the parent component: the operator already owns the real
+  # volume (grafana-pvc), so the component's pvc.yaml would add a second, unused PVC.
+  # See docs/docs/apps/grafana.md for what the backup protects.
   - ../../../../components/volsync/nfs
   - ../../../../components/volsync/remote
 patches:
-  # sourcePVC templates to ${APP} = "grafana"; the operator names the claim
-  # grafana-pvc. Patched locally to avoid touching the shared component.
+  # sourcePVC defaults to ${APP} (grafana); patched to the operator's real claim name.
   - target:
       kind: ReplicationSource
     patch: |-

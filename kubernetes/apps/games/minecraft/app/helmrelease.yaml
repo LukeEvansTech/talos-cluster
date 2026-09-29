@@ -18,28 +18,23 @@ spec:
           app:
             image:
               repository: itzg/minecraft-server
-              tag: java25@sha256:8d0500eb1df76328fb2c2cd0350d5d456c1be45c7a92d6363ad35b680bdbcecf
+              tag: java25@sha256:783d2712019a3996b4168752517a08d3448ef8995879b200316c3888f98dc394
             env:
               TZ: "${TIMEZONE}"
-              # Server type and version
               TYPE: "PAPER"
               # renovate: datasource=custom.minecraft-release
               VERSION: "26.2"
-              # Server settings
               EULA: "TRUE"
               SERVER_NAME: "Minecraft Server"
               MODE: "survival"
               DIFFICULTY: "normal"
               MAX_PLAYERS: "10"
               MOTD: "Welcome to the server!"
-              # Performance settings
               MEMORY: "4G"
               JVM_XX_OPTS: "-XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=200"
               VIEW_DISTANCE: "10"
               SIMULATION_DISTANCE: "8"
-              # Whitelist and ops
               ENABLE_WHITELIST: "false"
-              # RCON
               ENABLE_RCON: "true"
               RCON_PORT: "25575"
             envFrom:

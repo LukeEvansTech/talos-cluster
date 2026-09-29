@@ -14,28 +14,31 @@ spec:
       lurcher:
         annotations:
           reloader.stakater.com/auto: "true"
-        # RWO ceph-block PVC: single replica, recreate on rollout to avoid a
-        # multi-attach deadlock (the new pod can't mount until the old releases).
+        # Recreate avoids a multi-attach deadlock on this RWO ceph-block PVC: the new pod
+        # can't mount until the old one releases it.
         strategy: Recreate
         containers:
           app:
             image:
               repository: ghcr.io/lukeevanstech/lurcher
-              tag: 2.2.1@sha256:2284edd601d0aec5f4965fb38e613cd51bbb2e25b953ee15bf07e8afe147ba3e
+              tag: 2.3.0@sha256:156c0e41e049982efe764364cc5e66e713df9b58324064348f62585a858c2650
             env:
               TZ: ${TIMEZONE}
-              HOME: /tmp # apprise/node need a writable home under readOnlyRootFilesystem
+              HOME: /tmp # Apprise and Node need a writable home under readOnlyRootFilesystem
               LURCHER_DB: /data/lurcher.db
-              # The CronJob's schedule: source publishes its daily batch ~06:00-08:00 UTC,
-              # so 10:00 London lands after it and catches new roles same-morning.
+              # Source publishes its daily batch ~06:00-08:00 UTC, so 10:00 London lands
+              # after it and catches new roles same-morning.
               LURCHER_SCHEDULE: "0 10 * * *"
               LURCHER_TZ: Europe/London
               LURCHER_PUBLIC_URL: https://lurcher.${SECRET_DOMAIN}
-              # Description formatting: OpenAI-compatible endpoint -> the in-cluster LiteLLM
-              # gateway. "self-hosted" routes to llama.cpp (llmkube) with LiteLLM's
-              # openrouter/auto cloud fallback. LLM_API_KEY arrives via lurcher-secret.
+              # Feeds description formatting through the in-cluster LiteLLM gateway. Routing and its
+              # cloud fallback are documented in docs/docs/architecture/ai-llm-stack.md.
               LLM_BASE_URL: http://litellm.ai.svc.cluster.local:4000/v1
               LLM_MODEL: self-hosted
+              # Pinned so the heap ceiling is visible and sits under the container limit, leaving
+              # room for native memory. The 2026-09 crash this fixed is in
+              # docs/docs/troubleshooting/kb/085-lurcher-oom-invisible-to-health-check.md.
+              NODE_OPTIONS: --max-old-space-size=768
             envFrom:
               - secretRef:
                   name: lurcher-secret
@@ -72,12 +75,12 @@ spec:
                 cpu: 25m
                 memory: 128Mi
               limits:
-                memory: 512Mi
+                memory: 1Gi
     defaultPodOptions:
       automountServiceAccountToken: false
       securityContext:
         runAsNonRoot: true
-        runAsUser: 65532 # the CronJob's uid; the PVC's files are owned by it
+        runAsUser: 65532 # Matches the PVC's uid; keep it or lose access to existing files.
         runAsGroup: 65532
         fsGroup: 65532
         seccompProfile:
@@ -88,6 +91,16 @@ spec:
         ports:
           http:
             port: *port
+    # /metrics carries the last-delivered timestamp; /health cannot see that.
+    serviceMonitor:
+      app:
+        serviceName: "{{ .Release.Name }}"
+        endpoints:
+          - port: http
+            scheme: http
+            path: /metrics
+            interval: 1m
+            scrapeTimeout: 10s
     route:
       app:
         annotations:

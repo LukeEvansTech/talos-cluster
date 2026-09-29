@@ -265,13 +265,8 @@ class Tautulli:
             for row in page:
                 row_id = row.get("row_id") or row.get("id")
                 if row_id is None:
-                    # Tautulli lists an in-progress session with no row id yet.
-                    # Dropping it made `retrieved` one short of the declared
-                    # count, which reads as incomplete history and blocks the
-                    # entire run -- so any run that overlapped with somebody
-                    # watching a film did nothing at all. It cannot be
-                    # de-duplicated, but a play counted twice only ever argues
-                    # against deleting something.
+                    # No row id yet for an in-progress session; dropping it under-counted
+                    # `retrieved` and blocked the run. Kept undeduplicated: over-counting is safe.
                     rows.append(row)
                     without_id += 1
                     continue

@@ -28,32 +28,18 @@ spec:
             storage: 40Gi
     template:
       spec:
-        # miroir-local provisions a real ext4 block device, whose root directory
-        # comes up root:root 0755. The openebs-hostpath directory it replaced
-        # (#3583) was already writable, so nothing here needed fsGroup before.
-        # This image runs as uid/gid 1001, so without the chown below the runner
-        # cannot create _work/_tool and every job dies in ~2s with
-        # UnauthorizedAccessException before a single step executes.
-        # miroir's CSIDriver is fsGroupPolicy: ReadWriteOnceWithFSType and this
-        # claim is RWO + ext4, so kubelet honours fsGroup and chowns the volume.
+        # uid 1001 needs fsGroup to write miroir-local's root:root ext4 volume (#3739).
         securityContext:
           fsGroup: 1001
         serviceAccountName: packer-runner
         containers:
           - name: runner
-            # Pinned to an immutable digest (matches the home-operations
-            # actions-runner convention). Mutable :latest let nodes keep a
-            # stale cached image whose baked ansible venv/pywinrm was absent,
-            # so Windows WinRM provisioning failed with "No module named
-            # 'winrm'". Renovate bumps the digest as new images are built.
+            # Pinned to a digest; a stale :latest missed a pywinrm build and broke WinRM (#3034).
             image: ghcr.io/codelooks-com/packer-runner:latest@sha256:a90e359ca7aa470dfadefd412fcfdb33db991ec0da95fa9b371617dcb4b057dd
             command:
               - "/home/runner/run.sh"
             env:
-              # containerMode: kubernetes defaults this to "true", which REFUSES
-              # plain `run:` jobs. Our tools live in the runner image and steps run
-              # directly on it, so this must be "false" (the existing
-              # talos-cluster-runner sets it too).
+              # kubernetes mode defaults this true, refusing plain `run:` jobs; ours needs false.
               - name: ACTIONS_RUNNER_REQUIRE_JOB_CONTAINER
                 value: "false"
             envFrom:

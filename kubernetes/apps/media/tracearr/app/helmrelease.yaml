@@ -46,9 +46,8 @@ spec:
               tag: 2.4.1@sha256:689af46c10c34ccd0487be71a713323574a8cfd60214d89fee6ddb5f60555eae
             env:
               TZ: ${TIMEZONE}
-              # 2.x warms every poster into /app/data/image-cache after each sync
-              # (default cap 3072 MB). Keep it under the emptyDir sizeLimit below,
-              # or the kubelet evicts the pod when the cache fills.
+              # 2.x's poster cache defaults to 3072Mi; capped to 2048 here, under the 2560Mi
+              # emptyDir sizeLimit below, or kubelet evicts the pod once it fills.
               IMAGE_CACHE_MAX_MB: "2048"
             envFrom:
               - secretRef:
@@ -117,11 +116,8 @@ spec:
         globalMounts:
           - path: /data
       image-cache:
-        # The poster cache is written relative to the app's cwd (/app), not
-        # /data. It is rebuilt from the media servers on demand, so keep it
-        # OFF the VolSync-backed PVC: an emptyDir gives it an explicit cap and
-        # keeps ~200k small files out of every backup. It re-warms once per
-        # pod restart, which is the accepted trade-off.
+        # /app/data/image-cache is the container's cwd, not the /data PVC above; the cache
+        # rebuilds from media servers, so an emptyDir caps it and keeps ~200k files out of backups.
         type: emptyDir
         sizeLimit: 2560Mi
         globalMounts:

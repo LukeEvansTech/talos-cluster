@@ -16,9 +16,8 @@ spec:
           for: 5m
           labels:
             severity: critical
-        # The no_route signal is set from the routing table when a gateway loses
-        # its default route. Independent of dpinger, so it stays as the
-        # belt-and-braces down signal alongside the loss alert below.
+        # no_route comes from the routing table, independent of dpinger, so this stays a
+        # belt-and-braces signal alongside the loss alert below.
         - alert: OPNsenseGatewayDown
           annotations:
             summary: "OPNsense gateway {{ $labels.name }} has no route (down)."
@@ -27,9 +26,8 @@ spec:
           for: 5m
           labels:
             severity: critical
-        # dpinger was enabled on the v4 WAN gateway 2026-08-02 (monitor 1.1.1.1),
-        # which populated the loss/RTT series for the first time. Sustained loss
-        # is upstream/ISP degradation the routing table can't see.
+        # dpinger populates the loss/RTT series; sustained loss is upstream/ISP
+        # degradation the routing table alone can't see.
         - alert: OPNsenseWanGatewayLossHigh
           annotations:
             summary: "WAN gateway packet loss at {{ $value }}% for 10m."
@@ -38,15 +36,9 @@ spec:
           for: 10m
           labels:
             severity: critical
-        # The 2026-08-02 outage signature: both WAN counters froze to exactly
-        # zero for 15 minutes while the link stayed up and no watchdog logged,
-        # dpinger's monitor traffic rides this interface, so a healthy WAN can
-        # never legitimately read zero-in-both-directions for 5 minutes.
-        # The 5m rate() window is the debounce: it must hold at least several
-        # scrapes (the ServiceMonitor scrapes every 60s, and rate() needs two
-        # samples in range: a 1m window would usually see one and the alert
-        # could never sustain). So `for` is kept short (1m) rather than stacking
-        # another 5m on top, which would double effective detection to ~10m.
+        # A healthy WAN can never legitimately read zero in both directions for 5m, since
+        # dpinger's own monitor traffic rides this interface. See
+        # docs/docs/apps/opnsense-exporter.md for why `for` stays short instead of stacking.
         - alert: OPNsenseWanTrafficFrozen
           annotations:
             summary: "WAN has passed zero bytes in BOTH directions for 5m, NIC/modem wedge, likely needs a link bounce."
@@ -57,22 +49,10 @@ spec:
           for: 1m
           labels:
             severity: critical
-        # Backup WAN tiers (2026-08-02) feed a failover gateway group. A dead
-        # backup tier is invisible in daily use. It only matters mid-outage,
-        # which is exactly when it must not be discovered broken.
-        #
-        # Gated on opnsense_gateways_status != 6 ("offline forced", the
-        # exporter's own state for a gateway an admin has explicitly forced
-        # down in OPNsense), not on time. A tier being wired up or
-        # deliberately retired stays silent by forcing it down in OPNsense;
-        # anything not force-down alerts on sustained 100% loss with no
-        # expiry. The previous gate, min_over_time(...[24h]) < 100, used
-        # the same rolling window to both arm on first success AND disarm
-        # after 24h, so once a REAL outage ran past 24h the window filled
-        # entirely with 100%-loss samples and the alert silently resolved
-        # while the failure was still active, indistinguishable from a
-        # deliberate decommission, and self-silencing during the one case
-        # this alert exists to catch.
+        # A dead backup tier is invisible in daily use and only matters mid-outage, which is
+        # exactly when it must not be discovered broken. Gated on the exporter's own
+        # forced-down state, not a time window; see docs/docs/apps/opnsense-exporter.md for
+        # why a rolling window silently self-resolved during the one case this must catch.
         - alert: OPNsenseBackupWanTierDown
           annotations:
             summary: "Backup WAN tier {{ $labels.name }} is at 100% loss. The failover path is dead while the primary is fine."
@@ -83,9 +63,7 @@ spec:
           for: 30m
           labels:
             severity: warning
-        # Unbound (the resolver behind opnsense-dns / split-horizon) being down
-        # breaks internal name resolution cluster-wide. The exporter has no
-        # unbound-specific metric, so it surfaces via opnsense_services_status.
+        # No unbound-specific metric exists, so this surfaces via opnsense_services_status.
         - alert: OPNsenseUnboundDown
           annotations:
             summary: "OPNsense Unbound DNS service is not running."
@@ -94,24 +72,11 @@ spec:
           for: 5m
           labels:
             severity: warning
-        # The S2S tunnel is the last thing here that still depends on the WAN
-        # address: the local IKE identity and the far-end gateway are both
-        # pinned to the literal IP, so whenever the upstream address changes the
-        # tunnel stays down until BOTH pins are changed together. That is a
-        # manual, two-sided fix, which is exactly why it needs an alert rather
-        # than a dashboard. Until now the failure was measured, never announced:
-        # phase1_status has been scraped all along with no rule on it, so the
-        # tunnel could sit down indefinitely with every dashboard green.
-        #
-        # The absent() half is not decoration. If the connection is removed,
-        # renamed, or simply stops being returned by the API, the series
-        # VANISHES, and `== 0` can never fire on an empty vector. Same blind
-        # spot that left mktxp unmonitored for 8 days. Verified against live
-        # Prometheus: the expression is empty while healthy, and fires when
-        # pointed at a description that does not exist.
-        #
-        # 10m rather than 5m: an S2S tunnel re-establishes on its own after a
-        # transient upstream blip, and paging on a two-minute reconnect is noise.
+        # Both IKE ends are pinned to a literal IP, so an upstream address change needs a
+        # manual, two-sided fix; see docs/docs/apps/opnsense-exporter.md.
+        # absent() matters: a removed or renamed connection makes the series vanish, and
+        # `== 0` can never fire on an empty vector, the same blind spot that left mktxp
+        # unmonitored for 8 days.
         - alert: OPNsenseIPsecTunnelDown
           annotations:
             summary: "IPsec tunnel {{ $labels.description }} is down or no longer reported, check the WAN address against the far-end gateway pin."
@@ -122,16 +87,11 @@ spec:
           for: 10m
           labels:
             severity: critical
-        # Phase 1 up but no child SA means IKE negotiated and the traffic path
-        # is still dead, invisible to the alert above. Scoped with `and on()`
-        # to phase1 being up so a full outage pages once, not twice.
-        #
-        # Existence is the only usable signal here. There is no phase2_status
-        # metric, and the byte counters are NOT a substitute: a healthy idle
-        # tunnel legitimately reads bytes_in == 0 (confirmed on the live tunnel
-        # while it was up), so any "no traffic" rule would false-positive
-        # continuously. 15m clears a phase2 rekey window (life ~2300s,
-        # rekey ~1500s) without flapping.
+        # Phase 1 up but no child SA means IKE negotiated and the traffic path is still
+        # dead, invisible to the alert above; `and on()` phase1 so a full outage pages once.
+        # No phase2_status metric exists, and byte counters aren't a substitute: a healthy
+        # idle tunnel legitimately reads zero. 15m clears a phase2 rekey window, see
+        # docs/docs/apps/opnsense-exporter.md.
         - alert: OPNsenseIPsecChildSAMissing
           annotations:
             summary: "IPsec phase 2 (azure-hub-traffic) has no child SA while phase 1 is up, traffic path down."

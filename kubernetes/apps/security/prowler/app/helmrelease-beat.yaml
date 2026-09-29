@@ -30,11 +30,7 @@ spec:
             image:
               repository: prowlercloud/prowler-api
               tag: 5.43.0@sha256:3a75af3b5cd83bfa6e3ac5c98bd887e8c4090d41bffda9f3068d3fc131b62370
-            # Override the image's hardcoded ENTRYPOINT
-            # `["../docker-entrypoint.sh", "prod"]`. Without `command`,
-            # `args: [beat]` is APPENDED ("prod beat") and the script
-            # still runs in `prod` mode (migrate + gunicorn), which OOMs
-            # on the small beat resource budget.
+            # Without `command`, args:[beat] appends to the hardcoded prod entrypoint and OOMs.
             command:
               - "../docker-entrypoint.sh"
             args:

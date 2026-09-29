@@ -26,10 +26,8 @@ spec:
               N8N_PORT: &port 5678
               N8N_PROTOCOL: https
               WEBHOOK_URL: "https://{{ .Release.Name }}.${SECRET_DOMAIN}"
-              # Database - SQLite (default)
               DB_TYPE: sqlite
               DB_SQLITE_VACUUM_ON_STARTUP: "true"
-              # Execution pruning
               EXECUTIONS_DATA_PRUNE: "true"
               EXECUTIONS_DATA_MAX_AGE: "168"
               EXECUTIONS_DATA_SAVE_ON_ERROR: all

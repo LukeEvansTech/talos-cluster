@@ -11,10 +11,9 @@ spec:
     kind: OCIRepository
     name: rook-ceph
   values:
-    # Rook v1.20 removed CSI driver deployment from the operator chart; driver
-    # config (CephFS toggle, plugin tolerations, RBD sidecar resources, liveness)
-    # now lives in the ceph-csi-drivers HelmRelease (../csi-drivers). The operator
-    # only installs the ceph-csi-operator and still owns the CSI ServiceMonitor.
+    # Rook v1.20 removed CSI driver deployment from the operator chart; the CephFS toggle, plugin
+    # tolerations, RBD sidecar resources and liveness settings moved to the ceph-csi-drivers
+    # HelmRelease (../csi-drivers), which the operator no longer owns.
     csi:
       serviceMonitor:
         enabled: true

@@ -1,20 +1,7 @@
 ---
-# Custom snmp_exporter module for Brother network printers, Printer-MIB
-# (RFC 3805) supplies/marker + Host-Resources-MIB (RFC 2790) printer/device
-# status. Covers the estate's 4 Brother units (2 lasers, 2 label printers) on
-# PRINT VLAN 72. Merged with the image's bundled snmp.yml via an extra
-# --config.file (see helmrelease extraArgs). Auths (SNMPv3) live in the
-# snmp-exporter-auth Secret (external-secrets), never here. This ConfigMap is
-# git-tracked in a public repo and carries modules only.
-#
-# Telemetry notes (verified against the live fleet, community-RO walk 2026-07):
-#   - Brother reports toner level as -3 ("present, level unknown"), so a real
-#     percentage only exists for Drum/Belt units (prtMarkerSuppliesMaxCapacity>0).
-#     Alert on the ratio only where MaxCapacity>0 (see prometheusrule).
-#   - hrDeviceStatus (2=running 3=warning 5=down) is the reliable numeric fault
-#     signal. Brother raises it to warning(3) on low-supply/cover/paper. Alert
-#     on that, not on the OCTET-STRING hrPrinterDetectedErrorState bitfield
-#     (kept as a labelled info metric for dashboards).
+# 4 Brother printers, Printer-MIB + Host-Resources-MIB; auths in snmp-exporter-auth Secret.
+# Toner reads -3 (present, unmeasured); only Drum/Belt (MaxCapacity>0) give a real ratio.
+# hrDeviceStatus (2/3/5) is the reliable fault signal; the error bitfield stays an info label.
 apiVersion: v1
 kind: ConfigMap
 metadata:

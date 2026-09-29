@@ -20,10 +20,8 @@ spec:
   values:
     controllers:
       scanopy-daemon:
-        # Single scanner (Deployment, 1 replica): the nodes share one flat LAN
-        # (10.32.8.0/24), so a per-node DaemonSet would scan the same /24 three
-        # times. Recreate avoids two hostNetwork pods contending for host port
-        # 60073 during a rollout.
+        # A per-node DaemonSet would triple-scan the shared LAN, so this is one
+        # Deployment; Recreate stops two hostNetwork pods fighting over port 60073.
         type: deployment
         replicas: 1
         strategy: Recreate
@@ -33,32 +31,20 @@ spec:
           app:
             image:
               repository: ghcr.io/scanopy/scanopy/daemon
-              tag: v0.17.16@sha256:a8de721bc2eba3e6d815f6fd977ee15ca861399b2710d6bd5c5383910bd5279e
+              tag: v0.17.17@sha256:c4866716b7a0a630236aad2d9ec28acd773216ed1a2f0974c192f06ea901574d
             env:
               TZ: ${TIMEZONE}
               SCANOPY_LOG_LEVEL: info
               SCANOPY_SERVER_URL: http://scanopy.network.svc.cluster.local:60072
               SCANOPY_ENABLE_LOCAL_DOCKER_SOCKET: "false"
-              # Restrict scanning to the physical LAN NIC. Without this the
-              # hostNetwork daemon auto-scans every node interface, including
-              # the Cilium pod/service CIDRs (10.42/10.43.0.0/16, ~131k IPs),
-              # and saturates node conntrack. enp1s0np0 = LAN 10.32.8.0/24
-              # (same kernel name on all three nodes).
+              # Limits scanning to the LAN NIC; unscoped, it would also scan Cilium's
+              # pod/service IPs and saturate node conntrack.
               SCANOPY_INTERFACES: enp1s0np0
-              # NOTE: SCANOPY_INTERFACES only scopes L2 (local-interface)
-              # scanning. Scanopy still L3-scans remote subnets it discovers via
-              # SNMP routing tables, so scope + conntrack grow as routable
-              # subnets appear.
-              # TODO(vlan-buildout): new VLANs are being stood up (the extra
-              # 10.32.x / 10.32.16.0/23 subnets the scanner reports). After the
-              # buildout settles, re-check nf_conntrack_count on the scanner
-              # node. Validated peak was ~9% of 262144 pre-VLANs. If it nears
-              # the limit, raise net.netfilter.nf_conntrack_max via
-              # talos/talconfig.yaml machine.sysctls, and/or narrow scan scope
-              # per-discovery in the Scanopy UI.
-              # Cap simultaneous host scans (default auto-detects ~10-20).
+              # This only limits L2 scanning; SNMP-discovered L3 subnets are still scanned.
+              # TODO(vlan-buildout): re-check conntrack usage (docs/docs/apps/scanopy.md).
+              # Caps concurrent scans; Scanopy's default auto-detects roughly 10-20.
               SCANOPY_CONCURRENT_SCANS: "5"
-              # Stable identity for the single scanner (was per-node nodeName).
+              # Fixed identity for the single scanner; previously came from the per-node nodeName.
               SCANOPY_NAME: scanopy-codelooks
             envFrom:
               - secretRef:

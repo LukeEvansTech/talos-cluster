@@ -15,28 +15,18 @@ spec:
         fsGroup: 33
         fsGroupChangePolicy: OnRootMismatch
     controllers:
-      # Serves the rendered wiki (mkdocs-material, live-reload dev server) on
-      # the RWO PVC the generator writes into.
+      # Serves the rendered wiki (mkdocs-material, live-reload) off the RWO PVC
+      # repowiki-gen writes into.
       mkdocs:
         annotations:
           reloader.stakater.com/auto: "true"
-        # Single RWO ceph-block volume: a rolling update would start the new
-        # pod (different node candidate) before the old one releases the RBD
-        # attach and the rollout would stall. Recreate avoids that.
+        # Single RWO ceph-block volume: a rolling update could land the new pod on a
+        # different node before the old one releases the RBD attach, and stall.
         strategy: Recreate
         initContainers:
-          # First-boot race: on a fresh PVC /app-data/repository doesn't exist
-          # until repowiki-gen has run once, and mkdocs refuses to start
-          # ("Config value 'docs_dir': The path '/app-data/repository' isn't
-          # an existing directory"), observed as 5 crash-loops on a new PVC.
-          # Seed a placeholder index.md so mkdocs has something to serve;
-          # generate.py unconditionally rewrites REPO/index.md at the end of
-          # every run (mkdocs.yml's docs_dir points straight at the repo root,
-          # not a nested docs/ subdir, matching where generate.py writes), so
-          # the real content replaces this the first time the CronJob fires.
-          # Reuses the mkdocs image (no new image to pull); generate.py
-          # already `git init`s the repo itself when .git is absent, so this
-          # step only needs to create the directory and the placeholder file.
+          # First-boot race: mkdocs won't start until repowiki-gen creates
+          # /app-data/repository, so this seeds a placeholder index.md instead
+          # (docs/docs/apps/repowiki.md).
           seed-placeholder:
             image: &mkdocsImage
               repository: squidfunk/mkdocs-material
@@ -77,9 +67,6 @@ spec:
                 cpu: 50m
               limits:
                 memory: 512Mi
-      # 12-hourly CronJob: clones/updates each repo in repos.txt, has the LLM
-      # plan a page set per repo, writes the pages, and commits them into the
-      # git repository on the shared PVC that mkdocs serves.
       repowiki-gen:
         type: cronjob
         cronjob:
@@ -90,8 +77,7 @@ spec:
           successfulJobsHistory: 1
           failedJobsHistory: 1
         pod:
-          # The data PVC is RWO. Pin the generator pod to the same node as
-          # the mkdocs pod so both can mount it.
+          # RWO PVC: pin the generator to the mkdocs pod's node so both can mount it.
           affinity:
             podAffinity:
               requiredDuringSchedulingIgnoredDuringExecution:

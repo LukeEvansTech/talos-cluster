@@ -35,7 +35,6 @@ spec:
                     ephemeral-storage: 20Gi
   values:
     fullnameOverride: *name
-    # Shared pool for private codelooks-com repositories.
     githubConfigUrl: https://github.com/codelooks-com
     githubConfigSecret: codelooks-org-runner-secret
     runnerGroup: Default
@@ -48,18 +47,12 @@ spec:
       type: dind
     template:
       spec:
-        # miroir-local provisions a real ext4 block device whose root comes up
-        # root:root 0755, and this image runs as uid/gid 1001. Without fsGroup
-        # the runner cannot create _work/_tool and every job dies in ~2s with
-        # UnauthorizedAccessException before a single step executes. miroir's
-        # CSIDriver is fsGroupPolicy: ReadWriteOnceWithFSType and this claim is
-        # RWO + ext4, so kubelet honours fsGroup and chowns the volume.
+        # uid 1001 needs fsGroup to write miroir-local's root:root ext4 volume (#3739).
         securityContext:
           fsGroup: 1001
         containers:
           - name: runner
-            # Same digest as talos-cluster-runner / terraform-vsphere-runner.
-            # Renovate manages this.
+            # Same digest as talos-cluster-runner; Renovate manages it.
             image: ghcr.io/home-operations/actions-runner:2.337.0@sha256:8b8e8326b5a08e658a0a41cfd2867afab69ca4194a152f986aa6fcd5430d09e7
             resources:
               requests:
@@ -83,12 +76,8 @@ spec:
                   storageClassName: miroir-local
                   resources:
                     requests:
-                      # Roomier than talos-cluster-runner's 25Gi: the super-linter
-                      # image alone is several GB and checkov/trivy add more. Note
-                      # dind's own image store is the sidecar's writable layer
-                      # (node ephemeral storage), not this claim — and Spegel does
-                      # not mirror dind pulls, only containerd ones, so every run
-                      # pulls super-linter from ghcr.io afresh.
+                      # 40Gi vs talos-cluster's 25Gi: super-linter plus checkov/trivy need headroom.
+                      # Not dind's image store (node ephemeral); Spegel doesn't mirror dind pulls.
                       storage: 40Gi
     controllerServiceAccount:
       name: actions-runner-controller

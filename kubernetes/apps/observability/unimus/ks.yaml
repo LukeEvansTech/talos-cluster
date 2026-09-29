@@ -16,9 +16,7 @@ spec:
   postBuild:
     substitute:
       APP: *app
-      # Holds the embedded HSQLDB: every device's stored configuration history
-      # and the credentials Unimus connects with, so this one is worth backing
-      # up properly.
+      # Holds the embedded HSQLDB, every device's config history and its credentials.
       VOLSYNC_CAPACITY: 5Gi
   prune: true
   retryInterval: 2m

@@ -5,11 +5,8 @@ kind: ScrapeConfig
 metadata:
   name: &name veeam-windows-exporter
 spec:
-  # windows_exporter on the Veeam B&R server (:9182), installed and configured
-  # by LukeEvansTech/veeam-config (ansible/monitoring.yml). Besides the usual
-  # OS metrics it serves the textfile collector, which is where the job-result
-  # series (veeam_backup_*) come from, written by a scheduled task on the box
-  # that reads the "Veeam Backup" Windows event log every 10 minutes.
+  # windows_exporter's textfile collector serves veeam_backup_* from a scheduled task that
+  # parses the Windows event log every 10 minutes.
   staticConfigs:
     - targets:
         - ${SECRET_VEEAM_HOST}:9182

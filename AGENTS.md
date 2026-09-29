@@ -133,6 +133,12 @@ Flow is 1Password → ExternalSecret → Kubernetes Secret. Per-app `externalsec
   Service in with `"true"` plus an optional `gatus.home-operations.com/endpoint:` YAML block for
   name and group overrides.
 - GPU workloads use `runtimeClassName: nvidia`.
+- **Comments state a reason the code cannot, in one or two short sentences.** A comment earns its
+  place with a constraint, a workaround, the evidence behind a threshold, or a rejected alternative;
+  it never describes what the next lines do. Longer history goes in `docs/docs/apps/<app>.md` or a
+  KB entry, and the comment points there by that repository path. Comments inside a YAML block
+  scalar, or in a file a ConfigMap ships verbatim, are rendered content: editing them changes what
+  deploys.
 
 ## Provisioning a new app
 
@@ -208,6 +214,10 @@ through the toolbox, the read-only MCP servers. Two rules apply to how it is don
 - **Prefer narrow queries.** Namespace-scoped, label- or field-selected, `jsonpath` or `jq`
   projected. A cluster-wide `-o yaml` is slow, fills the context with nothing useful, and is the
   usual way a secret ends up on screen by accident.
+- **Logs of a pod that is gone are in VictoriaLogs.** Failed Jobs are reaped after 24 hours and
+  their pods with them, so `kubectl logs` has nothing; query LogsQL through the API proxy:
+  `kubectl get --raw "/api/v1/namespaces/observability/services/victoria-logs-server:9428/proxy/select/logsql/query?query=<urlencoded>&start=<RFC3339>&limit=500"`
+  with a query such as `kubernetes.pod_namespace:media AND kubernetes.pod_name:curatorjudge-29830050* | sort by (_time)`.
 
 Before acting on an alert, read [known noise](docs/docs/troubleshooting/known-noise.md): it lists
 the cases where the obvious fix is wrong. After any change to protected infrastructure, run the
@@ -282,6 +292,11 @@ Flag consequential, repository-specific breakage. Prefer silence over style comm
   "Protected infra" `packageRules` entry in `.renovaterc.json5` is the source of truth (Cilium,
   Rook-Ceph, Flux, Talos, cert-manager, external-secrets, Envoy Gateway, CloudNativePG, …).
 - A GPU workload missing `runtimeClassName: nvidia`.
+- A new comment that narrates the manifest or runs past two short sentences.
+- A new scheduled pipeline (a CronJob, or an app with its own in-process scheduler) with no
+  absence-of-success alert. Liveness and `/health` stay green while the work fails: lurcher crashed
+  mid-run every day for twelve days with its pod healthy. Mirror `GickupBackupStale` or
+  `LurcherNotDelivering`: alert on the age of the last success, not on errors.
 
 ### Never flag these
 

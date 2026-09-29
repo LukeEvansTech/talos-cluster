@@ -14,9 +14,6 @@ spec:
     image:
       repository: quay.io/prometheus/snmp-exporter
       tag: v0.30.1@sha256:e5fd5e8b43ace6c088fe9bf0b37b7fff0e04380bee352be7ec41b853a4dd5859
-    # Merge a custom ENTITY-SENSOR-MIB module (temp/fan/PSU/optics) plus the
-    # auths file rendered from external-secrets alongside the image's bundled
-    # snmp.yml. snmp_exporter combines multiple --config.file.
     extraArgs:
       - --config.file=/etc/snmp_exporter/snmp.yml
       - --config.file=/run/snmp-extra/snmp.yml
@@ -41,15 +38,13 @@ spec:
         configMap: snmp-exporter-mikrotik
         mountPath: /run/snmp-mikrotik
         readOnly: true
-    # Credentials only (auths:), templated by the snmp-exporter ExternalSecret
-    # so no community string lives in git (public repo).
+    # Credentials only; templated by the ExternalSecret so no community string lives in git.
     extraSecretMounts:
       - name: auth
         secretName: snmp-exporter-auth
         mountPath: /run/snmp-auth
         readOnly: true
-    # chart 9.14.0 reads scrape targets from serviceMonitor.params[] (not a
-    # top-level params:); per-entry module/auth fall back to the globals here.
+    # Targets live under serviceMonitor.params[], not a top-level params: (chart 9.x).
     serviceMonitor:
       enabled: true
       path: /snmp
@@ -58,23 +53,8 @@ spec:
       auth:
         - public_v2
       params:
-        # the core switch. if_mib gives all port
-        # counters/status; entity_sensor adds temp/fan/PSU/optics. auth onyx_ro
-        # is a dedicated RO community defined via the ExternalSecret.
-        #
-        # Deliberately TWO targets rather than one with both modules. A scrape
-        # is only as healthy as its slowest module, and measured against this
-        # switch on 2026-08-27 (8 walks each, via the exporter's own /snmp):
-        #
-        #   if_mib alone         8/8 ok   avg  0.3s  max  1.9s
-        #   entity_sensor alone  5/8 ok   avg 11.3s  max 20.1s
-        #   both together        4/8 ok   avg 11.0s  max 20.1s
-        #
-        # Combined, that marked the whole target down ~29% of the day, so
-        # `up` said "core switch unreachable" when its interface data was in
-        # fact fast and complete, and SnmpTargetDown (critical, for 5m) was one
-        # slightly longer stall away from paging on it. Split, if_mib stays
-        # trustworthy and a slow sensor walk can no longer forge an outage.
+        # Two targets, not one with both modules: combining them marked the whole
+        # target down ~29% of the day (docs/docs/apps/snmp-exporter.md).
         - name: onyx-core
           target: ${ONYX_ADDR}
           module:
@@ -87,12 +67,8 @@ spec:
             - sourceLabels:
                 - __param_target
               targetLabel: instance
-        # The sensor walk covers the whole entPhysicalTable to label 54 sensors,
-        # which this agent serves slowly and sometimes not at all. Sensor
-        # readings are slow-moving, so a 5m interval costs nothing and cuts the
-        # load on the agent five-fold. device_class=sensors keeps it out of the
-        # critical SnmpTargetDown (same mechanism the label printers use) and
-        # gives OnyxSensorScrapeDegraded something to match on instead.
+        # Sensor readings are slow-moving, so a 5m interval costs nothing and cuts
+        # agent load five-fold. device_class=sensors excludes it from SnmpTargetDown.
         - name: onyx-core-sensors
           target: ${ONYX_ADDR}
           module:
@@ -107,11 +83,8 @@ spec:
               targetLabel: instance
             - targetLabel: device_class
               replacement: sensors
-        # Brother printer fleet on PRINT VLAN 72. if_mib gives link/oper status;
-        # brother_printer adds supplies/page-count/printer-status. Each carries a
-        # device_class=printer label so the noisy label printers (which power
-        # themselves off) are excluded from the critical SnmpTargetDown alert and
-        # get supply/fault alerts instead. SNMPv3 authPriv per-device auths.
+        # device_class=printer excludes the label printers (which power themselves
+        # off) from SnmpTargetDown; they get supply/fault alerts instead.
         - name: printer-hl
           target: ${PRINTER_HL_ADDR}
           module:
@@ -172,11 +145,8 @@ spec:
               targetLabel: instance
             - targetLabel: device_class
               replacement: printer
-        # APC rack PDU fleet. Power telemetry only (config drift/compliance is
-        # the apc-fleet exporter's job). NMC2 cards speak SNMPv1/v3 only; apc_ro
-        # is the v1 read-only community from the ExternalSecret. The two 2G PDUs
-        # use the rPDU2 MIB, the legacy comms PDU the classic rPDU MIB. The
-        # pdu_name label comes from the device itself at scrape time.
+        # NMC2 cards speak SNMPv1/v3 only; apc_ro is the v1 read-only community.
+        # The two 2G PDUs use the rPDU2 MIB, the legacy PDU the classic rPDU MIB.
         - name: apc-pdu-main-1
           target: ${APC_PDU_MAIN1_ADDR}
           module:
@@ -219,23 +189,8 @@ spec:
               targetLabel: instance
             - targetLabel: device_class
               replacement: pdu
-        # The two CRS354 access switches, unmonitored since the mktxp exporter
-        # was retired on 2026-07-19 (it needed the RouterOS binary API, which
-        # the network-ops hardening baseline disables). SNMP is enabled and the
-        # community is ACL-locked to the cluster nodes by that same Terraform,
-        # so this needs no change on the device side. Closes network-ops#112.
-        #
-        # Split into a health target and an interface target per switch, for the
-        # reason the core switch had to be split: the walks are wildly unequal.
-        # Measured 2026-08-28 on the PoE switch, mtxrHealth + mtxrPOE together
-        # are ~1.5s, while if_mib's ifTable + ifXTable are ~15.4s. Combining
-        # them would make `up` track the slow walk instead of the device.
-        #
-        # The health target is the reachability signal (fast, so a failure here
-        # really does mean the switch): device_class=switch keeps it in the
-        # critical SnmpTargetDown alert. It also carries per-port PoE, which is
-        # how a dead access point or PoE device is detected. The AP ports are
-        # the only heavy PoE draws on the estate.
+        # Split health/interface per switch, same reason as the core switch: the
+        # walks are wildly unequal, see docs/docs/apps/snmp-exporter.md.
         - name: mikrotik-poe
           target: ${MIKROTIK_POE_ADDR}
           module:
@@ -264,12 +219,8 @@ spec:
               targetLabel: instance
             - targetLabel: device_class
               replacement: switch
-        # Interface counters. 5m interval and a timeout well clear of the
-        # measured ~15.4s walk, so a slow walk degrades resolution rather than
-        # registering the switch as down. device_class=switch-if keeps that
-        # slowness out of the critical down-alert (same carve-out as the core
-        # switch's sensor target); sustained loss is covered by
-        # MikrotikInterfaceScrapeDegraded instead.
+        # 5m interval and timeout clear of the walk time, so it degrades resolution
+        # rather than registering the switch as down; see MikrotikInterfaceScrapeDegraded.
         - name: mikrotik-poe-interfaces
           target: ${MIKROTIK_POE_ADDR}
           module:
@@ -304,10 +255,8 @@ spec:
         memory: 64Mi
       limits:
         memory: 128Mi
-  # snmp_exporter only reads its --config.file set at startup, so changes to the
-  # auth Secret / entity-sensor ConfigMap otherwise need a manual rollout restart.
-  # Chart 9.14.1 has no Deployment-level annotations value; patch the annotation
-  # in (same pattern as headlamp).
+  # snmp_exporter only reads --config.file at startup; Reloader needs this annotation
+  # patched in since chart 9.14.1 has no Deployment-level annotations value.
   postRenderers:
     - kustomize:
         patches:

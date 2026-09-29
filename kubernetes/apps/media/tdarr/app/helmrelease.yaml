@@ -6,9 +6,8 @@ metadata:
   name: tdarr
 spec:
   interval: 1h
-  # tdarr ships large images (~1.5GB app + ~1.2GB node) and uses a Recreate
-  # rollout, so an upgrade can exceed helm-controller's 5m default wait and trip
-  # RemediateOnFailure into an upgrade<->rollback thrash loop. Give it headroom.
+  # 15m avoids upgrade thrash: tdarr's ~2.7GB of images can outrun helm-controller's 5m
+  # default wait and trip a remediation rollback loop (#2737).
   timeout: 15m
   chartRef:
     kind: OCIRepository
@@ -26,7 +25,7 @@ spec:
           app:
             image:
               repository: ghcr.io/haveagitgat/tdarr
-              tag: 2.89.01@sha256:b28ecb6566214666b91fd548cf588d4c265a9493c2473c494c5ebc8dcedf6a85
+              tag: 2.90.01@sha256:da53b682b85ad74241557ed6ed840504391dededac9824b5e27b6d1bba24335a
             env:
               TZ: ${TIMEZONE}
             probes:
@@ -51,7 +50,7 @@ spec:
           node:
             image:
               repository: ghcr.io/haveagitgat/tdarr_node
-              tag: 2.89.01@sha256:f0acc9d38f36be643c3a5aac4fa351c5dc05ca3992a1110b447616f22a11be19
+              tag: 2.90.01@sha256:6dab4f8d0b49b63a917cc3d15d3e42587a9d20ff7b486cdf2ddad14d39cd0d91
             env:
               TZ: ${TIMEZONE}
               nodeID:
@@ -82,12 +81,10 @@ spec:
                     values:
                       - "true"
         podAntiAffinity:
-          # Keep transcoders off the card holding the inference model: it uses
-          # ~21 of 23 GiB and time-slicing gives no VRAM isolation, so a
-          # co-scheduled transcode can fail to allocate. Preferred rather than
-          # required -- three nodes and no workers means a hard rule wedges
-          # these Pending whenever one drains. `namespaces` is load-bearing:
-          # pod affinity is namespace-scoped and the model runs in `ai`.
+          # Avoids the GPU running the inference model (~21/23 GiB used, no VRAM isolation
+          # under time-slicing). Preferred, not required, or 3 nodes with no worker pool
+          # would wedge pods Pending on a drain. `namespaces: [ai]` matters: pod affinity is
+          # namespace-scoped and the model runs there.
           preferredDuringSchedulingIgnoredDuringExecution:
             - weight: 100
               podAffinityTerm:
@@ -104,9 +101,8 @@ spec:
           labelSelector:
             matchLabels:
               gpu-workload: "true"
-      # s6 init runs s6-applyuidgid and must start as root; it can't run as a
-      # non-root pod. NFS media export is all_squash→1000, so transcoded files
-      # land as 1000 regardless of the runtime UID.
+      # s6 must start as root to drop privileges itself; NFS write ownership is unaffected either
+      # way (docs/docs/troubleshooting/kb/022-s6-image-createcontainerconfigerror-non-root.md).
       securityContext:
         runAsNonRoot: false
         runAsUser: 0

@@ -19,8 +19,8 @@ import re
 import sys
 from datetime import datetime
 
-import requests
-from OpenSSL import crypto as openssl_crypto
+import requests  # pylint: disable=import-error  # missing from the linter image
+from OpenSSL import crypto as openssl_crypto  # pylint: disable=import-error  # missing from image
 
 REQUEST_TIMEOUT = 30.0
 
@@ -33,7 +33,6 @@ class RedfishIPMIUpdater:
         self.session = session
         self.ipmi_url = ipmi_url.rstrip("/")
 
-        # Redfish API endpoints
         self.login_url = f"{ipmi_url}/redfish/v1/SessionService/Sessions"
         self.cert_info_url = f"{ipmi_url}/redfish/v1/UpdateService/Oem/Supermicro/SSLCert"
         self.upload_cert_url = f"{ipmi_url}/redfish/v1/UpdateService/Oem/Supermicro/SSLCert/Actions/SmcSSLCert.Upload"
@@ -158,7 +157,6 @@ class RedfishIPMIUpdater:
         print(f"DEBUG: Server cert only length: {len(cert_only)} bytes")
         print(f"DEBUG: Key data length: {len(key_data)} bytes")
 
-        # Use dict format for multipart file upload
         files_to_upload = {
             "cert_file": ("cert.pem", cert_only, "application/octet-stream"),
             "key_file": ("key.pem", key_data, "application/octet-stream"),

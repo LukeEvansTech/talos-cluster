@@ -21,18 +21,14 @@ spec:
     spec:
       containers:
         - name: mcp
-          # flux-operator-mcp defaults --read-only to false (confirmed via
-          # `flux-operator-mcp --help` and upstream docs/mcp/mcp-config.md);
-          # this deployment has never passed the flag, so the
-          # reconcile/suspend/resume/apply/delete tools have always been
-          # registered here. RBAC in rbac.yaml is the actual, and only,
-          # enforcement layer, both before and after enabling flux-mcp-write.
+          # --read-only defaults to false and is never set; RBAC in rbac.yaml is the only
+          # enforcement layer (docs/docs/architecture/ai-llm-stack.md flux-mcp write access).
           args:
             - serve
             - --transport=http
             - --port=8000
           env:
-            # In-cluster mode: no KUBECONFIG; uses the pod service account.
+            # In-cluster mode: no KUBECONFIG, uses the pod service account.
             - name: RUNTIME_NAMESPACE
               valueFrom:
                 fieldRef:

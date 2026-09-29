@@ -28,9 +28,7 @@ spec:
             env:
               SEARXNG_URL: http://searxng.default.svc.cluster.local:8080
               MCP_HTTP_PORT: &port 3000
-              # Upstream flipped the default bind to 127.0.0.1 (localhost-only)
-              # after v1.2.1, which silently broke every in-cluster consumer.
-              # The ClusterIP Service needs the pod to listen on all interfaces.
+              # Upstream defaults to 127.0.0.1 since v1.2.1, which breaks the ClusterIP Service.
               MCP_HTTP_HOST: 0.0.0.0
               TZ: ${TIMEZONE}
             resources:

@@ -10,3 +10,12 @@ resources:
   - ./servicemonitor.yaml
   - ./cleanup-cronjob.yaml
   - ./complete-cleanup-cronjob.yaml
+configMapGenerator:
+  - name: sabnzbd-pp-watchdog
+    namespace: downloads
+    files:
+      - pp-watchdog.sh=./resources/pp-watchdog.sh
+generatorOptions:
+  disableNameSuffixHash: true
+  annotations:
+    kustomize.toolkit.fluxcd.io/substitute: disabled

@@ -1,14 +1,13 @@
 ---
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/gateway.networking.k8s.io/httproute_v1.json
-# Exposes ONLY konflate's webhook endpoint (HMAC-validated) to GitHub.
-# The konflate UI stays internal-only on the chart-managed HTTPRoute.
+# Path-scoped route for GitHub's HMAC-validated webhook deliveries, separate from the UI route.
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
   name: konflate-webhook
   annotations:
     external-dns.alpha.kubernetes.io/target: "external.${SECRET_DOMAIN}"
-    # POST-only webhook (GET / → 404); not health-checkable via gatus. UI route is monitored.
+    # POST-only (GET / -> 404) isn't health-checkable via gatus; the UI route already is monitored.
     gatus.home-operations.com/enabled: "false"
 spec:
   hostnames:

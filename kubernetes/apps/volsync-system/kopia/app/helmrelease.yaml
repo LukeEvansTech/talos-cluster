@@ -55,28 +55,12 @@ spec:
               limits:
                 memory: 2Gi
 
-          # Counts kopia's index blobs and serves them for Prometheus. It lives
-          # here as a sidecar rather than as its own app purely because this pod
-          # already mounts the repository; it does not talk to the kopia server
-          # process at all, it only walks the filesystem.
-          #
-          # Kopia warns "too many index blobs" and degrades once these pile up,
-          # but exposes no metrics endpoint of its own, so the number existed
-          # only in the maintenance job's log output and nothing could alert on
-          # it. Layout, confirmed against the live repository:
-          #   xn* uncompacted epoch indexes  <- the ones that pile up
-          #   xs* single-epoch compacted
-          #   xr* range-compacted
-          # Split by kind rather than summed because a rising total is only
-          # worth paging on when it is the uncompacted set doing the rising.
-          # That is the signal that compaction is losing to snapshot creation.
-          #
-          # Counted on a slow loop and cached, NOT per scrape: this is a walk
-          # over an NFS export shared with every backup in the estate.
+          # Sidecar reusing this pod's existing repository mount, since kopia has no metrics
+          # endpoint for its index blob count (docs/docs/apps/kopia.md).
           index-exporter:
             image:
               repository: docker.io/library/busybox
-              tag: 1.38.0@sha256:dc2d74b28e4cf8984fa52af1f39bc7c3d9c73760b41a74d629f5d11b1ab28616
+              tag: 1.38.0@sha256:fd7dc98638c8e305f4dc34e979f1c0fdfdcaeb0fbf8fcff77ae834b6da3d7e6e
             command:
               - /bin/sh
               - -c
@@ -237,9 +221,8 @@ spec:
         type: nfs
         server: ${SECRET_STORAGE_SERVER:-localhost}
         path: ${SECRET_STORAGE_SERVER_VOLSYNC_NFS:-/tmp}
-        # advancedMounts rather than globalMounts so the exporter gets the
-        # repository read-only. It only ever counts files, and nothing that
-        # merely observes the backup repository should be able to write to it.
+        # advancedMounts, not globalMounts, so the exporter's read-only view can't write to the
+        # backup repository (docs/docs/apps/kopia.md).
         advancedMounts:
           kopia:
             app:

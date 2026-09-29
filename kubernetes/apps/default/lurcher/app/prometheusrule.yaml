@@ -1,0 +1,41 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: lurcher
+  namespace: default
+spec:
+  groups:
+    - name: lurcher
+      rules:
+        # Alerts on the outcome, not process health; a 2026-09 crash was invisible for 12 days. See
+        # docs/docs/troubleshooting/kb/085-lurcher-oom-invisible-to-health-check.md.
+        # Runs take about an hour; 36h plus the 30m wait tolerates one missed run before paging.
+        - alert: LurcherNotDelivering
+          annotations:
+            summary: >-
+              lurcher has not completed a delivering run in over 36h, so
+              contract alerts have stopped.
+            description: >-
+              The last lurcher run that delivered (success, at least one board
+              scraped, no send failures) finished {{ $value | humanizeDuration }}
+              ago. Check the run log on /ops, or
+              kubectl -n default logs deploy/lurcher for a heap-limit crash or a
+              board or proxy failure.
+          expr: |-
+            time() - lurcher_last_success_timestamp_seconds > 129600
+          for: 30m
+          labels:
+            severity: warning
+        # The rule above is silent when the metric vanishes, which a crash-looping pod also causes.
+        - alert: LurcherMetricsMissing
+          annotations:
+            summary: >-
+              lurcher /metrics has not been scraped for 30m, so run delivery
+              is unmonitored.
+          expr: |-
+            absent(lurcher_last_success_timestamp_seconds)
+          for: 30m
+          labels:
+            severity: warning

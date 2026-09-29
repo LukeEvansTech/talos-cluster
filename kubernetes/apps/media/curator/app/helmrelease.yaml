@@ -11,10 +11,8 @@ spec:
     name: curator
   values:
     controllers:
-      # Assesses the whole film library and writes cleanup-plan/plan.json to the
-      # volume. Reads only: it never deletes and never changes a tag. The
-      # judgement half is the separate curatorjudge app, which runs half an
-      # hour later against the plan this leaves behind.
+      # Assesses the library and writes cleanup-plan/plan.json; read-only, never deletes
+      # or tags. curatorjudge judges the plan half an hour later.
       curator:
         type: cronjob
         cronjob:
@@ -51,14 +49,14 @@ spec:
               RADARR_URL: http://radarr.media.svc.cluster.local
               TAUTULLI_URL: http://tautulli.media.svc.cluster.local
               SEERR_URL: http://seerr.media.svc.cluster.local
-              # Presence of LEDGER_DIR selects the filesystem backend, so the
-              # ledger is snapshotted with the volume.
+              # LEDGER_DIR selects the filesystem backend, so the ledger is snapshotted
+              # with the volume.
               LEDGER_DIR: /state/ledger
-              # Films added before this are the never-reviewed backlog and are
-              # out of scope; see the app README.
+              # Films added before this are the never-reviewed backlog, out of scope
+              # (see the app README).
               CLEANUP_SCOPE_START: "2026-03-01"
-              # plan makes no writes in either mode. The value is carried so the
-              # ledger namespaces its records the same way execute will.
+              # plan writes nothing either way; set so the ledger namespaces its
+              # records the same as execute will.
               CLEANUP_MODE: dry-run
             envFrom:
               - secretRef:

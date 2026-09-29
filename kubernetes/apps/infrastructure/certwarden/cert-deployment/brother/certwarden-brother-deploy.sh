@@ -3,18 +3,7 @@
 # (Embeds a YAML Job manifest in a heredoc; YAML uses 2-space indent and
 # editorconfig-checker can't distinguish that from the shell-script body.)
 #
-# Certwarden Post-Process Script for Brother Printer Certificate Deployment
-#
-# This script is called by Certwarden after certificate renewal.
-# It creates a Kubernetes Job to deploy the certificate to the Brother printer.
-#
-# Environment variables from Certwarden:
-#   CERTIFICATE_NAME - Name of the certificate
-#   CERTIFICATE_PEM - Certificate data (PEM format)
-#   PRIVATE_KEY_PEM - Private key data (PEM format)
-#   BROTHER_HOST - Custom env var: Brother printer host identifier (e.g., r-fw-core)
-#   NAMESPACE - Optional: Kubernetes namespace (default: infrastructure)
-#
+# Certwarden calls this after certificate renewal.
 
 set -euo pipefail
 
@@ -42,7 +31,6 @@ if [[ -z "${PRIVATE_KEY_PEM:-}" ]]; then
     exit 1
 fi
 
-# Now safe to use variables with set -u
 NAMESPACE="${NAMESPACE:-infrastructure}"
 SECRET_NAME="brother-${BROTHER_HOST}"
 
@@ -51,10 +39,8 @@ echo "Certificate: ${CERTIFICATE_NAME:-unknown}"
 echo "Target Brother Printer: ${BROTHER_HOST}"
 echo "Namespace: ${NAMESPACE}"
 
-# Create a unique job name with timestamp
 JOB_NAME="brother-cert-deploy-${BROTHER_HOST}-$(date +%s)"
 
-# Create a temporary secret for the certificate
 CERT_SECRET_NAME="${JOB_NAME}-cert"
 echo "Creating temporary secret: ${CERT_SECRET_NAME}"
 
@@ -63,12 +49,9 @@ kubectl create secret generic "${CERT_SECRET_NAME}" \
     --from-literal=cert.pem="${CERTIFICATE_PEM}" \
     --from-literal=key.pem="${PRIVATE_KEY_PEM}"
 
-# The Secret is adopted by the Job further down, once the Job exists and has
-# a UID to point at. It cannot be created with an ownerReference here
-# because the owner does not exist yet, and a stale/incorrect ownerReference
-# would have the Secret garbage-collected immediately.
+# It cannot carry an ownerReference at creation, the Job does not exist yet; the Job
+# adopts this Secret further down once it has a UID to point at.
 
-# Create the deployment Job
 echo "Creating deployment Job: ${JOB_NAME}"
 cat <<EOF | kubectl apply -f -
 apiVersion: batch/v1
@@ -130,11 +113,8 @@ spec:
             secretName: ${CERT_SECRET_NAME}
 EOF
 
-# Make the Job the owner of the cert Secret so the two are deleted together.
-# blockOwnerDeletion is false so the Secret can never hold up deletion of
-# the Job, and a failure here is not fatal: the deployment itself has
-# already been submitted, and a Secret that outlives its Job is the old
-# (bad) behaviour rather than a new one.
+# Binds the Job as the Secret's owner so both clean up together (#4025); blockOwnerDeletion
+# is false so a failed patch here leaves a stray Secret rather than blocking Job deletion.
 echo "Binding Secret ${CERT_SECRET_NAME} to Job ${JOB_NAME} for cleanup"
 JOB_UID=$(kubectl get job "${JOB_NAME}" -n "${NAMESPACE}" -o jsonpath='{.metadata.uid}' 2>/dev/null || true)
 if [[ -n "${JOB_UID}" ]]; then
@@ -145,15 +125,12 @@ else
     echo "WARNING: could not read Job UID; ${CERT_SECRET_NAME} will need manual cleanup"
 fi
 
-# Wait for the job to complete
 echo "Waiting for Job to complete..."
 kubectl wait --for=condition=complete --timeout=5m "job/${JOB_NAME}" -n "${NAMESPACE}"
 
-# Get the job logs
 echo "=== Job Logs ==="
 kubectl logs "job/${JOB_NAME}" -n "${NAMESPACE}"
 
-# Check if the job succeeded
 JOB_STATUS=$(kubectl get job "${JOB_NAME}" -n "${NAMESPACE}" -o jsonpath='{.status.conditions[?(@.type=="Complete")].status}')
 if [[ "${JOB_STATUS}" == "True" ]]; then
     echo "✅ Certificate deployed successfully to ${BROTHER_HOST}"

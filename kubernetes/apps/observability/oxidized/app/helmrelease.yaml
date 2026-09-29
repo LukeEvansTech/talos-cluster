@@ -17,7 +17,7 @@ spec:
           ssh-setup:
             image:
               repository: docker.io/library/busybox
-              tag: 1.38.0@sha256:dc2d74b28e4cf8984fa52af1f39bc7c3d9c73760b41a74d629f5d11b1ab28616
+              tag: 1.38.0@sha256:fd7dc98638c8e305f4dc34e979f1c0fdfdcaeb0fbf8fcff77ae834b6da3d7e6e
             command:
               - /bin/sh
               - -c
@@ -98,13 +98,7 @@ spec:
               requests: { cpu: 50m, memory: 128Mi }
               limits: { memory: 256Mi }
             securityContext:
-              # The oxidized image bootstraps as root (uid 0): runsvdir
-              # initialises supervise dirs under /etc/service/*, runit's
-              # run script then 'chown -R oxidized:oxidized
-              # /home/oxidized/.config/oxidized' and 'gosu oxidized
-              # oxidized' to drop privileges. We must therefore start as
-              # root and grant the minimal caps needed for that handover.
-              # The actual oxidized process ends up running as uid 30000.
+              # Bootstraps as root; runit/gosu then drops to uid 30000 (docs/docs/apps/oxidized.md).
               runAsNonRoot: false
               runAsUser: 0
               runAsGroup: 0

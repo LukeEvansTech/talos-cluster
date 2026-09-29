@@ -1,10 +1,5 @@
 ---
-# Custom snmp_exporter module for ENTITY-SENSOR-MIB (RFC 3433), temperature,
-# fan, voltage and PSU sensors exposed by the core switch (and any
-# device implementing the standard MIB). Merged with the image's bundled
-# snmp.yml via a second --config.file (see helmrelease extraArgs).
-# Auths live in the snmp-exporter-auth Secret (external-secrets), never here.
-# This ConfigMap is git-tracked in a public repo and carries modules only.
+# ENTITY-SENSOR-MIB (RFC 3433) sensors; auths live in the snmp-exporter-auth Secret.
 apiVersion: v1
 kind: ConfigMap
 metadata:

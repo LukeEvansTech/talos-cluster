@@ -1,7 +1,6 @@
 ---
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/gateway.networking.k8s.io/httproute_v1.json
-# Exposes the Konflate UI externally via cloudflare so GitHub Actions
-# standard runners (ubuntu-latest) can reach the summary API.
+# Whole-UI external route; the GitHub job it was added for is gone (docs/docs/apps/konflate.md).
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:

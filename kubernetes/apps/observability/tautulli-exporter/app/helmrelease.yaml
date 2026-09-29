@@ -20,8 +20,7 @@ spec:
               repository: docker.io/mm404/tautulli-exporter
               tag: 1.0.2@sha256:bbecece68b238d2ab0a51d7eb67ed323d8528312d481a99cc28bb8043fed7998
             env:
-              # Tautulli's in-cluster API (media namespace). The exporter appends
-              # /api/v2 itself; a read-only API key is supplied via envFrom.
+              # The exporter appends /api/v2 itself, so this URL omits it.
               TAUTULLI_URL: http://tautulli.media.svc.cluster.local
               METRICS_PORT: &port 8000
               LOG_LEVEL: INFO

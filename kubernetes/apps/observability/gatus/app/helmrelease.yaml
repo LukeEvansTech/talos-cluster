@@ -1,10 +1,7 @@
 ---
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/helm.toolkit.fluxcd.io/helmrelease_v2.json
-# Gatus - Health monitoring and alerting. The gatus-sidecar chart bundles
-# gatus + the endpoint-discovery sidecar (and their RBAC), replacing the
-# app-template + initContainer wiring (upstream home-ops #11077). Images are
-# chart-managed: the sidecar is digest-pinned per chart release, gatus is
-# tag-pinned as the chart appVersion.
+# gatus-sidecar bundles gatus, discovery sidecar, and RBAC (replaces app-template, upstream #11077).
+# Images are chart-managed: sidecar digest-pinned per release, gatus tag-pinned to appVersion.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
@@ -15,9 +12,8 @@ spec:
     kind: OCIRepository
     name: gatus
   values:
-    # Release "gatus" + chart "gatus-sidecar" would otherwise render resource
-    # names as gatus-gatus-sidecar (helper only collapses when the release
-    # name CONTAINS the chart name).
+    # Avoids gatus-gatus-sidecar: the naming helper only collapses when the release
+    # name contains the chart name.
     fullnameOverride: gatus
     deploymentAnnotations:
       reloader.stakater.com/auto: "true"
@@ -25,17 +21,12 @@ spec:
       delayStartSeconds: "5"
       env:
         TZ: ${TIMEZONE}
-      # Addresses for the split-DNS checks in resources/config.yaml. Gatus
-      # expands ${VAR} from its own environment when it reads the config, and
-      # the config ConfigMap opts out of Flux substitution, so this is the only
-      # route by which a real address reaches those checks.
+      # Feeds the split-DNS checks in resources/config.yaml, expanded by gatus itself
+      # since Flux substitution is off on this ConfigMap.
       #
-      # Deliberately extraEnv + optional rather than envFrom on the whole
-      # Secret: envFrom with a missing Secret wedges the pod in
-      # CreateContainerConfigError, which would take the entire monitoring
-      # stack down over two DNS checks. Optional keys instead leave the vars
-      # empty, the two split-dns endpoints then fail their conditions, and
-      # GatusEndpointDown pages, so the failure stays loud but contained.
+      # extraEnv+optional, not envFrom: a missing Secret there would CreateContainerConfigError
+      # the whole pod. A missing key here just fails the two DNS checks, so GatusEndpointDown
+      # pages instead of taking down the monitoring stack.
       extraEnv:
         - name: OPNSENSE_ADDR
           valueFrom:
@@ -87,8 +78,7 @@ spec:
       accessMode: ReadWriteOnce
       size: 5Gi
     resources:
-      # Pod-level budget shared by gatus + sidecar (needs k8s ≥1.34; the
-      # chart's kubeVersion enforces it).
+      # Pod-level budget shared by gatus + sidecar; needs k8s >=1.34, enforced by kubeVersion.
       requests:
         cpu: 100m
       limits:

@@ -27,8 +27,8 @@ spec:
         annotations:
           reloader.stakater.com/auto: "true"
         initContainers:
-          # All-MiniLM-L6-v2 is a public GGUF (no HF token needed). Downloaded
-          # once into the RWO model PVC, reused on restart.
+          # Public GGUF, no HF token needed; downloaded once into the RWO PVC,
+          # reused on restart.
           model-download:
             image:
               repository: python
@@ -61,7 +61,7 @@ spec:
           app:
             image:
               repository: ghcr.io/ggml-org/llama.cpp
-              tag: server@sha256:6257697a7f5d034b8fb499ddb07af3e250506352f94102054252a23f3b85e0af
+              tag: server@sha256:f9115c95639e60abc09d4ea83b26fd4d56c66aa1174594393335a514da00c283
             args:
               - --host
               - 0.0.0.0
@@ -86,10 +86,8 @@ spec:
               - --threads
               - "4"
               - --metrics
-              # --mmap was removed upstream; --load-mode replaces it.
-              # Passing --mmap now makes the server exit with
-              # "invalid argument: --mmap" before it binds a port.
-              # --load-mode works on both the old and new builds.
+              # --mmap was removed upstream and now exits with "invalid argument";
+              # --load-mode mmap replaces it on both old and new builds.
               - --load-mode
               - mmap
             resources:

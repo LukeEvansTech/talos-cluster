@@ -16,29 +16,21 @@ spec:
       enabled: false
     cdi:
       enabled: true
-    # Exactly one whole-GPU advertiser per node. dra-driver-nvidia-gpu now
-    # publishes the card, so the device plugin must stay off: the two keep
-    # independent ledgers and would allocate the same GPU twice.
+    # Exactly one GPU advertiser per node; see docs/docs/migrations/gpu-time-slicing-to-dra.md.
     devicePlugin:
       enabled: false
     dcgmExporter:
       enabled: true
-      # KUBERNETES_ENABLE_DRA on its own is not enough: the operator ships the
-      # DaemonSet with automountServiceAccountToken=false and only overrides it
-      # for enablePodLabels/enablePodUID or a real DCGM_EXPORTER_CONFIGMAP_DATA
-      # (controllers/object_controls.go, dcgmExporterEnvRequiresAPIAccess). With
-      # no token the exporter logs "pod labels will not be available" and every
-      # GPU metric loses exported_pod/exported_namespace -- which the per-pod
-      # VRAM panels in ai/llmkube's NVIDIA dashboard query directly.
+      # KUBERNETES_ENABLE_DRA alone leaves automountServiceAccountToken=false; see
+      # docs/docs/apps/gpu-operator.md.
       enablePodLabels: true
-      # Without an allowlist every pod label becomes a metric dimension,
-      # including pod-template-hash, which churns on each rollout.
+      # Without this, every pod label becomes a metric dimension, including the churning
+      # pod-template-hash.
       podLabelAllowlistRegex:
         - app.kubernetes.io/name
       env:
-        # Map metrics back to pods through DRA ResourceClaims rather than the
-        # device plugin's pod-resources view, which no longer exists. Needs
-        # resource.k8s.io read access the operator does not grant; see rbac.yaml.
+        # Maps metrics to pods via DRA ResourceClaims, not the retired device-plugin view;
+        # needs the read access rbac.yaml grants.
         - name: KUBERNETES_ENABLE_DRA
           value: "true"
       serviceMonitor:

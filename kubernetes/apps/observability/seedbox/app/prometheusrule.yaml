@@ -6,38 +6,19 @@ metadata:
   name: seedbox.rules
 spec:
   groups:
-    # Combined availability reading. seedbox:up:ratio = fraction of the seedbox
-    # scrape sensors currently reachable (0..1), 8 as of 2026-08-27: seven
-    # direct tailnet scrapes plus the in-cluster qBittorrent exporter, which
-    # reaches the box over that same egress. NB they all ride one tailnet path,
-    # so this measures MONITORING-PATH health, not true box-up. The independent
-    # public-IP blackbox probe (probe_success{job="seedbox-public"}) is the
-    # box-up anchor. Dashboards graph both for the overall picture.
+    # seedbox:up:ratio measures the monitoring path, since every sensor shares one tailnet path.
+    # probe_success{job="seedbox-public"} shows whether the box itself is up.
     - name: seedbox.recording
       rules:
         - record: seedbox:up:ratio
           expr: avg(up{instance="seedbox"})
-        # The tracker economy, the thing a ratio box exists for. qui publishes
-        # lifetime up/down per tracker for ~87 samples a scrape; this folds it
-        # to one stable low-cardinality series per tracker so history survives
-        # dashboard edits and is available to calibrate a future alert against.
-        # No alert keys on it yet, deliberately: the obvious "ratio below floor"
-        # rule would have fired for four trackers the moment it shipped
-        # (measured 2026-08-27), which is the same miscalibration the iowait
-        # alert already taught this repo. It also moves for a reason that is not
-        # a fault. qbit-manage culls torrents that have ALREADY met their share
-        # limit, so removing high-ratio torrents drags the tracker aggregate
-        # DOWN. Calibrate against one observed cull cycle before writing the
-        # rule. Guarded with `> 0` so a tracker with no recorded download is
-        # absent rather than +Inf.
+        # There is no alert yet because culls pull this down; calibrate against one cull cycle
+        # first. The `> 0` makes a tracker with no downloads absent instead of +Inf.
         - record: seedbox:tracker:ratio
           expr: |-
             qbittorrent_tracker_uploaded_bytes{job="seedbox-qui"}
               / (qbittorrent_tracker_downloaded_bytes{job="seedbox-qui"} > 0)
-        # Dead weight: torrents that have never uploaded a byte. On a ratio box
-        # this is pure cost, disk held for nothing. Two series, both cheap, and
-        # both immune to the cull interaction above: a cull only ever REDUCES
-        # them, so they cannot false-alarm after one.
+        # Culls only reduce these, so they cannot false-alarm after one.
         - record: seedbox:torrents:zero_ratio_count
           expr: count(qbittorrent_torrent_ratio{job="seedbox-qbittorrent"} == 0)
         - record: seedbox:torrents:zero_ratio_bytes
@@ -48,12 +29,7 @@ spec:
             )
     - name: seedbox.rules
       rules:
-        # TRUE box-down: the blackbox TCP probe to the box's PUBLIC IP (probe.yaml),
-        # which does NOT traverse the tailnet. It stays up through DERP-relay scrape
-        # blips and drops only when the box is genuinely unreachable, so this finally
-        # means "box down", not "scrape path flapped" (the old up{seedbox-node}==0 keyed
-        # on the tailnet scrape and false-paged ~43x/week; that failure mode is now the
-        # SeedboxScrapePathDegraded warning below).
+        # The tailnet-based version of this rule false-paged about 43 times a week.
         - alert: SeedboxDown
           annotations:
             summary: "Seedbox unreachable on its public IP for 5m. Box is genuinely down (independent of the tailnet scrape path)."
@@ -62,42 +38,8 @@ spec:
           for: 5m
           labels:
             severity: critical
-        # Box IS reachable on its public IP, but some/all tailnet metric scrapes are
-        # failing, a monitoring blind spot (DERP-relay flakiness / box I/O starving
-        # tailscaled), NOT an outage. This is what used to page as SeedboxDown; it is a
-        # warning now. `and on()` gates it on the box being up so it does not double-fire
-        # with SeedboxDown during a real outage.
-        #
-        # As of 2026-08-30 this is the only IN-BAND alert on seedbox scrape
-        # health: the chart's generic TargetDown now excludes instance="seedbox"
-        # (see the postRenderer in observability/kube-prometheus-stack). It had
-        # been firing once per job, eight single-target jobs, so eight pages and
-        # eight resolves per relay flap, at a 10m `for` this rule's 20m already
-        # rides out. So keep this expression aggregated over ALL seedbox scrapes:
-        # narrowing the `up{instance="seedbox"}` selector now silently drops a
-        # job out of alerting entirely rather than merely quietening it.
-        #
-        # An Alertmanager-driven dead man's switch for this signal was written
-        # and then dropped on 2026-08-30, deliberately. It would have pinged a
-        # Healthchecks.io check while the scrape path was alive, but every link
-        # it depended on, meaning Prometheus, Alertmanager and the cluster's egress, is
-        # already covered by the chart's Watchdog, so its unique contribution
-        # was close to nil. The gap Watchdog genuinely leaves is the seedbox
-        # being a REMOTE box in a different failure domain from this cluster:
-        # if the cluster dies you learn Watchdog stopped and nothing about the
-        # box. That gap cannot be closed from inside the cluster, so it is
-        # closed at the source instead. The box pings Healthchecks.io itself
-        # (see seedbox-apps). Do not re-add a cluster-side heartbeat for it: two
-        # pingers on one check keep it green whenever EITHER is alive, which
-        # silently defeats the switch.
-        #
-        # 20m is measured, not guessed. Over the 7d to 2026-08-30 the scrape
-        # path was partially degraded for 818 of 10,081 samples (8.1%), yet this
-        # rule fired only ~45 minutes across the FULL 14d retention, i.e. that
-        # 8.1% is overwhelmingly short bursts, and 20m sits above essentially all
-        # of them while still catching anything sustained. Lower it and the
-        # TargetDown noise comes back under a new name; raise it and a genuinely
-        # dead exporter goes unnoticed for longer.
+        # TargetDown excludes seedbox, so keep this aggregated or a job loses alerting.
+        # 20m sits above the short partial outages seen to 2026-08-30 (docs/docs/apps/seedbox.md).
         - alert: SeedboxScrapePathDegraded
           annotations:
             summary: "Seedbox reachable on public IP but only {{ $value | humanizePercentage }} of tailnet scrapes are up for 20m, monitoring path degraded, not an outage."
@@ -108,14 +50,8 @@ spec:
           for: 20m
           labels:
             severity: warning
-        # The box can be up while the exporter's egress path to the qBittorrent
-        # WebUI is broken; the existing QbittorrentExporterDown alert keys on
-        # instance="qbittorrent" so it does not cover this scrape.
-        # The in-cluster exporter reaches the box's qBit WebUI over the same tailnet
-        # egress, so up==0 also flaps when qBit's API is slow (RAID-scrub iowait) or the
-        # path blips, not only when the exporter is truly down. for:20m rides that out
-        # (matches SeedboxDown); high-cardinality is off (helmrelease.yaml) so the qBit
-        # query no longer times out.
+        # QbittorrentExporterDown covers only instance=qbittorrent.
+        # The 20m wait outlasts iowait and tailnet blips.
         - alert: SeedboxQbittorrentExporterDown
           annotations:
             summary: "Seedbox qBittorrent exporter unscrapeable for 20m, exporter down, qBit API slow, or tailnet path to the WebUI degraded."
@@ -124,19 +60,8 @@ spec:
           for: 20m
           labels:
             severity: warning
-        # ---- disk health -------------------------------------------------------
-        # The shared smartctl-exporter.rules already cover overall SMART status and
-        # temperature for every scraped device (no job selector), so they pick the
-        # seedbox up for free. What they do NOT cover is the SATA attribute pair
-        # that actually predicts a spinning disk dying, so those live here.
-        #
-        # `attribute_value_type="raw"` is load-bearing: the exporter emits the same
-        # attribute_name four times (raw/value/worst/thresh) and the normalised
-        # forms count DOWN from 100, so omitting it both double-counts and inverts.
-        #
-        # Baseline 2026-07-27: sda/sdb/sdd 0 reallocated, sdc (ST8000DM002) 8.
-        # sdc's standing 8 is why this is delta() not `> 0`. The alert is for
-        # GROWTH, otherwise it would fire permanently on a stable count.
+        # The shared smartctl rules cover status and temperature; these add two predictive counts.
+        # Normalised values count down from 100, hence raw. One disk sits at a stable 8.
         - alert: SeedboxDiskReallocatedSectorsGrowing
           annotations:
             summary: "Seedbox disk {{ $labels.device }} reallocated {{ $value }} more sectors in 24h (drive is consuming spares), plan a replacement."
@@ -151,9 +76,7 @@ spec:
           for: 30m
           labels:
             severity: warning
-        # Pending sectors are reads the drive could not complete and has not yet
-        # remapped. Unlike the reallocated count there is no acceptable standing
-        # value, so any non-zero reading is the alert.
+        # Any pending sector is a fault, unlike a stable reallocated count.
         - alert: SeedboxDiskPendingSectors
           annotations:
             summary: "Seedbox disk {{ $labels.device }} has {{ $value }} pending sector(s), unreadable data awaiting remap; RAID5 rebuild risk."
@@ -166,26 +89,8 @@ spec:
           for: 15m
           labels:
             severity: warning
-        # Prometheus retention is 14d → a calendar-month sum is not computable.
-        # These are PACE alerts: 7-day in+out volume extrapolated to 30 days.
-        # Under-reads until the series has 7d of history (and after series
-        # churn); vnstat covers the gap.
-        # vnstat is the AUTHORITATIVE calendar-month counter against Seedhost's
-        # 100 TB/mo cap, and since 2026-09-05 it is scraped rather than read by
-        # hand: apps/vnstat publishes vnstat_month_* into node-exporter's
-        # textfile dir, so these ride the existing seedbox-node job.
-        #
-        # These rules used to extrapolate from
-        # increase(node_network_*_bytes_total[7d]) * 30/7, which was wrong in a
-        # way that always UNDER-reported. That counter resets to zero on every
-        # reboot, and zincati reboots this box weekly for OS updates, so a 7-day
-        # window routinely contained a reset and the pace was computed from a
-        # partial week. It was also bounded by 14d retention. vnstat keeps its
-        # own SQLite database, so it survives both.
-        #
-        # Seedhost counts BOTH directions, hence month_total. 1 TB = 1e12 bytes
-        # (decimal, provider-style). Projection is rate-so-far x 30 days, the
-        # same shape the old rules used, so the thresholds stay comparable.
+        # vnstat survives 14d retention and the weekly reboot that reset node_network counters.
+        # The provider counts both directions against a 100 TB monthly cap, with 1 TB = 1e12 bytes.
         - alert: SeedboxTrafficPaceCritical
           annotations:
             summary: "Seedbox on pace for {{ $value | humanize }}B/mo, 100 TB cap at risk."
@@ -214,10 +119,7 @@ spec:
           for: 6h
           labels:
             severity: warning
-        # Absolute, not a projection. A pace rule cannot fire on the 28th when
-        # the month is nearly over however much has been used, because the
-        # remaining days cannot change the extrapolation enough. This one keys
-        # on bytes actually spent.
+        # Late in the month the pace rules cannot move enough to fire, so this checks bytes used.
         - alert: SeedboxTrafficCapNear
           annotations:
             summary: "Seedbox has used {{ $value | humanize }}B this month of a 100 TB cap."
@@ -226,16 +128,8 @@ spec:
           for: 30m
           labels:
             severity: critical
-        # The cap metric going stale is itself a fault: without it the rules
-        # above silently stop evaluating rather than firing. clamp_min above
-        # guards the first hour of a month; this guards the collector.
-        #
-        # NOTE the freshness term is load-bearing, not belt-and-braces.
-        # node-exporter keeps serving a textfile after whatever writes it has
-        # died, so vnstat_up would sit at its last value of 1 and
-        # vnstat_month_total_bytes would stay present — the two obvious
-        # conditions both stay false for ever while the cap counter is frozen.
-        # The exported success timestamp is the only term that actually notices.
+        # node-exporter keeps serving the textfile after its writer dies; only the timestamp
+        # notices.
         - alert: SeedboxVnstatCollectorDown
           annotations:
             summary: "Seedbox vnstat collector unhealthy or stale - the 100 TB cap metric is frozen."
@@ -246,40 +140,8 @@ spec:
           for: 1h
           labels:
             severity: warning
-        # Both rules below were STRUCTURALLY DEAD until 2026-07-30. They selected
-        # label values that stopped existing at the 2026-07-20 Debian -> FCOS
-        # rebuild, so each matched zero series and could never fire. Neither was a
-        # threshold that was merely never crossed; both were queries returning
-        # nothing. The check that catches this is to invert the comparison and
-        # confirm the expression still returns series: a live rule yields one
-        # series per array/mountpoint, a dead one yields nothing either way.
-        #
-        # Verify after any future change to the box's storage layout:
-        #   node_md_disks{job="seedbox-node",state="failed"} >= 0          -> 3 series
-        #   node_filesystem_avail_bytes{job="seedbox-node",
-        #     mountpoint=~"/var|/var/mnt/seedbox"}                          -> 2 series
-        #
-        # Arrays are deliberately NOT named here. mdadm renumbers arrays it cannot
-        # match to an mdadm.conf entry (md4 -> md125/md126/md127 at the rebuild),
-        # which is precisely what killed the old rule, so pinning md125 today would
-        # only reset the same trap for the next rebuild.
-        #
-        #   md125  23.8 TB xfs  /var/mnt/seedbox   the RAID5 data array
-        #   md126   367 MB ext4 /boot
-        #   md127  68.6 GB xfs  /var (and /etc, /sysroot, /sysroot/ostree/...)
-        #
-        # Aggregated with max by (device) so an unhealthy array pages ONCE rather
-        # than once per signal. The three arms overlap heavily in a real failure.
-        #
-        # Three arms because they are three genuinely different signals, from two
-        # independent kernel sources:
-        #   node_md_degraded   sysfs md/degraded, a COUNT of missing-or-failed
-        #     members, NOT a boolean, so the test is > 0. This is the arm that
-        #     catches a disk that has been REMOVED rather than marked faulty.
-        #     (`== 1` would silently miss a two-disk RAID5 loss, meaning total data loss.)
-        #   node_md_disks{state="failed"}  /proc/mdstat (F) count, a member the
-        #     kernel has marked faulty but not yet removed.
-        #   node_md_state{state="inactive"}: the array failed to assemble at all.
+        # mdadm renumbered the arrays at the FCOS rebuild, so none is named. md/degraded is a count.
+        # After a layout change, check each arm still returns series (docs/docs/apps/seedbox.md).
         - alert: SeedboxRAIDDegraded
           annotations:
             summary: "Seedbox RAID array {{ $labels.device }} is degraded. A member disk is failed, missing, or the array did not assemble."
@@ -297,26 +159,8 @@ spec:
           for: 5m
           labels:
             severity: critical
-        # The old rule keyed on mountpoint="/", which FCOS never reports: / is a
-        # small composefs overlay and node-exporter does not surface it at all.
-        # The real filesystems are /var (OS, images, logs) and /var/mnt/seedbox
-        # (the data array).
-        #
-        # Both mountpoints are listed explicitly rather than matched loosely,
-        # for two reasons:
-        #   md127 is mounted at FOUR paths (/var, /etc, /sysroot,
-        #     /sysroot/ostree/deploy/fedora-coreos/var) reporting identical
-        #     numbers, so an unpinned expression would fire four identical alerts.
-        #   /boot is excluded on purpose: at 367 MB, 85% leaves 55 MB, which is
-        #     already past the point where rpm-ostree can stage a kernel. If /boot
-        #     ever needs watching it needs its own rule and its own number.
-        #
-        # 85% suits both despite the 350x size difference. It leaves ~3.5 TB free
-        # on the data array and ~10 GB on /var, both comfortable margins to react
-        # in. Baseline 2026-07-30: /var/mnt/seedbox 1.9% (456 GB of 23.8 TB),
-        # /var 16.1%. The array is near-empty because the rebuild wiped it and
-        # intake is off by choice, so expect the data figure to climb once
-        # autobrr is re-enabled; this is a "start pruning" warning, not an outage.
+        # FCOS never reports `/`, and the OS array appears at four paths; both mounts are pinned.
+        # /boot is left out because at 367 MB it needs its own threshold.
         - alert: SeedboxDiskFillHigh
           annotations:
             summary: "Seedbox {{ $labels.mountpoint }} is above 85% full ({{ $value | humanizePercentage }} used)."
@@ -333,45 +177,8 @@ spec:
           for: 30m
           labels:
             severity: warning
-        # The 85% rule above is a "you are nearly full" backstop, and on
-        # THIS array it cannot stand alone: the warning time it buys is
-        # about equal to the remediation latency.
-        #   85% of 21.6 TiB leaves ~3.25 TiB free. At the fill rate seen
-        #   over the week to 2026-08-27 (~1.0 TiB/day) that is ~3.2 days
-        #   of runway. The remedy is a qbit-manage retention cull, but a
-        #   cull only MOVES data to .RecycleBin on the same filesystem,
-        #   which holds it for 3 days (recyclebin.empty_after_x_days in
-        #   seedbox-apps apps/qbit-manage/config.yml).
-        # So by the time 85% fires a cull can no longer yield space
-        # before the array fills. This rule keys on the TREND instead,
-        # far enough ahead that the cull still has time to land.
-        #
-        # NOT covered by the stack's NodeFilesystemSpaceFillingUp: that
-        # selects job="node-exporter" while this scrape is
-        # job="seedbox-node", so it matches zero series here - the same
-        # structurally-dead-rule trap called out further up this file.
-        # It is also gated on <15% free, the same too-late point.
-        #
-        # Window and horizon are both load-bearing. The 7d window smooths
-        # the hourly qbit-manage culls (each a step UP in free space) and
-        # the bin's 3-day release cycle; a short window reads whichever
-        # side of that cycle it lands on. The 10d horizon must exceed the
-        # 3d reclaim latency plus reaction time, or the alert inherits
-        # the very problem it exists to fix.
-        #
-        # Verify it is live rather than silently matching nothing -
-        # invert it and confirm the expression still returns a series:
-        #   predict_linear(node_filesystem_avail_bytes{
-        #     job="seedbox-node", mountpoint="/var/mnt/seedbox"}[7d],
-        #     10*86400)                                    -> 1 series
-        #
-        # Backtested 2026-08-27 across the retained window: positive
-        # 20-22 Aug, crosses zero at 22:29 on 2026-08-22, then negative
-        # for 55/55 later samples - five days before the trend was
-        # spotted by hand, and a day before the 16d retention experiment
-        # that steepened it. Prometheus retention is 14d and the window
-        # is 7d, so 20 Aug is the earliest evaluable point: the quiet
-        # side is shown over ~2.5 days, not a long healthy baseline.
+        # At about 1 TiB a day, 85% leaves less time than the RecycleBin's 3 days to free space.
+        # NodeFilesystemSpaceFillingUp selects job=node-exporter and misses this box.
         - alert: SeedboxDiskFillProjected
           annotations:
             summary: "Seedbox data array is on trend to fill within 10 days. Cull now, while a cull still has time to reclaim."
@@ -397,22 +204,8 @@ spec:
           for: 6h
           labels:
             severity: warning
-        # Dead weight: disk held by torrents that have never uploaded a byte.
-        # Pairs with the two disk-fill rules above as the CHEAPEST lever. This
-        # is space that can be reclaimed without costing a single ratio point,
-        # so it is worth culling before shortening anyone's max_seeding_time.
-        #
-        # Calibrated against the observed band, not a round number: over the 7d
-        # to 2026-08-27 the pool ran 0.93–2.15 TiB on a 21.6 TiB array with 7.6
-        # TiB free. 4 TiB is ~2x the observed max, quiet on arrival, and
-        # reached only by a genuine doubling. Unlike a tracker-ratio rule this
-        # cannot be tripped by a qbit-manage cull: a cull only ever removes
-        # torrents, so it drives this DOWN.
-        #
-        # Depends on the two per-torrent metrics kept past the cardinality drop
-        # in servicemonitor.yaml (size_bytes, ratio). If those are ever dropped
-        # this rule goes silent while still reporting health=ok, re-check it by
-        # inverting the comparison, the way the RAID rule regression was found.
+        # 4 TiB is about twice the observed maximum (2026-08-27).
+        # It needs size_bytes and ratio to survive the servicemonitor drop list.
         - alert: SeedboxDeadWeightHigh
           annotations:
             summary: "Seedbox holds over 4 TiB of torrents that have never uploaded, reclaimable without losing ratio."
@@ -429,10 +222,8 @@ spec:
           for: 6h
           labels:
             severity: warning
-        # Steady-state seeding is iowait-heavy: the observed live working band
-        # is p50≈0.45 / p90≈0.56 / max≈0.66, and Alertmanager routes every
-        # firing alert to Pushover (info is not a quiet tier), so the threshold
-        # sits above the working band rather than at "textbook" 40%.
+        # Normal seeding runs at p90 0.56 iowait, and every alert pages via Pushover, so the bar is
+        # 75%.
         - alert: SeedboxIOWaitSustained
           annotations:
             summary: "Seedbox iowait above 75% for 2h, array saturated."
@@ -441,36 +232,12 @@ spec:
           for: 2h
           labels:
             severity: info
-        # ---- games tracker (games_* from the seedbox-metrics textfile collector) --
-        # Share score, bonus points, hit-and-run count and class points exist
-        # ONLY on the tracker's server; no client-side source can see them. The collector fetches
-        # HOURLY — the score is a 7-day trailing average, so faster buys nothing and
-        # spends a documented API budget of 5 requests per 10 seconds — and serves a
-        # cache in between.
-        #
-        # ⚠️ That cache is why every `for` below is >= 1h. Prometheus scrapes the
-        # textfile every ~5 min, but between fetches it re-reads the SAME
-        # cached number, so a `for: 30m` would debounce a scrape blip and nothing
-        # else. Only a `for` longer than the fetch interval establishes that a
-        # second, independent fetch agreed.
-        #
-        # No alert on the score itself, deliberately — same reasoning as the tracker-ratio
-        # recording rule above. It moves on a 7-day average and falls for
-        # non-fault reasons (a qbit-manage cull, a batch of fresh snatches), so a
-        # threshold would fire on ordinary operation.
-        #
-        # No collector-health rule either: SeedboxMetricsCollectorDegraded
-        # already covers it. seedbox_metrics_up is the AND of all five sources, so
-        # a failure there trips it, and its staleness leg catches a frozen fetch.
-        # A dedicated rule would page twice for one condition.
+        # games_* come from an hourly cached fetch, so each `for` spans at least two fetches.
+        # Culls move the score, so it has no alert. SeedboxMetricsCollectorDegraded covers health.
         - alert: SeedboxGamesRatioBelowRequired
           annotations:
             summary: "Games tracker ratio {{ $value }} is below the required floor - leeching privileges are at risk."
-          # games_ratio is deliberately ABSENT rather than zero when the site cannot
-          # express it, which it cannot while total download is 0 and the ratio is
-          # undefined. So this simply does not evaluate on a fresh account instead
-          # of firing on a fake 0 — which is the whole reason the collector refuses
-          # to publish a zero there.
+          # games_ratio is absent while download is 0, so a fresh account stays quiet.
           expr: |-
             games_ratio{job="seedbox-node"} < games_required_ratio{job="seedbox-node"}
           for: 1h
@@ -484,11 +251,8 @@ spec:
           for: 1h
           labels:
             severity: critical
-        # Hit-and-runs accrue against an 80-hour seed obligation, so this moves over days
-        # and a short `for` buys nothing. Six is the hard wall: at six the account
-        # goes on Hit 'n' Run Watch and may not download at all, and downloading
-        # anyway disables leeching outright. Warning at 3 leaves room to seed them
-        # off; critical at 5 is the last point before the wall.
+        # Six hit-and-runs blocks downloading, and the 80h seed obligation means the count changes
+        # over days.
         - alert: SeedboxGamesHitAndRunsRising
           annotations:
             summary: "Games tracker hit-and-runs at {{ $value }} - six blocks all downloading."
@@ -505,22 +269,8 @@ spec:
           for: 1h
           labels:
             severity: critical
-        # The meta-alert: the one that says the four above have stopped working.
-        # The collector maps documented API fields to metrics, and that API's docs
-        # was last edited ~18 months before this shipped. If a key is renamed the
-        # metric simply vanishes, and an alert with no series NEVER FIRES — it
-        # goes quiet, which is indistinguishable from healthy. SeedboxGamesRatio-
-        # BelowRequired is already dormant for a legitimate reason (games_ratio is
-        # deliberately absent while download is 0 and the ratio is undefined), so
-        # "no series" cannot be used as the drift signal itself.
-        #
-        # games_fields_missing counts ONLY keys absent from the response. A present
-        # key holding null or a non-numeric value is counted separately as
-        # games_fields_null / games_fields_unparsable and is NOT drift — that
-        # distinction is what makes a non-zero value here worth acting on rather
-        # than permanent background noise.
-        #
-        # 2h, so a single odd response cannot page; a real rename persists.
+        # A renamed API key removes its metric and silently disables the alerts above.
+        # games_fields_missing counts only absent keys; null values are counted separately.
         - alert: SeedboxGamesSchemaDrift
           annotations:
             summary: "{{ $value }} documented API field(s) have vanished - games tracker alerts may be silently inert."
@@ -529,52 +279,12 @@ spec:
           for: 2h
           labels:
             severity: warning
-    # ---- container lifecycle (docker_state_exporter, seedbox-docker job) ------
-    # Three rules, matching the appliance's lean set rather than the NAS's five:
-    # exporter-down needs no rule of its own here (the job carries
-    # instance=seedbox, so SeedboxDown / SeedboxScrapePathDegraded absorb it),
-    # and OOM-kill is sticky until recreate and re-pages every repeatInterval,
-    # a poor trade on the flappy tailnet scrape path. That flap is also why
-    # `for` is 10m, not the NAS's 5m: container_state_* series simply go absent
-    # when a scrape misses (absence never fires), and 10m rides out a missed
-    # scrape without delaying a real page much.
-    #
-    # Scoped to the doco-cd-managed fleet (cd_doco_metadata_manager) so a
-    # hand-run throwaway container never pages.
+    # SeedboxScrapePathDegraded covers exporter-down. OOM-kill is sticky and would re-page, so no
+    # rule. The 10m wait covers a missed tailnet scrape, when these series go absent.
     - name: seedbox-docker.rules
       rules:
-        # The declarative restore inits (apps/*/compose.yaml, service
-        # restore-<app>) and the config inits (service init-<thing>) are
-        # one-shots: they run, exit 0 and STAY exited. That is their steady
-        # state, so they are excluded from SeedboxContainerDown below, without
-        # the exclusion every one of them pages forever, which is exactly what
-        # happened when they first landed (13 across the fleet).
-        #
-        # The exclusion is the container label `alerts.oneshot=true`, set on
-        # every seedbox-apps service that carries `restart: "no"`. It replaced a
-        # name regex (`name!~".*-restore-.*-[0-9]+"`) on 2026-08-23, which had
-        # silently missed `filebrowser-init-filebrowser-config-1`, an init-
-        # and not a restore-, so that container paged as "not running" while
-        # sitting in its correct steady state of exited (0).
-        #
-        # A name regex is the wrong mechanism here. "This container is supposed
-        # to exit" is DECLARED INTENT, and it cannot be derived from what
-        # docker_state_exporter publishes: it exposes only restartcount,
-        # startedat, finishedat, health_status, oomkilled and status, no exit
-        # code, and no restart policy, so the one real discriminator
-        # (RestartPolicy=no) is invisible to Prometheus. Nor does
-        # com.docker.compose.oneoff help; that marks `docker compose run`
-        # containers and reads False for every service on the box.
-        #
-        # A new one-shot added WITHOUT the label pages, the safe failure
-        # direction. A widened regex would instead silently swallow any real
-        # service whose name ever contained `-init-`.
-        #
-        # A restore init that FAILS is still caught, just not here. It exits
-        # non-zero, so compose never starts the app it gates, and the app is
-        # left in `created` rather than `exited`, which is why `created` was
-        # added to the status list below. Nothing sits in `created` for
-        # 10m in normal operation; a deploy moves through it in seconds.
+        # alerts.oneshot marks inits that stay exited (0) by design. A name regex missed one
+        # (2026-08-23). `created` catches a failed restore init, because its app never starts.
         - alert: SeedboxContainerDown
           annotations:
             summary: "Seedbox container {{ $labels.name }} is not running (state: {{ $labels.status }})."
@@ -599,13 +309,7 @@ spec:
           for: 10m
           labels:
             severity: warning
-        # --- Metadata backup and the collector behind it (added 2026-09-05) ---
-        #
-        # apps/torrent-backup keeps a format-independent copy of every .torrent
-        # plus a manifest, because qBittorrent 5 stores torrent metadata ONLY in
-        # torrents.db and a corrupt database would leave no way to re-add ~2,900
-        # torrents. These alerts exist because a backup nobody watches is a
-        # backup nobody has.
+        # qBittorrent 5 keeps torrent metadata only in torrents.db; this export is the fallback.
         - alert: SeedboxTorrentBackupFailing
           annotations:
             summary: "Seedbox .torrent export failing - the metadata backup is not being updated."
@@ -614,10 +318,7 @@ spec:
           for: 2h
           labels:
             severity: warning
-        # missing > 0 means a torrent in the client has NO .torrent on disk, i.e.
-        # it is genuinely uncovered. Transient during a backfill or when a cull
-        # lands mid-run, which is why this waits 6h rather than firing on the
-        # single-run value.
+        # This is transient during backfills and mid-run culls, so it waits 6h.
         - alert: SeedboxTorrentBackupIncomplete
           annotations:
             summary: "{{ $value }} seedbox torrents have no exported .torrent - metadata backup incomplete."
@@ -626,8 +327,7 @@ spec:
           for: 6h
           labels:
             severity: warning
-        # A stale backup that still reports exit_code 0 is the failure this
-        # catches: the process could be wedged rather than erroring.
+        # This catches a wedged run that still reports exit 0.
         - alert: SeedboxTorrentBackupStale
           annotations:
             summary: "Seedbox .torrent export has not succeeded for {{ $value | humanizeDuration }}."
@@ -636,11 +336,7 @@ spec:
           for: 30m
           labels:
             severity: warning
-        # --- The collector for qbit-manage / cross-seed / RecycleBin / tags ---
-        # Same three-term shape and for the same reason: a bare `== 0` yields an
-        # empty vector if the series disappears entirely, and a served-but-stale
-        # textfile keeps reporting 1. The node-exporter endpoint stays healthy
-        # throughout, so SeedboxScrapePathDegraded does not cover either case.
+        # A missing series or a stale textfile both leave `== 0` false, hence the other two checks.
         - alert: SeedboxMetricsCollectorDegraded
           annotations:
             summary: "Seedbox metrics collector unhealthy, missing or stale - qbit-manage/cross-seed/RecycleBin/qBit-tag/games metrics frozen."
@@ -651,9 +347,7 @@ spec:
           for: 1h
           labels:
             severity: warning
-        # qbit-manage runs hourly and takes ~13 minutes. Nothing in the log for
-        # three hours means it has stopped culling, which is how the array
-        # quietly fills. It had NO metrics at all before 2026-09-05.
+        # qbit-manage runs hourly for about 13 minutes, so three silent hours means culling stopped.
         - alert: SeedboxQbitManageStalled
           annotations:
             summary: "qbit-manage has logged nothing for {{ $value | humanizeDuration }} - culling may have stopped."
@@ -662,60 +356,21 @@ spec:
           for: 30m
           labels:
             severity: warning
-        # A tracker session that has expired fails EVERY snatch from it, silently
-        # — cross-seed logs it and nothing else noticed. Live example the day
-        # this shipped: MyAnonamouse returning 401 on every attempt.
-        #
-        # CALIBRATION MATTERS HERE, and the obvious threshold was wrong. A
-        # totally broken tracker produces only ~10 of these a day, because
-        # cross-seed retries a release five times and then gives up on that
-        # tracker for a while — the count is bounded by how many releases were
-        # announced, not by how broken the session is. A "2x observed" threshold
-        # of 20 would therefore never fire for the exact fault it exists to
-        # catch. A healthy day is 0, so the floor is what matters, not the
-        # ceiling. The counter is per-day and resets at midnight.
+        # A healthy day is 0. cross-seed gives up after five retries,
+        # so a dead session logs only about 10 a day.
         - alert: SeedboxCrossSeedTrackerAuthFailing
           annotations:
             summary: "cross-seed has hit {{ $value }} tracker auth failures today - a session has likely expired."
           expr: |-
             cross_seed_errors_today{job="seedbox-node", kind="unauthorized"} > 3
-          # 15m, NOT hours. This counter only rises until it resets at midnight,
-          # so a long `for` does not establish that failures are ongoing — it
-          # just delays the alert, and worse, a threshold crossed late in the
-          # evening would have its pending alert wiped by the midnight reset
-          # before it ever fired. The threshold itself is the condition; this is
-          # only debounce against a scrape blip.
+          # The counter resets at midnight, which would wipe a late-evening pending alert under a
+          # long `for`.
           for: 15m
           labels:
             severity: warning
-            # Deliberately NOT alerting on kind="rate_limited": 429s are a tracker
-            # throttling a sweep, not a fault, and 30 in a day is normal here.
-            # Deliberately NOT alerting on RecycleBin size either: it is on a 3-day
-            # timer by design, and the number that matters
-            # (recyclebin_reclaimable_bytes) is only ~45% of the footprint because
-            # cross-seed hardlinks pin the rest into live content. Graph it, do not
-            # page on it.
-        # --- Prowlarr (exportarr, job seedbox-prowlarr, added 2026-09-05) -------
-        # Deliberately ONE alert, not a set. The existing SeedboxScrapePathDegraded
-        # keys on `avg(up{instance="seedbox"}) < 1`, so this new target being down
-        # is already covered for free — a second "exporter down" rule would only
-        # duplicate it under a new name.
-        #
-        # An indexer failing AUTH is the one Prowlarr signal that is categorically
-        # a fault rather than weather. A failed query usually means the tracker is
-        # flaky and is graphed, not paged; a failed auth query means the stored
-        # credential or session no longer works, which fails every subsequent
-        # search against that tracker silently. It is the Prowlarr-side twin of
-        # SeedboxCrossSeedTrackerAuthFailing, and the two together cover both
-        # halves of the search path.
-        #
-        # ⚠️ THRESHOLD IS PROVISIONAL. Every active indexer read 0 across the
-        # observation window when this shipped, but that window was ~3 minutes, so
-        # 0 is a true floor and not yet a characterised baseline. 5-in-6h is set
-        # low on purpose: as with the cross-seed rule, the failure this catches is
-        # bounded by how many searches ran, not by how broken the credential is,
-        # so a threshold picked as a multiple of "normal" would never fire.
-        # Retune against a week of data rather than raising it after one page.
+            # Neither rate_limited (throttling) nor RecycleBin size (a 3-day timer) pages.
+        # Only auth failures page; failed queries usually mean a flaky tracker and are graphed.
+        # The threshold is provisional, set from 3 minutes of data. Retune it against a week.
         - alert: SeedboxProwlarrIndexerAuthFailing
           annotations:
             summary: "Prowlarr indexer {{ $labels.indexer }} has failed {{ $value }} auth queries in 6h - stored credential or session likely expired."
@@ -726,28 +381,8 @@ spec:
           for: 30m
           labels:
             severity: warning
-        # --- backrest (job seedbox-backrest, added 2026-09-05) -----------------
-        # The node-exporter textfile leg publishes the BACKUP operation's exit
-        # code and last-success time and nothing else, so a failing forget,
-        # prune or check was invisible by construction: backups kept landing,
-        # every existing metric stayed green, and retention silently stopped
-        # being applied. That is not hypothetical — wiring this endpoint up
-        # found exactly that state in progress, a stale restic lock that had
-        # failed all three against one repo for four hours.
-        #
-        # The threshold needs no guessing: 0 is success and 1 is failure, for
-        # every task type. Both the value and the status label are matched on
-        # purpose. They are redundant today, which is the point: if upstream
-        # ever changes one encoding, this stops matching rather than quietly
-        # inverting into an alert that fires on healthy tasks.
-        #
-        # 2h is chosen against the schedules, not picked round. forget runs
-        # hourly, so 2h means two consecutive failures rather than one blip;
-        # check and prune run weekly, so a real failure there persists and
-        # fires at 2h regardless. ⚠️ A failed check or prune does NOT retry for
-        # 7 days — backrest schedules them from the last run time, failed or
-        # not — so this alert staying up is the only thing between a failure
-        # and a week of an unverified, unpruned repository.
+        # Matching value and status makes an upstream encoding change stop matching, not invert.
+        # 2h is two hourly forget failures. A failed check or prune waits 7 days to retry.
         - alert: SeedboxBackrestTaskFailing
           annotations:
             summary: "backrest {{ $labels.task_type }} failing for {{ $labels.plan_id }} on repo {{ $labels.repo_id }} - backups may still succeed while retention and integrity checks do not."

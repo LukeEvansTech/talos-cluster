@@ -6,10 +6,8 @@ metadata:
   name: plex
 spec:
   interval: 1h
-  # Recreate strategy + terminationGracePeriodSeconds=300 means a rollout can
-  # legitimately spend ~5min waiting for the old pod to exit; Helm's default 5m
-  # timeout then fails the upgrade and Flux rolls back mid-rollout. Same failure
-  # mode and fix as dapperdivers/dapper-cluster.
+  # Recreate can spend the full 300s terminationGracePeriod waiting for the old pod to
+  # exit, which blows past Helm's default 5m timeout and rolls the upgrade back mid-flight.
   timeout: 15m
   chartRef:
     kind: OCIRepository
@@ -21,15 +19,8 @@ spec:
           reloader.stakater.com/auto: "true"
         pod:
           annotations:
-            # Cap pod egress at the BPF EDT layer (Cilium BandwidthManager).
-            # Plex pins its sockets to BBR via setsockopt, and on LAN RTTs
-            # BBR bursts at ~1 Gbps into Apple TV receive windows that only
-            # tolerate ~10-20 Mbps, causing the losses → MSS collapse → cwnd
-            # crash cycle that produces ~60s buffering pauses every ~6 min.
-            # 200M leaves generous headroom for several concurrent streams
-            # while neutralising BBR's LAN-burst pacing.
-            # See docs/docs/troubleshooting/kb/002-plex-direct-play-buffering-bbr-mtu-probing.md "Plex Direct-Play Buffering on LAN
-            # Apple TVs (BBR + MTU Probing)" for full investigation.
+            # Caps pod egress so BBR can't burst into an Apple TV's tiny receive window and
+            # collapse the connection's MSS (KB-002).
             kubernetes.io/egress-bandwidth: "200M"
           resourceClaims:
             - name: gpu
@@ -42,15 +33,13 @@ spec:
             env:
               TZ: "${TIMEZONE}"
               PLEX_NO_AUTH_NETWORKS: "${CR_LAN_CIDR:-0.0.0.0/0},${GH_LAN_CIDR:-0.0.0.0/0}"
-              # Note: everything here is published to plex.tv as a candidate connection
-              # (KB-003). The svc URL is unresolvable off-cluster and skipped fast by
-              # clients, but gives the ~10 in-cluster companions a direct, non-hairpin path.
+              # Published to plex.tv as candidate connections; the svc URL gives in-cluster
+              # clients a direct path and is skipped fast off-cluster (KB-003).
               PLEX_ADVERTISE_URL: "http://${SVC_PLEX_ADDR:-127.0.0.1}:32400,https://plex.${SECRET_DOMAIN:-local}:443,http://plex.media.svc.cluster.local:32400"
               PLEX_PREFERENCE_1: "AllowMediaDeletion=0"
               PLEX_PREFERENCE_2: "EnableIPv6=0"
               PLEX_PREFERENCE_3: "FriendlyName=Talos Plex"
               PLEX_PREFERENCE_4: "LanNetworksBandwidth=${CR_LAN_CIDR:-0.0.0.0/0},${GH_LAN_CIDR:-0.0.0.0/0}"
-              # Hardware transcoding
               PLEX_PREFERENCE_5: "HardwareAcceleratedCodecs=1"
               PLEX_PREFERENCE_6: "HardwareAcceleratedEncoders=1"
               # (7 retired: TranscoderTempDirectory=/transcode is the image entrypoint default)
@@ -60,13 +49,11 @@ spec:
               PLEX_PREFERENCE_10: "RelayEnabled=0"
               # Reduce NFS I/O
               PLEX_PREFERENCE_11: "ButlerTaskDeepMediaAnalysis=0"
-              # Performance tuning
               PLEX_PREFERENCE_12: "ScannerLowPriority=1"
               PLEX_PREFERENCE_13: "logDebug=0"
               # Limit remote streams to 20 Mbps (forces 4K to transcode; see KB-018)
               PLEX_PREFERENCE_14: "WanPerStreamMaxUploadRate=20000"
-              # Total remote-stream budget (~5 concurrent at the per-stream cap). Was
-              # live-only (set via the UI); declared here to remove the git/live drift.
+              # ~5 concurrent at the per-stream cap; declared to match the live UI value.
               PLEX_PREFERENCE_15: "WanTotalMaxUploadRate=100000"
             probes:
               liveness: &probes
@@ -98,13 +85,12 @@ spec:
                 memory: 16Gi
               claims:
                 - name: gpu
-          # Plex only logs to files, never stdout, tail the main log so the
-          # VictoriaLogs collector ships it like every other app. The Logs dir is
-          # an emptyDir (config-logs) already globalMounted into all containers.
+          # Plex only logs to files, never stdout; tails the log (config-logs emptyDir) so
+          # VictoriaLogs ships it like every other app.
           logs:
             image:
               repository: mirror.gcr.io/library/busybox
-              tag: "1.38@sha256:dc2d74b28e4cf8984fa52af1f39bc7c3d9c73760b41a74d629f5d11b1ab28616"
+              tag: "1.38@sha256:fd7dc98638c8e305f4dc34e979f1c0fdfdcaeb0fbf8fcff77ae834b6da3d7e6e"
             command:
               - /bin/sh
               - -c
@@ -122,8 +108,7 @@ spec:
     defaultPodOptions:
       labels:
         gpu-workload: "true"
-      # Let Plex checkpoint its SQLite DB cleanly on shutdown instead of being
-      # SIGKILLed at the 30s default mid-write.
+      # Lets Plex checkpoint its SQLite DB on shutdown instead of a 30s-default SIGKILL mid-write.
       terminationGracePeriodSeconds: 300
       runtimeClassName: nvidia
       affinity:
@@ -136,12 +121,9 @@ spec:
                     values:
                       - "true"
         podAntiAffinity:
-          # Keep transcoders off the card holding the inference model: it uses
-          # ~21 of 23 GiB and time-slicing gives no VRAM isolation, so a
-          # co-scheduled transcode can fail to allocate. Preferred rather than
-          # required -- three nodes and no workers means a hard rule wedges
-          # these Pending whenever one drains. `namespaces` is load-bearing:
-          # pod affinity is namespace-scoped and the model runs in `ai`.
+          # Preferred, not required (three nodes, no workers, a hard rule would wedge Pending):
+          # keeps transcodes off the GPU running the inference model, no VRAM headroom to share.
+          # `namespaces` is load-bearing: pod affinity is namespace-scoped, model runs in `ai`.
           preferredDuringSchedulingIgnoredDuringExecution:
             - weight: 100
               podAffinityTerm:
@@ -189,10 +171,8 @@ spec:
           - name: envoy-internal
             namespace: network
         rules:
-          # Plex needs long-lived connections beyond Envoy's default route timeout:
-          # transcode decisions can take >15s, streams run for hours, and
-          # /:/eventsource/notifications is an SSE stream held open all session.
-          # Envoy otherwise returns 504 "upstream request timeout". 0s disables it.
+          # 0s disables Envoy's default route timeout: transcode decisions can take >15s,
+          # streams run for hours, and the SSE notifications endpoint stays open all session.
           - name: app
             matches:
               - path:
@@ -201,11 +181,8 @@ spec:
             filters:
               - type: RequestHeaderModifier
                 requestHeaderModifier: &pipeline
-                  # Plex closes an idle keep-alive connection after ~20s unless
-                  # this is set, so Envoy can hand a request to a connection the
-                  # backend is already tearing down. Letting Envoy own pool
-                  # lifetime removes the race.
-                  # Ref: https://github.com/onedr0p/home-ops/pull/11702
+                  # Without this, Plex closes an idle connection at ~20s while Envoy still
+                  # thinks it's poolable (onedr0p/home-ops#11702).
                   set:
                     - name: X-Plex-Http-Pipeline
                       value: infinite
@@ -215,9 +192,7 @@ spec:
             timeouts: &timeouts
               request: 0s
               backendRequest: 0s
-          # Strip Range on external-subtitle fetches, SRT subtitles break through a
-          # reverse proxy otherwise.
-          # Ref: https://forums.plex.tv/t/external-srt-subtitles-are-not-working-w-reverse-proxy/886540
+          # Strips Range on external-subtitle fetches; SRT breaks through a reverse proxy otherwise.
           - name: subtitles
             matches:
               - path:
@@ -234,18 +209,13 @@ spec:
     persistence:
       config:
         existingClaim: "{{ .Release.Name }}"
-        # TODO: If setting up Plex for the first time, you'll want to add the globalMounts section
-        # globalMounts:
-        #   - path: /config/Library/Application Support/Plex Media Server
       # Separate PVC for cache to avoid backing up cache files
       cache:
         existingClaim: "{{ .Release.Name }}-cache"
         globalMounts:
           - path: /config/Library/Application Support/Plex Media Server/Cache
-      # Same idea, ~247G larger: "Media" holds the generated trickplay/BIF
-      # preview bundles, 85% of the config volume and regenerable from the
-      # library. An empty PVC here MASKS the live bundles, so the data move in
-      # docs/docs/migrations/plex-media-bundles-volume.md must run first.
+      # Same idea, ~247G larger: generated trickplay/BIF preview bundles, regenerable from
+      # the library (docs/docs/migrations/plex-media-bundles-volume.md).
       bundles:
         existingClaim: "{{ .Release.Name }}-bundles"
         globalMounts:
@@ -254,8 +224,7 @@ spec:
         type: emptyDir
         globalMounts:
           - path: /config/Library/Application Support/Plex Media Server/Logs
-      # Custom client-profile overrides (KB-026: tvOS EAC3 direct-play freeze).
-      # Remove this mount to restore stock client profiles.
+      # Custom client-profile overrides (KB-026); remove this mount to restore stock profiles.
       profiles:
         type: configMap
         name: plex-client-profiles

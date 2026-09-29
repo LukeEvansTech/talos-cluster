@@ -12,10 +12,9 @@ spec:
       app.kubernetes.io/name: *app
       app.kubernetes.io/instance: *app
   endpoints:
-    # Scrape via the named service port (http = 8080) rather than the chart default `targetPort: 8080`.
-    # prometheus-operator resolves an integer targetPort through the deprecated v1 Endpoints API,
-    # which is degraded on k8s 1.33+, so on pod churn the target silently drops and flux_instance_info
-    # disappears (FluxInstanceAbsent). A named port doesn't need that resolution path. See README/PR.
+    # Named port avoids the chart's `targetPort: 8080`: prometheus-operator resolves an integer
+    # targetPort via the deprecated v1 Endpoints API, degraded on k8s 1.33+, so pod churn silently
+    # drops the target and flux_instance_info disappears (FluxInstanceAbsent, #3266).
     - port: http
       interval: 60s
       path: /metrics

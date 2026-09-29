@@ -19,7 +19,7 @@ spec:
           app:
             image:
               repository: ghcr.io/starosdev/scrutiny
-              tag: 1.75.1-collector@sha256:75a5ce4c43e46fe5572f6c664e59d1445ddab461cf48a20ccb93903e11a7e1ba
+              tag: 1.76.2-collector@sha256:40d0921233b6731c7013b8cb42608ea42c658a2238ff023e0df05ca6a4d82fcd
             env:
               TZ: ${TIMEZONE:=UTC}
               COLLECTOR_API_ENDPOINT: http://scrutiny.observability.svc.cluster.local:8080
@@ -43,8 +43,7 @@ spec:
               limits:
                 memory: 256Mi
             securityContext:
-              # Privileged + root is required for raw device I/O (smartctl ioctls);
-              # privileged also exposes the host's /dev to the container.
+              # Privileged root lets smartctl issue raw device ioctls and exposes host /dev.
               privileged: true
               readOnlyRootFilesystem: false
     defaultPodOptions:

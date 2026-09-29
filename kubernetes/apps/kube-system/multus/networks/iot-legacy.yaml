@@ -1,9 +1,6 @@
 ---
-# TEMPORARY: untagged legacy flat-LAN attachment. matter-server needs L2
-# adjacency with the Zigbee/Thread coordinator's on-device OTBR (still on the
-# legacy LAN) to receive its IPv6 RAs and mDNS-proxied Thread services. Remove
-# once the coordinator re-homes to VLAN 68 (post network-ops Gate D) and
-# matter-server moves to the `iot` NAD.
+# Temporary: matter-server needs L2 adjacency with the Zigbee/Thread coordinator's OTBR.
+# Remove once the coordinator migrates and matter-server moves to the `iot` NAD.
 apiVersion: k8s.cni.cncf.io/v1
 kind: NetworkAttachmentDefinition
 metadata:

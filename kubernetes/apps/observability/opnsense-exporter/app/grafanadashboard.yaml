@@ -1,13 +1,9 @@
 ---
-# Vendored from grafana.com dashboard 21113 rev 1 (AthennaMind "OPNSense Exporter"),
-# with its hardcoded datasource __input replaced by a ${datasource} template
-# variable. The operator's input-mapping substitutes the datasource NAME
-# ("prometheus") as the panel datasource uid, but this Grafana's prometheus
-# datasource has an auto-generated uid, so panels read "Data source not found"
-# / "No data". A ${datasource} var binds to the default datasource regardless of
-# uid (same pattern as the kube-prometheus-stack + truenas-zfs dashboards).
-# To refresh: re-run ~/Scratch/truenas/vendor_opnsense_dashboard.py against a new
-# 21113 revision. dashboard 21113 only publishes revision 1 today.
+# Vendored from grafana.com dashboard 21113 rev 1 (AthennaMind "OPNSense Exporter"), with its
+# hardcoded datasource __input replaced by a ${datasource} variable: the operator's input-mapping
+# substitutes the datasource NAME as the panel uid, but this Grafana's uid is auto-generated, so
+# panels would read "No data" otherwise (same pattern as kube-prometheus-stack + truenas-zfs).
+# To refresh: re-run ~/Scratch/truenas/vendor_opnsense_dashboard.py; 21113 only has revision 1.
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/grafana.integreatly.org/grafanadashboard_v1beta1.json
 apiVersion: grafana.integreatly.org/v1beta1
 kind: GrafanaDashboard

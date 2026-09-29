@@ -5,10 +5,8 @@ metadata:
   name: wazuh-retention
   namespace: security
 data:
-  # Applies ONLY to the date-partitioned time-series indices. Deliberately NOT
-  # wazuh-states-vulnerabilities-*: that holds the CURRENT vulnerability
-  # inventory rather than a disposable time slice, so an index-age rule would
-  # delete the whole live inventory at 90 days however recently it was updated.
+  # Applies only to the date-partitioned indices, not wazuh-states-vulnerabilities-*:
+  # that holds the CURRENT inventory, and an age rule would delete it at 90 days regardless.
   policy.json: |
     {
       "policy": {
@@ -45,16 +43,11 @@ metadata:
     checkov.io/skip1: "CKV_K8S_11=CPU is compressible; limits are omitted repository-wide because throttling worsens an overload rather than containing it. CPU requests are set."
     checkov.io/skip2: "CKV_K8S_35=The indexer credentials are read from environment variables by curl's -u flag. Values come from a Secret built by ExternalSecret, never from Git."
 spec:
-  # Upstream ships NO index lifecycle policy at all, so alert indices grow until
-  # the volume fills. This runs daily rather than as a one-shot Job on purpose:
-  # the PUT is idempotent, so a daily apply also re-establishes the policy after
-  # an indexer rebuild or a manual change, instead of silently never running again.
+  # Upstream ships no lifecycle policy, so alert indices grow until the volume fills. Daily,
+  # not one-shot, so the idempotent PUT also re-applies after an indexer rebuild.
   #
-  # The hot state deliberately has NO actions. Wazuh writes date-named indices
-  # (wazuh-alerts-4.x-YYYY.MM.DD) with no rollover alias behind them, so a
-  # rollover action fails, the index parks in a failed state, and ISM never
-  # evaluates the transition. Retention would silently never happen at all.
-  # Age-based deletion needs no action in the source state.
+  # The hot state has no actions on purpose: Wazuh's date-named indices have no rollover
+  # alias, so a rollover action would fail and ISM would never reach the delete transition.
   schedule: "17 4 * * *"
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 1

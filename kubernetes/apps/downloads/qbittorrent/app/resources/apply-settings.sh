@@ -1,10 +1,7 @@
 #!/bin/sh
-# Writes the settings below into qBittorrent.conf before qBittorrent starts, so they
-# are declared in Git and survive a PVC recreate. qBittorrent only maps QBT_* env vars
-# onto its command-line options (--webui-port, --torrenting-port, ...), so
-# QBT_<Section>__<Key> variables never reached the config file.
-# qBittorrent rewrites the file on exit, so a change made in the WebUI lasts only until
-# the next pod start. Change it here instead.
+# QBT_<Section>__<Key> env vars are never mapped; qBittorrent only reads QBT_* as CLI
+# options. qBittorrent also rewrites this file on exit, so change settings here, not in
+# the WebUI: a WebUI change lasts only until the next pod start.
 
 set -eu
 
@@ -12,7 +9,8 @@ conf=/config/qBittorrent/qBittorrent.conf
 mkdir -p /config/qBittorrent
 [ -f "$conf" ] || cp /defaults/qBittorrent.conf "$conf"
 
-# <section>|<key>|<value>, one per line.
+# Every torrent here is on a public tracker and home upload is very limited, so ratio and
+# seeding time aren't tracked: torrents stop on completion and upload stays capped low.
 settings=$(
     cat <<'EOF'
 BitTorrent|Session\DiskCacheSize|256
@@ -30,9 +28,7 @@ Preferences|WebUI\AuthSubnetWhitelistEnabled|false
 EOF
 )
 
-# Replace the key if present, else add it at the end of its section (creating the
-# section if missing). Values reach awk through ENVIRON, not -v, because -v would
-# strip the backslash from keys like Session\DiskCacheSize.
+# ENVIRON, not -v: -v strips the backslash in keys like Session\DiskCacheSize.
 printf '%s\n' "$settings" | while IFS='|' read -r section key value; do
     [ -n "$section" ] || continue
     SECTION="[$section]" KEY="$key=" VALUE="$value" awk '
