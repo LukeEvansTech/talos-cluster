@@ -60,19 +60,23 @@ spec:
             url: "{{ .payload.applicationUrl }}/activity/queue"
             url_title: View Queue
           whenExpr: payload.eventType == "ManualInteractionRequired"
+        # Sonarr sends this on Import Complete only: one push per download, so a season pack
+        # is a single message rather than one per episode.
         sonarr-download:
           target: sonarr
-          title: "Episode {{ if .payload.isUpgrade }}Upgraded{{ else }}Added{{ end }}"
+          title: Download Complete
           message: |-
-            <b>{{ .payload.series.title }} ({{ printf "S%02dE%02d" (toInt (index .payload.episodes 0).seasonNumber) (toInt (index .payload.episodes 0).episodeNumber) }})</b>
-            <small>{{ (index .payload.episodes 0).title }}</small>
+            <b>{{ .payload.series.title }} ({{ printf "S%02dE%02d" (toInt (index .payload.episodes 0).seasonNumber) (toInt (index .payload.episodes 0).episodeNumber) }}{{ if gt (len .payload.episodes) 1 }}, {{ len .payload.episodes }} episodes{{ end }})</b>
+            <small>{{ if eq (len .payload.episodes) 1 }}{{ (index .payload.episodes 0).title }}{{ else }}Multi-episode import{{ end }}</small>
             <small><b>Client:</b> {{ .payload.downloadClient | default "unknown" }}</small>
           params:
             format: html
             priority: low
             url: "{{ .payload.applicationUrl }}/series/{{ .payload.series.titleSlug }}"
             url_title: View Series
-          whenExpr: payload.eventType == "Download"
+          # Sonarr v4 sends Import Complete as eventType "Download"; "ImportComplete" is accepted too
+          # in case a later release gives it its own type.
+          whenExpr: payload.eventType == "Download" || payload.eventType == "ImportComplete"
         sonarr-manual:
           target: sonarr
           title: Episode Requires Manual Interaction
