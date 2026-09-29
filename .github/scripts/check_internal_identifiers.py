@@ -63,6 +63,10 @@ PATTERNS: dict[str, re.Pattern] = {
     "device hostname (sw)": re.compile(r"(?<![a-z0-9])sw-(?:main|comms)-[a-z0-9]+"),
     "MAC address": re.compile(r"(?<![0-9a-fA-F:])(?:[0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}(?![0-9a-fA-F:])"),
     "internal hostname": re.compile(r"\b[a-z0-9_-]+\.(?:lan|internal)\b"),
+    # Topology, not addresses: a VLAN ID or a host's storage device names map the network and
+    # its hardware as surely as an IP does. Use a placeholder such as <iot-vlan-id>.
+    "VLAN ID": re.compile(r"(?i)\bVLAN[ -]?#?\d{1,4}\b"),
+    "storage device name": re.compile(r"\bmd\d{3}\b|/dev/sd[a-z]\b"),
 }
 
 # Prose-only: a tracked file would never carry these, but a commit message or PR body might,
@@ -121,6 +125,23 @@ ALLOWLIST: dict[str, str] = {
 }
 
 
+def private_names_pattern() -> dict[str, re.Pattern]:
+    """Return the optional private-names pattern, supplied out-of-band like the internal zone.
+
+    Naming a private tracker, a paid service or the VPN provider discloses an account; listing
+    those names here would disclose them all at once. The regex arrives via PRIVATE_NAMES_RE,
+    a repository secret in CI and a gitignored .mise.local.toml locally; unset, it is skipped.
+    """
+    raw = os.environ.get("PRIVATE_NAMES_RE", "").strip()
+    if not raw:
+        return {}
+    try:
+        return {"private service name": re.compile(raw, re.IGNORECASE)}
+    except re.error as exc:
+        print(f"PRIVATE_NAMES_RE is not a valid regex: {exc}", file=sys.stderr)
+        raise SystemExit(2) from exc
+
+
 def internal_domain_pattern() -> dict[str, re.Pattern]:
     """Return the optional internal-zone pattern, supplied out-of-band.
 
@@ -167,7 +188,7 @@ def format_violation(kind: str, lineno: int, line: str) -> str:
     string the check exists to suppress. Secret masking does not help here: it
     masks the regex, not the domain that regex matched.
     """
-    if kind == "internal domain":
+    if kind in ("internal domain", "private service name"):
         return f"  line {lineno}: {kind} (content withheld -- it is the leak)"
     return f"  line {lineno}: {kind}\n    {line.strip()[:120]}"
 
@@ -190,7 +211,7 @@ def scan_text(source: str, strip_git_comments: bool) -> int:
                 kept.append((lineno, line))
         numbered = kept
 
-    patterns = {**PATTERNS, **PROSE_PATTERNS, **internal_domain_pattern()}
+    patterns = {**PATTERNS, **PROSE_PATTERNS, **internal_domain_pattern(), **private_names_pattern()}
     violations: list[str] = []
     for lineno, line in numbered:
         for kind, pat in patterns.items():
@@ -218,7 +239,7 @@ def scan_text(source: str, strip_git_comments: bool) -> int:
 
 def scan_files(paths: list[str]) -> list[str]:
     """Return one 'path:line: kind' string per non-allowlisted identifier found."""
-    patterns = {**PATTERNS, **internal_domain_pattern()}
+    patterns = {**PATTERNS, **internal_domain_pattern(), **private_names_pattern()}
     violations: list[str] = []
     for path in paths:
         if allowlisted(path) or path == SELF_PATH:
