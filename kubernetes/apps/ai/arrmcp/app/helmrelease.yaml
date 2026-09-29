@@ -68,8 +68,8 @@ spec:
         size: 1Gi
         globalMounts:
           - path: /config
-      # Read-only: arr-mcp only writes config.yaml when it's absent or missing
-      # bearer_token, and the ExternalSecret seeds both, so startup never writes.
+      # Read-only: the ExternalSecret renders the token as a hash, so arr-mcp has
+      # nothing to rewrite at startup.
       config-file:
         type: secret
         name: arrmcp-secret
