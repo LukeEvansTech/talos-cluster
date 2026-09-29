@@ -144,6 +144,19 @@ spec:
               sourceLabels:
                 - "__meta_kubernetes_pod_node_name"
               targetLabel: kubernetes_node
+    # These four flapped 36-72 times in six days on transient load and rollouts; a longer `for`
+    # plus a short keep_firing_for on every default rule stops each blip costing two pushes.
+    customRules:
+      KubeDeploymentReplicasMismatch:
+        for: 30m
+      KubeHpaMaxedOut:
+        for: 1h
+      KubePodNotReady:
+        for: 30m
+      NodeMemoryHighUtilization:
+        for: 1h
+    defaultRules:
+      keepFiringFor: 15m
     grafana:
       enabled: false
     additionalPrometheusRulesMap:
