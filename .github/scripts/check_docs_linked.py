@@ -45,7 +45,7 @@ def main() -> int:
             continue
         if rel not in nav:
             problems.append(f"{rel}: not in {NAV} nav")
-        if rel.startswith("troubleshooting/kb/") and page.name not in index:
+        if rel.startswith("troubleshooting/kb/") and f"](kb/{page.name})" not in index:
             problems.append(f"{rel}: not linked from {INDEX}")
     if problems:
         print("Docs pages unreachable from the site navigation:\n")

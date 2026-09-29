@@ -65,7 +65,7 @@ PATTERNS: dict[str, re.Pattern] = {
     "internal hostname": re.compile(r"\b[a-z0-9_-]+\.(?:lan|internal)\b"),
     # Topology, not addresses: a VLAN ID or a host's storage device names map the network and
     # its hardware as surely as an IP does. Use a placeholder such as <iot-vlan-id>.
-    "VLAN ID": re.compile(r"(?i)\bVLAN[ -]?#?\d{1,4}\b"),
+    "VLAN ID": re.compile(r"(?i)\bVLAN[ -]?#?\d{1,4}\b|\bvlan_?id\s*[:=]\s*[\"']?\d{1,4}\b"),
     "storage device name": re.compile(r"\bmd\d{3}\b|/dev/sd[a-z]\b"),
 }
 
@@ -134,6 +134,10 @@ def private_names_pattern() -> dict[str, re.Pattern]:
     """
     raw = os.environ.get("PRIVATE_NAMES_RE", "").strip()
     if not raw:
+        # Fail closed in CI: a missing secret would otherwise pass every account-naming leak.
+        if os.environ.get("GITHUB_ACTIONS") == "true":
+            print("PRIVATE_NAMES_RE is not set in CI; refusing to skip the check", file=sys.stderr)
+            raise SystemExit(2)
         return {}
     try:
         return {"private service name": re.compile(raw, re.IGNORECASE)}

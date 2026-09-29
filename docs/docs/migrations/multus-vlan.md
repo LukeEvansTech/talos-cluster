@@ -472,7 +472,7 @@ To add more VLANs (for example, one for cameras and one for VPN):
         - vlanId: <iot-vlan-id> # IoT
           dhcp: false
           mtu: 1500
-        - vlanId: 80 # Cameras (new)
+        - vlanId: <camera-vlan-id> # Cameras (new)
           dhcp: false
           mtu: 1500
     ```
