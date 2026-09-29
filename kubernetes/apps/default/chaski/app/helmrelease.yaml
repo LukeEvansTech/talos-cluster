@@ -74,7 +74,9 @@ spec:
             priority: low
             url: "{{ .payload.applicationUrl }}/series/{{ .payload.series.titleSlug }}"
             url_title: View Series
-          whenExpr: payload.eventType == "Download"
+          # Sonarr v4 sends Import Complete as eventType "Download"; "ImportComplete" is accepted too
+          # in case a later release gives it its own type.
+          whenExpr: payload.eventType == "Download" || payload.eventType == "ImportComplete"
         sonarr-manual:
           target: sonarr
           title: Episode Requires Manual Interaction
