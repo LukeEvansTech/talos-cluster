@@ -33,7 +33,6 @@ spec:
             command:
               - /bin/sh
               - -c
-            # One invocation covers both libraries because the review playlists span Movies and TV.
             args:
               - python3 kometa.py --run --read-only-config
             env:
@@ -74,9 +73,6 @@ spec:
         globalMounts:
           - path: /config/config.yml
             subPath: config.yml
-            readOnly: true
-          - path: /config/review.yml
-            subPath: review.yml
             readOnly: true
       assets:
         type: emptyDir
