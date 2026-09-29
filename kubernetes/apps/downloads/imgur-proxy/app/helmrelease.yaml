@@ -118,14 +118,16 @@ spec:
                   timeoutSeconds: 10
                   periodSeconds: 30
                   failureThreshold: 5
+              # Gates the app container until the tunnel is up (gluetun answers 500 until its first
+              # health check passes); 5m headroom bounds the KB-042 restart risk.
               startup:
-                enabled: false
+                enabled: true
                 custom: true
                 spec:
                   httpGet:
                     path: /
                     port: 9999
-                  initialDelaySeconds: 10
+                  initialDelaySeconds: 5
                   periodSeconds: 10
                   failureThreshold: 30
             restartPolicy: Always

@@ -2,8 +2,8 @@
 
 IPTV playlist/EPG manager in the `media` namespace, routed through a gluetun VPN sidecar. The
 kill-switch approach (native sidecar ordering, the memory-limit exception) is copied from
-`downloads/prowlarr`; the probe and recovery settings deliberately differ (see below and
-[hardening backlog H-20](../operations/hardening-backlog.md#h-20-three-gluetun-sidecars-have-no-tunnel-gate-at-start-and-no-recovery-after-it)).
+`downloads/prowlarr`. Its gluetun startup probe is now the shape every gluetun sidecar uses (see
+[hardening backlog H-20](../operations/hardening-backlog.md#h-20-three-gluetun-sidecars-had-no-tunnel-gate-at-start-resolved-2026-09-29-5681)).
 This page covers what is specific to dispatcharr.
 
 ## Why this pod's DNS goes out the tunnel
