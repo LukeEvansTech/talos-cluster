@@ -66,13 +66,20 @@ spec:
       # AUTH_INSECURE_SERVICE_KEY_TYPE and AUTH_INSECURE_SERVICE_TICKETS.
       # keyGeneration is append-only: the CRD rejects a CephCluster update that removes it, and
       # the HelmRelease then stops reconciling. Raise the number to rotate; never remove it.
-      # csi.keyType is pinned to aes; AES256K needs a 7.0+ kernel, and both storage paths here are
-      # kernel clients on the fleet's 6.18 (KB-025), so a future default flip upstream can't hand
-      # out a key the nodes can't use (docs/docs/apps/rook-ceph.md).
+      # aes256k for the kernel clients (KB-025) needs Talos v1.14+, whose 6.18 kernel backports the
+      # 7.0 libceph support. keepPriorKeyCountMax: 1 keeps the generation 1 aes key valid until every
+      # mount has re-staged (docs/docs/apps/rook-ceph.md).
       security:
         cephx:
           csi:
-            keyType: aes
+            keyRotationPolicy: KeyGeneration
+            keyGeneration: 2
+            keepPriorKeyCountMax: 1
+            keyType: aes256k
+          rbdMirrorPeer:
+            keyRotationPolicy: KeyGeneration
+            keyGeneration: 2
+            keyType: aes256k
           daemon:
             keyRotationPolicy: KeyGeneration
             keyGeneration: 2
