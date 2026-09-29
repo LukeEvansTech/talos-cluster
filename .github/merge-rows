@@ -8,3 +8,4 @@ Checkov
 Trivy
 GitGuardian Security Checks
 Scan PR title and body
+Scan commit authorship
