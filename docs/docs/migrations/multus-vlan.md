@@ -17,15 +17,15 @@ This guide documents the process of migrating Home Assistant from the management
 
 - **Primary Network**: Cilium (unchanged)
 - **Management Network**: <mgmt-net>/24 (unchanged)
-- **IoT VLAN**: VLAN <iot-vlan-id> - <iot-vlan-net>/24 (new)
+- **IoT VLAN**: VLAN `<iot-vlan-id>` - `<iot-vlan-net>/24` (new)
 - **Home Assistant Multus IP**: <ha-iot-ip>/24
-- **Physical Interface**: enp1s0np0.<iot-vlan-id> (VLAN tagged)
+- **Physical Interface**: `enp1s0np0.<iot-vlan-id>` (VLAN tagged)
 
 ## Prerequisites
 
 ### Network switch configuration
 
-1. **Create VLAN <iot-vlan-id>** on your managed switch
+1. **Create VLAN `<iot-vlan-id>`** on your managed switch
 2. **Configure trunk port** to Kubernetes nodes:
 
     ```text
@@ -116,7 +116,7 @@ talosctl -n <node2-ip> get links | grep "enp1s0np0.<iot-vlan-id>"
 talosctl -n <node3-ip> get links | grep "enp1s0np0.<iot-vlan-id>"
 ```
 
-**Expected output**: You should see the VLAN interface listed with VLAN ID <iot-vlan-id>.
+**Expected output**: You should see the VLAN interface listed with VLAN ID `<iot-vlan-id>`.
 
 ### Step 3: Update Cilium device configuration (optional)
 
@@ -446,7 +446,7 @@ talosctl apply-config -n <node3-ip> -f talos/clusterconfig/kubernetes-<node3>.ya
 
 ## Post-migration checklist
 
-- [ ] VLAN <iot-vlan-id> created on switch
+- [ ] VLAN `<iot-vlan-id>` created on switch
 - [ ] Trunk ports configured for Kubernetes nodes
 - [ ] Firewall rules configured for IoT isolation
 - [ ] Talos VLAN interfaces created on all nodes

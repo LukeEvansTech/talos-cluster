@@ -240,9 +240,14 @@ def scan_text(source: str, strip_git_comments: bool) -> int:
 def scan_files(paths: list[str]) -> list[str]:
     """Return one 'path:line: kind' string per non-allowlisted identifier found."""
     patterns = {**PATTERNS, **internal_domain_pattern(), **private_names_pattern()}
+    # The allowlist accepts functional coordinates, never an account-disclosing service name.
+    names_only = private_names_pattern()
     violations: list[str] = []
     for path in paths:
-        if allowlisted(path) or path == SELF_PATH:
+        if path == SELF_PATH:
+            continue
+        active = names_only if allowlisted(path) else patterns
+        if not active:
             continue
         try:
             with open(path, encoding="utf-8", errors="ignore") as handle:
@@ -250,7 +255,7 @@ def scan_files(paths: list[str]) -> list[str]:
         except OSError:
             continue
         for lineno, line in enumerate(lines, 1):
-            for kind, pat in patterns.items():
+            for kind, pat in active.items():
                 for match in pat.finditer(line):
                     if any(b.search(match.group(0)) for b in BENIGN):
                         continue

@@ -146,8 +146,8 @@ spec:
           annotations:
             summary: "Seedbox RAID array {{ $labels.device }} is degraded. A member disk is failed, missing, or the array did not assemble."
             description: >-
-              Array {{ $labels.device }} is no longer healthy: either the RAID5 data array or
-              the OS array. Run `cat /proc/mdstat` on the box for which
+              Array {{ $labels.device }} is no longer healthy: the RAID5 data array, the OS
+              array or the /boot array. Run `cat /proc/mdstat` on the box for which
               member is affected. A RAID5 rebuild is the highest-risk window, and one
               seedbox disk already carries a standing 8 reallocated sectors.
           expr: |-
