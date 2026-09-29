@@ -30,7 +30,7 @@ spec:
           app:
             image:
               repository: ghcr.io/bardesss/arr-mcp
-              tag: 1.33.3@sha256:40b937e4393b02bf7aa7e492e273236f99266c77381e5e989d2547c345942536
+              tag: 1.34.1@sha256:9793303e7f5c04f4f4348e66b507840377a837839f329a3ff5f5cda8eb9461ff
             env:
               ARR_MCP_PORT: &port 6060
               TZ: ${TIMEZONE}
@@ -68,8 +68,8 @@ spec:
         size: 1Gi
         globalMounts:
           - path: /config
-      # Read-only: arr-mcp only writes config.yaml when it's absent or missing
-      # bearer_token, and the ExternalSecret seeds both, so startup never writes.
+      # Read-only: the ExternalSecret renders the token as a hash, so arr-mcp has
+      # nothing to rewrite at startup.
       config-file:
         type: secret
         name: arrmcp-secret
