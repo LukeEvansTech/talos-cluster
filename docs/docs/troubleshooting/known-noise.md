@@ -173,12 +173,12 @@ planned rolling reboot, patch `spec.enablePDB: false` on the `Cluster`; Flux rec
 on its own. Do not delete the PDB. Procedure in
 [Talos upgrades](../operations/talos-upgrades.md#rolling-reboot-procedure).
 
-### The muted Ceph `AUTH_INSECURE_*` health checks
+### Ceph `AUTH_INSECURE_*` health checks are no longer noise
 
-Several `AUTH_INSECURE_*` checks are muted after the CVE-2025-30156 key rotation
-(`keyGeneration: 2`). The mutes, and the comment explaining why each one is safe, live in the Rook
-cluster HelmRelease under `cephClusterSpec.healthCheck`. A `CephHealthWarning` whose only detail
-is one of those is the mute, not a regression.
+These checks were muted until the cephx migration to `aes256k` finished in September 2026. Every
+key is now `aes256k`, the monitors refuse `aes` (`allowedCiphers`), and the mutes are gone. A
+`CephHealthWarning` naming any `AUTH_INSECURE_*` check is a real legacy key or cipher, not noise;
+see [Rook-Ceph](../apps/rook-ceph.md#csi-key-rotation).
 
 ### The `cluster-secrets` placeholder Secret has no `ssa` annotation on the live object
 

@@ -96,7 +96,7 @@ Every run writes one JSON document so the next run has something to diff against
   },
   "ceph": {
     "health": "HEALTH_OK",
-    "detail": "HEALTH_OK (muted: AUTH_INSECURE_CLIENT_KEY_TYPE AUTH_INSECURE_KEYS_ALLOWED AUTH_INSECURE_KEYS_CREATABLE)",
+    "detail": "HEALTH_OK",
     "osd": "6 osds: 6 up (since 25h), 6 in (since 10d); epoch: e1177874"
   },
   "volsync": {
@@ -223,7 +223,7 @@ kubectl -n rook-ceph exec deploy/rook-ceph-tools -- ceph health detail
 kubectl -n rook-ceph exec deploy/rook-ceph-tools -- ceph osd stat
 ```
 
-**Healthy:** `HEALTH_OK` (the `muted:` suffix listing `AUTH_INSECURE_*` checks is expected) and
+**Healthy:** plain `HEALTH_OK` (a `muted:` suffix or any `AUTH_INSECURE_*` check is a regression) and
 `6 osds: 6 up, 6 in`. **Benign-warn:** `HEALTH_WARN` from recent crash reports of a daemon that
 recovered, or degraded PGs recovering within minutes of a node reboot. **Regression:** an OSD
 down after the roll is complete, `HEALTH_ERR`, clock skew measured in seconds, or a `HEALTH_WARN`
