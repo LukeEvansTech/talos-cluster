@@ -89,7 +89,9 @@ spec:
                 cpu: 10m
                 memory: 64Mi
               limits:
-                memory: 128Mi
+                # ENABLE_ADDITIONAL_METRICS pulls the whole queue per scrape; 128Mi
+                # was OOMKilled twice with ~5.5k queued items (2026-09-28/29).
+                memory: 256Mi
     defaultPodOptions:
       securityContext:
         runAsNonRoot: true
