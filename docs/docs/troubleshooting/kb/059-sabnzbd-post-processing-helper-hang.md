@@ -33,6 +33,12 @@ repair reads hundreds of MB a minute.
 SABnzbd then fails that one job, the arr blocklists the release and searches again, and
 post-processing moves on to the next job.
 
+Every `SIGTERM`/`SIGKILL` is also appended to `/config/pp-watchdog-kills.log` on the SABnzbd
+config volume, trimmed to its newest 500 lines once it passes 1,000. Under a busy queue the
+container log rotates within about an hour, so `kubectl logs` alone loses a kill long before
+anyone looks for it. Read it with
+`kubectl -n downloads exec deploy/sabnzbd -c app -- tail /config/pp-watchdog-kills.log`.
+
 A helper blocked _reading_ a pipe is left alone: that's Direct Unpack's `unrar` waiting for
 SABnzbd to hand it the next volume, not a hang. `unrar` blocked _writing_ a pipe is the
 [sabnzbd/sabnzbd#3638](https://github.com/sabnzbd/sabnzbd/issues/3638) hang, and is killed.

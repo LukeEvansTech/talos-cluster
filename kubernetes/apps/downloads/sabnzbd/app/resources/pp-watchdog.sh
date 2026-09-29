@@ -10,14 +10,26 @@ STALL_SECONDS="${PP_WATCHDOG_STALL_SECONDS:-1800}"
 MIN_PROGRESS_BYTES="${PP_WATCHDOG_MIN_PROGRESS_BYTES:-16777216}"
 INTERVAL_SECONDS="${PP_WATCHDOG_INTERVAL_SECONDS:-60}"
 STATE_DIR="${PP_WATCHDOG_STATE_DIR:-/tmp/pp-watchdog}"
+# Kills are also appended here, on the config volume: the container log rotates within about an
+# hour under a busy queue, so a kill is gone from `kubectl logs` long before anyone looks.
+KILL_LOG="${PP_WATCHDOG_KILL_LOG:-/config/pp-watchdog-kills.log}"
+KILL_LOG_MAX_LINES=1000
 
 log() {
     printf '%s pp-watchdog: %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*"
 }
 
+log_kill() {
+    log "$@"
+    { log "$@" >>"$KILL_LOG"; } 2>/dev/null || return 0
+    if [ "$(wc -l <"$KILL_LOG")" -gt "$KILL_LOG_MAX_LINES" ]; then
+        tail -n $((KILL_LOG_MAX_LINES / 2)) "$KILL_LOG" >"$KILL_LOG.tmp" && mv "$KILL_LOG.tmp" "$KILL_LOG"
+    fi
+}
+
 mkdir -p "$STATE_DIR" || exit 1
 rm -f "$STATE_DIR"/*
-log "started: stall=${STALL_SECONDS}s min_progress=${MIN_PROGRESS_BYTES}B interval=${INTERVAL_SECONDS}s"
+log "started: stall=${STALL_SECONDS}s min_progress=${MIN_PROGRESS_BYTES}B interval=${INTERVAL_SECONDS}s kill_log=${KILL_LOG}"
 
 while :; do
     now=$(date +%s)
@@ -53,10 +65,10 @@ while :; do
 
         stalled=$((now - since))
         if [ "$stalled" -ge $((STALL_SECONDS + 5 * INTERVAL_SECONDS)) ]; then
-            log "SIGKILL $comm pid $pid: survived SIGTERM, <${MIN_PROGRESS_BYTES}B I/O in ${stalled}s"
+            log_kill "SIGKILL $comm pid $pid: survived SIGTERM, <${MIN_PROGRESS_BYTES}B I/O in ${stalled}s"
             kill -KILL "$pid" 2>/dev/null
         elif [ "$stalled" -ge "$STALL_SECONDS" ]; then
-            log "SIGTERM $comm pid $pid: $((io - base_io))B I/O in ${stalled}s (wchan ${wchan:-?})"
+            log_kill "SIGTERM $comm pid $pid: $((io - base_io))B I/O in ${stalled}s (wchan ${wchan:-?})"
             kill -TERM "$pid" 2>/dev/null
         fi
     done
