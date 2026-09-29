@@ -196,10 +196,6 @@ libraries:
         mass_genre_update: tmdb
         mass_audience_rating_update: imdb
 
-# Owner-only review playlists for the titles the lists above add.
-playlist_files:
-  - file: /config/review.yml
-
 webhooks:
   error: http://chaski.default.svc.cluster.local:8080/hooks/kometa-error
   run_end: http://chaski.default.svc.cluster.local:8080/hooks/kometa-run
@@ -267,8 +263,7 @@ tautulli:
 # Global add_missing stays off. Only IMDb Top 250, Oscar Best Picture and TMDb
 # Trending add missing titles (see their template_variables above), 2160p with
 # search on add, tagged "kometa" plus a per-source tag so each list's additions
-# can be found and judged in Radarr, Sonarr and the owner-only review
-# playlists.
+# can be found and judged in Radarr and Sonarr.
 radarr:
   url: http://radarr.media.svc.cluster.local
   token: <<RADARR_API_KEY>>
