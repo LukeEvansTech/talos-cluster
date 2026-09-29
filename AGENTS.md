@@ -325,6 +325,10 @@ Flag consequential, repository-specific breakage. Prefer silence over style comm
 - Scale and count details ("about N sources share one repository", request rates, retention
   counts). Operational magnitude is not deployment topology. The rule prohibits coordinates, meaning
   an address, a hostname, or a device name. It does not prohibit how much of something there is.
+- Coverage gaps in `.github/scripts/check_internal_identifiers.py` for names the kernel or a
+  runtime assigns at attach time (`/dev/dm-N`, `/dev/rbdN`, loop devices, container IDs). They change
+  on every attach and map no hardware. The decided cases live as rows in
+  `.github/scripts/tests/test_check_internal_identifiers.py`; propose a new pattern as a row there.
 - A hyphen in the name of a **CR-only** app: one whose `app/` holds custom resources with no
   HelmRelease, controller, or route. The hyphen-free rule exists so the route host
   (`{{ .Release.Name }}.${SECRET_DOMAIN}`) stays clean, and an app with no Helm release has no such
