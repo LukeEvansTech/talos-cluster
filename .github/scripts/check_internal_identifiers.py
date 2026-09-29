@@ -252,9 +252,8 @@ def scan_files(paths: list[str]) -> list[str]:
     names_only = private_names_pattern()
     violations: list[str] = []
     for path in paths:
-        if path == SELF_PATH:
-            continue
-        active = names_only if allowlisted(path) else patterns
+        # The guard's own source and allowlisted configs still must not name a private service.
+        active = names_only if (allowlisted(path) or path == SELF_PATH) else patterns
         for kind, pat in active.items():
             if any(not any(b.search(m.group(0)) for b in BENIGN) for m in pat.finditer(path)):
                 violations.append(f"{path}: {kind} (in the file path)")
