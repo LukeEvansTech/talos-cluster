@@ -292,7 +292,7 @@ Flag consequential, repository-specific breakage. Prefer silence over style comm
   "Protected infra" `packageRules` entry in `.renovaterc.json5` is the source of truth (Cilium,
   Rook-Ceph, Flux, Talos, cert-manager, external-secrets, Envoy Gateway, CloudNativePG, …).
 - A GPU workload missing `runtimeClassName: nvidia`.
-- A new comment that narrates the manifest or runs past two lines.
+- A new comment that narrates the manifest or runs past two short sentences.
 - A new scheduled pipeline (a CronJob, or an app with its own in-process scheduler) with no
   absence-of-success alert. Liveness and `/health` stay green while the work fails: lurcher crashed
   mid-run every day for twelve days with its pod healthy. Mirror `GickupBackupStale` or
