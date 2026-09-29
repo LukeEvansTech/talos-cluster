@@ -85,9 +85,6 @@ spec:
               FIREWALL_INPUT_PORTS: "8443,9999"
               FIREWALL_OUTBOUND_SUBNETS: '"${CLUSTER_PODS_CIDR},${CLUSTER_SVCS_CIDR},${CR_LAN_CIDR},${GH_LAN_CIDR}"'
               HEALTH_SERVER_ADDRESS: ":9999"
-              # `off` keeps gluetun's tunnel-recovery loop enabled (double negative; don't flip it).
-              # The kubelet probe below is off, so this loop is the only recovery path left (#4608).
-              HEALTH_SERVER_DISABLE_LOOP: off
               HEALTH_VPN_DURATION_INITIAL: 60s
               LOG_LEVEL: info
               # Root (0) avoids EPERM chowning the public-IP file to PUID:PGID under drop-ALL.

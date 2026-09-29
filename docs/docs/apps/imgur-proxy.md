@@ -48,6 +48,7 @@ every start, so one transient tunnel failure became self-sustaining: probe failu
 accumulated netns state, a slower or failed start, probe failure again. This container sat in that
 loop for over 4 days and 1352 restarts, ending in OOMKills, and only a pod recreation broke it.
 
-Both gluetun probes are now disabled, matching the other three sidecars. `HEALTH_SERVER_DISABLE_LOOP`
-is set to `off`, which means gluetun's own internal healthcheck loop stays enabled: it restarts the
-_tunnel_ in-process on failure, recovering the same faults without touching the netns.
+The liveness probe is now disabled, matching every other gluetun sidecar. gluetun's own health
+loop (`HEALTH_RESTART_VPN`, on by default) restarts the _tunnel_ in-process on failure, recovering
+the same faults without touching the netns. A startup probe stays enabled: it only runs until the
+tunnel first comes up, and gates the app container on it (hardening backlog H-20).
