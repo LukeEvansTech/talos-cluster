@@ -26,12 +26,12 @@ Scrypted is **additive**: Homebridge stays.
   to avoid duplicate accessories in Apple Home.
 
 !!! warning "Homebridge is currently an empty, unpaired bridge"
-At the time Scrypted was added, Homebridge had `pairedClients: {}` (never
-paired to HomeKit), an empty `cachedAccessories`, only the `homebridge-dummy`
-plugin, and a crash-looping Avahi (`Failed to create runtime directory
+    At the time Scrypted was added, Homebridge had `pairedClients: {}` (never
+    paired to HomeKit), an empty `cachedAccessories`, only the `homebridge-dummy`
+    plugin, and a crash-looping Avahi (`Failed to create runtime directory
     /run/avahi-daemon/`). It is therefore **not** a working reference for
-HomeKit networking. See the Avahi fix tracked separately. Scrypted does not
-depend on it.
+    HomeKit networking. See the Avahi fix tracked separately. Scrypted does not
+    depend on it.
 
 ## Design decisions
 
