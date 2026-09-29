@@ -35,7 +35,10 @@ Architecture details relevant to impact assessment:
   Parent refs point to envoy-internal / envoy-external gateways in the network namespace.
 - **Storage**: Rook-Ceph block (default StorageClass), NFS media mounts, VolSync backups.
 - **Secrets**: ExternalSecret CRDs backed by 1Password via a ClusterSecretStore
-  (no plaintext secrets in-repo).
+  (no plaintext secrets in-repo). When a fix needs a value derived from an existing secret (a
+  hash, base64, a prefix), derive it in the ExternalSecret's `target.template` with the sprig
+  functions it supports (`{{ .TOKEN | sha256sum }}`) rather than proposing a new 1Password field:
+  a derived value stays in step when the source is rotated.
 
 High-blast-radius components that warrant deeper scrutiny: the "Protected infra" entry
 in `.renovaterc.json5` is the single source of truth for which components are
