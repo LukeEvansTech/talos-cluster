@@ -69,7 +69,7 @@ PATTERNS: dict[str, re.Pattern] = {
     # A VLAN-tagged interface name (enp1s0np0.70, wan.70) carries the VLAN ID in its suffix.
     "VLAN interface": re.compile(r"\b(?:en[a-z0-9]+|eth\d+|bond\d+|wan)\.\d{1,4}\b"),
     # Any md array number (md0, md4, md127), but not an md5 hash reference.
-    "storage device name": re.compile(r"\bmd(?!5\b)\d{1,3}\b|/dev/sd[a-z]\b"),
+    "storage device name": re.compile(r"\bmd(?!5\b)\d{1,3}\b|/dev/(?:sd[a-z]\d*|nvme\d+n\d+(?:p\d+)?)\b"),
 }
 
 # Prose-only: a tracked file would never carry these, but a commit message or PR body might,
@@ -188,6 +188,9 @@ def changed_files(base: str) -> list[str]:
     return [f for f in out.splitlines() if f in tracked]
 
 
+WITHHELD = ("internal domain", "private service name")
+
+
 def format_violation(kind: str, lineno: int, line: str) -> str:
     """Render one prose violation, withholding the line for the internal domain.
 
@@ -196,7 +199,7 @@ def format_violation(kind: str, lineno: int, line: str) -> str:
     string the check exists to suppress. Secret masking does not help here: it
     masks the regex, not the domain that regex matched.
     """
-    if kind in ("internal domain", "private service name"):
+    if kind in WITHHELD:
         return f"  line {lineno}: {kind} (content withheld -- it is the leak)"
     return f"  line {lineno}: {kind}\n    {line.strip()[:120]}"
 
@@ -256,7 +259,9 @@ def scan_files(paths: list[str]) -> list[str]:
         active = names_only if (allowlisted(path) or path == SELF_PATH) else patterns
         for kind, pat in active.items():
             if any(not any(b.search(m.group(0)) for b in BENIGN) for m in pat.finditer(path)):
-                violations.append(f"{path}: {kind} (in the file path)")
+                # A CI log is public: never echo a path that is itself the leak.
+                shown = "<path withheld>" if kind in WITHHELD else path
+                violations.append(f"{shown}: {kind} (in the file path)")
         if not active:
             continue
         try:
