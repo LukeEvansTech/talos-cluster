@@ -26,7 +26,7 @@ spec:
           app:
             image:
               repository: prowlercloud/prowler-ui
-              tag: 5.43.0@sha256:ad96bb796c6b74674d4f9c43fe4a301450a69715b2b405cff3497d397092b819
+              tag: 5.44.0@sha256:1664d646b70a0ca83e8f6afd8d6741c390361fb6ceb431203344a8d251badf28
             env:
               TZ: ${TIMEZONE}
               UI_PORT: "3000"
