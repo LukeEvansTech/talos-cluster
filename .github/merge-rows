@@ -1,0 +1,10 @@
+# Check rows pr-merge-when-green waits for when none are passed (one per line).
+# Only rows that run on every PR: a path-filtered job such as "Docs pages linked"
+# never appears on PRs that skip it, so pass those as arguments.
+lint / lint
+Konflate
+Internal Identifier Scan
+Checkov
+Trivy
+GitGuardian Security Checks
+Scan PR title and body
