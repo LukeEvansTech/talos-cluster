@@ -65,7 +65,7 @@ PATTERNS: dict[str, re.Pattern] = {
     "internal hostname": re.compile(r"\b[a-z0-9_-]+\.(?:lan|internal)\b"),
     # Topology, not addresses: a VLAN ID or a host's storage device names map the network and
     # its hardware as surely as an IP does. Use a placeholder such as <iot-vlan-id>.
-    "VLAN ID": re.compile(r"(?i)\bVLAN[ -]?#?\d{1,4}\b|\bvlan_?id\s*[:=]\s*[\"']?\d{1,4}\b"),
+    "VLAN ID": re.compile(r"(?i)\bVLAN(?:[ _-]?ID)?[ :#=\"'-]*\d{1,4}\b|\bvlan_?id\s*[:=]\s*[\"']?\d{1,4}\b"),
     # A VLAN-tagged interface name (enp1s0np0.70, wan.70) carries the VLAN ID in its suffix.
     "VLAN interface": re.compile(r"\b(?:en[a-z0-9]+|eth\d+|bond\d+|wan)\.\d{1,4}\b"),
     # Any md array number (md0, md4, md127), but not an md5 hash reference.
