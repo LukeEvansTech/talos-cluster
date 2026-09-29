@@ -177,8 +177,10 @@ on its own. Do not delete the PDB. Procedure in
 
 These checks were muted until the cephx migration to `aes256k` finished in September 2026. Every
 key is now `aes256k`, the monitors refuse `aes` (`allowedCiphers`), and the mutes are gone. A
-`CephHealthWarning` naming any `AUTH_INSECURE_*` check is a real legacy key or cipher, not noise;
-see [Rook-Ceph](../apps/rook-ceph.md#csi-key-rotation).
+`CephHealthWarning` naming `AUTH_INSECURE_CLIENT_KEY_TYPE`, `AUTH_INSECURE_KEYS_ALLOWED` or
+`AUTH_INSECURE_KEYS_CREATABLE` is a real legacy key or cipher, not noise; see
+[Rook-Ceph](../apps/rook-ceph.md#csi-key-rotation). The global-ID reclaim checks in the same family
+are about client compatibility, not key type.
 
 ### The `cluster-secrets` placeholder Secret has no `ssa` annotation on the live object
 
