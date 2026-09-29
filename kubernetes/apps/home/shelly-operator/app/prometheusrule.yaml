@@ -18,6 +18,8 @@ spec:
               operator sweep) for over 15m.
           expr: shelly_device_online == 0
           for: 15m
+          # Devices drop out of a single discovery sweep and reappear on the next one.
+          keep_firing_for: 30m
           labels:
             severity: warning
         - alert: ShellyDeviceOutOfSync

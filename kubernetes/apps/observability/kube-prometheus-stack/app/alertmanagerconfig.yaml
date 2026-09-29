@@ -45,6 +45,21 @@ spec:
           - name: severity
             value: critical
             matchType: =
+      # Pushover caps the whole account at 10,000 messages a month, shared by every app. Info
+      # alerts stay on the Alertmanager UI only; warnings push once, re-notify at most daily, and
+      # skip the resolved message, which halves their cost.
+      - receiver: "null"
+        matchers:
+          - name: severity
+            value: info
+            matchType: =
+      - receiver: pushover-warning
+        groupInterval: 1h
+        repeatInterval: 24h
+        matchers:
+          - name: severity
+            value: warning
+            matchType: =
   inhibitRules:
     - equal:
         - "alertname"
@@ -87,7 +102,7 @@ spec:
     - name: pushover
       pushoverConfigs:
         - html: true
-          message: |-
+          message: &message |-
             {{- range .Alerts }}
               {{- if ne .Annotations.description "" }}
                 {{ .Annotations.description }}
@@ -110,9 +125,24 @@ spec:
             {{ if eq .Status "firing" }}1{{ else }}0{{ end }}
           sendResolved: true
           sound: gamelan
-          title: >-
+          title: &title >-
             [{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{ .Alerts.Firing | len }}{{ end }}]
             {{ .CommonLabels.alertname }}
+          ttl: 86400s
+          token:
+            name: *secret
+            key: ALERTMANAGER_PUSHOVER_TOKEN
+          userKey:
+            name: *secret
+            key: PUSHOVER_USER_KEY
+          urlTitle: View in Alertmanager
+    - name: pushover-warning
+      pushoverConfigs:
+        - html: true
+          message: *message
+          priority: "0"
+          sendResolved: false
+          title: *title
           ttl: 86400s
           token:
             name: *secret
