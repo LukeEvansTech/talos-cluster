@@ -195,8 +195,11 @@ spec:
                   timeoutSeconds: 10
                   periodSeconds: 30
                   failureThreshold: 5
+              # Holds the app container until the tunnel is up: gluetun's health server answers 500
+              # until its first check passes. Without it the app can start before wg0 exists and
+              # never listen on it (qBittorrent sat at 0 DHT nodes for 19h on 2026-09-28).
               startup:
-                enabled: false
+                enabled: true
                 custom: true
                 spec:
                   httpGet:
