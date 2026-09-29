@@ -349,7 +349,7 @@ kubectl exec -n home $HA_POD -- ip route show
 
 ```bash
 # Test from Talos node itself
-talosctl -n <node1-ip> get addresses | grep <iot-vlan-net>
+talosctl -n <node1-ip> get addresses | grep "<iot-vlan-net>"
 
 # If node can't reach VLAN, check switch configuration
 ```
