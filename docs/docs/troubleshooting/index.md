@@ -37,7 +37,7 @@ Work down from what you observe to the most likely entry:
   - A restore hangs on an unbindable cache PVC, is offered less capacity than the data, or hits ENOSPC on `/cache`, while every backup is green → [KB-031](kb/031-volsync-restore-destinations-never-updated.md)
   - The Docker-estate backup reports success every night but the copied data never changes → [KB-064](kb/064-docker-backup-frozen-nas-snapshot-silent-success.md)
   - The Veeam server is down for days and nothing pages; backup jobs simply stop advancing → [KB-067](kb/067-veeam-server-bsod-silent-outage.md)
-  - An app's VolSync backups are green but a restore would miss its real data (satisfactory backs up the wrong PVC) → [KB-145](kb/145-satisfactory-volsync-wrong-pvc.md)
+  - An app's VolSync backups are green but a restore would miss its real data (a `sourcePVC` patch points at the wrong claim) → [KB-145](kb/145-satisfactory-volsync-wrong-pvc.md)
 - **Workloads / pods**
   - A JVM/Logstash pod OOMKills on a cadence despite a bounded heap → [KB-012](kb/012-jvm-container-rss-oom-malloc-arena-max.md)
   - A pure-Go pod SIGSEGVs (`exit 139`) on a large fraction of starts, before any logs → [KB-013](kb/013-go-1264-binary-startup-sigsegv.md)
@@ -121,7 +121,7 @@ Work down from what you observe to the most likely entry:
 - [KB-070: Oxidized's firewall backup leaked plaintext secrets into Git](kb/070-firewall-backup-leaked-secrets.md)
 - [KB-085: lurcher ran out of memory every day for 12 days, invisible to its own health check](kb/085-lurcher-oom-invisible-to-health-check.md)
 - [KB-113: `*arr` app returns 401 on the correct password (no writable /tmp)](kb/113-arr-readonly-root-no-tmp-401-on-correct-password.md)
-- [KB-145: satisfactory's VolSync backup may still target the wrong PVC](kb/145-satisfactory-volsync-wrong-pvc.md)
+- [KB-145: satisfactory's VolSync backup targeted the wrong PVC](kb/145-satisfactory-volsync-wrong-pvc.md)
 - [KB-157: Renovate digest bump silently changed a custom image's base runtime and broke its plugin](kb/157-digest-bump-jruby.md)
 - [KB-159: Prowler's Celery Worker Never Authenticated to Dragonfly](kb/159-prowler-dragonfly-auth-silent-failure.md)
 - [KB-207: A Static-Passphrase LUKS Slot Insures Against a BIOS Secure Boot Key Wipe](kb/207-tpm-luks-slot-survives-bios-secure-boot-wipe.md)

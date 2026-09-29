@@ -1,9 +1,9 @@
-# KB-145: satisfactory's VolSync backup may still target the wrong PVC
+# KB-145: satisfactory's VolSync backup targeted the wrong PVC
 
-**Status:** Open. PR #3879 (2026-07-26) repointed both `ReplicationSource` objects from
-`satisfactory` to `sf-gamedata`, believing `sf-gamedata` held the save data. Mount paths and the
-image's own documentation say the reverse: this needs re-investigation before anyone relies on
-either PVC's backup for a restore.
+**Status:** Resolved (2026-09-29). PR #3879 (2026-07-26) repointed both `ReplicationSource` objects
+from `satisfactory` to `sf-gamedata`, believing `sf-gamedata` held the save data. It holds the
+re-downloadable server install instead. The kustomization patch is now gone, so backups cover the
+`satisfactory` claim again.
 
 ## What the mounts actually are
 
@@ -28,13 +28,14 @@ PR treated `satisfactory` as "the empty 5Gi PVC the component itself creates," r
 the image's documentation, that reasoning has it backwards: `sf-gamedata` holds the replaceable
 server install, and `satisfactory` holds `/config/saved`.
 
-## Needed
+## Confirmation and fix
 
-Confirm what is actually on each PVC (for example, `just kube browse-pvc games satisfactory` and
-`... sf-gamedata`, checking for a `saved/` directory), then repoint `sourcePVC` at whichever claim
-holds it. If `satisfactory` does turn out to hold the saves, dropping the kustomization.yaml patch
-entirely restores the component's own default. Until this is confirmed, do not assume either
-`ReplicationSource`'s recent snapshots are restorable saves.
+Checked on the live pod on 2026-09-29: `/config/saved` sits on the `satisfactory` claim, and
+`/config/gamefiles` (about 2.9 GB) is the only thing on `sf-gamedata`. Both `ReplicationSource`
+objects were backing up `sf-gamedata`. Removing the `kustomization.yaml` patch restores the
+component's default `sourcePVC: ${APP}`. No PVC is created or pruned by the change: the component
+already generated the `satisfactory` claim, and `sf-gamedata` stays in `./pvc.yaml`. Snapshots taken
+before the fix contain only the server install, so they cannot restore saves.
 
 ## Related
 
