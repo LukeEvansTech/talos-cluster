@@ -84,15 +84,6 @@ spec:
             keyGeneration: 2
           allowedCiphers:
             - aes256k
-      # Rook runs these imperatively, so unmute stays until it has applied, then the block goes.
-      healthCheck:
-        muteHealthWarning:
-          AUTH_INSECURE_CLIENT_KEY_TYPE:
-            policy: unmute
-          AUTH_INSECURE_KEYS_ALLOWED:
-            policy: unmute
-          AUTH_INSECURE_KEYS_CREATABLE:
-            policy: unmute
       mgr:
         modules:
           - name: diskprediction_local

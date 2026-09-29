@@ -33,8 +33,9 @@ runtime-settable, so Rook applies it without restarting the mons.
 
 ## CSI key rotation
 
-The CSI and `rbd-mirror-peer` keys move from `aes` to `aes256k` in four steps, the same sequence
-onedr0p/home-ops shipped as #11735 to #11738. Both storage paths here are kernel clients (`krbd`,
+The CSI and `rbd-mirror-peer` keys moved from `aes` to `aes256k` in four steps on 2026-09-29
+(#5680, #5689, #5690 and the mute removal), the same sequence onedr0p/home-ops shipped as #11735 to
+#11738. Every key is now `aes256k` and nothing is muted. Both storage paths here are kernel clients (`krbd`,
 and the built-in CephFS kernel client, see
 `docs/docs/troubleshooting/kb/025-cephfs-modprobe-builtin-misdiagnosis.md`), and Rook documents
 Linux 7.0 as the minimum for `aes256k` kernel mounts. Talos v1.14 backports that libceph support
