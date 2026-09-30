@@ -9,6 +9,8 @@ spec:
   chartRef:
     kind: OCIRepository
     name: gitlab
+  # First boot runs reconfigure and migrations for longer than helm-controller's 5m default.
+  timeout: 20m
   values:
     # Throwaway lab for trying GitLab's security settings, not a forge anything depends on. The
     # Linux package image bundles PostgreSQL 17 and Redis: the cluster's CNPG runs PostgreSQL 18,
@@ -24,7 +26,7 @@ spec:
             env:
               TZ: ${TIMEZONE}
               GITLAB_OMNIBUS_CONFIG: |
-                external_url 'https://gitlab.${SECRET_DOMAIN}'
+                external_url 'https://{{ .Release.Name }}.${SECRET_DOMAIN}'
                 nginx['listen_port'] = 80
                 nginx['listen_https'] = false
                 nginx['real_ip_trusted_addresses'] = ['10.42.0.0/16']
@@ -94,7 +96,7 @@ spec:
     route:
       app:
         hostnames:
-          - "gitlab.${SECRET_DOMAIN}"
+          - "{{ .Release.Name }}.${SECRET_DOMAIN}"
         parentRefs:
           - name: envoy-internal
             namespace: network
