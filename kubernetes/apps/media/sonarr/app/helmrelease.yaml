@@ -52,7 +52,9 @@ spec:
                         value: localhost
                   initialDelaySeconds: 0
                   periodSeconds: 10
-                  timeoutSeconds: 1
+                  # 1s killed a busy-but-alive Sonarr: big release searches pin its CPU and /ping
+                  # answers slowly (3 liveness restarts on 2026-09-29/30). A wedged Sonarr still fails.
+                  timeoutSeconds: 5
                   failureThreshold: 3
               readiness: *probes
             securityContext:
