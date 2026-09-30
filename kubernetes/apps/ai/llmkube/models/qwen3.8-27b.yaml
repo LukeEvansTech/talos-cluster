@@ -31,7 +31,7 @@ spec:
   # Never set skipModelInit: on llmkube 0.9.x it also blanks --model, serving zero models
   # (#3792; docs/docs/architecture/ai-llm-stack.md Rollout and staging safety).
   runtime: llamacpp
-  image: ghcr.io/ggml-org/llama.cpp:server-cuda@sha256:1c568d229561bbd4577698f1f38d3ed9bf3f5ab343e04f7a508e11ef63f4ced1
+  image: ghcr.io/ggml-org/llama.cpp:server-cuda@sha256:7149a45c80596644320de1d565db1b3b8e70b22c66fed612e69b73f6b1e0d746
   # Waits for both /slots to go idle before rolling, instead of killing an in-flight session
   # (docs/docs/architecture/ai-llm-stack.md Rollout and staging safety).
   rolloutPolicy:
