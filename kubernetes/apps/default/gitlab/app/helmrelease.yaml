@@ -1,0 +1,121 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: gitlab
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: gitlab
+  # First boot runs reconfigure and migrations for longer than helm-controller's 5m default.
+  timeout: 20m
+  values:
+    # Throwaway lab for trying GitLab's security settings, not a forge anything depends on. The
+    # Linux package image bundles PostgreSQL 17 and Redis: the cluster's CNPG runs PostgreSQL 18,
+    # which GitLab 19 does not support.
+    controllers:
+      gitlab:
+        strategy: Recreate
+        containers:
+          app:
+            image:
+              repository: gitlab/gitlab-ee
+              tag: 19.4.1-ee.0
+            env:
+              TZ: ${TIMEZONE}
+              GITLAB_OMNIBUS_CONFIG: |
+                external_url 'https://{{ .Release.Name }}.${SECRET_DOMAIN}'
+                nginx['listen_port'] = 80
+                nginx['listen_https'] = false
+                nginx['real_ip_trusted_addresses'] = ['10.42.0.0/16']
+                nginx['real_ip_header'] = 'X-Forwarded-For'
+                nginx['real_ip_recursive'] = 'on'
+                gitlab_rails['trusted_proxies'] = ['10.42.0.0/16']
+                letsencrypt['enable'] = false
+                gitlab_rails['gitlab_shell_ssh_port'] = 22
+                # Memory-constrained profile; one user poking at settings needs none of this.
+                puma['worker_processes'] = 0
+                sidekiq['concurrency'] = 10
+                prometheus_monitoring['enable'] = false
+                gitlab_kas['enable'] = false
+            probes:
+              startup:
+                enabled: true
+                custom: true
+                spec:
+                  tcpSocket:
+                    port: 80
+                  periodSeconds: 10
+                  # First boot runs reconfigure and database migrations, which takes minutes.
+                  failureThreshold: 90
+              liveness:
+                enabled: true
+                custom: true
+                spec:
+                  tcpSocket:
+                    port: 80
+                  periodSeconds: 30
+              readiness:
+                enabled: true
+                custom: true
+                spec:
+                  tcpSocket:
+                    port: 80
+                  periodSeconds: 10
+            resources:
+              requests:
+                cpu: 500m
+                memory: 4Gi
+              limits:
+                memory: 8Gi
+            # The Linux package runs runit and drops to per-service users itself, so it needs root.
+            securityContext:
+              allowPrivilegeEscalation: true
+              readOnlyRootFilesystem: false
+              runAsUser: 0
+              runAsGroup: 0
+
+    defaultPodOptions:
+      securityContext:
+        runAsNonRoot: false
+        runAsUser: 0
+        runAsGroup: 0
+        fsGroup: 0
+        seccompProfile:
+          type: RuntimeDefault
+
+    service:
+      app:
+        controller: gitlab
+        ports:
+          http:
+            port: 80
+
+    route:
+      app:
+        hostnames:
+          - "{{ .Release.Name }}.${SECRET_DOMAIN}"
+        parentRefs:
+          - name: envoy-internal
+            namespace: network
+
+    persistence:
+      data:
+        existingClaim: gitlab
+        advancedMounts:
+          gitlab:
+            app:
+              - path: /etc/gitlab
+                subPath: config
+              - path: /var/opt/gitlab
+                subPath: data
+              - path: /var/log/gitlab
+                subPath: logs
+      shm:
+        type: emptyDir
+        medium: Memory
+        sizeLimit: 256Mi
+        globalMounts:
+          - path: /dev/shm

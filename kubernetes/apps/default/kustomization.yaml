@@ -28,6 +28,7 @@ resources:
   - ./feather/ks.yaml
   - ./filebrowser/ks.yaml
   - ./forgejo/ks.yaml
+  - ./gitlab/ks.yaml
   - ./gotify/ks.yaml
   - ./fusion/ks.yaml
   - ./gickup/ks.yaml
