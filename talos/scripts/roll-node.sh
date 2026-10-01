@@ -5,12 +5,13 @@
 # Usage: roll-node.sh <node> [full|skip|check] [reboot|upgrade]
 #   full    cordon, drain, pin miroir-agent off, detach loops, reboot or upgrade, restore, wait (default)
 #   skip    resume a node that is already cordoned, drained and pinned
+#   finish  resume a node that has already rebooted: wait Ready, unpin, uncordon, re-gate
 #   check   non-disruptive: Ceph and etcd gates plus the node's miroir loop count (one short-lived pod)
 #   upgrade installs talconfig's image at talenv's talosVersion instead of a plain reboot
 # Last line: ROLL-DONE <node> or ROLL-FAIL <node> <reason>. Takes 8-13 min: run it backgrounded.
 set -Eeuo pipefail
 
-node=${1:?usage: roll-node.sh <node> [full|skip|check] [reboot|upgrade]}
+node=${1:?usage: roll-node.sh <node> [full|skip|finish|check] [reboot|upgrade]}
 phase=${2:-full}
 mode=${3:-reboot}
 repo=$(git -C "$(dirname "$0")" rev-parse --show-toplevel)
@@ -47,8 +48,12 @@ volsync_idle() {
 }
 noout_set() { tools ceph osd dump -f json | jq -e '.flags_set | index("noout")' >/dev/null; }
 # Each address reports only its own member, so every control-plane address is queried.
+# A member that answers is not necessarily healthy, so the etcd service health is read too.
 etcd_ok() {
-    [ "$(talosctl -n "$all_ips" etcd status 2>/dev/null | awk 'NR > 1' | wc -l | tr -d ' ')" = "$(kubectl get nodes --no-headers | wc -l | tr -d ' ')" ]
+    local n
+    n=$(kubectl get nodes --no-headers | wc -l | tr -d ' ')
+    [ "$(talosctl -n "$all_ips" etcd status 2>/dev/null | awk 'NR > 1' | wc -l | tr -d ' ')" = "$n" ] &&
+        [ "$(talosctl -n "$all_ips" service etcd 2>/dev/null | grep -cE '^HEALTH +OK *$')" = "$n" ]
 }
 
 # Runs a shell snippet in a privileged pod on the node and prints its log. Polls to completion:
@@ -92,7 +97,7 @@ if [ "$phase" = check ]; then
     exit "$ok"
 fi
 case "$phase/$mode" in
-full/reboot | full/upgrade | skip/reboot | skip/upgrade) ;;
+full/reboot | full/upgrade | skip/reboot | skip/upgrade | finish/reboot | finish/upgrade) ;;
 *) fail "bad arguments: phase=$phase mode=$mode" ;;
 esac
 
@@ -112,6 +117,9 @@ if [ "$phase" = full ]; then
         sleep 10
     done
     volsync_idle || fail "a VolSync ReplicationSource was still synchronizing after 20 min"
+    # The wait can be long; nothing disruptive happens on health read before it.
+    ceph_ok || fail "Ceph not clean after the VolSync wait"
+    etcd_ok || fail "etcd not healthy after the VolSync wait"
     # The primary PDB allows 0 disruptions by design. Relaxed per node, not once: the hourly
     # Kustomization reconcile restores it mid-roll. roll-guards.sh down restores it at the end.
     kubectl -n database patch cluster postgres18 --type merge -p '{"spec":{"enablePDB":false}}' >/dev/null
@@ -122,35 +130,45 @@ if [ "$phase" = full ]; then
     kubectl -n miroir-system patch ds miroir-agent --type=merge -p "$(jq -cn --arg n "$node" '{spec: {template: {spec: {affinity: {nodeAffinity: {requiredDuringSchedulingIgnoredDuringExecution: {nodeSelectorTerms: [{matchExpressions: [{key: "kubernetes.io/hostname", operator: "NotIn", values: [$n]}]}]}}}}}}}')" >/dev/null
 fi
 
-for _ in $(seq 1 60); do
-    miroir_gone && break
-    sleep 3
-done
-miroir_gone || fail "miroir-agent still on the node, or the query failed (it re-attaches loops within ~30s)"
-log "miroir-agent gone; loops before detach: $(loops)"
-on_node "$detach_loops" | grep -E 'FAILED|DETACHED' | sort | uniq -c | sed "s/^/$(date -u +%T) [$node]   /"
-c1=$(loops)
-sleep 15
-c2=$(loops)
-log "loops after detach: $c1 then $c2"
-[ "$c1" = COUNT=0 ] && [ "$c2" = COUNT=0 ] || fail "loop devices remain ($c1, $c2): a busy EPHEMERAL would stall teardown"
+if [ "$phase" != finish ]; then
+    for _ in $(seq 1 60); do
+        miroir_gone && break
+        sleep 3
+    done
+    miroir_gone || fail "miroir-agent still on the node, or the query failed (it re-attaches loops within ~30s)"
+    log "miroir-agent gone; loops before detach: $(loops)"
+    on_node "$detach_loops" | grep -E 'FAILED|DETACHED' | sort | uniq -c | sed "s/^/$(date -u +%T) [$node]   /"
+    c1=$(loops)
+    sleep 15
+    c2=$(loops)
+    log "loops after detach: $c1 then $c2"
+    [ "$c1" = COUNT=0 ] && [ "$c2" = COUNT=0 ] || fail "loop devices remain ($c1, $c2): a busy EPHEMERAL would stall teardown"
 
-boot_before=$(talosctl -n "$ip" read /proc/sys/kernel/random/boot_id 2>/dev/null)
-if [ "$mode" = upgrade ]; then
-    log "upgrading to $version"
-    talosctl -n "$ip" upgrade --image "$image" --wait=false >/dev/null 2>&1 || fail "talosctl upgrade refused"
+    boot_before=$(talosctl -n "$ip" read /proc/sys/kernel/random/boot_id 2>/dev/null)
+    if [ "$mode" = upgrade ]; then
+        log "upgrading to $version"
+        talosctl -n "$ip" upgrade --image "$image" --wait=false >/dev/null 2>&1 || fail "talosctl upgrade refused"
+    else
+        log "rebooting"
+        talosctl -n "$ip" reboot --wait=false >/dev/null 2>&1 || true
+    fi
+    boot_after=""
+    for _ in $(seq 1 90); do
+        boot_after=$(talosctl -n "$ip" read /proc/sys/kernel/random/boot_id 2>/dev/null || true)
+        [ -n "$boot_after" ] && [ "$boot_after" != "$boot_before" ] && break
+        sleep 10
+    done
+    [ -n "$boot_after" ] && [ "$boot_after" != "$boot_before" ] || fail "no new boot_id after 15 min"
 else
-    log "rebooting"
-    talosctl -n "$ip" reboot --wait=false >/dev/null 2>&1 || true
+    boot_after=$(talosctl -n "$ip" read /proc/sys/kernel/random/boot_id)
 fi
-boot_after=""
-for _ in $(seq 1 90); do
-    boot_after=$(talosctl -n "$ip" read /proc/sys/kernel/random/boot_id 2>/dev/null || true)
-    [ -n "$boot_after" ] && [ "$boot_after" != "$boot_before" ] && break
+log "new boot_id; waiting for the kubelet to report it, then Ready"
+# The Node object keeps its pre-reboot Ready and osImage until the new kubelet reports.
+for _ in $(seq 1 60); do
+    [ "$(kubectl get node "$node" -o jsonpath='{.status.nodeInfo.bootID}')" = "$boot_after" ] && break
     sleep 10
 done
-[ -n "$boot_after" ] && [ "$boot_after" != "$boot_before" ] || fail "no new boot_id after 15 min"
-log "new boot_id; waiting for Ready"
+[ "$(kubectl get node "$node" -o jsonpath='{.status.nodeInfo.bootID}')" = "$boot_after" ] || fail "kubelet never reported the new boot"
 kubectl wait node "$node" --for=condition=Ready --timeout=600s >/dev/null || fail "node not Ready"
 os=$(kubectl get node "$node" -o jsonpath='{.status.nodeInfo.osImage}')
 log "Ready on $os $(kubectl get node "$node" -o jsonpath='{.status.nodeInfo.kubeletVersion}')"
@@ -159,7 +177,9 @@ if [ "$mode" = upgrade ] && [[ $os != *"($version)"* ]]; then
     fail "came back on $os, not $version: see 'Upgrade didn't take' in talos-upgrades.md"
 fi
 
-kubectl -n miroir-system patch ds miroir-agent --type=json -p '[{"op":"remove","path":"/spec/template/spec/affinity"}]' >/dev/null
+if [ -n "$(kubectl -n miroir-system get ds miroir-agent -o jsonpath='{.spec.template.spec.affinity}')" ]; then
+    kubectl -n miroir-system patch ds miroir-agent --type=json -p '[{"op":"remove","path":"/spec/template/spec/affinity"}]' >/dev/null
+fi
 kubectl uncordon "$node" >/dev/null
 log "unpinned + uncordoned; waiting for Ceph and etcd"
 for _ in $(seq 1 90); do

@@ -275,7 +275,9 @@ still holds.
 `roll-node` takes 8 to 13 minutes. Run it with output redirected to a log and block on the
 `ROLL-DONE` / `ROLL-FAIL` line rather than on the command; a tool timeout mid-cycle leaves a node
 half-applied. To resume a node that is already cordoned, drained and pinned, pass `skip` as the
-phase: it starts at the miroir wait and does not re-run the pre-flight.
+phase: it starts at the miroir wait and does not re-run the pre-flight. For a node that already
+rebooted but failed afterwards (a transient unpin or uncordon error), pass `finish`: it only waits
+for the new boot, unpins, uncordons and re-gates, so it never reboots the node a second time.
 
 ### Using it for a version upgrade instead of tuppr
 

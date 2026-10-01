@@ -80,7 +80,7 @@ upgrade-k8s:
 roll-guards action:
     "{{ source_directory() }}/scripts/roll-guards.sh" {{ action }}
 
-[doc('Drain, detach miroir loops, reboot (or upgrade) and re-gate one node; phase full|skip|check')]
+[doc('Drain, detach miroir loops, reboot (or upgrade) and re-gate one node; phase full|skip|finish|check')]
 roll-node node phase="full" mode="reboot":
     "{{ source_directory() }}/scripts/roll-node.sh" {{ node }} {{ phase }} {{ mode }}
 
