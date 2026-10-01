@@ -118,6 +118,7 @@ if [ "$phase" = full ]; then
     done
     volsync_idle || fail "a VolSync ReplicationSource was still synchronizing after 20 min"
     # The wait can be long; nothing disruptive happens on health read before it.
+    noout_set || fail "Ceph noout was cleared during the VolSync wait"
     ceph_ok || fail "Ceph not clean after the VolSync wait"
     etcd_ok || fail "etcd not healthy after the VolSync wait"
     # The primary PDB allows 0 disruptions by design. Relaxed per node, not once: the hourly
