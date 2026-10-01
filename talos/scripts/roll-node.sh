@@ -44,7 +44,7 @@ ceph_ok() {
 # A mover evicted mid-backup loses that run; tuppr's TalosUpgrade gates on the same predicate.
 volsync_idle() {
     kubectl get replicationsources -A -o json | jq -e '[.items[]
-        | select(any(.status.conditions[]?; .type == "Synchronizing" and .status == "True"))] | length == 0' >/dev/null
+        | select(any(.status.conditions[]?; .type == "Synchronizing" and .status != "False"))] | length == 0' >/dev/null
 }
 noout_set() { tools ceph osd dump -f json | jq -e '.flags_set | index("noout")' >/dev/null; }
 # Each address reports only its own member, so every control-plane address is queried.
@@ -181,7 +181,9 @@ if [ -n "$(kubectl -n miroir-system get ds miroir-agent -o jsonpath='{.spec.temp
     kubectl -n miroir-system patch ds miroir-agent --type=json -p '[{"op":"remove","path":"/spec/template/spec/affinity"}]' >/dev/null
 fi
 kubectl uncordon "$node" >/dev/null
-log "unpinned + uncordoned; waiting for Ceph and etcd"
+# Unpinning only starts the agent rollout; the next node must not be drained before it is back.
+kubectl -n miroir-system rollout status ds/miroir-agent --timeout=600s >/dev/null || fail "miroir-agent did not become ready on the node"
+log "unpinned + uncordoned, miroir-agent ready; waiting for Ceph and etcd"
 for _ in $(seq 1 90); do
     ceph_ok && etcd_ok && break
     sleep 10
