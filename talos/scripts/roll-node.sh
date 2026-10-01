@@ -34,6 +34,7 @@ tools() { kubectl -n rook-ceph exec deploy/rook-ceph-tools -- "$@"; }
 helper_image="docker.io/library/busybox:1.38.0@sha256:fd7dc98638c8e305f4dc34e979f1c0fdfdcaeb0fbf8fcff77ae834b6da3d7e6e"
 # Any unhandled failure still ends in the marker a backgrounded caller waits on.
 trap 'echo "ROLL-FAIL $node unexpected failure at line $LINENO: $BASH_COMMAND"' ERR
+trap 'echo "ROLL-FAIL $node interrupted"; exit 130' INT TERM HUP
 
 ip=$(kubectl get node "$node" -o jsonpath='{.status.addresses[?(@.type=="InternalIP")].address}')
 [ -n "$ip" ] || fail "no InternalIP for node"

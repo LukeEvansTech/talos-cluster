@@ -12,12 +12,19 @@ owned="$state/noout-owned"
 upgrade_cr="$repo/kubernetes/apps/system-upgrade/tuppr/upgrades/talosupgrade.yaml"
 tools() { kubectl -n rook-ceph exec deploy/rook-ceph-tools -- "$@"; }
 
+# A kernel-chosen local port read back from kubectl, so the guards can only ever talk to the
+# port-forward they started, never to another process already holding a fixed port.
 pf_start() {
-    kubectl -n observability port-forward svc/kube-prometheus-stack-alertmanager 19093:9093 >/dev/null 2>&1 &
+    pf_log=$(mktemp)
+    kubectl -n observability port-forward svc/kube-prometheus-stack-alertmanager :9093 >"$pf_log" 2>&1 &
     pf=$!
-    trap 'kill "$pf" 2>/dev/null' EXIT
+    trap 'kill "$pf" 2>/dev/null; rm -f "$pf_log"' EXIT
     for _ in $(seq 1 20); do
-        curl -fs http://127.0.0.1:19093/-/ready >/dev/null && return 0
+        port=$(sed -nE 's/^Forwarding from 127\.0\.0\.1:([0-9]+) .*/\1/p' "$pf_log" | head -1)
+        if [ -n "$port" ] && kill -0 "$pf" 2>/dev/null && curl -fs "http://127.0.0.1:$port/-/ready" >/dev/null; then
+            am="http://127.0.0.1:$port"
+            return 0
+        fi
         sleep 1
     done
     echo "roll-guards: Alertmanager port-forward never became ready" >&2
@@ -49,7 +56,7 @@ up)
                 isEqual: (.matchType == "=" or .matchType == "=~")}],
             startsAt: $st, endsAt: $en, createdBy: "roll-guards", comment: "hand-driven rolling reboot"}')
         curl -fsS -X POST -H 'Content-Type: application/json' -d "$body" \
-            http://127.0.0.1:19093/api/v2/silences | jq -r .silenceID >>"$ids"
+            "$am/api/v2/silences" | jq -r .silenceID >>"$ids"
     done
     echo "roll-guards: noout in place, $(wc -l <"$ids" | tr -d ' ') silence(s) recorded, newest until $end"
     ;;
@@ -79,7 +86,7 @@ down)
         left=()
         while read -r id; do
             [ -n "$id" ] || continue
-            if curl -fsS -X DELETE "http://127.0.0.1:19093/api/v2/silence/$id" >/dev/null; then
+            if curl -fsS -X DELETE "$am/api/v2/silence/$id" >/dev/null; then
                 echo "roll-guards: expired $id"
             else
                 left+=("$id")
