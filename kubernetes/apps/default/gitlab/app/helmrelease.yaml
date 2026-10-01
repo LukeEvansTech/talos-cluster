@@ -22,7 +22,7 @@ spec:
           app:
             image:
               repository: gitlab/gitlab-ee
-              tag: 19.4.1-ee.0
+              tag: 19.4.1-ee.0@sha256:803e5887cd561ed49ce84c92756838d39e9bcef5c061d4399f2e1057a335cae2
             env:
               TZ: ${TIMEZONE}
               GITLAB_OMNIBUS_CONFIG: |
