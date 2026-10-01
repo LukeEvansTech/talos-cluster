@@ -159,6 +159,15 @@ To bypass the check in an emergency, drop the `machine-image-verification.yaml` 
 `patches` list in `talos/talconfig.yaml`, run `just talos gen-config`, apply to the affected node
 (no reboot), and restore it after the upgrade.
 
+## Kubernetes patch versions
+
+A Kubernetes **patch** bump (a Renovate `ghcr.io/siderolabs/kubelet` PR moving `talenv.yaml`,
+`talconfig.yaml` and the tuppr `KubernetesUpgrade` together) is supported on the current Talos
+release. The `Images` list in Talos release notes is only the default it installs, not a ceiling:
+Talos supports Kubernetes per **minor** (Talos 1.14: 1.33 to 1.37). v1.37.1 ran on Talos v1.14.1
+from 2026-09-29, through tuppr in about 7 minutes with no drain or reboot. Only a **minor** bump
+needs a Talos release whose support matrix lists it.
+
 ## Watching an upgrade
 
 ```bash
@@ -199,10 +208,18 @@ that problem worse.
 ## Rolling reboot procedure
 
 For a planned reboot of every node outside tuppr (a machine-config change that needs a reboot, a
-firmware or BIOS change), this is the sequence that ran cleanly on all three nodes in September
-2026: about three minutes per node, Ceph re-converged in under 90 seconds each, no boot stall and
-no bootloader revert. The guards come first because each one has blocked a drain or made a reboot
-unsafe before.
+firmware or BIOS change, re-staging every Ceph volume), this is the sequence that ran cleanly on
+all three nodes three times in September 2026: Ceph re-converged in under 90 seconds each, no boot
+stall and no bootloader revert. It is scripted; the sections below say why each step exists.
+
+```bash
+just talos roll-guards up                  # noout + the tuppr CR's silences
+just talos roll-node <node> check          # read-only: Ceph, etcd, miroir loop count
+just talos roll-node <node>                # one node, 8-13 min; last line ROLL-DONE or ROLL-FAIL
+just talos roll-guards down                # unset noout, expire silences, restore the CNPG PDB
+```
+
+Run one node at a time, each only after the previous printed `ROLL-DONE`.
 
 ### Guards, before the first node
 
@@ -255,12 +272,27 @@ still holds.
 
 ### Run it backgrounded and resumable
 
-The whole cycle is 8 to 12 minutes per node. Run the script with output redirected to a log and
-block on a marker rather than waiting on the command; a tool timeout mid-cycle leaves a node
-half-applied. Give the script a `skip` phase argument that bypasses cordon, drain and pin, and a
-pre-flight that does not abort on `4/6` OSDs when resuming a node that is already drained. Both
-were needed on the first run: the interruption landed after the last node's uncordon but during
-the Ceph wait, so only the final wait had to be redone.
+`roll-node` takes 8 to 13 minutes. Run it with output redirected to a log and block on the
+`ROLL-DONE` / `ROLL-FAIL` line rather than on the command; a tool timeout mid-cycle leaves a node
+half-applied. To resume a node that is already cordoned, drained and pinned, pass `skip` as the
+phase: it starts at the miroir wait and does not re-run the pre-flight.
+
+### Using it for a version upgrade instead of tuppr
+
+tuppr's `hooks.pre` run once before any node is touched, so it has no slot for the per-node loop
+detach. To carry a Talos upgrade through this procedure instead (1.14.0 to 1.14.1 went this way,
+3 of 3 first time):
+
+1. `flux suspend kustomization tuppr-upgrades -n system-upgrade` **before** merging the Renovate
+   PR, so the `TalosUpgrade` CR keeps the old version and tuppr stays idle.
+2. Merge, then `just talos roll-node <node> full upgrade` per node. It installs the node's
+   `talosImageURL` from `talconfig.yaml` at `talenv.yaml`'s `talosVersion`, and fails if the node
+   comes back on another version (`talosctl upgrade` exits 0 even then).
+3. `flux resume kustomization tuppr-upgrades -n system-upgrade`. Every node already matches, so
+   tuppr reports `Completed` without acting.
+
+The first drain of each node spends four to five minutes retrying the `rook-ceph-osd` eviction
+until Rook's own PDB lets it through; that is normal, not a stuck drain.
 
 ## Talos 1.14 notes
 

@@ -76,6 +76,14 @@ upgrade-k8s:
     K8S_VERSION=$(yq -r -e '.kubernetesVersion' "{{ source_directory() }}/talenv.yaml")
     talhelper gencommand upgrade-k8s --config-file "{{ source_directory() }}/talconfig.yaml" --out-dir "{{ source_directory() }}/clusterconfig" --extra-flags "--to ${K8S_VERSION}" | bash
 
+[doc('Rolling reboot guards: up (noout + tuppr silences) before the first node, down after the last')]
+roll-guards action:
+    "{{ source_directory() }}/scripts/roll-guards.sh" {{ action }}
+
+[doc('Drain, detach miroir loops, reboot (or upgrade) and re-gate one node; phase full|skip|check')]
+roll-node node phase="full" mode="reboot":
+    "{{ source_directory() }}/scripts/roll-node.sh" {{ node }} {{ phase }} {{ mode }}
+
 [doc('Reset cluster nodes to maintenance mode')]
 reset:
     gum confirm "This will destroy your cluster and reset the nodes back to maintenance mode. Continue?" --default=false || exit 0
