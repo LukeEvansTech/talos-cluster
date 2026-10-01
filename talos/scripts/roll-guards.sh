@@ -38,7 +38,8 @@ up)
     fi
     pf_start
     start=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-    end=$(date -u -d '+3 hours' +%Y-%m-%dT%H:%M:%SZ)
+    # Portable: BSD date has no -d.
+    end=$(python3 -c 'import datetime as d; print((d.datetime.now(d.timezone.utc) + d.timedelta(hours=3)).strftime("%Y-%m-%dT%H:%M:%SZ"))')
     touch "$ids" # appended, never truncated: a retried up must not orphan earlier silences
     # One silence per CR entry; matchType =~ becomes isRegex, and the 3h window covers a full roll.
     yq -o=json '.spec.silences' "$upgrade_cr" | jq -c '.[]' | while read -r s; do

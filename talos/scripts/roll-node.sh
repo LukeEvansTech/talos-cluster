@@ -13,7 +13,16 @@ set -Eeuo pipefail
 
 node=${1:?usage: roll-node.sh <node> [full|skip|finish|check] [reboot|upgrade]}
 phase=${2:-full}
-mode=${3:-reboot}
+# A resumed roll reuses the mode its full run recorded, so an upgrade never resumes as a reboot.
+state=${ROLL_STATE_DIR:-$HOME/.cache/talos-roll}
+mkdir -p "$state"
+if [ -n "${3:-}" ]; then
+    mode=$3
+elif [ -f "$state/$node.mode" ]; then
+    mode=$(cat "$state/$node.mode")
+else
+    mode=reboot
+fi
 repo=$(git -C "$(dirname "$0")" rev-parse --show-toplevel)
 log() { echo "$(date -u +%T) [$node] $*"; }
 fail() {
@@ -108,7 +117,8 @@ if [ "$mode" = upgrade ]; then
 fi
 
 if [ "$phase" = full ]; then
-    log "pre-flight"
+    echo "$mode" >"$state/$node.mode"
+    log "pre-flight ($mode)"
     noout_set || fail "Ceph noout is not set: run 'just talos roll-guards up' first"
     ceph_ok || fail "Ceph not clean before starting"
     etcd_ok || fail "etcd not healthy before starting"
@@ -145,6 +155,10 @@ if [ "$phase" != finish ]; then
     log "loops after detach: $c1 then $c2"
     [ "$c1" = COUNT=0 ] && [ "$c2" = COUNT=0 ] || fail "loop devices remain ($c1, $c2): a busy EPHEMERAL would stall teardown"
 
+    # The drain and detach can take many minutes, and skip runs no pre-flight: gate again here.
+    noout_set || fail "Ceph noout is not set before the reboot"
+    ceph_ok || fail "Ceph not clean before the reboot"
+    etcd_ok || fail "etcd not healthy before the reboot"
     boot_before=$(talosctl -n "$ip" read /proc/sys/kernel/random/boot_id 2>/dev/null)
     if [ "$mode" = upgrade ]; then
         log "upgrading to $version"
@@ -192,4 +206,5 @@ done
 ceph_ok || fail "Ceph did not re-converge in 15 min"
 etcd_ok || fail "etcd not healthy"
 log "Ceph clean, etcd healthy"
+rm -f "$state/$node.mode"
 echo "ROLL-DONE $node"

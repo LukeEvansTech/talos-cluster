@@ -31,8 +31,11 @@ scan=$(gh api graphql --paginate -f query='query($o:String!,$n:String!,$endCurso
     | select(.context == "claude/renovate-review" and .state == "FAILURE")
     | select(.description | test("usage limit"; "i"))
     | "\($n) \(.targetUrl | capture("runs/(?<id>[0-9]+)").id)"')
+# A read loop rather than mapfile, which the stock macOS bash 3.2 lacks.
 limited=()
-[ -z "$scan" ] || mapfile -t limited <<<"$scan"
+while IFS= read -r line; do
+    [ -n "$line" ] && limited+=("$line")
+done <<<"$scan"
 
 if [ ${#limited[@]} -eq 0 ]; then
     echo "renovate-rerun-limited: no gate is failing on the usage limit"
