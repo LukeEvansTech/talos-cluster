@@ -20,6 +20,8 @@ fail() {
     exit 1
 }
 tools() { kubectl -n rook-ceph exec deploy/rook-ceph-tools -- "$@"; }
+# Runs privileged with hostPID on the node, so it is digest-pinned (Renovate: .renovaterc.json5).
+helper_image="docker.io/library/busybox:1.38.0@sha256:fd7dc98638c8e305f4dc34e979f1c0fdfdcaeb0fbf8fcff77ae834b6da3d7e6e"
 # Any unhandled failure still ends in the marker a backgrounded caller waits on.
 trap 'echo "ROLL-FAIL $node unexpected failure at line $LINENO: $BASH_COMMAND"' ERR
 
@@ -38,6 +40,12 @@ ceph_ok() {
     and .osdmap.num_up_osds == .osdmap.num_osds and .osdmap.num_in_osds == .osdmap.num_osds
     and ([.pgmap.pgs_by_state[] | select(.state_name != "active+clean") | .count] | add // 0) == 0' >/dev/null
 }
+# A mover evicted mid-backup loses that run; tuppr's TalosUpgrade gates on the same predicate.
+volsync_idle() {
+    kubectl get replicationsources -A -o json | jq -e '[.items[]
+        | select(any(.status.conditions[]?; .type == "Synchronizing" and .status == "True"))] | length == 0' >/dev/null
+}
+noout_set() { tools ceph osd dump -f json | jq -e '.flags_set | index("noout")' >/dev/null; }
 # Each address reports only its own member, so every control-plane address is queried.
 etcd_ok() {
     [ "$(talosctl -n "$all_ips" etcd status 2>/dev/null | awk 'NR > 1' | wc -l | tr -d ' ')" = "$(kubectl get nodes --no-headers | wc -l | tr -d ' ')" ]
@@ -47,10 +55,10 @@ etcd_ok() {
 # returning before the pod finishes is how a detach silently did nothing (talos-upgrades.md).
 on_node() {
     local pod="roll-$RANDOM" overrides
-    overrides=$(jq -cn --arg n "$node" --arg c "$1" '{apiVersion: "v1", spec: {nodeName: $n, hostPID: true,
-    tolerations: [{operator: "Exists"}], containers: [{name: "c", image: "busybox:1.37",
+    overrides=$(jq -cn --arg n "$node" --arg c "$1" --arg img "$helper_image" '{apiVersion: "v1", spec: {nodeName: $n, hostPID: true,
+    tolerations: [{operator: "Exists"}], containers: [{name: "c", image: $img,
     securityContext: {privileged: true}, command: ["sh", "-c", $c]}]}}')
-    kubectl -n kube-system run "$pod" --restart=Never --image=busybox:1.37 -q --overrides="$overrides" >/dev/null
+    kubectl -n kube-system run "$pod" --restart=Never --image="$helper_image" -q --overrides="$overrides" >/dev/null
     for _ in $(seq 1 60); do
         case "$(kubectl -n kube-system get pod "$pod" -o jsonpath='{.status.phase}' 2>/dev/null)" in
         Succeeded | Failed) break ;;
@@ -96,8 +104,14 @@ fi
 
 if [ "$phase" = full ]; then
     log "pre-flight"
+    noout_set || fail "Ceph noout is not set: run 'just talos roll-guards up' first"
     ceph_ok || fail "Ceph not clean before starting"
     etcd_ok || fail "etcd not healthy before starting"
+    for _ in $(seq 1 120); do
+        volsync_idle && break
+        sleep 10
+    done
+    volsync_idle || fail "a VolSync ReplicationSource was still synchronizing after 20 min"
     # The primary PDB allows 0 disruptions by design. Relaxed per node, not once: the hourly
     # Kustomization reconcile restores it mid-roll. roll-guards.sh down restores it at the end.
     kubectl -n database patch cluster postgres18 --type merge -p '{"spec":{"enablePDB":false}}' >/dev/null

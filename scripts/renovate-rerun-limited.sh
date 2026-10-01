@@ -21,8 +21,8 @@ repo=$(gh repo view --json nameWithOwner --jq .nameWithOwner)
 
 # Captured first: a failed scan must not read as an empty result through process substitution.
 # shellcheck disable=SC2016 # GraphQL variables, not shell expansions
-scan=$(gh api graphql -f query='query($o:String!,$n:String!){repository(owner:$o,name:$n){
-    pullRequests(states:OPEN,first:100){nodes{number author{login}
+scan=$(gh api graphql --paginate -f query='query($o:String!,$n:String!,$endCursor:String){repository(owner:$o,name:$n){
+    pullRequests(states:OPEN,first:100,after:$endCursor){pageInfo{hasNextPage endCursor} nodes{number author{login}
         commits(last:1){nodes{commit{status{contexts{context state description targetUrl}}}}}}}}}' \
     -f o="${repo%%/*}" -f n="${repo#*/}" --jq '.data.repository.pullRequests.nodes[]
     | select(.author.login == "renovate")
@@ -40,6 +40,7 @@ if [ ${#limited[@]} -eq 0 ]; then
 fi
 echo "renovate-rerun-limited: ${#limited[@]} PR(s) limited: $(printf '#%s ' "${limited[@]%% *}")"
 [ "$mode" = probe ] && limited=("${limited[0]}")
+refused=0
 for entry in "${limited[@]}"; do
     pr=${entry%% *}
     run=${entry#* }
@@ -47,8 +48,10 @@ for entry in "${limited[@]}"; do
         echo "  #$pr: re-ran gate run $run"
     else
         echo "  #$pr: re-run of $run refused (already running, or too old to re-run)"
+        refused=$((refused + 1))
     fi
 done
 if [ "$mode" = probe ]; then
     echo "renovate-rerun-limited: probe started; if #${limited[0]%% *} approves in a few minutes, run with 'all'"
 fi
+[ "$refused" -eq 0 ] || exit 1
