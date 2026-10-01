@@ -81,7 +81,7 @@ roll-guards action:
     "{{ source_directory() }}/scripts/roll-guards.sh" {{ action }}
 
 [doc('Drain, detach miroir loops, reboot (or upgrade) and re-gate one node; phase full|skip|finish|check')]
-roll-node node phase="full" mode="reboot":
+roll-node node phase="full" mode="":
     "{{ source_directory() }}/scripts/roll-node.sh" {{ node }} {{ phase }} {{ mode }}
 
 [doc('Reset cluster nodes to maintenance mode')]

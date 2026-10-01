@@ -61,6 +61,7 @@ noout_set() { tools ceph osd dump -f json | jq -e '.flags_set | index("noout")' 
 etcd_ok() {
     local n
     n=$(kubectl get nodes --no-headers | wc -l | tr -d ' ')
+    [ "${n:-0}" -gt 0 ] || return 1 # a failed node query must not compare equal to a failed talosctl
     [ "$(talosctl -n "$all_ips" etcd status 2>/dev/null | awk 'NR > 1' | wc -l | tr -d ' ')" = "$n" ] &&
         [ "$(talosctl -n "$all_ips" service etcd 2>/dev/null | grep -cE '^HEALTH +OK *$')" = "$n" ]
 }
@@ -157,6 +158,7 @@ if [ "$phase" != finish ]; then
 
     # The drain and detach can take many minutes, and skip runs no pre-flight: gate again here.
     noout_set || fail "Ceph noout is not set before the reboot"
+    volsync_idle || fail "a VolSync ReplicationSource started synchronizing before the reboot"
     ceph_ok || fail "Ceph not clean before the reboot"
     etcd_ok || fail "etcd not healthy before the reboot"
     boot_before=$(talosctl -n "$ip" read /proc/sys/kernel/random/boot_id 2>/dev/null)
