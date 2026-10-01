@@ -214,7 +214,7 @@ stall and no bootloader revert. It is scripted; the sections below say why each 
 
 ```bash
 just talos roll-guards up                  # noout + the tuppr CR's silences
-just talos roll-node <node> check          # read-only: Ceph, etcd, miroir loop count
+just talos roll-node <node> check          # non-disruptive: Ceph, etcd, miroir loop count
 just talos roll-node <node>                # one node, 8-13 min; last line ROLL-DONE or ROLL-FAIL
 just talos roll-guards down                # unset noout, expire silences, restore the CNPG PDB
 ```

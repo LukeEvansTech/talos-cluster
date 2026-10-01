@@ -5,7 +5,7 @@
 # Usage: roll-node.sh <node> [full|skip|check] [reboot|upgrade]
 #   full    cordon, drain, pin miroir-agent off, detach loops, reboot or upgrade, restore, wait (default)
 #   skip    resume a node that is already cordoned, drained and pinned
-#   check   read-only: Ceph and etcd gates plus the node's miroir loop count; changes nothing
+#   check   non-disruptive: Ceph and etcd gates plus the node's miroir loop count (one short-lived pod)
 #   upgrade installs talconfig's image at talenv's talosVersion instead of a plain reboot
 # Last line: ROLL-DONE <node> or ROLL-FAIL <node> <reason>. Takes 8-13 min: run it backgrounded.
 set -Eeuo pipefail
@@ -67,7 +67,12 @@ count_loops='n=0; for b in /sys/block/loop*/loop/backing_file; do [ -f "$b" ] ||
 # shellcheck disable=SC2016
 detach_loops='for b in /sys/block/loop*/loop/backing_file; do [ -f "$b" ] || continue; case $(cat "$b") in *.img*) d=${b#/sys/block/}; d=${d%%/*}; losetup -d "/dev/$d" 2>&1 || echo "FAILED $d";; esac; done; echo DETACHED'
 loops() { on_node "$count_loops" | grep -o 'COUNT=[0-9]*' || echo COUNT=unknown; }
-miroir_on_node() { kubectl -n miroir-system get pods -l app.kubernetes.io/name=miroir-agent --field-selector spec.nodeName="$node" -o name 2>/dev/null; }
+# Fails closed: true only when the query itself succeeded and found no agent pod on the node.
+miroir_gone() {
+    local pods
+    pods=$(kubectl -n miroir-system get pods -l app.kubernetes.io/name=miroir-agent --field-selector spec.nodeName="$node" -o name) || return 1
+    [ -z "$pods" ]
+}
 
 if [ "$phase" = check ]; then
     ok=0
@@ -104,10 +109,10 @@ if [ "$phase" = full ]; then
 fi
 
 for _ in $(seq 1 60); do
-    [ -z "$(miroir_on_node)" ] && break
+    miroir_gone && break
     sleep 3
 done
-[ -z "$(miroir_on_node)" ] || fail "miroir-agent still on the node (it re-attaches loops within ~30s)"
+miroir_gone || fail "miroir-agent still on the node, or the query failed (it re-attaches loops within ~30s)"
 log "miroir-agent gone; loops before detach: $(loops)"
 on_node "$detach_loops" | grep -E 'FAILED|DETACHED' | sort | uniq -c | sed "s/^/$(date -u +%T) [$node]   /"
 c1=$(loops)
