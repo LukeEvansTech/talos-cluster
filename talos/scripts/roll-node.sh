@@ -13,12 +13,13 @@ set -Eeuo pipefail
 
 node=${1:?usage: roll-node.sh <node> [full|skip|finish|check] [reboot|upgrade]}
 phase=${2:-full}
-# A resumed roll reuses the mode its full run recorded, so an upgrade never resumes as a reboot.
+# Only skip and finish reuse the mode a full run recorded, so an upgrade never resumes as a
+# reboot and a stale record never turns a new full run into an upgrade.
 state=${ROLL_STATE_DIR:-$HOME/.cache/talos-roll}
 mkdir -p "$state"
 if [ -n "${3:-}" ]; then
     mode=$3
-elif [ -f "$state/$node.mode" ]; then
+elif [ "$phase" != full ] && [ -f "$state/$node.mode" ]; then
     mode=$(cat "$state/$node.mode")
 else
     mode=reboot
@@ -91,10 +92,12 @@ count_loops='n=0; for b in /sys/block/loop*/loop/backing_file; do [ -f "$b" ] ||
 # shellcheck disable=SC2016
 detach_loops='for b in /sys/block/loop*/loop/backing_file; do [ -f "$b" ] || continue; case $(cat "$b") in *.img*) d=${b#/sys/block/}; d=${d%%/*}; losetup -d "/dev/$d" 2>&1 || echo "FAILED $d";; esac; done; echo DETACHED'
 loops() { on_node "$count_loops" | grep -o 'COUNT=[0-9]*' || echo COUNT=unknown; }
+# The DaemonSet selector; app.kubernetes.io/name is "miroir", not "miroir-agent".
+agent_sel="app.kubernetes.io/name=miroir,app.kubernetes.io/component=agent"
 # Fails closed: true only when the query itself succeeded and found no agent pod on the node.
 miroir_gone() {
     local pods
-    pods=$(kubectl -n miroir-system get pods -l app.kubernetes.io/name=miroir-agent --field-selector spec.nodeName="$node" -o name) || return 1
+    pods=$(kubectl -n miroir-system get pods -l "$agent_sel" --field-selector spec.nodeName="$node" -o name) || return 1
     [ -z "$pods" ]
 }
 
@@ -195,12 +198,22 @@ if [ "$mode" = upgrade ] && [[ $os != *"($version)"* ]]; then
     fail "came back on $os, not $version: see 'Upgrade didn't take' in talos-upgrades.md"
 fi
 
-if [ -n "$(kubectl -n miroir-system get ds miroir-agent -o jsonpath='{.spec.template.spec.affinity}')" ]; then
+affinity=$(kubectl -n miroir-system get ds miroir-agent -o jsonpath='{.spec.template.spec.affinity}') ||
+    fail "could not read the miroir-agent DaemonSet to unpin it"
+if [ -n "$affinity" ]; then
     kubectl -n miroir-system patch ds miroir-agent --type=json -p '[{"op":"remove","path":"/spec/template/spec/affinity"}]' >/dev/null
 fi
 kubectl uncordon "$node" >/dev/null
 # Unpinning only starts the agent rollout; the next node must not be drained before it is back.
 kubectl -n miroir-system rollout status ds/miroir-agent --timeout=600s >/dev/null || fail "miroir-agent did not become ready on the node"
+# The rollout is judged on the desired set, so check this node's own agent pod as well.
+for _ in $(seq 1 60); do
+    ready=$(kubectl -n miroir-system get pods -l "$agent_sel" --field-selector spec.nodeName="$node" \
+        -o jsonpath='{.items[*].status.conditions[?(@.type=="Ready")].status}') || ready=""
+    [ "$ready" = True ] && break
+    sleep 5
+done
+[ "$ready" = True ] || fail "no Ready miroir-agent pod on the node"
 log "unpinned + uncordoned, miroir-agent ready; waiting for Ceph and etcd"
 for _ in $(seq 1 90); do
     ceph_ok && etcd_ok && break
