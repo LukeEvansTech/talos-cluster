@@ -62,6 +62,17 @@
   customManagers: [
     {
       customType: "regex",
+      // roll-node.sh runs this image privileged with hostPID, so it is digest-pinned in a shell
+      // variable that no built-in manager reads.
+      description: "Track the helper image pinned in the Talos roll scripts",
+      managerFilePatterns: ["/(^|/)talos/scripts/.+\\.sh$/"],
+      matchStrings: [
+        'helper_image="(?<depName>docker\\.io/library/busybox):(?<currentValue>[^@"]+)@(?<currentDigest>sha256:[a-f0-9]+)"',
+      ],
+      datasourceTemplate: "docker",
+    },
+    {
+      customType: "regex",
       // etcd-defrag fetches talosctl with a plain wget inside an inline shell script, which no
       // built-in manager sees, so the pin silently drifted (it sat on v1.11.5 while every other
       // Talos pin had moved to v1.13.7). Tracking it here keeps the client in step with the nodes

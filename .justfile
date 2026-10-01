@@ -17,6 +17,10 @@ mod kube "kubernetes"
 [group: 'Talos']
 mod talos "talos"
 
+[doc('Re-run claude/renovate-review on PRs it failed on the usage limit (429); probe re-runs one, all re-runs every one')]
+renovate-rerun-limited mode="probe":
+    "{{ justfile_directory() }}/scripts/renovate-rerun-limited.sh" {{ mode }}
+
 [private]
 log lvl msg *args:
     gum log -t rfc3339 -s -l "{{ lvl }}" "{{ msg }}" {{ args }}
