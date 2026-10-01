@@ -10,10 +10,18 @@
 set -euo pipefail
 
 mode=${1:-probe}
+case "$mode" in
+probe | all) ;;
+*)
+    echo "usage: renovate-rerun-limited.sh [probe|all]" >&2
+    exit 2
+    ;;
+esac
 repo=$(gh repo view --json nameWithOwner --jq .nameWithOwner)
 
+# Captured first: a failed scan must not read as an empty result through process substitution.
 # shellcheck disable=SC2016 # GraphQL variables, not shell expansions
-mapfile -t limited < <(gh api graphql -f query='query($o:String!,$n:String!){repository(owner:$o,name:$n){
+scan=$(gh api graphql -f query='query($o:String!,$n:String!){repository(owner:$o,name:$n){
     pullRequests(states:OPEN,first:100){nodes{number author{login}
         commits(last:1){nodes{commit{status{contexts{context state description targetUrl}}}}}}}}}' \
     -f o="${repo%%/*}" -f n="${repo#*/}" --jq '.data.repository.pullRequests.nodes[]
@@ -23,6 +31,8 @@ mapfile -t limited < <(gh api graphql -f query='query($o:String!,$n:String!){rep
     | select(.context == "claude/renovate-review" and .state == "FAILURE")
     | select(.description | test("usage limit"; "i"))
     | "\($n) \(.targetUrl | capture("runs/(?<id>[0-9]+)").id)"')
+limited=()
+[ -z "$scan" ] || mapfile -t limited <<<"$scan"
 
 if [ ${#limited[@]} -eq 0 ]; then
     echo "renovate-rerun-limited: no gate is failing on the usage limit"

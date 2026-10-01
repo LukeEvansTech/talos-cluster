@@ -8,7 +8,7 @@
 #   check   read-only: Ceph and etcd gates plus the node's miroir loop count; changes nothing
 #   upgrade installs talconfig's image at talenv's talosVersion instead of a plain reboot
 # Last line: ROLL-DONE <node> or ROLL-FAIL <node> <reason>. Takes 8-13 min: run it backgrounded.
-set -euo pipefail
+set -Eeuo pipefail
 
 node=${1:?usage: roll-node.sh <node> [full|skip|check] [reboot|upgrade]}
 phase=${2:-full}
@@ -20,17 +20,21 @@ fail() {
     exit 1
 }
 tools() { kubectl -n rook-ceph exec deploy/rook-ceph-tools -- "$@"; }
+# Any unhandled failure still ends in the marker a backgrounded caller waits on.
+trap 'echo "ROLL-FAIL $node unexpected failure at line $LINENO: $BASH_COMMAND"' ERR
 
 ip=$(kubectl get node "$node" -o jsonpath='{.status.addresses[?(@.type=="InternalIP")].address}')
 [ -n "$ip" ] || fail "no InternalIP for node"
 all_ips=$(kubectl get nodes -o jsonpath='{range .items[*]}{.status.addresses[?(@.type=="InternalIP")].address}{","}{end}')
 all_ips=${all_ips%,}
 
-# Healthy apart from the noout flag roll-guards sets. AUTH_INSECURE_* is NOT excluded: since the
+# Healthy apart from the noout flag roll-guards sets: OSDMAP_FLAGS passes only when noout is the
+# sole flag, so a stale pause or norecover still fails. AUTH_INSECURE_* is NOT excluded: since the
 # cephx aes256k migration nothing is muted, so any such check is real.
 ceph_ok() {
     tools ceph status -f json 2>/dev/null | jq -e '
-    ([.health.checks | keys[] | select(. != "OSDMAP_FLAGS")] | length == 0)
+    ([.health.checks | to_entries[]
+        | select(.key != "OSDMAP_FLAGS" or .value.summary.message != "noout flag(s) set")] | length == 0)
     and .osdmap.num_up_osds == .osdmap.num_osds and .osdmap.num_in_osds == .osdmap.num_osds
     and ([.pgmap.pgs_by_state[] | select(.state_name != "active+clean") | .count] | add // 0) == 0' >/dev/null
 }
@@ -66,10 +70,13 @@ loops() { on_node "$count_loops" | grep -o 'COUNT=[0-9]*' || echo COUNT=unknown;
 miroir_on_node() { kubectl -n miroir-system get pods -l app.kubernetes.io/name=miroir-agent --field-selector spec.nodeName="$node" -o name 2>/dev/null; }
 
 if [ "$phase" = check ]; then
-    if ceph_ok; then log "ceph ok"; else log "ceph NOT ok"; fi
-    if etcd_ok; then log "etcd ok"; else log "etcd NOT ok"; fi
-    log "miroir loops: $(loops)"
-    exit 0
+    ok=0
+    if ceph_ok; then log "ceph ok"; else log "ceph NOT ok" && ok=1; fi
+    if etcd_ok; then log "etcd ok"; else log "etcd NOT ok" && ok=1; fi
+    n=$(loops)
+    log "miroir loops: $n"
+    [ "$n" != COUNT=unknown ] || ok=1
+    exit "$ok"
 fi
 case "$phase/$mode" in
 full/reboot | full/upgrade | skip/reboot | skip/upgrade) ;;
