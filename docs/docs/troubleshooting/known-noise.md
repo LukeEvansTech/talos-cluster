@@ -146,15 +146,24 @@ roll, and none since.
 upgrade window and zero in the three days after. "Churn-correlated" and "pre-existing" are
 different claims; say which the timestamps support before raising a limit.
 
-### `KubeClientCertificateExpiration` for about ten minutes after a node reboot
+### `KubeClientCertificateExpiration` during Talos node operations
 
-Both the warning and the critical fire against the apiserver on the node that just rebooted, with a
-value of roughly 1,500 seconds: one client presents a certificate that is minutes from expiry while
-its rotation completes. Seen after the last node of the 1.14.1 roll (2026-09-22, fired 19:38,
-cleared by 19:50 with no action). The check is the 1st percentile of
-`apiserver_client_certificate_expiration_seconds_bucket` over the last five minutes; if it is still
-under a day an hour after the reboot, a client really is about to lose access and it is no longer
-noise.
+**Signature:** the warning and the critical fire together against one apiserver during a Talos
+upgrade or rolling reboot, then clear. The 1st percentile of
+`apiserver_client_certificate_expiration_seconds_bucket` (5m rate) drops to seconds or minutes
+while some client presents a short-lived certificate near its end. Seen on 2026-09-22 (the 1.14.1
+roll: 6, 2 and under 2 minutes of firing on two apiservers) and on 2026-09-29 (dips of 18 s and
+under 13 min during the rolling reboot, too brief for the rule's 5-minute `for:`, so nothing
+fired). Because `defaultRules.keepFiringFor` is 15m, a firing episode stays visible for about 20
+minutes or more after the metric recovers.
+
+**The alert clearing is not proof that a certificate rotated.** A low-traffic client can leave the
+5-minute window without renewing. Before treating it as noise, check the same quantile over a 1-hour
+window on every apiserver an hour after the operation, for example
+`histogram_quantile(0.01, sum without (namespace, service, endpoint) (rate(apiserver_client_certificate_expiration_seconds_bucket{job="apiserver"}[1h])))`:
+it should be back above 30 days everywhere (about 90 and 180 days on 2026-10-02). If it is under a
+week, or the alert fires outside a node operation, a client really is near expiry; find it rather
+than waiting.
 
 ### dispatcharr boot-time `ERROR` lines
 
