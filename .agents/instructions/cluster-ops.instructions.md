@@ -15,6 +15,8 @@ Read before running the local linter, querying the live cluster, or merging a ba
 - **`kubectl logs deploy/<x>` reads one pod.** On a multi-replica Deployment the log is a sample; a missing event may have landed on the other replica. Check `.status.replicas` first, and prefer the sender's own record over a receiver's log.
 - **`kubectl run -i --rm` drops the first lines a short-lived pod prints**, because `-i` attaches after the container starts, so a loop's first iteration looks like it never ran. Run the pod without `-i`/`--rm`, `kubectl wait --for=jsonpath='{.status.phase}'=Succeeded`, read `kubectl logs`, then delete it.
 
+- **App APIs from inside the pod.** The *arr apps carry their key and port as environment variables (`$SONARR__AUTH__APIKEY`, `$SONARR__SERVER__PORT`, likewise `RADARR__`), not in a readable `config.xml`; call `curl` on `localhost` inside `kubectl exec ... sh -c '...'` so the key never leaves the pod. Plex's token is `PlexOnlineToken` in `/config/Library/Application Support/Plex Media Server/Preferences.xml`, and the Plex image ships `curl` and `jq`. Settings changed this way (notification connections, posters) are not in Git: record them in the app's `docs/docs/apps/` page.
+
 ## Merging batches of Renovate pull requests
 
 - **`mergeable` goes `UNKNOWN` on every other open pull request after each merge**, because GitHub recomputes it asynchronously. A guard of `mergeable == MERGEABLE` read straight after a merge silently skips the rest of the batch. Poll `gh api repos/<owner>/<repo>/pulls/<n> --jq .mergeable` until it is not `null` (that REST read triggers the recompute), and retry once on `Base branch was modified`.

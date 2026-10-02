@@ -33,8 +33,15 @@ spec:
             command:
               - /bin/sh
               - -c
+            # Kometa exits 0 even when collections or playlists fail, so the Job looks healthy.
+            # Failing it on any "Kometa Failure" row lets KubeJobFailed report it.
             args:
-              - python3 kometa.py --run --read-only-config
+              - |
+                python3 kometa.py --run --read-only-config || exit $$?
+                if grep -q "Kometa Failure" /config/logs/meta.log; then
+                  echo "Kometa reported failed collections or playlists; failing the Job."
+                  exit 1
+                fi
             env:
               TZ: *timeZone
             envFrom:

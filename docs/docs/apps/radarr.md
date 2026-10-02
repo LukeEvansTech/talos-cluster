@@ -11,3 +11,9 @@ the setting implies.
 The value is set explicitly rather than removed, because an unset override falls back to
 `config.xml`, which is not tracked in Git. Sonarr and Prowlarr declare the same value for the same
 reason.
+
+## Settings that live only in the app
+
+Notification connections are stored in Radarr's database, not in Git. `chaski Download` (id 4)
+fires on file import only, without upgrades, since 2026-09-29. The API recipe is in
+[Sonarr](sonarr.md).

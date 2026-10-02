@@ -292,6 +292,10 @@ Flag consequential, repository-specific breakage. Prefer silence over style comm
   "Protected infra" `packageRules` entry in `.renovaterc.json5` is the source of truth (Cilium,
   Rook-Ceph, Flux, Talos, cert-manager, external-secrets, Envoy Gateway, CloudNativePG, …).
 - A GPU workload missing `runtimeClassName: nvidia`.
+- An `emptyDir` mounted over an app's config or data directory that holds state the app cannot
+  rebuild, such as a saved login or token. Every restart loses it; `epicgames` emailed a fresh
+  sign-in link on each run until #5691 moved its config to a PVC. Rebuildable caches belong on
+  `emptyDir`.
 - A new comment that narrates the manifest or runs past two short sentences.
 - Documentation moved out of a comment that states more than the comment did: a wider scope, two
   facts merged into one, or a conclusion the comment never drew.

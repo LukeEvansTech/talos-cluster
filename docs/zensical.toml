@@ -116,6 +116,7 @@ nav = [
     { "smtp2graph delivery monitoring" = "apps/smtp2graph.md" },
     { "snapshot-controller" = "apps/snapshot-controller.md" },
     { "SNMP exporter" = "apps/snmp-exporter.md" },
+    { "Sonarr" = "apps/sonarr.md" },
     { "Tautulli exporter" = "apps/tautulli-exporter.md" },
     { "Todoist Sort" = "apps/todoist-sort.md" },
     { "TrueNAS exporter" = "apps/truenas-exporter.md" },

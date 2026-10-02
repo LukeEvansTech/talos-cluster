@@ -1,7 +1,17 @@
 # Kometa
 
 Kometa (`kubernetes/apps/media/kometa`) runs as a nightly CronJob in the `media` namespace,
-building Plex collections, overlays and review playlists for Movies and TV.
+building Plex collections and overlays for Movies and TV. Titles it adds through Radarr and Sonarr
+carry the `kometa` tag there (plus `kometa-top250`, `kometa-bestpicture` or `kometa-trending`);
+review them with each app's tag filter.
+
+## Failed runs
+
+Kometa exits 0 even when collections or playlists fail, and reports them only as `Kometa Failure`
+rows in its run log. The CronJob greps `/config/logs/meta.log` for that string and exits 1, so a
+failure surfaces as `KubeJobFailed` rather than a green Job. The review playlists failed on every
+run for days unnoticed this way: Kometa rejects `radarr_taglist` and `sonarr_taglist` inside
+playlists. For any other doubt, read the `Error Summary` block at the end of the Job's log.
 
 ## The 02:00 schedule
 
