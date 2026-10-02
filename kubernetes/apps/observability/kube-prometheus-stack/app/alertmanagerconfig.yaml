@@ -60,6 +60,16 @@ spec:
             value: warning
             matchType: =
   inhibitRules:
+    # Pushover is the only paging channel, so a Pushover outage is signalled by silencing the
+    # heartbeat: healthchecks.io then alerts through its own channel.
+    - sourceMatch:
+        - name: alertname
+          value: PushoverDeliveryFailing
+          matchType: =
+      targetMatch:
+        - name: alertname
+          value: Watchdog
+          matchType: =
     - equal:
         - "alertname"
         - "namespace"

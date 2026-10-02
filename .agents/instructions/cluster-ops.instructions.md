@@ -14,6 +14,7 @@ Read before running the local linter, querying the live cluster, or merging a ba
 - **Ad-hoc Prometheus queries:** `kubectl -n observability port-forward svc/kube-prometheus-stack-prometheus 19090:9090` and hit `/api/v1/query`, or use the routed `prometheus.${SECRET_DOMAIN}` for a one-off.
 - **`kubectl logs deploy/<x>` reads one pod.** On a multi-replica Deployment the log is a sample; a missing event may have landed on the other replica. Check `.status.replicas` first, and prefer the sender's own record over a receiver's log.
 - **`kubectl run -i --rm` drops the first lines a short-lived pod prints**, because `-i` attaches after the container starts, so a loop's first iteration looks like it never ran. Run the pod without `-i`/`--rm`, `kubectl wait --for=jsonpath='{.status.phase}'=Succeeded`, read `kubectl logs`, then delete it.
+- **App APIs from inside the pod.** Sonarr and Radarr carry their key and port as environment variables (`$SONARR__AUTH__APIKEY`, `$SONARR__SERVER__PORT`, likewise `RADARR__`), not in a readable `config.xml`; call `curl` on `localhost` inside `kubectl exec ... sh -c '...'` so the key never leaves the pod. Plex's token is `PlexOnlineToken` in `/config/Library/Application Support/Plex Media Server/Preferences.xml`, and the Plex image ships `curl` and `jq`. Settings changed this way (notification connections, posters) are not in Git: record them in the app's `docs/docs/apps/` page.
 
 ## Merging batches of Renovate pull requests
 

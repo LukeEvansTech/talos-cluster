@@ -23,6 +23,8 @@ spec:
           # A hung run under Forbid once blocked three nights of runs (docs/docs/apps/kometa.md).
           # This kills any run past 20h; a normal run takes about 4h.
           activeDeadlineSeconds: 72000
+          # A retry would rerun the whole pipeline against the API quotas; fail on the first run.
+          backoffLimit: 0
           successfulJobsHistory: 1
           failedJobsHistory: 1
         containers:
@@ -33,8 +35,15 @@ spec:
             command:
               - /bin/sh
               - -c
+            # Kometa exits 0 even when collections or playlists fail, so the Job looks healthy.
+            # Failing it on any "Kometa Failure" row lets KubeJobFailed report it.
             args:
-              - python3 kometa.py --run --read-only-config
+              - |
+                python3 kometa.py --run --read-only-config || exit $$?
+                if grep -q "Kometa Failure" /config/logs/meta.log; then
+                  echo "Kometa reported failed collections or playlists; failing the Job."
+                  exit 1
+                fi
             env:
               TZ: *timeZone
             envFrom:
