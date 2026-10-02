@@ -107,7 +107,7 @@ spec:
             severity: critical
         - alert: SeedboxTrafficPaceHigh
           annotations:
-            summary: "Seedbox on pace for {{ $value | humanize }}B/mo (warn at 80 TB/mo pace)."
+            summary: "Seedbox on pace for {{ $value | humanize }}B/mo (warn at 90 TB/mo pace)."
           expr: |-
             (
               vnstat_month_total_bytes{job="seedbox-node",interface="eno0"}
@@ -115,7 +115,7 @@ spec:
                   time() - vnstat_month_start_timestamp_seconds{job="seedbox-node",interface="eno0"},
                   3600
                 )
-            ) * 2592000 > 80e12
+            ) * 2592000 > 90e12
           for: 6h
           labels:
             severity: warning
