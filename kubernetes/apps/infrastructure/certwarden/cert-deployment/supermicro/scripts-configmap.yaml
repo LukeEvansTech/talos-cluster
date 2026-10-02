@@ -92,7 +92,7 @@ data:
           restartPolicy: Never
           containers:
             - name: supermicro-deploy
-              image: ghcr.io/lukeevanstech/supermicro-ipmi-cert:0.3.0@sha256:73ab4265b8f6ef58df61e180736fd5067bf8e4603ab03f890e9e688f18bc9b91
+              image: ghcr.io/lukeevanstech/supermicro-ipmi-cert:0.3.0@sha256:5b147391cdded70fcce18cd356384ff1e8d1677384bae6d4be090ac6d1a1ec78
               command:
                 - sh
                 - -c
