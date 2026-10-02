@@ -146,6 +146,16 @@ roll, and none since.
 upgrade window and zero in the three days after. "Churn-correlated" and "pre-existing" are
 different claims; say which the timestamps support before raising a limit.
 
+### `KubeClientCertificateExpiration` for about ten minutes after a node reboot
+
+Both the warning and the critical fire against the apiserver on the node that just rebooted, with a
+value of roughly 1,500 seconds: one client presents a certificate that is minutes from expiry while
+its rotation completes. Seen after the last node of the 1.14.1 roll (2026-09-22, fired 19:38,
+cleared by 19:50 with no action). The check is the 1st percentile of
+`apiserver_client_certificate_expiration_seconds_bucket` over the last five minutes; if it is still
+under a day an hour after the reboot, a client really is about to lose access and it is no longer
+noise.
+
 ### dispatcharr boot-time `ERROR` lines
 
 **Signature:** on every dispatcharr start, `Redis configuration error: … CONFIG SET - 'save'` and
