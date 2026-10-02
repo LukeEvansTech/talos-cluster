@@ -23,6 +23,8 @@ spec:
           # A hung run under Forbid once blocked three nights of runs (docs/docs/apps/kometa.md).
           # This kills any run past 20h; a normal run takes about 4h.
           activeDeadlineSeconds: 72000
+          # A retry would rerun the whole pipeline against the API quotas; fail on the first run.
+          backoffLimit: 0
           successfulJobsHistory: 1
           failedJobsHistory: 1
         containers:
