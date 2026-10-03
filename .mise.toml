@@ -59,7 +59,7 @@ run = "uv pip install -r docs/requirements.txt"
 "github:home-operations/flate" = "latest"
 "github:home-operations/yayamlls" = "latest"
 python = "3.14.7"
-uv = "0.12.20"
+uv = "0.12.21"
 # Exact pins, not ranges: an in-range update is lockfile-only for Renovate, and that path fails on
 # Mend hosted (the node/prettier "-lockfile" branches errored every tick; ordinary bump-toml+lock
 # updates, e.g. just 1.57.0 in #3601, work fine). Every other tool here is already exact-pinned.
