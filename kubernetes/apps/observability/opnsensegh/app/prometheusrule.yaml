@@ -8,9 +8,8 @@ spec:
   groups:
     - name: opnsensegh.rules
       rules:
-        # The scrape crosses the tailnet, so this also fires when the egress path breaks; check the
-        # egress proxy first. absent() covers a vanished target, and opnsense_up covers the exporter
-        # answering while its own API call to the firewall fails.
+        # A missing gateway series on a good scrape is the API-failure signal; opnsense_up misreads
+        # this firewall (upstream AthennaMind/opnsense-exporter#119), see docs/docs/apps/opnsensegh.md.
         - alert: OPNsenseGhExporterDown
           annotations:
             summary: "opnsensegh metrics are missing or the exporter cannot reach its API."
@@ -19,7 +18,11 @@ spec:
             or
             absent(up{job="opnsensegh"})
             or
-            opnsense_up{job="opnsensegh"} == 0
+            (
+              absent(opnsense_gateways_status{job="opnsensegh", name="WAN_DHCP"})
+              and on()
+              up{job="opnsensegh"} == 1
+            )
           for: 10m
           labels:
             severity: warning
