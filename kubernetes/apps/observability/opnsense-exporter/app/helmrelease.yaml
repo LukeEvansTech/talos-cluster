@@ -24,7 +24,7 @@ spec:
               OPNSENSE_EXPORTER_OPS_PROTOCOL: https
               # OPNsense ships a self-signed cert by default, skip verification.
               OPNSENSE_EXPORTER_OPS_INSECURE: "true"
-              OPNSENSE_EXPORTER_INSTANCE_LABEL: opnsense
+              OPNSENSE_EXPORTER_INSTANCE_LABEL: opnsense-cr
               OPNSENSE_EXPORTER_WEB_LISTEN_ADDRESS: :8080
               # api/unbound/diagnostics/stats returns an empty body on this OPNsense version
               # (errors `parsing '' to int` every scrape); disabled to keep the logs clean.
