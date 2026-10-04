@@ -20,6 +20,23 @@ failed=0
 
 log() { printf '%s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*"; }
 
+# concurrencyPolicy only serialises scheduled runs; a manual
+# `create job --from=cronjob` would race them over the same files. A lock
+# older than the 6h activeDeadlineSeconds belongs to a killed run.
+LOCK="$STAGE/.lock"
+mkdir -p "$STAGE"
+if ! mkdir "$LOCK" 2>/dev/null; then
+    if [ -n "$(find "$LOCK" -maxdepth 0 -mmin -370)" ]; then
+        log "SKIP: another run holds $LOCK"
+        exit 0
+    fi
+    log "taking over stale $LOCK"
+    if ! { rm -rf "$LOCK" && mkdir "$LOCK"; }; then
+        exit 1
+    fi
+fi
+trap 'rm -rf "$LOCK"' EXIT
+
 for cat in sonarr-home radarr-home; do
     mkdir -p "$STAGE/$cat" "$STAGE/.incoming/$cat"
     # Top-level entries only; dot entries are the seedbox hook's staging dirs.
