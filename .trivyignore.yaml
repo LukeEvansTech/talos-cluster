@@ -89,12 +89,14 @@ misconfigurations:
   - id: KSV-0108
     paths:
       - "kubernetes/apps/observability/seedbox/app/egress.yaml"
+      - "kubernetes/apps/observability/opnsensegh/app/egress.yaml"
     statement: |-
       Intentional ExternalName Service: this is the tailscale-operator egress
       pattern. The operator replaces `externalName: placeholder` with its own
       tailnet proxy so cluster workloads (Prometheus) can reach the seedbox's
-      tailnet IP. No user traffic is routed to an attacker-controllable
-      external name; the operator manages the value.
+      tailnet IP and the opnsensegh exporter's target. No user traffic is
+      routed to an attacker-controllable external name; the operator manages
+      the value.
 
   - id: KSV-0109
     paths:

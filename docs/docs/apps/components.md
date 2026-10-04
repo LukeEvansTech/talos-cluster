@@ -50,6 +50,7 @@ loudly (hits a dead address) instead of silently succeeding against the wrong ho
   [device monitoring](../operations/device-monitoring.md) for why it runs outside the cluster.
 - `OPNSENSE_ADDR`: TEST-NET-1; the firewall's LAN address, scraped by the `opnsense-node`
   ScrapeConfig for OS-level metrics the API exporter cannot see.
+- `GH_OPNSENSE_ADDR`: TEST-NET-1; the `opnsensegh` exporter's egress target.
 - `PRINTER_HL_ADDR`, `PRINTER_MFC_ADDR`, `PRINTER_QL_ADDR`, `PRINTER_PT_ADDR`: TEST-NET-1; the
   Brother printer fleet, polled by `snmp-exporter` over SNMPv3. Real addresses live in the
   `cluster-secrets` 1Password item.

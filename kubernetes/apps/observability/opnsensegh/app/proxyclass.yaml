@@ -1,0 +1,11 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/tailscale.com/proxyclass_v1alpha1.json
+# The egress target is reached through an advertised subnet route, which a proxy does not accept by
+# default; see docs/docs/apps/opnsensegh.md.
+apiVersion: tailscale.com/v1alpha1
+kind: ProxyClass
+metadata:
+  name: accept-routes
+spec:
+  tailscale:
+    acceptRoutes: true

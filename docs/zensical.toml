@@ -94,6 +94,7 @@ nav = [
     { "Open WebUI" = "apps/open-webui.md" },
     { "OPNsense Config Backup" = "apps/opnsense-config-backup.md" },
     { "OPNsense exporter" = "apps/opnsense-exporter.md" },
+    { "opnsensegh" = "apps/opnsensegh.md" },
     { "opnsense-dns" = "apps/opnsense-dns.md" },
     { "Oxidized" = "apps/oxidized.md" },
     { "Plex exporter" = "apps/plex-exporter.md" },
