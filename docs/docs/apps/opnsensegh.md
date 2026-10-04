@@ -3,14 +3,13 @@
 ## Purpose
 
 `kubernetes/apps/observability/opnsensegh` runs a second copy of the API-based
-[OPNsense exporter](opnsense-exporter.md) against the firewall at the second site. That site's line
-sits behind carrier-grade NAT and degrades intermittently until its ONT is power-cycled, and the
-firewall kept no history of its own, so there was nothing to compare a bad evening against.
+[OPNsense exporter](opnsense-exporter.md) against the firewall at the second site, so its WAN
+gateway latency and loss are recorded next to the main firewall's.
 
-The exporter sets `OPNSENSE_EXPORTER_INSTANCE_LABEL: opnsense-gh`, so the existing OPNsense dashboard
-picks it up in its instance selector without a dashboard of its own. Gateway RTT and loss come from
-dpinger on that firewall, which pings a public anycast address. The ISP gateway rate-limits ICMP
-to itself and reads several times jitterier than the path beyond it, so it made a poor target.
+The exporter sets its own `OPNSENSE_EXPORTER_INSTANCE_LABEL`, so the existing OPNsense dashboard picks
+it up in its instance selector without a dashboard of its own. Gateway RTT and loss come from dpinger
+on that firewall, which pings a public anycast address rather than the upstream gateway: upstream
+gateways often rate-limit ICMP to themselves and read jitterier than the path beyond them.
 
 ## How the scrape reaches the remote site
 
@@ -30,7 +29,9 @@ endpoint returns 403.
 
 ## Alerts
 
-`OPNsenseGhExporterDown` fires when the scrape fails for 10 minutes. Because the scrape crosses the
-tailnet, check the egress proxy pod before reading it as the remote line being down.
+`OPNsenseGhExporterDown` fires after 10 minutes of a failed scrape, a vanished target, or the exporter
+reporting `opnsense_up == 0` (it is reachable but its API call to the firewall fails). Because the
+scrape crosses the tailnet, check the egress proxy pod before reading it as the remote line being
+down.
 `OPNsenseGhWanLossHigh` reuses the main firewall's 20% loss threshold. Both are `warning`, since nobody
 at the remote site is on call and the history is what this app is for.

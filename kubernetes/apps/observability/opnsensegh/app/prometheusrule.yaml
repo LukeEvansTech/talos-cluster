@@ -9,12 +9,17 @@ spec:
     - name: opnsensegh.rules
       rules:
         # The scrape crosses the tailnet, so this also fires when the egress path breaks; check the
-        # egress proxy before blaming the remote line.
+        # egress proxy first. absent() covers a vanished target, and opnsense_up covers the exporter
+        # answering while its own API call to the firewall fails.
         - alert: OPNsenseGhExporterDown
           annotations:
-            summary: "Remote-site OPNsense exporter is not being scraped."
+            summary: "Remote-site OPNsense metrics are missing or the exporter cannot reach its API."
           expr: |-
             up{job="opnsensegh"} == 0
+            or
+            absent(up{job="opnsensegh"})
+            or
+            opnsense_up{job="opnsensegh"} == 0
           for: 10m
           labels:
             severity: warning
