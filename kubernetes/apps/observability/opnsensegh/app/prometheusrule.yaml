@@ -13,7 +13,7 @@ spec:
         # answering while its own API call to the firewall fails.
         - alert: OPNsenseGhExporterDown
           annotations:
-            summary: "Remote-site OPNsense metrics are missing or the exporter cannot reach its API."
+            summary: "opnsensegh metrics are missing or the exporter cannot reach its API."
           expr: |-
             up{job="opnsensegh"} == 0
             or
@@ -26,7 +26,7 @@ spec:
         # Same threshold as the main firewall's OPNsenseWanGatewayLossHigh.
         - alert: OPNsenseGhWanLossHigh
           annotations:
-            summary: "Remote-site WAN packet loss at {{ $value }}% for 10m."
+            summary: "opnsensegh WAN packet loss at {{ $value }}% for 10m."
           expr: |-
             opnsense_gateways_loss_percentage{job="opnsensegh", name="WAN_DHCP"} > 20
           for: 10m

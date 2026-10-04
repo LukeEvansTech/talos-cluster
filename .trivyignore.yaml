@@ -94,8 +94,9 @@ misconfigurations:
       Intentional ExternalName Service: this is the tailscale-operator egress
       pattern. The operator replaces `externalName: placeholder` with its own
       tailnet proxy so cluster workloads (Prometheus) can reach the seedbox's
-      tailnet IP, and the second site's firewall behind its subnet route. No user traffic is routed to an attacker-controllable
-      external name; the operator manages the value.
+      tailnet IP and the opnsensegh exporter's target. No user traffic is
+      routed to an attacker-controllable external name; the operator manages
+      the value.
 
   - id: KSV-0109
     paths:
