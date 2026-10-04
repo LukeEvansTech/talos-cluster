@@ -32,7 +32,7 @@ run = "uv pip install -r docs/requirements.txt"
 # ≥1.52 needed for default-list/default-script; recipe_name() needs 1.53. Pinned for Renovate.
 "aqua:casey/just" = "1.58.0"
 "aqua:charmbracelet/gum" = "latest"
-"aqua:cli/cli" = "2.101.0"
+"aqua:cli/cli" = "2.102.0"
 "aqua:cloudflare/cloudflared" = "2026.9.3"
 "aqua:cue-lang/cue" = "0.17.1"
 # These four mirror the linters super-linter v8 bundles, so lefthook catches findings locally
