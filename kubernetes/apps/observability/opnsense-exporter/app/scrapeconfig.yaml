@@ -21,7 +21,7 @@ spec:
       targetLabel: instance
       # Matches OPNSENSE_EXPORTER_INSTANCE_LABEL on the API exporter so both
       # jobs' series join on the same instance.
-      replacement: opnsense
+      replacement: opnsense-cr
   metricRelabelings:
     # Same load-bearing drop as nut-appliance and the seedbox: unscoped ceph-mixin alerts
     # join through this metric and would otherwise adopt this target; see
