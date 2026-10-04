@@ -5,6 +5,7 @@ kind: Kustomization
 resources:
   - ./externalsecret.yaml
   - ./cronjob.yaml
+  - ./prometheusrule.yaml
 configMapGenerator:
   - name: seedbox-pull
     namespace: downloads
