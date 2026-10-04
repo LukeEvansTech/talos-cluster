@@ -1,0 +1,110 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/batch/cronjob_v1.json
+# Brings Sonarr/Radarr grabs from the seedbox home. The arrs send private-tracker
+# grabs to the seedbox qBittorrent (download client "qBittorrent Seedbox",
+# categories sonarr-home / radarr-home) so trackers only ever see the seedbox;
+# this moves the finished files into /media/downloads/seedbox/<category>/, where
+# each arr's remote path mapping finds them. See resources/pull.sh.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: seedbox-pull
+  namespace: downloads
+  annotations:
+    checkov.io/skip1: "CKV_K8S_15=The image is pinned by digest, so IfNotPresent cannot run a stale image; Always would re-pull every five minutes."
+    checkov.io/skip2: "CKV_K8S_11=CPU is compressible; limits are omitted repository-wide because throttling worsens an overload rather than containing it. CPU requests are set."
+    checkov.io/skip3: "CKV_K8S_40=Runs as 1000:1000 on purpose: the arrs import as that uid and the NFS media dataset is owned by it. The pod mounts no host paths and sets no hostPID/hostIPC/hostNetwork."
+spec:
+  schedule: "*/5 * * * *"
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  # A season pack can take an hour to come home; the next run waits for it.
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      ttlSecondsAfterFinished: 86400
+      activeDeadlineSeconds: 21600
+      template:
+        metadata:
+          labels:
+            app: seedbox-pull
+        spec:
+          restartPolicy: Never
+          automountServiceAccountToken: false
+          containers:
+            - name: pull
+              image: docker.io/rclone/rclone:1.75.1@sha256:45401ad7410db1d67ffdb58e19059ad20b0d8e0285a60e38bbec55cc1019c7a5
+              command:
+                - "sh"
+                - "/scripts/pull.sh"
+              env:
+                - name: TZ
+                  value: Europe/London
+                # Through the seedbox egress Service (observability), which proxies
+                # every seedbox tailnet port. The server is rclone serve sftp,
+                # serving only the outbox, so no remote shell to probe for hashes.
+                - name: RCLONE_CONFIG_SEEDBOX_TYPE
+                  value: sftp
+                - name: RCLONE_CONFIG_SEEDBOX_HOST
+                  value: seedbox.observability.svc.cluster.local
+                - name: RCLONE_CONFIG_SEEDBOX_PORT
+                  value: "2022"
+                - name: RCLONE_CONFIG_SEEDBOX_USER
+                  value: seedbox-pull
+                - name: RCLONE_CONFIG_SEEDBOX_KEY_FILE
+                  value: /secret/id_ed25519
+                - name: RCLONE_CONFIG_SEEDBOX_KNOWN_HOSTS_FILE
+                  value: /scripts/known_hosts
+                - name: RCLONE_CONFIG_SEEDBOX_SHELL_TYPE
+                  value: none
+                - name: RCLONE_CACHE_DIR
+                  value: /tmp/rclone
+                - name: RCLONE_CONFIG
+                  value: /tmp/rclone.conf
+              volumeMounts:
+                - name: downloads
+                  mountPath: /downloads
+                - name: scripts
+                  mountPath: /scripts
+                  readOnly: true
+                - name: secret
+                  mountPath: /secret
+                  readOnly: true
+                - name: tmp
+                  mountPath: /tmp
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 128Mi
+                limits:
+                  memory: 1Gi
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                # The arrs' identity, so they can import and the prune can delete.
+                runAsUser: 1000
+                runAsGroup: 1000
+                capabilities:
+                  drop:
+                    - "ALL"
+          securityContext:
+            fsGroup: 1000
+            seccompProfile:
+              type: RuntimeDefault
+          volumes:
+            - name: downloads
+              nfs:
+                server: ${SECRET_STORAGE_SERVER:-localhost}
+                path: /mnt/pool/media/downloads
+            - name: scripts
+              configMap:
+                name: seedbox-pull
+            - name: secret
+              secret:
+                secretName: seedbox-pull-secret
+                # Group-readable via fsGroup; ssh rejects world-readable keys.
+                defaultMode: 0440
+            - name: tmp
+              emptyDir: {}

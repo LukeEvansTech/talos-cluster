@@ -14,6 +14,7 @@ resources:
   - ./qui/ks.yaml
   - ./prowlarr/ks.yaml
   - ./sabnzbd/ks.yaml
+  - ./seedbox-pull/ks.yaml
   - ./flaresolverr/ks.yaml
   - ./byparr/ks.yaml
   - ./imgur-proxy/ks.yaml
