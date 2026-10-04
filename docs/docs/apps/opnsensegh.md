@@ -19,7 +19,11 @@ Tailscale operator egress Service. Two settings are load-bearing:
 
 ## Alerts
 
-`OPNsenseGhExporterDown` fires after 10 minutes of a failed scrape, a vanished target, or the exporter
-reporting `opnsense_up == 0` (it answers but its API call to the firewall fails). Check the egress
+`OPNsenseGhExporterDown` fires after 10 minutes of a failed scrape, a vanished target, or a missing
+WAN gateway series (the exporter answers but its API call to the firewall fails). It does not use
+`opnsense_up`: exporter v0.0.17 reads this firewall's string `"OK"` system status as down, so that
+series sits at 0 while every endpoint works
+([upstream #119](https://github.com/AthennaMind/opnsense-exporter/issues/119)). Revisit once a
+release fixes it. Check the egress
 proxy pod before reading it as the firewall being down. `OPNsenseGhWanLossHigh` reuses the main
 firewall's 20% loss threshold. Both are `warning`: the value of this app is the history.
