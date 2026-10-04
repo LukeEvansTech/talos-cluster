@@ -10,6 +10,10 @@ kind: CronJob
 metadata:
   name: seedbox-pull
   namespace: downloads
+  annotations:
+    checkov.io/skip1: "CKV_K8S_15=The image is pinned by digest, so IfNotPresent cannot run a stale image; Always would re-pull every five minutes."
+    checkov.io/skip2: "CKV_K8S_11=CPU is compressible; limits are omitted repository-wide because throttling worsens an overload rather than containing it. CPU requests are set."
+    checkov.io/skip3: "CKV_K8S_40=Runs as 1000:1000 on purpose: the arrs import as that uid and the NFS media dataset is owned by it. The pod mounts no host paths and sets no hostPID/hostIPC/hostNetwork."
 spec:
   schedule: "*/5 * * * *"
   successfulJobsHistoryLimit: 1
@@ -30,7 +34,7 @@ spec:
           automountServiceAccountToken: false
           containers:
             - name: pull
-              image: docker.io/rclone/rclone:1.75.1
+              image: docker.io/rclone/rclone:1.75.1@sha256:45401ad7410db1d67ffdb58e19059ad20b0d8e0285a60e38bbec55cc1019c7a5
               command:
                 - "sh"
                 - "/scripts/pull.sh"
