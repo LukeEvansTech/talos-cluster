@@ -13,8 +13,11 @@ spec:
   endpoints:
     - port: metrics
       scheme: http
+      # A Bazarr scrape takes ~7s and peaks at 10s, so the
+      # default 10s timeout flapped ExportarrDown (140 up/down changes in 72h).
       path: /metrics
       interval: 60s
+      scrapeTimeout: 50s
       relabelings:
         - action: replace
           targetLabel: instance
