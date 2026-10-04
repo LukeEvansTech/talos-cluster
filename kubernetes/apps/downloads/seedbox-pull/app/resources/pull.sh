@@ -28,6 +28,20 @@ for cat in sonarr-home radarr-home; do
         failed=1
         continue
     fi
+    # An entry already gone from the outbox but still in .incoming was fully
+    # moved by a run that died before publishing it.
+    for inc in "$STAGE/.incoming/$cat"/*; do
+        [ -e "$inc" ] || continue
+        name="${inc##*/}"
+        grep -qxF -e "$name" -e "$name/" /tmp/entries && continue
+        if [ ! -e "$STAGE/$cat/$name" ] && mv "$inc" "$STAGE/$cat/$name"; then
+            touch "$STAGE/$cat/$name"
+            log "RECOVERED $cat/$name"
+        else
+            log "FAIL $cat/$name: stranded in .incoming"
+            failed=1
+        fi
+    done
     while IFS= read -r entry; do
         [ -n "$entry" ] || continue
         name="${entry%/}"
@@ -59,9 +73,19 @@ for cat in sonarr-home radarr-home; do
 done
 
 for cat in sonarr-home radarr-home; do
-    find "$STAGE/$cat" -mindepth 1 -maxdepth 1 -mtime +"$KEEP_DAYS" | while IFS= read -r old; do
-        rm -rf "$old" && log "PRUNED $old"
-    done
+    if ! find "$STAGE/$cat" -mindepth 1 -maxdepth 1 -mtime +"$KEEP_DAYS" >/tmp/expired; then
+        log "FAIL $cat: cannot scan for expired entries"
+        failed=1
+        continue
+    fi
+    while IFS= read -r old; do
+        if rm -rf "$old"; then
+            log "PRUNED $old"
+        else
+            log "FAIL prune $old"
+            failed=1
+        fi
+    done </tmp/expired
 done
 
 exit "$failed"

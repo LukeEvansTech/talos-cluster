@@ -1,0 +1,32 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: seedbox-pull
+spec:
+  groups:
+    - name: seedbox-pull
+      rules:
+        # Age of the last success, so a stuck or unscheduled CronJob alerts too.
+        # 7h clears one full 6h activeDeadlineSeconds pull of a large pack.
+        - alert: SeedboxPullStale
+          annotations:
+            summary: >-
+              The seedbox-pull CronJob (downloads/seedbox-pull) has not
+              succeeded in over 7h - seedbox grabs are not coming home.
+            description: >-
+              No successful run of seedbox-pull in over 7h. Sonarr and Radarr
+              grabs on the seedbox qBittorrent stay "waiting to import" until it
+              recovers. Check the latest Job's log (FAIL lines name the entry),
+              then trigger a run with
+              kubectl -n downloads create job --from=cronjob/seedbox-pull.
+          expr: |-
+            time() - (
+              kube_cronjob_status_last_successful_time{namespace="downloads", cronjob="seedbox-pull"}
+              or
+              kube_cronjob_created{namespace="downloads", cronjob="seedbox-pull"}
+            ) > 25200
+          for: 30m
+          labels:
+            severity: warning
