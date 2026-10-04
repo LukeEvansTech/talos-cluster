@@ -20,10 +20,41 @@ failed=0
 
 log() { printf '%s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*"; }
 
+# concurrencyPolicy only serialises scheduled runs; a manual
+# `create job --from=cronjob` would race them over the same files.
+LOCK="$STAGE/.lock"
+TOKEN="$(hostname)-$$"
+mkdir -p "$STAGE"
+if ! mkdir "$LOCK" 2>/dev/null; then
+    # No automatic takeover: two runs could both judge it stale. SIGTERM
+    # (deadline, eviction) still releases it below; only SIGKILL leaves one.
+    if [ -n "$(find "$LOCK" -maxdepth 0 -mmin -370)" ]; then
+        log "SKIP: another run holds $LOCK"
+        exit 0
+    fi
+    log "FAIL: $LOCK is older than the 6h deadline; remove it if no pull is running"
+    exit 1
+fi
+echo "$TOKEN" >"$LOCK/owner"
+# shellcheck disable=SC2329 # called by the EXIT trap
+release() {
+    if [ "$(cat "$LOCK/owner" 2>/dev/null)" = "$TOKEN" ]; then
+        rm -rf "$LOCK"
+    fi
+}
+trap release EXIT
+trap 'exit 143' TERM INT
+# sh defers traps until a foreground child exits; backgrounding rclone and
+# waiting lets SIGTERM interrupt the wait and release the lock in time.
+run() {
+    "$@" &
+    wait $!
+}
+
 for cat in sonarr-home radarr-home; do
     mkdir -p "$STAGE/$cat" "$STAGE/.incoming/$cat"
     # Top-level entries only; dot entries are the seedbox hook's staging dirs.
-    if ! rclone lsf --max-depth 1 --exclude '.*' --exclude '.*/**' "seedbox:$cat" >/tmp/entries; then
+    if ! run rclone lsf --max-depth 1 --exclude '.*' --exclude '.*/**' "seedbox:$cat" >/tmp/entries; then
         log "FAIL $cat: cannot list outbox"
         failed=1
         continue
@@ -51,11 +82,11 @@ for cat in sonarr-home radarr-home; do
         fi
         start=$(date +%s)
         if [ "$entry" != "$name" ]; then
-            rclone move "seedbox:$cat/$name" "$STAGE/.incoming/$cat/$name" \
+            run rclone move "seedbox:$cat/$name" "$STAGE/.incoming/$cat/$name" \
                 --delete-empty-src-dirs --transfers 4 --multi-thread-streams 8 --stats 0 &&
-                rclone rmdir "seedbox:$cat/$name"
+                run rclone rmdir "seedbox:$cat/$name"
         else
-            rclone moveto "seedbox:$cat/$name" "$STAGE/.incoming/$cat/$name" \
+            run rclone moveto "seedbox:$cat/$name" "$STAGE/.incoming/$cat/$name" \
                 --multi-thread-streams 8 --stats 0
         fi
         rc=$?
