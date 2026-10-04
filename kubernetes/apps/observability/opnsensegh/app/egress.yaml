@@ -1,0 +1,14 @@
+---
+# Pods cannot reach the remote site's LAN, so the Tailscale operator proxies it over its subnet route.
+apiVersion: v1
+kind: Service
+metadata:
+  name: opnsensegh-fw
+  labels:
+    tailscale.com/proxy-class: accept-routes
+  annotations:
+    tailscale.com/tailnet-ip: ${GH_OPNSENSE_ADDR}
+    checkov.io/skip1: CKV_K8S_21=Namespace provided by Flux Kustomization targetNamespace
+spec:
+  type: ExternalName
+  externalName: placeholder

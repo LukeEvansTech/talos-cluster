@@ -1,0 +1,29 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: opnsensegh.rules
+spec:
+  groups:
+    - name: opnsensegh.rules
+      rules:
+        # The scrape crosses the tailnet, so this also fires when the egress path breaks; check the
+        # egress proxy before blaming the remote line.
+        - alert: OPNsenseGhExporterDown
+          annotations:
+            summary: "Remote-site OPNsense exporter is not being scraped."
+          expr: |-
+            up{job="opnsensegh"} == 0
+          for: 10m
+          labels:
+            severity: warning
+        # Same threshold as the main firewall's OPNsenseWanGatewayLossHigh.
+        - alert: OPNsenseGhWanLossHigh
+          annotations:
+            summary: "Remote-site WAN packet loss at {{ $value }}% for 10m."
+          expr: |-
+            opnsense_gateways_loss_percentage{job="opnsensegh", name="WAN_DHCP"} > 20
+          for: 10m
+          labels:
+            severity: warning

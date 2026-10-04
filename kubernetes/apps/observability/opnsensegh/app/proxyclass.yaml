@@ -1,0 +1,11 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/tailscale.com/proxyclass_v1alpha1.json
+# The remote firewall answers only on its LAN address (the tailnet address has no pass rule), so the
+# egress proxy must accept that site's advertised subnet route; see docs/docs/apps/opnsensegh.md.
+apiVersion: tailscale.com/v1alpha1
+kind: ProxyClass
+metadata:
+  name: accept-routes
+spec:
+  tailscale:
+    acceptRoutes: true

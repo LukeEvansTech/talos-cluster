@@ -1,0 +1,63 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: &app opnsensegh
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: app-template
+  values:
+    controllers:
+      opnsensegh:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        containers:
+          app:
+            image:
+              repository: ghcr.io/athennamind/opnsense-exporter
+              tag: 0.0.17@sha256:04a28ad984a091ea1e8371cf515da8b38b1d00416f53e6b5c9d68fec39d92ce0
+            env:
+              # OPS_API / OPS_API_KEY / OPS_API_SECRET come from the secret (envFrom).
+              OPNSENSE_EXPORTER_OPS_PROTOCOL: https
+              # OPNsense ships a self-signed cert by default, skip verification.
+              OPNSENSE_EXPORTER_OPS_INSECURE: "true"
+              OPNSENSE_EXPORTER_INSTANCE_LABEL: opnsense-gh
+              OPNSENSE_EXPORTER_WEB_LISTEN_ADDRESS: :8080
+              # api/unbound/diagnostics/stats returns an empty body on this OPNsense version
+              # (errors `parsing '' to int` every scrape); disabled to keep the logs clean.
+              OPNSENSE_EXPORTER_DISABLE_UNBOUND: "true"
+            envFrom:
+              - secretRef:
+                  name: opnsensegh-secret
+            probes:
+              liveness:
+                enabled: true
+              readiness:
+                enabled: true
+            resources:
+              requests:
+                cpu: 10m
+                memory: 64Mi
+              limits:
+                memory: 128Mi
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop:
+                  - ALL
+    defaultPodOptions:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+    service:
+      app:
+        controller: *app
+        ports:
+          metrics:
+            port: 8080
+            protocol: TCP
