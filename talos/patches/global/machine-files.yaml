@@ -27,6 +27,8 @@ machine:
     # and pinning nfsvers=4.2 would force-break any NFSv3 mount, which the NAS still offers.
     # `op: overwrite` replaces the whole file, so Talos's shipped nolock=true is restated; it's
     # inert for the NFSv4.x mounts made here but matters on a v3 fallback.
+    # noresvport sources connections from unprivileged ports, so a reconnect is not starved of
+    # privileged ports stuck in TIME_WAIT; the NAS export allows non-root source ports.
     - op: overwrite
       path: /etc/nfsmount.conf
       permissions: 0o644
@@ -35,3 +37,4 @@ machine:
         nolock=true
         nconnect=8
         noatime=True
+        noresvport=True
