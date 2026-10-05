@@ -137,7 +137,8 @@ spec:
       gzip: {}
   connection:
     bufferLimit: 8Mi
-  # reset-before-request: a plain reset also replays requests the upstream already received, duplicating webhook and log-ingest writes.
+  # A plain reset also replays requests the upstream already received, duplicating webhook
+  # and log-ingest writes.
   retry:
     numRetries: 2
     retryOn:
