@@ -15,6 +15,7 @@ resources:
   - ./etcd-defrag/ks.yaml
   - ./fstrim/ks.yaml
   - ./generic-device-plugin/ks.yaml
+  - ./gvisor/ks.yaml
   - ./metrics-server/ks.yaml
   - ./multus/ks.yaml
   - ./reflector/ks.yaml
