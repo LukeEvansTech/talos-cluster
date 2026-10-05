@@ -19,15 +19,7 @@ spec:
             image:
               repository: ghcr.io/unpackerr/unpackerr
               tag: v0.16.1@sha256:406586865431b40b29353d899fb75a788f5384743f7f381444db5fe55d206914
-            # Sonarr and Radarr do not unpack torrent downloads. Scene releases
-            # grabbed through the seedbox (downloads/seedbox-pull) arrive as RAR
-            # sets, so the arrs only see the sample and the item sits at
-            # importPending. Unpackerr watches both queues and extracts in place.
-            # The original RARs are never deleted (DELETE_ORIG=false); the
-            # extracted copy is removed once the arr has imported it, and
-            # seedbox-pull prunes the entry after 14 days.
-            # Both protocol spellings: newer Starr versions report the class name
-            # (unpackerr's own default lists both).
+            # Newer Starr versions report the protocol's class name; list both spellings.
             env:
               TZ: ${TIMEZONE}
               UN_INTERVAL: 2m
@@ -60,7 +52,6 @@ spec:
     defaultPodOptions:
       securityContext:
         runAsNonRoot: true
-        # The arrs' identity: they import what this extracts.
         runAsUser: 1000
         runAsGroup: 1000
         fsGroup: 1000
@@ -83,11 +74,8 @@ spec:
     persistence:
       tmp:
         type: emptyDir
-      # ONLY the seedbox staging tree, at the same path the arrs see it.
-      # UN_*_PATHS is a fallback for unreachable paths, not a filter: unpackerr
-      # extracts whatever path a queue item reports if it can reach it. Not
-      # mounting the rest of /media/downloads is what keeps it off the home
-      # qBittorrent and SABnzbd output.
+      # Only the seedbox tree, at the arrs' path: UN_*_PATHS is a fallback, not a
+      # filter, so anything mounted here can be extracted. See README.md.
       seedbox:
         type: nfs
         server: ${SECRET_STORAGE_SERVER:-localhost}

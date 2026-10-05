@@ -32,8 +32,6 @@ spec:
           for: 30m
           labels:
             severity: warning
-        # Work is waiting and none of it is getting through: items queued for
-        # extraction for 2h, or items that exhausted their retries.
         - alert: UnpackerrExtractionStuck
           annotations:
             summary: Unpackerr has extraction work that is not completing.
@@ -45,5 +43,19 @@ spec:
           expr: |-
             max by (name) (unpackerr_gauges{namespace="media", name=~"queued|failed"}) > 0
           for: 2h
+          labels:
+            severity: warning
+        # A completed seedbox item unpackerr never gets past, e.g. a path mismatch.
+        - alert: UnpackerrItemsWaiting
+          annotations:
+            summary: Unpackerr has had completed queue items waiting for 24h.
+            description: >-
+              {{ $value }} completed Sonarr/Radarr seedbox item(s) have sat in
+              unpackerr's waiting state for over 24h. Either the files never
+              reached /media/downloads/seedbox (check seedbox-pull) or the arr
+              cannot import them for another reason; check the arr queue.
+          expr: |-
+            max(unpackerr_gauges{namespace="media", name="waiting"}) > 0
+          for: 24h
           labels:
             severity: warning
