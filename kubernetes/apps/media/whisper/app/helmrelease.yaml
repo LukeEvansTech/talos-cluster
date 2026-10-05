@@ -39,12 +39,13 @@ spec:
               HOME: /tmp
               XDG_CACHE_HOME: /tmp/.cache
             probes:
+              # TCP, not HTTP: /asr transcribes on the event loop, so the single process answers
+              # nothing else until a job finishes, while the kernel still accepts connections.
               liveness: &probes
                 enabled: true
                 custom: true
                 spec:
-                  httpGet:
-                    path: /docs
+                  tcpSocket:
                     port: &port 9000
                   periodSeconds: 30
                   timeoutSeconds: 5
@@ -55,8 +56,7 @@ spec:
                 enabled: true
                 custom: true
                 spec:
-                  httpGet:
-                    path: /docs
+                  tcpSocket:
                     port: *port
                   periodSeconds: 10
                   failureThreshold: 90
