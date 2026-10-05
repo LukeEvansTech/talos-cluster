@@ -1,0 +1,92 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: unpackerr
+spec:
+  groups:
+    - name: unpackerr
+      rules:
+        - alert: UnpackerrDown
+          annotations:
+            summary: Unpackerr (media/unpackerr) is not being scraped.
+            description: >-
+              Prometheus has had no successful scrape of unpackerr for 15m.
+              Seedbox scene RAR downloads will sit at importPending in Sonarr
+              and Radarr until it is back. Check the pod and its logs.
+          expr: |-
+            absent(up{namespace="media", service="unpackerr"} == 1)
+          for: 15m
+          labels:
+            severity: warning
+        # fetch_total counts failed fetches too, so this is "no successful fetch".
+        - alert: UnpackerrQueueFetchFailing
+          annotations:
+            summary: Unpackerr has not read the {{ $labels.app }} queue in 30m.
+            description: >-
+              Every unpackerr queue fetch from {{ $labels.app }} has failed for
+              30m, so nothing new is being extracted. Check the API key in the
+              unpackerr-secret and that the arr is up.
+          expr: |-
+            sum by (app) (increase(unpackerr_app_queue_fetch_total{namespace="media"}[30m]))
+            - sum by (app) (increase(unpackerr_app_queue_fetch_errors_total{namespace="media"}[30m]))
+            < 1
+          for: 15m
+          labels:
+            severity: warning
+        # v0.16.1 reads only the first 2000 queue records; items past that are never seen.
+        - alert: UnpackerrQueueTruncated
+          annotations:
+            summary: The {{ $labels.app }} queue holds {{ $value }} items, past unpackerr's 2000.
+            description: >-
+              Unpackerr v0.16.1 fetches one 2000-record page of the
+              {{ $labels.app }} queue, so seedbox items beyond it are never
+              extracted and stay at importPending. Shrink the queue (clear
+              stuck or failed items) or move to an unpackerr that paginates.
+          expr: |-
+            max by (app) (unpackerr_app_queue_size{namespace="media"}) >= 2000
+          for: 1h
+          labels:
+            severity: warning
+        # Gauges are aggregate counts, so each rule pairs pending work with no
+        # progress in the same window rather than measuring occupancy alone.
+        - alert: UnpackerrExtractionStuck
+          annotations:
+            summary: Unpackerr has extraction work but extracted nothing in 3h.
+            description: >-
+              Items have been queued or extracting in unpackerr for 3h with no
+              file extracted. The matching Sonarr/Radarr queue items will not
+              import. Check the unpackerr logs (corrupt or missing volume, disk
+              space, NFS I/O).
+          expr: |-
+            min_over_time(sum(unpackerr_gauges{namespace="media", name=~"queued|extracting"})[3h:5m]) > 0
+            unless on() increase(unpackerr_files_extracted_total{namespace="media"}[3h]) > 0
+          for: 15m
+          labels:
+            severity: warning
+        - alert: UnpackerrExtractionFailed
+          annotations:
+            summary: Unpackerr gave up extracting {{ $value }} item(s).
+            description: >-
+              An extraction failed and exhausted its retries (or hit a size,
+              file-count or ratio cap). The item stays at importPending in the
+              arr. Check the unpackerr logs for the reason.
+          expr: |-
+            max(unpackerr_gauges{namespace="media", name="failed"}) > 0
+          for: 30m
+          labels:
+            severity: warning
+        - alert: UnpackerrExtractedNotImported
+          annotations:
+            summary: Unpackerr extracted items that the arrs have not imported in 6h.
+            description: >-
+              Extracted items have sat unimported for 6h while no import was
+              recorded. Check the Sonarr/Radarr queue for the import error
+              (manual import needed, wrong match).
+          expr: |-
+            min_over_time(max(unpackerr_gauges{namespace="media", name="extracted"})[6h:5m]) > 0
+            unless on() changes(max(unpackerr_gauges{namespace="media", name="imported"})[6h:5m]) > 0
+          for: 15m
+          labels:
+            severity: warning

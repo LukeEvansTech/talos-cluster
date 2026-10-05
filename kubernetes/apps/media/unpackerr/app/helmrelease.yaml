@@ -1,0 +1,87 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: unpackerr
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: unpackerr
+  values:
+    controllers:
+      unpackerr:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        containers:
+          app:
+            image:
+              repository: ghcr.io/unpackerr/unpackerr
+              tag: v0.16.1@sha256:406586865431b40b29353d899fb75a788f5384743f7f381444db5fe55d206914
+            # Newer Starr versions report the protocol's class name; list both spellings.
+            env:
+              TZ: ${TIMEZONE}
+              UN_INTERVAL: 2m
+              UN_START_DELAY: 1m
+              UN_PARALLEL: "1"
+              UN_WEBSERVER_METRICS: "true"
+              UN_WEBSERVER_LISTEN_ADDR: 0.0.0.0:5656
+              UN_SONARR_0_URL: http://sonarr.media.svc.cluster.local
+              UN_SONARR_0_PATHS_0: /media/downloads/seedbox/sonarr-home
+              UN_SONARR_0_PROTOCOLS: torrent,TorrentDownloadProtocol
+              UN_SONARR_0_DELETE_ORIG: "false"
+              UN_SONARR_0_DELETE_DELAY: 5m
+              # v0.16 defaults (20GB Sonarr, 75GB Radarr) fail season packs without retry.
+              UN_SONARR_0_MAX_BYTES: 400GB
+              UN_RADARR_0_URL: http://radarr.media.svc.cluster.local
+              UN_RADARR_0_PATHS_0: /media/downloads/seedbox/radarr-home
+              UN_RADARR_0_PROTOCOLS: torrent,TorrentDownloadProtocol
+              UN_RADARR_0_DELETE_ORIG: "false"
+              UN_RADARR_0_DELETE_DELAY: 5m
+              UN_RADARR_0_MAX_BYTES: 200GB
+            envFrom:
+              - secretRef:
+                  name: "{{ .Release.Name }}-secret"
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities: { drop: ["ALL"] }
+            resources:
+              requests:
+                cpu: 10m
+              limits:
+                memory: 1Gi
+    defaultPodOptions:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+    service:
+      app:
+        controller: unpackerr
+        ports:
+          http:
+            port: 5656
+    serviceMonitor:
+      app:
+        serviceName: unpackerr
+        endpoints:
+          - port: http
+            scheme: http
+            path: /metrics
+            interval: 1m
+            scrapeTimeout: 10s
+    persistence:
+      tmp:
+        type: emptyDir
+      # Only the seedbox tree, at the arrs' path: UN_*_PATHS is a fallback, not a
+      # filter, so anything mounted here can be extracted. See README.md.
+      seedbox:
+        type: nfs
+        server: ${SECRET_STORAGE_SERVER:-localhost}
+        path: /mnt/pool/media/downloads/seedbox
+        globalMounts:
+          - path: /media/downloads/seedbox

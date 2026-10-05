@@ -45,6 +45,7 @@ resources:
   - ./tautulli/ks.yaml
   - ./tdarr/ks.yaml
   - ./tracearr/ks.yaml
+  - ./unpackerr/ks.yaml
   - ./watchstate/ks.yaml
   - ./whisper/ks.yaml
   - ./wizarr/ks.yaml
