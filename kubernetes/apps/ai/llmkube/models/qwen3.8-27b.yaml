@@ -68,6 +68,25 @@ spec:
           labelSelector:
             matchLabels:
               llm-gpu-model: "true"
+        # Reciprocal of whisper's rule: its model can hold several GiB on its card, and this one
+        # needs nearly all 24. Pod affinity is namespace-scoped, hence `namespaces`.
+        - topologyKey: kubernetes.io/hostname
+          namespaces:
+            - "media"
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: whisper
+      # Plex prefers to avoid this pod but nothing stopped a reschedule landing on Plex's card,
+      # which would leave its transcodes about 1 GiB of VRAM.
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            topologyKey: kubernetes.io/hostname
+            namespaces:
+              - "media"
+            labelSelector:
+              matchLabels:
+                app.kubernetes.io/name: plex
   # No runAsNonRoot: the cache-prep init container needs scoped root to chown CephFS
   # (docs/docs/architecture/ai-llm-stack.md Rollout and staging safety).
   podSecurityContext:
