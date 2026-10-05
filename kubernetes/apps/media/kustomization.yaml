@@ -46,5 +46,6 @@ resources:
   - ./tdarr/ks.yaml
   - ./tracearr/ks.yaml
   - ./watchstate/ks.yaml
+  - ./whisper/ks.yaml
   - ./wizarr/ks.yaml
   - ./yourspotify/ks.yaml
