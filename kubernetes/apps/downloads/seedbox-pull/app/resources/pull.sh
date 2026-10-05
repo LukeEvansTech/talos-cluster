@@ -25,15 +25,32 @@ log() { printf '%s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*"; }
 LOCK="$STAGE/.lock"
 TOKEN="$(hostname)-$$"
 mkdir -p "$STAGE"
+# Age is read from the owner file, written once per holder; a dir's mtime
+# changes whenever an entry is added inside it.
+fresh() { [ -n "$(find "$1" -maxdepth 0 -mmin -370 2>/dev/null)" ]; }
 if ! mkdir "$LOCK" 2>/dev/null; then
-    # No automatic takeover: two runs could both judge it stale. SIGTERM
-    # (deadline, eviction) still releases it below; only SIGKILL leaves one.
-    if [ -n "$(find "$LOCK" -maxdepth 0 -mmin -370)" ]; then
+    ref="$LOCK/owner"
+    [ -e "$ref" ] || ref="$LOCK"
+    if fresh "$ref"; then
         log "SKIP: another run holds $LOCK"
         exit 0
     fi
-    log "FAIL: $LOCK is older than the 6h deadline; remove it if no pull is running"
-    exit 1
+    # Older than the job's 6h activeDeadlineSeconds, so its holder is dead: a
+    # SIGKILL (OOM) skips the EXIT trap. Claim it in place: only one run can
+    # mkdir the takeover dir, and it stays until the lock is released, so the
+    # path is never reopened for a second taker.
+    if ! mkdir "$LOCK/takeover" 2>/dev/null; then
+        log "SKIP: another run is taking over $LOCK"
+        exit 0
+    fi
+    # The lock may have been released and re-created by a live run between
+    # the age check and the claim: back off unless its owner is still stale.
+    if [ ! -e "$LOCK/owner" ] || fresh "$LOCK/owner"; then
+        rmdir "$LOCK/takeover" 2>/dev/null
+        log "SKIP: $LOCK changed hands during takeover"
+        exit 0
+    fi
+    log "TOOK OVER: $LOCK was older than the 6h deadline"
 fi
 echo "$TOKEN" >"$LOCK/owner"
 # shellcheck disable=SC2329 # called by the EXIT trap
@@ -83,11 +100,11 @@ for cat in sonarr-home radarr-home; do
         start=$(date +%s)
         if [ "$entry" != "$name" ]; then
             run rclone move "seedbox:$cat/$name" "$STAGE/.incoming/$cat/$name" \
-                --delete-empty-src-dirs --transfers 4 --multi-thread-streams 8 --stats 0 &&
+                --delete-empty-src-dirs --transfers 4 --multi-thread-streams 4 --stats 0 &&
                 run rclone rmdir "seedbox:$cat/$name"
         else
             run rclone moveto "seedbox:$cat/$name" "$STAGE/.incoming/$cat/$name" \
-                --multi-thread-streams 8 --stats 0
+                --multi-thread-streams 4 --stats 0
         fi
         rc=$?
         if [ "$rc" -eq 0 ] && mv "$STAGE/.incoming/$cat/$name" "$STAGE/$cat/$name"; then
