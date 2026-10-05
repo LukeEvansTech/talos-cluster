@@ -36,6 +36,13 @@ spec:
               # unload (it assigns into a model dict that the unload set to None).
               # The engine ignores ASR_MODEL_PATH; weights, VAD and alignment models land in
               # these caches, kept on the PVC so a restart does not refetch them.
+              # v1.10.0 ships lightning 2.6, under which pyannote's VAD checkpoint fails torch's
+              # weights_only load and the pod crash-loops (upstream issue #383). This restores the
+              # pre-2.6 behaviour for the whole process, which loads only pinned upstream models.
+              TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD: "1"
+              # The image defaults to 1000 characters, which emits one cue per Whisper segment.
+              SUBTITLE_MAX_LINE_WIDTH: "42"
+              SUBTITLE_MAX_LINE_COUNT: "2"
               HF_HOME: /models/huggingface
               TORCH_HOME: /models/torch
               XDG_CACHE_HOME: /models/cache
