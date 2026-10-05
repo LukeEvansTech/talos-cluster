@@ -37,25 +37,37 @@ spec:
             summary: Unpackerr has extraction work that is not completing.
             description: >-
               Unpackerr reports {{ $value }} item(s) in state
-              "{{ $labels.name }}" for over 2h. The matching Sonarr/Radarr
+              "{{ $labels.name }}" for over 3h. The matching Sonarr/Radarr
               queue items will not import. Check the unpackerr logs for the
-              archive error (corrupt or missing volume, disk space, permissions).
+              archive error (corrupt or missing volume, disk space, NFS I/O).
           expr: |-
-            max by (name) (unpackerr_gauges{namespace="media", name=~"queued|failed"}) > 0
-          for: 2h
+            max by (name) (unpackerr_gauges{namespace="media", name=~"queued|extracting|failed"}) > 0
+          for: 3h
+          labels:
+            severity: warning
+        - alert: UnpackerrExtractedNotImported
+          annotations:
+            summary: Unpackerr extracted items that the arrs have not imported.
+            description: >-
+              {{ $value }} item(s) extracted by unpackerr have not been
+              imported by Sonarr/Radarr for over 6h. Check the arr queue for
+              the import error (manual import needed, wrong match).
+          expr: |-
+            max(unpackerr_gauges{namespace="media", name="extracted"}) > 0
+          for: 6h
           labels:
             severity: warning
         # A completed seedbox item unpackerr never gets past, e.g. a path mismatch.
         - alert: UnpackerrItemsWaiting
           annotations:
-            summary: Unpackerr has had completed queue items waiting for 24h.
+            summary: Unpackerr has had completed queue items waiting for 12h.
             description: >-
               {{ $value }} completed Sonarr/Radarr seedbox item(s) have sat in
-              unpackerr's waiting state for over 24h. Either the files never
+              unpackerr's waiting state for over 12h. Either the files never
               reached /media/downloads/seedbox (check seedbox-pull) or the arr
               cannot import them for another reason; check the arr queue.
           expr: |-
             max(unpackerr_gauges{namespace="media", name="waiting"}) > 0
-          for: 24h
+          for: 12h
           labels:
             severity: warning
