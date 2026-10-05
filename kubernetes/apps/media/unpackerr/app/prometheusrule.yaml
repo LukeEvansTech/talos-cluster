@@ -1,0 +1,49 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: unpackerr
+spec:
+  groups:
+    - name: unpackerr
+      rules:
+        - alert: UnpackerrDown
+          annotations:
+            summary: Unpackerr (media/unpackerr) is not being scraped.
+            description: >-
+              Prometheus has had no successful scrape of unpackerr for 15m.
+              Seedbox scene RAR downloads will sit at importPending in Sonarr
+              and Radarr until it is back. Check the pod and its logs.
+          expr: |-
+            absent(up{namespace="media", service="unpackerr"} == 1)
+          for: 15m
+          labels:
+            severity: warning
+        - alert: UnpackerrQueueFetchFailing
+          annotations:
+            summary: Unpackerr cannot read the Sonarr or Radarr queue.
+            description: >-
+              Unpackerr's queue fetches from {{ $labels.app }} have failed for
+              30m, so nothing new is being extracted. Check the API key in the
+              unpackerr-secret and that the arr is up.
+          expr: |-
+            sum by (app) (rate(unpackerr_app_queue_fetch_errors_total{namespace="media"}[15m])) > 0
+          for: 30m
+          labels:
+            severity: warning
+        # Work is waiting and none of it is getting through: items queued for
+        # extraction for 2h, or items that exhausted their retries.
+        - alert: UnpackerrExtractionStuck
+          annotations:
+            summary: Unpackerr has extraction work that is not completing.
+            description: >-
+              Unpackerr reports {{ $value }} item(s) in state
+              "{{ $labels.name }}" for over 2h. The matching Sonarr/Radarr
+              queue items will not import. Check the unpackerr logs for the
+              archive error (corrupt or missing volume, disk space, permissions).
+          expr: |-
+            max by (name) (unpackerr_gauges{namespace="media", name=~"queued|failed"}) > 0
+          for: 2h
+          labels:
+            severity: warning
