@@ -91,6 +91,9 @@ spec:
             severity: warning
         # vnstat survives 14d retention and the weekly reboot that reset node_network counters.
         # The provider counts both directions against a 100 TB monthly cap, with 1 TB = 1e12 bytes.
+        # The pace rules wait 3 days into the month: projecting a few hours across 30 days peaked
+        # at 130 TB/mo in the 40 days to 2026-10-05, and fired on 1-2 October. Past day 3 the peak
+        # was 83 TB/mo. SeedboxTrafficCapNear still counts actual bytes.
         - alert: SeedboxTrafficPaceCritical
           annotations:
             summary: "Seedbox on pace for {{ $value | humanize }}B/mo, 100 TB cap at risk."
@@ -102,6 +105,7 @@ spec:
                   3600
                 )
             ) * 2592000 > 95e12
+            and (time() - vnstat_month_start_timestamp_seconds{job="seedbox-node",interface="eno0"} > 3 * 86400)
           for: 6h
           labels:
             severity: critical
@@ -116,6 +120,7 @@ spec:
                   3600
                 )
             ) * 2592000 > 90e12
+            and (time() - vnstat_month_start_timestamp_seconds{job="seedbox-node",interface="eno0"} > 3 * 86400)
           for: 6h
           labels:
             severity: warning
@@ -204,21 +209,24 @@ spec:
           for: 6h
           labels:
             severity: warning
-        # 4 TiB is about twice the observed maximum (2026-08-27).
-        # It needs size_bytes and ratio to survive the servicemonitor drop list.
+        # 4 TiB is about twice the observed maximum (2026-08-27). Computed on the box by
+        # seedbox-apps seedbox-metrics, which excludes cross-seeds: they hardlink content already
+        # held, and were 10.8 of the 11.4 TiB the exporter-based version counted on 2026-10-05.
         - alert: SeedboxDeadWeightHigh
           annotations:
-            summary: "Seedbox holds over 4 TiB of torrents that have never uploaded, reclaimable without losing ratio."
+            summary: "Seedbox holds over 4 TiB of finished torrents that have never uploaded: cull candidates, check seed obligations first."
             description: >-
-              Torrents at ratio 0 are holding more than 4 TiB of the data
-              array. This is the cheapest space on the box to reclaim: none
-              of it is earning anything. Check the Grafana "Cull candidates"
+              Finished torrents holding their own data that never uploaded
+              (cross-seeds and the torrents they link to excluded) are
+              holding more than 4 TiB of the data array. This
+              is the cheapest space on the box to reclaim: none of it is
+              earning anything. Check the Grafana "Cull candidates"
               panel for the worst offenders, but confirm each tracker's
               hit-and-run rules before removing. A recent grab may simply
               not have found a peer yet. Reclaim is not immediate: culls
               move data to .RecycleBin on the same filesystem for 3 days.
           expr: |-
-            seedbox:torrents:zero_ratio_bytes > 4 * 1024^4
+            qbt_torrents_dead_weight_bytes{job="seedbox-node"} > 4 * 1024^4
           for: 6h
           labels:
             severity: warning
