@@ -68,14 +68,18 @@ spec:
           labelSelector:
             matchLabels:
               llm-gpu-model: "true"
-        # Reciprocal of whisper's rule: its model can hold several GiB on its card, and this one
-        # needs nearly all 24. Pod affinity is namespace-scoped, hence `namespaces`.
+        # Reciprocal of the speech-to-text apps' rule: their model can hold several GiB on its
+        # card, and this one needs nearly all 24. Pod affinity is namespace-scoped, hence `namespaces`.
         - topologyKey: kubernetes.io/hostname
           namespaces:
             - "media"
           labelSelector:
-            matchLabels:
-              app.kubernetes.io/name: whisper
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - whisper
+                  - whisperx
       # Plex prefers to avoid this pod but nothing stopped a reschedule landing on Plex's card,
       # which would leave its transcodes about 1 GiB of VRAM.
       preferredDuringSchedulingIgnoredDuringExecution:
