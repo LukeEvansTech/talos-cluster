@@ -214,10 +214,11 @@ spec:
         # held, and were 10.8 of the 11.4 TiB the exporter-based version counted on 2026-10-05.
         - alert: SeedboxDeadWeightHigh
           annotations:
-            summary: "Seedbox holds over 4 TiB of torrents that have never uploaded, reclaimable without losing ratio."
+            summary: "Seedbox holds over 4 TiB of finished torrents that have never uploaded: cull candidates, check seed obligations first."
             description: >-
-              Torrents that downloaded data and never uploaded (cross-seeds
-              excluded) are holding more than 4 TiB of the data array. This
+              Finished torrents holding their own data that never uploaded
+              (cross-seeds and the torrents they link to excluded) are
+              holding more than 4 TiB of the data array. This
               is the cheapest space on the box to reclaim: none of it is
               earning anything. Check the Grafana "Cull candidates"
               panel for the worst offenders, but confirm each tracker's
