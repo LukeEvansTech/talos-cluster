@@ -41,6 +41,7 @@ resources:
   # - ./recyclarr/ks.yaml  # Disabled, using Profilarr instead
   - ./sonarr/ks.yaml
   - ./sortarr/ks.yaml
+  - ./subgen/ks.yaml
   - ./suggestarr/ks.yaml
   - ./tautulli/ks.yaml
   - ./tdarr/ks.yaml

@@ -1,0 +1,149 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: subgen
+spec:
+  interval: 1h
+  # The CUDA image is about 4 GB; a first pull can outlast Helm's 5m default.
+  timeout: 15m
+  chartRef:
+    kind: OCIRepository
+    name: subgen
+  values:
+    controllers:
+      subgen:
+        strategy: Recreate
+        pod:
+          resourceClaims:
+            - name: gpu
+              resourceClaimTemplateName: any-nvidia-gpu
+        containers:
+          app:
+            image:
+              repository: docker.io/mccloud/subgen
+              tag: 2026.07.3
+            # Skips launcher.py, which can fetch subgen.py from GitHub at start.
+            command:
+              - "python3"
+              - "-u"
+              - "/subgen/subgen.py"
+            env:
+              TRANSCRIBE_DEVICE: cuda
+              # Multilingual, so Bazarr can request task=translate; large-v3-turbo cannot translate.
+              WHISPER_MODEL: large-v3
+              COMPUTE_TYPE: float16
+              CONCURRENT_TRANSCRIPTIONS: "1"
+              # Parsed with ast.literal_eval, so Python literals: JSON `true` silently becomes {}.
+              SUBGEN_KWARGS: "{'vad': True}"
+              # Bazarr-only: no folder scan, no watcher, no media-server webhooks acted on.
+              MONITOR: "False"
+              PROCESS_ADDED_MEDIA: "False"
+              PROCESS_MEDIA_ON_PLAY: "False"
+              DEBUG: "False"
+              APPEND: "False"
+              MODEL_PATH: /models/whisper
+              HF_HOME: /models/huggingface
+              # Silero VAD arrives through torch.hub; keeping its cache on the PVC avoids a fetch per start.
+              XDG_CACHE_HOME: /models/cache
+              MPLCONFIGDIR: /tmp/matplotlib
+              HOME: /tmp
+            probes:
+              # TCP for parity with whisper: a busy transcription must never fail a probe.
+              liveness: &probes
+                enabled: true
+                custom: true
+                spec:
+                  tcpSocket:
+                    port: &port 9000
+                  periodSeconds: 30
+                  timeoutSeconds: 5
+                  failureThreshold: 3
+              readiness: *probes
+              startup:
+                enabled: true
+                custom: true
+                spec:
+                  tcpSocket:
+                    port: *port
+                  periodSeconds: 10
+                  failureThreshold: 30
+            resources:
+              requests:
+                cpu: 500m
+                memory: 2Gi
+              limits:
+                memory: 8Gi
+              claims:
+                - name: gpu
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities: { drop: ["ALL"] }
+    defaultPodOptions:
+      labels:
+        gpu-workload: "true"
+      runtimeClassName: nvidia
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: nvidia.com/gpu.present
+                    operator: In
+                    values:
+                      - "true"
+        podAntiAffinity:
+          # Required, unlike the media neighbours: the inference model leaves ~1 GiB of VRAM on
+          # its card and this model needs several GiB, so co-locating fails at load.
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - topologyKey: kubernetes.io/hostname
+              namespaces:
+                - "ai"
+              labelSelector:
+                matchLabels:
+                  llm-gpu-model: "true"
+          # Keeps transcription compute off the card Plex transcodes on when there is a choice.
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 50
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: plex
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              gpu-workload: "true"
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile: { type: RuntimeDefault }
+    service:
+      app:
+        ports:
+          http:
+            port: *port
+    persistence:
+      models:
+        existingClaim: subgen-models
+        globalMounts:
+          - path: /models
+      tmp:
+        type: emptyDir
+      # Read-only at Bazarr's path so subgen can ffprobe a passed video_file for its audio
+      # offset, and can never write subtitles into the library.
+      media:
+        type: nfs
+        server: ${SECRET_STORAGE_SERVER:-localhost}
+        path: /mnt/pool/media
+        globalMounts:
+          - path: /media
+            readOnly: true
