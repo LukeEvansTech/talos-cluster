@@ -1,0 +1,43 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: pushoverquota
+spec:
+  groups:
+    - name: pushoverquota
+      # Routed to email by alertmanagerconfig.yaml: these fire when Pushover itself is the problem.
+      rules:
+        - alert: PushoverQuotaLow
+          annotations:
+            summary: "Pushover has {{ $value | humanizePercentage }} of its monthly messages left; every estate app shares it."
+          expr: pushover_messages_remaining / pushover_message_limit < 0.2
+          for: 15m
+          labels:
+            severity: warning
+        - alert: PushoverQuotaPaceHigh
+          annotations:
+            summary: "At the last 6h rate Pushover runs out before its monthly reset (projected {{ $value | humanize }} messages left)."
+          expr: >-
+            predict_linear(pushover_messages_remaining[6h],
+              scalar(pushover_limit_reset_timestamp_seconds - time())) < 0
+          for: 1h
+          labels:
+            severity: warning
+        - alert: PushoverQuotaExhausted
+          annotations:
+            summary: "Pushover's monthly quota is spent: no alert reaches the phone until it resets."
+          expr: pushover_messages_remaining == 0
+          for: 5m
+          labels:
+            severity: critical
+        - alert: PushoverQuotaUnknown
+          annotations:
+            summary: "The Pushover quota has not been read for over an hour, so a low quota would go unnoticed."
+          expr: >-
+            (time() - pushover_last_success_timestamp_seconds > 3600)
+            or absent(pushover_last_success_timestamp_seconds)
+          for: 15m
+          labels:
+            severity: warning

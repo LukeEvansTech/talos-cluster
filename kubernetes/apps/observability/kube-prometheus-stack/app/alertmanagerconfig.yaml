@@ -31,6 +31,12 @@ spec:
           - name: alertname
             value: Watchdog
             matchType: =
+      # Alerts about Pushover itself cannot travel over Pushover, so they go by email.
+      - receiver: email
+        matchers:
+          - name: alertname
+            value: "Pushover.+"
+            matchType: "=~"
       # First match wins, so this UPS route (priority 2, retry/expire) only catches alerts labelled
       # pushover_priority=emergency; every other critical alert still uses the route below.
       - receiver: pushover-emergency
@@ -108,6 +114,14 @@ spec:
             name: &secret alertmanager-secret
             key: ALERTMANAGER_HEARTBEAT_URL
           sendResolved: false
+    - name: email
+      emailConfigs:
+        # noreply@ is the smtp2graph sender already on its allowedFrom gate.
+        - to: ${SECRET_ACME_EMAIL}
+          from: noreply@${SECRET_DOMAIN}
+          smarthost: smtp2graph.infrastructure.svc.cluster.local:25
+          requireTLS: false
+          sendResolved: true
     - name: pushover
       pushoverConfigs:
         - html: true
