@@ -84,7 +84,7 @@ add accounting on top of the share ceiling, it replaces it.** Only the numeric b
 
 Three consequences, in increasing order of seriousness:
 
-- The five `media` apps share one `ResourceClaimTemplate`, so they would all need the same
+- The `media` apps share one `ResourceClaimTemplate`, so they would all need the same
   explicit `capacity.requests.memory`.
 - **That figure cannot be measured here.** Without MIG there is no per-process attribution:
   `DCGM_FI_DEV_FB_USED` reports the device total and the exporter attributes that same total to
@@ -154,9 +154,9 @@ Use `flux suspend`, not a Git edit, so the repository and the cluster do not dis
 mid-flight.
 
 ```sh
-flux suspend ks jellyfin plex tdarr pinchflat dispatcharr -n media
+flux suspend ks jellyfin plex tdarr pinchflat dispatcharr whisper -n media
 flux suspend ks llmkube -n ai
-kubectl -n media scale deploy jellyfin plex tdarr pinchflat dispatcharr --replicas 0
+kubectl -n media scale deploy jellyfin plex tdarr pinchflat dispatcharr whisper --replicas 0
 ```
 
 Confirm no GPU pods remain before continuing.
@@ -190,10 +190,10 @@ kubectl get resourceslices
 kubectl get resourceslice -o yaml | grep -A3 allowMultipleAllocations
 ```
 
-### Step 5 — resume the five media consumers
+### Step 5 — resume the media consumers
 
 ```sh
-flux resume ks jellyfin plex tdarr pinchflat dispatcharr -n media
+flux resume ks jellyfin plex tdarr pinchflat dispatcharr whisper -n media
 kubectl get resourceclaims -n media
 ```
 
@@ -226,9 +226,9 @@ Reverse the same boundary. A partially-up DRA driver must be drained, not just r
 
 ```sh
 # 1. stop the consumers
-flux suspend ks jellyfin plex tdarr pinchflat dispatcharr -n media
+flux suspend ks jellyfin plex tdarr pinchflat dispatcharr whisper -n media
 flux suspend ks llmkube -n ai
-kubectl -n media scale deploy jellyfin plex tdarr pinchflat dispatcharr --replicas 0
+kubectl -n media scale deploy jellyfin plex tdarr pinchflat dispatcharr whisper --replicas 0
 
 # 2. confirm no allocated gpu.nvidia.com claims remain
 kubectl get resourceclaims -A
@@ -242,7 +242,7 @@ kubectl get resourceslices
 kubectl get nodes -o custom-columns='NAME:.metadata.name,GPU:.status.allocatable.nvidia\.com/gpu'
 
 # 5. resume the consumers
-flux resume ks jellyfin plex tdarr pinchflat dispatcharr -n media
+flux resume ks jellyfin plex tdarr pinchflat dispatcharr whisper -n media
 flux resume ks llmkube -n ai
 ```
 

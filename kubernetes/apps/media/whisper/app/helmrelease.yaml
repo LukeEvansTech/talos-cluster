@@ -31,6 +31,9 @@ spec:
               ASR_MODEL: large-v3
               # The image defaults to float32 on GPU, about twice the VRAM for no accuracy gain.
               ASR_QUANTIZATION: float16
+              # Frees the VRAM between jobs: the inference model does not avoid this pod, so a
+              # reschedule onto this card would otherwise find several GiB already taken.
+              MODEL_IDLE_TIMEOUT: "300"
               ASR_MODEL_PATH: /models/whisper
               HF_HOME: /models/huggingface
               HOME: /tmp
@@ -84,7 +87,7 @@ spec:
                       - "true"
         podAntiAffinity:
           # Required, unlike the media neighbours: the inference model leaves ~1 GiB of VRAM on
-          # its card and this model needs ~4 GiB, so co-locating fails at load.
+          # its card and this model needs several GiB, so co-locating fails at load.
           requiredDuringSchedulingIgnoredDuringExecution:
             - topologyKey: kubernetes.io/hostname
               namespaces:
