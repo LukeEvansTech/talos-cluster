@@ -73,17 +73,3 @@ spec:
           for: 15m
           labels:
             severity: warning
-        - alert: UnpackerrItemsWaiting
-          annotations:
-            summary: Unpackerr has had completed queue items waiting for 12h.
-            description: >-
-              Completed Sonarr/Radarr seedbox items have sat in unpackerr's
-              waiting state for 12h with nothing extracted. Either the files
-              never reached /media/downloads/seedbox (check seedbox-pull) or the
-              arr cannot import them for another reason; check the arr queue.
-          expr: |-
-            min_over_time(max(unpackerr_gauges{namespace="media", name="waiting"})[12h:5m]) > 0
-            unless on() increase(unpackerr_files_extracted_total{namespace="media"}[12h]) > 0
-          for: 15m
-          labels:
-            severity: warning

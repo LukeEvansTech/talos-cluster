@@ -22,13 +22,14 @@ The pod runs as 1000:1000, the arrs' identity, so they can import what it writes
 
 Unpackerr's metrics are totals across all items, with no age per item. So each stuck-work alert pairs pending work with no progress in the same window, instead of just counting items.
 
-| Alert                           | Fires when                                                                                                                                                       |
-| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `UnpackerrDown`                 | Prometheus has had no scrape of its metrics for 15 minutes                                                                                                       |
-| `UnpackerrQueueFetchFailing`    | It hasn't been able to read an arr's queue for 30 minutes                                                                                                        |
-| `UnpackerrExtractionStuck`      | Items have been queued or extracting for 3 hours, with no file extracted in that time                                                                            |
-| `UnpackerrExtractionFailed`     | An item has failed for good: retries used up, or a size, file-count or ratio cap hit                                                                             |
-| `UnpackerrExtractedNotImported` | Extracted items have sat for 6 hours with no import recorded                                                                                                     |
-| `UnpackerrItemsWaiting`         | Completed items have waited for 12 hours with nothing extracted. Usually the files never arrived (seedbox-pull), or the arr can't import them for another reason |
+| Alert                           | Fires when                                                                            |
+| ------------------------------- | ------------------------------------------------------------------------------------- |
+| `UnpackerrDown`                 | Prometheus has had no scrape of its metrics for 15 minutes                            |
+| `UnpackerrQueueFetchFailing`    | It hasn't been able to read an arr's queue for 30 minutes                             |
+| `UnpackerrExtractionStuck`      | Items have been queued or extracting for 3 hours, with no file extracted in that time |
+| `UnpackerrExtractionFailed`     | An item has failed for good: retries used up, or a size, file-count or ratio cap hit  |
+| `UnpackerrExtractedNotImported` | Extracted items have sat for 6 hours with no import recorded                          |
+
+There's no alert on the `waiting` state. Every completed torrent in either queue counts as waiting before unpackerr checks it for archives, including ordinary non-RAR torrents that sit in the queue while they seed. A seedbox item that never arrives shows up as `importPending` in the arr queue instead.
 
 Unpackerr forgets stale items after 24 hours, so every window is under that.
