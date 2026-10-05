@@ -14,16 +14,21 @@ Unpackerr acts on whatever path a queue item reports, as long as it can reach it
 - **Extracted copy:** removed 5 minutes after the arr imports it.
 - **Whole entry:** `seedbox-pull` prunes it 14 days after it lands.
 
+Size cap: v0.16 fails, without retrying, any Sonarr archive that unpacks past 20 GB or any Radarr archive past 75 GB. That would catch season packs, so the caps are raised to 400 GB for Sonarr and 200 GB for Radarr.
+
 The pod runs as 1000:1000, the arrs' identity, so they can import what it writes.
 
 ## Alerts
 
-| Alert                           | Fires when                                                                                                                                     |
-| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `UnpackerrDown`                 | Prometheus has had no scrape of its metrics for 15 minutes                                                                                     |
-| `UnpackerrQueueFetchFailing`    | It hasn't been able to read an arr's queue for 30 minutes                                                                                      |
-| `UnpackerrExtractionStuck`      | Items have been queued, extracting or failed for 3 hours                                                                                       |
-| `UnpackerrExtractedNotImported` | Extracted items haven't been imported for 6 hours                                                                                              |
-| `UnpackerrItemsWaiting`         | Completed items have sat waiting for 12 hours. Usually the files never arrived (seedbox-pull), or the arr can't import them for another reason |
+Unpackerr's metrics are totals across all items, with no age per item. So each stuck-work alert pairs pending work with no progress in the same window, instead of just counting items.
 
-Unpackerr forgets stale items after 24 hours, so every threshold is under that.
+| Alert                           | Fires when                                                                                                                                                       |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `UnpackerrDown`                 | Prometheus has had no scrape of its metrics for 15 minutes                                                                                                       |
+| `UnpackerrQueueFetchFailing`    | It hasn't been able to read an arr's queue for 30 minutes                                                                                                        |
+| `UnpackerrExtractionStuck`      | Items have been queued or extracting for 3 hours, with no file extracted in that time                                                                            |
+| `UnpackerrExtractionFailed`     | An item has failed for good: retries used up, or a size, file-count or ratio cap hit                                                                             |
+| `UnpackerrExtractedNotImported` | Extracted items have sat for 6 hours with no import recorded                                                                                                     |
+| `UnpackerrItemsWaiting`         | Completed items have waited for 12 hours with nothing extracted. Usually the files never arrived (seedbox-pull), or the arr can't import them for another reason |
+
+Unpackerr forgets stale items after 24 hours, so every window is under that.

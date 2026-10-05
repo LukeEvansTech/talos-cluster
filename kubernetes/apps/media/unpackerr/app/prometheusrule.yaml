@@ -32,42 +32,58 @@ spec:
           for: 30m
           labels:
             severity: warning
+        # Gauges are aggregate counts, so each rule pairs pending work with no
+        # progress in the same window rather than measuring occupancy alone.
         - alert: UnpackerrExtractionStuck
           annotations:
-            summary: Unpackerr has extraction work that is not completing.
+            summary: Unpackerr has extraction work but extracted nothing in 3h.
             description: >-
-              Unpackerr reports {{ $value }} item(s) in state
-              "{{ $labels.name }}" for over 3h. The matching Sonarr/Radarr
-              queue items will not import. Check the unpackerr logs for the
-              archive error (corrupt or missing volume, disk space, NFS I/O).
+              Items have been queued or extracting in unpackerr for 3h with no
+              file extracted. The matching Sonarr/Radarr queue items will not
+              import. Check the unpackerr logs (corrupt or missing volume, disk
+              space, NFS I/O).
           expr: |-
-            max by (name) (unpackerr_gauges{namespace="media", name=~"queued|extracting|failed"}) > 0
-          for: 3h
+            min_over_time(sum(unpackerr_gauges{namespace="media", name=~"queued|extracting"})[3h:5m]) > 0
+            unless on() increase(unpackerr_files_extracted_total{namespace="media"}[3h]) > 0
+          for: 15m
+          labels:
+            severity: warning
+        - alert: UnpackerrExtractionFailed
+          annotations:
+            summary: Unpackerr gave up extracting {{ $value }} item(s).
+            description: >-
+              An extraction failed and exhausted its retries (or hit a size,
+              file-count or ratio cap). The item stays at importPending in the
+              arr. Check the unpackerr logs for the reason.
+          expr: |-
+            max(unpackerr_gauges{namespace="media", name="failed"}) > 0
+          for: 30m
           labels:
             severity: warning
         - alert: UnpackerrExtractedNotImported
           annotations:
-            summary: Unpackerr extracted items that the arrs have not imported.
+            summary: Unpackerr extracted items that the arrs have not imported in 6h.
             description: >-
-              {{ $value }} item(s) extracted by unpackerr have not been
-              imported by Sonarr/Radarr for over 6h. Check the arr queue for
-              the import error (manual import needed, wrong match).
+              Extracted items have sat unimported for 6h while no import was
+              recorded. Check the Sonarr/Radarr queue for the import error
+              (manual import needed, wrong match).
           expr: |-
-            max(unpackerr_gauges{namespace="media", name="extracted"}) > 0
-          for: 6h
+            min_over_time(max(unpackerr_gauges{namespace="media", name="extracted"})[6h:5m]) > 0
+            unless on() changes(max(unpackerr_gauges{namespace="media", name="imported"})[6h:5m]) > 0
+          for: 15m
           labels:
             severity: warning
-        # A completed seedbox item unpackerr never gets past, e.g. a path mismatch.
         - alert: UnpackerrItemsWaiting
           annotations:
             summary: Unpackerr has had completed queue items waiting for 12h.
             description: >-
-              {{ $value }} completed Sonarr/Radarr seedbox item(s) have sat in
-              unpackerr's waiting state for over 12h. Either the files never
-              reached /media/downloads/seedbox (check seedbox-pull) or the arr
-              cannot import them for another reason; check the arr queue.
+              Completed Sonarr/Radarr seedbox items have sat in unpackerr's
+              waiting state for 12h with nothing extracted. Either the files
+              never reached /media/downloads/seedbox (check seedbox-pull) or the
+              arr cannot import them for another reason; check the arr queue.
           expr: |-
-            max(unpackerr_gauges{namespace="media", name="waiting"}) > 0
-          for: 12h
+            min_over_time(max(unpackerr_gauges{namespace="media", name="waiting"})[12h:5m]) > 0
+            unless on() increase(unpackerr_files_extracted_total{namespace="media"}[12h]) > 0
+          for: 15m
           labels:
             severity: warning

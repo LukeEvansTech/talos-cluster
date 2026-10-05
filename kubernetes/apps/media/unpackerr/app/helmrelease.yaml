@@ -32,11 +32,14 @@ spec:
               UN_SONARR_0_PROTOCOLS: torrent,TorrentDownloadProtocol
               UN_SONARR_0_DELETE_ORIG: "false"
               UN_SONARR_0_DELETE_DELAY: 5m
+              # v0.16 defaults (20GB Sonarr, 75GB Radarr) fail season packs without retry.
+              UN_SONARR_0_MAX_BYTES: 400GB
               UN_RADARR_0_URL: http://radarr.media.svc.cluster.local
               UN_RADARR_0_PATHS_0: /media/downloads/seedbox/radarr-home
               UN_RADARR_0_PROTOCOLS: torrent,TorrentDownloadProtocol
               UN_RADARR_0_DELETE_ORIG: "false"
               UN_RADARR_0_DELETE_DELAY: 5m
+              UN_RADARR_0_MAX_BYTES: 200GB
             envFrom:
               - secretRef:
                   name: "{{ .Release.Name }}-secret"
