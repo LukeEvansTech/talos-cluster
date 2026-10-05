@@ -47,7 +47,11 @@ spec:
             priority: low
             url: "{{ .payload.applicationUrl }}/movie/{{ .payload.movie.tmdbId }}"
             url_title: View Movie
-          whenExpr: payload.eventType == "Download"
+          # Kometa's add-missing titles (tagged kometa*) are bulk backfill; pushing each one spent the
+          # shared Pushover quota.
+          whenExpr: >-
+            payload.eventType == "Download"
+            && !(has(payload.movie.tags) && payload.movie.tags.exists(t, t.startsWith("kometa")))
         radarr-manual:
           target: radarr
           title: Movie Requires Manual Interaction
@@ -75,8 +79,10 @@ spec:
             url: "{{ .payload.applicationUrl }}/series/{{ .payload.series.titleSlug }}"
             url_title: View Series
           # Sonarr v4 sends Import Complete as eventType "Download"; "ImportComplete" is accepted too
-          # in case a later release gives it its own type.
-          whenExpr: payload.eventType == "Download" || payload.eventType == "ImportComplete"
+          # in case a later release gives it its own type. Kometa-tagged series skip, as above.
+          whenExpr: >-
+            (payload.eventType == "Download" || payload.eventType == "ImportComplete")
+            && !(has(payload.series.tags) && payload.series.tags.exists(t, t.startsWith("kometa")))
         sonarr-manual:
           target: sonarr
           title: Episode Requires Manual Interaction
