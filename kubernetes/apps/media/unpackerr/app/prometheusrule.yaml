@@ -20,16 +20,33 @@ spec:
           for: 15m
           labels:
             severity: warning
+        # fetch_total counts failed fetches too, so this is "no successful fetch".
         - alert: UnpackerrQueueFetchFailing
           annotations:
-            summary: Unpackerr cannot read the Sonarr or Radarr queue.
+            summary: Unpackerr has not read the {{ $labels.app }} queue in 30m.
             description: >-
-              Unpackerr's queue fetches from {{ $labels.app }} have failed for
+              Every unpackerr queue fetch from {{ $labels.app }} has failed for
               30m, so nothing new is being extracted. Check the API key in the
               unpackerr-secret and that the arr is up.
           expr: |-
-            sum by (app) (rate(unpackerr_app_queue_fetch_errors_total{namespace="media"}[15m])) > 0
-          for: 30m
+            sum by (app) (increase(unpackerr_app_queue_fetch_total{namespace="media"}[30m]))
+            - sum by (app) (increase(unpackerr_app_queue_fetch_errors_total{namespace="media"}[30m]))
+            < 1
+          for: 15m
+          labels:
+            severity: warning
+        # v0.16.1 reads only the first 2000 queue records; items past that are never seen.
+        - alert: UnpackerrQueueTruncated
+          annotations:
+            summary: The {{ $labels.app }} queue holds {{ $value }} items, past unpackerr's 2000.
+            description: >-
+              Unpackerr v0.16.1 fetches one 2000-record page of the
+              {{ $labels.app }} queue, so seedbox items beyond it are never
+              extracted and stay at importPending. Shrink the queue (clear
+              stuck or failed items) or move to an unpackerr that paginates.
+          expr: |-
+            max by (app) (unpackerr_app_queue_size{namespace="media"}) >= 2000
+          for: 1h
           labels:
             severity: warning
         # Gauges are aggregate counts, so each rule pairs pending work with no

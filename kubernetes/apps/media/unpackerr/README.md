@@ -30,6 +30,8 @@ Unpackerr's metrics are totals across all items, with no age per item. So each s
 | `UnpackerrExtractionFailed`     | An item has failed for good: retries used up, or a size, file-count or ratio cap hit  |
 | `UnpackerrExtractedNotImported` | Extracted items have sat for 6 hours with no import recorded                          |
 
+The stuck-work alerts can't separate one item from another. With `UN_PARALLEL=1`, though, a hung extraction blocks every other item, so progress elsewhere can't hide it. A single item that fails for good is caught by `UnpackerrExtractionFailed`.
+
 There's no alert on the `waiting` state. Every completed torrent in either queue counts as waiting before unpackerr checks it for archives, including ordinary non-RAR torrents that sit in the queue while they seed. A seedbox item that never arrives shows up as `importPending` in the arr queue instead.
 
 Unpackerr forgets stale items after 24 hours, so every window is under that.
