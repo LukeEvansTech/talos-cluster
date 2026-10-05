@@ -23,7 +23,7 @@ spec:
           app:
             image:
               repository: docker.io/onerahmet/openai-whisper-asr-webservice
-              tag: v1.10.0-gpu
+              tag: v1.10.0-gpu@sha256:3deb30cfd3d5614fd3885e6dfbef7dfcf95fe897300ecc703f7f3b3682b717ae
             env:
               ASR_ENGINE: faster_whisper
               # Multilingual, so Bazarr can also request task=translate; the turbo and distil
