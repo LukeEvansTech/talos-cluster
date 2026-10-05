@@ -1369,7 +1369,7 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
-      "description": "Torrents that have uploaded nothing at all (ratio 0), and the disk they hold. This is the cull-candidate pool: on a ratio box it is pure cost. Sourced from the per-torrent metrics deliberately kept in servicemonitor.yaml.",
+      "description": "Torrents that downloaded data and have uploaded nothing at all, and the disk they hold. This is the cull-candidate pool: on a ratio box it is pure cost. Cross-seeds are excluded because they hardlink content already held, so culling one frees almost nothing. Computed on the box by seedbox-apps seedbox-metrics.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1440,7 +1440,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "count(qbittorrent_torrent_ratio{job=\"seedbox-qbittorrent\"} == 0)",
+          "expr": "qbt_torrents_dead_weight_count{job=\"seedbox-node\"}",
           "legendFormat": "torrents",
           "range": true,
           "refId": "A"
@@ -1451,7 +1451,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "sum(qbittorrent_torrent_size_bytes{job=\"seedbox-qbittorrent\"} and (qbittorrent_torrent_ratio{job=\"seedbox-qbittorrent\"} == 0))",
+          "expr": "qbt_torrents_dead_weight_bytes{job=\"seedbox-node\"}",
           "legendFormat": "disk held",
           "range": true,
           "refId": "B"
@@ -1465,7 +1465,7 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
-      "description": "The 20 largest torrents at ratio 0, worst first. Cross-check against the tracker's hit-and-run rules before removing anything: a recent grab may simply not have found a peer yet.",
+      "description": "The 20 largest torrents at ratio 0, worst first. This list still includes cross-seeds, which free almost nothing when removed (the exporter cannot see category). Cross-check against the tracker's hit-and-run rules before removing anything: a recent grab may simply not have found a peer yet.",
       "fieldConfig": {
         "defaults": {
           "color": {

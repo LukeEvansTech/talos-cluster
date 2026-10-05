@@ -70,8 +70,10 @@ drops them at ingest, which leaves 5,522 series.
   availability panel.
 - `qbittorrent_torrent_states` is an aggregate whose `name` label holds the state, and a dashboard
   panel reads it. A regular expression written as `qbittorrent_torrent_.+` would remove it.
-- `size_bytes`, `ratio` and `total_uploaded_bytes` stay because dashboard panels and
-  `SeedboxDeadWeightHigh` read them. If those readers go, drop these metrics too.
+- `size_bytes`, `ratio` and `total_uploaded_bytes` stay because dashboard panels read them. If
+  those readers go, drop these metrics too. `SeedboxDeadWeightHigh` reads
+  `qbt_torrents_dead_weight_bytes` from the on-box collector instead, because these series cannot
+  tell cross-seeds apart.
 
 ## One-shot containers
 
