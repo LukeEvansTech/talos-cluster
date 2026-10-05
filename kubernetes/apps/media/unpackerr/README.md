@@ -18,9 +18,12 @@ The pod runs as 1000:1000, the arrs' identity, so they can import what it writes
 
 ## Alerts
 
-| Alert                        | Fires when                                                                                                                                     |
-| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `UnpackerrDown`              | Prometheus has had no scrape of its metrics for 15 minutes                                                                                     |
-| `UnpackerrQueueFetchFailing` | It hasn't been able to read an arr's queue for 30 minutes                                                                                      |
-| `UnpackerrExtractionStuck`   | Items have been queued for extraction, or failed, for 2 hours                                                                                  |
-| `UnpackerrItemsWaiting`      | Completed items have sat waiting for 24 hours. Usually the files never arrived (seedbox-pull), or the arr can't import them for another reason |
+| Alert                           | Fires when                                                                                                                                     |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `UnpackerrDown`                 | Prometheus has had no scrape of its metrics for 15 minutes                                                                                     |
+| `UnpackerrQueueFetchFailing`    | It hasn't been able to read an arr's queue for 30 minutes                                                                                      |
+| `UnpackerrExtractionStuck`      | Items have been queued, extracting or failed for 3 hours                                                                                       |
+| `UnpackerrExtractedNotImported` | Extracted items haven't been imported for 6 hours                                                                                              |
+| `UnpackerrItemsWaiting`         | Completed items have sat waiting for 12 hours. Usually the files never arrived (seedbox-pull), or the arr can't import them for another reason |
+
+Unpackerr forgets stale items after 24 hours, so every threshold is under that.
