@@ -78,7 +78,9 @@ spec:
                   cpu: 50m
                   memory: 128Mi
                 limits:
-                  memory: 1Gi
+                  # 1Gi was OOMKilled pulling a UHD remux: rclone's
+                  # multi-thread chunks plus NFS dirty pages count against it.
+                  memory: 3Gi
               securityContext:
                 allowPrivilegeEscalation: false
                 readOnlyRootFilesystem: true

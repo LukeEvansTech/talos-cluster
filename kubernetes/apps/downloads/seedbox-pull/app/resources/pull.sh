@@ -26,14 +26,24 @@ LOCK="$STAGE/.lock"
 TOKEN="$(hostname)-$$"
 mkdir -p "$STAGE"
 if ! mkdir "$LOCK" 2>/dev/null; then
-    # No automatic takeover: two runs could both judge it stale. SIGTERM
-    # (deadline, eviction) still releases it below; only SIGKILL leaves one.
     if [ -n "$(find "$LOCK" -maxdepth 0 -mmin -370)" ]; then
         log "SKIP: another run holds $LOCK"
         exit 0
     fi
-    log "FAIL: $LOCK is older than the 6h deadline; remove it if no pull is running"
-    exit 1
+    # Older than the job's 6h activeDeadlineSeconds, so its holder is dead: a
+    # SIGKILL (OOM) skips the EXIT trap. rename(2) is atomic, so of two runs
+    # that both judge it stale only one moves it aside; the other skips, and
+    # the mkdir below still decides who runs.
+    if ! mv "$LOCK" "$LOCK.stale.$TOKEN" 2>/dev/null; then
+        log "SKIP: another run is taking over the stale $LOCK"
+        exit 0
+    fi
+    rm -rf "$LOCK.stale.$TOKEN"
+    log "TOOK OVER: $LOCK was older than the 6h deadline"
+    if ! mkdir "$LOCK" 2>/dev/null; then
+        log "SKIP: another run took $LOCK first"
+        exit 0
+    fi
 fi
 echo "$TOKEN" >"$LOCK/owner"
 # shellcheck disable=SC2329 # called by the EXIT trap
@@ -83,11 +93,11 @@ for cat in sonarr-home radarr-home; do
         start=$(date +%s)
         if [ "$entry" != "$name" ]; then
             run rclone move "seedbox:$cat/$name" "$STAGE/.incoming/$cat/$name" \
-                --delete-empty-src-dirs --transfers 4 --multi-thread-streams 8 --stats 0 &&
+                --delete-empty-src-dirs --transfers 4 --multi-thread-streams 4 --stats 0 &&
                 run rclone rmdir "seedbox:$cat/$name"
         else
             run rclone moveto "seedbox:$cat/$name" "$STAGE/.incoming/$cat/$name" \
-                --multi-thread-streams 8 --stats 0
+                --multi-thread-streams 4 --stats 0
         fi
         rc=$?
         if [ "$rc" -eq 0 ] && mv "$STAGE/.incoming/$cat/$name" "$STAGE/$cat/$name"; then
