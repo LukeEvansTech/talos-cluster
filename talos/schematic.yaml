@@ -1,0 +1,11 @@
+---
+# Image Factory schematic for every node. Submit it to get the hash used in talconfig.yaml's
+# talosImageURL: curl -X POST --data-binary @talos/schematic.yaml https://factory.talos.dev/schematics
+customization:
+  systemExtensions:
+    officialExtensions:
+      - siderolabs/amd-ucode
+      # Sandboxed runtime for untrusted workloads, exposed as RuntimeClass gvisor (kube-system/gvisor).
+      - siderolabs/gvisor
+      - siderolabs/nvidia-container-toolkit-production
+      - siderolabs/nvidia-open-gpu-kernel-modules-production

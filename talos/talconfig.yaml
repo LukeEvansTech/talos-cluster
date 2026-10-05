@@ -31,7 +31,7 @@ nodes:
       serial: "22443D5C45C9"
     machineSpec:
       secureboot: true
-    talosImageURL: factory.talos.dev/installer-secureboot/44186a005dfca322f81df634a457384455475fbfa518777f3ee58d35f173d73b
+    talosImageURL: factory.talos.dev/installer-secureboot/d5d1a460585c520280f57762c3f260b63b2fe6f24163104f6d517b02bb24f311
     controlPlane: true
     patches:
       # TPM-sealed LUKS (slot 0) with a static-passphrase fallback (slot 1): a known-buggy BIOS
@@ -85,7 +85,7 @@ nodes:
       serial: "22443D5C50A3"
     machineSpec:
       secureboot: true
-    talosImageURL: factory.talos.dev/installer-secureboot/44186a005dfca322f81df634a457384455475fbfa518777f3ee58d35f173d73b
+    talosImageURL: factory.talos.dev/installer-secureboot/d5d1a460585c520280f57762c3f260b63b2fe6f24163104f6d517b02bb24f311
     controlPlane: true
     patches:
       # TPM-sealed LUKS (slot 0) with a static-passphrase fallback (slot 1): a known-buggy BIOS
@@ -139,7 +139,7 @@ nodes:
       serial: "22443D5C5114"
     machineSpec:
       secureboot: true
-    talosImageURL: factory.talos.dev/installer-secureboot/44186a005dfca322f81df634a457384455475fbfa518777f3ee58d35f173d73b
+    talosImageURL: factory.talos.dev/installer-secureboot/d5d1a460585c520280f57762c3f260b63b2fe6f24163104f6d517b02bb24f311
     controlPlane: true
     patches:
       # TPM-sealed LUKS (slot 0) with a static-passphrase fallback (slot 1): a known-buggy BIOS
