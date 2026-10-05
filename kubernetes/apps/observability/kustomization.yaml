@@ -28,6 +28,7 @@ resources:
   - ./oxidized/ks.yaml
   - ./plex-exporter/ks.yaml
   - ./prometheus-adapter/ks.yaml
+  - ./pushoverquota/ks.yaml
   - ./qbittorrent-exporter/ks.yaml
   - ./redfish-fleet/ks.yaml
   - ./sabnzbd-dashboard/ks.yaml
