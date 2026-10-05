@@ -1,0 +1,15 @@
+---
+# Holds only downloadable model weights (Whisper, VAD, alignment), so it skips VolSync.
+# Losing it costs a ~3 GB re-download on the next start.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: whisperx-models
+  namespace: media
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: ceph-block
