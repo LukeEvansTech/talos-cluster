@@ -3,17 +3,17 @@
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
-  name: whisper
+  name: whisperx
 spec:
   interval: 1h
   # First start downloads the model before the pod turns Ready; Helm's 5m default rolls it back.
   timeout: 15m
   chartRef:
     kind: OCIRepository
-    name: whisper
+    name: whisperx
   values:
     controllers:
-      whisper:
+      whisperx:
         strategy: Recreate
         pod:
           resourceClaims:
@@ -25,19 +25,25 @@ spec:
               repository: docker.io/onerahmet/openai-whisper-asr-webservice
               tag: v1.10.0-gpu@sha256:3deb30cfd3d5614fd3885e6dfbef7dfcf95fe897300ecc703f7f3b3682b717ae
             env:
-              ASR_ENGINE: faster_whisper
+              # Same image and API as whisper; WhisperX adds a forced-alignment pass for word timing.
+              ASR_ENGINE: whisperx
               # Multilingual, so Bazarr can also request task=translate; the turbo and distil
               # variants cannot translate.
               ASR_MODEL: large-v3
               # The image defaults to float32 on GPU, about twice the VRAM for no accuracy gain.
               ASR_QUANTIZATION: float16
-              # Frees the VRAM between jobs for the other tenants of this card; there is no VRAM
-              # isolation between DRA shares.
-              MODEL_IDLE_TIMEOUT: "300"
-              ASR_MODEL_PATH: /models/whisper
+              # Without it the VAD checkpoint fails to load and the pod crash-loops; no
+              # MODEL_IDLE_TIMEOUT either. Both in docs/docs/apps/whisperx.md.
+              TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD: "1"
+              # The image defaults to 1000 characters, which emits one cue per Whisper segment.
+              SUBTITLE_MAX_LINE_WIDTH: "42"
+              SUBTITLE_MAX_LINE_COUNT: "2"
+              # The engine ignores ASR_MODEL_PATH; these caches on the PVC hold every model.
               HF_HOME: /models/huggingface
+              TORCH_HOME: /models/torch
+              XDG_CACHE_HOME: /models/cache
+              MPLCONFIGDIR: /tmp/matplotlib
               HOME: /tmp
-              XDG_CACHE_HOME: /tmp/.cache
             probes:
               # TCP, not HTTP: /asr transcribes on the event loop, so the single process answers
               # nothing else until a job finishes, while the kernel still accepts connections.
@@ -65,7 +71,7 @@ spec:
                 cpu: 500m
                 memory: 2Gi
               limits:
-                memory: 8Gi
+                memory: 10Gi
               claims:
                 - name: gpu
             securityContext:
@@ -124,7 +130,7 @@ spec:
             port: *port
     persistence:
       models:
-        existingClaim: whisper-models
+        existingClaim: whisperx-models
         globalMounts:
           - path: /models
       tmp:

@@ -126,6 +126,7 @@ nav = [
     { "VictoriaLogs" = "apps/victoria-logs.md" },
     { "VMware exporter" = "apps/vmware-exporter.md" },
     { "Wazuh XDR/SIEM" = "apps/wazuh.md" },
+    { "WhisperX" = "apps/whisperx.md" },
   ] },
   { "Troubleshooting" = [
     { "Symptom ladder" = "troubleshooting/index.md" },
