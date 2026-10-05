@@ -25,25 +25,32 @@ log() { printf '%s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*"; }
 LOCK="$STAGE/.lock"
 TOKEN="$(hostname)-$$"
 mkdir -p "$STAGE"
+# Age is read from the owner file, written once per holder; a dir's mtime
+# changes whenever an entry is added inside it.
+fresh() { [ -n "$(find "$1" -maxdepth 0 -mmin -370 2>/dev/null)" ]; }
 if ! mkdir "$LOCK" 2>/dev/null; then
-    if [ -n "$(find "$LOCK" -maxdepth 0 -mmin -370)" ]; then
+    ref="$LOCK/owner"
+    [ -e "$ref" ] || ref="$LOCK"
+    if fresh "$ref"; then
         log "SKIP: another run holds $LOCK"
         exit 0
     fi
     # Older than the job's 6h activeDeadlineSeconds, so its holder is dead: a
-    # SIGKILL (OOM) skips the EXIT trap. rename(2) is atomic, so of two runs
-    # that both judge it stale only one moves it aside; the other skips, and
-    # the mkdir below still decides who runs.
-    if ! mv "$LOCK" "$LOCK.stale.$TOKEN" 2>/dev/null; then
-        log "SKIP: another run is taking over the stale $LOCK"
+    # SIGKILL (OOM) skips the EXIT trap. Claim it in place: only one run can
+    # mkdir the takeover dir, and it stays until the lock is released, so the
+    # path is never reopened for a second taker.
+    if ! mkdir "$LOCK/takeover" 2>/dev/null; then
+        log "SKIP: another run is taking over $LOCK"
         exit 0
     fi
-    rm -rf "$LOCK.stale.$TOKEN"
+    # The lock may have been released and re-created by a live run between
+    # the age check and the claim: back off unless its owner is still stale.
+    if [ ! -e "$LOCK/owner" ] || fresh "$LOCK/owner"; then
+        rmdir "$LOCK/takeover" 2>/dev/null
+        log "SKIP: $LOCK changed hands during takeover"
+        exit 0
+    fi
     log "TOOK OVER: $LOCK was older than the 6h deadline"
-    if ! mkdir "$LOCK" 2>/dev/null; then
-        log "SKIP: another run took $LOCK first"
-        exit 0
-    fi
 fi
 echo "$TOKEN" >"$LOCK/owner"
 # shellcheck disable=SC2329 # called by the EXIT trap
