@@ -81,7 +81,7 @@ spec:
           annotations:
             summary: "IPsec tunnel {{ $labels.description }} is down or no longer reported, check the WAN address against the far-end gateway pin."
           expr: |-
-            opnsense_ipsec_phase1_status{job="opnsense-exporter", description="azure-hub-vpngw"} == 0
+            opnsense_ipsec_phase1_status{job=~"opnsense-exporter|opnsensegh"} == 0
             or
             absent(opnsense_ipsec_phase1_status{job="opnsense-exporter", description="azure-hub-vpngw"})
           for: 10m
