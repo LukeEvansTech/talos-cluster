@@ -1,0 +1,36 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: dnsblockcheck
+spec:
+  groups:
+    - name: dnsblockcheck
+      rules:
+        - alert: ExternalHostBlockedByNextDNS
+          annotations:
+            summary: "NextDNS blocks {{ $labels.host }} ({{ $labels.reason }}), needed by {{ $labels.source }}."
+            description: >-
+              If the host is legitimate, allowlist its apex in nextdns.tf in
+              codelooks-com/terraform-nextdns; the merge applies it.
+          expr: dnsblockcheck_host_blocked == 1
+          for: 15m
+          labels:
+            severity: warning
+        - alert: ExternalHostUnresolvable
+          annotations:
+            summary: "The cluster cannot resolve {{ $labels.host }}, needed by {{ $labels.source }}, and NextDNS is not blocking it."
+          expr: dnsblockcheck_host_unresolvable == 1 unless on (host) dnsblockcheck_host_blocked == 1
+          for: 1h
+          labels:
+            severity: warning
+        - alert: DnsBlockCheckStale
+          annotations:
+            summary: "The NextDNS block check has not checked every host cleanly for over 30 minutes; see dnsblockcheck_host_check_failed."
+          expr: >-
+            (time() - dnsblockcheck_last_success_timestamp_seconds > 1800)
+            or absent(dnsblockcheck_last_success_timestamp_seconds)
+          for: 15m
+          labels:
+            severity: warning

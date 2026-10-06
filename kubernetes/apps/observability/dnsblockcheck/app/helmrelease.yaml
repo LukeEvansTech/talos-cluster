@@ -1,0 +1,78 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: dnsblockcheck
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: dnsblockcheck
+  values:
+    controllers:
+      dnsblockcheck:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        serviceAccount:
+          identifier: dnsblockcheck
+        containers:
+          app:
+            image:
+              repository: python
+              tag: 3.14-alpine@sha256:9e9fde4d32eedce0b661d9ab91e826b62dddf28e928c230ec55f1866cac66b01
+            command:
+              - "python"
+              - "-u"
+              - "/opt/exporter/exporter.py"
+            env:
+              METRICS_PORT: &port 9186
+              CHECK_INTERVAL_SECONDS: "600"
+              # Hosts no manifest names: registry blob storage that pulls redirect to, and the
+              # alerting path itself (Pushover, smtp2graph's Graph endpoints, the heartbeat).
+              EXTRA_HOSTS: >-
+                pkg-containers.githubusercontent.com,production.cloudflare.docker.com,auth.docker.io,
+                cdn01.quay.io,cdn02.quay.io,cdn03.quay.io,objects.githubusercontent.com,
+                api.pushover.net,graph.microsoft.com,login.microsoftonline.com,hc-ping.com
+            envFrom:
+              - secretRef:
+                  name: dnsblockcheck-secret
+            probes:
+              liveness: &probe
+                enabled: true
+                custom: true
+                spec:
+                  httpGet: { path: /metrics, port: *port }
+                  initialDelaySeconds: 10
+                  periodSeconds: 60
+              readiness: *probe
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities: { drop: ["ALL"] }
+            resources:
+              requests:
+                cpu: 5m
+              limits:
+                memory: 64Mi
+    defaultPodOptions:
+      # app-template disables token automount by default; the checker lists Flux sources and pods.
+      automountServiceAccountToken: true
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+    serviceAccount:
+      dnsblockcheck: {}
+    service:
+      app:
+        ports:
+          metrics:
+            port: *port
+    persistence:
+      exporter:
+        type: configMap
+        name: dnsblockcheck-exporter
+        globalMounts:
+          - path: /opt/exporter
+            readOnly: true
