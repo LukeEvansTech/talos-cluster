@@ -17,13 +17,12 @@ staged=$(git -C "$dir" diff --cached --name-only | wc -l | tr -d ' ')
 
 msg="Checkout state: the main talos-cluster checkout is on '${branch:-detached HEAD}'"
 if [ "$staged" != 0 ]; then
-    oldest=$(git -C "$dir" diff --cached --name-only | while IFS= read -r f; do
-        if [ -f "$dir/$f" ]; then
-            stat -c %Y "$dir/$f" 2>/dev/null || stat -f %m "$dir/$f" 2>/dev/null
-        fi
-    done | sort -n | head -1)
+    # The index keeps each entry's stat from when it was staged; a later edit to the worktree
+    # file does not move it, so this is the age of the staged work itself.
+    oldest=$(git -C "$dir" diff --cached --name-only -z | xargs -0 git -C "$dir" ls-files --debug -- 2>/dev/null |
+        sed -nE 's/^ *mtime: ([0-9]+):.*/\1/p' | sort -n | head -1)
     age=""
-    [ -n "$oldest" ] && age=" (oldest changed $((($(date +%s) - oldest) / 86400)) day(s) ago)"
+    [ -n "$oldest" ] && age=" (oldest staged $((($(date +%s) - oldest) / 86400)) day(s) ago)"
     msg="$msg with $staged staged file(s)$age"
 fi
 if [ -n "$branch" ] && [ "$branch" != main ]; then
