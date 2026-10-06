@@ -1,0 +1,21 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ./externalsecret.yaml
+  - ./grafanadashboard.yaml
+  - ./helmrelease.yaml
+  - ./ocirepository.yaml
+  - ./probe.yaml
+  - ./prometheusrule.yaml
+configMapGenerator:
+  - name: opnsenseghspeedtest-dashboard
+    namespace: observability
+    files:
+      - opnsenseghspeedtest.json=./dashboards/opnsenseghspeedtest.json
+generatorOptions:
+  disableNameSuffixHash: true
+  annotations:
+    # This keeps Grafana's ${DS_PROMETHEUS} macro from being blanked.
+    kustomize.toolkit.fluxcd.io/substitute: disabled

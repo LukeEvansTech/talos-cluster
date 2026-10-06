@@ -27,3 +27,25 @@ series sits at 0 while every endpoint works
 release fixes it. Check the egress
 proxy pod before reading it as the firewall being down. `OPNsenseGhWanLossHigh` reuses the main
 firewall's 20% loss threshold. Both are `warning`: the value of this app is the history.
+
+## Speedtest metrics
+
+`kubernetes/apps/observability/opnsenseghspeedtest` exposes the hourly Ookla result that the firewall's
+speedtest plugin records. It is a separate app because the exporter above has no speedtest collector and a
+second controller in this HelmRelease would share its ServiceMonitor selector.
+
+A [json_exporter](https://github.com/prometheus-community/json_exporter) pod is probed every 5 minutes by a
+Prometheus `Probe`, and fetches the plugin's `showrecent` endpoint through the same `opnsensegh-fw` egress
+Service. The module config is rendered by the app's ExternalSecret from the `opnsensegh-exporter` item,
+because json_exporter can only take basic-auth credentials from its config file.
+
+- **Metrics.** `opnsense_speedtest_download_mbps`, `opnsense_speedtest_upload_mbps` and
+  `opnsense_speedtest_latency_ms` are gauges. The API returns them as JSON strings, which json_exporter
+  parses as floats.
+- **Test time.** json_exporter only reads a numeric epoch for timestamps, and this API returns an ISO date
+  string, so the time is the `date` label (UTC, no zone) on `opnsense_speedtest_last_info`.
+- **No alerts.** There are no thresholds yet; the Speedtest dashboard shows throughput and latency history.
+
+`OPNsenseGhSpeedtestStale` fires when `opnsense_speedtest_samples` (the stored result count from
+`showstat`) has not changed for 3 hours, two missed hourly runs in a row. The `showrecent` probe keeps
+re-serving the last good result if the firewall's cron job dies, so probe success alone proves nothing.

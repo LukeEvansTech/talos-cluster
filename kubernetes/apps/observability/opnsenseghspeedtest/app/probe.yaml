@@ -1,0 +1,37 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/probe_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: Probe
+metadata:
+  name: opnsenseghspeedtest
+spec:
+  # The plugin tests hourly, so 5m loses nothing; the target is the egress Service because pods cannot route to the firewall.
+  jobName: opnsenseghspeedtest
+  interval: 5m
+  scrapeTimeout: 30s
+  module: speedtest
+  prober:
+    url: opnsenseghspeedtest.observability.svc.cluster.local:7979
+    path: /probe
+  targets:
+    staticConfig:
+      static:
+        - https://opnsensegh-fw.observability.svc.cluster.local/api/speedtest/service/showrecent
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/probe_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: Probe
+metadata:
+  name: opnsenseghspeedtest-stats
+spec:
+  jobName: opnsenseghspeedtest
+  interval: 5m
+  scrapeTimeout: 30s
+  module: speedteststats
+  prober:
+    url: opnsenseghspeedtest.observability.svc.cluster.local:7979
+    path: /probe
+  targets:
+    staticConfig:
+      static:
+        - https://opnsensegh-fw.observability.svc.cluster.local/api/speedtest/service/showstat
