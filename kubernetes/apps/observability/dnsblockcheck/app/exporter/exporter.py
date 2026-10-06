@@ -29,6 +29,7 @@ import ssl
 import struct
 import threading
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 
@@ -63,14 +64,33 @@ def log(msg):
     print(msg, flush=True)
 
 
+def _kube_page(url, token, ctx):
+    """GET one page, retrying the 429s API priority-and-fairness returns to a busy service account."""
+    req = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"})
+    for attempt in range(6):
+        try:
+            with urllib.request.urlopen(req, timeout=30, context=ctx) as resp:
+                return json.load(resp)
+        except urllib.error.HTTPError as exc:
+            if exc.code != 429 or attempt == 5:
+                raise RuntimeError(f"{url.removeprefix(API)}: HTTP {exc.code}") from exc
+            time.sleep(int(exc.headers.get("Retry-After") or 1) + random.random() * 2)
+    raise AssertionError("unreachable")
+
+
 def kube_get(path):
-    """GET a Kubernetes API path with the pod's service account."""
+    """List a Kubernetes API collection with the pod's service account, in pages."""
     with open(f"{SA_DIR}/token", encoding="utf-8") as f:
         token = f.read().strip()
     ctx = tls_context(cafile=f"{SA_DIR}/ca.crt")
-    req = urllib.request.Request(API + path, headers={"Authorization": f"Bearer {token}"})
-    with urllib.request.urlopen(req, timeout=30, context=ctx) as resp:
-        return json.load(resp)
+    items, cont = [], ""
+    while True:
+        query = urllib.parse.urlencode({"limit": 200, **({"continue": cont} if cont else {})})
+        page = _kube_page(f"{API}{path}?{query}", token, ctx)
+        items += page.get("items", [])
+        cont = page.get("metadata", {}).get("continue", "")
+        if not cont:
+            return {"items": items}
 
 
 def is_external(host):
