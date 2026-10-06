@@ -5,7 +5,7 @@ kind: Probe
 metadata:
   name: opnsenseghspeedtest
 spec:
-  # The plugin tests hourly, so 5m loses nothing; the target is the egress Service because pods cannot route to the firewall.
+  # The plugin tests hourly, so 5m loses nothing; the target is reached over the site-to-site IPsec tunnel.
   jobName: opnsenseghspeedtest
   interval: 5m
   scrapeTimeout: 30s
@@ -16,7 +16,7 @@ spec:
   targets:
     staticConfig:
       static:
-        - https://opnsensegh-fw.observability.svc.cluster.local/api/speedtest/service/showrecent
+        - https://${GH_OPNSENSE_ADDR}/api/speedtest/service/showrecent
 ---
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/probe_v1.json
 apiVersion: monitoring.coreos.com/v1
@@ -34,4 +34,4 @@ spec:
   targets:
     staticConfig:
       static:
-        - https://opnsensegh-fw.observability.svc.cluster.local/api/speedtest/service/showstat
+        - https://${GH_OPNSENSE_ADDR}/api/speedtest/service/showstat
