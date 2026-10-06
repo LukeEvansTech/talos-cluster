@@ -26,6 +26,7 @@ resources:
   - ./nut-exporter/ks.yaml
   - ./opnsense-exporter/ks.yaml
   - ./opnsensegh/ks.yaml
+  - ./opnsenseghspeedtest/ks.yaml
   - ./oxidized/ks.yaml
   - ./plex-exporter/ks.yaml
   - ./prometheus-adapter/ks.yaml
