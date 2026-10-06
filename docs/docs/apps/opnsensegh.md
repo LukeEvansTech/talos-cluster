@@ -18,6 +18,19 @@ firewall through a DERP relay because it sits behind carrier-grade NAT.
 If both exporters stop scraping at once, check the tunnel first: `OPNsenseIPsecTunnelDown` on the main
 firewall covers it, and the scrape itself rides it.
 
+## OS-level metrics
+
+`opnsensegh-node` is a `ScrapeConfig` for node_exporter on the firewall (port 9100), the same shape as the
+main firewall's `opnsense-node` described in [opnsense-exporter](opnsense-exporter.md). It is scraped directly
+at `GH_OPNSENSE_ADDR` over the site-to-site tunnel, and relabelled to
+`instance="opnsense-gh"` so it joins the API exporter's series. It drops `node_uname_info` for the same reason
+as the other node scrapes. The target stays down until node_exporter is installed on the firewall.
+
+## Config backup
+
+The firewall's encrypted config is backed up daily by the second CronJob of
+[opnsense-config-backup](opnsense-config-backup.md), using the `opnsensegh-config-backup` 1Password item.
+
 ## Alerts
 
 `OPNsenseGhExporterDown` fires after 10 minutes of a failed scrape, a vanished target, or a missing
@@ -25,8 +38,8 @@ WAN gateway series (the exporter answers but its API call to the firewall fails)
 `opnsense_up`: exporter v0.0.17 reads this firewall's string `"OK"` system status as down, so that
 series sits at 0 while every endpoint works
 ([upstream #119](https://github.com/AthennaMind/opnsense-exporter/issues/119)). Revisit once a
-release fixes it. Check the egress
-proxy pod before reading it as the firewall being down. `OPNsenseGhWanLossHigh` reuses the main
+release fixes it. Check the tunnel
+(`OPNsenseIPsecTunnelDown`) before reading it as the firewall being down. `OPNsenseGhWanLossHigh` reuses the main
 firewall's 20% loss threshold. Both are `warning`: the value of this app is the history.
 
 ## Speedtest metrics

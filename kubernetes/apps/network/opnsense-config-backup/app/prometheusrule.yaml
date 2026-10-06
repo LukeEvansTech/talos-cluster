@@ -1,0 +1,31 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: opnsense-config-backup
+spec:
+  groups:
+    - name: opnsense-config-backup
+      rules:
+        # A failed backup leaves only a line in the Job's log. Alerts on time since the last
+        # success, not on failure counts: 86400s plus 2h slack fires at ~26h, tolerating one
+        # missed run. Falls back to the CronJob's creation time so a job that has never
+        # succeeded still alerts.
+        - alert: OPNsenseConfigBackupStale
+          annotations:
+            summary: >-
+              The {{ $labels.cronjob }} CronJob has not succeeded in over 24h - the
+              encrypted firewall config backup is stale.
+            description: >-
+              No successful run of {{ $labels.cronjob }} in over 24h. Check the most recent
+              Job's logs, the matching ExternalSecret and the deploy key, then trigger a run.
+          expr: |-
+            time() - (
+              kube_cronjob_status_last_successful_time{namespace="network", cronjob=~"opnsense-config-backup.*"}
+              or
+              kube_cronjob_created{namespace="network", cronjob=~"opnsense-config-backup.*"}
+            ) > 86400
+          for: 2h
+          labels:
+            severity: warning
