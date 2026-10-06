@@ -508,7 +508,7 @@ version = "2.4.3"
 backend = "pipx:codespell"
 
 [[tools."pipx:pylint"]]
-version = "4.0.5"
+version = "4.1.2"
 backend = "pipx:pylint"
 
 [[tools."pipx:yamllint"]]
