@@ -12,6 +12,11 @@
             "type": "command",
             "command": "bash -c 'bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/session-start-talos-creds.sh\" || true'",
             "timeout": 180
+          },
+          {
+            "type": "command",
+            "command": "bash -c 'bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/session-start-checkout-state.sh\" || true'",
+            "timeout": 10
           }
         ]
       }
