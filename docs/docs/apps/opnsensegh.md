@@ -9,13 +9,14 @@ selector without a dashboard of its own.
 
 ## How the scrape is routed
 
-The target address is `GH_OPNSENSE_ADDR` in `cluster-secrets`, reached through the `opnsensegh-fw`
-Tailscale operator egress Service. Two settings are load-bearing:
+The target address is `GH_OPNSENSE_ADDR` in `cluster-secrets`. Pods reach it through the main
+firewall's site-to-site IPsec tunnel (network-ops `docs/runbooks/gardenhouse-ipsec.md`): the
+cluster's traffic leaves via its default gateway and the tunnel's policy captures it, so no proxy or
+Tailscale route is involved. This replaced a Tailscale operator egress proxy, which could only reach the
+firewall through a DERP relay because it sits behind carrier-grade NAT.
 
-- **The `accept-routes` ProxyClass.** The target sits behind an advertised subnet route, and an egress
-  proxy does not accept subnet routes by default.
-- **The target is the firewall's LAN address.** Only that address answers the API; check this first if
-  the scrape times out after an address change.
+If both exporters stop scraping at once, check the tunnel first: `OPNsenseIPsecTunnelDown` on the main
+firewall covers it, and the scrape itself rides it.
 
 ## Alerts
 
@@ -35,8 +36,8 @@ speedtest plugin records. It is a separate app because the exporter above has no
 second controller in this HelmRelease would share its ServiceMonitor selector.
 
 A [json_exporter](https://github.com/prometheus-community/json_exporter) pod is probed every 5 minutes by a
-Prometheus `Probe`, and fetches the plugin's `showrecent` endpoint through the same `opnsensegh-fw` egress
-Service. The module config is rendered by the app's ExternalSecret from the `opnsensegh-exporter` item,
+Prometheus `Probe`, and fetches the plugin's `showrecent` endpoint over the same IPsec
+tunnel. The module config is rendered by the app's ExternalSecret from the `opnsensegh-exporter` item,
 because json_exporter can only take basic-auth credentials from its config file.
 
 - **Metrics.** `opnsense_speedtest_download_mbps`, `opnsense_speedtest_upload_mbps` and
