@@ -38,8 +38,9 @@ spec:
     githubConfigUrl: https://github.com/LukeEvansTech/seedbox-apps
     githubConfigSecret: seedbox-runner-secret
     runnerScaleSetName: seedbox
-    # Limit the pilot to one concurrent job.
-    maxRunners: 1
+    # Three, as lurcher: lint, scans and image builds each take a runner, and one runner made
+    # them queue behind each other. This repository's CI deploys nothing, so jobs cannot collide.
+    maxRunners: 3
     minRunners: 0
     containerMode:
       # Docker actions used by lint and security workflows need a daemon.
