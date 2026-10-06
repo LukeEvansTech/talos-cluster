@@ -38,8 +38,10 @@ spec:
     githubConfigUrl: https://github.com/LukeEvansTech/lurcher
     githubConfigSecret: lurcher-runner-secret
     runnerScaleSetName: lurcher
-    # Limit the pilot to one concurrent job.
-    maxRunners: 1
+    # Three, not one: lint, test, e2e, two scans and the image build each take a runner, and
+    # serialised on one the v2.4.0 release spent over an hour queued (2026-10-05). Each runner
+    # requests ~2.5Gi and a 40Gi miroir-local volume; nodes had >1.7TiB free per node then.
+    maxRunners: 3
     minRunners: 0
     containerMode:
       # Docker actions used by lint and security workflows need a daemon.
