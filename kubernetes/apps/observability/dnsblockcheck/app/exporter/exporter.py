@@ -51,6 +51,13 @@ STATE = {"hosts": {}, "last_success": 0.0, "failures": 0}
 LOCK = threading.Lock()
 
 
+def tls_context(cafile=None):
+    """A verifying TLS context that refuses anything older than TLS 1.2."""
+    ctx = ssl.create_default_context(cafile=cafile)
+    ctx.minimum_version = ssl.TLSVersion.TLSv1_2
+    return ctx
+
+
 def log(msg):
     """Print a message to stdout, unbuffered so it reaches the pod log promptly."""
     print(msg, flush=True)
@@ -60,7 +67,7 @@ def kube_get(path):
     """GET a Kubernetes API path with the pod's service account."""
     with open(f"{SA_DIR}/token", encoding="utf-8") as f:
         token = f.read().strip()
-    ctx = ssl.create_default_context(cafile=f"{SA_DIR}/ca.crt")
+    ctx = tls_context(cafile=f"{SA_DIR}/ca.crt")
     req = urllib.request.Request(API + path, headers={"Authorization": f"Bearer {token}"})
     with urllib.request.urlopen(req, timeout=30, context=ctx) as resp:
         return json.load(resp)
@@ -127,13 +134,16 @@ def nextdns_query(host):
     # One question (A, IN) and one OPT record advertising EDNS, so NextDNS attaches its reason.
     msg = struct.pack(">HHHHHH", qid, 0x0100, 1, 0, 0, 1) + qname + struct.pack(">HH", 1, 1)
     msg += b"\0" + struct.pack(">HHIH", 41, 4096, 0, 0)
-    ctx = ssl.create_default_context()
+    ctx = tls_context()
     conn = http_conn(NEXTDNS_IP, "dns.nextdns.io", ctx)
     conn.request(
         "POST",
         f"/{PROFILE}",
         body=msg,
-        headers={"Content-Type": "application/dns-message", "Accept": "application/dns-message"},
+        headers={
+            "Content-Type": "application/dns-message",
+            "Accept": "application/dns-message",
+        },
     )
     resp = conn.getresponse()
     data = resp.read()
@@ -174,7 +184,7 @@ def http_conn(ip, sni, ctx):
 
 def cname_chain(host):
     """Return host plus every CNAME target Google's resolver follows from it."""
-    conn = http_conn(GOOGLE_IP, "dns.google", ssl.create_default_context())
+    conn = http_conn(GOOGLE_IP, "dns.google", tls_context())
     conn.request("GET", "/resolve?" + urllib.parse.urlencode({"name": host, "type": "A"}))
     body = json.load(conn.getresponse())
     conn.close()
@@ -205,24 +215,37 @@ def check(host):
 
 
 def run_once():
-    """Discover hosts, check each, and replace the published state."""
+    """Discover hosts, check each, and replace the published state.
+
+    A host whose check fails keeps its previous result, so a known block cannot
+    vanish from the metrics, and last_success only advances when every host was
+    checked: a host that keeps failing then shows as a stale checker.
+    """
     hosts = discover()
-    results = {}
+    with LOCK:
+        previous = dict(STATE["hosts"])
+    results, failed = {}, 0
     for host, sources in sorted(hosts.items()):
+        entry = {"sources": ",".join(sorted(sources)), "failed": False}
         try:
-            reason, resolvable = check(host)
+            entry["reason"], entry["resolvable"] = check(host)
         except Exception as exc:  # pylint: disable=broad-exception-caught
+            failed += 1
             log(f"check {host} failed: {type(exc).__name__}: {exc}")
-            continue
-        results[host] = {"sources": ",".join(sorted(sources)), "reason": reason, "resolvable": resolvable}
-        if reason or not resolvable:
-            log(f"{host}: blocked={reason or '-'} resolvable={resolvable}")
-    if hosts and not results:
-        raise RuntimeError("every host check failed")
+            prior = previous.get(host, {})
+            entry.update(
+                reason=prior.get("reason"),
+                resolvable=prior.get("resolvable"),
+                failed=True,
+            )
+        results[host] = entry
+        if entry["reason"] or entry["resolvable"] is False:
+            log(f"{host}: blocked={entry['reason'] or '-'} resolvable={entry['resolvable']}")
     with LOCK:
         STATE["hosts"] = results
-        STATE["last_success"] = time.time()
-    log(f"checked {len(results)}/{len(hosts)} hosts")
+        if not failed:
+            STATE["last_success"] = time.time()
+    log(f"checked {len(hosts) - failed}/{len(hosts)} hosts")
 
 
 def loop():
@@ -251,23 +274,34 @@ def render():
         "# HELP dnsblockcheck_host_blocked 1 when NextDNS blocks the host or a name in its CNAME chain.",
         "# TYPE dnsblockcheck_host_blocked gauge",
     ]
-    for host, r in hosts.items():
+    # A host whose first check failed has no result yet; it shows only in host_check_failed.
+    known = {h: r for h, r in hosts.items() if r["reason"] is not None}
+    for host, r in known.items():
         labels = f'host="{_esc(host)}",source="{r["sources"]}",reason="{_esc(r["reason"])}"'
         lines.append(f"dnsblockcheck_host_blocked{{{labels}}} {1 if r['reason'] else 0}")
     lines += [
         "# HELP dnsblockcheck_host_unresolvable 1 when the cluster's own DNS cannot resolve the host.",
         "# TYPE dnsblockcheck_host_unresolvable gauge",
     ]
-    for host, r in hosts.items():
+    for host, r in known.items():
         lines.append(
             f'dnsblockcheck_host_unresolvable{{host="{_esc(host)}",source="{r["sources"]}"}} '
             f"{0 if r['resolvable'] else 1}"
         )
     lines += [
+        "# HELP dnsblockcheck_host_check_failed 1 when the last check of the host errored.",
+        "# TYPE dnsblockcheck_host_check_failed gauge",
+    ]
+    for host, r in hosts.items():
+        lines.append(
+            f'dnsblockcheck_host_check_failed{{host="{_esc(host)}",source="{r["sources"]}"}} '
+            f"{1 if r['failed'] else 0}"
+        )
+    lines += [
         "# HELP dnsblockcheck_hosts Hosts checked in the last run.",
         "# TYPE dnsblockcheck_hosts gauge",
         f"dnsblockcheck_hosts {len(hosts)}",
-        "# HELP dnsblockcheck_last_success_timestamp_seconds Last run that checked at least one host.",
+        "# HELP dnsblockcheck_last_success_timestamp_seconds Last run that checked every host without error.",
         "# TYPE dnsblockcheck_last_success_timestamp_seconds gauge",
         f"dnsblockcheck_last_success_timestamp_seconds {last}",
         "# HELP dnsblockcheck_run_failures_total Runs that failed outright.",
@@ -280,7 +314,9 @@ def render():
 class Handler(http.server.BaseHTTPRequestHandler):
     """Serve the exposition on /metrics and nothing else."""
 
-    def do_GET(self):  # pylint: disable=invalid-name  # name is fixed by BaseHTTPRequestHandler
+    def do_GET(
+        self,
+    ):  # pylint: disable=invalid-name  # name is fixed by BaseHTTPRequestHandler
         """Handle a metrics scrape."""
         if self.path != "/metrics":
             self.send_response(404)

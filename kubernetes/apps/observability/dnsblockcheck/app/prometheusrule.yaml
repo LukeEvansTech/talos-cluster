@@ -27,7 +27,7 @@ spec:
             severity: warning
         - alert: DnsBlockCheckStale
           annotations:
-            summary: "The NextDNS block check has not completed for over 30 minutes, so a new block would go unnoticed."
+            summary: "The NextDNS block check has not checked every host cleanly for over 30 minutes; see dnsblockcheck_host_check_failed."
           expr: >-
             (time() - dnsblockcheck_last_success_timestamp_seconds > 1800)
             or absent(dnsblockcheck_last_success_timestamp_seconds)
