@@ -1,0 +1,19 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ./externalsecret.yaml
+  - ./helmrelease.yaml
+  - ./ocirepository.yaml
+  - ./prometheusrule.yaml
+  - ./rbac.yaml
+  - ./servicemonitor.yaml
+configMapGenerator:
+  - name: dnsblockcheck-exporter
+    namespace: observability
+    files:
+      - exporter.py=./exporter/exporter.py
+generatorOptions:
+  # Stable name: reloader.stakater.com/auto restarts the pod on content change.
+  disableNameSuffixHash: true
