@@ -499,9 +499,17 @@ backend = "npm:markdownlint-cli"
 version = "3.9.9"
 backend = "npm:prettier"
 
+[[tools."pipx:black"]]
+version = "26.3.1"
+backend = "pipx:black"
+
 [[tools."pipx:codespell"]]
 version = "2.4.3"
 backend = "pipx:codespell"
+
+[[tools."pipx:pylint"]]
+version = "4.0.5"
+backend = "pipx:pylint"
 
 [[tools."pipx:yamllint"]]
 version = "1.38.0"

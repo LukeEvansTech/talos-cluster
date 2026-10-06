@@ -61,8 +61,16 @@ glob = ["*.md"]
 exclude = ["docs/**"]
 stage_fixed = true
 
+# Matches super-linter's PYTHON_BLACK. The repo config sets line-length 120; plain `black` uses 88
+# and CI then rejects the result.
+[pre-commit.commands.format-python-black]
+run = "mise x -- black --quiet --config .github/linters/.python-black {staged_files}"
+glob = ["*.py"]
+exclude = ["docs/**"]
+stage_fixed = true
+
 # ---------------------------------------------------------------------------
-# super-linter parity (report-only: these block the commit, they don't fix). The four below mirror
+# super-linter parity (report-only: these block the commit, they don't fix). The commands below mirror
 # the remaining non-Docker super-linter linters, pointing at the same config under .github/linters/
 # and scoped to staged files like CI's changed-files-only PRs. docs/ is excluded everywhere: the
 # zensical toolchain owns it. Tool versions in .mise.toml match the super-linter v8 pin.
@@ -90,4 +98,9 @@ exclude = ["docs/**"]
 # .editorconfig-checker.json already excludes Markdown, fixtures and smokeping Targets.
 [pre-commit.commands.lint-editorconfig]
 run = "mise x -- editorconfig-checker -config .github/linters/.editorconfig-checker.json {staged_files}"
+exclude = ["docs/**"]
+
+[pre-commit.commands.lint-pylint]
+run = "mise x -- pylint --rcfile .github/linters/.python-lint {staged_files}"
+glob = ["*.py"]
 exclude = ["docs/**"]
