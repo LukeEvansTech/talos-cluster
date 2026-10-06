@@ -11,7 +11,7 @@ spec:
     name: opnsense-config-backup
   values:
     controllers:
-      opnsense-config-backup:
+      opnsense-config-backup: &backup
         type: cronjob
         cronjob:
           ttlSecondsAfterFinished: 86400
@@ -24,7 +24,7 @@ spec:
           failedJobsHistory: 3
           backoffLimit: 2
         containers:
-          app:
+          app: &container
             # Age is fetched as a pinned, checksum-verified binary at runtime so apk installs
             # are not needed and the rootfs stays read-only and non-root.
             image:
@@ -59,25 +59,34 @@ spec:
                 head -c 5 /work/config.xml | grep -q '<?xml' \
                   || { echo "ERROR: OPNsense API did not return an XML config"; exit 1; }
 
-                "$${AGE}" -r "$${AGE_RECIPIENT}" -o /work/opnsense.xml.age /work/config.xml
+                "$${AGE}" -r "$${AGE_RECIPIENT}" -o "/work/$${BACKUP_FILE}" /work/config.xml
                 rm -f /work/config.xml
 
                 git clone --depth 1 "$${REPO_URL}" /work/repo
-                cp /work/opnsense.xml.age /work/repo/opnsense.xml.age
+                cp "/work/$${BACKUP_FILE}" "/work/repo/$${BACKUP_FILE}"
                 cd /work/repo
                 git config user.email "opnsense-config-backup@talos.local"
                 git config user.name "opnsense-config-backup"
-                git add opnsense.xml.age
+                git add "$${BACKUP_FILE}"
                 if git diff --cached --quiet; then
                   echo "config unchanged since last backup, nothing to commit"
                 else
-                  git commit -m "opnsense: encrypted config backup"
-                  git push origin HEAD:main
+                  git commit -m "$${BACKUP_NAME}: encrypted config backup"
+                  # The sibling job pushes to the same branch; rebase onto its commit and retry.
+                  n=0
+                  until git push origin HEAD:main; do
+                    n=$((n + 1))
+                    [ "$n" -lt 4 ] || { echo "ERROR: push failed after $n attempts"; exit 1; }
+                    sleep $((n * 5))
+                    git pull -q --rebase origin main
+                  done
                   echo "pushed updated encrypted backup"
                 fi
             env:
               TZ: UTC
               HOME: /work
+              BACKUP_NAME: opnsense
+              BACKUP_FILE: opnsense.xml.age
               REPO_URL: git@github.com:LukeEvansTech/network-configs.git
               # Public age recipient; the matching private identity lives only in 1Password
               # (op://Talos/opnsense-config-backup).
@@ -94,6 +103,26 @@ spec:
               capabilities:
                 drop:
                   - ALL
+      opnsensegh-config-backup:
+        <<: *backup
+        cronjob:
+          ttlSecondsAfterFinished: 86400
+          # Offset from the main job so the two pushes to the one repository rarely overlap.
+          schedule: "45 3 * * *"
+          concurrencyPolicy: Forbid
+          successfulJobsHistory: 3
+          failedJobsHistory: 3
+          backoffLimit: 2
+        containers:
+          app:
+            <<: *container
+            env:
+              TZ: UTC
+              HOME: /work
+              BACKUP_NAME: opnsensegh
+              BACKUP_FILE: opnsensegh.xml.age
+              REPO_URL: git@github.com:LukeEvansTech/network-configs.git
+              AGE_RECIPIENT: age1l3w3p2aljz77zmgd54tccg88tryynuu4h54cgxd3w9eux85e6cvs63gzt5
     defaultPodOptions:
       automountServiceAccountToken: false
       securityContext:
@@ -109,9 +138,20 @@ spec:
         type: secret
         name: opnsense-config-backup-secret
         defaultMode: 0400
-        globalMounts:
-          - path: /secrets
-            readOnly: true
+        advancedMounts:
+          opnsense-config-backup:
+            app:
+              - path: /secrets
+                readOnly: true
+      secretsgh:
+        type: secret
+        name: opnsensegh-config-backup-secret
+        defaultMode: 0400
+        advancedMounts:
+          opnsensegh-config-backup:
+            app:
+              - path: /secrets
+                readOnly: true
       work:
         type: emptyDir
         globalMounts:

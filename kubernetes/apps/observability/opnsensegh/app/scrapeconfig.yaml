@@ -1,0 +1,31 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/scrapeconfig_v1alpha1.json
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: ScrapeConfig
+metadata:
+  name: &name opnsensegh-node
+spec:
+  # Same OS-level scrape as the main firewall's opnsense-node (see
+  # docs/docs/apps/opnsense-exporter.md), reached directly over the site-to-site tunnel
+  # rather than through the exporter's egress Service.
+  staticConfigs:
+    - targets:
+        - ${GH_OPNSENSE_ADDR}:9100
+  metricsPath: /metrics
+  scrapeInterval: 60s
+  relabelings:
+    - action: replace
+      targetLabel: job
+      replacement: *name
+    - action: replace
+      targetLabel: instance
+      # Matches OPNSENSE_EXPORTER_INSTANCE_LABEL on this app's API exporter so both
+      # jobs' series join on the same instance.
+      replacement: opnsense-gh
+  metricRelabelings:
+    # Same load-bearing drop as opnsense-node: unscoped ceph-mixin alerts join through
+    # this metric and would otherwise adopt this target; see docs/docs/apps/nut-appliance.md.
+    - action: drop
+      sourceLabels:
+        - __name__
+      regex: node_uname_info

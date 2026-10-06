@@ -9,4 +9,5 @@ resources:
   - ./ocirepository.yaml
   - ./prometheusrule.yaml
   - ./proxyclass.yaml
+  - ./scrapeconfig.yaml
   - ./servicemonitor.yaml

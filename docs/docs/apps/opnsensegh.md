@@ -17,6 +17,19 @@ Tailscale operator egress Service. Two settings are load-bearing:
 - **The target is the firewall's LAN address.** Only that address answers the API; check this first if
   the scrape times out after an address change.
 
+## OS-level metrics
+
+`opnsensegh-node` is a `ScrapeConfig` for node_exporter on the firewall (port 9100), the same shape as the
+main firewall's `opnsense-node` described in [opnsense-exporter](opnsense-exporter.md). It is scraped directly
+at `GH_OPNSENSE_ADDR` over the site-to-site tunnel, not through the egress Service, and relabelled to
+`instance="opnsense-gh"` so it joins the API exporter's series. It drops `node_uname_info` for the same reason
+as the other node scrapes. The target stays down until node_exporter is installed on the firewall.
+
+## Config backup
+
+The firewall's encrypted config is backed up daily by the second CronJob of
+[opnsense-config-backup](opnsense-config-backup.md), using the `opnsensegh-config-backup` 1Password item.
+
 ## Alerts
 
 `OPNsenseGhExporterDown` fires after 10 minutes of a failed scrape, a vanished target, or a missing
