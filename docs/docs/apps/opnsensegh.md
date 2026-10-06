@@ -45,3 +45,7 @@ because json_exporter can only take basic-auth credentials from its config file.
 - **Test time.** json_exporter only reads a numeric epoch for timestamps, and this API returns an ISO date
   string, so the time is the `date` label (UTC, no zone) on `opnsense_speedtest_last_info`.
 - **No alerts.** There are no thresholds yet; the Speedtest dashboard shows throughput and latency history.
+
+`OPNsenseGhSpeedtestStale` fires when `opnsense_speedtest_samples` (the stored result count from
+`showstat`) has not changed for 3 hours, two missed hourly runs in a row. The `showrecent` probe keeps
+re-serving the last good result if the firewall's cron job dies, so probe success alone proves nothing.

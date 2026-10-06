@@ -1,0 +1,22 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: opnsenseghspeedtest.rules
+spec:
+  groups:
+    - name: opnsenseghspeedtest.rules
+      rules:
+        # The plugin tests hourly, so 3h without a new sample means two scheduled runs missed in a row;
+        # the probe keeps re-serving the last good result, which is why success alone proves nothing.
+        - alert: OPNsenseGhSpeedtestStale
+          annotations:
+            summary: "No new speedtest result from the remote firewall in 3h; check its cron job and the speedtest plugin."
+          expr: |-
+            changes(opnsense_speedtest_samples[3h]) == 0
+            or
+            absent(opnsense_speedtest_samples)
+          for: 15m
+          labels:
+            severity: warning
