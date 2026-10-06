@@ -74,6 +74,7 @@ spec:
             severity: warning
         # Both IKE ends are pinned to a literal IP, so an upstream address change needs a
         # manual, two-sided fix; see docs/docs/apps/opnsense-exporter.md.
+        # The second firewall has exactly one tunnel, so absent() on its job needs no connection name.
         # absent() matters: a removed or renamed connection makes the series vanish, and
         # `== 0` can never fire on an empty vector, the same blind spot that left mktxp
         # unmonitored for 8 days.
@@ -84,6 +85,8 @@ spec:
             opnsense_ipsec_phase1_status{job=~"opnsense-exporter|opnsensegh"} == 0
             or
             absent(opnsense_ipsec_phase1_status{job="opnsense-exporter", description="azure-hub-vpngw"})
+            or
+            absent(opnsense_ipsec_phase1_status{job="opnsensegh"})
           for: 10m
           labels:
             severity: critical
