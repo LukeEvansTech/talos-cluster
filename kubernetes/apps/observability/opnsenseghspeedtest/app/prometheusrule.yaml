@@ -9,12 +9,16 @@ spec:
     - name: opnsenseghspeedtest.rules
       rules:
         # The plugin tests hourly, so 3h without a new sample means two scheduled runs missed in a row;
-        # the probe keeps re-serving the last good result, which is why success alone proves nothing.
+        # the offset term needs a full 3h of history, so a fresh deploy can't fire it.
         - alert: OPNsenseGhSpeedtestStale
           annotations:
             summary: "No new speedtest result from the remote firewall in 3h; check its cron job and the speedtest plugin."
           expr: |-
-            changes(opnsense_speedtest_samples[3h]) == 0
+            (
+              changes(opnsense_speedtest_samples[3h]) == 0
+              and
+              opnsense_speedtest_samples offset 3h
+            )
             or
             absent(opnsense_speedtest_samples)
           for: 15m
