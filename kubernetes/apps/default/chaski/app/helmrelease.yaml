@@ -79,10 +79,12 @@ spec:
             url: "{{ .payload.applicationUrl }}/series/{{ .payload.series.titleSlug }}"
             url_title: View Series
           # Sonarr v4 sends Import Complete as eventType "Download"; "ImportComplete" is accepted too
-          # in case a later release gives it its own type. Kometa-tagged series skip, as above.
+          # in case a later release gives it its own type. Kometa-tagged series skip, as above, and so do
+          # episodes that aired over 14 days ago: a back-catalogue fill spent ~800 pushes a day.
           whenExpr: >-
             (payload.eventType == "Download" || payload.eventType == "ImportComplete")
             && !(has(payload.series.tags) && payload.series.tags.exists(t, t.startsWith("kometa")))
+            && payload.episodes.exists(e, has(e.airDateUtc) && now - timestamp(e.airDateUtc) < duration("336h"))
         sonarr-manual:
           target: sonarr
           title: Episode Requires Manual Interaction
