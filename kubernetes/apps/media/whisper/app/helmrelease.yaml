@@ -63,9 +63,11 @@ spec:
             resources:
               requests:
                 cpu: 500m
-                memory: 2Gi
+                memory: 4Gi
+              # The webservice holds a whole film's decoded audio in RAM; 8Gi was OOMKilled on
+              # ~2.5 h films with a second request in flight.
               limits:
-                memory: 8Gi
+                memory: 24Gi
               claims:
                 - name: gpu
             securityContext:
