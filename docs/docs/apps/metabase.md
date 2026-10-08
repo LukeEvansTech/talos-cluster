@@ -16,8 +16,8 @@ shared `postgres18` CloudNativePG cluster.
   risk, no concurrent access). Reusing the hardened, replicated, backed-up cluster costs one extra
   database; app data is captured by the existing CNPG backup pipeline (Barman + scheduled remote).
 - **bjw-s `app-template` chart**, like every other app in the namespace: one Deployment + Service +
-  route + `postgres-init` initContainer fits it cleanly. The dedicated `metabase` DB and role are
-  bootstrapped idempotently by the `ghcr.io/home-operations/postgres-init` initContainer on first run.
+  route fits it cleanly. The dedicated `metabase` DB and role are declared as CNPG `Database` and
+  `DatabaseRole` resources in `kubernetes/apps/database/cloudnative-pg/tenants/metabase.yaml`.
 - **Internal-only ingress.** Inline `route:` on `envoy-internal` for
   `metabase.${SECRET_DOMAIN}`. The `envoy-internal` attachment is what keeps it internal-only, not
   the domain. Cloudflare-fronting can be added later by switching the `parentRef` to
@@ -57,9 +57,9 @@ shared `postgres18` CloudNativePG cluster.
   floor (3Gi limit / 1.5Gi request here) so the migration doesn't OOM.
 
 - **Secret key names are Metabase's, not the values defaults.** The ExternalSecret combines the
-  per-app `metabase` 1Password item with the `cloudnative-pg` item, and must materialise the exact
-  env names the container and initContainer read: `MB_DB_*` / `MB_ENCRYPTION_SECRET_KEY` for the app,
-  `INIT_POSTGRES_*` (including `INIT_POSTGRES_SUPER_*`) for the init container. Generate the encryption
+  per-app `metabase` 1Password item and must materialise the exact env names the container reads:
+  `MB_DB_*` / `MB_ENCRYPTION_SECRET_KEY`. The tenant ExternalSecret `metabase-pg` reads the same
+  `MB_DBPASS` for the database role, so rotate the two together. Generate the encryption
   key and DB password locally and create the 1Password item via `op item create`, never by hand.
 
 ## Operational notes
@@ -71,7 +71,7 @@ shared `postgres18` CloudNativePG cluster.
 - **Recovery is via CNPG, not the app.** Since all state is in the `metabase` database on
   `postgres18`, a corrupt or failed schema migration is recovered by point-in-time restore of that DB
   from the CNPG backups. There is no app-side backup.
-- **If `postgres18` is down at startup**, the `postgres-init` initContainer exits non-zero and the pod
+- **If `postgres18` is down at startup**, the app fails its startup probe and the pod
   restarts with backoff; once Postgres returns, the next attempt succeeds with no manual intervention.
 - **First-run setup is manual.** Browse to the internal hostname, complete the wizard to create the
   local admin, then add source databases through the UI.

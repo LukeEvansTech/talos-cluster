@@ -3,12 +3,21 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
+  - ./coder.yaml
   - ./domainlocker.yaml
   - ./domainwatchdog.yaml
+  - ./guacamole.yaml
+  - ./keeper.yaml
   - ./mailarchiver.yaml
+  - ./metabase.yaml
   - ./miniflux.yaml
+  - ./netbox.yaml
+  - ./paperless.yaml
+  - ./pocketid.yaml
+  - ./prowler.yaml
   - ./reactiveresume.yaml
   - ./romm.yaml
+  - ./scanopy.yaml
   - ./tandoor.yaml
   - ./tracearr.yaml
   - ./wapy.yaml

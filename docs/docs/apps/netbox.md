@@ -16,8 +16,9 @@ official **`netbox-chart`** (`oci://ghcr.io/netbox-community/netbox-chart/netbox
 
 - **Namespace** `default`, modelled on the in-repo `paperless` app (its closest twin).
 - **PostgreSQL**: shared CNPG cluster (`postgres18-rw.database.svc.cluster.local`, `sslmode=require`);
-  bundled Postgres disabled. An `init-db` initContainer (using the `postgres-init` image) creates
-  the `netbox` role + database using the CNPG superuser before first boot.
+  bundled Postgres disabled. The `netbox` role and database are declared as CNPG `DatabaseRole` and
+  `Database` resources in `kubernetes/apps/database/cloudnative-pg/tenants/netbox.yaml`; no init
+  container and no superuser credential in the app Secret.
 - **Redis**: external **Dragonfly** (`dragonfly.database.svc.cluster.local:6379`); the chart's
   bundled cache (`valkey.enabled`) is disabled. Separate logical DB indices for the tasks queue
   (`0`) vs the cache (`1`).
@@ -74,7 +75,7 @@ official **`netbox-chart`** (`oci://ghcr.io/netbox-community/netbox-chart/netbox
 
 ## Operational notes
 
-- **Reconcile** lives in the `default` namespace; it `dependsOn` `cloudnative-pg-cluster` and
+- **Reconcile** lives in the `default` namespace; it `dependsOn` `cloudnative-pg-tenants` and
   `dragonfly-cluster` in the `database` namespace, so reconcile those first if NetBox shows
   "dependency not ready".
 
@@ -85,8 +86,8 @@ official **`netbox-chart`** (`oci://ghcr.io/netbox-community/netbox-chart/netbox
 - **Hostname** is `netbox.${SECRET_DOMAIN}` (internal DNS via external-dns). The HTTPRoute's only
   hostname sits on the `envoy-internal` listener, which is what keeps it internal-only. It does
   not expose NetBox publicly.
-- **First-boot check**: confirm the `init-db` initContainer reports the `netbox` role/database
-  created (or already exists), then log in as the superuser (`admin`).
+- **First-boot check**: confirm `kubectl -n database get databaserole,database netbox` shows
+  `APPLIED true` for both, then log in as the superuser (`admin`).
 - **Backups**: the `media` PVC is snapshotted by VolSync. The `netbox` database lives on the shared
   CNPG cluster and is backed up by CNPG's own path, not VolSync.
 - **Teardown**: `prune: true` removes NetBox's Kubernetes resources on revert, but the `netbox`

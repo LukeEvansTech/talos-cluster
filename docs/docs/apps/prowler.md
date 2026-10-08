@@ -22,8 +22,7 @@ Kubernetes cluster, with a queryable findings dashboard.
 - **Three HelmReleases under `security/prowler/`** plus one for DozerDB under
   `database/dozerdb/`:
   - `prowler-api`: one Deployment with **two containers**, `api` (gunicorn) and
-    `worker` (celery), sharing an `emptyDir` at `/tmp/prowler_api_output`, plus an
-    `init-db` initContainer that bootstraps the database and role.
+    `worker` (celery), sharing an `emptyDir` at `/tmp/prowler_api_output`.
   - `prowler-ui`: the Next.js frontend (NextAuth lives here).
   - `prowler-beat`: the celery beat scheduler.
 - **Colocating API and worker in one Pod.** The worker writes scan artifacts that
@@ -32,8 +31,10 @@ Kubernetes cluster, with a queryable findings dashboard.
   separate Deployments. Running both as containers in one Pod with a shared
   `emptyDir` matches the compose volume-sharing semantics and avoids introducing an
   NFS provisioner.
-- **Database bootstrap** uses the `postgres-init` initContainer pattern to create
-  the `prowlerdb` database and `prowler` role on the existing CNPG cluster. Prowler's
+- **Database bootstrap** is declarative: the `prowlerdb` database and `prowler` role are CNPG
+  `Database` and `DatabaseRole` resources in
+  `kubernetes/apps/database/cloudnative-pg/tenants/prowler.yaml`, and the app `dependsOn`
+  `cloudnative-pg-tenants`. Prowler's
   `POSTGRES_ADMIN_*` (used for partition management) is pointed at the same app role.
 - **Path-routed HTTPRoute** on `envoy-internal` only, at `prowler.${SECRET_DOMAIN}`.
   Only `/api/v1` routes to the API backend;
@@ -120,7 +121,7 @@ Kubernetes cluster, with a queryable findings dashboard.
   ServiceAccount and build a kubeconfig pointing at the in-cluster API endpoint
   (`https://kubernetes.default.svc.cluster.local`).
 - **Health and verification.** A gatus `guarded` check covers the endpoint. After a
-  reconcile, confirm the `init-db` initContainer created the database and role, the
+  reconcile, confirm `kubectl -n database get databaserole,database prowler` shows `APPLIED true`, the
   `api` container applied migrations and bound gunicorn on its port, the `worker`
   connected to the broker, and `prowler-beat` started its scheduler. A broker auth failure
   is invisible from the route's uptime check, since the API and UI both work without it;

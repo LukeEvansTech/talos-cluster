@@ -28,8 +28,8 @@ L2/L3/workload/application diagrams by continuously scanning the infrastructure.
   `dnsPolicy: ClusterFirstWithHostNet`. Multus was rejected: the only existing NAD is a macvlan
   on the same primary NIC, so it adds nothing over hostNetwork without authoring VLAN-tagged NADs.
 - **Database: shared CNPG `postgres18-rw.database.svc`.** Cluster standard (metabase, netbox). A
-  `postgres-init` initContainer provisions the DB + user; the Flux Kustomization `dependsOn`
-  `cloudnative-pg-cluster` in `database`.
+  declarative CNPG tenant (`database/cloudnative-pg/tenants/scanopy.yaml`) provisions the DB +
+  role; the Flux Kustomization `dependsOn` `cloudnative-pg-tenants` in `database`.
 - **DB TLS: `?sslmode=require`.** CNPG presents a valid cert-manager cert (`postgres18-tls`, real
   SANs + issuer DN), so the chain verifies. Matches NetBox. The `sslmode=disable` used by Metabase
   is a JVM-only workaround (Java's strict TLS verifier) and does not apply to Scanopy's Rust client.
@@ -51,13 +51,10 @@ L2/L3/workload/application diagrams by continuously scanning the infrastructure.
   `envFrom`), sharing `SCANOPY_DAEMON_API_KEY` and `SCANOPY_NETWORK_ID` so each per-node daemon
   registers against the server over `http://scanopy.network.svc.cluster.local:60072`. Daemon
   registration may require a "network" object to exist first: create the admin + network in the UI.
-- **ExternalSecret key coverage.** `scanopy-secret` must carry `INIT_POSTGRES_*`,
+- **ExternalSecret key coverage.** `scanopy-secret` must carry
   `SCANOPY_DATABASE_URL`, `SCANOPY_DAEMON_API_KEY`, `SCANOPY_NETWORK_ID`; `scanopy-snmp-secret`
   must carry `community`. These are not validated by render-time CI: grep the rendered manifests
-  for every `secretRef`/`secretKeyRef` and projected `items[].key` before applying. The CNPG
-  superuser fields (`POSTGRES_SUPER_USER`/`POSTGRES_SUPER_PASS`) come from the existing
-  `cloudnative-pg` 1Password item; if `POSTGRES_SUPER_USER` is absent, hardcode
-  `INIT_POSTGRES_SUPER_USER: postgres`.
+  for every `secretRef`/`secretKeyRef` and projected `items[].key` before applying.
 - **Secrets must live in the `Talos` 1Password vault** (the ClusterSecretStore only reads `Talos`).
   Create the `scanopy` item via the `op` CLI, never the UI; `SCANOPY_NETWORK_ID` is a lowercase
   UUID, and `SNMP_COMMUNITY` is the one value supplied by hand.
@@ -69,8 +66,7 @@ L2/L3/workload/application diagrams by continuously scanning the infrastructure.
   reboots (`/var/lib` is writable + persistent).
 - **Privileged is allowed**: the cluster enforces no restricted PodSecurity and the `network`
   namespace has no PSA labels, so the privileged hostNetwork daemon admits cleanly.
-- **Image digests are pinned** for both server and daemon (kept in lockstep by Renovate) and the
-  `postgres-init` initContainer.
+- **Image digests are pinned** for both server and daemon (kept in lockstep by Renovate).
 - **Server strategy is `Recreate`, not `RollingUpdate`.** The single replica mounts an RWO
   ceph-block PVC, so a surge pod scheduled on another node during a rolling update would deadlock
   on multi-attach; Recreate tears the old pod down first. If the old pod sticks in `Terminating`,
@@ -97,7 +93,7 @@ L2/L3/workload/application diagrams by continuously scanning the infrastructure.
 - Confirm DB provisioning + TLS connect from the server pod:
 
   ```bash
-  kubectl -n network logs deploy/scanopy -c init-db
+  kubectl -n database get databaserole,database scanopy
   kubectl -n network logs deploy/scanopy -c app | grep -iE 'tls|ssl|database|connect'
   ```
 
