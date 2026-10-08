@@ -151,8 +151,10 @@ out-of-band prerequisites and the validation the skill cannot do.
   the app's `externalsecret.yaml` then `extract`s it. Generate values with `openssl rand -hex 32` and
   never echo them.
 - **Each shared data service needs its own step.** One top-level item per service:
-- **CNPG Postgres.** Add a `ghcr.io/home-operations/postgres-init` initContainer (`envFrom` the
-  app secret, `INIT_POSTGRES_*`) to create the database and role; mirror `paperless`. Connect with
+- **CNPG Postgres.** Declare the database and role as a tenant file in
+  `kubernetes/apps/database/cloudnative-pg/tenants/` (copy `paperless.yaml`; role = database name;
+  list it in that `kustomization.yaml`) and `dependsOn` `cloudnative-pg-tenants`. No init
+  container, no superuser in the app Secret. Connect with
   `sslmode=require`. Node and `pg` apps also need `NODE_TLS_REJECT_UNAUTHORIZED=0`, because the
   bundled driver verifies the cert-manager CA it cannot reach from the app namespace.
 - **Dragonfly (Redis).** Authenticated. Template

@@ -25,14 +25,6 @@ spec:
         strategy: Recreate
         annotations:
           reloader.stakater.com/auto: "true"
-        initContainers:
-          init-db:
-            image:
-              repository: ghcr.io/home-operations/postgres-init
-              tag: 18@sha256:b6d3af974df781c673d37e49bdddfa14a6f5be28b18d2cb7713f0449bea4057b
-            envFrom: &envFrom
-              - secretRef:
-                  name: scanopy-secret
         containers:
           app:
             image:
@@ -46,7 +38,9 @@ spec:
               SCANOPY_USE_SECURE_SESSION_COOKIES: "true"
               SCANOPY_SMTP_RELAY: smtp2graph.infrastructure.svc.cluster.local:25
               SCANOPY_SMTP_EMAIL: scanopy@${SECRET_DOMAIN}
-            envFrom: *envFrom
+            envFrom:
+              - secretRef:
+                  name: scanopy-secret
             probes:
               liveness: &probe
                 enabled: true

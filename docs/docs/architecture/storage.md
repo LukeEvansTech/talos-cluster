@@ -27,6 +27,29 @@ The cluster uses four storage tiers, chosen per workload:
 - Use Garage when an app wants S3, provisioning the bucket and access key with the `/garage` CLI
   inside `garage-0` first.
 
+## PostgreSQL databases
+
+Apps share the CloudNativePG cluster `postgres18` in the `database` namespace. Each app's role and
+database are declared in a tenant file, `kubernetes/apps/database/cloudnative-pg/tenants/<name>.yaml`,
+applied by the Flux Kustomization `cloudnative-pg-tenants`. A tenant file holds an ExternalSecret
+`<name>-pg` (the role password, read from the app's 1Password item), a `DatabaseRole` and a
+`Database`, both with reclaim policy `retain`. Apps no longer create their own database with an init
+container, and their Secrets carry no Postgres superuser password.
+
+### Adding a database for a new app
+
+1. Copy an existing tenant file, such as `paperless.yaml`, and rename it. The role name equals the
+   database name.
+2. Add the file to `tenants/kustomization.yaml`.
+3. Make the app's `ks.yaml` `dependsOn` `cloudnative-pg-tenants` (namespace `database`).
+4. After merge, check `kubectl -n database get databaserole,database <name>`: both should show
+   `APPLIED true`.
+
+To rotate a password, update the 1Password item, then force-sync the tenant ExternalSecret
+`<name>-pg` and the app's own ExternalSecret together. Each refreshes hourly on its own, so the role
+and the app can disagree until both have synced. Removing a tenant file leaves the database and
+role in place (`retain`); drop them by hand.
+
 ## Backups
 
 PVC backups are handled by VolSync (Kopia to NFS, Restic to a remote R2 target); see
