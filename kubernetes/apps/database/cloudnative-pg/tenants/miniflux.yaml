@@ -1,0 +1,47 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/external-secrets.io/externalsecret_v1.json
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: miniflux-pg
+spec:
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: onepassword-connect
+  target:
+    name: miniflux-pg
+    template:
+      type: kubernetes.io/basic-auth
+      engineVersion: v2
+      data:
+        username: miniflux
+        password: "{{ .MINIFLUX_POSTGRES_PASS }}"
+  dataFrom:
+    - extract:
+        key: miniflux
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/postgresql.cnpg.io/databaserole_v1.json
+apiVersion: postgresql.cnpg.io/v1
+kind: DatabaseRole
+metadata:
+  name: miniflux
+spec:
+  cluster:
+    name: postgres18
+  name: miniflux
+  login: true
+  passwordSecret:
+    name: miniflux-pg
+  databaseRoleReclaimPolicy: retain
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/postgresql.cnpg.io/database_v1.json
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: miniflux
+spec:
+  cluster:
+    name: postgres18
+  name: miniflux
+  owner: miniflux
+  databaseReclaimPolicy: retain
