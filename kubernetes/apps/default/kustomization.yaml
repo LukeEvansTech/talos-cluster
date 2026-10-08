@@ -25,6 +25,7 @@ resources:
   - ./domainpulse/ks.yaml
   - ./domain-watchdog/ks.yaml
   - ./erugo/ks.yaml
+  - ./examprep/ks.yaml
   - ./feather/ks.yaml
   - ./filebrowser/ks.yaml
   - ./forgejo/ks.yaml

@@ -1,0 +1,35 @@
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: &app examprep
+  namespace: &namespace default
+spec:
+  targetNamespace: *namespace
+  commonMetadata:
+    labels:
+      app.kubernetes.io/name: *app
+  dependsOn:
+    - name: onepassword-connect
+      namespace: external-secrets
+  path: ./kubernetes/apps/default/examprep/app
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+    namespace: flux-system
+  wait: false
+  interval: 1h
+  retryInterval: 1m
+  timeout: 5m
+  components:
+    - ../../../../components/homepage
+    - ../../../../components/volsync
+  postBuild:
+    substitute:
+      APP: *app
+      VOLSYNC_CAPACITY: 1Gi
+      HOMEPAGE_NAME: Exam Prep
+      HOMEPAGE_GROUP: Tools
+      HOMEPAGE_ICON: mdi-school
+      HOMEPAGE_DESCRIPTION: Certification exam practice
