@@ -1,0 +1,53 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/external-secrets.io/externalsecret_v1.json
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+# On a password rotation force-sync this and default/reactiveresume's ExternalSecret together: each
+# refreshes hourly on its own, so the role and the app's DATABASE_URL can disagree until both do.
+metadata:
+  name: reactiveresume-pg
+spec:
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: onepassword-connect
+  target:
+    name: reactiveresume-pg
+    template:
+      metadata:
+        labels:
+          # CNPG applies a changed role password at once only when its Secret carries this label.
+          cnpg.io/reload: "true"
+      type: kubernetes.io/basic-auth
+      engineVersion: v2
+      data:
+        username: reactive_resume
+        password: "{{ .RR_POSTGRES_PASSWORD }}"
+  dataFrom:
+    - extract:
+        key: reactive-resume
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/postgresql.cnpg.io/databaserole_v1.json
+apiVersion: postgresql.cnpg.io/v1
+kind: DatabaseRole
+metadata:
+  name: reactiveresume
+spec:
+  cluster:
+    name: postgres18
+  name: reactive_resume
+  login: true
+  passwordSecret:
+    name: reactiveresume-pg
+  databaseRoleReclaimPolicy: retain
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/postgresql.cnpg.io/database_v1.json
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: reactiveresume
+spec:
+  cluster:
+    name: postgres18
+  name: reactive_resume
+  owner: reactive_resume
+  databaseReclaimPolicy: retain

@@ -1,0 +1,53 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/external-secrets.io/externalsecret_v1.json
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+# On a password rotation force-sync this and default/tandoor's ExternalSecret together: each
+# refreshes hourly on its own, so the role and the app's DATABASE_URL can disagree until both do.
+metadata:
+  name: tandoor-pg
+spec:
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: onepassword-connect
+  target:
+    name: tandoor-pg
+    template:
+      metadata:
+        labels:
+          # CNPG applies a changed role password at once only when its Secret carries this label.
+          cnpg.io/reload: "true"
+      type: kubernetes.io/basic-auth
+      engineVersion: v2
+      data:
+        username: tandoor
+        password: "{{ .TANDOOR_POSTGRES_PASS }}"
+  dataFrom:
+    - extract:
+        key: tandoor
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/postgresql.cnpg.io/databaserole_v1.json
+apiVersion: postgresql.cnpg.io/v1
+kind: DatabaseRole
+metadata:
+  name: tandoor
+spec:
+  cluster:
+    name: postgres18
+  name: tandoor
+  login: true
+  passwordSecret:
+    name: tandoor-pg
+  databaseRoleReclaimPolicy: retain
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/postgresql.cnpg.io/database_v1.json
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: tandoor
+spec:
+  cluster:
+    name: postgres18
+  name: tandoor
+  owner: tandoor
+  databaseReclaimPolicy: retain

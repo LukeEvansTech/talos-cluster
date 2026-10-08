@@ -5,6 +5,11 @@ kind: Kustomization
 resources:
   - ./domainlocker.yaml
   - ./domainwatchdog.yaml
+  - ./mailarchiver.yaml
   - ./miniflux.yaml
+  - ./reactiveresume.yaml
+  - ./romm.yaml
+  - ./tandoor.yaml
+  - ./tracearr.yaml
   - ./wapy.yaml
   - ./warracker.yaml
