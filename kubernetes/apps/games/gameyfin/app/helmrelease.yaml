@@ -79,7 +79,7 @@ spec:
       games:
         type: nfs
         server: ${SECRET_STORAGE_SERVER}
-        path: /mnt/pool/media/games
+        path: ${SECRET_STORAGE_SERVER_GAMES_NFS}
         globalMounts:
           - path: /games
       tmp:
