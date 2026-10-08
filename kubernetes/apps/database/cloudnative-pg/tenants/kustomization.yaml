@@ -6,6 +6,7 @@ resources:
   - ./domainlocker.yaml
   - ./domainwatchdog.yaml
   - ./mailarchiver.yaml
+  - ./metabase.yaml
   - ./miniflux.yaml
   - ./reactiveresume.yaml
   - ./romm.yaml
