@@ -317,6 +317,15 @@ spec:
         path: /mnt/pool/media
         globalMounts:
           - path: /media
+      # Its own export: a child dataset under media shows empty through the /media mount above.
+      games:
+        type: nfs
+        server: ${SECRET_STORAGE_SERVER:-localhost}
+        path: ${SECRET_STORAGE_SERVER_GAMES_NFS}
+        advancedMounts:
+          qbittorrent:
+            app:
+              - path: /games
       # Pre-created (mode 1777): gluetun's own MkdirAll leaves no execute bit, which blocked the
       # public-IP write under this drop-ALL container. Paired with PUID/PGID 0 in the gluetun env.
       gluetun-tmp:
