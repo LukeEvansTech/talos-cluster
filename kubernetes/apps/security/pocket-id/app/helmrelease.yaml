@@ -22,14 +22,6 @@ spec:
       pocket-id:
         annotations:
           reloader.stakater.com/auto: "true"
-        initContainers:
-          init-db:
-            image:
-              repository: ghcr.io/home-operations/postgres-init
-              tag: "18@sha256:b6d3af974df781c673d37e49bdddfa14a6f5be28b18d2cb7713f0449bea4057b"
-            envFrom: &envFrom
-              - secretRef:
-                  name: pocket-id-secret
         containers:
           app:
             image:
@@ -54,7 +46,9 @@ spec:
               UPLOAD_PATH: /app/data/uploads
               # GeoLite2-City is a redownloadable cache, so it stays off the VolSync-backed PVC.
               GEOLITE_DB_PATH: /app/geolite/GeoLite2-City.mmdb
-            envFrom: *envFrom
+            envFrom:
+              - secretRef:
+                  name: pocket-id-secret
             probes:
               liveness: &probes
                 enabled: true
