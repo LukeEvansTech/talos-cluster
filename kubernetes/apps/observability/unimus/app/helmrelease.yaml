@@ -24,7 +24,7 @@ spec:
             # exec'ing java, so the digest pin covers the app, not just a wrapper.
             image:
               repository: docker.io/croc/unimus
-              tag: 2.9.1@sha256:73fef036493489fa3db77d7acfbeb000ba561e7b9f67a41cb70bc44ec512d21b
+              tag: 2.9.1@sha256:c2c40a2e997f9c61c65c90b0757aef03831181f70aa945c876e847672e014eda
             env:
               TZ: ${TIMEZONE}
               # Capped below the container limit so the heap can't be what OOM-kills the pod.
