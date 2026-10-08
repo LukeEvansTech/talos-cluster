@@ -24,14 +24,6 @@ spec:
           reloader.stakater.com/auto: "true"
         serviceAccount:
           identifier: prowler
-        initContainers:
-          init-db:
-            image:
-              repository: ghcr.io/home-operations/postgres-init
-              tag: "18@sha256:b6d3af974df781c673d37e49bdddfa14a6f5be28b18d2cb7713f0449bea4057b"
-            envFrom: &envFrom
-              - secretRef:
-                  name: prowler-secret
         containers:
           api:
             image: &image
@@ -50,7 +42,9 @@ spec:
               DJANGO_WORKERS: "4"
               # Same problem hits Celery's prefork pool, which also defaults to the core count.
               DJANGO_CELERY_WORKER_CONCURRENCY: "4"
-            envFrom: *envFrom
+            envFrom: &envFrom
+              - secretRef:
+                  name: prowler-secret
             probes:
               # Kubelet probes by pod IP, which fails Django's ALLOWED_HOSTS check; override Host.
               liveness: &apiProbe
