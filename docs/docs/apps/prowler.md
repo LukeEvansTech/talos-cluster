@@ -31,7 +31,7 @@ Kubernetes cluster, with a queryable findings dashboard.
   separate Deployments. Running both as containers in one Pod with a shared
   `emptyDir` matches the compose volume-sharing semantics and avoids introducing an
   NFS provisioner.
-- **Database bootstrap** is declarative: the `prowlerdb` database and `prowler` role are CNPG
+- **Database bootstrap** is declarative: the `prowlerdb` database and `prowlerdb` role are CNPG
   `Database` and `DatabaseRole` resources in
   `kubernetes/apps/database/cloudnative-pg/tenants/prowler.yaml`, and the app `dependsOn`
   `cloudnative-pg-tenants`. Prowler's
@@ -121,7 +121,7 @@ Kubernetes cluster, with a queryable findings dashboard.
   ServiceAccount and build a kubeconfig pointing at the in-cluster API endpoint
   (`https://kubernetes.default.svc.cluster.local`).
 - **Health and verification.** A gatus `guarded` check covers the endpoint. After a
-  reconcile, confirm `kubectl -n database get databaserole,database prowler` shows `APPLIED true`, the
+  reconcile, confirm `kubectl -n database get databaserole,database prowlerdb` shows `APPLIED true`, the
   `api` container applied migrations and bound gunicorn on its port, the `worker`
   connected to the broker, and `prowler-beat` started its scheduler. A broker auth failure
   is invisible from the route's uptime check, since the API and UI both work without it;
