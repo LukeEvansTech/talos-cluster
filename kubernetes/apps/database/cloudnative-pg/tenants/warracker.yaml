@@ -1,0 +1,53 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/external-secrets.io/externalsecret_v1.json
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+# On a password rotation force-sync this and default/warracker's ExternalSecret together: each
+# refreshes hourly on its own, so the role and the app's DATABASE_URL can disagree until both do.
+metadata:
+  name: warracker-pg
+spec:
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: onepassword-connect
+  target:
+    name: warracker-pg
+    template:
+      metadata:
+        labels:
+          # CNPG applies a changed role password at once only when its Secret carries this label.
+          cnpg.io/reload: "true"
+      type: kubernetes.io/basic-auth
+      engineVersion: v2
+      data:
+        username: warracker
+        password: "{{ .WARRACKER_POSTGRES_PASS }}"
+  dataFrom:
+    - extract:
+        key: warracker
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/postgresql.cnpg.io/databaserole_v1.json
+apiVersion: postgresql.cnpg.io/v1
+kind: DatabaseRole
+metadata:
+  name: warracker
+spec:
+  cluster:
+    name: postgres18
+  name: warracker
+  login: true
+  passwordSecret:
+    name: warracker-pg
+  databaseRoleReclaimPolicy: retain
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/postgresql.cnpg.io/database_v1.json
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: warracker
+spec:
+  cluster:
+    name: postgres18
+  name: warracker
+  owner: warracker
+  databaseReclaimPolicy: retain
