@@ -7,6 +7,7 @@ resources:
   - ./domainwatchdog.yaml
   - ./mailarchiver.yaml
   - ./miniflux.yaml
+  - ./netbox.yaml
   - ./reactiveresume.yaml
   - ./romm.yaml
   - ./tandoor.yaml
