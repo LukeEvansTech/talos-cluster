@@ -91,7 +91,9 @@ spec:
                 cpu: 10m
                 memory: 64Mi
               limits:
-                memory: 128Mi
+                # ENABLE_ADDITIONAL_METRICS pulls the whole library and queue per scrape;
+                # 128Mi was OOMKilled 135 times on 2026-10-07/08 (~5.3k films). Matches Sonarr.
+                memory: 256Mi
     defaultPodOptions:
       securityContext:
         runAsNonRoot: true
