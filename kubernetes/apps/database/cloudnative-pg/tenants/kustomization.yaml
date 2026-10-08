@@ -9,6 +9,7 @@ resources:
   - ./miniflux.yaml
   - ./reactiveresume.yaml
   - ./romm.yaml
+  - ./scanopy.yaml
   - ./tandoor.yaml
   - ./tracearr.yaml
   - ./wapy.yaml
