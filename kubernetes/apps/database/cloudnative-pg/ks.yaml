@@ -102,6 +102,17 @@ spec:
       namespace: external-secrets
   interval: 1h
   path: ./kubernetes/apps/database/cloudnative-pg/tenants
+  # Database and DatabaseRole report status.applied, not a Ready condition, so kstatus alone
+  # would mark them current before CNPG has applied anything.
+  healthCheckExprs:
+    - apiVersion: postgresql.cnpg.io/v1
+      kind: Database
+      current: status.observedGeneration == metadata.generation && status.applied == true
+      failed: has(status.applied) && status.applied == false
+    - apiVersion: postgresql.cnpg.io/v1
+      kind: DatabaseRole
+      current: status.observedGeneration == metadata.generation && status.applied == true
+      failed: has(status.applied) && status.applied == false
   # Roles and databases are adopted in place with reclaim policy retain, so pruning a CR never
   # drops data; tenants replace the postgres-init init containers (#5879).
   prune: true
