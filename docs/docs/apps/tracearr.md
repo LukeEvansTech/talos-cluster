@@ -34,7 +34,8 @@ primary piped into `pg_restore --no-owner --no-acl --role=tracearr --single-tran
 one, run as the operator's superuser. Tracearr's own UI restore was not used: it drops and recreates
 the `timescaledb` extension and calls `timescaledb_pre_restore()`, which need a superuser that the
 app role is not. On first start Tracearr converted `sessions` and `library_snapshots` to hypertables
-and built the continuous aggregates itself.
+and built the continuous aggregates itself. The old database and role on `postgres18` were dropped the same day, once the new
+cluster had a completed base backup.
 
 ## Upgrading TimescaleDB
 

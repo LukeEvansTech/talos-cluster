@@ -21,6 +21,5 @@ resources:
   - ./romm.yaml
   - ./scanopy.yaml
   - ./tandoor.yaml
-  - ./tracearr.yaml
   - ./wapy.yaml
   - ./warracker.yaml
