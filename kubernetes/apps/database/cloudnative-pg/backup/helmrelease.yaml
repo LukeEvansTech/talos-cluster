@@ -36,12 +36,12 @@ spec:
               - name: POSTGRES_USER
                 valueFrom:
                   secretKeyRef:
-                    name: cloudnative-pg-secret
+                    name: pgbackup-pg
                     key: username
               - name: POSTGRES_PASSWORD
                 valueFrom:
                   secretKeyRef:
-                    name: cloudnative-pg-secret
+                    name: pgbackup-pg
                     key: password
               - name: EXCLUDE_DBS
                 value: "postgres template0 template1"
@@ -62,12 +62,12 @@ spec:
               - name: POSTGRES_USER
                 valueFrom:
                   secretKeyRef:
-                    name: cloudnative-pg-secret
+                    name: pgbackup-pg
                     key: username
               - name: POSTGRES_PASSWORD
                 valueFrom:
                   secretKeyRef:
-                    name: cloudnative-pg-secret
+                    name: pgbackup-pg
                     key: password
               - name: POSTGRES_DB_FILE
                 value: /config/db_list
