@@ -13,5 +13,3 @@ resources:
   - ./dozerdb/ks.yaml
   - ./dragonfly/ks.yaml
   - ./metabase/ks.yaml
-  - ./pgadmin/ks.yaml
-  - ./whodb/ks.yaml
