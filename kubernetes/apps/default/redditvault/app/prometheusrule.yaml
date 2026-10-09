@@ -1,0 +1,33 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: redditvault
+spec:
+  groups:
+    - name: redditvault
+      rules:
+        # Age of the last success, same shape as GickupBackupStale: catches a suspended or unscheduled
+        # CronJob too, and the creation-time fallback alerts if a run has never succeeded.
+        - alert: RedditVaultSyncStale
+          annotations:
+            summary: >-
+              The redditvault-sync CronJob (default/redditvault-sync) has not
+              succeeded in over 24h - new Reddit saves are not reaching RedditVault.
+            description: >-
+              No successful daily sync in over 24h. A 409 "Sync already in
+              progress" means the app's sync flag stuck after an interrupted run;
+              a 401 means the API key in the ExternalSecret no longer matches.
+              Check the latest redditvault-sync Job's logs, fix the cause, then
+              trigger a run with
+              kubectl -n default create job --from=cronjob/redditvault-sync.
+          expr: |-
+            time() - (
+              kube_cronjob_status_last_successful_time{namespace="default", cronjob="redditvault-sync"}
+              or
+              kube_cronjob_created{namespace="default", cronjob="redditvault-sync"}
+            ) > 86400
+          for: 2h
+          labels:
+            severity: warning

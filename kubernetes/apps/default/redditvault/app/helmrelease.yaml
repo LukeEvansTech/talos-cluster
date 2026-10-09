@@ -16,7 +16,7 @@ spec:
           reloader.stakater.com/auto: "true"
         containers:
           app:
-            image:
+            image: &image
               repository: ghcr.io/lukeevanstech/redditvault
               tag: 0.3.0@sha256:6c6f324e2766dfd2ff23de0e607ebd913e5183e3e1b3240d93978242ebc9e405
             env:
@@ -39,6 +39,63 @@ spec:
                 memory: 128Mi
               limits:
                 memory: 256Mi
+      # The app only syncs when asked, so saves piled up unseen for weeks; this asks once a day.
+      sync:
+        type: cronjob
+        cronjob:
+          ttlSecondsAfterFinished: 86400
+          schedule: "30 5 * * *"
+          timeZone: "${TIMEZONE}"
+          concurrencyPolicy: Forbid
+          successfulJobsHistory: 1
+          failedJobsHistory: 3
+          backoffLimit: 1
+          activeDeadlineSeconds: 600
+        pod:
+          automountServiceAccountToken: false
+        containers:
+          app:
+            image: *image
+            command:
+              - python
+              - -c
+              - |
+                import json, os, sys, urllib.error, urllib.request
+                req = urllib.request.Request(
+                    "http://redditvault:5000/api/sync",
+                    data=b"{}",
+                    method="POST",
+                    headers={
+                        "X-API-Key": os.environ["REDDITVAULT_API_KEY"],
+                        "Content-Type": "application/json",
+                    },
+                )
+                try:
+                    body = json.load(urllib.request.urlopen(req, timeout=300))
+                except urllib.error.HTTPError as e:
+                    sys.exit(f"sync refused: HTTP {e.code} {e.read().decode()[:200]}")
+                print(body)
+                sys.exit(1 if "error" in body else 0)
+            env:
+              PYTHONDONTWRITEBYTECODE: "1"
+              PYTHONUNBUFFERED: "1"
+              REDDITVAULT_API_KEY:
+                valueFrom:
+                  secretKeyRef:
+                    name: redditvault-secret
+                    key: REDDITVAULT_API_KEY
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop:
+                  - ALL
+            resources:
+              requests:
+                cpu: 10m
+                memory: 32Mi
+              limits:
+                memory: 64Mi
     defaultPodOptions:
       securityContext:
         runAsNonRoot: true
@@ -64,5 +121,8 @@ spec:
     persistence:
       data:
         existingClaim: "{{ .Release.Name }}"
-        globalMounts:
-          - path: /data
+        # The sync job talks HTTP only; a global mount would put the RWO claim in its pod too.
+        advancedMounts:
+          redditvault:
+            app:
+              - path: /data
