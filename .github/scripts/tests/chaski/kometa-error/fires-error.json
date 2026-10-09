@@ -1,0 +1,7 @@
+{
+  "event": "error",
+  "library_name": "Films",
+  "collection": "Example",
+  "error": "boom",
+  "critical": false
+}

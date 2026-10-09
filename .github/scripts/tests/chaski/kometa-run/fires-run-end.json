@@ -1,0 +1,11 @@
+{
+  "event": "run_end",
+  "run_time": "0:10:00",
+  "collections_created": 0,
+  "collections_modified": 1,
+  "collections_deleted": 0,
+  "items_added": 2,
+  "items_removed": 0,
+  "added_to_radarr": 0,
+  "added_to_sonarr": 0
+}

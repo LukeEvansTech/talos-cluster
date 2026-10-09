@@ -11,6 +11,9 @@ spec:
       rules:
         - alert: PushoverQuotaLow
           annotations:
+            description: >-
+              Per-sender burn: sum by (target) (increase(chaski_target_sends_total[6h])). Alertmanager
+              and other direct senders are not in that metric. The fix is in the PushoverQuota row of known-noise.md.
             summary: "Pushover has {{ $value | humanizePercentage }} of its monthly messages left; every estate app shares it."
           expr: pushover_messages_remaining / pushover_message_limit < 0.2
           for: 15m
@@ -18,6 +21,9 @@ spec:
             severity: warning
         - alert: PushoverQuotaPaceHigh
           annotations:
+            description: >-
+              Per-sender burn: sum by (target) (increase(chaski_target_sends_total[6h])). Alertmanager
+              and other direct senders are not in that metric. The fix is in the PushoverQuota row of known-noise.md.
             summary: "At the last 6h rate Pushover runs out before its monthly reset (projected {{ $value | humanize }} messages left)."
           expr: >-
             predict_linear(pushover_messages_remaining[6h],

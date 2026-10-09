@@ -1,0 +1,14 @@
+{
+  "eventType": "Download",
+  "applicationUrl": "https://sonarr.example",
+  "downloadClient": "sabnzbd",
+  "series": { "title": "Example", "titleSlug": "example", "tags": [] },
+  "episodes": [
+    {
+      "seasonNumber": 1,
+      "episodeNumber": 1,
+      "title": "Episode",
+      "airDateUtc": "__DAYS_AGO_15__"
+    }
+  ]
+}
