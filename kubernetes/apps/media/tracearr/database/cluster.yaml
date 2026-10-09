@@ -6,7 +6,7 @@ metadata:
   name: tracearr-postgres
 spec:
   # Dedicated because TimescaleDB needs shared_preload_libraries, which would restart every tenant
-  # on the shared postgres18 (#5879). Two instances on separate nodes stand in for object-store backups.
+  # on the shared postgres18 (#5879). Two instances survive a node loss but are not a backup (H-22).
   instances: 2
   imageCatalogRef:
     apiGroup: postgresql.cnpg.io
@@ -39,7 +39,8 @@ spec:
       owner: tracearr
       secret:
         name: tracearr-postgres-app
-      # timescaledb is not a trusted extension, so the owner role cannot create it itself.
+      # timescaledb is not a trusted extension, so the owner role cannot create or update it itself;
+      # after a Renovate bump of the ts version run ALTER EXTENSION (docs/docs/apps/tracearr.md).
       postInitApplicationSQL:
         - CREATE EXTENSION IF NOT EXISTS timescaledb
   resources:
@@ -48,5 +49,3 @@ spec:
       memory: 512Mi
     limits:
       memory: 2Gi
-  monitoring:
-    enablePodMonitor: true

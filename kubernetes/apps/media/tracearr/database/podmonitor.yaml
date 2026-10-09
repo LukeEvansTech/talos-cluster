@@ -1,0 +1,23 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/podmonitor_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: tracearr-postgres
+  labels:
+    cnpg.io/cluster: tracearr-postgres
+spec:
+  podMetricsEndpoints:
+    # Same relabel as postgres18's PodMonitor, so dashboards keyed on cnpg_cluster see this cluster.
+    - metricRelabelings:
+        - action: replace
+          sourceLabels:
+            - cluster
+          targetLabel: cnpg_cluster
+        - action: labeldrop
+          regex: cluster
+      port: metrics
+  selector:
+    matchLabels:
+      cnpg.io/cluster: tracearr-postgres
+      cnpg.io/podRole: instance

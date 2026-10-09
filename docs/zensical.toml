@@ -120,6 +120,7 @@ nav = [
     { "SNMP exporter" = "apps/snmp-exporter.md" },
     { "Sonarr" = "apps/sonarr.md" },
     { "Tautulli exporter" = "apps/tautulli-exporter.md" },
+    { "Tracearr" = "apps/tracearr.md" },
     { "Todoist Sort" = "apps/todoist-sort.md" },
     { "TrueNAS exporter" = "apps/truenas-exporter.md" },
     { "tuppr" = "apps/tuppr.md" },

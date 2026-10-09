@@ -218,7 +218,8 @@
 
     {
       // Tag is pg<major>.<minor>-ts<timescale version>; regex versioning keeps PG 18 fixed (a new
-      // major needs a dump/restore) and orders TimescaleDB releases. Manual: it is tracearr's database.
+      // major needs a dump/restore) and orders TimescaleDB releases. Manual: a ts bump also needs
+      // ALTER EXTENSION timescaledb UPDATE run by hand (docs/docs/apps/tracearr.md).
       description: "TimescaleDB HA image for tracearr-postgres",
       matchDatasources: ["docker"],
       matchPackageNames: ["timescale/timescaledb-ha"],

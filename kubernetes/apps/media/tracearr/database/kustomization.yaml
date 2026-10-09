@@ -7,3 +7,4 @@ resources:
   - ./imagecatalog.yaml
   - ./cluster.yaml
   - ./networkpolicy.yaml
+  - ./podmonitor.yaml
