@@ -386,7 +386,7 @@ kubectl get backup -n database
 kubectl describe backup -n database <backup-name>
 
 # Verify S3 credentials
-kubectl get secret -n database cloudnative-pg-secret -o yaml
+kubectl get secret -n database cloudnative-pg-secret -o go-template='{{range $k, $v := .data}}{{$k}}{{"\n"}}{{end}}'
 ```
 
 ### Replication issues
