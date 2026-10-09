@@ -49,8 +49,8 @@ spec:
     - ../../../../components/homepage
     - ../../../../components/volsync
   dependsOn:
-    - name: cloudnative-pg-tenants
-      namespace: database
+    - name: tracearr-database
+      namespace: media
     - name: dragonfly-cluster
       namespace: database
     - name: onepassword-connect
