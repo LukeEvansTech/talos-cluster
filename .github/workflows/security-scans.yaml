@@ -61,3 +61,7 @@ jobs:
       # KubeJobFailed until history rotation (11 days in Sep 2026).
       - name: CronJob TTL check
         run: python3 .github/scripts/check_cronjob_ttl.py
+      # A chaski whenExpr that errors at runtime counts as false and drops pushes silently; run
+      # every gate against its fires/skips fixtures in the image the chart pins.
+      - name: Chaski route gate check
+        run: python3 .github/scripts/check_chaski_routes.py

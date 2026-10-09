@@ -100,6 +100,11 @@ exclude = ["docs/**"]
 run = "mise x -- editorconfig-checker -config .github/linters/.editorconfig-checker.json {staged_files}"
 exclude = ["docs/**"]
 
+# Needs docker; a gate typo otherwise ships, since chaski drops a push whose whenExpr errors.
+[pre-commit.commands.check-chaski-routes]
+run = "mise x -- env -u VIRTUAL_ENV uv run -q --no-project --with pyyaml python3 .github/scripts/check_chaski_routes.py"
+glob = ["kubernetes/apps/default/chaski/app/*.yaml", ".github/scripts/tests/chaski/**/*.json", ".github/scripts/check_chaski_routes.py"]
+
 [pre-commit.commands.lint-pylint]
 run = "mise x -- pylint --rcfile .github/linters/.python-lint {staged_files}"
 glob = ["*.py"]

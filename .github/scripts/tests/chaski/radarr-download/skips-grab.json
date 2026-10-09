@@ -1,0 +1,13 @@
+{
+  "eventType": "Grab",
+  "applicationUrl": "https://radarr.example",
+  "downloadClient": "sabnzbd",
+  "isUpgrade": false,
+  "movie": {
+    "title": "Example",
+    "year": 2026,
+    "tmdbId": 1,
+    "overview": "An example.",
+    "tags": []
+  }
+}
