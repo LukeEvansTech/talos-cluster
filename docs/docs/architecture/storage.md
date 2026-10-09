@@ -34,7 +34,9 @@ database are declared in a tenant file, `kubernetes/apps/database/cloudnative-pg
 applied by the Flux Kustomization `cloudnative-pg-tenants`. A tenant file holds an ExternalSecret
 `<name>-pg` (the role password, read from the app's 1Password item), a `DatabaseRole` and a
 `Database`, both with reclaim policy `retain`. Apps no longer create their own database with an init
-container, and their Secrets carry no Postgres superuser password.
+container, and their Secrets carry no Postgres superuser password. The cluster has
+`enableSuperuserAccess: false`, so no superuser password exists to leak; for admin work, run
+`kubectl -n database exec -it <primary> -c postgres -- psql`, which uses the local socket.
 
 `tenants/backup.yaml` is the exception: a role with no database. The hourly `postgres18-backup`
 dump logs in as `pgbackup`, a member of `pg_read_all_data` with `BYPASSRLS` (prowler uses row-level

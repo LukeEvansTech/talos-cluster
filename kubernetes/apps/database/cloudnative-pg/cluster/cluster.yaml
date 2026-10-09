@@ -22,10 +22,8 @@ spec:
     size: 200Gi
     storageClass: miroir-local
 
-  superuserSecret:
-    name: cloudnative-pg-secret
-
-  enableSuperuserAccess: true
+  # Every app has its own role (#5879); admin work goes through kubectl exec and the local socket.
+  enableSuperuserAccess: false
 
   postgresql:
     parameters:
