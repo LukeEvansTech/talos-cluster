@@ -6,7 +6,7 @@ metadata:
   name: tracearr-postgres
 spec:
   # Dedicated because TimescaleDB needs shared_preload_libraries, which would restart every tenant
-  # on the shared postgres18 (#5879). Two instances survive a node loss but are not a backup (H-22).
+  # on the shared postgres18 (#5879).
   instances: 2
   imageCatalogRef:
     apiGroup: postgresql.cnpg.io
@@ -17,6 +17,12 @@ spec:
   postgresUID: 1000
   postgresGID: 1000
   enableSuperuserAccess: false
+  plugins:
+    - name: barman-cloud.cloudnative-pg.io
+      isWALArchiver: true
+      parameters:
+        barmanObjectName: tracearr-postgres-garage
+        serverName: tracearr-postgres
   primaryUpdateStrategy: unsupervised
   failoverDelay: 60
   affinity:

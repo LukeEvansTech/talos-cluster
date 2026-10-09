@@ -48,6 +48,15 @@ spec:
           labels:
             severity: critical
 
+        # Both clusters back up @daily; nothing else would notice the ScheduledBackup quietly stopping.
+        - alert: CNPGBackupStale
+          expr: (time() - max by (namespace) (barman_cloud_cloudnative_pg_io_last_available_backup_timestamp)) > 36 * 3600
+          for: 30m
+          annotations:
+            summary: No CNPG base backup in {{ $labels.namespace }} for {{ $value | humanizeDuration }}
+          labels:
+            severity: warning
+
         - alert: DatabaseDeadlockConflicts
           expr: cnpg_pg_stat_database_deadlocks > 10
           for: 5m

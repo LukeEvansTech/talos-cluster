@@ -1,0 +1,29 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/cloudnative-pg/plugin-barman-cloud/v0.9.0/config/crd/bases/barmancloud.cnpg.io_objectstores.yaml
+apiVersion: barmancloud.cnpg.io/v1
+kind: ObjectStore
+metadata:
+  name: tracearr-postgres-garage
+spec:
+  retentionPolicy: 30d
+
+  configuration:
+    # Its own bucket and key: the shared cnpg key would put every database's backups in media.
+    destinationPath: s3://cnpg-tracearr/
+    endpointURL: http://garage.storage.svc.cluster.local:3900
+
+    s3Credentials:
+      accessKeyId:
+        name: tracearr-postgres-s3
+        key: AWS_ACCESS_KEY_ID
+      secretAccessKey:
+        name: tracearr-postgres-s3
+        key: AWS_SECRET_ACCESS_KEY
+
+    wal:
+      compression: zstd
+      maxParallel: 2
+
+    data:
+      compression: bzip2
+      jobs: 2

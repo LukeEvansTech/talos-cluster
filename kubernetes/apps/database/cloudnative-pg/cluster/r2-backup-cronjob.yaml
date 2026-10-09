@@ -36,12 +36,15 @@ spec:
                 - /bin/sh
                 - -c
                 - |
+                  set -e
                   export RCLONE_CONFIG_GARAGE_ACCESS_KEY_ID=$(cat /secrets/AWS_ACCESS_KEY_ID)
                   export RCLONE_CONFIG_GARAGE_SECRET_ACCESS_KEY=$(cat /secrets/AWS_SECRET_ACCESS_KEY)
                   export RCLONE_CONFIG_CLOUDFLARE_ACCESS_KEY_ID=$(cat /secrets/R2_ACCESS_KEY_ID)
                   export RCLONE_CONFIG_CLOUDFLARE_SECRET_ACCESS_KEY=$(cat /secrets/R2_SECRET_ACCESS_KEY)
                   export RCLONE_CONFIG_CLOUDFLARE_ENDPOINT=$(cat /secrets/R2_ENDPOINT)
-                  exec rclone copy --verbose --stats-one-line --stats=5m --fast-list garage:cnpg/ cloudflare:cnpg/
+                  rclone copy --verbose --stats-one-line --stats=5m --fast-list garage:cnpg/ cloudflare:cnpg/
+                  # Distinct barman serverName, so it shares the R2 bucket without colliding.
+                  exec rclone copy --verbose --stats-one-line --stats=5m --fast-list garage:cnpg-tracearr/ cloudflare:cnpg/
               env:
                 - name: RCLONE_VERBOSE
                   value: "1"

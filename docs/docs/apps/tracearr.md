@@ -21,9 +21,11 @@ the full TimescaleDB build, not the Apache-only `timescaledb-oss` image CloudNat
 - **Operator access.** A CiliumNetworkPolicy lets the CNPG operator in `database` reach the
   instances; the clusterwide `allow-same-namespace` policy blocks it otherwise. Any dedicated
   cluster outside `database` needs the same.
-- **Backups.** None in object storage yet (hardening backlog H-22). Two instances on separate
-  nodes survive a node loss but replicate a bad migration or a `DROP` straight across. Take a
-  backup from the Tracearr UI before risky changes.
+- **Backups.** WAL archiving and daily base backups go to the `cnpg-tracearr` Garage bucket
+  through the barman-cloud plugin (30-day retention), with its own key so the shared CNPG key
+  never sits in `media`. The NAS mirror and R2 copy jobs pick the bucket up, and
+  `CNPGBackupStale` alerts after 36 hours without a base backup. To restore, bootstrap a new
+  Cluster with `recovery` from the `tracearr-postgres-garage` ObjectStore (resolved H-22).
 
 ## Migration from the shared cluster
 
