@@ -25,6 +25,15 @@ the full TimescaleDB build, not the Apache-only `timescaledb-oss` image CloudNat
   nodes survive a node loss but replicate a bad migration or a `DROP` straight across. Take a
   backup from the Tracearr UI before risky changes.
 
+## Migration from the shared cluster
+
+The data moved from `postgres18` on 2026-10-09 with tracearr scaled to 0: `pg_dump -Fc` on the old
+primary piped into `pg_restore --no-owner --no-acl --role=tracearr --single-transaction` on the new
+one, run as the operator's superuser. Tracearr's own UI restore was not used: it drops and recreates
+the `timescaledb` extension and calls `timescaledb_pre_restore()`, which need a superuser that the
+app role is not. On first start Tracearr converted `sessions` and `library_snapshots` to hypertables
+and built the continuous aggregates itself.
+
 ## Upgrading TimescaleDB
 
 Renovate tracks the image with regex versioning that keeps PostgreSQL 18 fixed and never
