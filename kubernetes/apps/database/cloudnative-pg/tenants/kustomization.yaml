@@ -9,6 +9,7 @@ resources:
   - ./domainwatchdog.yaml
   - ./guacamole.yaml
   - ./keeper.yaml
+  - ./litellm.yaml
   - ./mailarchiver.yaml
   - ./metabase.yaml
   - ./miniflux.yaml
