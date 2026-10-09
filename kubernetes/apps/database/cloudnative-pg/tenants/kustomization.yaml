@@ -3,11 +3,13 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
+  - ./backup.yaml
   - ./coder.yaml
   - ./domainlocker.yaml
   - ./domainwatchdog.yaml
   - ./guacamole.yaml
   - ./keeper.yaml
+  - ./litellm.yaml
   - ./mailarchiver.yaml
   - ./metabase.yaml
   - ./miniflux.yaml

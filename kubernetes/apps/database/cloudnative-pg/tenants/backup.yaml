@@ -1,0 +1,43 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/external-secrets.io/externalsecret_v1.json
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: pgbackup-pg
+spec:
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: onepassword-connect
+  target:
+    name: pgbackup-pg
+    template:
+      metadata:
+        labels:
+          # CNPG applies a changed role password at once only when its Secret carries this label.
+          cnpg.io/reload: "true"
+      type: kubernetes.io/basic-auth
+      engineVersion: v2
+      data:
+        username: pgbackup
+        password: "{{ .PGBACKUP_POSTGRES_PASS }}"
+  dataFrom:
+    - extract:
+        key: cloudnative-pg
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/postgresql.cnpg.io/databaserole_v1.json
+apiVersion: postgresql.cnpg.io/v1
+kind: DatabaseRole
+metadata:
+  name: pgbackup
+spec:
+  cluster:
+    name: postgres18
+  name: pgbackup
+  login: true
+  # prowler's tables use row-level security, which pg_read_all_data alone does not get past.
+  bypassrls: true
+  inRoles:
+    - pg_read_all_data
+  passwordSecret:
+    name: pgbackup-pg
+  databaseRoleReclaimPolicy: retain

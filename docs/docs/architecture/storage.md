@@ -36,6 +36,11 @@ applied by the Flux Kustomization `cloudnative-pg-tenants`. A tenant file holds 
 `Database`, both with reclaim policy `retain`. Apps no longer create their own database with an init
 container, and their Secrets carry no Postgres superuser password.
 
+`tenants/backup.yaml` is the exception: a role with no database. The hourly `postgres18-backup`
+dump logs in as `pgbackup`, a member of `pg_read_all_data` with `BYPASSRLS` (prowler uses row-level
+security), rather than the superuser. That role
+cannot read large objects, so an app that starts storing them makes its database's dump fail.
+
 ### Adding a database for a new app
 
 1. Copy an existing tenant file, such as `paperless.yaml`, and rename it. The role name equals the
