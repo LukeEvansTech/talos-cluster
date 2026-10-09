@@ -21,6 +21,25 @@ instance but not the class, say so; the class is what stays open.
 
 ## Open
 
+### H-22: `tracearr-postgres` has no object-store backup
+
+**Found:** 2026-10-09, independent review of the PR adding tracearr's dedicated TimescaleDB cluster
+(#5973), standing in for Codex while it was out of quota.
+
+The shared `postgres18` archives WAL and base backups to Garage through the barman-cloud plugin.
+`tracearr-postgres` has neither: its two instances on separate nodes survive a node loss, but a
+replica copies a `DROP`, a bad migration or corruption straight across, and `prune: true` on the
+`tracearr-database` Kustomization deletes the Cluster and its PVCs if the Kustomization is renamed
+or removed. The first draft of the manifest comment claimed the replicas "stand in for object-store
+backups", which is exactly the false assurance this page exists to catch.
+
+**Mitigation in place:** Tracearr's own UI backup before risky changes; the data is play history
+and library statistics, rebuildable in part from the media servers.
+
+**What would close it:** a dedicated Garage bucket and key for this cluster (sharing the CNPG key
+would put every database's backups in the `media` namespace), an `ObjectStore` plus the
+barman-cloud plugin on the Cluster, and a `ScheduledBackup`.
+
 ### H-21: A comment claimed NextDNS is enforced on every pod except one, which is not true
 
 **Found:** 2026-09-28, while trimming comments on `media/dispatcharr`.

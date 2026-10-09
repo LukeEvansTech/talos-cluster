@@ -1,0 +1,51 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/postgresql.cnpg.io/cluster_v1.json
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: tracearr-postgres
+spec:
+  # Dedicated because TimescaleDB needs shared_preload_libraries, which would restart every tenant
+  # on the shared postgres18 (#5879). Two instances survive a node loss but are not a backup (H-22).
+  instances: 2
+  imageCatalogRef:
+    apiGroup: postgresql.cnpg.io
+    kind: ImageCatalog
+    name: timescaledb
+    major: 18
+  # The Timescale image's postgres user is 1000, not CNPG's default 26.
+  postgresUID: 1000
+  postgresGID: 1000
+  enableSuperuserAccess: false
+  primaryUpdateStrategy: unsupervised
+  failoverDelay: 60
+  affinity:
+    podAntiAffinityType: required
+  storage:
+    size: 10Gi
+    storageClass: miroir-local
+  postgresql:
+    shared_preload_libraries:
+      - timescaledb
+    parameters:
+      timescaledb.license: timescale
+      timescaledb.telemetry_level: "off"
+      # Values from Tracearr's own Helm chart (docker/helm/tracearr/values.yaml).
+      max_locks_per_transaction: "4096"
+      timescaledb.max_tuples_decompressed_per_dml_transaction: "100000"
+  bootstrap:
+    initdb:
+      database: tracearr
+      owner: tracearr
+      secret:
+        name: tracearr-postgres-app
+      # timescaledb is not a trusted extension, so the owner role cannot create or update it itself;
+      # after a Renovate bump of the ts version run ALTER EXTENSION (docs/docs/apps/tracearr.md).
+      postInitApplicationSQL:
+        - CREATE EXTENSION IF NOT EXISTS timescaledb
+  resources:
+    requests:
+      cpu: 100m
+      memory: 512Mi
+    limits:
+      memory: 2Gi
