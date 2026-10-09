@@ -118,6 +118,11 @@ Flow is 1Password → ExternalSecret → Kubernetes Secret. Per-app `externalsec
 1Password vault. Apps with an ExternalSecret should `dependsOn` `onepassword-connect` in
 `external-secrets`. Never commit plain-text secrets.
 
+The ExternalSecret is named after the app, but the Secret it writes is usually
+`<app>-secret` (`spec.target.name`; read it before querying). To pick up a 1Password change
+before the 1h refresh, run `kubectl -n <ns> annotate externalsecret <app> force-sync=$(date +%s) --overwrite`.
+Reloader restarts pods annotated `reloader.stakater.com/auto: "true"` when the Secret changes.
+
 ### House rules
 
 - Namespace `kustomization.yaml` lists apps **alphabetically** and references the namespace's
