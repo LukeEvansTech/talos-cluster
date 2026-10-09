@@ -37,7 +37,8 @@ applied by the Flux Kustomization `cloudnative-pg-tenants`. A tenant file holds 
 container, and their Secrets carry no Postgres superuser password.
 
 `tenants/backup.yaml` is the exception: a role with no database. The hourly `postgres18-backup`
-dump logs in as `pgbackup`, a member of `pg_read_all_data`, rather than the superuser. That role
+dump logs in as `pgbackup`, a member of `pg_read_all_data` with `BYPASSRLS` (prowler uses row-level
+security), rather than the superuser. That role
 cannot read large objects, so an app that starts storing them makes its database's dump fail.
 
 ### Adding a database for a new app

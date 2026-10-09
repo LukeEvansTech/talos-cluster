@@ -34,6 +34,8 @@ spec:
     name: postgres18
   name: pgbackup
   login: true
+  # prowler's tables use row-level security, which pg_read_all_data alone does not get past.
+  bypassrls: true
   inRoles:
     - pg_read_all_data
   passwordSecret:
