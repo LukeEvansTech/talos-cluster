@@ -79,7 +79,10 @@ def main() -> int:
 
     with tempfile.TemporaryDirectory() as tmp:
         work = pathlib.Path(tmp)
+        # chaski runs as a non-root user; mkdtemp is 0700, which Docker Desktop ignores but Linux does not.
+        work.chmod(0o755)
         (work / "config.yaml").write_text(dumped, encoding="utf-8")
+        (work / "config.yaml").chmod(0o644)
         res = _validate(image, work, env, [])
         if res.returncode != 0:
             failures.append(f"config: chaski validate exit {res.returncode}: {res.stderr.strip()[-400:]}")
@@ -90,6 +93,7 @@ def main() -> int:
             payload = _expand(fixture.read_text(encoding="utf-8"))
             json.loads(payload)
             (work / "payload.json").write_text(payload, encoding="utf-8")
+            (work / "payload.json").chmod(0o644)
             res = _validate(image, work, env, ["--route", route, "--payload", "/w/payload.json"])
             found = FIRED.search(res.stdout)
             if res.returncode != 0 or not found:
