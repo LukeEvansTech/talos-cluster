@@ -21,25 +21,6 @@ instance but not the class, say so; the class is what stays open.
 
 ## Open
 
-### H-22: `tracearr-postgres` has no object-store backup
-
-**Found:** 2026-10-09, independent review of the PR adding tracearr's dedicated TimescaleDB cluster
-(#5973), standing in for Codex while it was out of quota.
-
-The shared `postgres18` archives WAL and base backups to Garage through the barman-cloud plugin.
-`tracearr-postgres` has neither: its two instances on separate nodes survive a node loss, but a
-replica copies a `DROP`, a bad migration or corruption straight across, and `prune: true` on the
-`tracearr-database` Kustomization deletes the Cluster and its PVCs if the Kustomization is renamed
-or removed. The first draft of the manifest comment claimed the replicas "stand in for object-store
-backups", which is exactly the false assurance this page exists to catch.
-
-**Mitigation in place:** Tracearr's own UI backup before risky changes; the data is play history
-and library statistics, rebuildable in part from the media servers.
-
-**What would close it:** a dedicated Garage bucket and key for this cluster (sharing the CNPG key
-would put every database's backups in the `media` namespace), an `ObjectStore` plus the
-barman-cloud plugin on the Cluster, and a `ScheduledBackup`.
-
 ### H-21: A comment claimed NextDNS is enforced on every pod except one, which is not true
 
 **Found:** 2026-09-28, while trimming comments on `media/dispatcharr`.
@@ -188,6 +169,28 @@ included.
 ## Resolved
 
 Mark, do not delete. Each one is a pattern that will recur in a different place.
+
+### H-22: `tracearr-postgres` had no object-store backup (resolved 2026-10-09)
+
+**Found:** 2026-10-09, independent review of the PR adding tracearr's dedicated TimescaleDB cluster
+(#5973), standing in for Codex while it was out of quota.
+
+The shared `postgres18` archives WAL and base backups to Garage through the barman-cloud plugin.
+`tracearr-postgres` has neither: its two instances on separate nodes survive a node loss, but a
+replica copies a `DROP`, a bad migration or corruption straight across, and `prune: true` on the
+`tracearr-database` Kustomization deletes the Cluster and its PVCs if the Kustomization is renamed
+or removed. The first draft of the manifest comment claimed the replicas "stand in for object-store
+backups", which is exactly the false assurance this page exists to catch.
+
+**Mitigation in place:** Tracearr's own UI backup before risky changes; the data is play history
+and library statistics, rebuildable in part from the media servers.
+
+**Fix:** a dedicated Garage bucket (`cnpg-tracearr`) with its own read-write key, so the shared
+CNPG key stays out of `media`. The Cluster archives WAL through the barman-cloud plugin to a
+`tracearr-postgres-garage` ObjectStore with 30-day retention, and a daily ScheduledBackup takes base
+backups. The shared CNPG key has read-only access to the bucket, so the hourly NAS mirror and the
+R2 copy pick it up as well. `CNPGBackupStale` now fires when either cluster goes 36 hours without
+a base backup; before this nothing alerted on a stopped ScheduledBackup, `postgres18`'s included.
 
 ### H-20: Three gluetun sidecars had no tunnel gate at start (resolved 2026-09-29, #5681)
 
