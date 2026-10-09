@@ -1,0 +1,73 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: dococd.rules
+spec:
+  groups:
+    # One group for every doco-cd host. Each host's own app owns the scrape job (`<host>-doco-cd`);
+    # these rules match on the suffix so a new host is covered by adding its ScrapeConfig.
+    - name: dococd.rules
+      rules:
+        # doco_cd_polls_total counts every finished poll, failed or not (handler_poll.go), so only
+        # the error counter can show a broken controller. A wedged 1Password SDK client failed every
+        # poll on one host for 17 days while polls_total kept climbing (docs/docs/apps/dococd.md).
+        - alert: DocoCDPollsFailing
+          annotations:
+            description: >-
+              doco-cd ({{ $labels.job }}) has failed {{ $value | humanize }} polls of
+              {{ $labels.repository }} in 3 hours. Nothing in that repository is being deployed,
+              and running containers give no other sign of it. Read the doco-cd log for the error.
+            summary: doco-cd on {{ $labels.instance }} is failing every poll.
+          expr: |-
+            increase(doco_cd_poll_errors_total{job=~".+-doco-cd"}[3h]) >= 3
+          for: 15m
+          labels:
+            severity: critical
+        - alert: DocoCDStalled
+          annotations:
+            description: >-
+              doco-cd ({{ $labels.job }}) has not finished a single poll of {{ $labels.repository }}
+              in 3 hours (it polls hourly), so the host is drifting from Git with no other symptom.
+            summary: doco-cd on {{ $labels.instance }} has stopped polling.
+          expr: |-
+            increase(doco_cd_polls_total{job=~".+-doco-cd"}[3h]) == 0
+          for: 30m
+          labels:
+            severity: warning
+        - alert: DocoCDDeployErrors
+          annotations:
+            description: >-
+              doco-cd ({{ $labels.job }}) failed to deploy {{ $labels.deployment }} from
+              {{ $labels.repository }} {{ $value | humanize }} times in 2 hours.
+            summary: doco-cd on {{ $labels.instance }} cannot deploy {{ $labels.deployment }}.
+          expr: |-
+            increase(doco_cd_deployment_errors_total{job=~".+-doco-cd"}[2h]) > 0
+          for: 10m
+          labels:
+            severity: warning
+        - alert: DocoCDDown
+          annotations:
+            description: >-
+              The doco-cd metrics endpoint ({{ $labels.job }}) has not been scrapeable for
+              15 minutes. Either the controller is down or the host is unreachable.
+            summary: doco-cd on {{ $labels.instance }} is unreachable.
+          expr: |-
+            up{job=~".+-doco-cd"} == 0
+          for: 15m
+          labels:
+            severity: critical
+        # The controllers are bootstrapped by hand and do not update themselves, so Renovate bumps
+        # land in Git but not on the hosts. A week of mismatch means a bump was never applied.
+        - alert: DocoCDVersionSkew
+          annotations:
+            description: >-
+              doco-cd hosts have run {{ $value }} different versions for a week. Compare the
+              version on each host with the pinned image in that repository's bootstrap compose.
+            summary: doco-cd versions differ across hosts.
+          expr: |-
+            count(count by (version) (doco_cd_info{job=~".+-doco-cd"})) > 1
+          for: 7d
+          labels:
+            severity: warning
