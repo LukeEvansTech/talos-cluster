@@ -121,7 +121,9 @@ Flow is 1Password → ExternalSecret → Kubernetes Secret. Per-app `externalsec
 The ExternalSecret is named after the app, but the Secret it writes is usually
 `<app>-secret` (`spec.target.name`; read it before querying). To pick up a 1Password change
 before the 1h refresh, run `kubectl -n <ns> annotate externalsecret <app> force-sync=$(date +%s) --overwrite`.
-Reloader restarts pods annotated `reloader.stakater.com/auto: "true"` when the Secret changes.
+Reloader rolls a workload when its Secret changes only if the workload itself (the Deployment,
+not the pod template) carries `reloader.stakater.com/auto: "true"`; in app-template that is
+`controllers.<app>.annotations`.
 
 ### House rules
 
