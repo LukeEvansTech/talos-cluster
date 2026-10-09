@@ -57,6 +57,15 @@ spec:
           labels:
             severity: warning
 
+        # The age check above goes silent if the plugin stops exporting its timestamp at all.
+        - alert: CNPGBackupMetricMissing
+          expr: max by (namespace) (cnpg_collector_up) unless on (namespace) max by (namespace) (barman_cloud_cloudnative_pg_io_last_available_backup_timestamp)
+          for: 6h
+          annotations:
+            summary: CNPG in {{ $labels.namespace }} reports no backup timestamp
+          labels:
+            severity: warning
+
         - alert: DatabaseDeadlockConflicts
           expr: cnpg_pg_stat_database_deadlocks > 10
           for: 5m
