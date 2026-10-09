@@ -32,8 +32,9 @@ problem; seedbox's own dashboard carries the same fix and points back here.
 
 ## Alert design: four host-level rules, wide margins
 
-`nut-appliance.rules` carries eight alerts in total: four host-level ones covered in this section,
-three container-lifecycle alerts, and the GitOps-stalled alert (both covered further down). Every
+`nut-appliance.rules` carries seven alerts in total: four host-level ones covered in this section
+and three container-lifecycle alerts (covered further down). Its former GitOps-stalled alert moved
+to the fleet-wide [doco-cd rules](dococd.md), which cover every doco-cd host. Every
 alert in this host-level group pages. Alertmanager's root route sends all severities to Pushover,
 so `warning` is not a quiet tier here, and the seedbox learned the cost of forgetting that (an
 iowait alert calibrated at the textbook threshold "would have paged perpetually"). So the group is

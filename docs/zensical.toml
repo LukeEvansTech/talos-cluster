@@ -69,6 +69,7 @@ nav = [
     { "Deduparr" = "apps/deduparr.md" },
     { "Dispatcharr" = "apps/dispatcharr.md" },
     { "Docker-estate backup alerting" = "apps/docker-backup.md" },
+    { "doco-cd GitOps monitoring" = "apps/dococd.md" },
     { "Forgejo" = "apps/forgejo.md" },
     { "Garage" = "apps/garage.md" },
     { "Gatus" = "apps/gatus.md" },

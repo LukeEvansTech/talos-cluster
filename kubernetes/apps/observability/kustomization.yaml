@@ -15,6 +15,7 @@ resources:
   - ./bmc-exporter/ks.yaml
   - ./dnsblockcheck/ks.yaml
   - ./docker-backup/ks.yaml
+  - ./dococd/ks.yaml
   - ./exportarr/ks.yaml
   - ./gatus/ks.yaml
   - ./grafana/ks.yaml
