@@ -216,6 +216,16 @@
       automerge: false,
     },
 
+    {
+      // Tag is pg<major>.<minor>-ts<timescale version>; regex versioning keeps PG 18 fixed (a new
+      // major needs a dump/restore) and orders TimescaleDB releases. Manual: it is tracearr's database.
+      description: "TimescaleDB HA image for tracearr-postgres",
+      matchDatasources: ["docker"],
+      matchPackageNames: ["timescale/timescaledb-ha"],
+      versioning: "regex:^pg(?<compatibility>18)\\.(?<build>\\d+)-ts(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)$",
+      automerge: false,
+    },
+
     // === Changelogs (from changelogs.json5) ===
     // 1Password Connect + cloudflared changelog URLs come from the preset's
     // overrides/changelogs.json5. Spegel is ours (not in the preset).

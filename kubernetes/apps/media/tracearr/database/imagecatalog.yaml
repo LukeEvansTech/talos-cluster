@@ -1,0 +1,12 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/postgresql.cnpg.io/imagecatalog_v1.json
+apiVersion: postgresql.cnpg.io/v1
+kind: ImageCatalog
+metadata:
+  name: timescaledb
+spec:
+  images:
+    # CNPG cannot parse a major version from this tag, so imageName is rejected; the catalog states it.
+    # Timescale's HA image carries the TSL build (continuous aggregates); CNPG's timescaledb-oss does not.
+    - major: 18
+      image: timescale/timescaledb-ha:pg18.6-ts2.30.2@sha256:7d352e92884862549363b96d2b791c31fcd941e570308780890b27ae1449c829
