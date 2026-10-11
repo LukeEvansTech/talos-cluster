@@ -64,7 +64,7 @@ spec:
               # ip2location avoids ipinfo's 429 on its free tier; the display is cosmetic.
               PUBLICIP_API: ip2location
               PUID: 0 # see PGID above
-              # jdownloader shares this VPN key; distinct countries keep the two tunnels off the same server.
+              # gluetun-shared holds one key for any app that reuses it; a distinct country per app keeps their tunnels off the same server.
               SERVER_COUNTRIES: Germany
               TZ: ${TIMEZONE}
               UPDATER_PERIOD: 12h
