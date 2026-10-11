@@ -1,0 +1,40 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/litellm.home-operations.com/litellmvirtualkey_v1alpha1.json
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMVirtualKey
+metadata:
+  name: recommendarr
+  namespace: ai
+spec:
+  # Cross-namespace key: PushSecret mirrors it to the litellm 1Password item
+  # (docs/docs/architecture/ai-llm-stack.md In-cluster consumers).
+  proxyRef: litellm
+  keyAlias: recommendarr
+  secretName: litellm-key-recommendarr
+  secretKey: api-key
+  models:
+    - claude
+    - self-hosted
+    - openrouter/auto
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/external-secrets.io/pushsecret_v1alpha1.json
+apiVersion: external-secrets.io/v1alpha1
+kind: PushSecret
+metadata:
+  name: recommendarr
+  namespace: ai
+spec:
+  refreshInterval: 1h
+  secretStoreRefs:
+    - name: onepassword-connect
+      kind: ClusterSecretStore
+  selector:
+    secret:
+      name: litellm-key-recommendarr
+  updatePolicy: Replace
+  data:
+    - match:
+        secretKey: api-key
+        remoteRef:
+          remoteKey: litellm
+          property: LITELLM_RECOMMENDARR_API_KEY
