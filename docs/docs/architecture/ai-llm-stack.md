@@ -145,8 +145,19 @@ lowercase `prometheus` datasource (KB-021).
 
 LiteLLM `model_name` groups make the serving tier transparent to clients:
 
-- **`self-hosted`**: `llama-nvidia` (order 1), with a live cloud fallback to `openrouter/auto`
-  via `router_settings.fallbacks` (the OpenRouter key is in the `litellm` ExternalSecret).
+- **`self-hosted`**: `llama-nvidia` (order 1), with live cloud fallbacks via
+  `router_settings.fallbacks`: `claude` first, then `openrouter/auto` (both keys are in the
+  `litellm` ExternalSecret).
+- **`claude`**: Claude Sonnet 5.5 on the Anthropic API, paid from a monthly provider credit.
+  `router_settings.provider_budget_config` caps `anthropic` spend at that credit per 30 days,
+  after which requests spill to `openrouter/auto`; `context_window_fallbacks` also sends
+  prompts too large for `self-hosted` here. Spend is computed from the per-token prices in
+  `models/claude.yaml`, because this LiteLLM build has no price entry for the model; if those
+  are missing the budget never trips. The LiteLLM window starts at first spend rather than the
+  credit's renewal, so the hard stop is the workspace spend limit set in the provider console.
+  Callers can also request `claude` directly; `repowiki` is deliberately not scoped to it. The
+  key (`ANTHROPIC_API_KEY` in the `litellm` item) has an expiry date recorded on that item, and
+  an expired key fails over to OpenRouter silently.
 - **`self-hosted-uncensored`**: the same `llama-nvidia` backend under a second name. Kept as
   its own group because its fallback semantics differ: no cloud fallback by design (a cloud
   model would reintroduce refusals), and existing clients keep working unchanged.
@@ -167,7 +178,7 @@ and the `self-hosted` model (with the `openrouter/auto` cloud fallback in scope)
 All five live outside the `ai` namespace, so none of them mounts an `ai` Secret directly. Each
 gets an operator-issued **scoped** key instead of the account-wide master key: a
 `LiteLLMVirtualKey` CR in `litellm/app/virtualkeys/<app>.yaml` (`ai` namespace, scoped to
-`self-hosted` + `openrouter/auto` so the router's cloud fallback doesn't 401 the key when the
+`claude` + `self-hosted` + `openrouter/auto` so the router's cloud fallbacks don't 401 the key when the
 local backend cools down) mints the key and writes it to an in-namespace Secret; a
 paired `PushSecret` then writes that key back to the `litellm` 1Password item as property
 `LITELLM_<APP>_API_KEY` (`updatePolicy: Replace`, `refreshInterval: 1h`). The consumer's own
