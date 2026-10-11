@@ -63,11 +63,26 @@ spec:
     service:
       app:
         controller: mosquitto
+        # Keeps the name in-cluster clients already use; a second service would otherwise
+        # suffix it to mosquitto-app.
+        forceRename: mosquitto
         # In-cluster clients use this ClusterIP; external IoT devices use the macvlan address above.
         type: ClusterIP
         ports:
           mqtt:
             port: 1883
+      lb:
+        controller: mosquitto
+        # For routed clients, which cannot use the on-link macvlan address: its replies leave
+        # through the pod's default route. TLS only, so credentials never cross the network in
+        # plaintext; opnsense-dns publishes the name internally.
+        type: LoadBalancer
+        annotations:
+          external-dns.alpha.kubernetes.io/hostname: mqtt.${SECRET_DOMAIN}
+          io.cilium/lb-ipam-ips: ${SVC_MOSQUITTO_LB_ADDR}
+        ports:
+          mqtts:
+            port: 8883
     configMaps:
       config:
         data:
@@ -84,6 +99,11 @@ spec:
             use_username_as_clientid true
             persistence true
             persistence_location /mosquitto/data
+
+            # TLS for routed clients; the password file and ACL above apply here too.
+            listener 8883
+            certfile /mosquitto/tls/tls.crt
+            keyfile /mosquitto/tls/tls.key
           acl: |-
             # zigbee2mqtt: its own tree plus Home Assistant discovery and birth topics.
             user zigbee2mqtt
@@ -102,6 +122,8 @@ spec:
       config-file:
         type: configMap
         identifier: config
+        # Not world-readable: Mosquitto warns on that today and future versions refuse the file.
+        defaultMode: 0440
         globalMounts:
           - path: /mosquitto/config/mosquitto.conf
             subPath: mosquitto.conf
@@ -110,6 +132,14 @@ spec:
       passwd:
         type: secret
         name: mosquitto-secret
+        defaultMode: 0440
         globalMounts:
           - path: /mosquitto/secret/passwd
             subPath: passwd
+      tls:
+        type: secret
+        name: mosquitto-tls
+        defaultMode: 0440
+        globalMounts:
+          - path: /mosquitto/tls
+            readOnly: true
