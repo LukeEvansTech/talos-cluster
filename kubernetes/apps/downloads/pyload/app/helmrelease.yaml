@@ -57,6 +57,8 @@ spec:
               FIREWALL_OUTBOUND_SUBNETS: '"${CLUSTER_PODS_CIDR},${CLUSTER_SVCS_CIDR},${CR_LAN_CIDR},${GH_LAN_CIDR}"'
               HEALTH_SERVER_ADDRESS: ":9999"
               HEALTH_VPN_DURATION_INITIAL: 60s
+              # gluetun's control server defaults to :8000, which is pyLoad's web port.
+              HTTP_CONTROL_SERVER_ADDRESS: ":8001"
               # Root (0) avoids EPERM chowning the public-IP file to PUID:PGID under drop-ALL.
               PGID: 0
               # ip2location avoids ipinfo's 429 on its free tier; the display is cosmetic.
@@ -88,6 +90,8 @@ spec:
             restartPolicy: Always
             securityContext:
               runAsUser: 0
+              # Overrides the pod-level 1000, which made gluetun's chown of its public-IP file fail.
+              runAsGroup: 0
               runAsNonRoot: false
               capabilities:
                 add:
