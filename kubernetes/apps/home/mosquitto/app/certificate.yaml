@@ -1,0 +1,23 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/cert-manager.io/certificate_v1.json
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: mosquitto-tls
+spec:
+  secretName: mosquitto-tls
+  # Short-lived like the issuer's other certs: reloader restarts the broker on each renewal,
+  # which is how Mosquitto picks up the new pair. Clients reconnect within seconds.
+  duration: 160h
+  issuerRef:
+    name: letsencrypt-production
+    kind: ClusterIssuer
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+    rotationPolicy: Always
+  commonName: "mqtt.${SECRET_DOMAIN}"
+  dnsNames:
+    - "mqtt.${SECRET_DOMAIN}"
+  usages:
+    - digital signature
