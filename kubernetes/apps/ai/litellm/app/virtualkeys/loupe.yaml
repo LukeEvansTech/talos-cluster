@@ -13,6 +13,7 @@ spec:
   secretName: litellm-key-loupe
   secretKey: api-key
   models:
+    - claude
     - self-hosted
     - openrouter/auto
 ---

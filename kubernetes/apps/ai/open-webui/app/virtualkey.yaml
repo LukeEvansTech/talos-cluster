@@ -11,6 +11,7 @@ spec:
   secretName: litellm-key-open-webui
   secretKey: api-key
   models:
+    - claude
     - self-hosted
     - self-hosted-uncensored
     - openrouter/auto

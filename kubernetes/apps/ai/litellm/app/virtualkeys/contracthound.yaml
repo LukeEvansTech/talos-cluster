@@ -13,6 +13,7 @@ spec:
   secretName: litellm-key-contracthound
   secretKey: api-key
   models:
+    - claude
     - self-hosted
     - openrouter/auto
 ---
