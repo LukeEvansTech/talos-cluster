@@ -10,7 +10,6 @@ resources:
   - ./namespace.yaml
   - ./netpol.yaml
   - ./autobrr/ks.yaml
-  - ./jdownloader/ks.yaml
   - ./qbittorrent/ks.yaml
   - ./qui/ks.yaml
   - ./prowlarr/ks.yaml
