@@ -1,0 +1,23 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: glasshouse.rules
+spec:
+  groups:
+    - name: glasshouse.rules
+      rules:
+        # TargetDown excludes TVs, since one off at the wall is normal. A TV that has not
+        # answered once in a week is not off, it is misconfigured: the exporter is disabled
+        # (upstream default), the token differs, or the address moved.
+        - alert: GlasshouseNeverScraped
+          annotations:
+            summary: >-
+              Glasshouse on {{ $labels.tv }} has not answered a scrape in 7 days.
+              Check prometheus.enabled, the token and the TV's address.
+          expr: |-
+            max_over_time(up{job="glasshouse"}[7d]) == 0
+          for: 1h
+          labels:
+            severity: warning

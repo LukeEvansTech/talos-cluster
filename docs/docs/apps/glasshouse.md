@@ -2,8 +2,8 @@
 
 ## Purpose
 
-`kubernetes/apps/observability/glasshouse` is a CR-only app: a `ScrapeConfig` and the
-`ExternalSecret` holding its token, no HelmRelease. [Glasshouse](https://github.com/rorygallagher2024/glasshouse)
+`kubernetes/apps/observability/glasshouse` is a CR-only app: a `ScrapeConfig`, the
+`ExternalSecret` holding its token, and one `PrometheusRule`, with no HelmRelease. [Glasshouse](https://github.com/rorygallagher2024/glasshouse)
 runs as root on each rooted LG webOS TV and serves panel wear, SoC temperature, HDMI signal and
 Magic Remote battery metrics at `/api/prometheus/metrics`. Nothing runs in the cluster; it only
 scrapes.
@@ -22,6 +22,14 @@ scrapes.
 - **TargetDown.** A TV switched off at the wall stops answering, which is not an outage. Its
   target carries `device_class: tv`, which the [kube-prometheus-stack](kube-prometheus-stack.md)
   `TargetDown` patch excludes the same way it excludes idle printers.
+
+## Prerequisite on each TV
+
+The exporter is **off** by default upstream. Each TV's `/var/lib/tvweb/config.json` needs
+`"prometheus": { "enabled": true }` and the shared `token`, or the target sits at `up == 0`.
+Because `TargetDown` excludes TVs, that would be silent, so `GlasshouseNeverScraped` fires
+instead when a TV has not answered a single scrape in 7 days. A TV that is merely switched off at
+night still answers within the week.
 
 ## MQTT
 
