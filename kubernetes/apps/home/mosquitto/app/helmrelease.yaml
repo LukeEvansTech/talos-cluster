@@ -49,7 +49,7 @@ spec:
           [{
             "name": "iot",
             "namespace": "kube-system",
-            "ips": ["10.32.68.25/23"],
+            "ips": ["${SVC_MOSQUITTO_ADDR}/23"],
             "mac": "02:00:00:00:00:03"
           }]
       securityContext:
@@ -63,8 +63,21 @@ spec:
     service:
       app:
         controller: mosquitto
+        # Keeps the name in-cluster clients already use; a second service would otherwise
+        # suffix it to mosquitto-app.
+        forceRename: mosquitto
         # In-cluster clients use this ClusterIP; external IoT devices use the macvlan address above.
         type: ClusterIP
+        ports:
+          mqtt:
+            port: 1883
+      lb:
+        controller: mosquitto
+        # Routed clients on other VLANs (Glasshouse TVs), which cannot reach the on-link macvlan:
+        # its replies leave through the pod's default route, not the IoT interface.
+        type: LoadBalancer
+        annotations:
+          io.cilium/lb-ipam-ips: ${SVC_MOSQUITTO_LB_ADDR}
         ports:
           mqtt:
             port: 1883
@@ -72,13 +85,29 @@ spec:
       config:
         data:
           mosquitto.conf: |-
-            allow_anonymous true
+            acl_file /mosquitto/config/acl
+            allow_anonymous false
             autosave_interval 60
             connection_messages false
             listener 1883
+            password_file /mosquitto/secret/passwd
             per_listener_settings false
             persistence true
             persistence_location /mosquitto/data
+          acl: |-
+            # zigbee2mqtt: its own tree plus Home Assistant discovery and birth topics.
+            user zigbee2mqtt
+            topic readwrite zigbee2mqtt/#
+            topic readwrite homeassistant/#
+
+            # Home Assistant drives every integration, so it gets the whole broker.
+            user homeassistant
+            topic readwrite #
+
+            # Every other user is a Glasshouse TV: its username is its topic prefix and its
+            # discovery device id, so a TV can only touch its own topics and entities.
+            pattern readwrite %u/#
+            pattern write homeassistant/+/%u/#
     persistence:
       config-file:
         type: configMap
@@ -86,3 +115,11 @@ spec:
         globalMounts:
           - path: /mosquitto/config/mosquitto.conf
             subPath: mosquitto.conf
+          - path: /mosquitto/config/acl
+            subPath: acl
+      passwd:
+        type: secret
+        name: mosquitto-secret
+        globalMounts:
+          - path: /mosquitto/secret/passwd
+            subPath: passwd
