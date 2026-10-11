@@ -49,7 +49,7 @@ spec:
           [{
             "name": "iot",
             "namespace": "kube-system",
-            "ips": ["10.32.68.25/23"],
+            "ips": ["${SVC_MOSQUITTO_ADDR}/23"],
             "mac": "02:00:00:00:00:03"
           }]
       securityContext:
@@ -72,13 +72,32 @@ spec:
       config:
         data:
           mosquitto.conf: |-
-            allow_anonymous true
+            acl_file /mosquitto/config/acl
+            allow_anonymous false
             autosave_interval 60
             connection_messages false
             listener 1883
+            password_file /mosquitto/secret/passwd
             per_listener_settings false
+            # Every client now authenticates, so a device credential cannot take over another
+            # client's ID and repeatedly disconnect it (zigbee2mqtt, Home Assistant).
+            use_username_as_clientid true
             persistence true
             persistence_location /mosquitto/data
+          acl: |-
+            # zigbee2mqtt: its own tree plus Home Assistant discovery and birth topics.
+            user zigbee2mqtt
+            topic readwrite zigbee2mqtt/#
+            topic readwrite homeassistant/#
+
+            # Home Assistant drives every integration, so it gets the whole broker.
+            user homeassistant
+            topic readwrite #
+
+            # Every other user is a Glasshouse TV: its username is its topic prefix and its
+            # discovery device id, so a TV can only touch its own topics and entities.
+            pattern readwrite %u/#
+            pattern write homeassistant/+/%u/#
     persistence:
       config-file:
         type: configMap
@@ -86,3 +105,11 @@ spec:
         globalMounts:
           - path: /mosquitto/config/mosquitto.conf
             subPath: mosquitto.conf
+          - path: /mosquitto/config/acl
+            subPath: acl
+      passwd:
+        type: secret
+        name: mosquitto-secret
+        globalMounts:
+          - path: /mosquitto/secret/passwd
+            subPath: passwd
