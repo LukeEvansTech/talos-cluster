@@ -1,0 +1,203 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: jdownloader
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: jdownloader
+  values:
+    controllers:
+      jdownloader:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        containers:
+          app:
+            image:
+              repository: docker.io/jlesage/jdownloader-2
+              tag: v26.09.1@sha256:bd6cd2fdc72818f30207e677b33cd7f1b425048c4e7132624e541e99f992be4c
+            env:
+              TZ: ${TIMEZONE}
+              USER_ID: 1000
+              GROUP_ID: 1000
+              KEEP_APP_RUNNING: 1
+              DARK_MODE: 1
+              WEB_LISTENING_PORT: &port 5800
+              VNC_LISTENING_PORT: -1
+              WEB_AUTHENTICATION: 1
+              # TLS terminates at envoy-internal; the image only sees the in-cluster hop.
+              WEB_AUTHENTICATION_ALLOW_INSECURE: 1
+            envFrom:
+              - secretRef:
+                  name: jdownloader-secret
+            probes:
+              liveness: &probe
+                enabled: true
+                custom: true
+                spec:
+                  tcpSocket:
+                    port: *port
+                  periodSeconds: 30
+                  failureThreshold: 5
+              readiness: *probe
+            # The image's init must start as root to chown its users and config, then drops every
+            # service to USER_ID; these caps are the measured minimum for that (KILL to supervise,
+            # NET_BIND_SERVICE because nginx carries it as a file capability).
+            securityContext:
+              runAsUser: 0
+              runAsGroup: 0
+              runAsNonRoot: false
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                add:
+                  - CHOWN
+                  - DAC_OVERRIDE
+                  - FOWNER
+                  - KILL
+                  - NET_BIND_SERVICE
+                  - SETGID
+                  - SETUID
+                drop:
+                  - ALL
+              seccompProfile: { type: RuntimeDefault }
+            resources:
+              requests:
+                cpu: 100m
+              limits:
+                memory: 2Gi
+        initContainers:
+          gluetun:
+            image:
+              repository: ghcr.io/qdm12/gluetun
+              tag: v3.41.3@sha256:fa19cc76b2af13d57a8d3dc3066f2ada061b1c761b8aecf989b3877c0486e027
+            env:
+              DOT: "on"
+              DOT_CACHING: "on"
+              DOT_IPV6: off
+              # Keeps CoreDNS as the resolver, so cluster services stay resolvable in-tunnel.
+              DNS_KEEP_NAMESERVER: "on"
+              FIREWALL: true
+              FIREWALL_INPUT_PORTS: 5800,9999
+              FIREWALL_OUTBOUND_SUBNETS: '"${CLUSTER_PODS_CIDR},${CLUSTER_SVCS_CIDR},${CR_LAN_CIDR},${GH_LAN_CIDR}"'
+              HEALTH_SERVER_ADDRESS: ":9999"
+              HEALTH_VPN_DURATION_INITIAL: 60s
+              # Root (0) avoids EPERM chowning the public-IP file to PUID:PGID under drop-ALL.
+              PGID: 0
+              # ip2location avoids ipinfo's 429 on its free tier; the display is cosmetic.
+              PUBLICIP_API: ip2location
+              PUID: 0 # see PGID above
+              # pyload shares this VPN key; distinct countries keep the two tunnels off the same server.
+              SERVER_COUNTRIES: Netherlands
+              TZ: ${TIMEZONE}
+              UPDATER_PERIOD: 12h
+              VERSION_INFORMATION: off
+              VPN_INTERFACE: wg0
+              VPN_IPV6_SERVER: off
+              VPN_TYPE: wireguard
+            envFrom:
+              - secretRef:
+                  name: jdownloader-secret
+            probes:
+              # Gates the app container until the tunnel is up, so nothing downloads from the home IP.
+              startup:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /
+                    port: 9999
+                  initialDelaySeconds: 5
+                  periodSeconds: 10
+                  failureThreshold: 30
+            restartPolicy: Always
+            securityContext:
+              runAsUser: 0
+              runAsNonRoot: false
+              capabilities:
+                add:
+                  - NET_ADMIN
+                drop:
+                  - ALL
+              allowPrivilegeEscalation: false
+            resources:
+              limits:
+                kernel.org/tun: 1
+        pod:
+          labels:
+            gluetun: "true"
+
+    defaultPodOptions:
+      terminationGracePeriodSeconds: 120
+      securityContext:
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+
+    service:
+      app:
+        controller: jdownloader
+        ports:
+          http:
+            port: *port
+    route:
+      app:
+        annotations:
+          # The GUI sits behind the image's login page, so an unauthenticated probe gets a redirect.
+          gatus.home-operations.com/endpoint: |-
+            client:
+              ignore-redirect: true
+            conditions: ["[STATUS] == 302"]
+        hostnames:
+          - "{{ .Release.Name }}.${SECRET_DOMAIN}"
+        parentRefs:
+          - name: envoy-internal
+            namespace: network
+    persistence:
+      config:
+        existingClaim: "{{ .Release.Name }}"
+        advancedMounts:
+          jdownloader:
+            app:
+              - path: /config
+      downloads:
+        type: nfs
+        server: ${SECRET_STORAGE_SERVER:-localhost}
+        path: /mnt/pool/media/downloads/jdownloader
+        advancedMounts:
+          jdownloader:
+            app:
+              - path: /output
+      tmp:
+        type: emptyDir
+        advancedMounts:
+          jdownloader:
+            app:
+              - path: /tmp
+      run:
+        type: emptyDir
+        medium: Memory
+        sizeLimit: 64Mi
+        advancedMounts:
+          jdownloader:
+            app:
+              - path: /run
+      # Pre-created (mode 1777): gluetun's own MkdirAll leaves no execute bit, which blocked the
+      # public-IP write under this drop-ALL container. Paired with PUID/PGID 0 in the gluetun env.
+      gluetun-tmp:
+        type: emptyDir
+        medium: Memory
+        sizeLimit: 1Mi
+        advancedMounts:
+          jdownloader:
+            gluetun:
+              - path: /tmp/gluetun
+      gluetun-data:
+        type: emptyDir
+        sizeLimit: 20Mi
+        advancedMounts:
+          jdownloader:
+            gluetun:
+              - path: /gluetun
