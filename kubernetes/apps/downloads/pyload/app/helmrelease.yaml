@@ -1,0 +1,170 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: pyload
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: pyload
+  values:
+    controllers:
+      pyload:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        containers:
+          app:
+            image:
+              repository: ghcr.io/home-operations/pyload-ng
+              tag: 0.5.0b3.dev101@sha256:9733ba6e8489dbb7a3ba91547cfa440ce5bbf33e6a6c30d1b5ccccc714a61d04
+            env:
+              TZ: ${TIMEZONE}
+            probes:
+              liveness: &probe
+                enabled: true
+                custom: true
+                spec:
+                  tcpSocket:
+                    port: &port 8000
+                  periodSeconds: 30
+                  failureThreshold: 5
+              readiness: *probe
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities: { drop: ["ALL"] }
+              seccompProfile: { type: RuntimeDefault }
+            resources:
+              requests:
+                cpu: 50m
+              limits:
+                memory: 1Gi
+        initContainers:
+          gluetun:
+            image:
+              repository: ghcr.io/qdm12/gluetun
+              tag: v3.41.3@sha256:fa19cc76b2af13d57a8d3dc3066f2ada061b1c761b8aecf989b3877c0486e027
+            env:
+              DOT: "on"
+              DOT_CACHING: "on"
+              DOT_IPV6: off
+              # Keeps CoreDNS as the resolver, so cluster services stay resolvable in-tunnel.
+              DNS_KEEP_NAMESERVER: "on"
+              FIREWALL: true
+              FIREWALL_INPUT_PORTS: 8000,9999
+              FIREWALL_OUTBOUND_SUBNETS: '"${CLUSTER_PODS_CIDR},${CLUSTER_SVCS_CIDR},${CR_LAN_CIDR},${GH_LAN_CIDR}"'
+              HEALTH_SERVER_ADDRESS: ":9999"
+              HEALTH_VPN_DURATION_INITIAL: 60s
+              # Root (0) avoids EPERM chowning the public-IP file to PUID:PGID under drop-ALL.
+              PGID: 0
+              # ip2location avoids ipinfo's 429 on its free tier; the display is cosmetic.
+              PUBLICIP_API: ip2location
+              PUID: 0 # see PGID above
+              # jdownloader shares this VPN key; distinct countries keep the two tunnels off the same server.
+              SERVER_COUNTRIES: Germany
+              TZ: ${TIMEZONE}
+              UPDATER_PERIOD: 12h
+              VERSION_INFORMATION: off
+              VPN_INTERFACE: wg0
+              VPN_IPV6_SERVER: off
+              VPN_TYPE: wireguard
+            envFrom:
+              - secretRef:
+                  name: pyload-secret
+            probes:
+              # Gates the app container until the tunnel is up, so nothing downloads from the home IP.
+              startup:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /
+                    port: 9999
+                  initialDelaySeconds: 5
+                  periodSeconds: 10
+                  failureThreshold: 30
+            restartPolicy: Always
+            securityContext:
+              runAsUser: 0
+              runAsNonRoot: false
+              capabilities:
+                add:
+                  - NET_ADMIN
+                drop:
+                  - ALL
+              allowPrivilegeEscalation: false
+            resources:
+              limits:
+                kernel.org/tun: 1
+        pod:
+          labels:
+            gluetun: "true"
+
+    defaultPodOptions:
+      terminationGracePeriodSeconds: 120
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+
+    service:
+      app:
+        controller: pyload
+        ports:
+          http:
+            port: *port
+    route:
+      app:
+        annotations:
+          # pyLoad redirects an unauthenticated request to its login page.
+          gatus.home-operations.com/endpoint: |-
+            client:
+              ignore-redirect: true
+            conditions: ["[STATUS] == 302"]
+        hostnames:
+          - "{{ .Release.Name }}.${SECRET_DOMAIN}"
+        parentRefs:
+          - name: envoy-internal
+            namespace: network
+    persistence:
+      config:
+        existingClaim: "{{ .Release.Name }}"
+        advancedMounts:
+          pyload:
+            app:
+              - path: /config
+      downloads:
+        type: nfs
+        server: ${SECRET_STORAGE_SERVER:-localhost}
+        path: /mnt/pool/media/downloads/pyload
+        advancedMounts:
+          pyload:
+            app:
+              - path: /downloads
+      tmp:
+        type: emptyDir
+        advancedMounts:
+          pyload:
+            app:
+              - path: /tmp
+      # Pre-created (mode 1777): gluetun's own MkdirAll leaves no execute bit, which blocked the
+      # public-IP write under this drop-ALL container. Paired with PUID/PGID 0 in the gluetun env.
+      gluetun-tmp:
+        type: emptyDir
+        medium: Memory
+        sizeLimit: 1Mi
+        advancedMounts:
+          pyload:
+            gluetun:
+              - path: /tmp/gluetun
+      gluetun-data:
+        type: emptyDir
+        sizeLimit: 20Mi
+        advancedMounts:
+          pyload:
+            gluetun:
+              - path: /gluetun
