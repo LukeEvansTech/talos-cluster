@@ -1,0 +1,30 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/scrapeconfig_v1alpha1.json
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: ScrapeConfig
+metadata:
+  name: &name glasshouse
+spec:
+  # Glasshouse runs as root on each rooted LG webOS TV and serves its panel wear, SoC, HDMI
+  # signal and remote-battery telemetry. The token gates its whole API, this path included.
+  staticConfigs:
+    - targets:
+        - ${SECRET_GLASSHOUSE_TV1_HOST}:8080
+      labels:
+        # A TV switched off at the wall is not an outage; kube-prometheus-stack's TargetDown
+        # excludes this class, as it does idle printers.
+        device_class: tv
+        tv: tv1
+  metricsPath: /api/prometheus/metrics
+  # Each scrape runs the dashboard's full stats collection; upstream's floor is 15s.
+  scrapeInterval: 60s
+  scrapeTimeout: 10s
+  authorization:
+    type: Bearer
+    credentials:
+      name: glasshouse-secret
+      key: token
+  relabelings:
+    - action: replace
+      targetLabel: job
+      replacement: *name

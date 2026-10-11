@@ -8,9 +8,10 @@ to Pushover and a Healthchecks.io dead man's switch.
 
 ## TargetDown exclusions
 
-`postRenderers` patches the chart's generic `TargetDown` rule to exclude idle printers, two slow
-SNMP walks, and the seedbox's relayed scrapes. The patch itself documents each exclusion; this page
-covers the printer fix, the first of the three.
+`postRenderers` patches the chart's generic `TargetDown` rule to exclude idle printers, TVs
+(`device_class="tv"`, see [Glasshouse TV monitoring](glasshouse.md)), two slow SNMP walks, and the
+seedbox's relayed scrapes. The patch itself documents each exclusion; this page covers the printer
+fix, the first of them.
 
 The Brother label printers power themselves off by design, so snmp-exporter's own
 `SnmpTargetDown` already excludes `device_class="printer"`. `TargetDown` aggregates by job rather

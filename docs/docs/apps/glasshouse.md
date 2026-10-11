@@ -1,0 +1,31 @@
+# Glasshouse TV monitoring
+
+## Purpose
+
+`kubernetes/apps/observability/glasshouse` is a CR-only app: a `ScrapeConfig` and the
+`ExternalSecret` holding its token, no HelmRelease. [Glasshouse](https://github.com/rorygallagher2024/glasshouse)
+runs as root on each rooted LG webOS TV and serves panel wear, SoC temperature, HDMI signal and
+Magic Remote battery metrics at `/api/prometheus/metrics`. Nothing runs in the cluster; it only
+scrapes.
+
+## Configuration
+
+- **Token.** The dashboard API has no authentication by default, so every TV is deployed with the
+  same `token`, kept in the `glasshouse` 1Password item as `GLASSHOUSE_TOKEN`. The scrape sends it
+  as a Bearer header; without it the endpoint answers 401.
+- **Targets.** Each TV's address comes from a `SECRET_GLASSHOUSE_TV<n>_HOST` key in
+  `cluster-secrets`, so no address is committed. Add a TV by adding the key to 1Password, then a
+  target with its own `tv` label.
+- **Interval.** Each scrape runs the dashboard's full stats collection behind a 1.5-second cache,
+  and upstream recommends 15 seconds as the floor; 60 seconds is plenty for panel and thermal
+  trends.
+- **TargetDown.** A TV switched off at the wall stops answering, which is not an outage. Its
+  target carries `device_class: tv`, which the [kube-prometheus-stack](kube-prometheus-stack.md)
+  `TargetDown` patch excludes the same way it excludes idle printers.
+
+## MQTT
+
+Glasshouse can also publish to the `home/mosquitto` broker for Home Assistant. Each TV logs in as
+its own broker user, whose name is also its topic prefix and discovery device ID, so the broker
+ACL confines it to its own topics and entities. The user's password is
+`<USER>_MQTT_PASSWORD` in the same 1Password item.
