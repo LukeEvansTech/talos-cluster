@@ -10,7 +10,9 @@ spec:
       rules:
         # TargetDown excludes TVs, since one off at the wall is normal. A TV that has not
         # answered once in a week is not off, it is misconfigured: the exporter is disabled
-        # (upstream default), the token differs, or the address moved.
+        # (upstream default), the token differs, or the address moved. The offset guard holds
+        # the alert until the target already existed 6 days ago, so a TV added while
+        # switched off still gets the full week.
         - alert: GlasshouseNeverScraped
           annotations:
             summary: >-
@@ -18,6 +20,7 @@ spec:
               Check prometheus.enabled, the token and the TV's address.
           expr: |-
             max_over_time(up{job="glasshouse"}[7d]) == 0
+            and max_over_time(up{job="glasshouse"}[1h] offset 6d) >= 0
           for: 1h
           labels:
             severity: warning
