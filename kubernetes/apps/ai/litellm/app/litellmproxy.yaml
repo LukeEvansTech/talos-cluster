@@ -64,10 +64,12 @@ spec:
       TimeoutErrorRetries: 0
     # Sized to the monthly provider credit. The window starts at first spend, not the
     # credit's renewal, so the provider-side workspace spend limit is the hard stop.
+    # budget_limit/time_period, not max_budget/budget_duration: this build's provider
+    # init reads only the former and silently leaves the limit unset otherwise.
     provider_budget_config:
       anthropic:
-        max_budget: 200
-        budget_duration: 30d
+        budget_limit: 200
+        time_period: 30d
     # If the local model is cooling down or unhealthy, spill to cloud: Claude on the
     # plan credit first, then OpenRouter once the budget is spent.
     fallbacks:
