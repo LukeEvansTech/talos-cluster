@@ -28,5 +28,5 @@ spec:
       APP: *app
       HOMEPAGE_NAME: Kopia
       HOMEPAGE_GROUP: Infrastructure
-      HOMEPAGE_ICON: https://cdn.jsdelivr.net/gh/Jas-SinghFSU/homepage-dracula@dd0d1774d09efa85cc47d50318f2b5e7ce93b642/dracula_icons/kopia.png
+      HOMEPAGE_ICON: /icons/dracula/kopia.svg
       HOMEPAGE_DESCRIPTION: Backups

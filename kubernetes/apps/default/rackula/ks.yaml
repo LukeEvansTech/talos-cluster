@@ -21,7 +21,7 @@ spec:
       APP: *app
       HOMEPAGE_NAME: Rackula
       HOMEPAGE_GROUP: Tools
-      HOMEPAGE_ICON: rackula.svg
+      HOMEPAGE_ICON: /icons/dracula/rackula.svg
       HOMEPAGE_DESCRIPTION: Rack visualization
   prune: true
   retryInterval: 2m

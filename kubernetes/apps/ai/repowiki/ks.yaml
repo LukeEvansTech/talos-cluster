@@ -24,7 +24,7 @@ spec:
       VOLSYNC_CAPACITY: 10Gi
       HOMEPAGE_NAME: Repo Wiki
       HOMEPAGE_GROUP: AI
-      HOMEPAGE_ICON: https://cdn.jsdelivr.net/gh/Jas-SinghFSU/homepage-dracula@dd0d1774d09efa85cc47d50318f2b5e7ce93b642/dracula_icons/mkdocs.png
+      HOMEPAGE_ICON: /icons/dracula/repowiki.svg
       HOMEPAGE_DESCRIPTION: AI-generated repository docs
   prune: true
   retryInterval: 2m

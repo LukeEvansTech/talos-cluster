@@ -80,3 +80,9 @@ spec:
             path: /app/config/settings.yaml
           - subPath: widgets.yaml
             path: /app/config/widgets.yaml
+      icons:
+        type: configMap
+        name: homepage-icons
+        globalMounts:
+          - path: /app/public/icons/dracula
+            readOnly: true

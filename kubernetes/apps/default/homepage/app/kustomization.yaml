@@ -16,5 +16,87 @@ configMapGenerator:
       - services.yaml=./resources/services.yaml
       - settings.yaml=./resources/settings.yaml
       - widgets.yaml=./resources/widgets.yaml
+  - name: homepage-icons
+    files:
+      - icons/actual.svg
+      - icons/agregarr.svg
+      - icons/anubis.svg
+      - icons/arrmcp.svg
+      - icons/audiobookshelf.svg
+      - icons/autobrr.svg
+      - icons/autopulse.svg
+      - icons/backrest.svg
+      - icons/bazarr.svg
+      - icons/certwarden.svg
+      - icons/cupdate.svg
+      - icons/cyberchef.svg
+      - icons/dispatcharr.svg
+      - icons/epicgames.svg
+      - icons/esphome.svg
+      - icons/examprep.svg
+      - icons/filebrowser.svg
+      - icons/fireshare.svg
+      - icons/flux.svg
+      - icons/forgejo.svg
+      - icons/garage.svg
+      - icons/gatus.svg
+      - icons/go2rtc.svg
+      - icons/gotify.svg
+      - icons/grafana.svg
+      - icons/guacamole.svg
+      - icons/headlamp.svg
+      - icons/homeassistant.svg
+      - icons/homebox.svg
+      - icons/homebridge.svg
+      - icons/ittools.svg
+      - icons/jellyfin.svg
+      - icons/kopia.svg
+      - icons/lurcher.svg
+      - icons/maintainerr.svg
+      - icons/miniflux.svg
+      - icons/n8n.svg
+      - icons/netronome.svg
+      - icons/nodered.svg
+      - icons/openwebui.svg
+      - icons/pairdrop.svg
+      - icons/paperless.svg
+      - icons/pinchflat.svg
+      - icons/plex.svg
+      - icons/privatebin.svg
+      - icons/profilarr.svg
+      - icons/prometheus.svg
+      - icons/prowlarr.svg
+      - icons/pulsarr.svg
+      - icons/pyload.svg
+      - icons/qbittorrent.svg
+      - icons/qui.svg
+      - icons/rackula.svg
+      - icons/radarr.svg
+      - icons/reclaimerr.svg
+      - icons/redditvault.svg
+      - icons/repowiki.svg
+      - icons/romm.svg
+      - icons/sabnzbd.svg
+      - icons/scrutiny.svg
+      - icons/searxng.svg
+      - icons/seerr.svg
+      - icons/shlink.svg
+      - icons/sonarr.svg
+      - icons/sortarr.svg
+      - icons/stacks.svg
+      - icons/suggestarr.svg
+      - icons/tandoor.svg
+      - icons/tautulli.svg
+      - icons/tdarr.svg
+      - icons/termix.svg
+      - icons/tracearr.svg
+      - icons/uptimekuma.svg
+      - icons/wallos.svg
+      - icons/watchstate.svg
+      - icons/wazuh.svg
+      - icons/wizarr.svg
+      - icons/yourspotify.svg
+      - icons/zigbee2mqtt.svg
+      - icons/zwave.svg
 generatorOptions:
   disableNameSuffixHash: true

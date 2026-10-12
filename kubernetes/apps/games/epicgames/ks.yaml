@@ -23,7 +23,7 @@ spec:
       APP: *app
       HOMEPAGE_NAME: Epic Games
       HOMEPAGE_GROUP: Games
-      HOMEPAGE_ICON: epic-games.svg
+      HOMEPAGE_ICON: /icons/dracula/epicgames.svg
       HOMEPAGE_DESCRIPTION: Free games claimer
   prune: true
   retryInterval: 2m

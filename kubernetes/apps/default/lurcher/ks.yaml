@@ -24,7 +24,7 @@ spec:
       VOLSYNC_PGID: "65532"
       HOMEPAGE_NAME: Lurcher
       HOMEPAGE_GROUP: Productivity
-      HOMEPAGE_ICON: mdi-dog-side
+      HOMEPAGE_ICON: /icons/dracula/lurcher.svg
       HOMEPAGE_DESCRIPTION: Contract-listing scraper and triage
   prune: true
   retryInterval: 2m

@@ -24,7 +24,7 @@ spec:
       VOLSYNC_CAPACITY: 5Gi
       HOMEPAGE_NAME: Radarr
       HOMEPAGE_GROUP: Arrs
-      HOMEPAGE_ICON: https://cdn.jsdelivr.net/gh/Jas-SinghFSU/homepage-dracula@dd0d1774d09efa85cc47d50318f2b5e7ce93b642/dracula_icons/radarr.png
+      HOMEPAGE_ICON: /icons/dracula/radarr.svg
       HOMEPAGE_DESCRIPTION: Movies
   prune: true
   retryInterval: 2m

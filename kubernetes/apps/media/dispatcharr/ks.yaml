@@ -23,7 +23,7 @@ spec:
       VOLSYNC_CAPACITY: 2Gi
       HOMEPAGE_NAME: Dispatcharr
       HOMEPAGE_GROUP: Media
-      HOMEPAGE_ICON: dispatcharr.svg
+      HOMEPAGE_ICON: /icons/dracula/dispatcharr.svg
       HOMEPAGE_DESCRIPTION: Request dispatcher
   prune: true
   retryInterval: 2m

@@ -23,7 +23,7 @@ spec:
       VOLSYNC_CAPACITY: 1Gi
       HOMEPAGE_NAME: Agregarr
       HOMEPAGE_GROUP: Arrs
-      HOMEPAGE_ICON: agregarr.svg
+      HOMEPAGE_ICON: /icons/dracula/agregarr.svg
       HOMEPAGE_DESCRIPTION: Arr aggregator
   prune: true
   retryInterval: 2m

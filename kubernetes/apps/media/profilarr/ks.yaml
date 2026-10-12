@@ -23,7 +23,7 @@ spec:
       VOLSYNC_CAPACITY: 5Gi
       HOMEPAGE_NAME: Profilarr
       HOMEPAGE_GROUP: Arrs
-      HOMEPAGE_ICON: profilarr.svg
+      HOMEPAGE_ICON: /icons/dracula/profilarr.svg
       HOMEPAGE_DESCRIPTION: Profile sync
   prune: true
   retryInterval: 2m

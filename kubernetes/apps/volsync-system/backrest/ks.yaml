@@ -28,5 +28,5 @@ spec:
       APP: *app
       HOMEPAGE_NAME: Backrest
       HOMEPAGE_GROUP: Infrastructure
-      HOMEPAGE_ICON: backrest.svg
+      HOMEPAGE_ICON: /icons/dracula/backrest.svg
       HOMEPAGE_DESCRIPTION: Restic UI

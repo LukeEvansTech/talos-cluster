@@ -21,7 +21,7 @@ spec:
       VOLSYNC_CAPACITY: 40Gi
       HOMEPAGE_NAME: SABnzbd
       HOMEPAGE_GROUP: Downloads
-      HOMEPAGE_ICON: https://cdn.jsdelivr.net/gh/Jas-SinghFSU/homepage-dracula@dd0d1774d09efa85cc47d50318f2b5e7ce93b642/dracula_icons/sabnzbd.png
+      HOMEPAGE_ICON: /icons/dracula/sabnzbd.svg
       HOMEPAGE_DESCRIPTION: Usenet downloader
   prune: true
   retryInterval: 2m

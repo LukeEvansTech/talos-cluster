@@ -20,7 +20,7 @@ spec:
       VOLSYNC_CAPACITY: 2Gi
       HOMEPAGE_NAME: PrivateBin
       HOMEPAGE_GROUP: Tools
-      HOMEPAGE_ICON: https://cdn.jsdelivr.net/gh/Jas-SinghFSU/homepage-dracula@dd0d1774d09efa85cc47d50318f2b5e7ce93b642/dracula_icons/privatebin.png
+      HOMEPAGE_ICON: /icons/dracula/privatebin.svg
       HOMEPAGE_DESCRIPTION: Encrypted paste
   prune: true
   retryInterval: 2m

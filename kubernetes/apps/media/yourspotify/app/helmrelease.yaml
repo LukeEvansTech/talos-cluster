@@ -151,7 +151,7 @@ spec:
           gethomepage.dev/app: yourspotify
           gethomepage.dev/name: YourSpotify
           gethomepage.dev/group: Media
-          gethomepage.dev/icon: https://cdn.jsdelivr.net/gh/Jas-SinghFSU/homepage-dracula@dd0d1774d09efa85cc47d50318f2b5e7ce93b642/dracula_icons/spotify.png
+          gethomepage.dev/icon: /icons/dracula/yourspotify.svg
           gethomepage.dev/description: Spotify stats
         hostnames:
           - "{{ .Release.Name }}.${SECRET_DOMAIN}"
