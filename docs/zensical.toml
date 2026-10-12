@@ -226,26 +226,3 @@ name = "Switch to light mode"
 
 [project.theme.icon]
 repo = "fontawesome/brands/github"
-
-# Markdown extensions
-[markdown_extensions]
-admonition = {}
-attr_list = {}
-md_in_html = {}
-tables = {}
-toc = { permalink = true }
-
-[markdown_extensions.pymdownx]
-details = {}
-highlight = { anchor_linenums = true, line_spans = "__span", pygments_lang_class = true }
-inlinehilite = {}
-snippets = {}
-tabbed = { alternate_style = true }
-
-# Mermaid client-side render via pymdownx.superfences custom_fence.
-# Theme bridging (light/dark) is handled by Material's Mermaid integration.
-# (No `superfences = {}` line: the table-array below implicitly defines it.)
-[[markdown_extensions.pymdownx.superfences.custom_fences]]
-name = "mermaid"
-class = "mermaid"
-format = "pymdownx.superfences.fence_code_format"
