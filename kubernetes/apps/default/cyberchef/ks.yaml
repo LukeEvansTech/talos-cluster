@@ -18,7 +18,7 @@ spec:
       APP: *app
       HOMEPAGE_NAME: CyberChef
       HOMEPAGE_GROUP: Tools
-      HOMEPAGE_ICON: cyberchef.svg
+      HOMEPAGE_ICON: https://cdn.jsdelivr.net/gh/Jas-SinghFSU/homepage-dracula@dd0d1774d09efa85cc47d50318f2b5e7ce93b642/dracula_icons/cyberchef.png
       HOMEPAGE_DESCRIPTION: Data transformation
   prune: true
   retryInterval: 2m

@@ -20,7 +20,7 @@ spec:
       VOLSYNC_CAPACITY: 1Gi
       HOMEPAGE_NAME: Shlink
       HOMEPAGE_GROUP: Tools
-      HOMEPAGE_ICON: shlink.svg
+      HOMEPAGE_ICON: https://cdn.jsdelivr.net/gh/Jas-SinghFSU/homepage-dracula@dd0d1774d09efa85cc47d50318f2b5e7ce93b642/dracula_icons/shlink.png
       HOMEPAGE_DESCRIPTION: URL shortener
   prune: true
   retryInterval: 2m

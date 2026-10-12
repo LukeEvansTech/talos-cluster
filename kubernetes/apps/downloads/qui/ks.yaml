@@ -23,7 +23,7 @@ spec:
       VOLSYNC_CAPACITY: 1Gi
       HOMEPAGE_NAME: Qui
       HOMEPAGE_GROUP: Downloads
-      HOMEPAGE_ICON: mdi-download
+      HOMEPAGE_ICON: qui.svg
       HOMEPAGE_DESCRIPTION: qBittorrent UI
   prune: true
   retryInterval: 2m

@@ -22,7 +22,7 @@ spec:
       APP: *app
       VOLSYNC_CAPACITY: 5Gi
       HOMEPAGE_GROUP: Tools
-      HOMEPAGE_ICON: scrutiny.svg
+      HOMEPAGE_ICON: https://cdn.jsdelivr.net/gh/Jas-SinghFSU/homepage-dracula@dd0d1774d09efa85cc47d50318f2b5e7ce93b642/dracula_icons/scrutiny.png
       HOMEPAGE_DESCRIPTION: Disk S.M.A.R.T. health
   prune: true
   retryInterval: 2m

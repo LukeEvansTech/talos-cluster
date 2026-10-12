@@ -25,7 +25,7 @@ spec:
       VOLSYNC_CAPACITY: 1Gi
       HOMEPAGE_NAME: Zigbee2MQTT
       HOMEPAGE_GROUP: Home
-      HOMEPAGE_ICON: zigbee2mqtt.svg
+      HOMEPAGE_ICON: https://cdn.jsdelivr.net/gh/Jas-SinghFSU/homepage-dracula@dd0d1774d09efa85cc47d50318f2b5e7ce93b642/dracula_icons/zigbee2mqtt.png
       HOMEPAGE_DESCRIPTION: Zigbee bridge
   prune: true
   retryInterval: 2m

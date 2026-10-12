@@ -23,7 +23,7 @@ spec:
       VOLSYNC_CAPACITY: 50Gi
       HOMEPAGE_NAME: Fireshare
       HOMEPAGE_GROUP: Media
-      HOMEPAGE_ICON: fireshare.svg
+      HOMEPAGE_ICON: https://cdn.jsdelivr.net/gh/Jas-SinghFSU/homepage-dracula@dd0d1774d09efa85cc47d50318f2b5e7ce93b642/dracula_icons/fireshare.png
       HOMEPAGE_DESCRIPTION: Share selected videos
   prune: true
   retryInterval: 2m

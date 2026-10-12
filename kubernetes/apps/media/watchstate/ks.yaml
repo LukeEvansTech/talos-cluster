@@ -23,7 +23,7 @@ spec:
       VOLSYNC_CAPACITY: 1Gi
       HOMEPAGE_NAME: Watchstate
       HOMEPAGE_GROUP: Media
-      HOMEPAGE_ICON: mdi-eye-check
+      HOMEPAGE_ICON: sh-watchstate.png
       HOMEPAGE_DESCRIPTION: Watch state sync
   prune: true
   retryInterval: 2m

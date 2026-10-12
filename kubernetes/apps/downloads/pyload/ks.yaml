@@ -24,7 +24,7 @@ spec:
       VOLSYNC_CAPACITY: 5Gi
       HOMEPAGE_NAME: pyLoad
       HOMEPAGE_GROUP: Downloads
-      HOMEPAGE_ICON: pyload.svg
+      HOMEPAGE_ICON: https://cdn.jsdelivr.net/gh/Jas-SinghFSU/homepage-dracula@dd0d1774d09efa85cc47d50318f2b5e7ce93b642/dracula_icons/pyload.png
       HOMEPAGE_DESCRIPTION: One-click hoster downloader
   prune: true
   retryInterval: 2m

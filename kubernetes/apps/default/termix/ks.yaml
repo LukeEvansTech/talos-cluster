@@ -23,7 +23,7 @@ spec:
       VOLSYNC_CAPACITY: 1Gi
       HOMEPAGE_NAME: Termix
       HOMEPAGE_GROUP: Tools
-      HOMEPAGE_ICON: terminal.svg
+      HOMEPAGE_ICON: termix.svg
       HOMEPAGE_DESCRIPTION: Web terminal
   prune: true
   retryInterval: 2m

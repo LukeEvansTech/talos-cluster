@@ -97,7 +97,7 @@ metadata:
     gethomepage.dev/enabled: "true"
     gethomepage.dev/name: Grafana
     gethomepage.dev/group: Monitoring
-    gethomepage.dev/icon: grafana.svg
+    gethomepage.dev/icon: https://cdn.jsdelivr.net/gh/Jas-SinghFSU/homepage-dracula@dd0d1774d09efa85cc47d50318f2b5e7ce93b642/dracula_icons/grafana.png
     gethomepage.dev/description: Dashboards
     # grafana-operator pods carry `app: grafana`, not app.kubernetes.io/name
     gethomepage.dev/pod-selector: app=grafana
