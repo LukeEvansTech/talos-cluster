@@ -14,7 +14,15 @@ spec:
         # A TV switched off at the wall is not an outage; kube-prometheus-stack's TargetDown
         # excludes this class, as it does idle printers.
         device_class: tv
+        # Room names come from cluster-secrets so the house layout stays out of Git.
+        room: ${SECRET_GLASSHOUSE_TV1_ROOM}
         tv: tv1
+    - targets:
+        - ${SECRET_GLASSHOUSE_TV2_HOST}:8080
+      labels:
+        device_class: tv
+        room: ${SECRET_GLASSHOUSE_TV2_ROOM}
+        tv: tv2
   metricsPath: /api/prometheus/metrics
   # Each scrape runs the dashboard's full stats collection; upstream's floor is 15s.
   scrapeInterval: 60s
