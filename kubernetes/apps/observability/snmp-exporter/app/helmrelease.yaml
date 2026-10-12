@@ -130,21 +130,6 @@ spec:
               targetLabel: instance
             - targetLabel: device_class
               replacement: printer
-        - name: printer-pt
-          target: ${PRINTER_PT_ADDR}
-          module:
-            - if_mib
-            - brother_printer
-          auth:
-            - printer_pt
-          interval: 120s
-          scrapeTimeout: 30s
-          relabelings:
-            - sourceLabels:
-                - __param_target
-              targetLabel: instance
-            - targetLabel: device_class
-              replacement: printer
         # NMC2 cards speak SNMPv1/v3 only; apc_ro is the v1 read-only community.
         # The two 2G PDUs use the rPDU2 MIB, the legacy PDU the classic rPDU MIB.
         - name: apc-pdu-main-1
