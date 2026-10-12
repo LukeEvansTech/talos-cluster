@@ -15,6 +15,11 @@ spec:
         # excludes this class, as it does idle printers.
         device_class: tv
         tv: tv1
+    - targets:
+        - ${SECRET_GLASSHOUSE_TV2_HOST}:8080
+      labels:
+        device_class: tv
+        tv: tv2
   metricsPath: /api/prometheus/metrics
   # Each scrape runs the dashboard's full stats collection; upstream's floor is 15s.
   scrapeInterval: 60s
