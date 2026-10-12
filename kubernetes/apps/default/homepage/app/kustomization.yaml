@@ -82,7 +82,6 @@ configMapGenerator:
       - icons/seerr.svg
       - icons/shlink.svg
       - icons/sonarr.svg
-      - icons/sortarr.svg
       - icons/stacks.svg
       - icons/suggestarr.svg
       - icons/tandoor.svg
