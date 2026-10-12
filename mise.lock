@@ -496,7 +496,7 @@ version = "0.49.1"
 backend = "npm:markdownlint-cli"
 
 [[tools."npm:prettier"]]
-version = "3.9.9"
+version = "3.9.10"
 backend = "npm:prettier"
 
 [[tools."pipx:black"]]
