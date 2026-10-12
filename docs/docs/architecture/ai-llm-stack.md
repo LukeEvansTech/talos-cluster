@@ -164,7 +164,7 @@ LiteLLM `model_name` groups make the serving tier transparent to clients:
 
 ## In-cluster consumers
 
-Seven in-cluster apps route through LiteLLM, all at `http://litellm.ai.svc.cluster.local:4000/v1`
+Six in-cluster apps route through LiteLLM, all at `http://litellm.ai.svc.cluster.local:4000/v1`
 and the `self-hosted` model (with the `openrouter/auto` cloud fallback in scope):
 
 | App             | Namespace | Key env var         |
@@ -174,10 +174,9 @@ and the `self-hosted` model (with the `openrouter/auto` cloud fallback in scope)
 | `jobops`        | `default` | `LLM_API_KEY`       |
 | `loupe`         | `custom`  | `OPENAI_API_KEY`    |
 | `todoist-sort`  | `custom`  | `ANTHROPIC_API_KEY` |
-| `recommendarr`  | `media`   | none (AI settings)  |
 | `suggestarr`    | `media`   | none (AI settings)  |
 
-All seven live outside the `ai` namespace, so none of them mounts an `ai` Secret directly. Each
+All six live outside the `ai` namespace, so none of them mounts an `ai` Secret directly. Each
 gets an operator-issued **scoped** key instead of the account-wide master key: a
 `LiteLLMVirtualKey` CR in `litellm/app/virtualkeys/<app>.yaml` (`ai` namespace, scoped to
 `claude` + `self-hosted` + `openrouter/auto` so the router's cloud fallbacks don't 401 the key when the
@@ -186,9 +185,9 @@ paired `PushSecret` then writes that key back to the `litellm` 1Password item as
 `LITELLM_<APP>_API_KEY` (`updatePolicy: Replace`, `refreshInterval: 1h`). The consumer's own
 ExternalSecret extracts that property like any other `litellm`-item field, with no cross-namespace
 Secret access required. See the consumer's own `externalsecret.yaml` for the exact template line.
-`recommendarr` and `suggestarr` are the exception: each stores AI credentials in its own config, so
-its key is entered once in the app's AI settings from that 1Password property and must be
-re-entered there if the key is ever re-minted.
+`suggestarr` is the exception: it stores AI credentials in its own config, so its key is entered
+once in the app's AI settings from that 1Password property and must be re-entered there if the key
+is ever re-minted.
 
 ## Rollout (staged)
 
