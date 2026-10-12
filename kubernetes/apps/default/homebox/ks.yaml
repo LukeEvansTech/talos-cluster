@@ -20,7 +20,7 @@ spec:
       VOLSYNC_CAPACITY: 15Gi
       HOMEPAGE_NAME: Homebox
       HOMEPAGE_GROUP: Productivity
-      HOMEPAGE_ICON: homebox.svg
+      HOMEPAGE_ICON: https://cdn.jsdelivr.net/gh/Jas-SinghFSU/homepage-dracula@dd0d1774d09efa85cc47d50318f2b5e7ce93b642/dracula_icons/homebox.png
       HOMEPAGE_DESCRIPTION: Home inventory
   prune: true
   retryInterval: 2m

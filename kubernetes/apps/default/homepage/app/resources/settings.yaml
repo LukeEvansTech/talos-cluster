@@ -1,8 +1,14 @@
 ---
 title: Dashboard
 theme: dark
-color: slate
-headerStyle: clean
+# Dracula theme (github.com/Jas-SinghFSU/homepage-dracula): custom.css restyles the gray palette.
+color: gray
+background:
+  image: https://i.imgur.com/5DJSIvq.png
+  blur: sm
+iconStyle: theme
+headerStyle: underlined
+statusStyle: dot
 layout:
   Media:
     style: row

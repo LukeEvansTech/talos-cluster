@@ -23,7 +23,7 @@ spec:
       VOLSYNC_CAPACITY: 2Gi
       HOMEPAGE_NAME: Reclaimerr
       HOMEPAGE_GROUP: Media
-      HOMEPAGE_ICON: mdi-broom
+      HOMEPAGE_ICON: sh-reclaimerr.svg
       HOMEPAGE_DESCRIPTION: Disk space reclamation
   prune: true
   retryInterval: 2m

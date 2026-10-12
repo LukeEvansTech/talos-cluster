@@ -18,7 +18,7 @@ spec:
       APP: *app
       HOMEPAGE_NAME: Cupdate
       HOMEPAGE_GROUP: Infrastructure
-      HOMEPAGE_ICON: mdi-update
+      HOMEPAGE_ICON: sh-cupdate.png
       HOMEPAGE_DESCRIPTION: Container updates
   prune: true
   retryInterval: 2m

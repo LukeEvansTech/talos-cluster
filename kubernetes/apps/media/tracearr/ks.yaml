@@ -63,7 +63,7 @@ spec:
       VOLSYNC_CAPACITY: 5Gi
       HOMEPAGE_NAME: Tracearr
       HOMEPAGE_GROUP: Arrs
-      HOMEPAGE_ICON: mdi-chart-timeline
+      HOMEPAGE_ICON: tracearr.svg
       HOMEPAGE_DESCRIPTION: Arr tracing
   prune: true
   retryInterval: 2m
