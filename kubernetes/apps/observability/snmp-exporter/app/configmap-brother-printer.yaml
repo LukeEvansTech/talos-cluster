@@ -1,5 +1,5 @@
 ---
-# 4 Brother printers, Printer-MIB + Host-Resources-MIB; auths in snmp-exporter-auth Secret.
+# Brother printers, Printer-MIB + Host-Resources-MIB; auths in snmp-exporter-auth Secret.
 # Toner reads -3 (present, unmeasured); only Drum/Belt (MaxCapacity>0) give a real ratio.
 # hrDeviceStatus (2/3/5) is the reliable fault signal; the error bitfield stays an info label.
 apiVersion: v1
