@@ -1,4 +1,28 @@
-/* Dracula theme from github.com/Jas-SinghFSU/homepage-dracula @ dd0d177, MIT licence (c) Jas Singh. Needs `color: gray`. */
+/*
+ * Dracula theme from github.com/Jas-SinghFSU/homepage-dracula @ dd0d177. Needs `color: gray`.
+ *
+ * MIT License
+ *
+ * Copyright (c) 2023 Jas Singh
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
 /* stylelint-disable selector-class-pattern, no-descending-specificity -- selectors are Homepage's Tailwind classes; order is the upstream theme's */
 @import url("https://fonts.googleapis.com/css2?family=DM+Sans:opsz@9..40&family=Fira+Code&family=Poppins&family=Source+Code+Pro&family=Work+Sans&display=swap");
 
