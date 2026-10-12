@@ -1,8 +1,9 @@
 /* Dracula theme from github.com/Jas-SinghFSU/homepage-dracula @ dd0d177, MIT licence (c) Jas Singh. Needs `color: gray`. */
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz@9..40&family=Fira+Code&family=Poppins&family=Source+Code+Pro&family=Work+Sans&display=swap');
+/* stylelint-disable selector-class-pattern, no-descending-specificity -- selectors are Homepage's Tailwind classes; order is the upstream theme's */
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:opsz@9..40&family=Fira+Code&family=Poppins&family=Source+Code+Pro&family=Work+Sans&display=swap");
 
 .theme-gray {
-  font-family: 'DM Sans', sans-serif;
+  font-family: "DM Sans", sans-serif;
 
   /* DRACULA COLORS */
   --dracula-background: #282a36;
@@ -15,7 +16,7 @@
   --dracula-orange: #ffb86c;
   --dracula-pink: #ff79c6;
   --dracula-purple: #bd93f9;
-  --dracula-red: #ff5555;
+  --dracula-red: #f55;
   --dracula-yellow: #f1fa8c;
 
   /* Theme preset colors */
@@ -31,28 +32,23 @@
   --color-900: 21 22 29; /* Dracula specific */
   --color-logo-start: 156 163 175;
   --color-logo-stop: 55 65 81;
-
   --standard-bg: #44475a8e;
 
   /* INFO WIDGET COLORS */
   --info-widgets: var(--dracula-purple);
   --resource-bar-bg: var(--standard-bg);
   --resource-bar-fg: var(--dracula-green);
-
   --widget-border: var(--dracula-foreground);
 
   /* SERVICES COLORS */
   --service-group: var(--dracula-purple);
-
   --service-name: var(--dracula-text);
   --service-description: var(--dracula-purple);
-
   --service-block-bg: #232530;
   --service-block-text: var(--dracula-pink);
 
   /* BOOKMARKS COLORS */
   --bookmark-group: var(--dracula-purple);
-
   --bookmark-icon-bg: #44475a60;
   --bookmark-icon: var(--dracula-purple);
   --bookmark-name: var(--dracula-text);
@@ -68,9 +64,9 @@
   --scrollbar-fg: var(--dracula-purple);
   --scrollbar-bg: var(--standard-bg);
 
-  /*Class color values */
+  /* Class color values */
   .service-tags .dark\:bg-theme-900\/50 {
-    background-color: rgb(var(--color-900) / 0.3) !important;
+    background-color: rgb(var(--color-900) / 30%) !important;
   }
 
   /*******************************
@@ -201,56 +197,56 @@
   *       GLANCES STYLES         *
   *******************************/
 
-  li[id^='glances-'] .recharts-surface > g:nth-of-type(1) path:nth-child(1) {
+  li[id^="glances-"] .recharts-surface > g:nth-of-type(1) path:nth-child(1) {
     fill: var(--dracula-green);
     fill-opacity: 0.15;
   }
 
-  li[id^='glances-'] .recharts-surface g:nth-of-type(1) path:nth-child(2) {
+  li[id^="glances-"] .recharts-surface g:nth-of-type(1) path:nth-child(2) {
     stroke: var(--dracula-green);
     stroke-opacity: 0.5;
   }
 
-  li[id^='glances-'] .recharts-surface g:nth-of-type(2) path:nth-child(1) {
+  li[id^="glances-"] .recharts-surface g:nth-of-type(2) path:nth-child(1) {
     fill: var(--dracula-purple);
     fill-opacity: 0.15;
   }
 
-  li[id^='glances-'] .recharts-surface g:nth-of-type(2) path:nth-child(2) {
+  li[id^="glances-"] .recharts-surface g:nth-of-type(2) path:nth-child(2) {
     stroke: var(--dracula-purple);
     stroke-opacity: 0.5;
   }
 
-  li[id^='glances-'] .bottom-3.left-3 {
+  li[id^="glances-"] .bottom-3.left-3 {
     color: var(--dracula-pink);
   }
 
-  li[id^='glances-'] .bottom-3.right-3 .opacity-75 {
+  li[id^="glances-"] .bottom-3.right-3 .opacity-75 {
     color: var(--dracula-cyan);
     opacity: 1;
     font-size: 0.8rem;
   }
 
-  li[id^='glances-'] .top-3.right-3 .opacity-50 {
+  li[id^="glances-"] .top-3.right-3 .opacity-50 {
     color: var(--dracula-cyan);
     opacity: 1;
     font-size: 0.8rem;
   }
 
-  li[id^='glances-'] .opacity-50 {
+  li[id^="glances-"] .opacity-50 {
     opacity: 0.8;
   }
 
-  li[id^='glances-'] .flex.items-center.text-xs .text-right {
+  li[id^="glances-"] .flex.items-center.text-xs .text-right {
     color: var(--dracula-cyan);
   }
 
-  li[id^='glances-'] .flex.items-center .opacity-25.w-14.text-right {
+  li[id^="glances-"] .flex.items-center .opacity-25.w-14.text-right {
     color: var(--dracula-purple);
     opacity: 0.85;
   }
 
-  li[id^='glances-']
+  li[id^="glances-"]
     .bottom-4.right-3.left-3.z-20
     .w-3.h-3.mr-1\.5.opacity-50
     > div {
@@ -258,7 +254,7 @@
     opacity: 1;
   }
 
-  li[id^='glances-'] .bottom-4.right-3.left-3.z-20 .opacity-75.grow {
+  li[id^="glances-"] .bottom-4.right-3.left-3.z-20 .opacity-75.grow {
     color: var(--dracula-pink) !important;
     opacity: 0.75;
   }
@@ -331,7 +327,7 @@
   }
 
   .bg-rose-100 {
-    background-color: rgb(255, 205, 205);
+    background-color: rgb(255 205 205);
   }
 
   .bg-rose-500 {
@@ -367,7 +363,7 @@
   }
 
   .bg-white\/50 {
-    background-color: hsla(0, 0%, 100%, 0.5);
+    background-color: hsl(0deg 0% 100% / 50%);
   }
 
   .bg-yellow-500 {
@@ -387,11 +383,11 @@
   }
 
   .text-black\/20 {
-    color: rgba(0, 0, 0, 0.2);
+    color: rgb(0 0 0 / 20%);
   }
 
   .text-blue-500\/80 {
-    color: rgba(139, 233, 253, 0.8);
+    color: rgb(139 233 253 / 80%);
   }
 
   .text-emerald-300 {
@@ -399,7 +395,7 @@
   }
 
   .text-emerald-500\/80 {
-    color: rgba(80, 250, 123, 0.8);
+    color: rgb(80 250 123 / 80%);
   }
 
   .text-gray-500 {
@@ -411,7 +407,7 @@
   }
 
   .text-orange-400\/50 {
-    color: rgba(255, 184, 108, 0.5);
+    color: rgb(255 184 108 / 50%);
   }
 
   .text-red-400 {
@@ -423,7 +419,7 @@
   }
 
   .text-red-500\/40 {
-    color: rgba(255, 85, 85, 0.4);
+    color: rgb(255 85 85 / 40%);
   }
 
   .text-rose-300 {
@@ -435,7 +431,7 @@
   }
 
   .text-rose-500\/80 {
-    color: rgba(255, 85, 85, 0.8);
+    color: rgb(255 85 85 / 80%);
   }
 
   .text-rose-900 {
