@@ -1,6 +1,5 @@
 # slug	mode	threshold	source
 actual	knock	0.35	https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/actual-budget.svg
-agregarr	knock	0.35	https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/agregarr.svg
 anubis	alpha	0.35	https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/anubis.png
 arrmcp	alpha	0.35	https://cdn.jsdelivr.net/npm/@mdi/svg@7.4.47/svg/filmstrip-box-multiple.svg
 audiobookshelf	alpha	0.35	https://cdn.jsdelivr.net/npm/simple-icons@13.21.0/icons/audiobookshelf.svg
