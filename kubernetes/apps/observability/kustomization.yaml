@@ -18,6 +18,7 @@ resources:
   - ./dococd/ks.yaml
   - ./exportarr/ks.yaml
   - ./gatus/ks.yaml
+  - ./glasshouse/ks.yaml
   - ./grafana/ks.yaml
   - ./headlamp/ks.yaml
   - ./kromgo/ks.yaml

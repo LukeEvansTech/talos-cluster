@@ -1,0 +1,23 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: glasshouse.rules
+spec:
+  groups:
+    - name: glasshouse.rules
+      rules:
+        # TargetDown excludes TVs, so this catches a misconfigured one: never answering in a
+        # week, with the offset guard holding off until its first sample is a week old.
+        - alert: GlasshouseNeverScraped
+          annotations:
+            summary: >-
+              Glasshouse on {{ $labels.tv }} has not answered a scrape in 7 days.
+              Check prometheus.enabled, the token and the TV's address.
+          expr: |-
+            max_over_time(up{job="glasshouse"}[7d]) == 0
+            and max_over_time(up{job="glasshouse"}[1h] offset 7d) >= 0
+          for: 1h
+          labels:
+            severity: warning

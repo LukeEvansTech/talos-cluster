@@ -205,8 +205,8 @@ spec:
                 expr: node_zfs_zpool_state{state!="online"} > 0
                 labels:
                   severity: critical
-  # Excludes idle printers, two slow SNMP walks, and the seedbox's relayed scrapes from the
-  # chart's generic TargetDown alert (docs/docs/apps/kube-prometheus-stack.md).
+  # Excludes idle printers, TVs switched off at the wall, two slow SNMP walks, and the seedbox's
+  # relayed scrapes from the chart's generic TargetDown alert (docs/docs/apps/kube-prometheus-stack.md).
   postRenderers:
     - kustomize:
         patches:
@@ -282,7 +282,7 @@ spec:
                 path: /spec/groups/0/rules/0/expr
                 value: >-
                   100 * (count by (cluster, job, namespace, service)
-                  (up{device_class!~"printer|sensors|switch-if",instance!="seedbox"}
+                  (up{device_class!~"printer|sensors|switch-if|tv",instance!="seedbox"}
                   == 0) / count by (cluster, job, namespace, service)
-                  (up{device_class!~"printer|sensors|switch-if",instance!="seedbox"}))
+                  (up{device_class!~"printer|sensors|switch-if|tv",instance!="seedbox"}))
                   > 10
