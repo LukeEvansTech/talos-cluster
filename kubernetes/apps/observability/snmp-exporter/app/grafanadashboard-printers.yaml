@@ -9,7 +9,7 @@ spec:
   instanceSelector:
     matchLabels:
       grafana.internal/instance: grafana
-  # No template var: fixed 3-printer fleet, shown all at once.
+  # No template var: the fleet is small enough to show all at once.
   json: |-
     {
       "annotations": {
