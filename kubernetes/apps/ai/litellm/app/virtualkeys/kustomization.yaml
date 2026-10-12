@@ -7,7 +7,6 @@ resources:
   - ./jobops.yaml
   - ./loupe.yaml
   - ./lurcher.yaml
-  - ./recommendarr.yaml
   - ./subspy.yaml
   - ./suggestarr.yaml
   - ./todoist-sort.yaml

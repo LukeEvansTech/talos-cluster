@@ -37,7 +37,6 @@ resources:
   - ./pulsarr/ks.yaml
   - ./radarr/ks.yaml
   - ./reclaimerr/ks.yaml
-  - ./recommendarr/ks.yaml
   # - ./recyclarr/ks.yaml  # Disabled, using Profilarr instead
   - ./sonarr/ks.yaml
   - ./sortarr/ks.yaml
