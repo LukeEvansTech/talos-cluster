@@ -9,7 +9,6 @@ components:
 resources:
   - ./namespace.yaml
   - ./netpol.yaml
-  - ./agregarr/ks.yaml
   - ./audiobookshelf/ks.yaml
   - ./autopulse/ks.yaml
   - ./bazarr/ks.yaml

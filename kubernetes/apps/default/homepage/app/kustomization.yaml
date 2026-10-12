@@ -19,7 +19,6 @@ configMapGenerator:
   - name: homepage-icons
     files:
       - icons/actual.svg
-      - icons/agregarr.svg
       - icons/anubis.svg
       - icons/arrmcp.svg
       - icons/audiobookshelf.svg
