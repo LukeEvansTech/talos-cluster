@@ -8,6 +8,8 @@ metadata:
   annotations:
     gethomepage.dev/enabled: "true"
     gethomepage.dev/name: Wazuh
+    # Dashboard pods lack the app.kubernetes.io/name label homepage matches by default.
+    gethomepage.dev/pod-selector: app=wazuh-dashboard
     gethomepage.dev/group: Security
     gethomepage.dev/icon: /icons/dracula/wazuh.svg
     gethomepage.dev/description: XDR and SIEM
