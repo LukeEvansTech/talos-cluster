@@ -22,7 +22,7 @@ spec:
       APP: *app
       HOMEPAGE_NAME: Maintainerr
       HOMEPAGE_GROUP: Media
-      HOMEPAGE_ICON: maintainerr.svg
+      HOMEPAGE_ICON: /icons/dracula/maintainerr.svg
       HOMEPAGE_DESCRIPTION: Media maintenance
   prune: true
   retryInterval: 2m

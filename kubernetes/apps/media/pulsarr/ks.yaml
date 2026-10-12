@@ -23,7 +23,7 @@ spec:
       VOLSYNC_CAPACITY: 1Gi
       HOMEPAGE_NAME: Pulsarr
       HOMEPAGE_GROUP: Arrs
-      HOMEPAGE_ICON: pulsarr.svg
+      HOMEPAGE_ICON: /icons/dracula/pulsarr.svg
       HOMEPAGE_DESCRIPTION: Arr notifications
   prune: true
   retryInterval: 2m

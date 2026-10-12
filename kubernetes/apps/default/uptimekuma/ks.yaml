@@ -20,7 +20,7 @@ spec:
       VOLSYNC_CAPACITY: 5Gi
       HOMEPAGE_NAME: Uptime Kuma
       HOMEPAGE_GROUP: Monitoring
-      HOMEPAGE_ICON: https://cdn.jsdelivr.net/gh/Jas-SinghFSU/homepage-dracula@dd0d1774d09efa85cc47d50318f2b5e7ce93b642/dracula_icons/uptime-kuma.png
+      HOMEPAGE_ICON: /icons/dracula/uptimekuma.svg
       HOMEPAGE_DESCRIPTION: Uptime monitoring
   prune: true
   retryInterval: 2m

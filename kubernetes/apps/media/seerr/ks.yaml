@@ -23,7 +23,7 @@ spec:
       VOLSYNC_CAPACITY: 5Gi
       HOMEPAGE_NAME: Seerr
       HOMEPAGE_GROUP: Requests
-      HOMEPAGE_ICON: seerr.svg
+      HOMEPAGE_ICON: /icons/dracula/seerr.svg
       HOMEPAGE_DESCRIPTION: Media requests
   prune: true
   retryInterval: 2m

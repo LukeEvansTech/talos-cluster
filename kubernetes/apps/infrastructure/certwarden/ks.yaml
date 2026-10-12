@@ -20,7 +20,7 @@ spec:
       VOLSYNC_CAPACITY: 5Gi
       HOMEPAGE_NAME: CertWarden
       HOMEPAGE_GROUP: Infrastructure
-      HOMEPAGE_ICON: mdi-certificate
+      HOMEPAGE_ICON: /icons/dracula/certwarden.svg
       HOMEPAGE_DESCRIPTION: Certificate management
   prune: true
   retryInterval: 2m

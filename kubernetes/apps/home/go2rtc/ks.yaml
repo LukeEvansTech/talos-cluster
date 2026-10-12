@@ -18,7 +18,7 @@ spec:
       APP: *app
       HOMEPAGE_NAME: Go2RTC
       HOMEPAGE_GROUP: Home
-      HOMEPAGE_ICON: go2rtc.png
+      HOMEPAGE_ICON: /icons/dracula/go2rtc.svg
       HOMEPAGE_DESCRIPTION: Camera streaming
   prune: true
   retryInterval: 2m

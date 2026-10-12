@@ -20,7 +20,7 @@ spec:
       VOLSYNC_CAPACITY: 1Gi
       HOMEPAGE_NAME: Stacks
       HOMEPAGE_GROUP: Downloads
-      HOMEPAGE_ICON: mdi-layers-triple
+      HOMEPAGE_ICON: /icons/dracula/stacks.svg
       HOMEPAGE_DESCRIPTION: Download stacks
   prune: true
   retryInterval: 2m

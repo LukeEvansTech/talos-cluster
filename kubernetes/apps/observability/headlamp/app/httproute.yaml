@@ -8,7 +8,7 @@ metadata:
     gethomepage.dev/enabled: "true"
     gethomepage.dev/name: Headlamp
     gethomepage.dev/group: Monitoring
-    gethomepage.dev/icon: headlamp.svg
+    gethomepage.dev/icon: /icons/dracula/headlamp.svg
     gethomepage.dev/description: Kubernetes UI
 spec:
   hostnames:

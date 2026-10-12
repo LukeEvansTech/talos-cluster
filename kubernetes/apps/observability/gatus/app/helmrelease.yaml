@@ -60,7 +60,7 @@ spec:
         gethomepage.dev/app: gatus-sidecar
         gethomepage.dev/name: Gatus
         gethomepage.dev/group: Monitoring
-        gethomepage.dev/icon: https://cdn.jsdelivr.net/gh/Jas-SinghFSU/homepage-dracula@dd0d1774d09efa85cc47d50318f2b5e7ce93b642/dracula_icons/gatus.png
+        gethomepage.dev/icon: /icons/dracula/gatus.svg
         gethomepage.dev/description: Status page
       hostnames:
         - status.${SECRET_DOMAIN}

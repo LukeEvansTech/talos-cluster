@@ -21,7 +21,7 @@ spec:
       APP: *app
       HOMEPAGE_NAME: arr-mcp
       HOMEPAGE_GROUP: AI
-      HOMEPAGE_ICON: mdi-filmstrip-box-multiple
+      HOMEPAGE_ICON: /icons/dracula/arrmcp.svg
       HOMEPAGE_DESCRIPTION: Media stack MCP server
   prune: true
   retryInterval: 2m

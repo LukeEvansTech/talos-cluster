@@ -31,5 +31,5 @@ spec:
       VOLSYNC_CAPACITY: 1Gi
       HOMEPAGE_NAME: Exam Prep
       HOMEPAGE_GROUP: Tools
-      HOMEPAGE_ICON: mdi-school
+      HOMEPAGE_ICON: /icons/dracula/examprep.svg
       HOMEPAGE_DESCRIPTION: Certification exam practice

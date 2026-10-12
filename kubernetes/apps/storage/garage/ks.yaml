@@ -18,7 +18,7 @@ spec:
       APP: *app
       HOMEPAGE_NAME: Garage
       HOMEPAGE_GROUP: Storage
-      HOMEPAGE_ICON: garage.svg
+      HOMEPAGE_ICON: /icons/dracula/garage.svg
       HOMEPAGE_DESCRIPTION: S3 object storage
   prune: true
   retryInterval: 2m

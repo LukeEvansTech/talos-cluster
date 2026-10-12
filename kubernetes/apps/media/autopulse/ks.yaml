@@ -20,7 +20,7 @@ spec:
       VOLSYNC_CAPACITY: 1Gi
       HOMEPAGE_NAME: Autopulse
       HOMEPAGE_GROUP: Media
-      HOMEPAGE_ICON: sh-autopulse.png
+      HOMEPAGE_ICON: /icons/dracula/autopulse.svg
       HOMEPAGE_DESCRIPTION: Media automation
   prune: true
   retryInterval: 2m

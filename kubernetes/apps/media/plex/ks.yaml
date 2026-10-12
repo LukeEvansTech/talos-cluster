@@ -26,7 +26,7 @@ spec:
       VOLSYNC_CACHE_CAPACITY: 100Gi
       HOMEPAGE_NAME: Plex
       HOMEPAGE_GROUP: Media
-      HOMEPAGE_ICON: https://cdn.jsdelivr.net/gh/Jas-SinghFSU/homepage-dracula@dd0d1774d09efa85cc47d50318f2b5e7ce93b642/dracula_icons/plex.png
+      HOMEPAGE_ICON: /icons/dracula/plex.svg
       HOMEPAGE_DESCRIPTION: Media server
   prune: true
   retryInterval: 2m
