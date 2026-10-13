@@ -16,7 +16,7 @@ spec:
           app:
             image:
               repository: ghcr.io/jessielw/reclaimerr
-              tag: 0.1.0-beta7@sha256:b41300380197333584c09effa16a4b10caa31806ad145c0c46a04f7124ed33a4
+              tag: 0.5.6@sha256:b1e226525ab4d3b3959575c73c03ee444835de23251570c1d68131a64931e85f
             env:
               TZ: ${TIMEZONE}
               API_HOST: 0.0.0.0
