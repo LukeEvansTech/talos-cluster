@@ -20,6 +20,7 @@ jobs:
   scan-pr-text:
     name: Scan PR title and body
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     # Renovate bodies are machine-generated release notes that can legitimately quote an example
     # IP from a changelog with no narrative about this network; skipped rather than allowlisted.
     if: >-
@@ -53,6 +54,7 @@ jobs:
   scan-commit-authors:
     name: Scan commit authorship
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
       pull-requests: read

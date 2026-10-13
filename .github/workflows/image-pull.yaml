@@ -24,6 +24,7 @@ jobs:
   filter:
     name: Filter
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     # v0.6.0 renamed input files->patterns and replaced any_changed with a changed_files JSON
     # array ('[]' when empty); the old names were silently ignored, so extract never fired.
     outputs:
@@ -43,6 +44,7 @@ jobs:
   extract:
     name: Extract Images
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: filter
     if: ${{ needs.filter.outputs.any_changed == 'true' }}
     permissions:
@@ -107,6 +109,7 @@ jobs:
   diff:
     name: Diff Images
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: extract
     outputs:
       new_images: ${{ steps.diff.outputs.new_images }}
@@ -149,6 +152,7 @@ jobs:
   pull:
     name: Pull Images
     runs-on: talos-cluster-runner
+    timeout-minutes: 10
     needs: diff
     if: ${{ needs.diff.outputs.has_new_images == 'true' }}
     strategy:
@@ -173,6 +177,7 @@ jobs:
   success:
     name: Image Pull Success
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs:
       - "filter"
       - "extract"
