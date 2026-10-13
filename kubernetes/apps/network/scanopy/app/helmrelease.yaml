@@ -6,6 +6,8 @@ metadata:
   name: &app scanopy
 spec:
   interval: 1h
+  # Room for the startupProbe below to cover a long schema migration.
+  timeout: 35m
   chartRef:
     kind: OCIRepository
     name: scanopy
@@ -14,9 +16,10 @@ spec:
       retries: 3
   upgrade:
     cleanupOnFail: true
+    # Uninstall, not rollback: migrations are roll-forward only, so the previous binary cannot run
+    # on a migrated schema. Retries come from the root patch; the PVC and database are not Helm's.
     remediation:
-      retries: 3
-      strategy: rollback
+      strategy: uninstall
   values:
     controllers:
       scanopy:
@@ -29,7 +32,7 @@ spec:
           app:
             image:
               repository: ghcr.io/scanopy/scanopy/server
-              tag: v0.17.22@sha256:f6407504c838b6a25dd57f70b07c3c9d544c125636897f3d6ad28ec8ad4f5595
+              tag: v0.18.0@sha256:ad1aafef0b8582330ab046094a1ccaacda92da391df91cee23a7a246bec7d924
             env:
               TZ: ${TIMEZONE}
               SCANOPY_LOG_LEVEL: info
@@ -54,6 +57,17 @@ spec:
                   timeoutSeconds: 5
                   failureThreshold: 3
               readiness: *probe
+              # Migrations run before /api/health binds; liveness alone would kill it ~45s in.
+              startup:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /api/health
+                    port: *port
+                  periodSeconds: 10
+                  timeoutSeconds: 5
+                  failureThreshold: 180
             resources:
               requests:
                 cpu: 50m
