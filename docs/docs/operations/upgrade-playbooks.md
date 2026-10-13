@@ -24,8 +24,9 @@ Three rules apply to all of them:
    only changes a ConfigMap the operator reads by name rolls nothing. Check the running image
    after every such bump; the Rook section is the worked example.
 3. **A bump that carries a second, unpinned component is a two-component upgrade.** Flux's
-   distribution rides the operator manifests; Ceph's daemon version rides the Rook cluster chart.
-   Read both sets of release notes.
+   distribution rides the operator manifests; Ceph's daemon version rides the Rook cluster chart;
+   since Rook v1.21 the cephcsi and CSI sidecar versions ride the Rook operator chart. Read every
+   set of release notes.
 
 ## Talos
 
@@ -131,7 +132,8 @@ a bad state may need node reboots even after the chart is reverted.
 
 **Arrives as:** the `Rook-Ceph` group, tracked as `docker` (the charts are OCIRepository-sourced):
 `rook-ceph` (operator) and `rook-ceph-cluster` **must move together**. `ceph-csi-drivers` (the
-home-operations mirror of the upstream ceph-csi-operator chart) is an independent line.
+home-operations mirror of the upstream ceph-csi-operator chart) is an independent line, but the
+ceph-csi-operator itself is a subchart of `rook-ceph` and moves with it.
 
 **Repository paths:** `kubernetes/apps/rook-ceph/rook-ceph/ks.yaml` wires three Kustomizations in
 order, `rook-ceph` then `rook-ceph-csi-drivers` then `rook-ceph-cluster`. `app/` is the operator,
@@ -145,7 +147,9 @@ latter two, and `allowedCiphers: [aes256k]`) in the cluster chart.
 **Read before merging:** the Rook release notes for every intervening minor (Rook supports only
 sequential minor upgrades), the Rook upgrade guide, the Ceph release notes for the chart's
 **default Ceph image** (nothing pins `cephClusterSpec.cephVersion`, so a cluster-chart major can
-carry a Ceph major), and [KB-010](../troubleshooting/kb/010-rook-ceph-v120-csi-driver-split.md).
+carry a Ceph major), the release notes for the cephcsi version the bundled ceph-csi-operator
+defaults to (see the CSI images row below), and
+[KB-010](../troubleshooting/kb/010-rook-ceph-v120-csi-driver-split.md).
 
 **Known breaking patterns:**
 
@@ -154,16 +158,20 @@ carry a Ceph major), and [KB-010](../troubleshooting/kb/010-rook-ceph-v120-csi-d
 | A cluster-chart major silently bumps the default Ceph image a major (Squid to Tentacle rode v1.19 to v1.20) | Confirm the target Ceph is exactly one major up. Ceph majors are one way. Take a VolSync snapshot pass first (`just kube snapshot`) |
 | The upstream ceph-csi-operator chart defaults the RBD driver name to the unprefixed `rbd.csi.ceph.com`; every PV here references the prefixed name and `spec.csi.driver` is immutable | Keep `drivers.rbd.name` set. Without it the in-use driver is wound down and nodeplugins fail on a missing ServiceAccount |
 | `drivers.rbd.snapshotPolicy` defaults to `none`, which removes the `csi-snapshotter` sidecar; VolSync's `copyMethod: Snapshot` then hangs every backup | Keep `snapshotPolicy: volumeSnapshot`. If the sidecar is re-added after being absent, delete the orphaned `external-snapshotter-leader-*` Lease |
-| A cephcsi bump updates the image-set ConfigMap but the `Driver` CRs reference it by name and the operator does not watch it; plugin pods stay on the old image | `kubectl -n rook-ceph rollout restart deploy/ceph-csi-controller-manager` after **every** bump that touches cephcsi; it re-reconciles every Driver and rolls all plugins in about two minutes with no PVC disruption |
+| Since v1.21 Rook leaves `rook-csi-operator-image-set-configmap` empty, so the CSI images are the bundled ceph-csi-operator's compiled-in defaults. A Rook operator chart bump that moves the subchart is also a cephcsi and sidecar bump (v1.20.7 to 1.21.0 took cephcsi v3.17.1 to v3.18.1) | Before merging, diff `charts/ceph-csi-operator/Chart.yaml` between the two `rook-ceph` chart versions and read `internal/controller/defaults.go` in ceph/ceph-csi-operator at the new tag for the versions it will run |
+| The `Driver` CRs reference the image set by name and the operator does not watch it, so plugins only roll when the operator re-reconciles. The operator pod restarting on its own image bump does that (it did on 1.21.0) | If any plugin pod is still on the old cephcsi after the operator rollout, `kubectl -n rook-ceph rollout restart deploy/ceph-csi-controller-manager`; it rolls all plugins in about two minutes with no PVC disruption |
+| A Rook minor rolls every OSD one at a time; `CephOSDDownHigh` fires and some PGs peer for about a minute | Expected. Wait for all OSD deployments to carry the new `rook-version` label and all PGs to be `active+clean` before calling it |
 | Toolbox `client.admin` crashes from earlier sessions sit as `HEALTH_WARN` | `ceph crash archive-all` |
 
 **After merge:** `ceph -s` `HEALTH_OK` with 6 OSDs up and in; every `*.csi.ceph.com-{ctrl,node}plugin`
-pod runs the image-set cephcsi version (the check that the bump actually landed); a new
+pod runs the cephcsi version from the bundled operator's defaults (the check that the bump actually
+landed); a new
 `ceph-block` PVC binds and mounts; VolSync source snapshots reach `READYTOUSE=true`; both
 `ReplicationSource` movers for one app complete.
 
 **Rollback caveats:** for a Rook bump, re-pin `ref.tag` on the two Rook OCIRepositories (operator
-and cluster, together); for a `ceph-csi-drivers` bump, re-pin `csi-drivers/ocirepository.yaml`,
+and cluster, together), which also takes the CSI operator and its default cephcsi back; for a
+`ceph-csi-drivers` bump, re-pin `csi-drivers/ocirepository.yaml`,
 then restart `ceph-csi-controller-manager` so the plugins actually roll back. Never revert the
 HelmRelease files themselves. A Ceph major does not roll back with the chart. Crossing the v1.20
 CSI split in either direction needs the drivers chart present and Ready first.
