@@ -9,6 +9,10 @@ spec:
   chartRef:
     kind: OCIRepository
     name: reactiveresume
+  upgrade:
+    remediation:
+      # A rollback would start v5 against a schema its v6 migration already changed.
+      strategy: uninstall
   values:
     controllers:
       reactiveresume:
