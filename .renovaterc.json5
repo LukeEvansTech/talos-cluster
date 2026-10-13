@@ -646,6 +646,14 @@
       allowedVersions: "<1.0.0",
     },
     {
+      // Upstream moved from calver (v2026.9.24) to semver (v0.21.6); docker
+      // versioning ranks the old calver tags higher and would "upgrade" back.
+      description: "hermes-agent: semver tags only, never the retired calver ones",
+      matchDatasources: ["docker"],
+      matchPackageNames: ["docker.io/nousresearch/hermes-agent"],
+      allowedVersions: "/^v\\d{1,3}\\.\\d+\\.\\d+$/",
+    },
+    {
       // garage v2.4.0 panics at startup when kubernetes-discovery is on:
       // rustls ClientConfig::builder_with_protocol_versions finds no crypto
       // provider installed in the kube client. Only that release is blocked so
