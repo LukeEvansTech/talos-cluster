@@ -19,9 +19,11 @@ spec:
           app:
             image:
               repository: public.ecr.aws/docker/library/eclipse-mosquitto
-              tag: 2.0.22@sha256:199ea8ef2e35ec2b1b37e59cfd1dbae538ed4dfa4a2251a121a52215a6248a21
+              tag: 2.1.2-alpine@sha256:38c0da4f2ef84284d47b3b3eeea1cb3bdeabe81ee10caf0cd5c5ff61ee3ea408
             env:
               TZ: ${TIMEZONE}
+              # 2.1 refuses symlinked key files; the mounted TLS secret is symlinks.
+              MOSQUITTO_UNSAFE_ALLOW_SYMLINKS: "1"
             securityContext:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: true
