@@ -159,6 +159,26 @@ CASES = [
         None,
     ),
     (
+        "prerelease of the version now released stable",
+        "ghcr.io/o/app",
+        "1.0.0-beta7",
+        FRESH,
+        "o/app",
+        info("o/app", "v1.0.0"),
+        {"1.0.0-beta7"},
+        "not published as",
+    ),
+    (
+        "old rename, image still current",
+        "ghcr.io/o/miniflux",
+        "2.3.3-distroless",
+        FRESH,
+        "o/miniflux",
+        info("o/v2", "2.3.3"),
+        set(),
+        None,
+    ),
+    (
         "calendar tags to semver",
         "docker.io/o/hermes-agent",
         "v2026.8.16.2",
@@ -200,6 +220,7 @@ class AssessTest(unittest.TestCase):
             "  imageName: ghcr.io/cloudnative-pg/postgresql:18.6@sha256:abc\n"
             "        image: ghcr.io/o/side:1.2.3\n"
             "        repository: ghcr.io/${APP}/x\n        tag: 1.0.0\n"
+            "        image: homebridge/homebridge:2026-09-25\n"
         )
         self.assertEqual(
             sorted(drift.extract(text)),
@@ -207,6 +228,7 @@ class AssessTest(unittest.TestCase):
                 ("ghcr.io/cloudnative-pg/postgresql", "18.6"),
                 ("ghcr.io/o/scrypted", "v0.150.0"),
                 ("ghcr.io/o/side", "1.2.3"),
+                ("homebridge/homebridge", "2026-09-25"),
             ],
         )
 

@@ -54,6 +54,7 @@ IGNORE = {
 PAIR_RE = re.compile(r"^\s*repository:\s*\"?([\w./-]+)\"?\s*\n(?:\s*#.*\n)*\s*tag:\s*\"?([\w.+-]+)", re.M)
 IMAGE_RE = re.compile(r"^\s*-?\s*image(?:Name)?:\s*\"?((?:[\w.-]+/)+[\w.-]+):([\w.+-]+)", re.M)
 VERSION_RE = re.compile(r"\d+(?:\.\d+)+")
+PRERELEASE_RE = re.compile(r"[-.](alpha|beta|rc|pre|dev)\.?\d*", re.I)
 SHA_RE = re.compile(r"[0-9a-f]{7,40}")
 ACCEPT = ", ".join(
     [
@@ -69,19 +70,19 @@ class Skip(Exception):
     """The registry could not be asked (rate limit, network); not evidence of drift."""
 
 
-def image_refs() -> dict[str, str]:
-    """First `image: tag` seen for each image under kubernetes/, templated ones dropped."""
-    refs: dict[str, str] = {}
-    for path in sorted((ROOT / "kubernetes").rglob("*.yaml")):
-        for image, tag in extract(path.read_text(errors="ignore")):
-            refs.setdefault(image, tag)
-    return refs
+def image_refs() -> list[tuple[str, str]]:
+    """Every distinct (image, tag) under kubernetes/; one image can follow several tag tracks."""
+    refs: set[tuple[str, str]] = set()
+    for path in (ROOT / "kubernetes").rglob("*.yaml"):
+        refs.update(extract(path.read_text(errors="ignore")))
+    return sorted(refs)
 
 
 def extract(text: str) -> list[tuple[str, str]]:
     """(image, tag) pairs declared in one manifest, templated ones dropped."""
     found = PAIR_RE.findall(text) + IMAGE_RE.findall(text)
-    return [(image, tag) for image, tag in found if "$" not in image and "." in tag + image]
+    # A tag with no digit on an unqualified name is a values key such as `repository: foo`.
+    return [(image, tag) for image, tag in found if "$" not in image and ("/" in image or re.search(r"\d", tag))]
 
 
 def hub_repo(image: str) -> str | None:
@@ -256,12 +257,13 @@ def renovate_pending() -> str:
     owner, name = REPO.split("/")
     data = graphql(
         f'{{ repository(owner: "{owner}", name: "{name}") {{ '
-        "pullRequests(states: OPEN, first: 100) { nodes { title } } "
+        "pullRequests(states: OPEN, first: 100) { nodes { title body } } "
         'issues(states: OPEN, first: 5, filterBy: { createdBy: "renovate[bot]" }) '
         "{ nodes { title body } } } }"
     )
     repo = data.get("repository") or {}
-    prs = [p["title"] for p in repo.get("pullRequests", {}).get("nodes", [])]
+    # Group PRs ("Update Prowler group") name their images only in the body's package table.
+    prs = [f"{p['title']}\n{p['body']}" for p in repo.get("pullRequests", {}).get("nodes", [])]
     # The Detected Dependencies section names every image, pending or not, so it is cut off.
     issues = repo.get("issues", {}).get("nodes", [])
     dash = [i["body"].split("## Detected")[0] for i in issues if "Dashboard" in i["title"]]
@@ -272,6 +274,16 @@ def version(tag: str) -> tuple[int, ...] | None:
     """First dotted number in tag as a tuple, or None."""
     match = VERSION_RE.search(tag)
     return tuple(int(x) for x in match[0].split(".")) if match else None
+
+
+def newer(release: str, tag: str) -> bool:
+    """Whether release is past tag, counting a stable release past the same-numbered prerelease."""
+    rel, cur = version(release), version(tag)
+    if not rel or not cur:
+        return False
+    if padded(rel, cur) != padded(cur, rel):
+        return padded(rel, cur) > padded(cur, rel)
+    return bool(PRERELEASE_RE.search(tag)) and not PRERELEASE_RE.search(release)
 
 
 def padded(ver: tuple[int, ...], other: tuple[int, ...]) -> tuple[int, ...]:
@@ -304,12 +316,13 @@ def release_reasons(image: str, tag: str, info: dict, now: datetime) -> list[str
     current, latest = version(tag), version(release["tagName"]) if release else None
     if release and current and latest and calendar(current) != calendar(latest):
         reasons.append(f"upstream switched version scheme; latest release is {release['tagName']}")
-    elif release and current and latest and padded(latest, current) > padded(current, latest):
+    elif release and current and latest and newer(release["tagName"], tag):
         released = age_days(release["publishedAt"], now) or 0
         # Same version in our tag's own prefix and suffix: Renovate can see it, it may just lag.
         ours = VERSION_RE.sub(".".join(map(str, latest[: len(current)])), tag, count=1)
         same_shape = shape(tag) == shape(release["tagName"])
-        trackable = same_shape or (shape(ours) == shape(tag) and tag_exists(image, ours))
+        # ours equals tag when only a prerelease suffix differs; finding it proves nothing.
+        trackable = same_shape or (ours != tag and shape(ours) == shape(tag) and tag_exists(image, ours))
         if not trackable:
             name = release["tagName"]
             reasons.append(f"upstream {name} is not published as a `{shape(tag)}` tag")
@@ -338,7 +351,9 @@ def assess(
     if not re.search(r"\d", tag) or SHA_RE.fullmatch(tag):
         reasons.append(f"floating tag `{tag}` gives Renovate nothing to compare")
     if info:
-        if repo and info["nameWithOwner"].lower() != repo.lower():
+        release = (info.get("latestRelease") or {}).get("tagName", "")
+        # GitHub redirects old renames forever; a move matters once it carries newer releases.
+        if repo and info["nameWithOwner"].lower() != repo.lower() and newer(release, tag):
             reasons.append(f"repository moved to {info['nameWithOwner']}")
         if info["isArchived"] and stale:
             reasons.append("upstream archived")
@@ -348,12 +363,15 @@ def assess(
     return reasons
 
 
-def collect() -> tuple[dict[str, str], dict[str, dict], dict[str, str | None], dict, str]:
+Ref = tuple[str, str]
+
+
+def collect() -> tuple[list[Ref], dict[Ref, dict], dict[Ref, str | None], dict, str]:
     """Look up each unignored image: refs, registry metadata, source repos, upstream, pending."""
-    refs = {img: tag for img, tag in image_refs().items() if img not in IGNORE}
+    refs = [ref for ref in image_refs() if ref[0] not in IGNORE]
     with cf.ThreadPoolExecutor(16) as pool:
-        metas = dict(zip(refs, pool.map(lambda i: safe_meta(i, refs[i]), refs)))
-    repos = {img: source_repo(img, metas[img]) for img in refs}
+        metas = dict(zip(refs, pool.map(lambda ref: safe_meta(*ref), refs)))
+    repos = {ref: source_repo(ref[0], metas[ref]) for ref in refs}
     info = upstream(sorted({r for r in repos.values() if r}))
     return refs, metas, repos, info, renovate_pending()
 
@@ -383,20 +401,20 @@ def main() -> int:
     now = datetime.now(timezone.utc)
     rows: list[str] = []
     watch: list[str] = []
-    skipped = [img for img, meta in metas.items() if "skipped" in meta]
-    for image, tag in sorted(refs.items()):
-        if image in skipped:
+    skipped = [f"{i}:{t}" for (i, t), meta in metas.items() if "skipped" in meta]
+    for image, tag in refs:
+        if f"{image}:{tag}" in skipped:
             continue
-        source = (repos[image], info.get(repos[image] or ""))
+        repo = repos[(image, tag)]
         try:
-            reasons = assess(image, tag, metas[image], source, now)
+            reasons = assess(image, tag, metas[(image, tag)], (repo, info.get(repo or "")), now)
         except Skip:
-            skipped.append(image)
+            skipped.append(f"{image}:{tag}")
             continue
         if not reasons or image.lower() in pending:
             continue
         why = "; ".join(r.removeprefix(WATCH) for r in reasons)
-        row = f"| `{image}:{tag}` | {repos[image] or '?'} | {why} |"
+        row = f"| `{image}:{tag}` | {repo or '?'} | {why} |"
         (watch if reasons[0].startswith(WATCH) else rows).append(row)
     render(rows, watch, skipped, len(refs) - len(skipped))
     if skipped:
