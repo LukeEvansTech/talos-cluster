@@ -18,16 +18,15 @@ spec:
           app:
             image:
               repository: invoiceshelf/invoiceshelf
-              tag: 2.1.1-legacy@sha256:a20267aada53b6c33bb164a602e6f01d2b6d8a497da972886e80b53941ce78a0
+              tag: 2.4.6@sha256:3cefda59e53ea027b52cd142b5339683afecaec3463db7c1af8462a661db6019
             env:
               TZ: ${TIMEZONE}
-              PUID: "1000"
-              PGID: "1000"
               APP_ENV: production
               APP_DEBUG: "false"
               APP_URL: "https://invoiceshelf.${SECRET_DOMAIN}"
               APP_TIMEZONE: ${TIMEZONE}
               DB_CONNECTION: sqlite
+              DB_DATABASE: /var/www/html/storage/app/database.sqlite
               TRUSTED_PROXIES: "*"
               SESSION_SECURE_COOKIE: "true"
               SESSION_DOMAIN: "invoiceshelf.${SECRET_DOMAIN}"
@@ -42,7 +41,7 @@ spec:
                 spec:
                   httpGet:
                     path: /
-                    port: &port 80
+                    port: &port 8080
                   periodSeconds: 30
                   timeoutSeconds: 5
                   failureThreshold: 3
@@ -76,10 +75,10 @@ spec:
 
     defaultPodOptions:
       securityContext:
-        runAsNonRoot: false
-        runAsUser: 0
-        runAsGroup: 0
-        fsGroup: 1000
+        runAsNonRoot: true
+        runAsUser: 82
+        runAsGroup: 82
+        fsGroup: 82
         fsGroupChangePolicy: OnRootMismatch
         seccompProfile: { type: RuntimeDefault }
 
@@ -102,7 +101,6 @@ spec:
       data:
         existingClaim: "{{ .Release.Name }}"
         globalMounts:
-          - path: /data
+          # The database moved from conf/ to data/app/ with the 2.2 image; conf/ is kept as a rollback copy.
+          - path: /var/www/html/storage
             subPath: data
-          - path: /conf
-            subPath: conf
