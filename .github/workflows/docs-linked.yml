@@ -18,6 +18,7 @@ jobs:
   docs-linked:
     name: Docs pages linked
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
     steps:
