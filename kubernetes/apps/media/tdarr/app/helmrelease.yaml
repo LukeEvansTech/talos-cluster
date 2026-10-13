@@ -28,6 +28,9 @@ spec:
               tag: 3.00.00@sha256:7ba5325ea64951181a30f2a8d5bbc4fc0985e4c275ea1d09d15491b47b4cd8d6
             env:
               TZ: ${TIMEZONE}
+              # 3.x enables auth by default and the node carries no API key; set explicitly rather
+              # than relying on whatever the persisted server config holds.
+              auth: "false"
             probes:
               liveness: &probes
                 enabled: true
@@ -135,6 +138,10 @@ spec:
             app:
               - path: /app/server
                 subPath: server
+              # Shared with the node as upstream does; the two write different filenames. Without it
+              # the server's settings, including authSecretKey, were regenerated on every start.
+              - path: /app/configs
+                subPath: configs
             node:
               - path: /app/configs
                 subPath: configs
