@@ -9,11 +9,8 @@ data:
   config.yaml: |-
     server:
       cacheDir: "/tmp"
-      # v2 moved from BoltDB to SQLite. migrateFrom imports the v1 file only while the SQLite file
-      # is empty; database.db is otherwise unused and is the v1 rollback copy until it is removed.
       database:
         path: "/config/filebrowser.sqlite"
-        migrateFrom: "/config/database.db"
       logging:
         - levels: "info|warning|error"
       sources:
