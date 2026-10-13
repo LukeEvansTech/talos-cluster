@@ -149,6 +149,16 @@ CASES = [
     ),
     ("current", "ghcr.io/o/app", "2.0.0", FRESH, "o/app", info("o/app", "2.0.0"), set(), None),
     (
+        "two-part tag already current",
+        "ghcr.io/o/keeper",
+        "2.25",
+        FRESH,
+        "o/keeper",
+        info("o/keeper", "v2.25.0"),
+        {"2.25"},
+        None,
+    ),
+    (
         "calendar tags to semver",
         "docker.io/o/hermes-agent",
         "v2026.8.16.2",

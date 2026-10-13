@@ -102,8 +102,8 @@ def fetch(url: str, token: str | None = None, method: str = "GET") -> tuple[int,
         with urllib.request.urlopen(request, timeout=30) as res:
             return res.status, res.read(), res.headers
     except urllib.error.HTTPError as err:
-        if err.code == 429:
-            raise Skip("rate limited") from err
+        if err.code == 429 or err.code >= 500:
+            raise Skip(f"registry answered {err.code}") from err
         return err.code, b"", err.headers
     except (OSError, ValueError) as err:  # network errors and malformed URLs
         raise Skip(type(err).__name__) from err
@@ -148,7 +148,9 @@ def image_meta(image: str, tag: str) -> dict:
     config = manifest.get("config", {}).get("digest")
     if not config:
         return {"error": "no image config"}
-    _, body = reg.get(config, "blobs")
+    status, body = reg.get(config, "blobs")
+    if status != 200:
+        raise Skip(f"config blob answered {status}")
     blob = json.loads(body or b"{}")
     labels = (blob.get("config") or {}).get("Labels") or {}
     return {"created": blob.get("created"), "labels": labels}
@@ -177,7 +179,9 @@ def hub_labels(hub: str, digest: str) -> dict:
     config = json.loads(body or b"{}").get("config", {}).get("digest") if status == 200 else None
     if not config:
         return {}
-    _, body = reg.get(config, "blobs")
+    status, body = reg.get(config, "blobs")
+    if status != 200:
+        raise Skip(f"config blob answered {status}")
     return (json.loads(body or b"{}").get("config") or {}).get("Labels") or {}
 
 
@@ -270,6 +274,11 @@ def version(tag: str) -> tuple[int, ...] | None:
     return tuple(int(x) for x in match[0].split(".")) if match else None
 
 
+def padded(ver: tuple[int, ...], other: tuple[int, ...]) -> tuple[int, ...]:
+    """ver with trailing zeros to other's length, so 2.25 and 2.25.0 compare equal."""
+    return ver + (0,) * (len(other) - len(ver))
+
+
 def calendar(ver: tuple[int, ...]) -> bool:
     """Whether a version is calendar-based (2026.10.1), which never orders against semver."""
     return ver[0] >= 2000
@@ -295,7 +304,7 @@ def release_reasons(image: str, tag: str, info: dict, now: datetime) -> list[str
     current, latest = version(tag), version(release["tagName"]) if release else None
     if release and current and latest and calendar(current) != calendar(latest):
         reasons.append(f"upstream switched version scheme; latest release is {release['tagName']}")
-    elif release and current and latest and latest > current:
+    elif release and current and latest and padded(latest, current) > padded(current, latest):
         released = age_days(release["publishedAt"], now) or 0
         # Same version in our tag's own prefix and suffix: Renovate can see it, it may just lag.
         ours = VERSION_RE.sub(".".join(map(str, latest[: len(current)])), tag, count=1)
