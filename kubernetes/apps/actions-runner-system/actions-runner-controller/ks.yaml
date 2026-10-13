@@ -31,6 +31,9 @@ spec:
       app.kubernetes.io/name: *app
   dependsOn:
     - name: actions-runner-controller
+    # Every scale set's GitHub App credentials come from an ExternalSecret.
+    - name: onepassword-connect
+      namespace: external-secrets
   interval: 1h
   path: ./kubernetes/apps/actions-runner-system/actions-runner-controller/runners
   prune: true
