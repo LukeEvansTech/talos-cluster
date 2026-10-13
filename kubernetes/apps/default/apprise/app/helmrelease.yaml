@@ -24,6 +24,10 @@ spec:
               APPRISE_STATEFUL_MODE: simple
               APPRISE_WORKER_COUNT: 4
               APPRISE_RECURSION_MAX: 1
+              # 2.x flipped both defaults: ADMIN would make /cfg listable without auth, and a
+              # /notify body with no format would no longer be treated as text.
+              APPRISE_ADMIN: "no"
+              APPRISE_DEFAULT_FORMAT: text
             envFrom:
               - secretRef:
                   name: apprise-secret
