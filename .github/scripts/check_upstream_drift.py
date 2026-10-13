@@ -55,6 +55,7 @@ PAIR_RE = re.compile(r"^\s*repository:\s*\"?([\w./-]+)\"?\s*\n(?:\s*#.*\n)*\s*ta
 IMAGE_RE = re.compile(r"^\s*-?\s*image(?:Name)?:\s*\"?((?:[\w.-]+/)+[\w.-]+):([\w.+-]+)", re.M)
 VERSION_RE = re.compile(r"\d+(?:\.\d+)+")
 PRERELEASE_RE = re.compile(r"[-.](alpha|beta|rc|pre|dev)\.?\d*", re.I)
+AMD64 = {"os": "linux", "architecture": "amd64"}
 SHA_RE = re.compile(r"[0-9a-f]{7,40}")
 ACCEPT = ", ".join(
     [
@@ -145,8 +146,11 @@ def image_meta(image: str, tag: str) -> dict:
     manifest = json.loads(body)
     if "manifests" in manifest:
         listed = manifest["manifests"]
-        entries = [m for m in listed if m.get("platform", {}).get("architecture") == "amd64"]
-        _, body = reg.get((entries or listed)[0]["digest"])
+        # The nodes run linux/amd64; a tag without that variant cannot be pulled here at all.
+        entries = [m for m in listed if m.get("platform", {}) == {**m.get("platform", {}), **AMD64}]
+        if not entries:
+            return {"error": "no linux/amd64 image"}
+        _, body = reg.get(entries[0]["digest"])
         manifest = json.loads(body or b"{}")
     config = manifest.get("config", {}).get("digest")
     if not config:
@@ -169,7 +173,10 @@ def hub_meta(hub: str, tag: str) -> dict:
     data = json.loads(body)
     meta = {"created": data.get("tag_last_pushed") or data.get("last_updated"), "labels": {}}
     images = data.get("images") or []
-    amd64 = [i for i in images if i.get("architecture") == "amd64" and i.get("digest")]
+    amd64 = [i for i in images if i.get("os") == "linux" and i.get("architecture") == "amd64"]
+    amd64 = [i for i in amd64 if i.get("digest")]
+    if images and not amd64:
+        return {"error": "no linux/amd64 image"}
     if amd64:
         meta["labels"] = hub_labels(hub, amd64[0]["digest"])
     return meta
@@ -278,7 +285,8 @@ def renovate_pending() -> list[str]:
 def is_pending(image: str, tag: str, pending: list[str]) -> bool:
     """Whether Renovate already has this image's own tag track in a PR or dashboard entry."""
     # Renovate names the current tag in full (`3.15-alpine ➔ 3.16-alpine`), suffix included.
-    return any(image.lower() in chunk and tag.lower() in chunk for chunk in pending)
+    exact = re.compile(rf"(?<![\w.-]){re.escape(tag.lower())}(?![\w.-])")
+    return any(image.lower() in chunk and exact.search(chunk) for chunk in pending)
 
 
 def version(tag: str) -> tuple[int, ...] | None:
@@ -332,8 +340,9 @@ def release_reasons(image: str, tag: str, info: dict, now: datetime) -> list[str
         # Same version in our tag's own prefix and suffix: Renovate can see it, it may just lag.
         ours = VERSION_RE.sub(".".join(map(str, latest[: len(current)])), tag, count=1)
         same_shape = shape(tag) == shape(release["tagName"])
-        # ours equals tag when only a prerelease suffix differs; finding it proves nothing.
-        trackable = same_shape or (ours != tag and shape(ours) == shape(tag) and tag_exists(image, ours))
+        # A short track (2.25 against 2.25.1) is its own tag; only a prerelease suffix proves nothing.
+        proves = ours != tag or not PRERELEASE_RE.search(tag)
+        trackable = same_shape or (proves and shape(ours) == shape(tag) and tag_exists(image, ours))
         if not trackable:
             name = release["tagName"]
             reasons.append(f"upstream {name} is not published as a `{shape(tag)}` tag")
@@ -425,7 +434,10 @@ def main() -> int:
         if image in IGNORE:
             # An ignore excuses the drift it names; a tag that can no longer be pulled is new.
             reasons = [r for r in reasons if r.startswith("image cannot be pulled")]
-        if not reasons or is_pending(image, tag, pending):
+        if is_pending(image, tag, pending):
+            # A pending update covers release drift, not a tag that can no longer be pulled.
+            reasons = [r for r in reasons if r.startswith("image cannot be pulled")]
+        if not reasons:
             continue
         why = "; ".join(r.removeprefix(WATCH) for r in reasons)
         row = f"| `{image}:{tag}` | {repo or '?'} | {why} |"

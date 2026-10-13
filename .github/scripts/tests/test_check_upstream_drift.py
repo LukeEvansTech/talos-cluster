@@ -179,6 +179,16 @@ CASES = [
         None,
     ),
     (
+        "short floating track still published",
+        "ghcr.io/o/jellyfin",
+        "12.2",
+        FRESH,
+        "o/jellyfin",
+        info("o/jellyfin", "v12.2.1", "2026-10-10T00:00:00Z"),
+        {"12.2"},
+        None,
+    ),
+    (
         "calendar tags to semver",
         "docker.io/o/hermes-agent",
         "v2026.8.16.2",
@@ -231,6 +241,12 @@ class AssessTest(unittest.TestCase):
                 ("homebridge/homebridge", "2026-09-25"),
             ],
         )
+
+    def test_pending_matches_the_exact_tag_track(self) -> None:
+        """A pending 3.15-alpine update must not cover the separate 3.15 track."""
+        pending = ["update docker.io/library/python (3.15-alpine ➔ 3.16-alpine)"]
+        self.assertTrue(drift.is_pending("docker.io/library/python", "3.15-alpine", pending))
+        self.assertFalse(drift.is_pending("docker.io/library/python", "3.15", pending))
 
     def test_label_from_another_project_is_not_trusted(self) -> None:
         """A base image's source label must not stand in for the app's own repository."""
