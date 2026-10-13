@@ -236,6 +236,15 @@
       matchUpdateTypes: ["major", "minor"],
       automerge: false,
     },
+    {
+      // Keep each MongoDB line its own PR: by default a patch folds into an available minor and
+      // several majors collapse into a jump to the newest, which skips an FCV step.
+      description: "MongoDB: one PR per release line",
+      matchDatasources: ["docker"],
+      matchPackageNames: ["docker.io/library/mongo"],
+      separateMinorPatch: true,
+      separateMultipleMajor: true,
+    },
 
     // === Changelogs (from changelogs.json5) ===
     // 1Password Connect + cloudflared changelog URLs come from the preset's
