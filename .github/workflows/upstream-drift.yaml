@@ -51,15 +51,14 @@ jobs:
             0) echo "outcome=clean" >> "$GITHUB_OUTPUT" ;;
             10) echo "outcome=findings" >> "$GITHUB_OUTPUT" ;;
             11)
-              echo "::warning::Some images could not be checked; the drift issue is left as it was."
-              echo "outcome=incomplete" >> "$GITHUB_OUTPUT"
+              # Failing the run is the alert: a check that keeps going partial would otherwise stay green.
+              echo "::error::Some images could not be checked; the drift issue is left as it was."
+              exit 1
               ;;
             *) exit "$code" ;;
           esac
 
       - name: Update the drift issue
-        # A partial run would drop findings for the images it skipped, so it never edits or closes.
-        if: steps.check.outputs.outcome != 'incomplete'
         env:
           GH_TOKEN: ${{ github.token }}
           OUTCOME: ${{ steps.check.outputs.outcome }}

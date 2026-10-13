@@ -50,8 +50,9 @@ IGNORE = {
     "ghcr.io/timothystewart6/prometheus-plex-exporter": "dormant fork, no releases to move to",
 }
 
-PAIR_RE = re.compile(r"^\s*repository:\s*\"?([\w./-]+)\"?\s*\n\s*tag:\s*\"?([\w.+-]+)", re.M)
-IMAGE_RE = re.compile(r"^\s*-?\s*image:\s*\"?((?:[\w.-]+/)+[\w.-]+):([\w.+-]+)", re.M)
+# Comment lines may sit between repository and tag; CNPG clusters name theirs `imageName`.
+PAIR_RE = re.compile(r"^\s*repository:\s*\"?([\w./-]+)\"?\s*\n(?:\s*#.*\n)*\s*tag:\s*\"?([\w.+-]+)", re.M)
+IMAGE_RE = re.compile(r"^\s*-?\s*image(?:Name)?:\s*\"?((?:[\w.-]+/)+[\w.-]+):([\w.+-]+)", re.M)
 VERSION_RE = re.compile(r"\d+(?:\.\d+)+")
 SHA_RE = re.compile(r"[0-9a-f]{7,40}")
 ACCEPT = ", ".join(
@@ -72,11 +73,15 @@ def image_refs() -> dict[str, str]:
     """First `image: tag` seen for each image under kubernetes/, templated ones dropped."""
     refs: dict[str, str] = {}
     for path in sorted((ROOT / "kubernetes").rglob("*.yaml")):
-        text = path.read_text(errors="ignore")
-        for image, tag in PAIR_RE.findall(text) + IMAGE_RE.findall(text):
-            if "$" not in image and "." in tag + image:
-                refs.setdefault(image, tag)
+        for image, tag in extract(path.read_text(errors="ignore")):
+            refs.setdefault(image, tag)
     return refs
+
+
+def extract(text: str) -> list[tuple[str, str]]:
+    """(image, tag) pairs declared in one manifest, templated ones dropped."""
+    found = PAIR_RE.findall(text) + IMAGE_RE.findall(text)
+    return [(image, tag) for image, tag in found if "$" not in image and "." in tag + image]
 
 
 def hub_repo(image: str) -> str | None:
@@ -161,10 +166,7 @@ def hub_meta(hub: str, tag: str) -> dict:
     images = data.get("images") or []
     amd64 = [i for i in images if i.get("architecture") == "amd64" and i.get("digest")]
     if amd64:
-        try:
-            meta["labels"] = hub_labels(hub, amd64[0]["digest"])
-        except Skip:
-            pass  # labels only refine the upstream lookup; the build time above still counts
+        meta["labels"] = hub_labels(hub, amd64[0]["digest"])
     return meta
 
 
@@ -222,7 +224,12 @@ def graphql(query: str) -> dict:
         headers={"Authorization": f"bearer {os.environ['GH_TOKEN']}"},
     )
     with urllib.request.urlopen(req, timeout=60) as res:
-        return json.loads(res.read()).get("data") or {}
+        payload = json.loads(res.read())
+    # Rate limits arrive as HTTP 200 with `errors`; only a missing repository is an answer.
+    failures = [e for e in payload.get("errors") or [] if e.get("type") != "NOT_FOUND"]
+    if failures:
+        raise RuntimeError(f"GitHub GraphQL failed: {failures[0].get('message')}")
+    return payload.get("data") or {}
 
 
 def upstream(repos: list[str]) -> dict[str, dict | None]:

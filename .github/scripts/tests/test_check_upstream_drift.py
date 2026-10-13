@@ -182,6 +182,24 @@ class AssessTest(unittest.TestCase):
         self.assertEqual(len(reasons), 1)
         self.assertTrue(reasons[0].startswith(drift.WATCH))
 
+    def test_extracts_every_declaration_shape(self) -> None:
+        """Comment lines between repository and tag, and CNPG `imageName`, are still found."""
+        text = (
+            "      image:\n        repository: ghcr.io/o/scrypted\n"
+            "        # pinned for a reason\n        tag: v0.150.0@sha256:abc\n"
+            "  imageName: ghcr.io/cloudnative-pg/postgresql:18.6@sha256:abc\n"
+            "        image: ghcr.io/o/side:1.2.3\n"
+            "        repository: ghcr.io/${APP}/x\n        tag: 1.0.0\n"
+        )
+        self.assertEqual(
+            sorted(drift.extract(text)),
+            [
+                ("ghcr.io/cloudnative-pg/postgresql", "18.6"),
+                ("ghcr.io/o/scrypted", "v0.150.0"),
+                ("ghcr.io/o/side", "1.2.3"),
+            ],
+        )
+
     def test_label_from_another_project_is_not_trusted(self) -> None:
         """A base image's source label must not stand in for the app's own repository."""
         labelled = {"labels": {"org.opencontainers.image.source": "https://github.com/astral-sh/uv"}}
