@@ -59,7 +59,8 @@ spec:
               requests:
                 cpu: 10m
               limits:
-                memory: 512Mi
+                # The first full Plex sync was OOMKilled at 512Mi on 0.5.6.
+                memory: 2Gi
     defaultPodOptions:
       securityContext:
         runAsNonRoot: true
