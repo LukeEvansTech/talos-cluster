@@ -231,6 +231,7 @@ class AssessTest(unittest.TestCase):
             "        image: ghcr.io/o/side:1.2.3\n"
             "        repository: ghcr.io/${APP}/x\n        tag: 1.0.0\n"
             "        image: homebridge/homebridge:2026-09-25\n"
+            "          SIDECAR_IMAGE: ghcr.io/o/sidecar:v0.15.1@sha256:abc\n"
         )
         self.assertEqual(
             sorted(drift.extract(text)),
@@ -238,6 +239,7 @@ class AssessTest(unittest.TestCase):
                 ("ghcr.io/cloudnative-pg/postgresql", "18.6"),
                 ("ghcr.io/o/scrypted", "v0.150.0"),
                 ("ghcr.io/o/side", "1.2.3"),
+                ("ghcr.io/o/sidecar", "v0.15.1"),
                 ("homebridge/homebridge", "2026-09-25"),
             ],
         )
@@ -247,6 +249,8 @@ class AssessTest(unittest.TestCase):
         pending = ["update docker.io/library/python (3.15-alpine ➔ 3.16-alpine)"]
         self.assertTrue(drift.is_pending("docker.io/library/python", "3.15-alpine", pending))
         self.assertFalse(drift.is_pending("docker.io/library/python", "3.15", pending))
+        longer = ["update ghcr.io/o/profilarr-parser (2.2.0 ➔ 2.3.0)"]
+        self.assertFalse(drift.is_pending("ghcr.io/o/profilarr", "2.2.0", longer))
 
     def test_label_from_another_project_is_not_trusted(self) -> None:
         """A base image's source label must not stand in for the app's own repository."""

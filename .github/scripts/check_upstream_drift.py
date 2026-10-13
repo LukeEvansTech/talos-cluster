@@ -40,6 +40,9 @@ EXIT_CLEAN, EXIT_FINDINGS, EXIT_INCOMPLETE = 0, 10, 11
 WATCH = "watch: "
 
 # image (no tag): reason
+# Private packages pulled with an imagePullSecret; the check reads registries anonymously.
+PRIVATE = {"ghcr.io/lukeevanstech/contracthound", "ghcr.io/lukeevanstech/subspy"}
+
 IGNORE = {
     "ghcr.io/claabs/epicgames-freegames-node": "upstream publishes only `latest`",
     "docker.io/scuzza/gluetun-webui": "upstream publishes only `latest`",
@@ -52,7 +55,8 @@ IGNORE = {
 
 # Comment lines may sit between repository and tag; CNPG clusters name theirs `imageName`.
 PAIR_RE = re.compile(r"^\s*repository:\s*\"?([\w./-]+)\"?\s*\n(?:\s*#.*\n)*\s*tag:\s*\"?([\w.+-]+)", re.M)
-IMAGE_RE = re.compile(r"^\s*-?\s*image(?:Name)?:\s*\"?((?:[\w.-]+/)+[\w.-]+):([\w.+-]+)", re.M)
+# `image:`, CNPG's `imageName:`, and env values such as `SIDECAR_IMAGE:` all deploy an image.
+IMAGE_RE = re.compile(r"^\s*-?\s*(?:image|imageName|[A-Z_]+_IMAGE):\s*\"?((?:[\w.-]+/)+[\w.-]+):([\w.+-]+)", re.M)
 VERSION_RE = re.compile(r"\d+(?:\.\d+)+")
 PRERELEASE_RE = re.compile(r"[-.](alpha|beta|rc|pre|dev)\.?\d*", re.I)
 AMD64 = {"os": "linux", "architecture": "amd64"}
@@ -285,8 +289,9 @@ def renovate_pending() -> list[str]:
 def is_pending(image: str, tag: str, pending: list[str]) -> bool:
     """Whether Renovate already has this image's own tag track in a PR or dashboard entry."""
     # Renovate names the current tag in full (`3.15-alpine ➔ 3.16-alpine`), suffix included.
+    name = re.compile(rf"(?<![\w./-]){re.escape(image.lower())}(?![\w./-])")
     exact = re.compile(rf"(?<![\w.-]){re.escape(tag.lower())}(?![\w.-])")
-    return any(image.lower() in chunk and exact.search(chunk) for chunk in pending)
+    return any(name.search(chunk) and exact.search(chunk) for chunk in pending)
 
 
 def version(tag: str) -> tuple[int, ...] | None:
@@ -388,7 +393,7 @@ Ref = tuple[str, str]
 
 def collect() -> tuple[list[Ref], dict[Ref, dict], dict[Ref, str | None], dict, list[str]]:
     """Look up each image: refs, registry metadata, source repos, upstream, pending."""
-    refs = image_refs()
+    refs = [ref for ref in image_refs() if ref[0] not in PRIVATE]
     with cf.ThreadPoolExecutor(16) as pool:
         metas = dict(zip(refs, pool.map(lambda ref: safe_meta(*ref), refs)))
     repos = {ref: source_repo(ref[0], metas[ref]) for ref in refs}
