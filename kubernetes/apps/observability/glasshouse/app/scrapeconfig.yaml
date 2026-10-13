@@ -31,7 +31,8 @@ spec:
         tv: tv3
   metricsPath: /api/prometheus/metrics
   # Each scrape runs the dashboard's full stats collection; upstream's floor is 15s.
-  scrapeInterval: 60s
+  # Long so the TVs can sleep; see docs/docs/apps/glasshouse.md.
+  scrapeInterval: 15m
   scrapeTimeout: 10s
   authorization:
     type: Bearer
