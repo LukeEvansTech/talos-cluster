@@ -20,6 +20,9 @@ spec:
   env:
     - name: GRAFANA_URL
       value: http://grafana-service.observability.svc.cluster.local:3000
+    # 2.x reports anonymous usage statistics by default.
+    - name: GRAFANA_USAGE_STATS
+      value: disabled
   secrets:
     - name: toolhive-grafana
       key: token
