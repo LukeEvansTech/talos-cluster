@@ -9,6 +9,8 @@ spec:
   chartRef:
     kind: OCIRepository
     name: romm
+  # Covers the startup probe's ~30m migration budget; the 5m default would roll back mid-migration.
+  timeout: 35m
   values:
     controllers:
       romm:
@@ -19,7 +21,7 @@ spec:
           app:
             image:
               repository: ghcr.io/rommapp/romm
-              tag: 5.3.1@sha256:0d66b4ea152a237c7f24b95e87459f46d3c596a7c0b35a82f26bc971487278b3
+              tag: 5.4.0@sha256:03295f95a6290e752641f9553ac4198b0e5b71b879d57f7b2371b98f608feb54
             env:
               TZ: ${TIMEZONE}
               DISABLE_DOWNLOAD_ENDPOINT_AUTH: "true"
@@ -30,14 +32,25 @@ spec:
               - secretRef:
                   name: romm-secret
             probes:
-              liveness: &probes
+              # Alembic runs before anything listens on :8080, in one transaction, so a liveness
+              # kill mid-migration rolls back all of it; 5.4.0 warns of 15-20 minutes. ~30m budget.
+              startup:
                 enabled: true
                 custom: true
                 spec:
                   httpGet:
                     path: /
                     port: &port 8080
-                  initialDelaySeconds: 60
+                  periodSeconds: 10
+                  timeoutSeconds: 1
+                  failureThreshold: 180
+              liveness: &probes
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /
+                    port: *port
                   periodSeconds: 10
                   timeoutSeconds: 1
                   failureThreshold: 3
