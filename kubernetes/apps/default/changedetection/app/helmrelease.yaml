@@ -26,8 +26,9 @@ spec:
               BASE_URL: https://{{ .Release.Name }}.${SECRET_DOMAIN}
               PORT: &port 5000
               USE_X_SETTINGS: 1
-              # browserless v2 dropped the stealth and ad-block env defaults; both are per-connection options now.
-              PLAYWRIGHT_DRIVER_URL: 'ws://localhost:3000/chromium?blockAds=true&launch={"stealth":true,"args":["--disable-web-security"]}'
+              # No blockAds: v2 blocks ads with an extension that only loads in the default CDP context,
+              # and changedetection opens a new context per check.
+              PLAYWRIGHT_DRIVER_URL: 'ws://localhost:3000/chromium?launch={"stealth":true,"args":["--disable-web-security"]}'
             resources:
               requests:
                 cpu: 10m
