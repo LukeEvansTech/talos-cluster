@@ -1,0 +1,82 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+# Renovate cannot raise an update when an image moves, changes tag shape or floats, so this asks
+# each upstream directly and keeps one issue current. See .github/scripts/check_upstream_drift.py.
+name: "Upstream Drift"
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 7 * * 1"
+  push:
+    branches:
+      - "main"
+    paths:
+      - ".github/scripts/check_upstream_drift.py"
+      - ".github/workflows/upstream-drift.yaml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: upstream-drift
+  cancel-in-progress: false
+
+jobs:
+  report:
+    name: Upstream drift report
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Check upstreams
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set +e
+          python3 .github/scripts/check_upstream_drift.py > report.md
+          code=$?
+          set -e
+          cat report.md >> "$GITHUB_STEP_SUMMARY"
+          # 0 clean, 10 findings, 11 incomplete; any other code is the script failing.
+          case "$code" in
+            0) echo "outcome=clean" >> "$GITHUB_OUTPUT" ;;
+            10) echo "outcome=findings" >> "$GITHUB_OUTPUT" ;;
+            11)
+              # Failing the run is the alert: a check that keeps going partial would otherwise stay green.
+              echo "::error::Some images could not be checked; the drift issue is left as it was."
+              exit 1
+              ;;
+            *) exit "$code" ;;
+          esac
+
+      - name: Update the drift issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OUTCOME: ${{ steps.check.outputs.outcome }}
+        run: |-
+          title="Upstream drift: images Renovate cannot update"
+          number=$(gh issue list --state open --search "in:title \"$title\"" --json number --jq '.[0].number // empty')
+          {
+            echo "Weekly report from \`.github/workflows/upstream-drift.yaml\`; this issue closes itself when nothing is left."
+            echo
+            cat report.md
+          } > body.md
+          if [ "$OUTCOME" = "findings" ]; then
+            if [ -n "$number" ]; then
+              gh issue edit "$number" --body-file body.md
+            else
+              gh issue create --title "$title" --body-file body.md --assignee LukeEvansTech
+            fi
+          elif [ -n "$number" ]; then
+            gh issue close "$number" --comment "Nothing left to report."
+          fi
