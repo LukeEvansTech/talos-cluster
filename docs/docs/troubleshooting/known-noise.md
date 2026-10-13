@@ -245,6 +245,15 @@ reports them down. That is the design working. Opt an intentionally-idle app out
 `gatus.home-operations.com/enabled: "false"` on its route rather than "fixing" the endpoint.
 [KB-024](kb/024-zeroscaler-nfs-hpa.md), [KB-027](kb/027-dns-cleanup-scaled-nfs-apps-to-zero.md).
 
+### `EmbeddingServiceManual` warnings on the `mcp-gateway` VirtualMCPServer
+
+The ToolHive operator emits this warning on every reconcile, about every 30 seconds, because the
+optimizer sets `embeddingService` instead of `embeddingServerRef`. It accounts for roughly half of
+the cluster's warning events. An `EmbeddingServer` can only run its own HuggingFace Text Embeddings
+Inference pod, so following the advice would replace the tuned llama.cpp embedder
+(`toolhiveembed`) that LiteLLM's `mcp_semantic_tool_filter` also uses. Leave it; the reasons are in
+[AI / LLM stack](../architecture/ai-llm-stack.md#embedding-server-tuning).
+
 ## Read the evidence, not the alert: signatures that name the wrong fault
 
 Each of these presents as one thing and is another. The check in each row is what tells them
