@@ -238,12 +238,13 @@
     },
     {
       // Keep each MongoDB line its own PR: by default a patch folds into an available minor and
-      // several majors collapse into a jump to the newest, which skips an FCV step.
+      // several majors or minors collapse into a jump to the newest, which skips an FCV step.
       description: "MongoDB: one PR per release line",
       matchDatasources: ["docker"],
       matchPackageNames: ["docker.io/library/mongo"],
       separateMinorPatch: true,
       separateMultipleMajor: true,
+      separateMultipleMinor: true,
     },
 
     // === Changelogs (from changelogs.json5) ===

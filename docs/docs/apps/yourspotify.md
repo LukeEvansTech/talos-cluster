@@ -38,10 +38,13 @@ TO=8.0
    TRIGGER="pre-mongo-$(date +%s)"
    kubectl -n media patch replicationsource yourspotify-nfs --type merge \
      -p "{\"spec\":{\"trigger\":{\"manual\":\"$TRIGGER\"}}}"
+   until [ "$(kubectl -n media get replicationsource yourspotify-nfs \
+     -o jsonpath='{.status.lastManualSync}')" = "$TRIGGER" ]; do sleep 10; done
    kubectl -n media get replicationsource yourspotify-nfs \
-     -o jsonpath='{.status.lastManualSync} {.status.latestMoverStatus.result}'
-   flux resume ks yourspotify -n media
+     -o jsonpath='{.status.latestMoverStatus.result}'
    ```
+
+   Go on only if that prints `Successful`, then `flux resume ks yourspotify -n media`.
 
 3. Confirm the FCV is `$FROM`:
 
@@ -51,15 +54,16 @@ TO=8.0
    ```
 
 4. Merge the image bump to the `$TO` line and wait for the rollout.
-5. Raise the FCV to `$TO` (`confirm: true` is required from 7.0 on), then read it back as in
-   step 3:
+5. Check the new binary at the old FCV first: the server logs are clean and the API route answers.
+   Raising the FCV enables features the previous binary cannot read, so a rollback is only a plain
+   image revert until then.
+6. Raise the FCV to `$TO` (`confirm: true` is required from 7.0 on), read it back as in step 3,
+   and repeat the checks from step 5:
 
    ```bash
    kubectl -n media exec deploy/yourspotify-mongodb -- \
      mongosh --quiet --eval "db.adminCommand({setFeatureCompatibilityVersion: '${TO}', confirm: true})"
    ```
-
-6. Check the server logs and that the API route answers before the next step.
 
 Moving to a minor line (8.2) is a separate FCV step too, and MongoDB stops patching a minor line
 once the next one ships, so this deployment stays on the 8.0 major line.
