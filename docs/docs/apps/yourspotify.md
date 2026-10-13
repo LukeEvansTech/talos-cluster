@@ -33,8 +33,13 @@ TO=8.0
    suspend the Kustomization, trigger the `ReplicationSource`, wait until `lastManualSync` equals
    the trigger (the mover pod sleeps up to 15 minutes of jitter first), then resume:
 
+   A run already in progress when the trigger changes still completes as the manual sync and
+   may predate the dump, so wait for it before triggering:
+
    ```bash
    flux suspend ks yourspotify -n media
+   until [ "$(kubectl -n media get replicationsource yourspotify-nfs \
+     -o jsonpath='{.status.conditions[?(@.type=="Synchronizing")].status}')" = "False" ]; do sleep 10; done
    TRIGGER="pre-mongo-$(date +%s)"
    kubectl -n media patch replicationsource yourspotify-nfs --type merge \
      -p "{\"spec\":{\"trigger\":{\"manual\":\"$TRIGGER\"}}}"
@@ -54,9 +59,10 @@ TO=8.0
    ```
 
 4. Merge the image bump to the `$TO` line and wait for the rollout.
-5. Check the new binary at the old FCV first: the server logs are clean and the API route answers.
-   Raising the FCV enables features the previous binary cannot read, so a rollback is only a plain
-   image revert until then.
+5. Burn in the new binary at the old FCV: the server logs are clean, the API route answers, and
+   it runs a day of normal use before step 6. Raising the FCV enables features the previous
+   binary cannot read, so until then a rollback is a plain image revert; after it, a rollback is a
+   restore from the step 1 dump.
 6. Raise the FCV to `$TO` (`confirm: true` is required from 7.0 on), read it back as in step 3,
    and repeat the checks from step 5:
 
