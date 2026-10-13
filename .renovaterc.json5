@@ -227,6 +227,16 @@
       automerge: false,
     },
 
+    {
+      // Each MongoDB major or minor line needs featureCompatibilityVersion raised by hand before the
+      // next one, so only patches auto-merge (docs/docs/apps/yourspotify.md).
+      description: "MongoDB: manual review for minor and major lines",
+      matchDatasources: ["docker"],
+      matchPackageNames: ["docker.io/library/mongo"],
+      matchUpdateTypes: ["major", "minor"],
+      automerge: false,
+    },
+
     // === Changelogs (from changelogs.json5) ===
     // 1Password Connect + cloudflared changelog URLs come from the preset's
     // overrides/changelogs.json5. Spegel is ours (not in the preset).
