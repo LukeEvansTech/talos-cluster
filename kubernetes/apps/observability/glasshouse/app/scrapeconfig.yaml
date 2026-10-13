@@ -23,6 +23,12 @@ spec:
         device_class: tv
         room: ${SECRET_GLASSHOUSE_TV2_ROOM}
         tv: tv2
+    - targets:
+        - ${SECRET_GLASSHOUSE_TV3_HOST}:8080
+      labels:
+        device_class: tv
+        room: ${SECRET_GLASSHOUSE_TV3_ROOM}
+        tv: tv3
   metricsPath: /api/prometheus/metrics
   # Each scrape runs the dashboard's full stats collection; upstream's floor is 15s.
   scrapeInterval: 60s
