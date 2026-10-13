@@ -15,4 +15,4 @@ spec:
   url: oci://registry.k8s.io/dra-driver-nvidia/charts/dra-driver-nvidia-gpu
   ref:
     # renovate: datasource=docker
-    tag: 0.5.0
+    tag: 0.5.1
