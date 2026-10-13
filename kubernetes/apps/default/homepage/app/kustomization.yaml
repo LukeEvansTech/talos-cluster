@@ -76,7 +76,6 @@ configMapGenerator:
       - icons/repowiki.svg
       - icons/romm.svg
       - icons/sabnzbd.svg
-      - icons/scrutiny.svg
       - icons/searxng.svg
       - icons/seerr.svg
       - icons/shlink.svg
