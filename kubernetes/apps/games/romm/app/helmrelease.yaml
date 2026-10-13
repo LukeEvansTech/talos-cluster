@@ -9,6 +9,8 @@ spec:
   chartRef:
     kind: OCIRepository
     name: romm
+  # Covers the startup probe's ~30m migration budget; the 5m default would roll back mid-migration.
+  timeout: 35m
   values:
     controllers:
       romm:
@@ -30,14 +32,25 @@ spec:
               - secretRef:
                   name: romm-secret
             probes:
-              liveness: &probes
+              # Alembic runs before anything listens on :8080, in one transaction, so a liveness
+              # kill mid-migration rolls back all of it; 5.4.0 warns of 15-20 minutes. ~30m budget.
+              startup:
                 enabled: true
                 custom: true
                 spec:
                   httpGet:
                     path: /
                     port: &port 8080
-                  initialDelaySeconds: 60
+                  periodSeconds: 10
+                  timeoutSeconds: 1
+                  failureThreshold: 180
+              liveness: &probes
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /
+                    port: *port
                   periodSeconds: 10
                   timeoutSeconds: 1
                   failureThreshold: 3
