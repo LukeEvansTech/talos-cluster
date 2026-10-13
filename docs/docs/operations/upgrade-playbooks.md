@@ -450,7 +450,8 @@ Kopia version inside the mover image before rolling back more than a patch.
 
 **Arrives as:** `litellm-operator` (chart and image), protected because it is pre-1.0 and its CRD
 shape still moves between releases. The LiteLLM proxy image itself (`ghcr.io/berriai/litellm`,
-digest-pinned on `main-stable`) is **not** protected and auto-merges as a digest bump.
+pinned to a release tag such as `v1.105.0`) is **not** protected and auto-merges minor and patch
+bumps.
 
 **Repository paths:** `kubernetes/apps/ai/litellm-operator/app/` (HR; memory limit 512 Mi) and the
 `LiteLLMProxy` CR it reconciles at `kubernetes/apps/ai/litellm/app/litellmproxy.yaml` (probes,
