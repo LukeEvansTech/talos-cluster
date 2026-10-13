@@ -9,23 +9,29 @@ spec:
   chartRef:
     kind: OCIRepository
     name: reactiveresume
+  upgrade:
+    remediation:
+      # A rollback would start v5 against a schema its v6 migration already changed.
+      strategy: uninstall
   values:
     controllers:
       reactiveresume:
         annotations:
           reloader.stakater.com/auto: "true"
-        # RWO data PVC: avoid multi-attach deadlock on rollout.
+        # RWO data PVC, and v6 migrations drop columns v5 reads, so pods must never overlap.
         strategy: Recreate
         containers:
           app:
             image:
-              repository: ghcr.io/amruthpillai/reactive-resume
-              tag: v5.3.0@sha256:c487ec5edcfe054bcb312fcd498f868e56f274756d0046b01c83f210855017ab
+              repository: ghcr.io/reactive-resume/reactive-resume
+              tag: v6.0.2@sha256:2b08d01446f8b775e0bf5888cc15b0a3fd6805521efefb0a0e21a4f5bfb253b3
             env:
               TZ: ${TIMEZONE}
               PORT: &port 3000
-              SERVER_PORT: "3001"
               APP_URL: "https://{{ .Release.Name }}.${SECRET_DOMAIN}"
+              # Envoy forwards every request, so without this all visitors share one auth rate-limit bucket.
+              TRUSTED_PROXIES: ${CLUSTER_PODS_CIDR}
+              STRICT_SCHEMA_CHECK: "true"
               # RR's Postgres driver ignores TLS params; the in-cluster CA isn't reachable
               # from here (docs/docs/apps/reactiveresume.md).
               NODE_TLS_REJECT_UNAUTHORIZED: "0"
@@ -101,10 +107,3 @@ spec:
         existingClaim: "{{ .Release.Name }}"
         globalMounts:
           - path: /app/data
-      # Headless-Chrome PDF rendering needs more than the default 64Mi /dev/shm.
-      dshm:
-        type: emptyDir
-        medium: Memory
-        sizeLimit: 256Mi
-        globalMounts:
-          - path: /dev/shm
