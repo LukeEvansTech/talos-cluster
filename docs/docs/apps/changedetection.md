@@ -2,8 +2,10 @@
 
 Web page and feed change monitor in the `default` namespace, internal-only at
 `changedetection.${SECRET_DOMAIN}`. Runs the bjw-s app-template with two containers: the
-changedetection.io app itself and a browserless Chrome sidecar (`PLAYWRIGHT_DRIVER_URL`) for
-JS-heavy pages. Feeds and static pages use the basic HTTP fetcher (`html_requests`), no browser
+changedetection.io app itself and a browserless v2 Chromium sidecar for JS-heavy pages. The app
+reaches it over CDP at `ws://localhost:3000/chromium` (`PLAYWRIGHT_DRIVER_URL`); stealth, ad blocking
+and Chrome flags ride on that URL's `launch` and `blockAds` parameters, because v2 removed the
+`DEFAULT_*` env defaults v1 used. Feeds and static pages use the basic HTTP fetcher (`html_requests`), no browser
 involved.
 
 **Watch configuration lives on the PVC datastore (`/datastore/url-watches.json`), not in Git.**
