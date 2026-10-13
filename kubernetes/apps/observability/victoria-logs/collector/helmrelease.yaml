@@ -36,6 +36,10 @@ spec:
         - kubernetes.pod_namespace
         - kubernetes.container_name
         - kubernetes.pod_labels.app.kubernetes.io/name
+      # kustomize-controller logs one output.<Kind>/<name> field per applied object. Past 2000
+      # unique field names the server drops those rows; the burst after a Flux restart OOMKilled it.
+      ignoreFields:
+        - output.*
     extraArgs:
       # Strip ANSI colour codes from the log message body for grep-ability.
       "kubernetesCollector.decolorizeFields": _msg
