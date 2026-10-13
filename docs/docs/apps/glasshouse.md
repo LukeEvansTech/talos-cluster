@@ -16,9 +16,9 @@ scrapes.
 - **Targets.** Each TV's address comes from a `SECRET_GLASSHOUSE_TV<n>_HOST` key in
   `cluster-secrets`, so no address is committed. Add a TV by adding the key to 1Password, then a
   target with its own `tv` label.
-- **Interval.** Each scrape runs the dashboard's full stats collection behind a 1.5-second cache,
-  and upstream recommends 15 seconds as the floor; 60 seconds is plenty for panel and thermal
-  trends.
+- **Interval.** 15 minutes, so the TVs can sleep. Some TVs return from suspend to Active
+  Standby on any inbound packet, so a frequent scrape keeps them awake all night. Samples older than the 5-minute lookback show as gaps in graphs, which is fine
+  for panel and thermal trends.
 - **TargetDown.** A TV switched off at the wall stops answering, which is not an outage. Its
   target carries `device_class: tv`, which the [kube-prometheus-stack](kube-prometheus-stack.md)
   `TargetDown` patch excludes the same way it excludes idle printers.
