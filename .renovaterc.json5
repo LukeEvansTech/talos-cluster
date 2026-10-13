@@ -549,6 +549,14 @@
       versioning: "regex:^(?<major>\\d{4})\\.(?<minor>\\d{2})\\.(?<patch>\\d{2})-(?<build>[a-f0-9]+)$",
     },
     {
+      // From 12.0 upstream tags <major>.<minor> with no patch, which default docker versioning
+      // will not order against 10.11.11; the dated `12.2.<date>-<time>` tags must not match.
+      description: "Custom versioning for Jellyfin two-part tags",
+      matchDatasources: ["docker"],
+      matchPackageNames: ["ghcr.io/jellyfin/jellyfin"],
+      versioning: "regex:^(?<major>\\d+)\\.(?<minor>\\d+)(\\.(?<patch>\\d+))?$",
+    },
+    {
       description: "Custom versioning for metube date-based tags (YYYY.MM.DD)",
       matchDatasources: ["docker"],
       matchPackageNames: ["ghcr.io/alexta69/metube"],
