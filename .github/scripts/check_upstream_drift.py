@@ -12,7 +12,8 @@ already have an open Renovate PR or a Dependency Dashboard entry are dropped, so
 what Renovate will never raise. IGNORE lists deliberate exceptions; say why.
 
 Run locally:  GH_TOKEN=$(gh auth token) python3 .github/scripts/check_upstream_drift.py
-Prints a Markdown report; exits 1 when anything is flagged.
+Prints a Markdown report. Exits 0 when clean, 10 with findings, 11 when some images could not be
+checked (rate limit, network), and 1 if the script itself fails.
 """
 
 from __future__ import annotations
@@ -33,6 +34,8 @@ REPO = "LukeEvansTech/talos-cluster"
 STALE_IMAGE_DAYS = 365
 # Renovate holds releases 3 days and the review gate can add more; past this it has missed it.
 RELEASE_GRACE_DAYS = 21
+# A crash exits 1, so report outcomes use their own codes; incomplete means never close the issue.
+EXIT_CLEAN, EXIT_FINDINGS, EXIT_INCOMPLETE = 0, 10, 11
 # Marks a reason that is only a staleness signal, listed apart from updates Renovate cannot raise.
 WATCH = "watch: "
 
@@ -126,12 +129,7 @@ def image_meta(image: str, tag: str) -> dict:
     """Build time and labels for image:tag, or an error when the tag cannot be fetched."""
     hub = hub_repo(image)
     if hub:
-        # The Hub API is not counted against the anonymous pull limit that manifest reads are.
-        status, body, _ = fetch(f"https://hub.docker.com/v2/repositories/{hub}/tags/{tag}")
-        if status != 200:
-            return {"error": f"Docker Hub answered {status}"}
-        data = json.loads(body)
-        return {"created": data.get("tag_last_pushed") or data.get("last_updated"), "labels": {}}
+        return hub_meta(hub, tag)
     reg = Registry(image)
     status, body = reg.get(tag)
     if status != 200:
@@ -151,6 +149,36 @@ def image_meta(image: str, tag: str) -> dict:
     return {"created": blob.get("created"), "labels": labels}
 
 
+def hub_meta(hub: str, tag: str) -> dict:
+    """Docker Hub variant of image_meta, spending one counted pull per image."""
+    # The Hub API names each platform's digest without touching the anonymous pull limit, so
+    # only the single platform manifest read below counts; blob reads never do.
+    status, body, _ = fetch(f"https://hub.docker.com/v2/repositories/{hub}/tags/{tag}")
+    if status != 200:
+        return {"error": f"Docker Hub answered {status}"}
+    data = json.loads(body)
+    meta = {"created": data.get("tag_last_pushed") or data.get("last_updated"), "labels": {}}
+    images = data.get("images") or []
+    amd64 = [i for i in images if i.get("architecture") == "amd64" and i.get("digest")]
+    if amd64:
+        try:
+            meta["labels"] = hub_labels(hub, amd64[0]["digest"])
+        except Skip:
+            pass  # labels only refine the upstream lookup; the build time above still counts
+    return meta
+
+
+def hub_labels(hub: str, digest: str) -> dict:
+    """Image config labels for one Docker Hub platform manifest."""
+    reg = Registry(f"registry-1.docker.io/{hub}")
+    status, body = reg.get(digest)
+    config = json.loads(body or b"{}").get("config", {}).get("digest") if status == 200 else None
+    if not config:
+        return {}
+    _, body = reg.get(config, "blobs")
+    return (json.loads(body or b"{}").get("config") or {}).get("Labels") or {}
+
+
 def tag_exists(image: str, tag: str) -> bool:
     """Whether the registry publishes image:tag."""
     hub = hub_repo(image)
@@ -167,11 +195,18 @@ def safe_meta(image: str, tag: str) -> dict:
         return {"skipped": str(why)}
 
 
+def same_name(repo_name: str, image: str) -> bool:
+    """Whether a repository name and an image name plausibly name the same project."""
+    a, b = (re.sub(r"[^a-z0-9]", "", x.lower()) for x in (repo_name, image.split("/")[-1]))
+    return bool(a and b) and (a in b or b in a)
+
+
 def source_repo(image: str, meta: dict) -> str | None:
     """Upstream GitHub `owner/name` from the source label, else from a ghcr.io path."""
     label = meta.get("labels", {}).get("org.opencontainers.image.source", "")
     match = re.search(r"github\.com[/:]([\w.-]+)/([\w.-]+?)(?:\.git)?(?:[/#?]|$)", label)
-    if match:
+    # A label inherited from a base image or a shared build repo names someone else's releases.
+    if match and same_name(match[2], image):
         return f"{match[1]}/{match[2]}"
     parts = image.split("/")
     if parts[0] == "ghcr.io" and len(parts) >= 3:
@@ -228,6 +263,11 @@ def version(tag: str) -> tuple[int, ...] | None:
     return tuple(int(x) for x in match[0].split(".")) if match else None
 
 
+def calendar(ver: tuple[int, ...]) -> bool:
+    """Whether a version is calendar-based (2026.10.1), which never orders against semver."""
+    return ver[0] >= 2000
+
+
 def shape(tag: str) -> str:
     """Digits collapsed, so 1.2.3 and 1.4.0 match but 1.2 and 1.2.3-alpine do not."""
     return re.sub(r"\d+", "9", tag.removeprefix("v"))
@@ -246,7 +286,9 @@ def release_reasons(image: str, tag: str, info: dict, now: datetime) -> list[str
     reasons = []
     release = info.get("latestRelease")
     current, latest = version(tag), version(release["tagName"]) if release else None
-    if release and current and latest and latest > current:
+    if release and current and latest and calendar(current) != calendar(latest):
+        reasons.append(f"upstream switched version scheme; latest release is {release['tagName']}")
+    elif release and current and latest and latest > current:
         released = age_days(release["publishedAt"], now) or 0
         # Same version in our tag's own prefix and suffix: Renovate can see it, it may just lag.
         ours = VERSION_RE.sub(".".join(map(str, latest[: len(current)])), tag, count=1)
@@ -320,7 +362,7 @@ def render(rows: list[str], watch: list[str], skipped: list[str], checked: int) 
 
 
 def main() -> int:
-    """Print the drift report; exit 1 when anything is flagged."""
+    """Print the drift report and return an EXIT_* status."""
     refs, metas, repos, info, pending = collect()
     now = datetime.now(timezone.utc)
     rows: list[str] = []
@@ -341,7 +383,9 @@ def main() -> int:
         row = f"| `{image}:{tag}` | {repos[image] or '?'} | {why} |"
         (watch if reasons[0].startswith(WATCH) else rows).append(row)
     render(rows, watch, skipped, len(refs) - len(skipped))
-    return 1 if rows or watch else 0
+    if skipped:
+        return EXIT_INCOMPLETE
+    return EXIT_FINDINGS if rows or watch else EXIT_CLEAN
 
 
 if __name__ == "__main__":

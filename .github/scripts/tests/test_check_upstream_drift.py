@@ -148,6 +148,16 @@ CASES = [
         None,
     ),
     ("current", "ghcr.io/o/app", "2.0.0", FRESH, "o/app", info("o/app", "2.0.0"), set(), None),
+    (
+        "calendar tags to semver",
+        "docker.io/o/hermes-agent",
+        "v2026.8.16.2",
+        FRESH,
+        "o/hermes-agent",
+        info("o/hermes-agent", "v0.21.6"),
+        set(),
+        "switched version scheme",
+    ),
 ]
 
 
@@ -171,6 +181,13 @@ class AssessTest(unittest.TestCase):
         reasons = drift.assess("ghcr.io/o/x", "1.0.0", old, ("o/x", info("o/x", "1.0.0")), NOW)
         self.assertEqual(len(reasons), 1)
         self.assertTrue(reasons[0].startswith(drift.WATCH))
+
+    def test_label_from_another_project_is_not_trusted(self) -> None:
+        """A base image's source label must not stand in for the app's own repository."""
+        labelled = {"labels": {"org.opencontainers.image.source": "https://github.com/astral-sh/uv"}}
+        self.assertEqual(drift.source_repo("ghcr.io/wizarrrr/wizarr", labelled), "wizarrrr/wizarr")
+        own = {"labels": {"org.opencontainers.image.source": "https://github.com/Sonarr/Sonarr"}}
+        self.assertEqual(drift.source_repo("ghcr.io/home-operations/sonarr", own), "Sonarr/Sonarr")
 
     def test_epoch_build_time_is_not_stale(self) -> None:
         """Reproducible builds stamp the epoch, which must not read as age."""
