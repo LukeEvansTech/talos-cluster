@@ -42,6 +42,34 @@ spec:
           for: 10m
           labels:
             severity: warning
+        # Mirrors the seedbox pair; the ATA attribute names exclude the cluster's NVMe drives on
+        # the same job. One NAS disk went 0 -> 5 reallocated on 2026-10-09 with nothing firing.
+        - alert: TrueNASDiskReallocatedSectorsGrowing
+          annotations:
+            summary: "TrueNAS disk {{ $labels.device }} reallocated {{ $value }} more sectors in 24h (drive is consuming spares), plan a replacement."
+          expr: |-
+            delta(
+              smartctl_device_attribute{
+                job="smartctl-exporter",
+                attribute_name="Reallocated_Sector_Ct",
+                attribute_value_type="raw"
+              }[24h]
+            ) > 0
+          for: 30m
+          labels:
+            severity: warning
+        - alert: TrueNASDiskPendingSectors
+          annotations:
+            summary: "TrueNAS disk {{ $labels.device }} has {{ $value }} pending sector(s), unreadable data awaiting remap."
+          expr: |-
+            smartctl_device_attribute{
+              job="smartctl-exporter",
+              attribute_name="Current_Pending_Sector",
+              attribute_value_type="raw"
+            } > 0
+          for: 15m
+          labels:
+            severity: warning
         - alert: TrueNASCPUTemperatureHigh
           annotations:
             summary: "TrueNAS CPU temperature is {{ $value }}°C."

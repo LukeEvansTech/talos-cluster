@@ -36,8 +36,6 @@ resources:
   - ./qbittorrent-exporter/ks.yaml
   - ./redfish-fleet/ks.yaml
   - ./sabnzbd-dashboard/ks.yaml
-  - ./scrutiny/ks.yaml
-  - ./scrutiny-collector/ks.yaml
   - ./seedbox/ks.yaml
   - ./silence-operator/ks.yaml
   - ./smartctl-exporter/ks.yaml

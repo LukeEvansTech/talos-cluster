@@ -108,7 +108,6 @@ nav = [
     { "Repowiki" = "apps/repowiki.md" },
     { "rook-ceph" = "apps/rook-ceph.md" },
     { "Scanopy" = "apps/scanopy.md" },
-    { "Scrutiny" = "apps/scrutiny.md" },
     { "Scrypted" = "apps/scrypted.md" },
     { "Seedbox monitoring" = "apps/seedbox.md" },
     { "Sentinel syslog collector" = "apps/sentinel-syslog.md" },
