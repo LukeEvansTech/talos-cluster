@@ -73,7 +73,9 @@ class Skip(Exception):
 def image_refs() -> list[tuple[str, str]]:
     """Every distinct (image, tag) under kubernetes/; one image can follow several tag tracks."""
     refs: set[tuple[str, str]] = set()
-    for path in (ROOT / "kubernetes").rglob("*.yaml"):
+    # Kustomize generators turn shell scripts into Jobs, so their image lines deploy too.
+    paths = [*(ROOT / "kubernetes").rglob("*.yaml"), *(ROOT / "kubernetes").rglob("*.sh")]
+    for path in paths:
         refs.update(extract(path.read_text(errors="ignore")))
     return sorted(refs)
 
@@ -177,7 +179,9 @@ def hub_labels(hub: str, digest: str) -> dict:
     """Image config labels for one Docker Hub platform manifest."""
     reg = Registry(f"registry-1.docker.io/{hub}")
     status, body = reg.get(digest)
-    config = json.loads(body or b"{}").get("config", {}).get("digest") if status == 200 else None
+    if status != 200:
+        raise Skip(f"Docker Hub manifest answered {status}")
+    config = json.loads(body or b"{}").get("config", {}).get("digest")
     if not config:
         return {}
     status, body = reg.get(config, "blobs")
@@ -252,8 +256,8 @@ def upstream(repos: list[str]) -> dict[str, dict | None]:
     return out
 
 
-def renovate_pending() -> str:
-    """Open Renovate PR titles plus the dashboard's pending sections, lowercased."""
+def renovate_pending() -> list[str]:
+    """Each open Renovate PR and each pending dashboard line, lowercased."""
     owner, name = REPO.split("/")
     data = graphql(
         f'{{ repository(owner: "{owner}", name: "{name}") {{ '
@@ -267,7 +271,15 @@ def renovate_pending() -> str:
     # The Detected Dependencies section names every image, pending or not, so it is cut off.
     issues = repo.get("issues", {}).get("nodes", [])
     dash = [i["body"].split("## Detected")[0] for i in issues if "Dashboard" in i["title"]]
-    return "\n".join(prs + dash).lower()
+    lines = [line for body in dash for line in body.splitlines()]
+    return [chunk.lower() for chunk in prs + lines]
+
+
+def is_pending(image: str, tag: str, pending: list[str]) -> bool:
+    """Whether Renovate already has this image's own tag track in a PR or dashboard entry."""
+    match = VERSION_RE.search(tag)
+    track = match[0] if match else tag
+    return any(image.lower() in chunk and track in chunk for chunk in pending)
 
 
 def version(tag: str) -> tuple[int, ...] | None:
@@ -366,9 +378,9 @@ def assess(
 Ref = tuple[str, str]
 
 
-def collect() -> tuple[list[Ref], dict[Ref, dict], dict[Ref, str | None], dict, str]:
-    """Look up each unignored image: refs, registry metadata, source repos, upstream, pending."""
-    refs = [ref for ref in image_refs() if ref[0] not in IGNORE]
+def collect() -> tuple[list[Ref], dict[Ref, dict], dict[Ref, str | None], dict, list[str]]:
+    """Look up each image: refs, registry metadata, source repos, upstream, pending."""
+    refs = image_refs()
     with cf.ThreadPoolExecutor(16) as pool:
         metas = dict(zip(refs, pool.map(lambda ref: safe_meta(*ref), refs)))
     repos = {ref: source_repo(ref[0], metas[ref]) for ref in refs}
@@ -411,7 +423,10 @@ def main() -> int:
         except Skip:
             skipped.append(f"{image}:{tag}")
             continue
-        if not reasons or image.lower() in pending:
+        if image in IGNORE:
+            # An ignore excuses the drift it names; a tag that can no longer be pulled is new.
+            reasons = [r for r in reasons if r.startswith("image cannot be pulled")]
+        if not reasons or is_pending(image, tag, pending):
             continue
         why = "; ".join(r.removeprefix(WATCH) for r in reasons)
         row = f"| `{image}:{tag}` | {repo or '?'} | {why} |"
