@@ -32,7 +32,7 @@ spec:
             # and an alias corrupts the digest-pin write (renovate#24942).
             image:
               repository: ghcr.io/lukeevanstech/todoist-sort
-              tag: 0.2.5@sha256:050fcde1bdbc1836efd02ee92dfcd058b4f0e1ee9ee0dcb3cc55c1182f0579fb
+              tag: 0.2.5@sha256:a2cf89d6aef3e38d86673b93fd6222a523f03bf4b7d1077759040e827ffbf7ad
             command:
               - "sort-inbox"
               - "--root"
@@ -71,7 +71,7 @@ spec:
             # Duplicated from sort-inbox on purpose, see the comment there.
             image:
               repository: ghcr.io/lukeevanstech/todoist-sort
-              tag: 0.2.5@sha256:050fcde1bdbc1836efd02ee92dfcd058b4f0e1ee9ee0dcb3cc55c1182f0579fb
+              tag: 0.2.5@sha256:a2cf89d6aef3e38d86673b93fd6222a523f03bf4b7d1077759040e827ffbf7ad
             command:
               - "plan-day"
               - "--root"
