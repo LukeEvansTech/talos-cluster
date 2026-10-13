@@ -8,44 +8,60 @@ metadata:
 data:
   config.yaml: |-
     server:
-      port: 80
-      baseURL: ""
-      database: "/config/database.db"
       cacheDir: "/tmp"
+      # v2 moved from BoltDB to SQLite. migrateFrom imports the v1 file only while the SQLite file
+      # is empty and never writes to it, so database.db stays as the rollback copy for v1.
+      database:
+        path: "/config/filebrowser.sqlite"
+        migrateFrom: "/config/database.db"
+      logging:
+        - levels: "info|warning|error"
       sources:
         - path: "/media"
           name: media
           config:
             defaultEnabled: true
+            defaultPermissions: &perms
+              view: true
+              download: true
+              modify: true
+              create: true
+              delete: false
+              configured: true
         - path: "/backups/rook"
           name: backups-rook
           config:
             defaultEnabled: true
+            defaultPermissions: *perms
         - path: "/backups/postgres"
           name: backups-postgres
           config:
             defaultEnabled: true
+            defaultPermissions: *perms
         - path: "/backups/volsync"
           name: backups-volsync
           config:
             defaultEnabled: true
+            defaultPermissions: *perms
         - path: "/backups/timemachine"
           name: backups-timemachine
           config:
             defaultEnabled: true
-    logging:
-      - levels: "info|warning|error"
+            defaultPermissions: *perms
+    http:
+      port: 80
+      # Behind Envoy, so client IPs and share URLs come from the forwarded headers.
+      trustProxyHeaders: true
     userDefaults:
-      darkMode: true
-      singleClick: false
-      permissions:
-        admin: true
-        modify: true
-        share: true
-        download: true
-        create: true
-        delete: false
-        api: false
+      ui:
+        darkMode: true
+      listing:
+        singleClick: false
+      account:
+        permissions:
+          admin: true
+          share: true
+          api: false
     auth:
       methods:
         noauth: false
