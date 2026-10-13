@@ -8,32 +8,37 @@ points at. Two Flux Kustomizations apply it. `actions-runner-controller` renders
 `actions-runner-controller-runners`, which `dependsOn` the first, renders `runners/`: one directory
 per GitHub org or repository scale set.
 
-Ten scale sets exist, each a self-hosted runner pool for one GitHub target. The scale set name
+Thirteen scale sets exist, each a self-hosted runner pool for one GitHub target. The scale set name
 matches its `runners/` directory name except for `packer`, whose `runnerScaleSetName` is
 `packer-vsphere`:
 
 | Scale set           | Target                           | Mode       | `maxRunners` | Work storage |
 | ------------------- | -------------------------------- | ---------- | ------------ | ------------ |
 | `codelooks-org`     | codelooks-com (org, shared pool) | dind       | 2            | 40Gi         |
-| `lurcher`           | LukeEvansTech/lurcher            | dind       | 1            | 40Gi         |
-| `networkops`        | LukeEvansTech/network-ops        | dind       | 1            | 40Gi         |
-| `nut`               | LukeEvansTech/nut-apps           | dind       | 1            | 40Gi         |
+| `lgwebos`           | LukeEvansTech/lgwebos            | dind       | 2            | 40Gi         |
+| `loupe`             | LukeEvansTech/loupe              | dind       | 2            | 40Gi         |
+| `lurcher`           | LukeEvansTech/lurcher            | dind       | 3            | 40Gi         |
+| `networkops`        | LukeEvansTech/network-ops        | dind       | 3            | 40Gi         |
+| `nixconfig`         | LukeEvansTech/nix-config         | dind       | 2            | 40Gi         |
+| `nut`               | LukeEvansTech/nut-apps           | dind       | 3            | 40Gi         |
 | `packer-vsphere`    | codelooks-com/packer-vsphere     | kubernetes | 3            | 40Gi         |
-| `seedbox`           | LukeEvansTech/seedbox-apps       | dind       | 1            | 40Gi         |
-| `subspy`            | LukeEvansTech/subspy             | dind       | 1            | 40Gi         |
+| `seedbox`           | LukeEvansTech/seedbox-apps       | dind       | 3            | 40Gi         |
+| `subspy`            | LukeEvansTech/subspy             | dind       | 3            | 40Gi         |
 | `talos-cluster`     | LukeEvansTech/talos-cluster      | dind       | 3            | 25Gi         |
 | `terraform-vsphere` | codelooks-com/terraform-vsphere  | kubernetes | 2            | 5Gi          |
-| `truenas`           | LukeEvansTech/truenas-apps       | dind       | 1            | 40Gi         |
+| `truenas`           | LukeEvansTech/truenas-apps       | dind       | 3            | 40Gi         |
 
-The six newest scale sets (`lurcher`, `networkops`, `nut`, `seedbox`, `subspy`, `truenas`) start
-their `maxRunners` at 1 and are meant to grow once real usage justifies it. `codelooks-org`, the
+The repository pools (`lurcher`, `networkops`, `nut`, `seedbox`, `subspy`, `truenas`) started at
+`maxRunners: 1` and have since grown to 3; `lgwebos`, `loupe` and `nixconfig` start at 2 because
+each change runs two jobs at once. `nixconfig` also raises its runner memory limit to 8Gi for
+evaluating both darwin systems. `codelooks-org`, the
 shared pool, starts at 2 for the same reason. `talos-cluster`, `packer-vsphere` and
 `terraform-vsphere` predate that pilot convention and already run at higher ceilings.
 
 ## GitHub App authentication
 
 Each scale set's `ExternalSecret` extracts a GitHub App's credentials from one of two 1Password
-items: `github` for the seven LukeEvansTech-scoped runners, `github-codelooks` for the three
+items: `github` for the ten LukeEvansTech-scoped runners, `github-codelooks` for the three
 codelooks-com-scoped ones (`codelooks-org`, `packer`, `terraform-vsphere`).
 
 `codelooks-org` is org-scoped rather than repository-scoped, and that changes what permission the
@@ -45,7 +50,7 @@ pod rather than in the `ExternalSecret`.
 
 ## fsGroup and runner storage
 
-All ten scale sets mount their `_work` volume from `miroir-local`, a real ext4 block device whose
+All thirteen scale sets mount their `_work` volume from `miroir-local`, a real ext4 block device whose
 root directory comes up `root:root 0755`. The runner images all run as uid/gid 1001, so every pod
 spec sets `securityContext.fsGroup: 1001`. Without it, the runner cannot create `_work/_tool`, and
 every job dies within about two seconds with `UnauthorizedAccessException` before a single step
@@ -69,8 +74,8 @@ small providers.
 ## Docker sidecar resources
 
 The `gha-runner-scale-set` chart's dind mode generates a Docker sidecar container with no values
-field to size it. Seven of the eight dind-mode scale sets (`codelooks-org`, `lurcher`,
-`networkops`, `nut`, `seedbox`, `subspy`, `truenas`) carry a `postRenderers` Kustomize patch that
+field to size it. Ten of the eleven dind-mode scale sets (`codelooks-org`, `lgwebos`,
+`loupe`, `lurcher`, `networkops`, `nixconfig`, `nut`, `seedbox`, `subspy`, `truenas`) carry a `postRenderers` Kustomize patch that
 adds resource requests and limits to that sidecar after the chart renders. `talos-cluster`, the
 oldest scale set in the fleet, carries no such patch and sets its runner environment directly
 instead (`ACTIONS_RUNNER_CONTAINER_HOOKS`, `ACTIONS_RUNNER_POD_NAME`) rather than relying on the
