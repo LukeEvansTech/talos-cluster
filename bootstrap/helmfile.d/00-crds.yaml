@@ -21,7 +21,9 @@ releases:
   - name: envoy-gateway
     namespace: network
     chart: oci://mirror.gcr.io/envoyproxy/gateway-helm
-    version: v1.9.1
+    # Unprefixed like the Flux OCIRepository: Renovate proposes the unprefixed tag, so a v-prefixed
+    # pin left its update branch erroring (v1.9.1 -> 1.9.2).
+    version: 1.9.2
 
   - name: grafana-operator
     namespace: observability
