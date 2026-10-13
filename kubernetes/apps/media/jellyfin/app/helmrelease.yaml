@@ -117,9 +117,9 @@ spec:
         existingClaim: "{{ .Release.Name }}"
       config-cache:
         existingClaim: "{{ .Release.Name }}-cache"
+        # /config/data holds jellyfin.db and users, so it stays on the VolSync-backed config claim.
         globalMounts:
           - path: /config/metadata
-          - path: /config/data
       config-logs:
         type: emptyDir
         globalMounts:
