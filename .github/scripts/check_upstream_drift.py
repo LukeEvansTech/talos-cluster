@@ -277,9 +277,8 @@ def renovate_pending() -> list[str]:
 
 def is_pending(image: str, tag: str, pending: list[str]) -> bool:
     """Whether Renovate already has this image's own tag track in a PR or dashboard entry."""
-    match = VERSION_RE.search(tag)
-    track = match[0] if match else tag
-    return any(image.lower() in chunk and track in chunk for chunk in pending)
+    # Renovate names the current tag in full (`3.15-alpine ➔ 3.16-alpine`), suffix included.
+    return any(image.lower() in chunk and tag.lower() in chunk for chunk in pending)
 
 
 def version(tag: str) -> tuple[int, ...] | None:
