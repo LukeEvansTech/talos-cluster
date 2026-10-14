@@ -1,0 +1,123 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: br-storage.rules
+spec:
+  groups:
+    # br-storage is the off-site DR target, powered on only for its nightly replication window.
+    # br-power (truenas-apps) reads its health once per window with a read-only API key and
+    # writes br_health_* to cr-storage's node-exporter textfile dir. Every value below is
+    # therefore a once-a-night sample that persists all day: an alert stays up until the next
+    # good snapshot, and `for:` only guards against a half-written scrape.
+    - name: br-storage.rules
+      rules:
+        # 36h (129600s): one missed window plus slack. A failed read still stamps the
+        # timestamp, so this catches br-power not reaching the snapshot at all.
+        - alert: BrStorageHealthStale
+          annotations:
+            summary: >-
+              No br-storage health snapshot in over 36h. br may not be powering on, or
+              br-power is not reaching it. Check `docker logs br-power` on cr-storage.
+          expr: |-
+            time() - br_health_collect_timestamp_seconds > 129600
+          for: 30m
+          labels:
+            severity: warning
+        - alert: BrStorageHealthSnapshotFailing
+          annotations:
+            summary: >-
+              br-power could not read br-storage's health in tonight's window. Its
+              read-only API key may be revoked or br's HTTPS may be down.
+          expr: |-
+            br_health_collect_success == 0
+          for: 15m
+          labels:
+            severity: warning
+        - alert: BrStorageHealthMetricsMissing
+          annotations:
+            summary: >-
+              br-storage health metrics are absent; cannot tell whether the DR box is healthy.
+          expr: |-
+            absent(br_health_collect_timestamp_seconds)
+          for: 2h
+          labels:
+            severity: warning
+        - alert: BrStoragePoolUnhealthy
+          annotations:
+            summary: >-
+              br-storage pool {{ $labels.pool }} is not healthy or not ONLINE. The off-site
+              DR copy is at risk.
+          expr: |-
+            br_health_pool_healthy == 0 or br_health_pool_online == 0
+          for: 5m
+          labels:
+            severity: critical
+        - alert: BrStoragePoolScanErrors
+          annotations:
+            summary: >-
+              br-storage pool {{ $labels.pool }}'s last scrub found {{ $value }} errors.
+          expr: |-
+            br_health_pool_scan_errors > 0
+          for: 5m
+          labels:
+            severity: warning
+        # br runs ~7h a night, so a scrub can take several windows; 45 days is TrueNAS's
+        # 35-day default schedule plus ten nights. -1 means br reported no scrub at all.
+        - alert: BrStorageScrubOverdue
+          annotations:
+            summary: >-
+              br-storage pool {{ $labels.pool }} has not finished a scrub in 45 days.
+          expr: |-
+            br_health_pool_scan_end_timestamp_seconds > 0
+            and time() - br_health_pool_scan_end_timestamp_seconds > 3888000
+          for: 30m
+          labels:
+            severity: warning
+        - alert: BrStorageAlertsActive
+          annotations:
+            summary: >-
+              br-storage has {{ $value }} active TrueNAS alerts at ERROR or above. Check its
+              alert list in the UI.
+          expr: |-
+            sum(br_health_alerts{level=~"ERROR|CRITICAL|ALERT|EMERGENCY"}) > 0
+          for: 15m
+          labels:
+            severity: warning
+        # Sampled minutes after power-on, while the disks are still cool (31-40C on
+        # 2026-10-14), so this sits below cr's 60C: a cold reading over 50C is a cooling fault.
+        - alert: BrStorageDiskHot
+          annotations:
+            summary: >-
+              br-storage disk {{ $labels.disk }} read {{ $value }}C shortly after power-on.
+          expr: |-
+            br_health_disk_temperature_celsius > 50
+          for: 10m
+          labels:
+            severity: warning
+        # The UI certificate keeps br's API on TLS; without it TrueNAS revokes br-power's key
+        # on first use. TrueNAS renews at 10 days left and retries daily, so 20 days left means
+        # renewals are failing (most likely the Cloudflare token's pinned IP no longer matches
+        # br's egress, see terraform-cloudflare tokens.tf br_storage_ip).
+        - alert: BrStorageCertificateExpiring
+          annotations:
+            summary: >-
+              br-storage's web UI certificate expires in under 20 days; its ACME renewal is
+              failing.
+          expr: |-
+            br_health_certificate_expiry_timestamp_seconds{name="br-storage-le"} - time() < 1728000
+          for: 30m
+          labels:
+            severity: warning
+        - alert: BrStorageCertificateUnknown
+          annotations:
+            summary: >-
+              br-power could not read br-storage's certificates, or br-storage-le is gone.
+          expr: |-
+            br_health_certificates_ok == 0
+            or (br_health_collect_success == 1
+              unless on() br_health_certificate_expiry_timestamp_seconds{name="br-storage-le"})
+          for: 30m
+          labels:
+            severity: warning
