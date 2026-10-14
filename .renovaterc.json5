@@ -246,6 +246,14 @@
       separateMultipleMajor: true,
       separateMultipleMinor: true,
     },
+    {
+      // Minor lines (8.2, 8.3) stop getting patches once the next ships, so stay on major lines
+      // (X.0.y); docs/docs/apps/yourspotify.md.
+      description: "MongoDB: major release lines only, never the minor track",
+      matchDatasources: ["docker"],
+      matchPackageNames: ["docker.io/library/mongo"],
+      allowedVersions: "/^\\d+\\.0\\.\\d+$/",
+    },
 
     // === Changelogs (from changelogs.json5) ===
     // 1Password Connect + cloudflared changelog URLs come from the preset's
