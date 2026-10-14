@@ -6,14 +6,24 @@ commit LAN IPs, node names, internal hostnames, MAC addresses, or vendor device
 models that map the home network. This guard enforces that on every PR.
 
 It scans *tracked* files (so gitignored paths like docs/superpowers/ are never
-seen) for the patterns below, skipping a small ALLOWLIST of files where a value is
-an unavoidable, accepted functional config (Talos machine config, device cert
-deployment, monitoring scrape targets, etc.). Anything matching OUTSIDE the
-allowlist fails the build.
+seen) for the patterns below. An ALLOWLIST entry accepts one unavoidable functional
+value (Talos machine config, device cert deployment, monitoring scrape targets,
+etc.) by naming the file AND the line it sits on: a path glob, the identifier
+kinds it accepts, and a literal substring or regex the line must contain. Any
+other identifier in the same file still fails the build. Entries used to accept
+whole files, which let an unrelated node IP hide in an allowlisted workflow for
+months (#3151, removed in #6175).
+
+An entry that no longer matches anything fails the scan too, so a stale entry
+cannot linger and silently accept the next leak in its file.
 
 By default every tracked file is scanned (push-to-main + nightly runs). With
 --diff-base REV, only files changed between REV and HEAD are scanned: PR runs
-pass --diff-base HEAD^1 so a PR is judged ONLY on the files it touches. (PR
+pass --diff-base HEAD^1 so a PR is judged ONLY on the files it touches, unless
+the PR edits this script, where the allowlist lives: then the whole tree is
+scanned, since narrowing an entry can expose a value in a file the PR never
+touched. Stale entries are judged only when every file an entry's glob covers
+was scanned. (PR
 events run on the merge ref; a full scan there re-scans all of main, so a
 transient bad state on main used to fail every open PR, and with
 rebaseWhen:conflicted the stale FAILURE check-run then blocked Renovate's
@@ -21,9 +31,11 @@ self-merge forever. Main's own state stays covered by the push and schedule
 runs.)
 
 The allowlist is the authoritative list of "accepted functional configs" -- each
-entry says why the identifier has to live there. To template one out of git later,
-move its value to the cluster-secrets 1Password item (Flux substitutes ${VAR} the
-same way) and drop the allowlist entry.
+entry says why the identifier has to live there. Match the line's shape or
+context (its YAML key, a comment's fixed wording), never the value itself: this
+script is public. To template one out of git later, move its value to the
+cluster-secrets 1Password item (Flux substitutes ${VAR} the same way) and drop
+the allowlist entry.
 
 With --text-file PATH (or '-' for stdin) it scans PROSE instead of tracked files:
 a commit message or a PR body. Those are the same world-visible surface -- a
@@ -43,6 +55,7 @@ import os
 import re
 import subprocess
 import sys
+from dataclasses import dataclass
 from fnmatch import fnmatch
 
 SELF_PATH = ".github/scripts/check_internal_identifiers.py"
@@ -102,31 +115,270 @@ BENIGN = (
     re.compile(r"^100\.127\.255\.254$"),
 )
 
-# Accepted functional configs (glob -> reason): unavoidable values that operate the cluster.
-# The topology they expose is an informed, documented acceptance (see the .private/ inventory).
-ALLOWLIST: dict[str, str] = {
-    "talos/**": "Talos machine config",
-    "kubernetes/apps/infrastructure/certwarden/cert-deployment/**": "device cert deployment",
-    ".github/scripts/tests/test_check_internal_identifiers.py": "synthetic pattern test fixtures",
-    "kubernetes/apps/default/shlink/app/helmrelease.yaml": "RFC1918 blocks (DISABLE_TRACKING_FROM)",
-    "kubernetes/apps/home/homeassistant/app/helmrelease.yaml": "trusted-proxy IP + multus MAC",
-    "kubernetes/apps/home/matter-server/app/helmrelease.yaml": "multus static IP + MAC",
-    "kubernetes/apps/home/mosquitto/app/helmrelease.yaml": "multus static IP + MAC",
-    "kubernetes/apps/home/scrypted/app/helmrelease.yaml": "multus static IP + MAC",
-    "kubernetes/apps/home/zigbee2mqtt/app/helmrelease.yaml": "multus static IP + MAC",
-    "kubernetes/apps/kube-system/cilium/app/networks.yaml": "LB IP pool / API host",
-    "kubernetes/apps/kube-system/etcd-defrag/app/configmap.yaml": "etcd-defrag node targets",
-    "kubernetes/apps/kube-system/multus/networks/iot.yaml": "multus VLAN master interface",
-    "kubernetes/apps/network/envoy-gateway/app/envoy.yaml": "Envoy LB listener IPs",
-    "kubernetes/apps/network/scanopy/app/daemon-helmrelease.yaml": "LAN scan ranges",
-    "kubernetes/apps/observability/blackbox-exporter/lan/probes.yaml": "blackbox LAN probe targets",
-    "kubernetes/apps/observability/bmc-exporter/app/externalsecret.yaml": "BMC Redfish hosts (as blackbox probe)",
-    "kubernetes/apps/observability/nut-exporter/app/prometheusrule.yaml": "NUT UPS alert selectors",
-    "kubernetes/apps/observability/nut-exporter/app/servicemonitor.yaml": "NUT scrape targets",
-    "kubernetes/apps/observability/snmp-exporter/app/configmap-entity-sensor.yaml": "SNMP sensor module",
-    "kubernetes/apps/observability/snmp-exporter/app/configmap.yaml": "SNMP module config",
-    "kubernetes/apps/observability/snmp-exporter/app/helmrelease.yaml": "SNMP scrape target",
-}
+WITHHELD = ("internal domain", "private service name")
+# An account-disclosing service name is never an accepted functional config.
+UNSUPPRESSIBLE = ("private service name",)
+
+
+@dataclass(frozen=True)
+class Allow:
+    """One accepted identifier: a file glob, the kinds accepted, and the line that carries them.
+
+    Exactly one of ``contains`` (a literal substring) or ``regex`` (searched with re.search)
+    must be set and non-empty. ``where="path"`` matches it against the file path instead of a
+    line, for an identifier in the file name itself. ``per_line`` caps how many identifiers of
+    its kinds the entry accepts on one line, so a matched line cannot carry an extra one.
+    """
+
+    path: str
+    kinds: tuple[str, ...]
+    reason: str
+    contains: str | None = None
+    regex: str | None = None
+    where: str = "line"
+    per_line: int = 1
+
+    def describe(self) -> str:
+        """Render the entry for an error message (patterns hold no values, so they can be shown)."""
+        how = f"contains {self.contains!r}" if self.contains is not None else f"regex {self.regex!r}"
+        return f"{self.path} [{', '.join(self.kinds)}] {self.where} {how} -- {self.reason}"
+
+    def accepts(self, path: str, kind: str, text: str, where: str) -> bool:
+        """Return True if this entry accepts a *kind* identifier found in *text* of *path*."""
+        if where != self.where or kind not in self.kinds or not fnmatch(path, self.path):
+            return False
+        if self.contains is not None:
+            return self.contains in text
+        return re.search(self.regex or "", text) is not None
+
+
+ANY_PATTERN = tuple(PATTERNS)
+
+# Accepted functional configs: unavoidable values that operate the cluster. The topology they
+# expose is an informed, documented acceptance (see the .private/ inventory). Scope each entry
+# to the line's shape or context and to the kinds it needs; one entry per distinct context.
+ALLOWLIST: tuple[Allow, ...] = (
+    # --- Talos machine config ---
+    Allow(
+        "talos/clusterconfig/.gitignore",
+        ("node name",),
+        "gitignored per-node kubeconfig names",
+        regex=r"^kubernetes-\S+\.yaml$",
+    ),
+    Allow("talos/patches/controller/cluster.yaml", ("LAN IP",), "etcd advertisedSubnets", regex=r"^\s+- [\d.]+/24$"),
+    Allow(
+        "talos/patches/controller/cluster.yaml", ("LAN IP",), "API server certExtraSANs (VIP)", regex=r'^\s+- "[\d.]+"$'
+    ),
+    Allow(
+        "talos/patches/controller/cluster.yaml",
+        ("internal domain",),
+        "API server certExtraSANs",
+        regex=r'^\s+- "talos-cluster\.[^"]+"$',
+    ),
+    Allow("talos/patches/controller/machine-vip.yaml", ("LAN IP",), "Layer2 VIP address", regex=r"^name: [\d.]+$"),
+    Allow(
+        "talos/patches/global/machine-kubelet.yaml",
+        ("LAN IP",),
+        "kubelet nodeIP validSubnets",
+        regex=r"^\s+- [\d.]+/24$",
+    ),
+    Allow(
+        "talos/patches/global/machine-network.yaml", ("LAN IP",), "resolver nameserver", regex=r"^\s+- address: [\d.]+$"
+    ),
+    Allow(
+        "talos/patches/global/machine-vlans.yaml",
+        ("VLAN ID",),
+        "VLANConfig header comment",
+        regex=r"^# VLAN \d+, IoT-Trusted: ",
+    ),
+    Allow("talos/patches/global/machine-vlans.yaml", ("VLAN interface",), "VLANConfig name", regex=r"^name: wan\.\d+$"),
+    Allow("talos/patches/global/machine-vlans.yaml", ("VLAN ID",), "VLANConfig vlanID", regex=r"^vlanID: \d+$"),
+    Allow("talos/talconfig.yaml", ("LAN IP",), "cluster API endpoint (VIP)", regex=r"^endpoint: https://[\d.]+:6443$"),
+    Allow("talos/talconfig.yaml", ("LAN IP",), "API/machine cert SANs (VIP)", regex=r'^\s+- "[\d.]+"$'),
+    Allow(
+        "talos/talconfig.yaml", ("internal domain",), "API/machine cert SANs", regex=r'^\s+- "talos-cluster\.[^"]+"$'
+    ),
+    Allow("talos/talconfig.yaml", ("node name",), "node hostnames", regex=r'^\s+- hostname: "[^"]+"$'),
+    Allow("talos/talconfig.yaml", ("LAN IP",), "node addresses", regex=r'^\s+ipAddress: "[\d.]+"$'),
+    Allow(
+        "talos/talconfig.yaml",
+        ("MAC address",),
+        "uplink LinkAliasConfig selector",
+        contains='match: mac(link.permanent_addr) == "',
+    ),
+    Allow("talos/talconfig.yaml", ("LAN IP",), "uplink LinkConfig address", regex=r"^\s+- address: [\d.]+/24$"),
+    Allow("talos/talconfig.yaml", ("LAN IP",), "uplink LinkConfig default gateway", regex=r"^\s+- gateway: [\d.]+$"),
+    # --- device cert deployment (certwarden) ---
+    Allow(
+        "kubernetes/apps/infrastructure/certwarden/cert-deployment/*/externalsecret*.yaml",
+        ("device hostname (cr)",),
+        "per-device ExternalSecret names and 1Password item keys",
+        regex=r"^\s+(?:name|key): \S+$",
+    ),
+    Allow(
+        "kubernetes/apps/infrastructure/certwarden/cert-deployment/brother/kustomization.yaml",
+        ("device hostname (cr)",),
+        "per-device ExternalSecret file list",
+        regex=r"^\s+- externalsecret-\S+\.yaml$",
+    ),
+    Allow(
+        "kubernetes/apps/infrastructure/certwarden/cert-deployment/brother/externalsecret-*.yaml",
+        ("device hostname (cr)",),
+        "per-device ExternalSecret file name",
+        regex=r"/externalsecret-[a-z0-9-]+\.yaml$",
+        where="path",
+    ),
+    # Not functional: a real device name used as the "e.g." in a usage comment. Kept narrow
+    # pending a placeholder; do not widen.
+    Allow(
+        "kubernetes/apps/infrastructure/certwarden/cert-deployment/onyx/scripts-configmap.yaml",
+        ("device hostname (cr)",),
+        "usage comment example (real name; replace with a placeholder)",
+        contains="#   ONYX_SWITCH - Custom env var: Onyx switch identifier (e.g., ",
+    ),
+    Allow(
+        "kubernetes/apps/infrastructure/certwarden/cert-deployment/supermicro/scripts-configmap.yaml",
+        ("device hostname (cr)",),
+        "usage comment example (real name; replace with a placeholder)",
+        contains="#   SUPERMICRO_HOST - Custom env var: Supermicro IPMI host identifier (e.g., ",
+    ),
+    # --- this guard's own test table ---
+    Allow(
+        ".github/scripts/tests/test_check_internal_identifiers.py",
+        ANY_PATTERN,
+        "synthetic pattern test fixtures (CAUGHT table rows)",
+        regex=r'^\s+\("[^"]+", [\'"]',
+    ),
+    # --- app configs ---
+    Allow(
+        "kubernetes/apps/default/shlink/app/helmrelease.yaml",
+        ("LAN IP",),
+        "RFC1918 network blocks, not hosts",
+        contains="DISABLE_TRACKING_FROM: ",
+        per_line=2,
+    ),
+    Allow(
+        "kubernetes/apps/home/homeassistant/app/helmrelease.yaml", ("LAN IP",), "multus static IP", contains='"ips": ["'
+    ),
+    Allow(
+        "kubernetes/apps/home/matter-server/app/helmrelease.yaml", ("LAN IP",), "multus static IP", contains='"ips": ["'
+    ),
+    Allow("kubernetes/apps/home/scrypted/app/helmrelease.yaml", ("LAN IP",), "multus static IP", contains='"ips": ["'),
+    Allow(
+        "kubernetes/apps/home/zigbee2mqtt/app/helmrelease.yaml", ("LAN IP",), "multus static IP", contains='"ips": ["'
+    ),
+    Allow(
+        "kubernetes/apps/kube-system/cilium/app/networks.yaml",
+        ("LAN IP",),
+        "LB IPAM pool",
+        regex=r'^\s+- cidr: "[\d.]+/24"$',
+    ),
+    Allow(
+        "kubernetes/apps/kube-system/etcd-defrag/app/configmap.yaml",
+        ("LAN IP",),
+        "etcd-defrag node targets",
+        regex=r'^\s+NODE\d+="[\d.]+"$',
+    ),
+    Allow(
+        "kubernetes/apps/kube-system/etcd-defrag/app/configmap.yaml",
+        ("node name",),
+        "etcd-defrag node target names",
+        regex=r'^\s+NODE\d+_NAME="[^"]+"$',
+    ),
+    # Not functional: a real node address in a sample-output comment. Kept narrow pending a
+    # placeholder; do not widen.
+    Allow(
+        "kubernetes/apps/kube-system/etcd-defrag/app/configmap.yaml",
+        ("LAN IP",),
+        "sample-output comment (real address; replace with a placeholder)",
+        regex=r"^\s+# Example: [\d.]+ ",
+    ),
+    Allow(
+        "kubernetes/apps/kube-system/multus/networks/iot.yaml",
+        ("VLAN interface",),
+        "multus VLAN master interface",
+        regex=r'^\s+"master": "wan\.\d+",$',
+    ),
+    Allow(
+        "kubernetes/apps/network/envoy-gateway/app/envoy.yaml",
+        ("LAN IP",),
+        "Envoy LB listener IPs",
+        regex=r"^\s+lbipam\.cilium\.io/ips: [\d.]+$",
+    ),
+    Allow(
+        "kubernetes/apps/observability/blackbox-exporter/lan/probes.yaml",
+        ("device hostname (cr)",),
+        "blackbox LAN probe targets",
+        regex=r"^\s+- cr-[a-z0-9-]+\.\$\{SECRET_(?:INTERNAL_)?DOMAIN\}(?::443)?$",
+    ),
+    Allow(
+        "kubernetes/apps/observability/bmc-exporter/app/externalsecret.yaml",
+        ("device hostname (cr)",),
+        "BMC Redfish host keys",
+        regex=r"^\s+cr-[a-z0-9-]+\.\$\{SECRET_INTERNAL_DOMAIN\}:$",
+    ),
+    Allow(
+        "kubernetes/apps/observability/bmc-exporter/app/externalsecret.yaml",
+        ("device hostname (cr)",),
+        "BMC 1Password item keys",
+        regex=r"^\s+key: cr-[a-z0-9-]+$",
+    ),
+    # Not functional: names a device in a history comment. Kept narrow; do not widen.
+    Allow(
+        "kubernetes/apps/observability/bmc-exporter/app/externalsecret.yaml",
+        ("device hostname (cr)",),
+        "history comment (real name; reword without it)",
+        contains="# The firewall's BMC, keyed by name since the ",
+    ),
+    Allow(
+        "kubernetes/apps/observability/nut-exporter/app/prometheusrule.yaml",
+        ("device hostname (cr)",),
+        "NUT UPS alert selectors",
+        contains="expr: absent(nut_ups_status{ups=",
+        per_line=2,
+    ),
+    Allow(
+        "kubernetes/apps/observability/nut-exporter/app/servicemonitor.yaml",
+        ("device hostname (cr)",),
+        "NUT scrape ups param",
+        regex=r"^\s+- cr-[a-z0-9-]+$",
+    ),
+    Allow(
+        "kubernetes/apps/observability/nut-exporter/app/servicemonitor.yaml",
+        ("device hostname (cr)",),
+        "NUT instance relabel",
+        regex=r"^\s+replacement: cr-[a-z0-9-]+$",
+    ),
+)
+
+
+def allowlist_errors(allowlist: tuple[Allow, ...] = ALLOWLIST) -> list[str]:
+    """Return one message per malformed entry (unknown kind, bad matcher, uncompilable regex)."""
+    known = set(PATTERNS) | {"internal domain"}
+    errors: list[str] = []
+    for entry in allowlist:
+        if (entry.contains is None) == (entry.regex is None):
+            errors.append(f"{entry.path}: set exactly one of contains= or regex=")
+        elif not (entry.contains or entry.regex):
+            # An empty matcher matches every line: a whole-file exception again.
+            errors.append(f"{entry.path}: an empty matcher would accept every line")
+        if entry.per_line < 1:
+            errors.append(f"{entry.path}: per_line must be at least 1")
+        if not entry.kinds:
+            errors.append(f"{entry.path}: name the identifier kinds the entry accepts")
+        for kind in entry.kinds:
+            if kind in UNSUPPRESSIBLE:
+                errors.append(f"{entry.path}: {kind!r} can never be allowlisted")
+            elif kind not in known:
+                errors.append(f"{entry.path}: unknown kind {kind!r}")
+        if entry.where not in ("line", "path"):
+            errors.append(f"{entry.path}: where= must be 'line' or 'path'")
+        if entry.regex is not None:
+            try:
+                re.compile(entry.regex)
+            except re.error as exc:
+                errors.append(f"{entry.path}: bad regex {entry.regex!r}: {exc}")
+    return errors
 
 
 def private_names_pattern() -> dict[str, re.Pattern]:
@@ -170,11 +422,6 @@ def internal_domain_pattern() -> dict[str, re.Pattern]:
         raise SystemExit(2) from exc
 
 
-def allowlisted(path: str) -> bool:
-    """Return True if the path matches an accepted-functional-config glob."""
-    return any(fnmatch(path, glob) or path.startswith(glob.rstrip("*")) for glob in ALLOWLIST)
-
-
 def tracked_files() -> list[str]:
     """List git-tracked files, excluding the local-only .private/ tree."""
     out = subprocess.check_output(["git", "ls-files"], text=True)
@@ -186,9 +433,6 @@ def changed_files(base: str) -> list[str]:
     out = subprocess.check_output(["git", "diff", "--name-only", "--diff-filter=d", base, "HEAD"], text=True)
     tracked = set(tracked_files())
     return [f for f in out.splitlines() if f in tracked]
-
-
-WITHHELD = ("internal domain", "private service name")
 
 
 def format_violation(kind: str, lineno: int, line: str) -> str:
@@ -248,20 +492,53 @@ def scan_text(source: str, strip_git_comments: bool) -> int:
     return 0
 
 
-def scan_files(paths: list[str]) -> list[str]:
-    """Return one 'path:line: kind' string per non-allowlisted identifier found."""
+def accepted(
+    allowlist: tuple[Allow, ...],
+    used: set[int],
+    spent: dict[int, int],
+    found: tuple[str, str, str, str],
+) -> bool:
+    """Return True if an entry with occurrences left accepts this identifier.
+
+    *found* is (path, kind, text, where). *spent* counts, per entry, the identifiers already
+    accepted on the current line; the first entry with room takes this one and records it.
+    """
+    path, kind, text, where = found
+    for index, entry in enumerate(allowlist):
+        if spent.get(index, 0) < entry.per_line and entry.accepts(path, kind, text, where):
+            spent[index] = spent.get(index, 0) + 1
+            used.add(index)
+            return True
+    return False
+
+
+def scan_files(
+    paths: list[str],
+    allowlist: tuple[Allow, ...] = ALLOWLIST,
+    used: set[int] | None = None,
+) -> list[str]:
+    """Return one 'path:line: kind' string per identifier no allowlist entry accepts.
+
+    Indexes of the entries that accepted something are added to *used* for the stale check.
+    """
+    used = set() if used is None else used
     patterns = {**PATTERNS, **internal_domain_pattern(), **private_names_pattern()}
-    # The allowlist accepts functional coordinates, never an account-disclosing service name.
+    # The guard's own source must still not name a private service.
     names_only = private_names_pattern()
     violations: list[str] = []
     for path in paths:
-        # The guard's own source and allowlisted configs still must not name a private service.
-        active = names_only if (allowlisted(path) or path == SELF_PATH) else patterns
+        active = names_only if path == SELF_PATH else patterns
+        spent: dict[int, int] = {}
         for kind, pat in active.items():
-            if any(not any(b.search(m.group(0)) for b in BENIGN) for m in pat.finditer(path)):
+            for match in pat.finditer(path):
+                if any(b.search(match.group(0)) for b in BENIGN):
+                    continue
+                if kind not in UNSUPPRESSIBLE and accepted(allowlist, used, spent, (path, kind, path, "path")):
+                    continue
                 # A CI log is public: never echo a path that is itself the leak.
                 shown = "<path withheld>" if kind in WITHHELD else path
                 violations.append(f"{shown}: {kind} (in the file path)")
+                break
         if not active:
             continue
         try:
@@ -270,13 +547,44 @@ def scan_files(paths: list[str]) -> list[str]:
         except OSError:
             continue
         for lineno, line in enumerate(lines, 1):
+            text = line.rstrip("\r\n")
+            spent = {}
             for kind, pat in active.items():
-                for match in pat.finditer(line):
+                for match in pat.finditer(text):
                     if any(b.search(match.group(0)) for b in BENIGN):
+                        continue
+                    if kind not in UNSUPPRESSIBLE and accepted(allowlist, used, spent, (path, kind, text, "line")):
                         continue
                     violations.append(f"{path}:{lineno}: {kind}")
                     break
     return violations
+
+
+def stale_entries(
+    allowlist: tuple[Allow, ...],
+    used: set[int],
+    scanned: list[str],
+    tracked: list[str],
+    active_kinds: set[str],
+) -> list[Allow]:
+    """Return entries that accepted nothing, where that is a fair verdict.
+
+    An entry is judged only when every tracked file its glob covers was scanned (a PR scan sees
+    a subset) and every kind it names had an active pattern (INTERNAL_DOMAIN_RE is unset in a
+    fresh clone). An entry whose glob covers no tracked file at all is always stale.
+    """
+    scanned_set = set(scanned)
+    stale: list[Allow] = []
+    for index, entry in enumerate(allowlist):
+        if index in used:
+            continue
+        covered = [f for f in tracked if fnmatch(f, entry.path)]
+        if covered and not set(covered) <= scanned_set:
+            continue
+        if covered and not set(entry.kinds) <= active_kinds:
+            continue
+        stale.append(entry)
+    return stale
 
 
 def main() -> int:
@@ -302,8 +610,23 @@ def main() -> int:
     if args.text_file:
         return scan_text(args.text_file, args.strip_git_comments)
 
-    paths = changed_files(args.diff_base) if args.diff_base else tracked_files()
-    violations = scan_files(paths)
+    errors = allowlist_errors()
+    if errors:
+        print("Malformed ALLOWLIST entries:\n")
+        print("\n".join(f"  {e}" for e in errors))
+        return 2
+
+    tracked = tracked_files()
+    paths = changed_files(args.diff_base) if args.diff_base else tracked
+    if args.diff_base and SELF_PATH in paths:
+        # An allowlist edit is judged against the whole tree: narrowing an entry can expose a
+        # value in a file this change never touched.
+        print(f"{SELF_PATH} changed: scanning the whole tree.")
+        paths = tracked
+    used: set[int] = set()
+    violations = scan_files(paths, ALLOWLIST, used)
+    active_kinds = set(PATTERNS) | set(internal_domain_pattern())
+    stale = stale_entries(ALLOWLIST, used, paths, tracked, active_kinds)
 
     if violations:
         print("Internal infrastructure identifiers found in tracked files:\n")
@@ -312,12 +635,21 @@ def main() -> int:
         print(
             "\nThis repo is PUBLIC. Use placeholders (${SECRET_INTERNAL_DOMAIN},"
             " <node-ip>, ...) or move the value to the cluster-secrets 1Password"
-            " item.\nIf the value is an unavoidable functional config, add its path"
-            " to the ALLOWLIST in this script with a reason."
+            " item.\nIf the value is an unavoidable functional config, add an Allow entry"
+            " to the ALLOWLIST in this script\nscoped to that line's shape or context"
+            " (never the value itself), with a reason."
         )
+    if stale:
+        if violations:
+            print()
+        print("Stale ALLOWLIST entries (they no longer match anything):\n")
+        for entry in stale:
+            print(f"  {entry.describe()}")
+        print(f"\nDelete each stale entry from ALLOWLIST in {SELF_PATH}.")
+    if violations or stale:
         return 1
 
-    scope = f"{len(paths)} changed" if args.diff_base else f"all {len(paths)} tracked"
+    scope = f"{len(paths)} changed" if paths is not tracked else f"all {len(paths)} tracked"
     print(f"OK -- no new internal infrastructure identifiers ({scope} files).")
     return 0
 

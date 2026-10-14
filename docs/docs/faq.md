@@ -84,9 +84,11 @@ The repository is publicly readable, so anything committed is world-visible. **N
 Use the `${SECRET_DOMAIN}` / `${SECRET_INTERNAL_DOMAIN}` placeholders and let Flux substitute the
 real values at apply time. A CI guard (`check_internal_identifiers.py`, run by the security-scans
 workflow) fails any pull request that introduces a LAN IP, node or device hostname, MAC, or
-`.lan`/`.internal` hostname outside a small allowlist. Disk serials and device models are
-deliberately not pattern-matched by the (public) script, so keeping those out is enforced by review
-rather than CI. See [Secret management](architecture/secrets.md).
+`.lan`/`.internal` hostname that no allowlist entry accepts. An entry names a file, the identifier
+kinds it accepts and the line context it sits on, so it never hides a new value elsewhere in that
+file, and an entry that stops matching fails the scan until it is deleted. Disk serials and device
+models are deliberately not pattern-matched by the (public) script, so keeping those out is enforced
+by review rather than CI. See [Secret management](architecture/secrets.md).
 
 ## Where do device addresses for monitoring live?
 
