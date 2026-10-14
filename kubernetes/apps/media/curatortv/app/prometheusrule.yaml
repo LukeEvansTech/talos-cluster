@@ -1,0 +1,31 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: curatortv
+spec:
+  groups:
+    - name: curatortv
+      rules:
+        # Age of the last success, as GickupBackupStale; the creation-time fallback covers a run that
+        # never succeeded. Weekly schedule, so 8 days means a missed run, not a late one.
+        - alert: CuratortvPlanStale
+          annotations:
+            summary: >-
+              The curatortv CronJob (media/curatortv) has not succeeded in over 8 days.
+            description: >-
+              No successful weekly plan of the Sonarr library in over 8 days, so
+              curatortvjudge has nothing current to judge and its digest reports a
+              stale plan. Check the latest curatortv Job's logs; a blocked plan still
+              exits 0, so a failure here is a crash or a timeout. Trigger a run with
+              kubectl -n media create job --from=cronjob/curatortv.
+          expr: |-
+            time() - (
+              kube_cronjob_status_last_successful_time{namespace="media", cronjob="curatortv"}
+              or
+              kube_cronjob_created{namespace="media", cronjob="curatortv"}
+            ) > 691200
+          for: 2h
+          labels:
+            severity: warning

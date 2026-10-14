@@ -1,0 +1,33 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: curatortvjudge
+spec:
+  groups:
+    - name: curatortvjudge
+      rules:
+        # Age of the last success, as GickupBackupStale; the creation-time fallback covers a run that
+        # never succeeded. Weekly schedule, so 8 days means a missed run, not a late one.
+        - alert: CuratortvjudgeStale
+          annotations:
+            summary: >-
+              The curatortvjudge CronJob (media/curatortvjudge) has not succeeded in
+              over 8 days.
+            description: >-
+              No successful weekly TV judgement in over 8 days. The Job exits non-zero
+              when judging, executing, tagging or delivering the digest failed, so the
+              reason is in the latest curatortvjudge Job's logs and in
+              /state/cleanup-plan/report.md. Trigger a run with
+              kubectl -n media create job --from=cronjob/curatortvjudge once the
+              curatortv plan is fresh.
+          expr: |-
+            time() - (
+              kube_cronjob_status_last_successful_time{namespace="media", cronjob="curatortvjudge"}
+              or
+              kube_cronjob_created{namespace="media", cronjob="curatortvjudge"}
+            ) > 691200
+          for: 2h
+          labels:
+            severity: warning
