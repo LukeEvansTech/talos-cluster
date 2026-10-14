@@ -8,7 +8,7 @@ spec:
   groups:
     # br-storage is the off-site DR target, powered on only for its nightly replication window.
     # br-power (truenas-apps) reads its health once per window with a read-only API key and
-    # writes br_health_* to cr-storage's node-exporter textfile dir. Every value below is
+    # writes br_health_* to the NAS's node-exporter textfile dir. Every value below is
     # therefore a once-a-night sample that persists all day: an alert stays up until the next
     # good snapshot, and `for:` only guards against a half-written scrape.
     - name: br-storage.rules
@@ -19,7 +19,7 @@ spec:
           annotations:
             summary: >-
               No br-storage health snapshot in over 36h. br may not be powering on, or
-              br-power is not reaching it. Check `docker logs br-power` on cr-storage.
+              br-power is not reaching it. Check `docker logs br-power` on the NAS.
           expr: |-
             time() - br_health_collect_timestamp_seconds > 129600
           for: 30m
