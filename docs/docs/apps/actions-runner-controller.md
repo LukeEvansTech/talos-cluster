@@ -108,6 +108,11 @@ This wiring has broken once already. Pointing the volume at the similarly named
 `os:admin`, the workflow that uses it triggers on `push` to `main`, never `pull_request`, so
 untrusted PR code is never scheduled onto it.
 
+The minted `talosconfig` names only the in-cluster `talos.default` endpoint, never `nodes`, so the
+image-pull job lists its targets at run time with `talosctl get members` and masks each address
+before `talosctl` prints it. No node address lives in the workflow, and adding a node needs no
+workflow change.
+
 ## packer: pinned to a digest
 
 `packer`'s runner image is `codelooks-com/packer-runner`, built by that private repository rather
