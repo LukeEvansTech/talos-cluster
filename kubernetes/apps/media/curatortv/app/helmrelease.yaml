@@ -1,0 +1,98 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: curatortv
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: curatortv
+  values:
+    controllers:
+      # Assesses the Sonarr library and writes cleanup-plan/plan.json; read-only, never deletes
+      # or tags. curatortvjudge judges the plan half an hour later.
+      curatortv:
+        type: cronjob
+        cronjob:
+          ttlSecondsAfterFinished: 86400
+          # An hour after curator, so the two never walk Tautulli's history at once.
+          schedule: "0 9 * * 6"
+          timeZone: "${TIMEZONE}"
+          concurrencyPolicy: Forbid
+          successfulJobsHistory: 3
+          failedJobsHistory: 3
+          backoffLimit: 1
+          # A cold run resolves every new Plex show rating key one at a time.
+          activeDeadlineSeconds: 1800
+        pod:
+          automountServiceAccountToken: false
+        containers:
+          app:
+            image:
+              repository: docker.io/library/python
+              tag: 3.15-alpine@sha256:1afb480ba8d3b3b7a8439a84f2365ce5c75ac45a79cf07daa091b49235cbe27b
+            command:
+              - python3
+              - -m
+              - curatortv
+              - plan
+              - --out
+              - /state/cleanup-plan
+            env:
+              PYTHONPATH: /app
+              PYTHONDONTWRITEBYTECODE: "1"
+              PYTHONUNBUFFERED: "1"
+              TZ: "${TIMEZONE}"
+              SONARR_URL: http://sonarr.media.svc.cluster.local
+              TAUTULLI_URL: http://tautulli.media.svc.cluster.local
+              SEERR_URL: http://seerr.media.svc.cluster.local
+              LEDGER_DIR: /state/ledger
+              # Series added before this are the never-reviewed backlog, out of scope.
+              CLEANUP_SCOPE_START: "2026-03-01"
+              # Kometa tags every show it adds; Sonarr here has no import lists of its own.
+              FEED_TAGS: kometa
+              # plan writes nothing either way; set so the ledger namespaces its
+              # records the same as execute will.
+              CLEANUP_MODE: dry-run
+            envFrom:
+              - secretRef:
+                  name: curatortv-secret
+            resources:
+              requests:
+                cpu: 25m
+                memory: 128Mi
+              limits:
+                memory: 512Mi
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop:
+                  - ALL
+    defaultPodOptions:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+    persistence:
+      code:
+        type: configMap
+        name: curatortv-code
+        globalMounts:
+          - path: /app/curatortv
+            readOnly: true
+      # Created by the volsync component from the APP substitution in ks.yaml.
+      state:
+        existingClaim: curatortv
+        globalMounts:
+          - path: /state
+      tmp:
+        type: emptyDir
+        globalMounts:
+          - path: /tmp

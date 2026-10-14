@@ -1,0 +1,33 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# Checkov CKV_K8S_21: generated ConfigMaps need an explicit namespace rather
+# than inheriting the Flux target.
+namespace: media
+resources:
+  - ./ocirepository.yaml
+  - ./externalsecret.yaml
+  - ./helmrelease.yaml
+configMapGenerator:
+  # Mounted at /app/curatortv as `python3 -m curatortv`; curatortvjudge mounts the same
+  # ConfigMap to run `execute`, so the name is fixed rather than hashed. Tests aren't shipped.
+  - name: curatortv-code
+    files:
+      - ./resources/curatortv/__init__.py
+      - ./resources/curatortv/__main__.py
+      - ./resources/curatortv/clients.py
+      - ./resources/curatortv/evidence.py
+      - ./resources/curatortv/executor.py
+      - ./resources/curatortv/ledger.py
+      - ./resources/curatortv/model.py
+      - ./resources/curatortv/planner.py
+      - ./resources/curatortv/reporting.py
+      - ./resources/curatortv/provision.py
+      - ./resources/curatortv/s3.py
+      - ./resources/curatortv/store.py
+generatorOptions:
+  disableNameSuffixHash: true
+  annotations:
+    # The engine's Python contains ${...} in f-strings; Flux must not substitute them.
+    kustomize.toolkit.fluxcd.io/substitute: disabled
