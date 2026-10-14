@@ -119,7 +119,7 @@ spec:
         # noreply@ is the smtp2graph sender already on its allowedFrom gate.
         - to: ${SECRET_ACME_EMAIL}
           from: noreply@${SECRET_DOMAIN}
-          smarthost: smtp2graph.infrastructure.svc.cluster.local:25
+          smarthost: smtp.${SECRET_DOMAIN}:25
           requireTLS: false
           sendResolved: true
     - name: pushover

@@ -35,7 +35,14 @@ L2/L3/workload/application diagrams by continuously scanning the infrastructure.
   is a JVM-only workaround (Java's strict TLS verifier) and does not apply to Scanopy's Rust client.
   Hardening path is `verify-full` with a mounted `ca.crt` + `sslrootcert`; never drop to `disable`.
 - **Auth: built-in password login.** No OIDC/SSO in v1; first run creates the admin in the UI.
-- **SMTP: internal relay** at `smtp2graph.infrastructure.svc.cluster.local:25` (unauthenticated; sends via Graph as its `scanopy@` alias).
+- **SMTP: smtp2graph at `smtp.${SECRET_DOMAIN}:25` with STARTTLS and a login.** Scanopy's mailer
+  (lettre) uses implicit TLS on 465 and requires STARTTLS on any other port, always sends AUTH,
+  and enables email only when relay, username, password and from address are all set. So it
+  connects by the name on smtp2graph's Let's Encrypt certificate, and logs in as user `scanopy`
+  (password `SCANOPY_SMTP_PASSWORD` in the `scanopy` 1Password item, which the smtp2graph
+  ExternalSecret also reads). See [smtp2graph](smtp2graph.md#tls-starttls-offered-not-required):
+  Scanopy cannot send until the relay offers STARTTLS (step 2 there).
+  Until 2026-10-14 email was silently off, because only the relay and from address were set.
 - **SNMP community via ExternalSecret**, mounted read-only at the neutral path
   `/run/secrets/snmp-community`. The community string lives only in 1Password (repository is PUBLIC); the
   credential is then configured in the UI pointing at that file.
@@ -62,8 +69,20 @@ L2/L3/workload/application diagrams by continuously scanning the infrastructure.
   `app/kustomization.yaml`, or it double-applies. The PVC it creates is named `${APP}` (`scanopy`),
   referenced by the server's `persistence.data.existingClaim`.
 - **hostNetwork port `60073`** is bound on every node's host IP. Confirm nothing else uses it.
-- **Daemon hostPath `/var/lib/scanopy-daemon`** holds daemon config; it persists across Talos
-  reboots (`/var/lib` is writable + persistent).
+- **Daemon config is an `emptyDir`; the daemon's identity lives on the server.** Since v0.18.0 a
+  daemon key that is not bound to a daemon (`api_keys.daemon_id` NULL, as every key from before
+  v0.18 is) takes the daemon's identity only from the `X-Daemon-ID` header. A config without an id
+  is rejected: `403 Daemon context required`, retried six times, then the pod sits Running and
+  healthy and does nothing. The config used to live on a per-node hostPath
+  (`/var/lib/scanopy-daemon`), so each node had a different saved id, and the daemon re-registered
+  as a new daemon whenever it changed node (16 daemon records by October 2026). It had not
+  checked in since 2026-07-26: DNS/network failures first, then the 403. Fixed on 2026-10-14 by
+  binding the key in `SCANOPY_DAEMON_API_KEY` to daemon `scanopy-codelooks` in the database
+  (`update api_keys set daemon_id = <daemon id> where id = <key id>`) and moving the config to
+  `emptyDir`. A fresh config now resolves to that daemon from the key alone. **If the key is ever
+  regenerated or the database restored to before 2026-10-14, re-bind it**, or create a new daemon
+  in the UI, which issues a key that is already bound. The old hostPath directories on the nodes
+  are now unused.
 - **Privileged is allowed**: the cluster enforces no restricted PodSecurity and the `network`
   namespace has no PSA labels, so the privileged hostNetwork daemon admits cleanly.
 - **Image digests are pinned** for both server and daemon (kept in lockstep by Renovate).

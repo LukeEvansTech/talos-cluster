@@ -39,7 +39,11 @@ spec:
               SCANOPY_PUBLIC_URL: https://scanopy.${SECRET_DOMAIN}
               SCANOPY_WEB_EXTERNAL_PATH: /app/static
               SCANOPY_USE_SECURE_SESSION_COOKIES: "true"
-              SCANOPY_SMTP_RELAY: smtp2graph.infrastructure.svc.cluster.local:25
+              # The LAN name, not the Service name: smtp2graph's certificate is issued for it.
+              # Port 25 makes Scanopy require STARTTLS, and it always logs in.
+              SCANOPY_SMTP_RELAY: smtp.${SECRET_DOMAIN}
+              SCANOPY_SMTP_PORT: "25"
+              SCANOPY_SMTP_USERNAME: scanopy
               SCANOPY_SMTP_EMAIL: scanopy@${SECRET_DOMAIN}
             envFrom:
               - secretRef:

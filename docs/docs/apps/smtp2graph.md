@@ -48,6 +48,49 @@ LoadBalancer VIP the NMC fleet sends through. `primary: true` does not opt out o
 confirmed against the chart schema and by rendering it. PR #4407 fixed it by dropping the second
 Service: the sidecar declares a named container port and `PodMonitor` scrapes the pod directly.
 
+## TLS: STARTTLS offered, not required
+
+The target state is a relay that offers STARTTLS on port 25 with a Let's Encrypt certificate for
+`smtp.${SECRET_DOMAIN}` (`certificate.yaml`), the LoadBalancer's external-dns name. The certificate
+is publicly trusted, so clients verify it with their stock roots and no private CA is handed out.
+That only works if the client connects by that name: a client pointed at
+`smtp2graph.infrastructure.svc.cluster.local` gets a name mismatch, and a client that upgrades
+opportunistically (nodemailer) then fails to send.
+
+| Sender | Target TLS | How |
+| --- | --- | --- |
+| Alertmanager (`email` receiver) | Required | drop `requireTLS: false` (default is true) |
+| pocket-id | Required | `SMTP_TLS: starttls` |
+| tandoor | Required | `EMAIL_USE_TLS: "1"` |
+| scanopy | Required | lettre requires it on any port but 465; it also logs in as user `scanopy` |
+| epicgames | Opportunistic | nodemailer upgrades whenever STARTTLS is offered |
+| wazuh (`wazuh-maild`) | None | maild cannot do TLS |
+| UPS and PDU network cards | None | configured without SSL |
+| delivery canary | None | loopback inside the pod |
+
+TLS stays optional (`secure: false`) because of the last three rows. Login stays optional too
+(`requireAuth` unset); the one user, `scanopy`, exists because Scanopy's mailer always sends AUTH.
+Its password is `SCANOPY_SMTP_PASSWORD` in the `scanopy` 1Password item, and its own `allowedFrom`
+limits it to `scanopy@`. With TLS on, smtp2graph accepts a login only after STARTTLS.
+
+Each sender reconciles in its own Flux Kustomization, so the switch is staged to avoid a window
+where a client demands TLS the relay does not offer, or upgrades against a name the certificate
+does not cover:
+
+1. Issue the certificate, move every sender to `smtp.${SECRET_DOMAIN}` with its TLS setting
+   unchanged, and put the queue on a PVC (2026-10-14). Scanopy cannot send until step 2.
+2. Mount the certificate and set `secure: false`, `tlsCertPath` and `tlsKeyPath` in the relay
+   config. Opportunistic clients upgrade from here on.
+3. Require TLS on the senders marked Required.
+
+The queue (`/data`: `queue/`, `temp/`, `failed/`) is on a 1Gi `ceph-block` PVC with a `Recreate`
+strategy. Reloader restarts the pod whenever the certificate Secret changes, and the
+`letsencrypt-production` issuer uses the `shortlived` profile (6-day certificates), so that is a
+restart every few days; on an `emptyDir` each one would erase queued and failed mail.
+
+`wazuh@` is not on the global `allowedFrom` list, so Wazuh mail is rejected at `MAIL FROM` until it
+is added as an alias on the shared mailbox and then to the list.
+
 ## References
 
 - `kubernetes/apps/infrastructure/smtp2graph/app/helmrelease.yaml`, the metrics sidecar and canary

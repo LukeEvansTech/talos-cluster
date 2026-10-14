@@ -39,7 +39,7 @@ spec:
               KEYS_STORAGE: database
               UI_CONFIG_DISABLED: "true"
               SMTP_FROM: "pocket-id@${SECRET_DOMAIN}"
-              SMTP_HOST: "smtp2graph.infrastructure.svc.cluster.local"
+              SMTP_HOST: "smtp.${SECRET_DOMAIN}"
               SMTP_PORT: "25"
               SESSION_DURATION: "43800"
               TRUST_PROXY: "true"
