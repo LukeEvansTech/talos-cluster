@@ -155,7 +155,8 @@ class Sonarr:
 
         One paged sweep rather than a request per series. Each record carries its
         ``episodeId``, which is what lets availability take every episode's
-        *first* import rather than its latest upgrade.
+        *first* import rather than its latest upgrade. The default budget is 500k
+        rows; the library held about 75k import events on 2026-10-14.
         """
         events: dict[int, list[dict]] = {}
         page = 1
@@ -172,10 +173,15 @@ class Sonarr:
                 if isinstance(series_id, int):
                     events.setdefault(series_id, []).append(record)
             total = int((payload or {}).get("totalRecords") or 0)
-            if page * page_size >= total or not records:
-                break
+            if total > page_size * max_pages:
+                raise SourceError(f"{total} import events exceed the {page_size * max_pages}-row sweep budget")
+            if page * page_size >= total:
+                return events
+            if not records:
+                # A partial sweep loses first imports, and a lost first import restarts a window.
+                raise SourceError(f"import history ended at page {page} of a declared {total} records")
             page += 1
-        return events
+        raise SourceError(f"import history not exhausted after {max_pages} pages")
 
     def series_import_history(self, series_id: int) -> list[dict]:
         """Import events for one series, re-read immediately before deleting it."""

@@ -16,6 +16,10 @@ from .clients import Sonarr, SourceError, Tautulli, find_request, guid_ids
 from .evidence import COMPLETION_PERCENT, IMPORT_EVENT
 from .model import TAG_HUMAN_DISMISSED, VETO_TAGS, Assessment, Show, utc
 
+# Every skip whose reason starts with this is a check that could not run, not a protection
+# that fired; the run reports those as a failure (exit 10).
+UNAVAILABLE = "could not"
+
 # Below this a reason cannot name anything specific to the show.
 MIN_REASON_LENGTH = 12
 
@@ -186,7 +190,7 @@ def new_content_block(
     the day it lands does.
     """
     if since is None:
-        return "cannot tell whether episodes arrived since the plan"
+        return "could not tell whether episodes arrived since the plan"
     files = int((live.get("statistics") or {}).get("episodeFileCount") or 0)
     if planned_files is not None and files > planned_files:
         return f"episodes on disk grew from {planned_files} to {files} since the plan"
@@ -344,6 +348,7 @@ def execute(  # pylint: disable=too-many-arguments,too-many-positional-arguments
                 "series_id": a.show.series_id,
                 "title": a.show.title,
                 "why": f"recoverability precondition failed: {bin_detail}",
+                "unavailable": True,
             }
             for a in approved
         )
@@ -354,7 +359,7 @@ def execute(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         activity_known = tautulli is not None
     except SourceError as exc:
         now_playing, activity_known = set(), False
-        result.skipped.append({"why": f"activity check unavailable: {exc}"})
+        result.skipped.append({"why": f"activity check unavailable: {exc}", "unavailable": True})
 
     requests, watched_ids, late_known = late_evidence(tautulli, seerr, crosswalk, planned_at)
     if not late_known:
@@ -363,6 +368,7 @@ def execute(  # pylint: disable=too-many-arguments,too-many-positional-arguments
                 "series_id": a.show.series_id,
                 "title": a.show.title,
                 "why": "could not re-read plays and requests made since the plan",
+                "unavailable": True,
             }
             for a in approved
         )
@@ -380,7 +386,7 @@ def execute(  # pylint: disable=too-many-arguments,too-many-positional-arguments
 
         if not activity_known:
             # An unavailable safety check is an unresolved safety check.
-            result.skipped.append({**record, "why": "could not confirm nobody is watching it"})
+            result.skipped.append({**record, "why": "could not confirm nobody is watching it", "unavailable": True})
             continue
 
         late = late_evidence_block(show, requests, watched_ids)
@@ -398,20 +404,20 @@ def execute(  # pylint: disable=too-many-arguments,too-many-positional-arguments
                 else None
             )
         except SourceError as exc:
-            result.skipped.append({**record, "why": f"could not re-read live state: {exc}"})
+            result.skipped.append({**record, "why": f"could not re-read live state: {exc}", "unavailable": True})
             continue
         if not ok:
             result.skipped.append({**record, "why": why})
             continue
         if grown:
-            result.skipped.append({**record, "why": grown})
+            result.skipped.append({**record, "why": grown, "unavailable": grown.startswith(UNAVAILABLE)})
             continue
 
         # Last, the check closest in time to the delete; run in dry-run too, or a report
         # would describe a batch nobody is going to run.
         moved = volatile_block(show, tautulli, seerr, crosswalk, planned_at)
         if moved:
-            result.skipped.append({**record, "why": moved})
+            result.skipped.append({**record, "why": moved, "unavailable": moved.startswith(UNAVAILABLE)})
             continue
 
         ledger.record_intent({**record, "restore": restore_snapshot(live or {})}, assessment.to_json())

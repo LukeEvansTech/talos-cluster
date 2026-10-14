@@ -174,12 +174,17 @@ def build_crosswalk(metadata: dict[int, dict]) -> dict[int, dict]:
                 ids[source] = _int_or_none(value)
             elif source == "imdb":
                 ids["imdb"] = value or None
-        crosswalk[int(rating_key)] = {
-            **ids,
-            "title": meta.get("title"),
-            "year": _int_or_none(meta.get("year")),
-        }
+        entry: dict = {**ids, "title": meta.get("title"), "year": _int_or_none(meta.get("year"))}
+        if not any(ids.values()):
+            # Only a plex:// guid: its plays belong to some show we cannot name, so they taint.
+            entry["unresolved"] = True
+        crosswalk[int(rating_key)] = entry
     return crosswalk
+
+
+def has_external_id(entry: dict) -> bool:
+    """Whether a crosswalk entry carries any id a series can be matched on."""
+    return any(entry.get(source) for source in ("tvdb", "tmdb", "imdb"))
 
 
 def _match_rating_keys(show: Show, crosswalk: dict[int, dict]) -> tuple[list[int], str]:

@@ -23,11 +23,12 @@ from . import reporting
 from .clients import RequestSystem, Sonarr, SourceError, Tautulli
 from .evidence import (
     build_crosswalk,
+    has_external_id,
     resolve_availability,
     resolve_provenance,
     resolve_viewing,
 )
-from .executor import execute, reconcile, recycle_bin_ready, validate_recommendations
+from .executor import ExecutionResult, execute, reconcile, recycle_bin_ready, validate_recommendations
 from .ledger import Ledger
 from .model import (
     DEFAULT_FEED_TAGS,
@@ -220,7 +221,13 @@ def resolve_identities(
     and matched back by title, so they taint a zero rather than vanishing from it.
     """
     crosswalk = ledger.read_crosswalk()
-    missing = [k for k in rows_by_key if k not in crosswalk]
+    # A cached id-less entry that is not a retired key predates id-less entries being kept out
+    # of the cache; ask again, since Plex may have matched the item since.
+    missing = [
+        k
+        for k in rows_by_key
+        if k not in crosswalk or not (has_external_id(crosswalk[k]) or crosswalk[k].get("unresolved"))
+    ]
     log(f"resolving {len(missing)} new Plex show rating keys ({len(crosswalk)} cached)")
 
     fresh: dict[int, dict] = {}
@@ -249,14 +256,17 @@ def resolve_identities(
             "unresolved": True,
         }
         (retired if answered else unreachable)[key] = entry
-    if fresh:
-        crosswalk.update(build_crosswalk(fresh))
+    built = build_crosswalk(fresh)
+    idless = {k: v for k, v in built.items() if v.get("unresolved")}
+    crosswalk.update({k: v for k, v in built.items() if k not in idless})
     crosswalk.update(retired)
     if fresh or retired:
-        ledger.write_crosswalk(crosswalk)
+        # Id-less answers stay out, like timeouts, so the key is asked again next run.
+        ledger.write_crosswalk({k: v for k, v in crosswalk.items() if k not in idless})
     # Merged after the write, never into it: persisting a timeout here would mean never
     # re-asking about that key, misreading the show as never-watched permanently.
     crosswalk.update(unreachable)
+    crosswalk.update(idless)
 
     unattributed_keys = {k for k, v in crosswalk.items() if v.get("unresolved")}
     unattributed = [row for key in unattributed_keys for row in rows_by_key.get(key, [])]
@@ -749,6 +759,33 @@ def load_recommendations(args: argparse.Namespace, plan: dict) -> list | int:
     return recommendations
 
 
+def execute_exit_code(result: ExecutionResult, untagged: set[int], unjudged: list[int], rejected: list[dict]) -> int:
+    """The exit code for a finished execute run; the README lists each one."""
+    # A failed deletion is a safe no-op to retry; an uncertain one is recorded and left,
+    # since a retry could double up on a DELETE that already landed (docs/docs/apps/curator.md).
+    if result.uncertain:
+        log(
+            f"exiting non-zero: {len(result.uncertain)} deletion(s) could not be "
+            "confirmed; the next run reconciles them against live state"
+        )
+        return 4
+    if result.failed:
+        log("exiting non-zero: some deletions failed outright")
+        return 4
+    unavailable = sum(1 for item in result.skipped if item.get("unavailable"))
+    if unavailable:
+        log(f"exiting non-zero: {unavailable} skip(s) because a safety check could not be read")
+        return 10
+    if untagged:
+        log(f"exiting non-zero: {len(untagged)} keep tag(s) not confirmed; they are re-judged next run")
+        return 8
+    # A week nobody judged must not count as a success, or it resets the staleness alert.
+    if unjudged or rejected:
+        log(f"exiting non-zero: {len(unjudged)} candidate(s) unjudged, {len(rejected)} verdict(s) rejected")
+        return 9
+    return 0
+
+
 def cmd_execute(args: argparse.Namespace) -> int:  # pylint: disable=too-many-locals
     """Apply Claude's recommendations, re-validating every safeguard first."""
     sources = build_sources()
@@ -873,25 +910,7 @@ def cmd_execute(args: argparse.Namespace) -> int:  # pylint: disable=too-many-lo
             f"failed={len(result.failed)} uncertain={len(result.uncertain)} "
             f"keep-tagged={tagged.get('applied', 0)}+{judge_tagged.get('applied', 0)}"
         )
-        # A failed deletion is a safe no-op to retry; an uncertain one is recorded and left,
-        # since a retry could double up on a DELETE that already landed (docs/docs/apps/curator.md).
-        if result.uncertain:
-            log(
-                f"exiting non-zero: {len(result.uncertain)} deletion(s) could not be "
-                "confirmed; the next run reconciles them against live state"
-            )
-            return 4
-        if result.failed:
-            log("exiting non-zero: some deletions failed outright")
-            return 4
-        if untagged:
-            log(f"exiting non-zero: {len(untagged)} keep tag(s) not confirmed; they are re-judged next run")
-            return 8
-        # A week nobody judged must not count as a success, or it resets the staleness alert.
-        if unjudged or rejected:
-            log(f"exiting non-zero: {len(unjudged)} candidate(s) unjudged, {len(rejected)} verdict(s) rejected")
-            return 9
-        return 0
+        return execute_exit_code(result, untagged, unjudged, rejected)
     finally:
         ledger.release_lock()
 

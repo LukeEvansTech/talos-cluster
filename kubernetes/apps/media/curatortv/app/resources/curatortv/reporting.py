@@ -183,6 +183,11 @@ def _problems(blocks: list, result: dict | None, judgement: dict | None) -> list
     )
     if untagged:
         problems.append(f"{untagged} keep tag{'s' if untagged != 1 else ''} not confirmed")
+    unavailable = sum(1 for item in result.get("skipped") or [] if item.get("unavailable"))
+    if unavailable:
+        problems.append(
+            f"{unavailable} deletion{'s' if unavailable != 1 else ''} skipped: a safety check was unavailable"
+        )
     unjudged = len(result.get("unjudged") or [])
     if unjudged:
         problems.append(f"{unjudged} candidate{'s' if unjudged != 1 else ''} came back with no verdict")

@@ -37,6 +37,7 @@ non-zero code and still sends the digest.
 | 7    | the recommendations were judged against a different plan          |
 | 8    | a `keep` tag could not be confirmed on re-read                    |
 | 9    | a candidate came back unjudged, or a verdict was rejected         |
+| 10   | a deletion was skipped because a safety check could not be read   |
 
 `report` exits 6 when the digest could not be delivered.
 
@@ -87,7 +88,8 @@ distinct episodes any one person has finished.
 **A retired show key taints on title alone.** An episode row's `year` is the
 episode's, not the premiere's, so a play behind an unresolvable show key taints
 every series with that title; only a show year from the row's own show metadata
-narrows it.
+narrows it. A Plex item that answers with no TVDB, TMDb or IMDb ID taints the
+same way, and is asked about again next run rather than cached.
 
 **A person's tag stops a deletion.** The live re-check refuses a series that
 gained `cleanup-dismissed`, as well as any veto tag, since the plan.
