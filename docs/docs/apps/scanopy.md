@@ -41,7 +41,7 @@ L2/L3/workload/application diagrams by continuously scanning the infrastructure.
   connects by the name on smtp2graph's Let's Encrypt certificate, and logs in as user `scanopy`
   (password `SCANOPY_SMTP_PASSWORD` in the `scanopy` 1Password item, which the smtp2graph
   ExternalSecret also reads). See [smtp2graph](smtp2graph.md#tls-starttls-offered-not-required):
-  Scanopy cannot send until the relay offers STARTTLS (step 2 there).
+  Scanopy can send only while the relay offers STARTTLS (step 2 there, live since 2026-10-14).
   Until 2026-10-14 email was silently off, because only the relay and from address were set.
 - **SNMP community via ExternalSecret**, mounted read-only at the neutral path
   `/run/secrets/snmp-community`. The community string lives only in 1Password (repository is PUBLIC); the

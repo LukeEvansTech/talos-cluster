@@ -80,7 +80,7 @@ does not cover:
 1. Issue the certificate, move every sender to `smtp.${SECRET_DOMAIN}` with its TLS setting
    unchanged, and put the queue on a PVC (2026-10-14). Scanopy cannot send until step 2.
 2. Mount the certificate and set `secure: false`, `tlsCertPath` and `tlsKeyPath` in the relay
-   config. Opportunistic clients upgrade from here on.
+   config (2026-10-14). Opportunistic clients upgrade from here on.
 3. Require TLS on the senders marked Required.
 
 The queue (`/data`: `queue/`, `temp/`, `failed/`) is on a 1Gi `ceph-block` PVC with a `Recreate`
