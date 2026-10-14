@@ -1,6 +1,6 @@
 ---
-# Publicly trusted, so every client verifies it with stock roots; clients must connect by this
-# name (the Service's external-dns name), not the in-cluster Service name.
+# Publicly trusted, so clients verify it with stock roots. Clients must connect by this name
+# (the Service's external-dns name), not the in-cluster Service name.
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/cert-manager.io/certificate_v1.json
 apiVersion: cert-manager.io/v1
 kind: Certificate

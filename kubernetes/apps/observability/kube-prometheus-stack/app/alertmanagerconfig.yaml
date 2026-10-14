@@ -120,6 +120,7 @@ spec:
         - to: ${SECRET_ACME_EMAIL}
           from: noreply@${SECRET_DOMAIN}
           smarthost: smtp.${SECRET_DOMAIN}:25
+          requireTLS: false
           sendResolved: true
     - name: pushover
       pushoverConfigs:
