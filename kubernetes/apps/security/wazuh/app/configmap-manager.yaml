@@ -22,7 +22,8 @@ data:
 
         <email_notification>yes</email_notification>
         <smtp_server>smtp2graph.infrastructure.svc.cluster.local</smtp_server>
-        <email_from>wazuh@${SECRET_DOMAIN}</email_from>
+        <!-- The shared mailbox itself: smtp2graph refuses any From that is not on its allowedFrom list. -->
+        <email_from>noreply@${SECRET_DOMAIN}</email_from>
         <email_to>${SECRET_ACME_EMAIL}</email_to>
         <email_maxperhour>12</email_maxperhour>
         <email_log_source>alerts.log</email_log_source>

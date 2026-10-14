@@ -88,8 +88,9 @@ strategy. Reloader restarts the pod whenever the certificate Secret changes, and
 `letsencrypt-production` issuer uses the `shortlived` profile (6-day certificates), so that is a
 restart every few days; on an `emptyDir` each one would erase queued and failed mail.
 
-`wazuh@` is not on the global `allowedFrom` list, so Wazuh mail is rejected at `MAIL FROM` until it
-is added as an alias on the shared mailbox and then to the list.
+Wazuh sends as `noreply@` itself. Until 2026-10-14 it sent as `wazuh@`, which is neither an alias
+on the shared mailbox nor on `allowedFrom`, so every alert email was refused at `MAIL FROM` with a
+550 that `wazuh-maild` never logged.
 
 ## References
 
