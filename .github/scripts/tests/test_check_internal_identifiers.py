@@ -15,6 +15,7 @@ from __future__ import annotations
 import importlib.util
 import os
 import shutil
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -24,6 +25,8 @@ SCRIPT = Path(__file__).resolve().parent.parent / "check_internal_identifiers.py
 SPEC = importlib.util.spec_from_file_location("check_internal_identifiers", SCRIPT)
 assert SPEC is not None and SPEC.loader is not None
 guard = importlib.util.module_from_spec(SPEC)
+# dataclasses resolves the module's annotations through sys.modules (Python 3.12-3.14).
+sys.modules[SPEC.name] = guard
 SPEC.loader.exec_module(guard)
 
 # (kind, text): the named pattern must flag the text.
