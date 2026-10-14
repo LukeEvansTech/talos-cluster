@@ -342,10 +342,14 @@ class Tautulli:
         """
         ids: set[tuple[str, str]] = set()
         for key in self.now_playing_show_keys():
+            # A session we cannot tie to a show could be the one about to be deleted.
             meta = self.metadata(key)
             if not meta:
-                continue
-            ids |= guid_ids(meta.get("guids"))
+                raise SourceError(f"show {key} is playing but has no metadata")
+            found = guid_ids(meta.get("guids"))
+            if not found:
+                raise SourceError(f"show {key} is playing but carries no tvdb, tmdb or imdb id")
+            ids |= found
         return ids
 
 

@@ -183,13 +183,24 @@ def build_crosswalk(metadata: dict[int, dict]) -> dict[int, dict]:
 
 
 def _match_rating_keys(show: Show, crosswalk: dict[int, dict]) -> tuple[list[int], str]:
-    """Find the Plex items that are this series, preferring stable identifiers."""
-    for source, own in (("tvdb", show.tvdb_id), ("tmdb", show.tmdb_id), ("imdb", show.imdb_id)):
-        if not own:
-            continue
-        found = [k for k, v in crosswalk.items() if v.get(source) == own]
-        if found:
-            return found, source
+    """Find the Plex items that are this series, preferring stable identifiers.
+
+    Every key that shares an id counts, not just those found by the first scheme:
+    an older key may know the show only by TMDb or IMDb, and dropping it drops its
+    plays. A key naming a *different* id under any scheme is another show.
+    """
+    own = {"tvdb": show.tvdb_id, "tmdb": show.tmdb_id, "imdb": show.imdb_id}
+    found: list[int] = []
+    schemes: set[str] = set()
+    for key, value in crosswalk.items():
+        shared = {s for s, mine in own.items() if mine and value.get(s) == mine}
+        conflict = any(mine and value.get(s) and value.get(s) != mine for s, mine in own.items())
+        if shared and not conflict:
+            found.append(key)
+            schemes |= shared
+    if found:
+        best = next(s for s in ("tvdb", "tmdb", "imdb") if s in schemes)
+        return found, best
 
     # A fallback, not confirmation, since reboots share titles and years drift; a hit
     # is enough to refuse a deletion, not to confirm a match.

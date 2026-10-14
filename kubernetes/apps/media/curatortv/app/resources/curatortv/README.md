@@ -22,6 +22,24 @@ python3 -m curatortv selftest                       # fixture tests, no network
 python3 -m curatortv.provision                      # show decision-tag changes
 ```
 
+## Exit codes
+
+`execute` exits non-zero for anything that should not read as a successful week,
+which is what the staleness alert keys on. The CronJob's shell keeps the first
+non-zero code and still sends the digest.
+
+| Code | Meaning                                                           |
+| ---- | ----------------------------------------------------------------- |
+| 2    | the plan recorded blocking issues                                 |
+| 3    | another run holds the execute lock                                |
+| 4    | a deletion failed or could not be confirmed                       |
+| 5    | refused: `--read-only` in act mode, or a stale or wrong-mode plan |
+| 7    | the recommendations were judged against a different plan          |
+| 8    | a `keep` tag could not be confirmed on re-read                    |
+| 9    | a candidate came back unjudged, or a verdict was rejected         |
+
+`report` exits 6 when the digest could not be delivered.
+
 ## The one deliberate deviation: `keep` is written in a dry run
 
 The film engine writes nothing at all in a dry run. This one adds the `keep`
@@ -57,9 +75,11 @@ had a chance to watch. The history-coverage check still uses the series' first
 import: old seasons were watchable too, and their plays have to be visible.
 
 **Viewing is counted in episodes.** Tautulli episode rows are joined to a series
-by `grandparent_rating_key`, the show's own Plex item, and that key is resolved
-to TVDB, then TMDb, then IMDb IDs, with the same title-and-year fallback,
-retired-key taint and ambiguity rules as the film engine. A person counts as a
+by `grandparent_rating_key`, the show's own Plex item. Every key sharing any
+TVDB, TMDb or IMDb ID with the series counts, since an older key may know it by
+only one of them; a key naming a different ID under any scheme is another show.
+The title-and-year fallback (used only when no ID matches), retired-key taint and
+ambiguity rules are as in the film engine. A person counts as a
 viewer once they finish (85%+) one episode; two viewers send the series to a
 person, mirroring two completers for a film. `episodes_completed` is the most
 distinct episodes any one person has finished.
@@ -68,6 +88,9 @@ distinct episodes any one person has finished.
 episode's, not the premiere's, so a play behind an unresolvable show key taints
 every series with that title; only a show year from the row's own show metadata
 narrows it.
+
+**A person's tag stops a deletion.** The live re-check refuses a series that
+gained `cleanup-dismissed`, as well as any veto tag, since the plan.
 
 **New episodes stop a deletion.** Immediately before each delete, the series'
 import history and episode-file count are re-read; anything imported after the

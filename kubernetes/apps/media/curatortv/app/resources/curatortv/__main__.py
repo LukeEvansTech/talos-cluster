@@ -887,6 +887,10 @@ def cmd_execute(args: argparse.Namespace) -> int:  # pylint: disable=too-many-lo
         if untagged:
             log(f"exiting non-zero: {len(untagged)} keep tag(s) not confirmed; they are re-judged next run")
             return 8
+        # A week nobody judged must not count as a success, or it resets the staleness alert.
+        if unjudged or rejected:
+            log(f"exiting non-zero: {len(unjudged)} candidate(s) unjudged, {len(rejected)} verdict(s) rejected")
+            return 9
         return 0
     finally:
         ledger.release_lock()

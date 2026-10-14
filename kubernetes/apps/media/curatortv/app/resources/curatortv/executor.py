@@ -14,7 +14,7 @@ from typing import Any
 
 from .clients import Sonarr, SourceError, Tautulli, find_request, guid_ids
 from .evidence import COMPLETION_PERCENT, IMPORT_EVENT
-from .model import VETO_TAGS, Assessment, Show, utc
+from .model import TAG_HUMAN_DISMISSED, VETO_TAGS, Assessment, Show, utc
 
 # Below this a reason cannot name anything specific to the show.
 MIN_REASON_LENGTH = 12
@@ -155,7 +155,7 @@ def revalidate(
         return False, "series is no longer in Sonarr", None
 
     labels = {tag_labels.get(t, str(t)) for t in live.get("tags", [])}
-    vetoes = sorted(labels & VETO_TAGS)
+    vetoes = sorted(labels & (VETO_TAGS | {TAG_HUMAN_DISMISSED}))
     if vetoes:
         return False, f"protection tag added since planning: {', '.join(vetoes)}", live
 

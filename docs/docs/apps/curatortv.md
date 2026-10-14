@@ -17,7 +17,7 @@ The engine lives in `kubernetes/apps/media/curatortv/app/resources/curatortv/`, 
   first import; a continuing series' window runs from the newest episode's first import, so a new
   season gets a full window.
 - **Viewing:** Tautulli episode rows joined by the show's rating key (`grandparent_rating_key`),
-  resolved to TVDB, then TMDb, then IMDb. A viewer is someone who finished at least one episode;
+  counting every key that shares a TVDB, TMDb or IMDb id and none that conflicts. A viewer is someone who finished at least one episode;
   two viewers send the series to a person.
 - **Provenance:** Kometa's tags (`FEED_TAGS`, default `kometa`) mark a feed add, since Sonarr here
   has no import lists. Seerr requests match on TVDB id, then TMDb.
