@@ -35,18 +35,13 @@ L2/L3/workload/application diagrams by continuously scanning the infrastructure.
   is a JVM-only workaround (Java's strict TLS verifier) and does not apply to Scanopy's Rust client.
   Hardening path is `verify-full` with a mounted `ca.crt` + `sslrootcert`; never drop to `disable`.
 - **Auth: built-in password login.** No OIDC/SSO in v1; first run creates the admin in the UI.
-- **SMTP: internal relay through a loopback TLS sidecar.** Scanopy's mailer (lettre) only speaks
-  implicit TLS on 465 or required STARTTLS, always sends AUTH, and enables email only when
-  relay, username, password and from address are all set. smtp2graph offers no TLS on port 25, and
-  turning on STARTTLS there would push clients that upgrade opportunistically (Alertmanager,
-  nodemailer) onto a certificate they do not trust. So a `smtp-tls` socat sidecar listens on
-  `127.0.0.1:465` with a leaf from a private cert-manager CA (`certificate.yaml`) and forwards plain
-  SMTP to `smtp2graph.infrastructure.svc.cluster.local:25`. Scanopy trusts the CA through
-  `SCANOPY_TRUSTED_CA_BUNDLE=/tls/ca.crt`. It logs in to smtp2graph as user `scanopy`, whose
-  password is `SCANOPY_SMTP_PASSWORD` in the `scanopy` 1Password item; the smtp2graph
-  ExternalSecret reads the same field. The user's own `allowedFrom` limits it to the `scanopy@`
-  alias; login stays optional for every other sender. Until 2026-10-14 email was silently off,
-  because only the relay and from address were set.
+- **SMTP: smtp2graph at `smtp.${SECRET_DOMAIN}:25` with STARTTLS and a login.** Scanopy's mailer
+  (lettre) uses implicit TLS on 465 and requires STARTTLS on any other port, always sends AUTH,
+  and enables email only when relay, username, password and from address are all set. So it
+  connects by the name on smtp2graph's Let's Encrypt certificate, and logs in as user `scanopy`
+  (password `SCANOPY_SMTP_PASSWORD` in the `scanopy` 1Password item, which the smtp2graph
+  ExternalSecret also reads). See [smtp2graph](smtp2graph.md#tls-starttls-offered-not-required).
+  Until 2026-10-14 email was silently off, because only the relay and from address were set.
 - **SNMP community via ExternalSecret**, mounted read-only at the neutral path
   `/run/secrets/snmp-community`. The community string lives only in 1Password (repository is PUBLIC); the
   credential is then configured in the UI pointing at that file.

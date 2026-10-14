@@ -48,6 +48,32 @@ LoadBalancer VIP the NMC fleet sends through. `primary: true` does not opt out o
 confirmed against the chart schema and by rendering it. PR #4407 fixed it by dropping the second
 Service: the sidecar declares a named container port and `PodMonitor` scrapes the pod directly.
 
+## TLS: STARTTLS offered, not required
+
+Since 2026-10-14 the relay offers STARTTLS on port 25 with a Let's Encrypt certificate for
+`smtp.${SECRET_DOMAIN}` (`certificate.yaml`), the LoadBalancer's external-dns name. The certificate
+is publicly trusted, so clients verify it with their stock roots and nobody distributes a private CA.
+That only works if the client connects by that name: a client pointed at
+`smtp2graph.infrastructure.svc.cluster.local` gets a name mismatch, and a client that upgrades
+opportunistically (nodemailer, Alertmanager by default) then fails to send.
+
+| Sender | TLS | How |
+| --- | --- | --- |
+| Alertmanager (`email` receiver) | Required | `requireTLS` default (true) |
+| pocket-id | Required | `SMTP_TLS: starttls` |
+| tandoor | Required | `EMAIL_USE_TLS: "1"` |
+| scanopy | Required | lettre always requires it on any port but 465; it also logs in as user `scanopy` |
+| epicgames | Opportunistic | nodemailer upgrades whenever STARTTLS is offered |
+| wazuh (`wazuh-maild`) | None | maild cannot do TLS |
+| NMC fleet (apc-fleet) | None | `EmailServerSSLMode=none`; the firmware could do STARTTLS later |
+| delivery canary | None | loopback inside the pod |
+
+TLS stays optional (`secure: false`) because of the last three rows. Login stays optional too
+(`requireAuth` unset); the one user, `scanopy`, exists because Scanopy's mailer always sends AUTH.
+Its password is `SCANOPY_SMTP_PASSWORD` in the `scanopy` 1Password item, and its own `allowedFrom`
+limits it to `scanopy@`. `wazuh@` is not on the global `allowedFrom` list, so Wazuh mail is rejected
+at `MAIL FROM` until it is added as an alias on the shared mailbox and then to the list.
+
 ## References
 
 - `kubernetes/apps/infrastructure/smtp2graph/app/helmrelease.yaml`, the metrics sidecar and canary

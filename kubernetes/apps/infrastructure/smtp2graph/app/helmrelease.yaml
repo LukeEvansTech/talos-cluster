@@ -130,6 +130,18 @@ spec:
               - path: /secrets/client.key
                 subPath: client.key
                 readOnly: true
+      tls:
+        type: secret
+        name: smtp2graph-tls
+        advancedMounts:
+          smtp2graph:
+            app:
+              - path: /secrets/tls.crt
+                subPath: tls.crt
+                readOnly: true
+              - path: /secrets/tls.key
+                subPath: tls.key
+                readOnly: true
       exporter:
         type: configMap
         name: smtp2graph-exporter
