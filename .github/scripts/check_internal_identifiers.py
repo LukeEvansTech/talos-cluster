@@ -107,7 +107,6 @@ BENIGN = (
 ALLOWLIST: dict[str, str] = {
     "talos/**": "Talos machine config",
     "kubernetes/apps/infrastructure/certwarden/cert-deployment/**": "device cert deployment",
-    ".github/workflows/image-pull.yaml": "talosctl --nodes in CI",
     ".github/scripts/tests/test_check_internal_identifiers.py": "synthetic pattern test fixtures",
     "kubernetes/apps/default/shlink/app/helmrelease.yaml": "RFC1918 blocks (DISABLE_TRACKING_FROM)",
     "kubernetes/apps/home/homeassistant/app/helmrelease.yaml": "trusted-proxy IP + multus MAC",

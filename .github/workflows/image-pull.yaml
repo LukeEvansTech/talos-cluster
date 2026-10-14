@@ -169,9 +169,21 @@ jobs:
         env:
           IMAGE: ${{ matrix.image }}
         run: |
-          echo "Pulling image: $IMAGE"
-          talosctl image pull "$IMAGE" \
-            --nodes 10.32.8.80,10.32.8.81,10.32.8.82 \
+          # Nodes come from Talos discovery (127.0.0.1 = the apid the endpoint reached), masked
+          # because run logs are public; see docs/docs/apps/actions-runner-controller.md.
+          ADDRS=$(talosctl get members --nodes 127.0.0.1 --talosconfig ~/.talos/config \
+            -o jsonpath='{.spec.addresses[0]}')
+          mapfile -t NODES < <(printf '%s\n' "${ADDRS}" | awk 'NF')
+          if [ "${#NODES[@]}" -eq 0 ]; then
+            echo "::error::Talos discovery returned no cluster members"
+            exit 1
+          fi
+          for node in "${NODES[@]}"; do
+            echo "::add-mask::${node}"
+          done
+          echo "Pulling image: ${IMAGE} on ${#NODES[@]} nodes"
+          talosctl image pull "${IMAGE}" \
+            --nodes "$(IFS=,; echo "${NODES[*]}")" \
             --talosconfig ~/.talos/config
 
   success:
