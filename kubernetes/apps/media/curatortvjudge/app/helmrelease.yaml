@@ -1,0 +1,216 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: curatortvjudge
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: curatortvjudge
+  values:
+    controllers:
+      # Three steps (prompt, ask, act) keep the least-trusted part of the pipeline small: only
+      # 'ask' talks to Claude, holding no credential but the OAuth token. The executor re-checks
+      # every protection live, so a hostile answer can only choose among series already cleared.
+      curatortvjudge:
+        type: cronjob
+        cronjob:
+          ttlSecondsAfterFinished: 86400
+          # Half an hour after curatortv, and an hour after curatorjudge so the two never overlap.
+          schedule: "30 9 * * 6"
+          timeZone: "${TIMEZONE}"
+          concurrencyPolicy: Forbid
+          successfulJobsHistory: 3
+          failedJobsHistory: 3
+          # Never retry: this pipeline ends in DELETEs, and a retry would re-run judgement against
+          # an already-acted plan (docs/docs/apps/curatorjudge.md).
+          backoffLimit: 0
+          activeDeadlineSeconds: 3600
+        pod:
+          automountServiceAccountToken: false
+        initContainers:
+          # 1. Plan -> prompt. Refuses a stale or blocked plan, or one with nothing to judge,
+          #    leaving a marker so later steps skip paying for a rejected judgement.
+          prompt:
+            image: &python
+              repository: docker.io/library/python
+              tag: 3.15-alpine@sha256:1afb480ba8d3b3b7a8439a84f2365ce5c75ac45a79cf07daa091b49235cbe27b
+            command:
+              - python3
+              - /prompt/build_prompt.py
+            env: &pythonEnv
+              PYTHONDONTWRITEBYTECODE: "1"
+              PYTHONUNBUFFERED: "1"
+              TZ: "${TIMEZONE}"
+            resources: &small
+              requests:
+                cpu: 10m
+                memory: 64Mi
+              limits:
+                memory: 256Mi
+            securityContext: &hardened
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop:
+                  - ALL
+          # 2. Ask Claude. No public Anthropic image exists, so the CLI installs at start-up into a
+          #    writable /tmp prefix (root filesystem is read-only); version pinned, visible in git.
+          judge:
+            # The chart falls back to alphabetical key order for initContainers, so without this
+            # `judge` ran before `prompt` existed, every time.
+            dependsOn: prompt
+            image:
+              repository: docker.io/library/node
+              tag: 24-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1
+            command:
+              - /bin/sh
+              - -c
+              # $${VAR} survives Flux postBuild substitution; a bare ${VAR}
+              # would be replaced with an empty string before the pod ever runs.
+              - |
+                set -u
+                if [ -f /work/skip ]; then
+                  echo "skipping: $$(cat /work/skip)"
+                  exit 0
+                fi
+                # A judgement this step cannot obtain is recorded and reported,
+                # not allowed to kill the pod before the digest is sent. The run
+                # deletes nothing, so the week's report is worth more than the
+                # judgement it is missing.
+                fail() {
+                  echo "$$1" >&2
+                  printf '%s' "$$1" > /work/judge-failed
+                  exit 0
+                }
+                npm install -g --silent --prefix /tmp/npm \
+                  "@anthropic-ai/claude-code@$${CLAUDE_CODE_VERSION}" \
+                  || fail "could not install the CLI"
+                # One turn, every tool denied. This is a single structured
+                # judgement, not an agent: it has no business reaching a
+                # filesystem or a network.
+                /tmp/npm/bin/claude -p \
+                  --output-format json \
+                  --max-turns 1 \
+                  --model "$${JUDGE_MODEL}" \
+                  --disallowed-tools "Bash,Read,Write,Edit,Glob,Grep,WebFetch,WebSearch,Task,NotebookEdit" \
+                  < /work/prompt.txt > /work/claude.json \
+                  || fail "claude -p exited non-zero"
+            env:
+              CLAUDE_CODE_VERSION: "2.1.269"
+              JUDGE_MODEL: claude-opus-5
+              # The CLI writes its own state; both must be writable and both
+              # live on the emptyDir that dies with the pod.
+              HOME: /tmp/claude-home
+              npm_config_cache: /tmp/npm-cache
+              TZ: "${TIMEZONE}"
+            envFrom:
+              - secretRef:
+                  name: curatortvjudge-token
+            resources:
+              requests:
+                cpu: 50m
+                memory: 256Mi
+              limits:
+                memory: 1Gi
+            securityContext: *hardened
+        containers:
+          # 3. Validate the answer, apply what the engine still agrees with, then send the digest.
+          #    Exits non-zero if any step failed, so the Job surfaces it, not a false success.
+          app:
+            image: *python
+            command:
+              - /bin/sh
+              - -c
+              - |
+                set -u
+                rc=0
+                keep() { [ "$$rc" -eq 0 ] && rc="$$1"; return 0; }
+
+                python3 /prompt/read_verdicts.py || keep $$?
+                python3 -m curatortv execute \
+                  --plan /state/cleanup-plan/plan.json \
+                  --recommendations /state/cleanup-plan/recommendations.json \
+                  --out /state/cleanup-plan/result.json \
+                  --read-only || keep $$?
+                # The digest is the entire output of a read-only run, so it goes
+                # out whatever the steps above did. Its own failure earns a red
+                # Job: an undelivered digest is indistinguishable, from the
+                # phone, from a week in which nothing ran at all.
+                python3 -m curatortv report \
+                  --plan /state/cleanup-plan/plan.json \
+                  --result /state/cleanup-plan/result.json \
+                  --judgement /state/cleanup-plan/judgement.json \
+                  --out /state/cleanup-plan/report.md || keep $$?
+                exit "$$rc"
+            env:
+              <<: *pythonEnv
+              PYTHONPATH: /app
+              SONARR_URL: http://sonarr.media.svc.cluster.local
+              TAUTULLI_URL: http://tautulli.media.svc.cluster.local
+              SEERR_URL: http://seerr.media.svc.cluster.local
+              LEDGER_DIR: /state/ledger
+              CLEANUP_SCOPE_START: "2026-03-01"
+              # Must match curatortv's mode (ledger namespaces dry-run state separately); --read-only
+              # above enforces the same rule independently, so acting needs two deliberate edits.
+              CLEANUP_MODE: dry-run
+              # Reclaimerr spares anything tagged keep, so keeps are written even in a dry run;
+              # deletion stays off (docs/docs/apps/curatortvjudge.md).
+              TAG_KEEPS_IN_DRY_RUN: "true"
+              FEED_TAGS: kometa
+              # Fans out to Pushover. The route verifies its own token, which
+              # is why the digest carries one. The title says TV, which tells it from curatorjudge.
+              CLEANUP_WEBHOOK_URL: http://chaski.default.svc.cluster.local:8080/hooks/library-cleanup
+            envFrom:
+              - secretRef:
+                  name: curatortvjudge-secret
+            resources: *small
+            securityContext: *hardened
+    defaultPodOptions:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+    persistence:
+      prompt:
+        type: configMap
+        name: curatortvjudge-prompt
+        defaultMode: 0555
+        globalMounts:
+          - path: /prompt
+            readOnly: true
+      # Owned by the curatortv app; mounted here to run execute.
+      code:
+        type: configMap
+        name: curatortv-code
+        globalMounts:
+          - path: /app/curatortv
+            readOnly: true
+      # Deliberately not a globalMount: the judge never sees this volume. With write access it
+      # could rewrite plan.json to add a protected series to `candidates`, which the executor's live
+      # re-checks don't cover; the prompt builder gets it read-only, only the executor writes.
+      state:
+        existingClaim: curatortv
+        advancedMounts:
+          curatortvjudge:
+            prompt:
+              - path: /state
+                readOnly: true
+            app:
+              - path: /state
+      # Hand-off between the three steps, and the only writable place the judge
+      # has: npm prefix, npm cache and the CLI's own state all land here.
+      work:
+        type: emptyDir
+        globalMounts:
+          - path: /work
+      tmp:
+        type: emptyDir
+        globalMounts:
+          - path: /tmp
