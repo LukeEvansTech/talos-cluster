@@ -192,6 +192,14 @@ class FakeSonarr:  # pylint: disable=too-many-instance-attributes
             "recycleBin": "/recycle",
             "recycleBinCleanupDays": 14,
         }
+        self.import_history: dict[int, list[dict]] = {}
+        self.import_history_error: Exception | None = None
+
+    def series_import_history(self, series_id: int) -> list[dict]:
+        """Import events for one series, or the injected failure."""
+        if self.import_history_error:
+            raise self.import_history_error
+        return self.import_history.get(series_id, [])
 
     def series(self, series_id: int):
         """One live series record, or None once deleted.

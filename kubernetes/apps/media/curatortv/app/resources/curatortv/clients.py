@@ -177,6 +177,16 @@ class Sonarr:
             page += 1
         return events
 
+    def series_import_history(self, series_id: int) -> list[dict]:
+        """Import events for one series, re-read immediately before deleting it."""
+        data = self.http.get_json(
+            f"/api/v3/history/series?seriesId={series_id}&eventType=3",
+            self.headers,
+        )
+        if not isinstance(data, list):
+            raise SourceError("series history endpoint did not return a list")
+        return data
+
     def history_horizon(self) -> str | None:
         """Date of the oldest retained history row.
 

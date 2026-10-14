@@ -215,11 +215,16 @@ def _episode_identity(row: dict):
 
 
 def _row_matches(row: dict, show: Show) -> bool:
-    """Whether an unattributed play could belong to this series."""
+    """Whether an unattributed play could belong to this series.
+
+    Matched on the show title alone. An episode row's ``year`` is the episode's,
+    so comparing it with the premiere year let every later-season play escape;
+    only a show year carried by the row's own show metadata may narrow the match.
+    """
     title = row.get("grandparent_title") or row.get("title") or row.get("full_title")
     if normalise_title(title) != normalise_title(show.title):
         return False
-    year = row.get("year")
+    year = row.get("grandparent_year")
     return show.year is None or not str(year or "").isdigit() or abs(int(str(year)) - show.year) <= 1
 
 

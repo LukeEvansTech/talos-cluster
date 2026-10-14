@@ -21,6 +21,8 @@ The engine lives in `kubernetes/apps/media/curatortv/app/resources/curatortv/`, 
   two viewers send the series to a person.
 - **Provenance:** Kometa's tags (`FEED_TAGS`, default `kometa`) mark a feed add, since Sonarr here
   has no import lists. Seerr requests match on TVDB id, then TMDb.
+- **Late arrivals:** each deletion re-reads the series' import history and episode-file count, and
+  skips a series that gained anything since the plan.
 - **No collections:** collection protection and `siblings_owned` are gone.
 - **Scope:** `upcoming` series are out of scope.
 - **Keep tags in a dry run:** with `TAG_KEEPS_IN_DRY_RUN=true` the executor adds `keep` to
@@ -46,3 +48,9 @@ Uncalibrated starting points, like the film engine's.
 
 `curatortv` runs Saturdays at 09:00 and `curatortvjudge` at 09:30, an hour after the film pair
 (08:00 / 08:30), so the two never walk Tautulli's history at the same time.
+
+## Alerting
+
+`CuratortvPlanStale` and `CuratortvjudgeStale` (each app's `prometheusrule.yaml`) fire when the
+CronJob has not succeeded in 8 days, the GickupBackupStale shape with a creation-time fallback. The
+film pair has no equivalent alert.

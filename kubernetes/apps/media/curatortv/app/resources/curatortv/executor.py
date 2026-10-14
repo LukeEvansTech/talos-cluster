@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from .clients import Sonarr, SourceError, Tautulli, find_request, guid_ids
-from .evidence import COMPLETION_PERCENT
+from .evidence import COMPLETION_PERCENT, IMPORT_EVENT
 from .model import VETO_TAGS, Assessment, Show, utc
 
 # Below this a reason cannot name anything specific to the show.
@@ -171,6 +171,34 @@ def revalidate(
     return True, "all protections re-checked against live state", live
 
 
+def new_content_block(
+    series_id: int,
+    sonarr: Sonarr,
+    live: dict,
+    since: datetime | None,
+    planned_files: int | None,
+) -> str | None:
+    """Whether the series gained episodes after the plan was made.
+
+    A new episode restarts a continuing show's window, and nothing else in the
+    live re-checks sees one arrive. Any import after the plan counts, upgrades
+    included: refusing a series for a week costs nothing, deleting a new season
+    the day it lands does.
+    """
+    if since is None:
+        return "cannot tell whether episodes arrived since the plan"
+    files = int((live.get("statistics") or {}).get("episodeFileCount") or 0)
+    if planned_files is not None and files > planned_files:
+        return f"episodes on disk grew from {planned_files} to {files} since the plan"
+    for event in sonarr.series_import_history(series_id):
+        if event.get("eventType") != IMPORT_EVENT:
+            continue
+        when = utc(event.get("date"))
+        if when is None or when > since:
+            return "an episode was imported since the plan was made"
+    return None
+
+
 def late_evidence(tautulli, seerr, crosswalk: dict[int, dict] | None, since: datetime | None):
     """Re-read the two things that change outside Sonarr, at execution time.
 
@@ -299,8 +327,12 @@ def execute(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     seerr=None,
     crosswalk: dict[int, dict] | None = None,
     planned_at: datetime | None = None,
+    planned_files: dict[int, int] | None = None,
 ) -> ExecutionResult:
-    """Delete the approved series, re-validating each one first."""
+    """Delete the approved series, re-validating each one first.
+
+    ``planned_files`` is each series' episode-file count as the plan saw it.
+    """
     result = ExecutionResult()
 
     # Recoverability is a precondition of deleting, and the plan's copy of it can
@@ -358,11 +390,21 @@ def execute(  # pylint: disable=too-many-arguments,too-many-positional-arguments
 
         try:
             ok, why, live = revalidate(show.series_id, sonarr, tag_labels, now_playing)
+            grown = (
+                new_content_block(
+                    show.series_id, sonarr, live or {}, planned_at, (planned_files or {}).get(show.series_id)
+                )
+                if ok
+                else None
+            )
         except SourceError as exc:
             result.skipped.append({**record, "why": f"could not re-read live state: {exc}"})
             continue
         if not ok:
             result.skipped.append({**record, "why": why})
+            continue
+        if grown:
+            result.skipped.append({**record, "why": grown})
             continue
 
         # Last, the check closest in time to the delete; run in dry-run too, or a report

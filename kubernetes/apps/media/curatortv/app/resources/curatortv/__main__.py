@@ -244,7 +244,8 @@ def resolve_identities(
             "tmdb": None,
             "imdb": None,
             "title": sample.get("grandparent_title"),
-            "year": sample.get("year"),
+            # An episode row's own year is the episode's, not the show's.
+            "year": sample.get("grandparent_year"),
             "unresolved": True,
         }
         (retired if answered else unreachable)[key] = entry
@@ -640,10 +641,22 @@ def apply_keep_tags(  # pylint: disable=too-many-arguments
     tag_id = tags[TAG_KEEP]
 
     status, _ = sonarr.add_tag(series_ids, tag_id)
+    # Confirmed per series by re-reading, whatever the status said: a keep counted
+    # as applied when it never landed is recorded as settled and never retried.
     wanted = set(series_ids)
-    applied = sum(1 for s in sonarr.all_series() if s["id"] in wanted and tag_id in s.get("tags", []))
+    confirmed = sorted(s["id"] for s in sonarr.all_series() if s["id"] in wanted and tag_id in s.get("tags", []))
+    unconfirmed = sorted(wanted - set(confirmed))
     note = "applied in a dry run (TAG_KEEPS_IN_DRY_RUN)" if dry_run else "applied"
-    return {"requested": len(series_ids), "applied": applied, "withdrawn": withdrawn, "http": status, "note": note}
+    if unconfirmed:
+        note = f"HTTP {status}; {len(unconfirmed)} not confirmed on re-read"
+    return {
+        "requested": len(series_ids),
+        "applied": len(confirmed),
+        "withdrawn": withdrawn,
+        "http": status,
+        "note": note,
+        "unconfirmed": unconfirmed,
+    }
 
 
 def plan_refusal(plan: dict, run_mode: str, now: datetime) -> str | None:
@@ -679,8 +692,12 @@ def record_judge_decisions(
     tag_labels: dict[int, str],
     ledger: Ledger,
     run_id: str,
+    unconfirmed: set[int] | frozenset[int] = frozenset(),
 ) -> list[dict]:
     """Persist what the judge decided, and collect what it sent to a person.
+
+    A keep whose tag could not be confirmed is not recorded, so next week judges
+    and tags it again rather than treating it as settled.
 
     Returns the escalations, because the plan's review list was written before
     judgement: without carrying them out of here, a series the judge deliberately
@@ -690,6 +707,8 @@ def record_judge_decisions(
     escalated: list[dict] = []
     for item in accepted:
         if item["verdict"] not in ("keep", "review") or item["series_id"] not in series:
+            continue
+        if item["verdict"] == "keep" and item["series_id"] in unconfirmed:
             continue
         show = to_show(series[item["series_id"]], tag_labels)
         if item["verdict"] == "review":
@@ -823,9 +842,17 @@ def cmd_execute(args: argparse.Namespace) -> int:  # pylint: disable=too-many-lo
             seerr=sources.seerr,
             crosswalk=ledger.read_crosswalk(),
             planned_at=utc(plan.get("generated_at")),
+            planned_files={
+                sid: int(item["episode_file_count"])
+                for sid, item in by_id.items()
+                if isinstance(item.get("episode_file_count"), int)
+            },
         )
 
-        escalated = record_judge_decisions(accepted, series, by_id, tag_labels, ledger, sources.run_id)
+        untagged = set(tagged.get("unconfirmed") or []) | set(judge_tagged.get("unconfirmed") or [])
+        escalated = record_judge_decisions(
+            accepted, series, by_id, tag_labels, ledger, sources.run_id, unconfirmed=untagged
+        )
         summary = {
             "run_id": sources.run_id,
             # Separate CronJobs generate their own run ids; this ties the result back to
@@ -857,6 +884,9 @@ def cmd_execute(args: argparse.Namespace) -> int:  # pylint: disable=too-many-lo
         if result.failed:
             log("exiting non-zero: some deletions failed outright")
             return 4
+        if untagged:
+            log(f"exiting non-zero: {len(untagged)} keep tag(s) not confirmed; they are re-judged next run")
+            return 8
         return 0
     finally:
         ledger.release_lock()

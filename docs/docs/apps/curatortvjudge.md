@@ -37,7 +37,8 @@ every decision made here.
   after the usual 180 days unless a person removes the tag.
 
 The result file reports both writes as `keep_tags_added` and `judge_keeps_tagged`, and the digest
-lists them.
+lists them. Each tag is confirmed by re-reading the series: a keep whose tag did not land is not
+recorded as a decision, so it is retried next week, and the run exits non-zero.
 
 ## Shared credentials
 

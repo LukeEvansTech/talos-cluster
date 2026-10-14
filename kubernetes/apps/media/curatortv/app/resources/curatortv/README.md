@@ -38,7 +38,10 @@ in a dry run or under `--read-only`, exactly as in the film engine.
 
 A judge `keep` is therefore permanent rather than a 180-day spare: once tagged,
 the series is an absolute veto until a person removes the tag. The result file
-reports both writes, as `keep_tags_added` (rating bar) and `judge_keeps_tagged`.
+reports both writes, as `keep_tags_added` (rating bar) and `judge_keeps_tagged`. Each
+tag is confirmed by re-reading the series; a judge keep whose tag cannot be
+confirmed is not recorded as a decision, so it is judged and tagged again next
+run, and the run exits non-zero.
 
 ## What changes for a series
 
@@ -60,6 +63,15 @@ retired-key taint and ambiguity rules as the film engine. A person counts as a
 viewer once they finish (85%+) one episode; two viewers send the series to a
 person, mirroring two completers for a film. `episodes_completed` is the most
 distinct episodes any one person has finished.
+
+**A retired show key taints on title alone.** An episode row's `year` is the
+episode's, not the premiere's, so a play behind an unresolvable show key taints
+every series with that title; only a show year from the row's own show metadata
+narrows it.
+
+**New episodes stop a deletion.** Immediately before each delete, the series'
+import history and episode-file count are re-read; anything imported after the
+plan, or more files than the plan saw, skips the series this week.
 
 **Provenance comes from Kometa tags.** Sonarr here has no import lists. A series
 is `feed` when it carries any tag in `FEED_TAGS` (default `kometa`), `requested`

@@ -178,6 +178,11 @@ def _problems(blocks: list, result: dict | None, judgement: dict | None) -> list
         count = len(result.get(key) or [])
         if count:
             problems.append(f"{count} deletion{'s' if count != 1 else ''} {key}")
+    untagged = sum(
+        len((result.get(key) or {}).get("unconfirmed") or []) for key in ("keep_tags_added", "judge_keeps_tagged")
+    )
+    if untagged:
+        problems.append(f"{untagged} keep tag{'s' if untagged != 1 else ''} not confirmed")
     unjudged = len(result.get("unjudged") or [])
     if unjudged:
         problems.append(f"{unjudged} candidate{'s' if unjudged != 1 else ''} came back with no verdict")
