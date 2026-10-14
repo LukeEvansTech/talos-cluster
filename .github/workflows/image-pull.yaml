@@ -170,9 +170,12 @@ jobs:
           IMAGE: ${{ matrix.image }}
         run: |
           # Target every member Talos discovery knows, so node IPs stay out of this public repo.
-          # The minted talosconfig sets only the in-cluster endpoint, never `nodes`. Each address
-          # is masked: talosctl prefixes its output with the node, and run logs are public.
-          ADDRS=$(talosctl get members --talosconfig ~/.talos/config -o jsonpath='{.spec.addresses[0]}')
+          # The minted talosconfig sets only the in-cluster endpoint, never `nodes`, and `get`
+          # refuses to run without one. Node 127.0.0.1 makes apid on whichever node the endpoint
+          # reached answer for itself. Each address is masked: talosctl prefixes its output with
+          # the node, and run logs are public.
+          ADDRS=$(talosctl get members --nodes 127.0.0.1 --talosconfig ~/.talos/config \
+            -o jsonpath='{.spec.addresses[0]}')
           mapfile -t NODES < <(printf '%s\n' "${ADDRS}" | awk 'NF')
           if [ "${#NODES[@]}" -eq 0 ]; then
             echo "::error::Talos discovery returned no cluster members"

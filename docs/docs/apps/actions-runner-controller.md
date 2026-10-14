@@ -110,8 +110,10 @@ untrusted PR code is never scheduled onto it.
 
 The minted `talosconfig` names only the in-cluster `talos.default` endpoint, never `nodes`, so the
 image-pull job lists its targets at run time with `talosctl get members` and masks each address
-before `talosctl` prints it. No node address lives in the workflow, and adding a node needs no
-workflow change.
+before `talosctl` prints it. That query passes `--nodes 127.0.0.1`, because `talosctl get` refuses
+to run without a node: `apid` on whichever node the endpoint reached dials its own loopback and
+answers for itself. No node address lives in the workflow, and adding a node needs no workflow
+change.
 
 ## packer: pinned to a digest
 
