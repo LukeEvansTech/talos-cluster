@@ -7,9 +7,10 @@ MongoDB (`yourspotify-mongodb`) whose data lives on the `yourspotify` PVC (VolSy
 
 MongoDB only upgrades one release line at a time, and each step needs the
 `featureCompatibilityVersion` (FCV) raised by hand before the next one: 6.0 → 7.0 → 8.0. A binary
-started on data whose FCV is two lines behind refuses to start. Two MongoDB rules in
-`.renovaterc.json5` keep minor and major bumps manual, so only patches auto-merge, and give each
-release line its own PR so no step gets skipped.
+started on data whose FCV is two lines behind refuses to start. MongoDB rules in
+`.renovaterc.json5` keep minor and major bumps manual, so only patches auto-merge, give each
+release line its own PR so no step gets skipped, and offer only major lines (`X.0.y`), never the
+8.2-style minor track.
 
 The image tag is a plain version such as `8.0.32`, not a distribution-suffixed one such as `6.0.4-focal`:
 the suffix ties the tag to one Ubuntu release, and when upstream moved to a newer base the
