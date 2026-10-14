@@ -6,6 +6,7 @@ resources:
   - ./scrapeconfig.yaml
   - ./grafanadashboard.yaml
   - ./prometheusrule.yaml
+  - ./br-storage.prometheusrule.yaml
 configMapGenerator:
   - name: truenas-zfs-dashboard
     files:
