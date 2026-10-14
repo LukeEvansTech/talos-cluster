@@ -29,9 +29,14 @@ Secrets never live in Git. They flow:
   `cluster-secrets` 1Password item, not in `cluster-settings`.
 - A CI guard (`.github/scripts/check_internal_identifiers.py`, run by the security-scans workflow)
   fails any pull request that introduces a LAN IP, node name, site-prefixed device hostname
-  (`cr-*` / `sw-*`), MAC address, or internal hostname (`.lan` / `.internal`) outside a small
-  allowlist of accepted functional configs. Device models are intentionally not enumerated in the
-  script to avoid self-disclosure in this public repository.
+  (`cr-*` / `sw-*`), MAC address, or internal hostname (`.lan` / `.internal`) that its allowlist of
+  accepted functional configs doesn't cover. Each allowlist entry is an `Allow(path glob, kinds,
+  reason, contains=… | regex=…)`: it accepts only the named kinds, only on lines containing that
+  literal or matching that regex, which describes the line's shape or YAML key and never the value.
+  Any other identifier in the same file still fails. An entry that matches nothing fails the scan
+  with a message to delete it, and a pull request that edits the script is scanned against the whole
+  tree. Device models are intentionally not enumerated in the script to avoid self-disclosure in
+  this public repository.
 
 ## Talos machine secrets (talsecret)
 
