@@ -68,6 +68,16 @@ L2/L3/workload/application diagrams by continuously scanning the infrastructure.
 - **`volsync` component lives in `ks.yaml` `spec.components` only**, not also in
   `app/kustomization.yaml`, or it double-applies. The PVC it creates is named `${APP}` (`scanopy`),
   referenced by the server's `persistence.data.existingClaim`.
+- **Scan rate is set on the discovery, in Scanopy's database, not here.** The daemon's
+  `scan_rate_pps` limit (default 500) applies to each host being deep-scanned, and
+  `SCANOPY_CONCURRENT_SCANS: "5"` scans five hosts at once. That is about 2,500 SYNs per second
+  from the daemon's node, and each unanswered SYN holds a conntrack entry for up to 120 seconds.
+  The first full scan after the 2026-10-14 repair filled that node's 262,144-entry conntrack table
+  for 15 minutes (Netdata `netfilter_conntrack_full`), which drops new connections for every
+  workload on the node. The scheduled Unified discovery now carries `scan_rate_pps: 100` in its
+  scan settings (Scans in the UI, or `PUT /api/v1/discovery/{id}`), which projects to a peak of about
+  60k entries; an incremental scan peaked at 8%. A recreated discovery starts with the default
+  again.
 - **hostNetwork port `60073`** is bound on every node's host IP. Confirm nothing else uses it.
 - **Daemon config is an `emptyDir`; the daemon's identity lives on the server.** Since v0.18.0 a
   daemon key that is not bound to a daemon (`api_keys.daemon_id` NULL, as every key from before
