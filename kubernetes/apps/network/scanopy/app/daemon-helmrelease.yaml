@@ -74,9 +74,10 @@ spec:
       hostNetwork: true
       dnsPolicy: ClusterFirstWithHostNet
     persistence:
+      # emptyDir, not hostPath: a per-node config held a different daemon id on each node. The API
+      # key is bound to one daemon (api_keys.daemon_id), so a fresh config registers as that daemon.
       config:
-        type: hostPath
-        hostPath: /var/lib/scanopy-daemon
+        type: emptyDir
         globalMounts:
           - path: /root/.config/scanopy/daemon
       snmp-community:

@@ -39,8 +39,12 @@ spec:
               SCANOPY_PUBLIC_URL: https://scanopy.${SECRET_DOMAIN}
               SCANOPY_WEB_EXTERNAL_PATH: /app/static
               SCANOPY_USE_SECURE_SESSION_COOKIES: "true"
-              SCANOPY_SMTP_RELAY: smtp2graph.infrastructure.svc.cluster.local:25
+              # Implicit TLS on 465 to the smtp-tls sidecar; Scanopy has no plaintext mode.
+              SCANOPY_SMTP_RELAY: 127.0.0.1
+              SCANOPY_SMTP_PORT: "465"
+              SCANOPY_SMTP_USERNAME: scanopy
               SCANOPY_SMTP_EMAIL: scanopy@${SECRET_DOMAIN}
+              SCANOPY_TRUSTED_CA_BUNDLE: /tls/ca.crt
             envFrom:
               - secretRef:
                   name: scanopy-secret
@@ -74,6 +78,19 @@ spec:
                 memory: 256Mi
               limits:
                 memory: 512Mi
+          smtp-tls:
+            image:
+              repository: docker.io/alpine/socat
+              tag: 1.8.1.3@sha256:fb3862c949af7c79996d0e514ee96128644d840835ed5368eeecb14a869de361
+            args:
+              - OPENSSL-LISTEN:465,bind=127.0.0.1,reuseaddr,fork,cert=/tls/tls.crt,key=/tls/tls.key,verify=0
+              - TCP:smtp2graph.infrastructure.svc.cluster.local:25
+            resources:
+              requests:
+                cpu: 5m
+                memory: 8Mi
+              limits:
+                memory: 32Mi
     defaultPodOptions:
       dnsConfig:
         options:
@@ -94,5 +111,13 @@ spec:
     persistence:
       data:
         existingClaim: scanopy
+        advancedMounts:
+          scanopy:
+            app:
+              - path: /data
+      smtp-tls:
+        type: secret
+        name: scanopy-smtp-tls
         globalMounts:
-          - path: /data
+          - path: /tls
+            readOnly: true

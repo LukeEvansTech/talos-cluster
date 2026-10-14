@@ -1,0 +1,56 @@
+---
+# Scanopy's mailer only speaks TLS and smtp2graph offers none, so a socat sidecar terminates TLS
+# on loopback with this chain. Scanopy trusts the CA through SCANOPY_TRUSTED_CA_BUNDLE.
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/cert-manager.io/issuer_v1.json
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: scanopy-smtp-selfsigned
+spec:
+  selfSigned: {}
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/cert-manager.io/certificate_v1.json
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: scanopy-smtp-ca
+spec:
+  secretName: scanopy-smtp-ca
+  isCA: true
+  commonName: scanopy-smtp-ca
+  duration: 87600h # 10 years
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  issuerRef:
+    name: scanopy-smtp-selfsigned
+    kind: Issuer
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/cert-manager.io/issuer_v1.json
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: scanopy-smtp-ca
+spec:
+  ca:
+    secretName: scanopy-smtp-ca
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/cert-manager.io/certificate_v1.json
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: scanopy-smtp-tls
+spec:
+  secretName: scanopy-smtp-tls
+  duration: 2160h # 90 days
+  renewBefore: 720h # 30 days
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  issuerRef:
+    name: scanopy-smtp-ca
+    kind: Issuer
+  dnsNames:
+    - localhost
+  ipAddresses:
+    - 127.0.0.1
