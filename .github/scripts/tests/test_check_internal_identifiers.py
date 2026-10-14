@@ -132,7 +132,10 @@ class AllowlistScoping(unittest.TestCase):
         self.path = "app/config.yaml"
         Path("app").mkdir()
         ip, node = sample("LAN IP"), sample("node name")
-        Path(self.path).write_text(f"router: {ip}\nbackup: {ip}\nnode: {node}\nrouter-name: {node}\n", encoding="utf-8")
+        Path(self.path).write_text(
+            f"router: {ip}\nbackup: {ip}\nnode: {node}\nrouter-name: {node}\nrouter: {ip} {ip}\n",
+            encoding="utf-8",
+        )
         self.entry = guard.Allow(self.path, ("LAN IP",), "test router", contains="router: ")
 
     def scan(self, allowlist: tuple) -> tuple[list[str], set[int]]:
@@ -152,6 +155,23 @@ class AllowlistScoping(unittest.TestCase):
         violations, _ = self.scan((self.entry,))
         self.assertIn(f"{self.path}:3: node name", violations)
         self.assertIn(f"{self.path}:4: node name", violations)
+
+    def test_extra_identifier_on_accepted_line_is_flagged(self) -> None:
+        """An entry accepts per_line identifiers on a line (default one), not every one there."""
+        violations, _ = self.scan((self.entry,))
+        self.assertIn(f"{self.path}:5: LAN IP", violations)
+        two = guard.Allow(self.path, ("LAN IP",), "test", contains="router: ", per_line=2)
+        violations, _ = self.scan((two,))
+        self.assertNotIn(f"{self.path}:5: LAN IP", violations)
+
+    def test_empty_matcher_is_malformed(self) -> None:
+        """An empty contains= or regex= would match every line, so it is rejected."""
+        for entry in (
+            guard.Allow(self.path, ("LAN IP",), "no", contains=""),
+            guard.Allow(self.path, ("LAN IP",), "no", regex=""),
+        ):
+            with self.subTest(entry=entry):
+                self.assertTrue(guard.allowlist_errors((entry,)))
 
     def test_regex_entry(self) -> None:
         """A regex entry matches the line shape."""
@@ -190,7 +210,7 @@ class AllowlistScoping(unittest.TestCase):
         """main() exits 1, names the entry and says to delete it."""
         stale_entry = guard.Allow(self.path, ("LAN IP",), "gone", contains="no such line")
         allowlist = (
-            guard.Allow(self.path, ("LAN IP", "node name"), "all", regex=r"^\S+: "),
+            guard.Allow(self.path, ("LAN IP", "node name"), "all", regex=r"^\S+: ", per_line=2),
             stale_entry,
         )
         with (

@@ -125,8 +125,9 @@ class Allow:
     """One accepted identifier: a file glob, the kinds accepted, and the line that carries them.
 
     Exactly one of ``contains`` (a literal substring) or ``regex`` (searched with re.search)
-    must be set. ``where="path"`` matches it against the file path instead of a line, for an
-    identifier in the file name itself.
+    must be set and non-empty. ``where="path"`` matches it against the file path instead of a
+    line, for an identifier in the file name itself. ``per_line`` caps how many identifiers of
+    its kinds the entry accepts on one line, so a matched line cannot carry an extra one.
     """
 
     path: str
@@ -135,6 +136,7 @@ class Allow:
     contains: str | None = None
     regex: str | None = None
     where: str = "line"
+    per_line: int = 1
 
     def describe(self) -> str:
         """Render the entry for an error message (patterns hold no values, so they can be shown)."""
@@ -253,6 +255,7 @@ ALLOWLIST: tuple[Allow, ...] = (
         ("LAN IP",),
         "RFC1918 network blocks, not hosts",
         contains="DISABLE_TRACKING_FROM: ",
+        per_line=2,
     ),
     Allow(
         "kubernetes/apps/home/homeassistant/app/helmrelease.yaml", ("LAN IP",), "multus static IP", contains='"ips": ["'
@@ -332,6 +335,7 @@ ALLOWLIST: tuple[Allow, ...] = (
         ("device hostname (cr)",),
         "NUT UPS alert selectors",
         contains="expr: absent(nut_ups_status{ups=",
+        per_line=2,
     ),
     Allow(
         "kubernetes/apps/observability/nut-exporter/app/servicemonitor.yaml",
@@ -355,6 +359,11 @@ def allowlist_errors(allowlist: tuple[Allow, ...] = ALLOWLIST) -> list[str]:
     for entry in allowlist:
         if (entry.contains is None) == (entry.regex is None):
             errors.append(f"{entry.path}: set exactly one of contains= or regex=")
+        elif not (entry.contains or entry.regex):
+            # An empty matcher matches every line: a whole-file exception again.
+            errors.append(f"{entry.path}: an empty matcher would accept every line")
+        if entry.per_line < 1:
+            errors.append(f"{entry.path}: per_line must be at least 1")
         if not entry.kinds:
             errors.append(f"{entry.path}: name the identifier kinds the entry accepts")
         for kind in entry.kinds:
@@ -483,14 +492,24 @@ def scan_text(source: str, strip_git_comments: bool) -> int:
     return 0
 
 
-def accepted(allowlist: tuple[Allow, ...], used: set[int], path: str, kind: str, text: str, where: str) -> bool:
-    """Return True if an entry accepts this identifier, recording which entries did."""
-    hit = False
+def accepted(
+    allowlist: tuple[Allow, ...],
+    used: set[int],
+    spent: dict[int, int],
+    found: tuple[str, str, str, str],
+) -> bool:
+    """Return True if an entry with occurrences left accepts this identifier.
+
+    *found* is (path, kind, text, where). *spent* counts, per entry, the identifiers already
+    accepted on the current line; the first entry with room takes this one and records it.
+    """
+    path, kind, text, where = found
     for index, entry in enumerate(allowlist):
-        if entry.accepts(path, kind, text, where):
+        if spent.get(index, 0) < entry.per_line and entry.accepts(path, kind, text, where):
+            spent[index] = spent.get(index, 0) + 1
             used.add(index)
-            hit = True
-    return hit
+            return True
+    return False
 
 
 def scan_files(
@@ -509,11 +528,12 @@ def scan_files(
     violations: list[str] = []
     for path in paths:
         active = names_only if path == SELF_PATH else patterns
+        spent: dict[int, int] = {}
         for kind, pat in active.items():
             for match in pat.finditer(path):
                 if any(b.search(match.group(0)) for b in BENIGN):
                     continue
-                if kind not in UNSUPPRESSIBLE and accepted(allowlist, used, path, kind, path, "path"):
+                if kind not in UNSUPPRESSIBLE and accepted(allowlist, used, spent, (path, kind, path, "path")):
                     continue
                 # A CI log is public: never echo a path that is itself the leak.
                 shown = "<path withheld>" if kind in WITHHELD else path
@@ -528,11 +548,12 @@ def scan_files(
             continue
         for lineno, line in enumerate(lines, 1):
             text = line.rstrip("\r\n")
+            spent = {}
             for kind, pat in active.items():
                 for match in pat.finditer(text):
                     if any(b.search(match.group(0)) for b in BENIGN):
                         continue
-                    if kind not in UNSUPPRESSIBLE and accepted(allowlist, used, path, kind, text, "line"):
+                    if kind not in UNSUPPRESSIBLE and accepted(allowlist, used, spent, (path, kind, text, "line")):
                         continue
                     violations.append(f"{path}:{lineno}: {kind}")
                     break
