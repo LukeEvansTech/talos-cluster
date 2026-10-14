@@ -210,7 +210,7 @@ def _episode_identity(row: dict):
     """What makes two rows the same episode, for counting distinct episodes."""
     season, episode = row.get("parent_media_index"), row.get("media_index")
     if str(season).isdigit() and str(episode).isdigit():
-        return ("se", int(season), int(episode))
+        return ("se", int(str(season)), int(str(episode)))
     return ("key", row.get("rating_key"), row.get("row_id"))
 
 
@@ -220,7 +220,7 @@ def _row_matches(row: dict, show: Show) -> bool:
     if normalise_title(title) != normalise_title(show.title):
         return False
     year = row.get("year")
-    return show.year is None or not str(year or "").isdigit() or abs(int(year) - show.year) <= 1
+    return show.year is None or not str(year or "").isdigit() or abs(int(str(year)) - show.year) <= 1
 
 
 def resolve_viewing(
@@ -262,7 +262,7 @@ def resolve_viewing(
             plays += 1
             stamp = row.get("stopped") or row.get("date")
             if str(stamp or "").isdigit():
-                when = datetime.fromtimestamp(int(stamp), tz=timezone.utc)
+                when = datetime.fromtimestamp(int(str(stamp)), tz=timezone.utc)
                 last = when if last is None or when > last else last
             user_id = row.get("user_id")
             if user_id is None:

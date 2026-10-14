@@ -206,7 +206,7 @@ def group_by_show(rows: list[dict]) -> tuple[dict[int, list[dict]], list[dict]]:
         if key in (None, "") or not str(key).isdigit():
             unkeyed.append(row)
             continue
-        by_key.setdefault(int(key), []).append(row)
+        by_key.setdefault(int(str(key)), []).append(row)
     return by_key, unkeyed
 
 
