@@ -37,6 +37,7 @@ spec:
               DEFAULT_FROM_EMAIL: tandoor@${SECRET_DOMAIN}
               EMAIL_HOST: smtp.${SECRET_DOMAIN}
               EMAIL_PORT: "25"
+              EMAIL_USE_TLS: "1"
               ENABLE_PDF_EXPORT: "1"
               ENABLE_SIGNUP: "0"
               FRACTION_PREF_DEFAULT: "0"
