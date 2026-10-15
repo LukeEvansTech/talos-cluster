@@ -197,6 +197,9 @@ class Assessment:
     protections: list[str] = field(default_factory=list)
     # Without these the judge can't verify a subject-based keep reason.
     subject_counts: dict[str, int] = field(default_factory=dict)
+    # Set when the planner reopened a dismissal because its facts changed; the executor
+    # then vetoes only a dismissal added after the plan.
+    reopened_dismissal: bool = False
 
     def to_json(self) -> dict[str, Any]:
         """Serialise for the candidate hand-off and the run report."""
@@ -224,6 +227,7 @@ class Assessment:
             "imdb_score": show.imdb_score,
             "imdb_votes": show.imdb_votes,
             "subject_counts": dict(self.subject_counts),
+            "reopened_dismissal": TAG_HUMAN_DISMISSED in self.show.tags,
             "genres": list(show.genres),
             "network": show.network,
             # The judge reads this field and injection handling is written against

@@ -584,6 +584,7 @@ def rehydrate(planned: dict, show: Show, reason: str = "") -> Assessment:
         show=show,
         outcome=Outcome.CANDIDATE,
         subject_counts=dict(planned.get("subject_counts") or {}),
+        reopened_dismissal=planned.get("reopened_dismissal") is True,
         provenance=Provenance(Origin(planned["origin"]), tuple(planned.get("origin_evidence") or ())),
         availability=Availability(None, planned["availability_source"], show.has_file),
         viewing=Viewing(

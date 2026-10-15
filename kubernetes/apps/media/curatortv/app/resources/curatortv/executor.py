@@ -152,6 +152,7 @@ def revalidate(
     sonarr: Sonarr,
     tag_labels: dict[int, str],
     now_playing_ids: set[tuple[str, str]],
+    reopened_dismissal: bool = False,
 ) -> tuple[bool, str, dict | None]:
     """Re-check every protection against live state, and return the live record."""
     live = sonarr.series(series_id)
@@ -159,7 +160,8 @@ def revalidate(
         return False, "series is no longer in Sonarr", None
 
     labels = {tag_labels.get(t, str(t)) for t in live.get("tags", [])}
-    vetoes = sorted(labels & (VETO_TAGS | {TAG_HUMAN_DISMISSED}))
+    vetoed = VETO_TAGS if reopened_dismissal else VETO_TAGS | {TAG_HUMAN_DISMISSED}
+    vetoes = sorted(labels & vetoed)
     if vetoes:
         return False, f"protection tag added since planning: {', '.join(vetoes)}", live
 
@@ -395,7 +397,9 @@ def execute(  # pylint: disable=too-many-arguments,too-many-positional-arguments
             continue
 
         try:
-            ok, why, live = revalidate(show.series_id, sonarr, tag_labels, now_playing)
+            ok, why, live = revalidate(
+                show.series_id, sonarr, tag_labels, now_playing, reopened_dismissal=assessment.reopened_dismissal
+            )
             grown = (
                 new_content_block(
                     show.series_id, sonarr, live or {}, planned_at, (planned_files or {}).get(show.series_id)

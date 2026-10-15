@@ -181,6 +181,9 @@ class Assessment:
     # followed subject), and the default-to-delete rule reads that gap as delete.
     siblings_owned: int = 0
     subject_counts: dict[str, int] = field(default_factory=dict)
+    # Set when the planner reopened a dismissal because its facts changed; the executor
+    # then vetoes only a dismissal added after the plan.
+    reopened_dismissal: bool = False
 
     def to_json(self) -> dict[str, Any]:
         """Serialise for the candidate hand-off and the run report."""
@@ -206,6 +209,7 @@ class Assessment:
             "collection": self.film.collection_title,
             "siblings_owned": self.siblings_owned,
             "subject_counts": dict(self.subject_counts),
+            "reopened_dismissal": TAG_HUMAN_DISMISSED in self.film.tags,
             "genres": list(self.film.genres),
             "studio": self.film.studio,
             # The judge reads this field and injection handling is written against

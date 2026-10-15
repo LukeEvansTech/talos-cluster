@@ -14,7 +14,11 @@ from typing import Any
 
 from .clients import Radarr, SourceError, Tautulli
 from .evidence import COMPLETION_PERCENT
-from .model import VETO_TAGS, Assessment, utc
+from .model import TAG_HUMAN_DISMISSED, VETO_TAGS, Assessment, utc
+
+# Every skip whose reason starts with this is a check that could not run, not a protection
+# that fired; the run reports those as a failure (exit 10).
+UNAVAILABLE = "could not"
 
 
 @dataclass
@@ -129,6 +133,7 @@ def revalidate(
     tag_labels: dict[int, str],
     monitored_collection_tmdb_ids: set[int],
     now_playing_ids: set[tuple[str, str]],
+    reopened_dismissal: bool = False,
 ) -> tuple[bool, str, dict | None]:
     """Re-check every protection against live state, and return the live record."""
     live = radarr.movie(movie_id)
@@ -136,7 +141,8 @@ def revalidate(
         return False, "film is no longer in Radarr", None
 
     labels = {tag_labels.get(t, str(t)) for t in live.get("tags", [])}
-    vetoes = sorted(labels & VETO_TAGS)
+    vetoed = VETO_TAGS if reopened_dismissal else VETO_TAGS | {TAG_HUMAN_DISMISSED}
+    vetoes = sorted(labels & vetoed)
     if vetoes:
         return False, f"protection tag added since planning: {', '.join(vetoes)}", live
 
@@ -320,6 +326,7 @@ def execute(  # pylint: disable=too-many-arguments,too-many-positional-arguments
                 "movie_id": a.film.movie_id,
                 "title": a.film.title,
                 "why": f"recoverability precondition failed: {bin_detail}",
+                "unavailable": True,
             }
             for a in approved
         )
@@ -330,7 +337,7 @@ def execute(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         activity_known = tautulli is not None
     except SourceError as exc:
         now_playing, activity_known = set(), False
-        result.skipped.append({"why": f"activity check unavailable: {exc}"})
+        result.skipped.append({"why": f"activity check unavailable: {exc}", "unavailable": True})
 
     requests_by_tmdb, watched_ids, late_known = late_evidence(tautulli, seerr, crosswalk, planned_at)
     if not late_known:
@@ -339,6 +346,7 @@ def execute(  # pylint: disable=too-many-arguments,too-many-positional-arguments
                 "movie_id": a.film.movie_id,
                 "title": a.film.title,
                 "why": "could not re-read plays and requests made since the plan",
+                "unavailable": True,
             }
             for a in approved
         )
@@ -356,7 +364,7 @@ def execute(  # pylint: disable=too-many-arguments,too-many-positional-arguments
 
         if not activity_known:
             # An unavailable safety check is an unresolved safety check.
-            result.skipped.append({**record, "why": "could not confirm nobody is watching it"})
+            result.skipped.append({**record, "why": "could not confirm nobody is watching it", "unavailable": True})
             continue
 
         late = late_evidence_block(film, requests_by_tmdb, watched_ids)
@@ -371,9 +379,10 @@ def execute(  # pylint: disable=too-many-arguments,too-many-positional-arguments
                 tag_labels,
                 monitored_collection_tmdb_ids,
                 now_playing,
+                reopened_dismissal=assessment.reopened_dismissal,
             )
         except SourceError as exc:
-            result.skipped.append({**record, "why": f"could not re-read live state: {exc}"})
+            result.skipped.append({**record, "why": f"could not re-read live state: {exc}", "unavailable": True})
             continue
         if not ok:
             result.skipped.append({**record, "why": why})
@@ -383,7 +392,7 @@ def execute(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         # would describe a batch nobody is going to run.
         moved = volatile_block(film, tautulli, seerr, crosswalk, planned_at)
         if moved:
-            result.skipped.append({**record, "why": moved})
+            result.skipped.append({**record, "why": moved, "unavailable": moved.startswith(UNAVAILABLE)})
             continue
 
         ledger.record_intent({**record, "restore": restore_snapshot(live or {})}, assessment.to_json())

@@ -1,0 +1,31 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: curator
+spec:
+  groups:
+    - name: curator
+      rules:
+        # Age of the last success, as GickupBackupStale; the creation-time fallback covers a run that
+        # never succeeded. Weekly schedule, so 8 days means a missed run, not a late one.
+        - alert: CuratorPlanStale
+          annotations:
+            summary: >-
+              The curator CronJob (media/curator) has not succeeded in over 8 days.
+            description: >-
+              No successful weekly plan of the Radarr library in over 8 days, so
+              curatorjudge has nothing current to judge and its digest reports a
+              stale plan. Check the latest curator Job's logs; a blocked plan still
+              exits 0, so a failure here is a crash or a timeout. Trigger a run with
+              kubectl -n media create job --from=cronjob/curator.
+          expr: |-
+            time() - (
+              kube_cronjob_status_last_successful_time{namespace="media", cronjob="curator"}
+              or
+              kube_cronjob_created{namespace="media", cronjob="curator"}
+            ) > 691200
+          for: 2h
+          labels:
+            severity: warning

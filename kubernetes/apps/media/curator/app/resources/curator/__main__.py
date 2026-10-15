@@ -26,7 +26,7 @@ from .evidence import (
     resolve_provenance,
     resolve_viewing,
 )
-from .executor import execute, reconcile, recycle_bin_ready, validate_recommendations
+from .executor import ExecutionResult, execute, reconcile, recycle_bin_ready, validate_recommendations
 from .ledger import Ledger
 from .model import (
     TAG_KEEP,
@@ -599,6 +599,7 @@ def rehydrate(planned: dict, film: Film, reason: str = "") -> Assessment:
         # actually granted on: losing the last owned sibling should reopen it.
         siblings_owned=int(planned.get("siblings_owned") or 0),
         subject_counts=dict(planned.get("subject_counts") or {}),
+        reopened_dismissal=planned.get("reopened_dismissal") is True,
         provenance=Provenance(Origin(planned["origin"]), tuple(planned.get("origin_evidence") or ())),
         availability=Availability(None, planned["availability_source"], film.has_file),
         viewing=Viewing(
@@ -740,6 +741,30 @@ def record_judge_decisions(
     return escalated
 
 
+def execute_exit_code(result: ExecutionResult, unjudged: list[int], rejected: list[dict]) -> int:
+    """The exit code for a finished execute run; the README lists each one."""
+    # A failed deletion is a safe no-op to retry; an uncertain one is recorded and left,
+    # since a retry could double up on a DELETE that already landed (docs/docs/apps/curator.md).
+    if result.uncertain:
+        log(
+            f"exiting non-zero: {len(result.uncertain)} deletion(s) could not be "
+            "confirmed; the next run reconciles them against live state"
+        )
+        return 4
+    if result.failed:
+        log("exiting non-zero: some deletions failed outright")
+        return 4
+    unavailable = sum(1 for item in result.skipped if item.get("unavailable"))
+    if unavailable:
+        log(f"exiting non-zero: {unavailable} skip(s) because a safety check could not be read")
+        return 10
+    # A week nobody judged must not count as a success, or it resets the staleness alert.
+    if unjudged or rejected:
+        log(f"exiting non-zero: {len(unjudged)} candidate(s) unjudged, {len(rejected)} verdict(s) rejected")
+        return 9
+    return 0
+
+
 def cmd_execute(args: argparse.Namespace) -> int:
     """Apply Claude's recommendations, re-validating every safeguard first."""
     sources = build_sources()
@@ -857,18 +882,7 @@ def cmd_execute(args: argparse.Namespace) -> int:
             f"deleted={len(result.deleted)} skipped={len(result.skipped)} "
             f"failed={len(result.failed)} uncertain={len(result.uncertain)}"
         )
-        # A failed deletion is a safe no-op to retry; an uncertain one is recorded and left,
-        # since a retry could double up on a DELETE that already landed (docs/docs/apps/curator.md).
-        if result.uncertain:
-            log(
-                f"exiting non-zero: {len(result.uncertain)} deletion(s) could not be "
-                "confirmed; the next run reconciles them against live state"
-            )
-            return 4
-        if result.failed:
-            log("exiting non-zero: some deletions failed outright")
-            return 4
-        return 0
+        return execute_exit_code(result, unjudged, rejected)
     finally:
         ledger.release_lock()
 

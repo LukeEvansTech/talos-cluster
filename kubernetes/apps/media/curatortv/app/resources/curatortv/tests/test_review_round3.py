@@ -82,6 +82,18 @@ class DismissalAfterPlanningBlocks(unittest.TestCase):
             self.assertFalse(ok, self.LABELS[tag_id])
             self.assertIn(self.LABELS[tag_id], why)
 
+    def test_a_dismissal_the_planner_reopened_does_not_block(self):
+        """A changed fact reopens a dismissed series; its old tag must not veto it again."""
+        sonarr = FakeSonarr({1: series_record(tags=[6])}, self.LABELS)
+        ok, _, _ = revalidate(1, sonarr, self.LABELS, set(), reopened_dismissal=True)
+        self.assertTrue(ok)
+
+    def test_a_reopened_dismissal_still_honours_a_new_keep(self):
+        sonarr = FakeSonarr({1: series_record(tags=[6, 1])}, self.LABELS)
+        ok, why, _ = revalidate(1, sonarr, self.LABELS, set(), reopened_dismissal=True)
+        self.assertFalse(ok)
+        self.assertIn("keep", why)
+
 
 class UnidentifiableSessionsFailClosed(unittest.TestCase):
     """A session we cannot tie to a show could be the show about to be deleted."""

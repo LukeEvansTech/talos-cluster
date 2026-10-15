@@ -53,4 +53,4 @@ Uncalibrated starting points, like the film engine's.
 
 `CuratortvPlanStale` and `CuratortvjudgeStale` (each app's `prometheusrule.yaml`) fire when the
 CronJob has not succeeded in 8 days, the GickupBackupStale shape with a creation-time fallback. The
-film pair has no equivalent alert.
+film pair has the same alerts, `CuratorPlanStale` and `CuratorjudgeStale`.
