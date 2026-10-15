@@ -92,7 +92,7 @@ data:
           restartPolicy: Never
           containers:
             - name: onyx-deploy
-              image: ghcr.io/lukeevanstech/onyx-deployer:0.1.0@sha256:26c4130636c0ad508ca70a3d3d2b7a99ea17611590cb980955b7d4305699fd5a
+              image: ghcr.io/lukeevanstech/onyx-deployer:0.1.0@sha256:0ebd9f14f235279f64f3bbd5263eba1a2f0071204c0a5477733d40eb1201b648
               command:
                 - sh
                 - -c
