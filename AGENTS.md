@@ -312,6 +312,9 @@ Flag consequential, repository-specific breakage. Prefer silence over style comm
   absence-of-success alert. Liveness and `/health` stay green while the work fails: lurcher crashed
   mid-run every day for twelve days with its pod healthy. Mirror `GickupBackupStale` or
   `LurcherNotDelivering`: alert on the age of the last success, not on errors.
+- A change to the `curator` engine or `curatorjudge` with no matching change to `curatortv` or
+  `curatortvjudge`, or the reverse, unless the PR body says why the sibling differs. The TV pair
+  is a fork of the film pair, and a defect in one has twice been live in the other.
 
 ### Never flag these
 
