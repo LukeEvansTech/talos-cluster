@@ -76,6 +76,18 @@ class DismissalAfterPlanningBlocks(unittest.TestCase):
             self.assertFalse(ok, label)
             self.assertIn(label, why)
 
+    def test_a_dismissal_the_planner_reopened_does_not_block(self):
+        """A changed fact reopens a dismissed film; its old tag must not veto it again."""
+        radarr = FakeRadarr({1: movie_record(tags=[6])}, self.LABELS)
+        ok, _, _ = revalidate(1, radarr, self.LABELS, set(), set(), reopened_dismissal=True)
+        self.assertTrue(ok)
+
+    def test_a_reopened_dismissal_still_honours_a_new_keep(self):
+        radarr = FakeRadarr({1: movie_record(tags=[6, 1])}, self.LABELS)
+        ok, why, _ = revalidate(1, radarr, self.LABELS, set(), set(), reopened_dismissal=True)
+        self.assertFalse(ok)
+        self.assertIn("keep", why)
+
 
 class UnidentifiableSessionsFailClosed(unittest.TestCase):
     """A session we cannot tie to a film could be the film about to be deleted."""
@@ -121,7 +133,7 @@ class UnidentifiableSessionsFailClosed(unittest.TestCase):
             self.session(urllib.error.URLError("timeout")).now_playing_ids()
 
 
-class _Radarr(FakeRadarr):
+class _Radarr(FakeRadarr):  # pylint: disable=too-few-public-methods
     """FakeRadarr with the collection listing execute reads."""
 
     def collections(self) -> list[dict]:

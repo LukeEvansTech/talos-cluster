@@ -133,6 +133,7 @@ def revalidate(
     tag_labels: dict[int, str],
     monitored_collection_tmdb_ids: set[int],
     now_playing_ids: set[tuple[str, str]],
+    reopened_dismissal: bool = False,
 ) -> tuple[bool, str, dict | None]:
     """Re-check every protection against live state, and return the live record."""
     live = radarr.movie(movie_id)
@@ -140,7 +141,8 @@ def revalidate(
         return False, "film is no longer in Radarr", None
 
     labels = {tag_labels.get(t, str(t)) for t in live.get("tags", [])}
-    vetoes = sorted(labels & (VETO_TAGS | {TAG_HUMAN_DISMISSED}))
+    vetoed = VETO_TAGS if reopened_dismissal else VETO_TAGS | {TAG_HUMAN_DISMISSED}
+    vetoes = sorted(labels & vetoed)
     if vetoes:
         return False, f"protection tag added since planning: {', '.join(vetoes)}", live
 
@@ -377,6 +379,7 @@ def execute(  # pylint: disable=too-many-arguments,too-many-positional-arguments
                 tag_labels,
                 monitored_collection_tmdb_ids,
                 now_playing,
+                reopened_dismissal=assessment.reopened_dismissal,
             )
         except SourceError as exc:
             result.skipped.append({**record, "why": f"could not re-read live state: {exc}", "unavailable": True})

@@ -599,6 +599,7 @@ def rehydrate(planned: dict, film: Film, reason: str = "") -> Assessment:
         # actually granted on: losing the last owned sibling should reopen it.
         siblings_owned=int(planned.get("siblings_owned") or 0),
         subject_counts=dict(planned.get("subject_counts") or {}),
+        reopened_dismissal=planned.get("reopened_dismissal") is True,
         provenance=Provenance(Origin(planned["origin"]), tuple(planned.get("origin_evidence") or ())),
         availability=Availability(None, planned["availability_source"], film.has_file),
         viewing=Viewing(
