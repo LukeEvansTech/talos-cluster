@@ -150,14 +150,23 @@ def build_crosswalk(metadata: dict[int, dict]) -> dict[int, dict]:
 
 
 def _match_rating_keys(film: Film, crosswalk: dict[int, dict]) -> tuple[list[int], str]:
-    """Find the Plex items that are this film, preferring stable identifiers."""
-    by_tmdb = [k for k, v in crosswalk.items() if film.tmdb_id and v.get("tmdb") == film.tmdb_id]
-    if by_tmdb:
-        return by_tmdb, "tmdb"
+    """Find the Plex items that are this film, preferring stable identifiers.
 
-    by_imdb = [k for k, v in crosswalk.items() if film.imdb_id and v.get("imdb") == film.imdb_id]
-    if by_imdb:
-        return by_imdb, "imdb"
+    Every key that shares an id counts, not just those found by the first scheme:
+    an older key may know the film only by IMDb, and dropping it drops its plays.
+    A key naming a *different* id under either scheme is another film.
+    """
+    own = {"tmdb": film.tmdb_id, "imdb": film.imdb_id}
+    found: list[int] = []
+    schemes: set[str] = set()
+    for key, value in crosswalk.items():
+        shared = {s for s, mine in own.items() if mine and value.get(s) == mine}
+        conflict = any(mine and value.get(s) and value.get(s) != mine for s, mine in own.items())
+        if shared and not conflict:
+            found.append(key)
+            schemes |= shared
+    if found:
+        return found, "tmdb" if "tmdb" in schemes else "imdb"
 
     # A fallback, not confirmation, since remakes share titles and years drift; a hit
     # is enough to refuse a deletion, not to confirm a match.

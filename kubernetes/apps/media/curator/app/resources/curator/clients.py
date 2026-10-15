@@ -302,18 +302,23 @@ class Tautulli:
             return None
         return data if isinstance(data, dict) and data else None
 
-    def now_playing_rating_keys(self) -> set[int]:
-        """Rating keys with an active session right now."""
+    def now_playing_movie_keys(self) -> set[int]:
+        """Rating keys of films with an active session right now.
+
+        Episode and music sessions are not films and are left to the TV engine. A
+        film session whose key cannot be read raises: a short answer here reads as
+        "nobody is watching it".
+        """
         data = self._call("get_activity")
         keys: set[int] = set()
         for session in (data or {}).get("sessions", []) or []:
-            for field in ("rating_key", "grandparent_rating_key", "parent_rating_key"):
-                value = session.get(field)
-                if value not in (None, ""):
-                    try:
-                        keys.add(int(value))
-                    except (TypeError, ValueError):
-                        continue
+            if session.get("media_type") not in (None, "", "movie"):
+                continue
+            value = session.get("rating_key")
+            try:
+                keys.add(int(value))
+            except (TypeError, ValueError) as exc:
+                raise SourceError(f"unparsable film rating key {value!r}") from exc
         return keys
 
     def now_playing_ids(self) -> set[tuple[str, str]]:
@@ -325,14 +330,19 @@ class Tautulli:
         deletion for exactly the films at risk of a first viewing.
         """
         ids: set[tuple[str, str]] = set()
-        for key in self.now_playing_rating_keys():
+        for key in self.now_playing_movie_keys():
+            # A session we cannot tie to a film could be the one about to be deleted.
             meta = self.metadata(key)
             if not meta:
-                continue
-            for guid in meta.get("guids") or []:
-                if guid.startswith(("tmdb://", "imdb://")):
-                    source, _, value = guid.partition("://")
-                    ids.add((source, value))
+                raise SourceError(f"item {key} is playing but has no metadata")
+            found = {
+                (source, value)
+                for source, _, value in (str(g).partition("://") for g in meta.get("guids") or [])
+                if source in ("tmdb", "imdb") and value
+            }
+            if not found:
+                raise SourceError(f"item {key} is playing but carries no tmdb or imdb id")
+            ids |= found
         return ids
 
 

@@ -37,6 +37,13 @@ The 30-minute gap is a fixed schedule, not a wait on completion. `curator`'s
 the identity crosswalk one at a time; a warm run (everything already cached) takes about fifteen
 seconds.
 
+## Alerting
+
+`CuratorPlanStale` and `CuratorjudgeStale` (each app's `prometheusrule.yaml`) fire when the CronJob
+has not succeeded in 8 days, the GickupBackupStale shape with a creation-time fallback. `execute`
+exits 9 for a week with an unjudged candidate or a rejected verdict and 10 when a safety check could
+not be read, so neither resets the alert; the README in `resources/curator/` lists every exit code.
+
 ## Execute failure semantics
 
 `curatorjudge`'s CronJob (the one that runs `execute`) sets `backoffLimit: 0`. A Kubernetes Job

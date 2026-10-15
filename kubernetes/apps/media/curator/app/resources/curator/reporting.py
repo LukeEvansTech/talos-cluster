@@ -165,6 +165,11 @@ def _problems(blocks: list, result: dict | None, judgement: dict | None) -> list
         count = len(result.get(key) or [])
         if count:
             problems.append(f"{count} deletion{'s' if count != 1 else ''} {key}")
+    unavailable = sum(1 for item in result.get("skipped") or [] if item.get("unavailable"))
+    if unavailable:
+        problems.append(
+            f"{unavailable} deletion{'s' if unavailable != 1 else ''} skipped: a safety check was unavailable"
+        )
     unjudged = len(result.get("unjudged") or [])
     if unjudged:
         problems.append(f"{unjudged} candidate{'s' if unjudged != 1 else ''} came back with no verdict")

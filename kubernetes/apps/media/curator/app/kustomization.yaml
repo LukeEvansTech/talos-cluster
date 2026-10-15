@@ -9,6 +9,7 @@ resources:
   - ./ocirepository.yaml
   - ./externalsecret.yaml
   - ./helmrelease.yaml
+  - ./prometheusrule.yaml
 configMapGenerator:
   # Mounted at /app/curator as `python3 -m curator`; curatorjudge mounts the same
   # ConfigMap to run `execute`, so the name is fixed rather than hashed. Tests aren't shipped.

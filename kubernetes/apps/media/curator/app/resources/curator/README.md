@@ -27,6 +27,24 @@ the only command that can change anything, and only when `CLEANUP_MODE=act`; in
 `dry-run` it re-validates every safeguard, records its intent, and stops short of
 the call.
 
+## Exit codes
+
+`execute` exits non-zero for anything that should not read as a successful week,
+which is what the staleness alert keys on. The CronJob's shell keeps the first
+non-zero code and still sends the digest.
+
+| Code | Meaning                                                           |
+| ---- | ----------------------------------------------------------------- |
+| 2    | the plan recorded blocking issues                                 |
+| 3    | another run holds the execute lock                                |
+| 4    | a deletion failed or could not be confirmed                       |
+| 5    | refused: `--read-only` in act mode, or a stale or wrong-mode plan |
+| 7    | the recommendations were judged against a different plan          |
+| 9    | a candidate came back unjudged, or a verdict was rejected         |
+| 10   | a deletion was skipped because a safety check could not be read   |
+
+`report` exits 6 when the digest could not be delivered.
+
 ## Scheduled runs are read-only
 
 The CronJobs pass `--read-only`, which refuses to act whatever `CLEANUP_MODE`
