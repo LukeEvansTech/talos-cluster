@@ -8,6 +8,9 @@ on:
     paths:
       - "kubernetes/apps/media/curator/app/resources/**"
       - "kubernetes/apps/media/curatortv/app/resources/**"
+      # The suites load each judge's read_verdicts.py.
+      - "kubernetes/apps/media/curatorjudge/app/resources/**"
+      - "kubernetes/apps/media/curatortvjudge/app/resources/**"
       - ".github/workflows/curator-tests.yml"
 
 permissions:
