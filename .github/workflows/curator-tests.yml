@@ -1,0 +1,39 @@
+---
+# The curator and curatortv engines are a fork whose fixes have drifted apart, and their fixture
+# suites (with test_fork_parity) otherwise run only in a local pre-commit hook. Both are stdlib-only.
+name: Curator Tests
+
+on:
+  pull_request:
+    paths:
+      - "kubernetes/apps/media/curator/app/resources/**"
+      - "kubernetes/apps/media/curatortv/app/resources/**"
+      - ".github/workflows/curator-tests.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  curator-tests:
+    name: Curator engine tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        engine:
+          - curator
+          - curatortv
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Run the ${{ matrix.engine }} fixture suite
+        working-directory: kubernetes/apps/media/${{ matrix.engine }}/app/resources
+        env:
+          ENGINE: ${{ matrix.engine }}
+        run: python3 -m unittest discover -s "$ENGINE/tests" -t .
