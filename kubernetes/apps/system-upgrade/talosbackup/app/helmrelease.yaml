@@ -33,7 +33,7 @@ spec:
                     fieldPath: status.hostIP
             args:
               - --talosconfig=/var/run/secrets/talos.dev/config
-              # Every node is a control-plane node, so the one the pod lands on holds etcd.
+              # The pod's own node: the nodeSelector below guarantees it runs etcd.
               - --nodes=$(HOST_IP)
               - etcd
               - snapshot
@@ -59,9 +59,11 @@ spec:
               - /bin/sh
               - -ec
               - |
+                set -o pipefail
                 apk add --no-cache --quiet age rclone
                 obj="etcd/kubernetes-$(date -u +%Y%m%dT%H%M%SZ).snapshot.gz.age"
-                gzip -c /backup/etcd.snapshot | age -r "$AGE_RECIPIENT_PUBLIC_KEY" > /backup/out.age
+                gzip -c /backup/etcd.snapshot > /backup/etcd.snapshot.gz
+                age -r "$AGE_RECIPIENT_PUBLIC_KEY" -o /backup/out.age /backup/etcd.snapshot.gz
                 rclone copyto --s3-no-check-bucket /backup/out.age ":s3:$BUCKET/$obj"
                 echo "uploaded $obj ($(wc -c < /backup/out.age) bytes)"
             env:
@@ -82,6 +84,8 @@ spec:
                 drop:
                   - ALL
     defaultPodOptions:
+      nodeSelector:
+        node-role.kubernetes.io/control-plane: ""
       securityContext:
         # apk needs root to install age and rclone at runtime, as in etcd-defrag.
         runAsNonRoot: false
