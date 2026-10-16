@@ -8,6 +8,7 @@ machine:
       enabled: true
       allowedRoles:
         - os:admin
+        - os:etcd:backup
         - os:reader
       allowedKubernetesNamespaces:
         - actions-runner-system
