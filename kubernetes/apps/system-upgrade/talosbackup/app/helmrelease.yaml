@@ -1,0 +1,72 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: talosbackup
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: talosbackup
+  values:
+    controllers:
+      talosbackup:
+        type: cronjob
+        cronjob:
+          schedule: "15 */6 * * *"
+          concurrencyPolicy: Forbid
+          successfulJobsHistory: 1
+          failedJobsHistory: 1
+          ttlSecondsAfterFinished: 86400
+        containers:
+          app:
+            image:
+              repository: ghcr.io/siderolabs/talos-backup
+              tag: v0.1.0-beta.3-10-gb9fd478@sha256:7fc186ff37a3137f470082cb609bf1dc3bcece13dd9a6421ec09cfdf4f33ae6c
+            command:
+              - /talos-backup
+            workingDir: /tmp
+            env:
+              AWS_REGION: auto
+              CLUSTER_NAME: kubernetes
+              ENABLE_COMPRESSION: "true"
+              S3_PREFIX: etcd
+              USE_PATH_STYLE: "true"
+            envFrom:
+              - secretRef:
+                  name: talosbackup-secret
+            resources:
+              requests:
+                cpu: 10m
+                memory: 64Mi
+              limits:
+                memory: 256Mi
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop:
+                  - ALL
+    defaultPodOptions:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+    persistence:
+      tmp:
+        type: emptyDir
+        globalMounts:
+          - path: /tmp
+      talos:
+        type: emptyDir
+        globalMounts:
+          - path: /.talos
+      talosconfig:
+        type: secret
+        name: talosbackup-talosconfig
+        globalMounts:
+          - path: /var/run/secrets/talos.dev
+            readOnly: true

@@ -8,4 +8,5 @@ components:
   - ../../components/alerts
 resources:
   - ./namespace.yaml
+  - ./talosbackup/ks.yaml
   - ./tuppr/ks.yaml

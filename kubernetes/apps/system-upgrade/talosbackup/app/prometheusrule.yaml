@@ -1,0 +1,31 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: talosbackup
+spec:
+  groups:
+    - name: talosbackup
+      rules:
+        # Age of the last success, not failed-Job count, so a stuck or unscheduled CronJob also fires.
+        # Runs every 6h: 13h tolerates one missed run; the creation-time fallback catches never-succeeded.
+        - alert: TalosEtcdBackupStale
+          annotations:
+            summary: >-
+              The talosbackup CronJob (system-upgrade/talosbackup) has not uploaded an etcd snapshot
+              in over 13h.
+            description: >-
+              No successful etcd snapshot to R2 in over 13h, so a control-plane loss would restore
+              from older data or not at all. Check the latest talosbackup Job's logs (Talos
+              ServiceAccount role, R2 credentials), fix the cause, then run
+              kubectl -n system-upgrade create job --from=cronjob/talosbackup talosbackup-manual.
+          expr: |-
+            time() - (
+              kube_cronjob_status_last_successful_time{namespace="system-upgrade", cronjob="talosbackup"}
+              or
+              kube_cronjob_created{namespace="system-upgrade", cronjob="talosbackup"}
+            ) > 46800
+          for: 1h
+          labels:
+            severity: warning
