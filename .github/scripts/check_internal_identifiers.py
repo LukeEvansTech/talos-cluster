@@ -228,20 +228,6 @@ ALLOWLIST: tuple[Allow, ...] = (
         regex=r"/externalsecret-[a-z0-9-]+\.yaml$",
         where="path",
     ),
-    # Not functional: a real device name used as the "e.g." in a usage comment. Kept narrow
-    # pending a placeholder; do not widen.
-    Allow(
-        "kubernetes/apps/infrastructure/certwarden/cert-deployment/onyx/scripts-configmap.yaml",
-        ("device hostname (cr)",),
-        "usage comment example (real name; replace with a placeholder)",
-        contains="#   ONYX_SWITCH - Custom env var: Onyx switch identifier (e.g., ",
-    ),
-    Allow(
-        "kubernetes/apps/infrastructure/certwarden/cert-deployment/supermicro/scripts-configmap.yaml",
-        ("device hostname (cr)",),
-        "usage comment example (real name; replace with a placeholder)",
-        contains="#   SUPERMICRO_HOST - Custom env var: Supermicro IPMI host identifier (e.g., ",
-    ),
     # --- this guard's own test table ---
     Allow(
         ".github/scripts/tests/test_check_internal_identifiers.py",
@@ -285,14 +271,6 @@ ALLOWLIST: tuple[Allow, ...] = (
         "etcd-defrag node target names",
         regex=r'^\s+NODE\d+_NAME="[^"]+"$',
     ),
-    # Not functional: a real node address in a sample-output comment. Kept narrow pending a
-    # placeholder; do not widen.
-    Allow(
-        "kubernetes/apps/kube-system/etcd-defrag/app/configmap.yaml",
-        ("LAN IP",),
-        "sample-output comment (real address; replace with a placeholder)",
-        regex=r"^\s+# Example: [\d.]+ ",
-    ),
     Allow(
         "kubernetes/apps/kube-system/multus/networks/iot.yaml",
         ("VLAN interface",),
@@ -322,13 +300,6 @@ ALLOWLIST: tuple[Allow, ...] = (
         ("device hostname (cr)",),
         "BMC 1Password item keys",
         regex=r"^\s+key: cr-[a-z0-9-]+$",
-    ),
-    # Not functional: names a device in a history comment. Kept narrow; do not widen.
-    Allow(
-        "kubernetes/apps/observability/bmc-exporter/app/externalsecret.yaml",
-        ("device hostname (cr)",),
-        "history comment (real name; reword without it)",
-        contains="# The firewall's BMC, keyed by name since the ",
     ),
     Allow(
         "kubernetes/apps/observability/nut-exporter/app/prometheusrule.yaml",

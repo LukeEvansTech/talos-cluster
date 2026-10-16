@@ -14,7 +14,7 @@ data:
     #   CERTIFICATE_NAME - Name of the certificate
     #   CERTIFICATE_PEM - Certificate data (PEM format)
     #   PRIVATE_KEY_PEM - Private key data (PEM format)
-    #   ONYX_SWITCH - Custom env var: Onyx switch identifier (e.g., cr-sw-core)
+    #   ONYX_SWITCH - Custom env var: Onyx switch identifier (e.g., <switch-hostname>)
     #   NAMESPACE - Optional: Kubernetes namespace (default: infrastructure)
     #
 
