@@ -19,23 +19,25 @@ spec:
           successfulJobsHistory: 1
           failedJobsHistory: 1
           ttlSecondsAfterFinished: 86400
-        containers:
-          app:
+        initContainers:
+          # Sidero's talos-backup image is unsigned, so machine image verification rejects it; the
+          # signed talosctl image takes the snapshot instead.
+          snapshot:
             image:
-              repository: ghcr.io/siderolabs/talos-backup
-              tag: v0.1.0-beta.3-10-gb9fd478@sha256:7fc186ff37a3137f470082cb609bf1dc3bcece13dd9a6421ec09cfdf4f33ae6c
-            command:
-              - /talos-backup
-            workingDir: /tmp
+              repository: ghcr.io/siderolabs/talosctl
+              tag: v1.14.2@sha256:b655ae1c73789c4789fcf6fbd61c8f45400ed4b3bd9892a26092fcd4d8d95d86
             env:
-              AWS_REGION: auto
-              CLUSTER_NAME: kubernetes
-              ENABLE_COMPRESSION: "true"
-              S3_PREFIX: etcd
-              USE_PATH_STYLE: "true"
-            envFrom:
-              - secretRef:
-                  name: talosbackup-secret
+              HOST_IP:
+                valueFrom:
+                  fieldRef:
+                    fieldPath: status.hostIP
+            args:
+              - --talosconfig=/var/run/secrets/talos.dev/config
+              # The pod's own node: the nodeSelector below guarantees it runs etcd.
+              - --nodes=$(HOST_IP)
+              - etcd
+              - snapshot
+              - /backup/etcd.snapshot
             resources:
               requests:
                 cpu: 10m
@@ -48,22 +50,53 @@ spec:
               capabilities:
                 drop:
                   - ALL
+        containers:
+          app:
+            image:
+              repository: docker.io/library/alpine
+              tag: 3.24.2@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
+            command:
+              - /bin/sh
+              - -ec
+              - |
+                set -o pipefail
+                apk add --no-cache --quiet age rclone
+                obj="etcd/kubernetes-$(date -u +%Y%m%dT%H%M%SZ).snapshot.gz.age"
+                gzip -c /backup/etcd.snapshot > /backup/etcd.snapshot.gz
+                age -r "$AGE_RECIPIENT_PUBLIC_KEY" -o /backup/out.age /backup/etcd.snapshot.gz
+                rclone copyto --s3-no-check-bucket /backup/out.age ":s3:$BUCKET/$obj"
+                echo "uploaded $obj ($(wc -c < /backup/out.age) bytes)"
+            env:
+              RCLONE_S3_PROVIDER: Cloudflare
+              RCLONE_S3_REGION: auto
+            envFrom:
+              - secretRef:
+                  name: talosbackup-secret
+            resources:
+              requests:
+                cpu: 10m
+                memory: 64Mi
+              limits:
+                memory: 256Mi
+            securityContext:
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop:
+                  - ALL
     defaultPodOptions:
+      nodeSelector:
+        node-role.kubernetes.io/control-plane: ""
       securityContext:
-        runAsNonRoot: true
-        runAsUser: 1000
-        runAsGroup: 1000
+        # apk needs root to install age and rclone at runtime, as in etcd-defrag.
+        runAsNonRoot: false
+        runAsUser: 0
         seccompProfile:
           type: RuntimeDefault
     persistence:
-      tmp:
+      backup:
         type: emptyDir
         globalMounts:
-          - path: /tmp
-      talos:
-        type: emptyDir
-        globalMounts:
-          - path: /.talos
+          - path: /backup
       talosconfig:
         type: secret
         name: talosbackup-talosconfig
