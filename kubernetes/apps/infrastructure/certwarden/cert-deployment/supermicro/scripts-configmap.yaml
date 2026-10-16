@@ -14,7 +14,7 @@ data:
     #   CERTIFICATE_NAME - Name of the certificate
     #   CERTIFICATE_PEM - Certificate data (PEM format)
     #   PRIVATE_KEY_PEM - Private key data (PEM format)
-    #   SUPERMICRO_HOST - Custom env var: Supermicro IPMI host identifier (e.g., cr-storage-ipmi)
+    #   SUPERMICRO_HOST - Custom env var: Supermicro IPMI host identifier (e.g., <bmc-hostname>)
     #   NAMESPACE - Optional: Kubernetes namespace (default: infrastructure)
     #
 
