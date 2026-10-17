@@ -95,7 +95,7 @@ spec:
           app:
             image:
               repository: docker.io/library/mongo
-              tag: 8.0.34@sha256:2574b5d2fd8d814646285328008bcaba5180b7622acae18f6227f5414f301ede
+              tag: 8.0.34@sha256:4a4ab5d4834207389e0d7270fac988e21ffedccecba77991a552f755df229907
             probes:
               liveness:
                 enabled: true
