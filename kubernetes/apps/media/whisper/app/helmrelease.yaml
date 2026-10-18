@@ -13,7 +13,7 @@ spec:
     name: whisper
   values:
     controllers:
-      whisper:
+      whisper: &controller
         strategy: Recreate
         pod:
           resourceClaims:
@@ -90,6 +90,9 @@ spec:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: true
               capabilities: { drop: ["ALL"] }
+      # A second instance for bulk re-transcription runs, on another GPU node; Bazarr keeps
+      # the whisper service to itself. Same pod spec, but its own model copy (see persistence).
+      batch: *controller
     defaultPodOptions:
       labels:
         gpu-workload: "true"
@@ -113,6 +116,11 @@ spec:
               labelSelector:
                 matchLabels:
                   llm-gpu-model: "true"
+            # One instance per card: whisper and batch each saturate a GPU on their own.
+            - topologyKey: kubernetes.io/hostname
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: whisper
           # Keeps transcription compute off the card Plex transcodes on when there is a choice.
           preferredDuringSchedulingIgnoredDuringExecution:
             - weight: 50
@@ -137,13 +145,30 @@ spec:
         seccompProfile: { type: RuntimeDefault }
     service:
       app:
+        controller: whisper
+        # Keeps the name Bazarr points at; a second service would otherwise rename it whisper-app.
+        forceRename: whisper
+        ports:
+          http:
+            port: *port
+      batch:
+        controller: batch
         ports:
           http:
             port: *port
     persistence:
       models:
         existingClaim: whisper-models
-        globalMounts:
-          - path: /models
+        advancedMounts:
+          whisper:
+            app:
+              - path: /models
+      # whisper-models is ReadWriteOnce, so batch downloads its own ~3 GB copy at start.
+      models-batch:
+        type: emptyDir
+        advancedMounts:
+          batch:
+            app:
+              - path: /models
       tmp:
         type: emptyDir
