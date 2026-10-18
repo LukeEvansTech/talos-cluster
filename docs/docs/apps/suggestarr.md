@@ -54,10 +54,16 @@ the YAML by hand:
 | `LLM_MODEL`                | `self-hosted`                                  | LiteLLM falls back to `claude`, then `openrouter/auto`                  |
 | `OPENAI_API_KEY`           | the `suggestarr` LiteLLM virtual key           | Scoped to those three models                                            |
 | `TMDB_API_KEY`             | the TMDB key from the `kometa` 1Password item  | Reuses Kometa's key instead of a second TMDB account                    |
-| `REQUIRE_REQUEST_APPROVAL` | `true`                                         | An LLM picks the titles, so each Seerr request waits for a human        |
+| `REQUIRE_REQUEST_APPROVAL` | `true`                                         | An LLM picks the titles, so a human approves each one before it reaches Seerr |
 | `CRON_TIMES`               | `0 0 * * *`                                    | The app default, one run a day                                          |
 | `PLEX_LIBRARIES`           | empty                                          | Empty means every library                                               |
 | `SELECTED_USERS`           | empty                                          | Empty means every user                                                  |
+
+Approval happens in Suggestarr, not Seerr. Each suggestion waits as `awaiting_approval` in
+Suggestarr's own request queue (the `pending_requests` table) until its owner or an admin
+approves it there, so a quiet Seerr does not mean the job is stalled. A job whose delivery mode
+is `manual` or `automatic` overrides the global setting; the one job here, the daily
+`recommendation` job, uses `inherit`.
 
 The virtual key is declared in `kubernetes/apps/ai/litellm/app/virtualkeys/suggestarr.yaml`
 (#6041), and its PushSecret mirrors it to the `litellm` 1Password item as
