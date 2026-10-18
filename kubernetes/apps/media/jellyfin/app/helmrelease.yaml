@@ -46,7 +46,7 @@ spec:
             securityContext:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: true
-              capabilities: { drop: ["ALL"] }
+              capabilities: {drop: ["ALL"]}
             resources:
               requests:
                 cpu: 100m
@@ -98,7 +98,7 @@ spec:
         supplementalGroups:
           - 44
           - 10000
-        seccompProfile: { type: RuntimeDefault }
+        seccompProfile: {type: RuntimeDefault}
     service:
       app:
         controller: jellyfin
@@ -124,10 +124,13 @@ spec:
         type: emptyDir
         globalMounts:
           - path: /config/log
-      transcode:
+      # The image sets JELLYFIN_CACHE_DIR=/cache, so image cache and transcodes land here;
+      # unmounted, they filled the container layer on the node's disk.
+      cache:
         type: emptyDir
+        sizeLimit: 100Gi
         globalMounts:
-          - path: /config/transcodes
+          - path: /cache
       tmp:
         type: emptyDir
       media:
