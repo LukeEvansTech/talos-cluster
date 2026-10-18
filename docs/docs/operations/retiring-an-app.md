@@ -52,7 +52,8 @@ then take a fresh sync of each destination (as in [Your Spotify](../apps/yourspo
    ```bash
    claim=<claim>
    until [ -z "$(kubectl get pods -n "$ns" -o json | jq -r --arg c "$claim" \
-     '.items[] | select(any(.spec.volumes[]?; .persistentVolumeClaim.claimName == $c)) | .metadata.name')" ]
+     '.items[] | select(.status.phase != "Succeeded" and .status.phase != "Failed")
+       | select(any(.spec.volumes[]?; .persistentVolumeClaim.claimName == $c)) | .metadata.name')" ]
    do sleep 10; done
    ```
 
@@ -71,11 +72,13 @@ then take a fresh sync of each destination (as in [Your Spotify](../apps/yourspo
    done
    ```
 
-5. Go on only if both lines end `Successful`. Then `flux resume ks "$app" -n "$ns"` and merge
-   the step 2 PR straight away (`flux reconcile source git flux-system`). The resume is required:
-   Flux skips garbage collection for a Kustomization deleted while suspended, so nothing would be
-   pruned. It also re-applies a `zeroscaler` HPA or a CronJob from Git, so anything they write
-   between the resume and the prune is not in the backup; keep that window short.
+5. Go on only if both lines end `Successful`. Then `flux resume hr "$app" -n "$ns"`,
+   `flux resume ks "$app" -n "$ns"`, and merge the step 2 PR straight away
+   (`flux reconcile source git flux-system`). Both resumes are required: Flux skips garbage
+   collection for a Kustomization deleted while suspended, and helm-controller skips the uninstall
+   of a suspended HelmRelease, so the chart's objects would be orphaned. Resuming restores the
+   replicas, CronJobs and any `zeroscaler` HPA from Git, so anything written between the resume
+   and the prune is not in the backup; keep that window short.
 
 An app without the `volsync` component has no backup at all: copy the data out with
 `just kube browse-pvc <ns> <claim>` first. Put the evidence (the sync times, or where the copy
