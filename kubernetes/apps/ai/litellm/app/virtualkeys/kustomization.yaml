@@ -8,5 +8,6 @@ resources:
   - ./loupe.yaml
   - ./lurcher.yaml
   - ./subspy.yaml
+  - ./subtitles.yaml
   - ./suggestarr.yaml
   - ./todoist-sort.yaml
