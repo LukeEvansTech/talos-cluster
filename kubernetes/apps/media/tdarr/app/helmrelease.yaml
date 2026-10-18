@@ -25,7 +25,7 @@ spec:
           app:
             image:
               repository: ghcr.io/haveagitgat/tdarr
-              tag: 3.00.00@sha256:7ba5325ea64951181a30f2a8d5bbc4fc0985e4c275ea1d09d15491b47b4cd8d6
+              tag: 3.01.00@sha256:5b3b8d4e54f41738d12ff71705cf8eb8e90fcbcc05209c331853aef119879992
             env:
               TZ: ${TIMEZONE}
               # 3.x enables auth by default and the node carries no API key; set explicitly rather
@@ -53,7 +53,7 @@ spec:
           node:
             image:
               repository: ghcr.io/haveagitgat/tdarr_node
-              tag: 3.00.00@sha256:4d8e8d8b4159003858b255a3e44fb1564dbb599e996350c0c44a2ace25a46217
+              tag: 3.01.00@sha256:58d1c5f319c7fc5ece1c7ee54afffca81339efe5298d342bbc1a356ee858d9c5
             env:
               TZ: ${TIMEZONE}
               nodeID:
