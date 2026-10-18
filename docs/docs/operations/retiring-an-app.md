@@ -36,6 +36,19 @@ The pattern also matches `<app>-…` names, because the app's own objects are ca
 Note the answers to three questions for the PR body: what the PVC holds, whether the app has
 VolSync backups, and whether anything else depends on it.
 
+**If the data matters, prove a copy exists before step 2 merges**, because the merge deletes the
+PVC. For a VolSync app, run `just kube snapshot` (or wait for the schedule) and confirm both
+ReplicationSources report a sync after the app's last write:
+
+```bash
+kubectl get replicationsources -n "$ns" "$app-nfs" "$app-r2" \
+  -o custom-columns=NAME:.metadata.name,LAST:.status.lastSyncTime,RESULT:.status.latestMoverStatus.result
+```
+
+An app without the `volsync` component has no backup at all: copy the data out with
+`just kube browse-pvc <ns> <claim>` first. Put the evidence (the sync times, or where the copy
+went) in the PR body.
+
 ## 2. Archive in Git, in one PR
 
 - `git mv kubernetes/apps/<ns>/<app> .archive/kubernetes/apps/<ns>/<app>` and delete its
@@ -93,10 +106,15 @@ After the merge reconciles (`flux reconcile source git flux-system`), re-run the
 The app's Kubernetes Secrets are pruned, but the credentials behind them still work wherever they
 were issued.
 
-- **Credentials minted in other apps for this one.** An API key created in Jellyfin, an `*arr`
-  API key pasted into its config, an OAuth client or a token in another service: revoke each in the
-  service that issued it. The app's old `externalsecret.yaml` under `.archive/` lists which
-  1Password fields it consumed, which is the best map of what to revoke.
+- **Credentials minted in other apps for this one.** An API key created for it in Jellyfin, an
+  OAuth client, a token issued to it by another service: revoke each in the service that issued
+  it. The app's old `externalsecret.yaml` under `.archive/` lists which 1Password fields it
+  consumed, which is the best map of what it held.
+- **Shared credentials are not the app's to revoke.** Many of those fields are a service's single
+  API key (an `*arr` key, for one) that live apps read too. Before revoking anything, find the
+  field's other readers with `git grep -n "<FIELD_NAME>" -- kubernetes`. If any remain, either
+  leave it, or rotate it in the issuing service, in 1Password and in every remaining consumer
+  together.
 - **LiteLLM.** Deleting the `LiteLLMVirtualKey` CR should retire the key; confirm the key alias no
   longer appears in LiteLLM's key list.
 
@@ -104,15 +122,23 @@ were issued.
 
 - **The `LITELLM_<APP>_API_KEY` field on the `litellm` item.** The PushSecret wrote it and does not
   remove it when deleted. Delete the field.
-- **The app's own item in the `Talos` vault.** First confirm no live ExternalSecret extracts it:
-  `git grep -nE "key: <item>$" -- kubernetes` should print nothing. Then delete it. A deleted
-  item stays in the vault's Recently Deleted for 30 days.
-- Fields for the app on shared items (a database password on a shared item, a Garage access key).
+- Fields for the app on shared items that are only access credentials (a Garage access key, once
+  the key itself is revoked).
+- **Keep the app's own item in the `Talos` vault while any of its data is kept.** It may hold what
+  the retained data needs to be read: an encryption key (Metabase's `MB_ENCRYPTION_SECRET_KEY`
+  decrypts its saved connections), a database password, a restored app's admin login. Delete it
+  in step 7, together with the last of the data.
 
 ## 7. Delete the backups (only when asked)
 
 This is the irreversible step. Do it only on an explicit request, after the PR has merged and the
 app has been gone long enough that nobody wants it back.
+
+### The app's 1Password item
+
+Once nothing of the app's data is kept, confirm no live ExternalSecret extracts the item
+(`git grep -nE "key: <item>$" -- kubernetes` prints nothing), then delete it. A deleted item stays
+in the vault's Recently Deleted for 30 days.
 
 ### R2 (restic)
 
@@ -120,7 +146,12 @@ Each app has one restic repository at `<REPOSITORY_TEMPLATE>/<app>`, the templat
 `volsync-r2-template` item in the `Talos` vault. Drive `rclone` from environment variables so no
 credential lands in a config file or on screen:
 
+This block may run in a fresh shell long after step 1, so it sets `app` again and refuses to purge
+unless the name is a plain app name: an empty `app` would make the target the bucket root, every
+app's backups.
+
 ```bash
+app=<app>
 umask 077; d=$(mktemp -d)
 for f in REPOSITORY_TEMPLATE AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY; do
   op read "op://Talos/volsync-r2-template/$f" > "$d/$f"
@@ -133,8 +164,8 @@ export RCLONE_CONFIG_R2_SECRET_ACCESS_KEY="$(cat "$d/AWS_SECRET_ACCESS_KEY")"
 bucket=${rest##*/}
 rclone lsd "r2:$bucket"                 # one directory per app
 rclone size "r2:$bucket/$app"           # what is about to go
-rclone purge "r2:$bucket/$app"
-rclone lsd "r2:$bucket" | grep -wc "$app"   # 0
+[[ "$app" =~ ^[a-z0-9][a-z0-9-]*$ && -n "$bucket" ]] && rclone purge "r2:$bucket/$app"
+rclone lsd "r2:$bucket" | grep -cE " ${app}$"   # 0
 rm -rf "$d"
 ```
 
@@ -192,5 +223,5 @@ kubectl get litellmvirtualkeys,pushsecrets -n ai | grep -E "$m"
 ```
 
 Plus, by hand: the credentials from step 5 are revoked and the 1Password fields from step 6 are
-gone. Step 7 is complete only if it was asked for; say in the PR or the issue which backups were
-kept.
+gone. Step 7 is complete only if it was asked for; say in the PR or the issue which backups, and
+which 1Password item, were kept.
