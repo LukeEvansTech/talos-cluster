@@ -1,0 +1,19 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/litellm.home-operations.com/litellmvirtualkey_v1alpha1.json
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMVirtualKey
+metadata:
+  name: subtitles
+  namespace: ai
+spec:
+  # Translates source-language Whisper transcripts to English subtitles (a one-off bulk run,
+  # then new foreign episodes). Read from this Secret by the operator running it; no consumer
+  # pod mounts it, so there is no PushSecret.
+  proxyRef: litellm
+  keyAlias: subtitles
+  secretName: litellm-key-subtitles
+  secretKey: api-key
+  # Hard cap on the bulk run, inside the monthly provider credit.
+  maxBudget: "150"
+  models:
+    - claude
