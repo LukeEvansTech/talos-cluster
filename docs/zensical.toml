@@ -121,6 +121,7 @@ nav = [
     { "snapshot-controller" = "apps/snapshot-controller.md" },
     { "SNMP exporter" = "apps/snmp-exporter.md" },
     { "Sonarr" = "apps/sonarr.md" },
+    { "Suggestarr" = "apps/suggestarr.md" },
     { "Tautulli exporter" = "apps/tautulli-exporter.md" },
     { "Tracearr" = "apps/tracearr.md" },
     { "Todoist Sort" = "apps/todoist-sort.md" },
