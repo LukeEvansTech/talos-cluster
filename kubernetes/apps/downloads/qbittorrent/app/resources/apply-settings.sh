@@ -10,7 +10,9 @@ mkdir -p /config/qBittorrent
 [ -f "$conf" ] || cp /defaults/qBittorrent.conf "$conf"
 
 # Every torrent here is on a public tracker and home upload is very limited, so ratio and
-# seeding time aren't tracked: torrents stop on completion and upload stays capped low.
+# seeding time aren't tracked: torrents stop on completion. Upload is capped at ~1 MB/s,
+# enough for peers to reciprocate on big slow swarms (10 KB/s got choked) without
+# saturating the line.
 settings=$(
     cat <<'EOF'
 BitTorrent|Session\DiskCacheSize|256
@@ -18,7 +20,7 @@ BitTorrent|Session\QueueingSystemEnabled|true
 BitTorrent|Session\MaxActiveDownloads|10
 BitTorrent|Session\MaxActiveTorrents|20
 BitTorrent|Session\IgnoreSlowTorrentsForQueueing|true
-BitTorrent|Session\GlobalUPSpeedLimit|10
+BitTorrent|Session\GlobalUPSpeedLimit|1024
 BitTorrent|Session\IncludeOverheadInLimits|false
 BitTorrent|Session\GlobalMaxRatio|0
 BitTorrent|Session\GlobalMaxSeedingMinutes|0
