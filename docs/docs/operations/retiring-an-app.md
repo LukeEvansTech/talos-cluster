@@ -38,30 +38,44 @@ VolSync backups, and whether anything else depends on it.
 
 **If the data matters, prove a copy exists before step 2 merges**, because the merge deletes the
 PVC. A sync that finished after the app's last write is not proof: with `copyMethod: Snapshot`,
-`lastSyncTime` is when the transfer ended, not when the snapshot was taken. Stop the writers
-first, then take a fresh sync of each destination (the procedure in
-[Your Spotify](../apps/yourspotify.md), step 2):
+`lastSyncTime` is when the transfer ended, not when the snapshot was taken. Stop every writer,
+then take a fresh sync of each destination (as in [Your Spotify](../apps/yourspotify.md), step 2).
 
-```bash
-flux suspend hr "$app" -n "$ns"   # stays scaled down until the prune
-kubectl -n "$ns" scale deploy,statefulset -l app.kubernetes.io/instance="$app" --replicas=0
-flux suspend ks "$app" -n "$ns"   # Flux would revert the manual trigger
-for rs in "$app-nfs" "$app-r2"; do
-  # A run already in progress completes as the manual sync and may predate the stop.
-  until [ "$(kubectl -n "$ns" get replicationsource "$rs" \
-    -o jsonpath='{.status.conditions[?(@.type=="Synchronizing")].status}')" = "False" ]; do sleep 10; done
-  t="retire-$(date +%s)"
-  kubectl -n "$ns" patch replicationsource "$rs" --type merge -p "{\"spec\":{\"trigger\":{\"manual\":\"$t\"}}}"
-  until [ "$(kubectl -n "$ns" get replicationsource "$rs" \
-    -o jsonpath='{.status.lastManualSync}')" = "$t" ]; do sleep 10; done
-  kubectl -n "$ns" get replicationsource "$rs" -o jsonpath='{.metadata.name} {.status.latestMoverStatus.result}{"\n"}'
-done
-flux resume ks "$app" -n "$ns"
-```
+1. Suspend the Kustomization and the HelmRelease, so Flux neither reverts the manual trigger nor
+   scales the app back up: `flux suspend ks "$app" -n "$ns"` and `flux suspend hr "$app" -n "$ns"`.
+2. Stop the writers: scale its Deployments and StatefulSets to 0, `kubectl patch cronjob … -p
+   '{"spec":{"suspend":true}}'` for each CronJob and let any running Job finish, and delete the
+   app's HPA if it uses the `zeroscaler` component (the HPA would otherwise restore a replica).
+3. Wait until no pod mounts the claim. `kubectl scale` returns before the pods have shut down,
+   and some apps checkpoint in a long termination grace period:
 
-Go on only if both lines end `Successful`. Resume the Kustomization before merging: Flux skips
-garbage collection for a Kustomization deleted while suspended, so nothing would be pruned. The
-HelmRelease stays suspended, so the app does not start writing again.
+   ```bash
+   claim=<claim>
+   until [ -z "$(kubectl get pods -n "$ns" -o json | jq -r --arg c "$claim" \
+     '.items[] | select(any(.spec.volumes[]?; .persistentVolumeClaim.claimName == $c)) | .metadata.name')" ]
+   do sleep 10; done
+   ```
+
+4. Take a fresh sync of each destination:
+
+   ```bash
+   for rs in "$app-nfs" "$app-r2"; do
+     # A run already in progress completes as the manual sync and may predate the stop.
+     until [ "$(kubectl -n "$ns" get replicationsource "$rs" \
+       -o jsonpath='{.status.conditions[?(@.type=="Synchronizing")].status}')" = "False" ]; do sleep 10; done
+     t="retire-$(date +%s)"
+     kubectl -n "$ns" patch replicationsource "$rs" --type merge -p "{\"spec\":{\"trigger\":{\"manual\":\"$t\"}}}"
+     until [ "$(kubectl -n "$ns" get replicationsource "$rs" \
+       -o jsonpath='{.status.lastManualSync}')" = "$t" ]; do sleep 10; done
+     kubectl -n "$ns" get replicationsource "$rs" -o jsonpath='{.metadata.name} {.status.latestMoverStatus.result}{"\n"}'
+   done
+   ```
+
+5. Go on only if both lines end `Successful`. Then `flux resume ks "$app" -n "$ns"` and merge
+   the step 2 PR straight away (`flux reconcile source git flux-system`). The resume is required:
+   Flux skips garbage collection for a Kustomization deleted while suspended, so nothing would be
+   pruned. It also re-applies a `zeroscaler` HPA or a CronJob from Git, so anything they write
+   between the resume and the prune is not in the backup; keep that window short.
 
 An app without the `volsync` component has no backup at all: copy the data out with
 `just kube browse-pvc <ns> <claim>` first. Put the evidence (the sync times, or where the copy
