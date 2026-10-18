@@ -30,10 +30,10 @@ spec:
               SCHEDULED_RESCAN_CRON: "0 3 * * *"
               # Key-less metadata sources. Hasheous and PlayMatch match by file hash. LaunchBox's
               # store lives in the emptyDir cache: refill it from Administration > Tasks after a restart.
+              # HowLongToBeat stays off: it rate-limited (503) a 13k-game scan.
               HASHEOUS_API_ENABLED: "true"
               PLAYMATCH_API_ENABLED: "true"
               LAUNCHBOX_API_ENABLED: "true"
-              HLTB_API_ENABLED: "true"
             envFrom:
               - secretRef:
                   name: romm-secret
