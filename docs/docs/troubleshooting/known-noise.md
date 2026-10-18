@@ -15,6 +15,11 @@ When someone describes an alert in their own words ("the blue screen one"), find
 14 days (the Prometheus retention), including a BMC event's `message`, which the alert name never
 mentions.
 
+To see which Warning events the cluster is emitting right now, run `just kube warnings`. It counts
+them by namespace, kind and reason and marks each reason this page or the
+[hardening backlog](../operations/hardening-backlog.md) already covers, so a reason marked
+`UNKNOWN` is the one to read first.
+
 1. **A match means "do not remediate". It does not mean "ignore".** Record which entry matched and
    why, in the PR, the issue or the session notes, so a wrong match is auditable afterwards. An
    alert closed with no note is indistinguishable from an outage nobody handled.

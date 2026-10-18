@@ -98,6 +98,25 @@ sync-oci:
         kubectl -n "$ns" annotate --field-manager flux-client-side-apply --overwrite ocirepo "$name" reconcile.fluxcd.io/requestedAt="$(date +%s)"
     done
 
+[doc('Count current Warning events by namespace, kind and reason, marking reasons the troubleshooting docs already cover. Messages are never printed: Flux ones embed credentialled URLs.')]
+warnings:
+    docs="{{ source_directory() }}/../docs/docs"; \
+    kubectl get events -A --field-selector type=Warning -o json \
+      | jq -r --rawfile noise "$docs/troubleshooting/known-noise.md" --rawfile backlog "$docs/operations/hardening-backlog.md" '
+          # Only inline code spans count, so prose such as "failed" never marks a reason documented.
+          def tokens: [split("\n")[] | scan("`[^`]+`") | scan("[A-Za-z][A-Za-z0-9]+")] | unique;
+          ($noise | tokens) as $n | ($backlog | tokens) as $b
+          | .items
+          | group_by([.involvedObject.namespace, .involvedObject.kind, .reason])
+          | map({ns: (.[0].involvedObject.namespace // "-"), kind: .[0].involvedObject.kind, reason: .[0].reason,
+                  count: (map(.series.count // .count // 1) | add),
+                  objects: (map(.involvedObject.name) | unique | length)})
+          | sort_by(-.count)
+          | (["COUNT", "OBJECTS", "NAMESPACE", "KIND", "REASON", "DOCUMENTED"] | @tsv),
+            (.[] | [.count, .objects, .ns, .kind, .reason,
+                    (if (.reason | IN($n[])) then "known-noise" elif (.reason | IN($b[])) then "hardening-backlog" else "UNKNOWN" end)] | @tsv)' \
+      | column -t -s $'\t'
+
 [doc('View a secret')]
 view-secret namespace secret:
     kubectl view-secret -n {{ namespace }} {{ secret }}

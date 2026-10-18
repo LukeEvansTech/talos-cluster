@@ -21,6 +21,31 @@ instance but not the class, say so; the class is what stays open.
 
 ## Open
 
+### H-23: Flux commit statuses are missing for about 40% of Kustomizations on most commits
+
+**Found:** 2026-10-18, while deciding whether `NotificationDispatchFailed` warnings were noise.
+
+Each namespace's `github-status` Alert posts a `kustomization/<name>` commit status for every
+`cluster-apps` Kustomization, and the notification-controller lists the commit's statuses before
+each post. About 265 Kustomizations reconcile on every new `main` revision, so each commit fires
+hundreds of GitHub API calls at once and trips the secondary rate limit (`403 You have exceeded a
+secondary rate limit`). Those statuses never land: the contexts missing from a commit
+are the Kustomizations its failures name. VictoriaLogs
+shows it on every day of its retention (from 2026-09-20), in bursts of 100 to 230 failures touching
+about 110 to 180 Kustomizations, not only after merge bursts. Of 40 `main` commits since
+2026-10-14, 25 carried 149 to 191 `kustomization/*` statuses instead of the full 262 or 263. Each
+failure also lands as a `NotificationDispatchFailed` Warning event, which makes it the largest
+source of warnings in `just kube warnings`.
+
+**Mitigation in place:** none needed for gating. No ruleset on `main` requires a
+`kustomization/*` context, and the `alertmanager` Alert still reports reconcile errors. The cost is
+that a commit's status list cannot be read as "what deployed": a missing context means "not
+posted", not "not applied".
+
+**What would close it:** fewer status posts per commit. Either scope the `github-status` Alert to a
+few root Kustomizations, or drop it if nothing reads the statuses. Then the warning count should
+fall to zero and every commit should carry the full set.
+
 ### H-21: A comment claimed NextDNS is enforced on every pod except one, which is not true
 
 **Found:** 2026-09-28, while trimming comments on `media/dispatcharr`.
