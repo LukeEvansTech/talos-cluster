@@ -148,16 +148,18 @@ LiteLLM `model_name` groups make the serving tier transparent to clients:
 - **`self-hosted`**: `llama-nvidia` (order 1), with live cloud fallbacks via
   `router_settings.fallbacks`: `claude` first, then `openrouter/auto` (both keys are in the
   `litellm` ExternalSecret).
-- **`claude`**: Claude Sonnet 5.5 on the Anthropic API, paid from a monthly provider credit.
-  `router_settings.provider_budget_config` caps `anthropic` spend at that credit per 30 days,
-  after which requests spill to `openrouter/auto`; `context_window_fallbacks` also sends
+- **`claude`**: Claude Sonnet 5.5 on the Anthropic API, paid from a monthly provider credit, and
+  the default model for most in-cluster callers. `router_settings.provider_budget_config` caps
+  `anthropic` spend at that credit per 30 days, after which requests fall back to `self-hosted`
+  (then `openrouter/auto`). `LiteLLMClaudeBudgetLow` and `LiteLLMClaudeSpendFast` alert on the
+  remaining budget and the daily spend rate. `context_window_fallbacks` also sends
   prompts too large for `self-hosted` here. Spend is computed from the per-token prices in
   `models/claude.yaml`, because this LiteLLM build has no price entry for the model; if those
   are missing the budget never trips. The LiteLLM window starts at first spend rather than the
   credit's renewal, so the hard stop is the workspace spend limit set in the provider console.
-  Callers can also request `claude` directly; `repowiki` is deliberately not scoped to it. The
+  `repowiki` stays on `self-hosted`: its overnight volume would exceed the credit. The
   key (`ANTHROPIC_API_KEY` in the `litellm` item) has an expiry date recorded on that item, and
-  an expired key fails over to OpenRouter silently.
+  an expired key falls back to `self-hosted` silently.
 - **`self-hosted-uncensored`**: the same `llama-nvidia` backend under a second name. Kept as
   its own group because its fallback semantics differ: no cloud fallback by design (a cloud
   model would reintroduce refusals), and existing clients keep working unchanged.
@@ -165,7 +167,8 @@ LiteLLM `model_name` groups make the serving tier transparent to clients:
 ## In-cluster consumers
 
 Six in-cluster apps route through LiteLLM, all at `http://litellm.ai.svc.cluster.local:4000/v1`
-and the `self-hosted` model (with the `openrouter/auto` cloud fallback in scope):
+and, except `suggestarr` (model set in its UI), the `claude` model, falling back to
+`self-hosted` and then `openrouter/auto`:
 
 | App             | Namespace | Key env var         |
 | --------------- | --------- | ------------------- |

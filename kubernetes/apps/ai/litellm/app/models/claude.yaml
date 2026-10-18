@@ -7,7 +7,7 @@ metadata:
   namespace: ai
 spec:
   # Paid from a monthly provider credit and capped by provider_budget_config
-  # (litellmproxy.yaml); first cloud fallback for self-hosted.
+  # (litellmproxy.yaml). Default model for most callers; falls back to self-hosted.
   modelName: claude
   proxyRef: litellm
   params:
@@ -21,6 +21,8 @@ spec:
         - top_p
         - top_k
         - reasoning_effort
+        # llama.cpp-only switch (todoist-sort); Anthropic 400s on unknown body keys.
+        - chat_template_kwargs
   info:
     mode: chat
     maxInputTokens: 1000000

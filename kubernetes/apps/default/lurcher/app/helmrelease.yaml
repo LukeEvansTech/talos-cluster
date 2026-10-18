@@ -34,7 +34,7 @@ spec:
               # Feeds description formatting through the in-cluster LiteLLM gateway. Routing and its
               # cloud fallback are documented in docs/docs/architecture/ai-llm-stack.md.
               LLM_BASE_URL: http://litellm.ai.svc.cluster.local:4000/v1
-              LLM_MODEL: self-hosted
+              LLM_MODEL: claude
               # Pinned so the heap ceiling is visible and sits under the container limit, leaving
               # room for native memory. The 2026-09 crash this fixed is in
               # docs/docs/troubleshooting/kb/085-lurcher-oom-invisible-to-health-check.md.
