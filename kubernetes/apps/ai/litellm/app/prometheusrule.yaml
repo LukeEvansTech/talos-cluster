@@ -70,6 +70,43 @@ spec:
               moves to self-hosted when it runs out
           labels:
             severity: warning
+        - alert: LiteLLMClaudeBudgetMetricAbsent
+          # The budget filter sets the gauge on every claude call, so a call with no gauge means
+          # provider_budget_config is unset. New series count, as increase() misses their first call.
+          expr: |-
+            (
+              sum(increase(litellm_deployment_success_responses_total{litellm_model_name="claude-sonnet-5-5"}[1h])) > 0
+              or
+              sum(litellm_deployment_success_responses_total{litellm_model_name="claude-sonnet-5-5"} unless litellm_deployment_success_responses_total{litellm_model_name="claude-sonnet-5-5"} offset 1h)
+            )
+            unless on () litellm_provider_remaining_budget_metric{api_provider="anthropic"}
+          for: 15m
+          annotations:
+            summary: >-
+              LiteLLM reports no Anthropic budget; the claude spend cap may be unset
+          labels:
+            severity: warning
+        - alert: LiteLLMClaudeRequestRejected
+          # A 400 from Anthropic is a request param it does not accept, which fails over
+          # silently; chat_template_kwargs did this until it was dropped.
+          # The counter is created at its first event, which increase() never sees, so a
+          # series that did not exist an hour ago counts too.
+          expr: |-
+            sum by (exception_class) (
+              increase(litellm_deployment_successful_fallbacks_total{exception_status="400",exception_class=~"Anthropic[.].*"}[1h])
+            ) > 0
+            or
+            sum by (exception_class) (
+              litellm_deployment_successful_fallbacks_total{exception_status="400",exception_class=~"Anthropic[.].*"}
+              unless
+              litellm_deployment_successful_fallbacks_total{exception_status="400",exception_class=~"Anthropic[.].*"} offset 1h
+            )
+          annotations:
+            summary: >-
+              Anthropic rejected LiteLLM requests ({{ $labels.exception_class }}); check the
+              LiteLLM logs for the param and add it to additional_drop_params
+          labels:
+            severity: warning
         - alert: LiteLLMClaudeSpendFast
           # $20/day empties the monthly budget in ten days.
           expr: |-

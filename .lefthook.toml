@@ -61,10 +61,11 @@ glob = ["*.md"]
 exclude = ["docs/**"]
 stage_fixed = true
 
-# Matches super-linter's PYTHON_BLACK. The repo config sets line-length 120; plain `black` uses 88
-# and CI then rejects the result.
+# Matches super-linter's PYTHON_ISORT and PYTHON_BLACK, chained because hooks run in parallel and
+# both rewrite the file. black's repo config sets line-length 120; plain `black` uses 88 and CI then
+# rejects the result.
 [pre-commit.commands.format-python-black]
-run = "mise x -- black --quiet --config .github/linters/.python-black {staged_files}"
+run = "mise x -- isort --quiet --settings-path .github/linters/.isort.cfg {staged_files} && mise x -- black --quiet --config .github/linters/.python-black {staged_files}"
 glob = ["*.py"]
 exclude = ["docs/**"]
 stage_fixed = true
