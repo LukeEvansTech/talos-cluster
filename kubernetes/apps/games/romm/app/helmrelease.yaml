@@ -28,6 +28,13 @@ spec:
               ENABLE_SCHEDULED_RESCAN: "true"
               RESCAN_ON_FILESYSTEM_CHANGE: "false"
               SCHEDULED_RESCAN_CRON: "0 3 * * *"
+              # Key-less metadata sources. Hasheous and PlayMatch match by file hash, which suits
+              # No-Intro/Redump sets; LaunchBox adds box art and refreshes nightly after the rescan.
+              HASHEOUS_API_ENABLED: "true"
+              PLAYMATCH_API_ENABLED: "true"
+              LAUNCHBOX_API_ENABLED: "true"
+              ENABLE_SCHEDULED_UPDATE_LAUNCHBOX_METADATA: "true"
+              HLTB_API_ENABLED: "true"
             envFrom:
               - secretRef:
                   name: romm-secret
