@@ -70,13 +70,14 @@ spec:
       anthropic:
         budget_limit: 200
         time_period: 30d
-    # If the local model is cooling down or unhealthy, spill to cloud: Claude on the
-    # plan credit first, then OpenRouter once the budget is spent.
+    # Free local model before paid OpenRouter, including once the budget is spent.
+    # A self-hosted <-> claude bounce is capped by max_fallbacks (5 hops).
     fallbacks:
       - self-hosted:
           - claude
           - "openrouter/auto"
       - claude:
+          - self-hosted
           - "openrouter/auto"
     # Prompts over self-hosted's 64K window are rejected by pre-call checks, which
     # plain fallbacks never see.

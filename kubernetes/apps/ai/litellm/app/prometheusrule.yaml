@@ -60,6 +60,25 @@ spec:
               (auth/quota, check the upstream key or plan cap)
           labels:
             severity: warning
+        - alert: LiteLLMClaudeBudgetLow
+          # Not an outage: once the budget is spent, claude callers fall back to self-hosted.
+          expr: |-
+            litellm_provider_remaining_budget_metric{api_provider="anthropic"} < 40
+          annotations:
+            summary: >-
+              LiteLLM Anthropic budget down to {{ $value | printf "%.0f" }} USD; claude traffic
+              moves to self-hosted when it runs out
+          labels:
+            severity: warning
+        - alert: LiteLLMClaudeSpendFast
+          # $20/day empties the monthly budget in ten days.
+          expr: |-
+            sum(increase(litellm_spend_metric_total{model="claude-sonnet-5-5"}[24h])) > 20
+          annotations:
+            summary: >-
+              LiteLLM claude spent {{ $value | printf "%.0f" }} USD in the last 24h
+          labels:
+            severity: warning
     # up comes from the llmkube-models ServiceMonitor; max by (service) fires only
     # when every endpoint of a backend is down. 15m absorbs restarts and cold GGUF
     # loads; a scaled-to-zero pod goes stale, not up==0 (docs/docs/apps/litellm.md Alerting).

@@ -10,10 +10,11 @@ max_per_run = 12
 
 [llm]
 base_url = "http://litellm.ai.svc.cluster.local:4000/v1"
-model = "self-hosted"
-# enable_thinking=false: the self-hosted model is a reasoning model that emits
-# thousands of tokens of reasoning_content before answering; on heavy plan-day
-# runs that reasoning overran max_tokens and truncated before the JSON array,
+model = "claude"
+# enable_thinking=false is for the self-hosted fallback (LiteLLM drops it for claude):
+# that model is a reasoning model that emits thousands of tokens of reasoning_content
+# before answering; on heavy plan-day runs that reasoning overran max_tokens and
+# truncated before the JSON array,
 # failing the job ("no JSON array found"). Qwen's thinking switch (llama.cpp
 # honours chat_template_kwargs, not reasoning_effort) turns it off; verified
 # 2026-07-22: golden eval still 12/12, plan output valid. Applies to both passes.

@@ -27,11 +27,11 @@ spec:
               # Self-hosted (not the multi-tenant "hosted" SaaS) mode.
               JOBOPS_APP_MODE: local
               JOBOPS_PUBLIC_BASE_URL: "https://{{ .Release.Name }}.${SECRET_DOMAIN}"
-              # MODEL self-hosted routes to llmkube's llama.cpp backend, with an openrouter/auto
-              # fallback in LiteLLM; provider, URL, model and key are overridable in the app UI.
+              # Fallbacks are LiteLLM's (docs/docs/architecture/ai-llm-stack.md); provider, URL,
+              # model and key are overridable in the app UI.
               LLM_PROVIDER: openai_compatible
               LLM_BASE_URL: http://litellm.ai.svc.cluster.local:4000/v1
-              MODEL: self-hosted
+              MODEL: claude
               # CV generation via the self-hosted Reactive Resume (internal).
               RXRESUME_URL: https://reactiveresume.${SECRET_DOMAIN}
             envFrom:
