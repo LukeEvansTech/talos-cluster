@@ -192,6 +192,8 @@ Flux delete its live HelmRelease, PVC, and everything else it owns.
 Either way Flux **prunes the PVC**. Take a VolSync snapshot or copy the data out
 (`just kube browse-pvc`) first if it matters.
 
+Before closing an archive, read `docs/docs/operations/retiring-an-app.md`.
+
 ### Flux pruning beyond app removal
 
 Removing an app is the obvious prune. The same `prune: true` also fires on changes that look like
