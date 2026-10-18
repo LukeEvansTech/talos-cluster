@@ -284,6 +284,20 @@
       semanticCommitType: "chore",
     },
 
+    // === Commit message shape ===
+    {
+      // Every OCIRepository in this repository is a Helm chart source, and all of them live in a
+      // file of this name. The flux manager extracts HelmRelease values images too, so the file
+      // name is the only thing distinguishing a chart from a container image; without this a chart
+      // bump reads as "update image ghcr.io/.../charts/foo". Placed before the grouping rules so a
+      // grouped chart keeps its group topic.
+      description: "Title OCI chart updates as charts instead of images",
+      matchDatasources: ["docker"],
+      matchFileNames: ["**/ocirepository.yaml"],
+      semanticCommitScope: "helm",
+      commitMessageTopic: "chart {{depName}}",
+    },
+
     // === Grouping (from groups.json5) ===
     {
       description: "Actions Runner Controller Group",
