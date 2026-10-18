@@ -38,7 +38,8 @@ from __future__ import annotations
 import re
 import subprocess
 import sys
-from dataclasses import dataclass, field as dc_field
+from dataclasses import dataclass
+from dataclasses import field as dc_field
 from pathlib import Path, PurePosixPath
 
 import yaml  # pylint: disable=import-error  # on the runner image; not in the linter's env
@@ -160,11 +161,11 @@ def _own_namespace(path: str) -> str | None:
 def _depends_on_hits(path: str, doc: dict, archive: Archive) -> list[Hit]:
     hits: list[Hit] = []
     for name, ns in _walk_depends_on(doc):
-        ident = (ns or _own_namespace(path), name)
+        own = ns or _own_namespace(path)
         if name in archive.names:
             hits.append(Hit(path, name, f"dependsOn name '{name}'", archive.names[name]))
-        elif ident in archive.ids:
-            hits.append(Hit(path, name, f"dependsOn '{ident[0]}/{name}'", archive.ids[ident]))
+        elif own is not None and (own, name) in archive.ids:
+            hits.append(Hit(path, name, f"dependsOn '{own}/{name}'", archive.ids[(own, name)]))
     return hits
 
 
