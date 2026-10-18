@@ -41,12 +41,17 @@ PVC. A sync that finished after the app's last write is not proof: with `copyMet
 `lastSyncTime` is when the transfer ended, not when the snapshot was taken. Stop every writer,
 then take a fresh sync of each destination (as in [Your Spotify](../apps/yourspotify.md), step 2).
 
-1. Suspend the Kustomization and the HelmRelease, so Flux neither reverts the manual trigger nor
-   scales the app back up: `flux suspend ks "$app" -n "$ns"` and `flux suspend hr "$app" -n "$ns"`.
+A `ks.yaml` can declare several Kustomizations, each with its own claim and backups (`paperless`
+declares three), and the move prunes all of them. Cover every one: set
+`kss=(<each Kustomization name in the app's ks.yaml>)` and run each step for every name.
+
+1. Suspend each Kustomization and its HelmRelease, so Flux neither reverts the manual trigger nor
+   scales the app back up:
+   `for k in "${kss[@]}"; do flux suspend ks "$k" -n "$ns"; flux suspend hr "$k" -n "$ns"; done`.
 2. Stop the writers: scale its Deployments and StatefulSets to 0, `kubectl patch cronjob … -p
    '{"spec":{"suspend":true}}'` for each CronJob and let any running Job finish, and delete the
    app's HPA if it uses the `zeroscaler` component (the HPA would otherwise restore a replica).
-3. Wait until no pod mounts the claim. `kubectl scale` returns before the pods have shut down,
+3. Wait until no pod mounts any of the claims (run this once per claim). `kubectl scale` returns before the pods have shut down,
    and some apps checkpoint in a long termination grace period:
 
    ```bash
@@ -60,7 +65,7 @@ then take a fresh sync of each destination (as in [Your Spotify](../apps/yourspo
 4. Take a fresh sync of each destination:
 
    ```bash
-   for rs in "$app-nfs" "$app-r2"; do
+   for rs in $(for k in "${kss[@]}"; do echo "$k-nfs" "$k-r2"; done); do
      # A run already in progress completes as the manual sync and may predate the stop.
      until [ "$(kubectl -n "$ns" get replicationsource "$rs" \
        -o jsonpath='{.status.conditions[?(@.type=="Synchronizing")].status}')" = "False" ]; do sleep 10; done
@@ -72,8 +77,10 @@ then take a fresh sync of each destination (as in [Your Spotify](../apps/yourspo
    done
    ```
 
-5. Go on only if both lines end `Successful`. Then `flux resume hr "$app" -n "$ns"`,
-   `flux resume ks "$app" -n "$ns"`, and merge the step 2 PR straight away
+5. Go on only if every line ends `Successful`; a `NotFound` means that Kustomization has no
+   backup, so copy its claim out instead. Then resume every HelmRelease and Kustomization
+   (`for k in "${kss[@]}"; do flux resume hr "$k" -n "$ns"; flux resume ks "$k" -n "$ns"; done`)
+   and merge the step 2 PR straight away
    (`flux reconcile source git flux-system`). Both resumes are required: Flux skips garbage
    collection for a Kustomization deleted while suspended, and helm-controller skips the uninstall
    of a suspended HelmRelease, so the chart's objects would be orphaned. Resuming restores the
