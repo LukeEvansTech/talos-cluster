@@ -9,11 +9,13 @@ nothing would have caught a missed one. The full runbook is
 docs/docs/operations/retiring-an-app.md; this is its checkable step.
 
 An archived app is a directory .archive/kubernetes/apps/<ns>/<app> holding a
-ks.yaml. Directories without one (partial archives such as retired MCP server
-manifests of an app that is still live) are not apps and are skipped, as is an
-archived name that is live again under kubernetes/apps/*/<app>/ks.yaml.
+ks.yaml. Its names are the directory name plus every Flux Kustomization that
+ks.yaml declares, since a dependsOn names the Kustomization, which can differ.
+Directories without a ks.yaml (partial archives such as retired MCP server
+manifests of an app that is still live) are not apps and are skipped, as is a
+name that a live kubernetes/apps/<ns>/<app>/ks.yaml declares again.
 
-For each archived app name, a tracked file under kubernetes/ fails when:
+For each archived name, a tracked file under kubernetes/ fails when:
   - a path component of the file equals the name, or does once its extension
     is dropped (virtualkeys/<app>.yaml);
   - its kustomization.yaml lists a resources/components entry with such a
@@ -65,22 +67,39 @@ class Hit:
         return f"{self.path}::{self.app}"
 
 
-def _app_dirs(paths: list[str], prefix: tuple[str, ...]) -> dict[str, str]:
-    """Map app name -> "<ns>/<app>" for every <prefix>/<ns>/<app>/ks.yaml in paths."""
+def _kustomization_names(text: str) -> list[str]:
+    """metadata.name of every Flux Kustomization in a ks.yaml; none if it does not parse."""
+    try:
+        docs = list(yaml.safe_load_all(text))
+    except yaml.YAMLError:
+        return []
+    names = []
+    for doc in docs:
+        meta = doc.get("metadata") if isinstance(doc, dict) and doc.get("kind") == "Kustomization" else None
+        if isinstance(meta, dict) and isinstance(meta.get("name"), str):
+            names.append(meta["name"])
+    return names
+
+
+def _app_names(root: Path, paths: list[str], prefix: tuple[str, ...]) -> dict[str, str]:
+    """Map name -> "<ns>/<app>" for every <prefix>/<ns>/<app>/ks.yaml: the directory name, plus
+    each Kustomization it declares, which can differ (dragonfly declares dragonfly-cluster)."""
     found: dict[str, str] = {}
     n = len(prefix)
     for p in paths:
         parts = PurePosixPath(p).parts
         if len(parts) == n + 3 and parts[:n] == prefix and parts[-1] == "ks.yaml":
-            found.setdefault(parts[n + 1], f"{parts[n]}/{parts[n + 1]}")
+            where = f"{parts[n]}/{parts[n + 1]}"
+            for name in [parts[n + 1], *_kustomization_names((root / p).read_text(encoding="utf-8"))]:
+                found.setdefault(name, where)
     return found
 
 
-def archived_apps(paths: list[str]) -> dict[str, str]:
-    """Archived app names, minus any name that is live again under kubernetes/apps/."""
-    archived = _app_dirs(paths, ARCHIVE_PREFIX)
-    live = _app_dirs(paths, LIVE_PREFIX)
-    return {name: where for name, where in archived.items() if name not in live}
+def archived_apps(root: Path, paths: list[str]) -> tuple[dict[str, str], list[str]]:
+    """(archived names, archived names skipped because a live ks.yaml declares them again)."""
+    archived = _app_names(root, paths, ARCHIVE_PREFIX)
+    live = _app_names(root, paths, LIVE_PREFIX)
+    return {k: v for k, v in archived.items() if k not in live}, sorted(set(archived) & set(live))
 
 
 def _tokens(path: str) -> set[str]:
@@ -177,8 +196,7 @@ def _tracked(root: Path) -> list[str]:
 
 def run(root: Path, paths: list[str], allowlist: dict[str, str]) -> tuple[int, str]:
     """Return (exit code, report) for the tree at root."""
-    apps = archived_apps(paths)
-    relive = sorted(set(_app_dirs(paths, ARCHIVE_PREFIX)) - set(apps))
+    apps, relive = archived_apps(root, paths)
     if not apps:
         return 1, "archived-app-refs: no archived app found under .archive/; the path layout changed"
     hits = find_hits(root, paths, apps)
@@ -196,7 +214,7 @@ def run(root: Path, paths: list[str], allowlist: dict[str, str]) -> tuple[int, s
         return 1, "\n".join(lines)
     scanned = sum(1 for p in paths if p.startswith("kubernetes/"))
     return 0, (
-        f"archived-app-refs: {len(apps)} archived apps, {scanned} files under kubernetes/, "
+        f"archived-app-refs: {len(apps)} archived app and Kustomization names, {scanned} files under kubernetes/, "
         f"no dangling reference ({len(used)} allowlisted; live again, so skipped: {', '.join(relive) or 'none'})"
     )
 

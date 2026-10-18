@@ -94,6 +94,30 @@ class KnownBad(TreeTest):
             "dependsOn name 'oldapp'",
         )
 
+    def test_depends_on_kustomization_named_differently(self):
+        self.assert_fails(
+            {
+                ".archive/kubernetes/apps/media/oldapp/ks.yaml": """\
+                    kind: Kustomization
+                    metadata:
+                      name: oldapp
+                    ---
+                    kind: Kustomization
+                    metadata:
+                      name: oldapp-cluster
+                    """,
+                "kubernetes/apps/media/sonarr/ks.yaml": """\
+                    kind: Kustomization
+                    metadata:
+                      name: sonarr
+                    spec:
+                      dependsOn:
+                        - name: oldapp-cluster
+                    """,
+            },
+            "dependsOn name 'oldapp-cluster'",
+        )
+
     def test_resource_named_for_app_in_other_file(self):
         self.assert_fails(
             {"kubernetes/apps/ai/litellm/app/virtualkeys/keys.yaml": "kind: PushSecret\nmetadata:\n  name: oldapp\n"},
@@ -152,6 +176,14 @@ class KnownGood(TreeTest):
             {
                 "kubernetes/apps/ai/oldapp/ks.yaml": "kind: Kustomization\nmetadata:\n  name: oldapp\n",
                 "kubernetes/apps/ai/kustomization.yaml": "resources:\n  - ./oldapp/ks.yaml\n",
+            }
+        )
+
+    def test_kustomization_name_live_again_is_skipped(self):
+        self.assert_passes(
+            {
+                "kubernetes/apps/ai/newhome/ks.yaml": "kind: Kustomization\nmetadata:\n  name: oldapp\n",
+                "kubernetes/apps/ai/litellm/ks.yaml": "kind: Kustomization\nspec:\n  dependsOn:\n    - name: oldapp\n",
             }
         )
 

@@ -60,7 +60,8 @@ went) in the PR body.
 - **Docs tables and counts.** Remove the app's row from every table that lists it and fix any
   count in the prose around it. The [AI / LLM stack](../architecture/ai-llm-stack.md) "In-cluster
   consumers" table and its "N in-cluster apps" sentence are the usual pair. A `docs/docs/apps/<app>.md`
-  page moves out of the nav or gets an "archived" note.
+  page either stays in the nav with an "archived" note at the top or is deleted; a page left under
+  `docs/docs/` without a nav entry fails the Docs pages linked check.
 - **`dependsOn`** naming the app in any other `ks.yaml` or HelmRelease.
 - **Homepage tiles** defined outside the app's own `ks.yaml` (a tile from the `homepage` component
   goes with the app).
@@ -78,8 +79,9 @@ with its PushSecret, and its row in the AI stack docs.
 python3 .github/scripts/check_archived_app_refs.py
 ```
 
-For every directory under `.archive/kubernetes/apps/<ns>/<app>` with a `ks.yaml`, it fails if a
-file under `kubernetes/` still references that app as a resource: a path component named for it
+For every directory under `.archive/kubernetes/apps/<ns>/<app>` with a `ks.yaml`, it takes the
+directory name and every Kustomization that `ks.yaml` declares, and fails if a file under
+`kubernetes/` still references one of them as a resource: a path component named for it
 (`virtualkeys/<app>.yaml`), a kustomization `resources:` or `components:` entry, a `dependsOn`
 name, or a `metadata.name`. Matching is whole-token. It runs in lefthook `pre-commit` and as the
 **Archived App References** job in `security-scans`. Docs are not in its scope; the `git grep` in
