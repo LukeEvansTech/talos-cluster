@@ -103,18 +103,20 @@ warnings:
     docs="{{ source_directory() }}/../docs/docs"; \
     kubectl get events -A --field-selector type=Warning -o json \
       | jq -r --rawfile noise "$docs/troubleshooting/known-noise.md" --rawfile backlog "$docs/operations/hardening-backlog.md" '
-          # Only inline code spans count, so prose such as "failed" never marks a reason documented.
-          def tokens: [split("\n")[] | scan("`[^`]+`") | scan("[A-Za-z][A-Za-z0-9]+")] | unique;
-          ($noise | tokens) as $n | ($backlog | tokens) as $b
+          # A row is documented when its reason and object name sit in code spans on one line of the page,
+          # so the same reason on another object (the alertmanager Alert, say) stays UNKNOWN.
+          def lines: [split("\n")[] | [scan("`[^`]+`") | scan("[A-Za-z][A-Za-z0-9-]*[A-Za-z0-9]")] | select(length > 1)];
+          def documented($l): . as $e | any($l[]; index([$e.reason]) and index([$e.involvedObject.name]));
+          ($noise | lines) as $n | ($backlog | lines) as $b
           | .items
-          | group_by([.involvedObject.namespace, .involvedObject.kind, .reason])
-          | map({ns: (.[0].involvedObject.namespace // "-"), kind: .[0].involvedObject.kind, reason: .[0].reason,
+          | map(.doc = (if documented($n) then "known-noise" elif documented($b) then "hardening-backlog" else "UNKNOWN" end))
+          | group_by([.involvedObject.namespace, .involvedObject.kind, .reason, .doc])
+          | map({ns: (.[0].involvedObject.namespace // "-"), kind: .[0].involvedObject.kind, reason: .[0].reason, doc: .[0].doc,
                   count: (map(.series.count // .count // 1) | add),
-                  objects: (map(.involvedObject.name) | unique | length)})
+                  objects: (map(.involvedObject.name) | unique | if length == 1 then .[0] else "\(length) objects" end)})
           | sort_by(-.count)
-          | (["COUNT", "OBJECTS", "NAMESPACE", "KIND", "REASON", "DOCUMENTED"] | @tsv),
-            (.[] | [.count, .objects, .ns, .kind, .reason,
-                    (if (.reason | IN($n[])) then "known-noise" elif (.reason | IN($b[])) then "hardening-backlog" else "UNKNOWN" end)] | @tsv)' \
+          | (["COUNT", "NAMESPACE", "KIND", "OBJECT", "REASON", "DOCUMENTED"] | @tsv),
+            (.[] | [.count, .ns, .kind, .objects, .reason, .doc] | @tsv)' \
       | column -t -s $'\t'
 
 [doc('View a secret')]

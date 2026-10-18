@@ -34,8 +34,8 @@ are the Kustomizations its failures name. VictoriaLogs
 shows it on every day of its retention (from 2026-09-20), in bursts of 100 to 230 failures touching
 about 110 to 180 Kustomizations, not only after merge bursts. Of 40 `main` commits since
 2026-10-14, 25 carried 149 to 191 `kustomization/*` statuses instead of the full 262 or 263. Each
-failure also lands as a `NotificationDispatchFailed` Warning event, which makes it the largest
-source of warnings in `just kube warnings`.
+failure also lands as a Warning event, the largest source in `just kube warnings`:
+`NotificationDispatchFailed` on the `github-status` Alert.
 
 **Mitigation in place:** none needed for gating. No ruleset on `main` requires a
 `kustomization/*` context, and the `alertmanager` Alert still reports reconcile errors. The cost is
