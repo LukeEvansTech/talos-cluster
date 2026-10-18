@@ -22,7 +22,7 @@ spec:
   postBuild:
     substitute:
       APP: *app
-      VOLSYNC_CAPACITY: 5Gi
+      VOLSYNC_CAPACITY: 15Gi
       HOMEPAGE_NAME: ROMM
       HOMEPAGE_GROUP: Games
       HOMEPAGE_ICON: /icons/dracula/romm.svg
