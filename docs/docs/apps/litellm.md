@@ -96,6 +96,13 @@ See the [AI / LLM stack](../architecture/ai-llm-stack.md) page for how it fits t
   `max by (service)`, so it only fires once every scrape endpoint of a backend is unreachable.
   Its 15m `for:` absorbs pod restarts and cold GGUF loads; a fully-scaled-to-zero pod drops its
   endpoint entirely and goes stale rather than reporting `up == 0`, which this alert doesn't cover.
+- The four `LiteLLMClaude*` alerts watch the `claude` budget. `BudgetLow` and `SpendFast` read
+  the remaining budget and 24h spend. `BudgetMetricAbsent` covers what `BudgetLow` cannot: the
+  remaining-budget gauge only exists while `provider_budget_config` parses, so a broken budget
+  would otherwise be silent. `RequestRejected` fires on any Anthropic 400 that failed over, since
+  that is always a request param Anthropic does not accept (add it to `additional_drop_params` in
+  `models/claude.yaml`). A reply whose `model` is not `claude` is the same failure seen from a
+  client.
 
 ## Adding a cloud provider
 
@@ -179,5 +186,8 @@ spec:
 - Add models via a `LiteLLMModel` CR under `litellm/app/models/` (`proxyRef: litellm`). The
   operator hashes the rendered config into a pod annotation and rolls the Deployment automatically,
   with no manual restart or Reloader annotation needed.
+- `just kube litellm-spend [days]` prints requests, spend, failures and latency per key and model
+  group, plus the provider budgets, from the proxy's spend logs (`scripts/litellm_spend.py`, run
+  inside the pod so the master key stays there).
 - The Grafana "LiteLLM" / "LiteLLM Detail" dashboards and the Gatus check confirm health and metrics
   flow.

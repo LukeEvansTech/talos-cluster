@@ -119,6 +119,10 @@ warnings:
             (.[] | [.count, .ns, .kind, .object, .reason, .doc] | @tsv)' \
       | column -t -s $'\t'
 
+[doc('Summarise LiteLLM requests, spend and latency per key over N days')]
+litellm-spend days="7":
+    kubectl -n ai exec -i deploy/litellm -c litellm -- python3 - {{ days }} < "{{ justfile_directory() }}/scripts/litellm_spend.py"
+
 [doc('View a secret')]
 view-secret namespace secret:
     kubectl view-secret -n {{ namespace }} {{ secret }}
