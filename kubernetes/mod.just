@@ -110,13 +110,13 @@ warnings:
           ($noise | lines) as $n | ($backlog | lines) as $b
           | .items
           | map(.doc = (if documented($n) then "known-noise" elif documented($b) then "hardening-backlog" else "UNKNOWN" end))
-          | group_by([.involvedObject.namespace, .involvedObject.kind, .reason, .doc])
+          | group_by([.involvedObject.namespace, .involvedObject.kind, .involvedObject.name, .reason])
           | map({ns: (.[0].involvedObject.namespace // "-"), kind: .[0].involvedObject.kind, reason: .[0].reason, doc: .[0].doc,
                   count: (map(.series.count // .count // 1) | add),
-                  objects: (map(.involvedObject.name) | unique | if length == 1 then .[0] else "\(length) objects" end)})
+                  object: .[0].involvedObject.name})
           | sort_by(-.count)
           | (["COUNT", "NAMESPACE", "KIND", "OBJECT", "REASON", "DOCUMENTED"] | @tsv),
-            (.[] | [.count, .ns, .kind, .objects, .reason, .doc] | @tsv)' \
+            (.[] | [.count, .ns, .kind, .object, .reason, .doc] | @tsv)' \
       | column -t -s $'\t'
 
 [doc('View a secret')]
