@@ -5,6 +5,7 @@ localhost), so nothing secret leaves the cluster. Run: just kube litellm-spend [
 """
 
 import collections
+import math
 import datetime as dt
 import json
 import os
@@ -38,7 +39,8 @@ def fetch_rows(days):
         )
         data = get("/spend/logs/ui?" + query)
         rows += data["data"]
-        if page >= data.get("total_pages", 1):
+        # total_pages stops at the 10,000-row count cap, so keep paging while capped.
+        if not data["data"] or (page >= data.get("total_pages", 1) and not data.get("total_is_capped")):
             return rows
         page += 1
 
@@ -56,7 +58,7 @@ def seconds(row):
 def pct(values, q):
     """Nearest-rank percentile; 0 for an empty list."""
     values = sorted(values)
-    return values[min(len(values) - 1, int(q * len(values)))] if values else 0
+    return values[max(0, math.ceil(q * len(values)) - 1)] if values else 0
 
 
 def main():
@@ -69,7 +71,8 @@ def main():
         key = (meta.get("user_api_key_alias") or "(no alias)", row.get("model_group") or "-")
         agg = groups[key]
         agg["n"] += 1
-        agg["fail"] += row.get("status") != "success"
+        # Rows logged before the status field existed carry null, which LiteLLM counts as success.
+        agg["fail"] += row.get("status") not in ("success", None)
         agg["spend"] += row.get("spend") or 0.0
         lat = seconds(row)
         if lat is not None:
