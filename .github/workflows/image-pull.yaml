@@ -19,6 +19,8 @@ concurrency:
 env:
   # renovate: datasource=github-releases depName=home-operations/flate
   FLATE_VERSION: "v0.6.5"
+  # renovate: datasource=github-releases depName=siderolabs/talos
+  TALOS_VERSION: "v1.14.2"
 
 jobs:
   filter:
@@ -163,7 +165,15 @@ jobs:
     steps:
       - name: Install Talosctl
         run: |
-          curl -sL https://talos.dev/install | sh
+          # talos.dev/install always resolves releases/latest, so the client drifted ahead of the
+          # nodes it talks to with nothing tracking it. Pinned here and checksum-verified against
+          # the same release, which is what that script was providing.
+          cd "${RUNNER_TEMP}"
+          curl -fsSLO "https://github.com/siderolabs/talos/releases/download/${TALOS_VERSION}/talosctl-linux-amd64"
+          curl -fsSL "https://github.com/siderolabs/talos/releases/download/${TALOS_VERSION}/sha256sum.txt" \
+            | grep -E '[[:space:]]talosctl-linux-amd64$' | sha256sum -c -
+          install -m 0755 talosctl-linux-amd64 "${RUNNER_TEMP}/talosctl"
+          echo "${RUNNER_TEMP}" >> "${GITHUB_PATH}"
 
       - name: Pull Image
         env:
