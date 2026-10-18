@@ -140,6 +140,21 @@ class KnownBad(TreeTest):
             "dependsOn 'media/oldapp'",
         )
 
+    def test_depends_on_declared_namespace_of_revived_app(self):
+        self.assert_fails(
+            {
+                ".archive/kubernetes/apps/media/oldapp/ks.yaml": (
+                    "kind: Kustomization\nmetadata:\n  name: oldapp\n  namespace: flux-system\n"
+                ),
+                "kubernetes/apps/ai/oldapp/ks.yaml": "kind: Kustomization\nmetadata:\n  name: oldapp\n",
+                "kubernetes/apps/ai/sonarr/ks.yaml": (
+                    "kind: Kustomization\nmetadata:\n  name: sonarr\n  namespace: flux-system\n"
+                    "spec:\n  dependsOn:\n    - name: oldapp\n"
+                ),
+            },
+            "dependsOn 'flux-system/oldapp'",
+        )
+
     def test_resource_named_for_app_in_other_file(self):
         self.assert_fails(
             {"kubernetes/apps/ai/litellm/app/virtualkeys/keys.yaml": "kind: PushSecret\nmetadata:\n  name: oldapp\n"},

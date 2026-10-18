@@ -70,18 +70,20 @@ class Hit:
         return f"{self.path}::{self.app}"
 
 
-def _kustomization_names(text: str) -> list[str]:
-    """metadata.name of every Flux Kustomization in a ks.yaml; none if it does not parse."""
+def _kustomization_ids(text: str, dir_ns: str) -> list[tuple[str, str]]:
+    """(namespace, name) of every Flux Kustomization in a ks.yaml; none if it does not parse.
+    A declared metadata.namespace wins over the directory's (some declare flux-system)."""
     try:
         docs = list(yaml.safe_load_all(text))
     except yaml.YAMLError:
         return []
-    names = []
+    ids = []
     for doc in docs:
         meta = doc.get("metadata") if isinstance(doc, dict) and doc.get("kind") == "Kustomization" else None
         if isinstance(meta, dict) and isinstance(meta.get("name"), str):
-            names.append(meta["name"])
-    return names
+            ns = meta.get("namespace")
+            ids.append((ns if isinstance(ns, str) else dir_ns, meta["name"]))
+    return ids
 
 
 def _app_ids(root: Path, paths: list[str], prefix: tuple[str, ...]) -> dict[tuple[str, str], str]:
@@ -93,8 +95,9 @@ def _app_ids(root: Path, paths: list[str], prefix: tuple[str, ...]) -> dict[tupl
         parts = PurePosixPath(p).parts
         if len(parts) == n + 3 and parts[:n] == prefix and parts[-1] == "ks.yaml":
             where = f"{parts[n]}/{parts[n + 1]}"
-            for name in [parts[n + 1], *_kustomization_names((root / p).read_text(encoding="utf-8"))]:
-                found.setdefault((parts[n], name), where)
+            text = (root / p).read_text(encoding="utf-8")
+            for ident in [(parts[n], parts[n + 1]), *_kustomization_ids(text, parts[n])]:
+                found.setdefault(ident, where)
     return found
 
 
@@ -160,8 +163,11 @@ def _own_namespace(path: str) -> str | None:
 
 def _depends_on_hits(path: str, doc: dict, archive: Archive) -> list[Hit]:
     hits: list[Hit] = []
+    meta = doc.get("metadata")
+    declared = meta.get("namespace") if isinstance(meta, dict) else None
+    default_ns = declared if isinstance(declared, str) else _own_namespace(path)
     for name, ns in _walk_depends_on(doc):
-        own = ns or _own_namespace(path)
+        own = ns or default_ns
         if name in archive.names:
             hits.append(Hit(path, name, f"dependsOn name '{name}'", archive.names[name]))
         elif own is not None and (own, name) in archive.ids:

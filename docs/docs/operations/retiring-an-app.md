@@ -56,9 +56,11 @@ declares three), and the move prunes all of them. Cover every one: set
 
    ```bash
    claim=<claim>
-   until [ -z "$(kubectl get pods -n "$ns" -o json | jq -r --arg c "$claim" \
+   # A failed query must not read as "no writers": both commands have to succeed.
+   until pods=$(kubectl get pods -n "$ns" -o json) && users=$(jq -r --arg c "$claim" \
      '.items[] | select(.status.phase != "Succeeded" and .status.phase != "Failed")
-       | select(any(.spec.volumes[]?; .persistentVolumeClaim.claimName == $c)) | .metadata.name')" ]
+       | select(any(.spec.volumes[]?; .persistentVolumeClaim.claimName == $c)) | .metadata.name' \
+     <<<"$pods") && [ -z "$users" ]
    do sleep 10; done
    ```
 
@@ -66,6 +68,7 @@ declares three), and the move prunes all of them. Cover every one: set
 
    ```bash
    for rs in $(for k in "${kss[@]}"; do echo "$k-nfs" "$k-r2"; done); do
+     kubectl -n "$ns" get replicationsource "$rs" >/dev/null || { echo "$rs NotFound"; continue; }
      # A run already in progress completes as the manual sync and may predate the stop.
      until [ "$(kubectl -n "$ns" get replicationsource "$rs" \
        -o jsonpath='{.status.conditions[?(@.type=="Synchronizing")].status}')" = "False" ]; do sleep 10; done
