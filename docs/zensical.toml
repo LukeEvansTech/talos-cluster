@@ -44,6 +44,7 @@ nav = [
     { "Health verdict" = "operations/health-verdict.md" },
     { "Hardening backlog" = "operations/hardening-backlog.md" },
     { "Backups" = "operations/backups.md" },
+    { "Retiring an app" = "operations/retiring-an-app.md" },
     { "Device monitoring" = "operations/device-monitoring.md" },
     { "TrueNAS monitoring" = "operations/truenas-monitoring.md" },
     { "jory home-ops adoption" = "operations/jory-homeops-adoption.md" },

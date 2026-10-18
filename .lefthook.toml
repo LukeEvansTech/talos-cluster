@@ -105,6 +105,12 @@ exclude = ["docs/**"]
 run = "mise x -- env -u VIRTUAL_ENV uv run -q --no-project --with pyyaml python3 .github/scripts/check_chaski_routes.py"
 glob = ["kubernetes/apps/default/chaski/app/*.yaml", ".github/scripts/tests/chaski/**/*.json", ".github/scripts/check_chaski_routes.py"]
 
+# An archived app's virtual key, kustomization entry or dependsOn elsewhere in kubernetes/ outlives
+# the move; see docs/docs/operations/retiring-an-app.md.
+[pre-commit.commands.check-archived-app-refs]
+run = "mise x -- env -u VIRTUAL_ENV uv run -q --no-project --with pyyaml python3 .github/scripts/check_archived_app_refs.py"
+glob = ["kubernetes/**", ".archive/kubernetes/**", ".github/scripts/check_archived_app_refs.py"]
+
 [pre-commit.commands.lint-pylint]
 run = "mise x -- pylint --rcfile .github/linters/.python-lint {staged_files}"
 glob = ["*.py"]

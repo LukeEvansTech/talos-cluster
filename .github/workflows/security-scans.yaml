@@ -66,3 +66,19 @@ jobs:
       # every gate against its fires/skips fixtures in the image the chart pins.
       - name: Chaski route gate check
         run: python3 .github/scripts/check_chaski_routes.py
+
+  archived-app-refs:
+    name: Archived App References
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # Always the whole tree: the dangling reference sits in a file the archiving PR never touched.
+      - name: Test the archived-app reference check
+        run: python3 -m unittest discover -s .github/scripts/tests -p test_check_archived_app_refs.py
+      - name: Scan kubernetes/ for references to archived apps
+        run: python3 .github/scripts/check_archived_app_refs.py
