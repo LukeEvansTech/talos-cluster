@@ -37,13 +37,31 @@ Note the answers to three questions for the PR body: what the PVC holds, whether
 VolSync backups, and whether anything else depends on it.
 
 **If the data matters, prove a copy exists before step 2 merges**, because the merge deletes the
-PVC. For a VolSync app, run `just kube snapshot` (or wait for the schedule) and confirm both
-ReplicationSources report a sync after the app's last write:
+PVC. A sync that finished after the app's last write is not proof: with `copyMethod: Snapshot`,
+`lastSyncTime` is when the transfer ended, not when the snapshot was taken. Stop the writers
+first, then take a fresh sync of each destination (the procedure in
+[Your Spotify](../apps/yourspotify.md), step 2):
 
 ```bash
-kubectl get replicationsources -n "$ns" "$app-nfs" "$app-r2" \
-  -o custom-columns=NAME:.metadata.name,LAST:.status.lastSyncTime,RESULT:.status.latestMoverStatus.result
+flux suspend hr "$app" -n "$ns"   # stays scaled down until the prune
+kubectl -n "$ns" scale deploy,statefulset -l app.kubernetes.io/instance="$app" --replicas=0
+flux suspend ks "$app" -n "$ns"   # Flux would revert the manual trigger
+for rs in "$app-nfs" "$app-r2"; do
+  # A run already in progress completes as the manual sync and may predate the stop.
+  until [ "$(kubectl -n "$ns" get replicationsource "$rs" \
+    -o jsonpath='{.status.conditions[?(@.type=="Synchronizing")].status}')" = "False" ]; do sleep 10; done
+  t="retire-$(date +%s)"
+  kubectl -n "$ns" patch replicationsource "$rs" --type merge -p "{\"spec\":{\"trigger\":{\"manual\":\"$t\"}}}"
+  until [ "$(kubectl -n "$ns" get replicationsource "$rs" \
+    -o jsonpath='{.status.lastManualSync}')" = "$t" ]; do sleep 10; done
+  kubectl -n "$ns" get replicationsource "$rs" -o jsonpath='{.metadata.name} {.status.latestMoverStatus.result}{"\n"}'
+done
+flux resume ks "$app" -n "$ns"
 ```
+
+Go on only if both lines end `Successful`. Resume the Kustomization before merging: Flux skips
+garbage collection for a Kustomization deleted while suspended, so nothing would be pruned. The
+HelmRelease stays suspended, so the app does not start writing again.
 
 An app without the `volsync` component has no backup at all: copy the data out with
 `just kube browse-pvc <ns> <claim>` first. Put the evidence (the sync times, or where the copy
