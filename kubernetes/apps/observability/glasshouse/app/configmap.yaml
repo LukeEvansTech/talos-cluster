@@ -1,0 +1,57 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/v1/configmap.json
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: glasshouse-wallpapers
+data:
+  # Standard library only, so it runs on stock python with nothing to install.
+  wallpapers.py: |-
+    """Fill Glasshouse Home's time-of-day wallpapers with Bing's latest photos of the day.
+
+    The newest photo goes to morning, the day before to afternoon, and so on, so each
+    day moves a picture one slot along. Bing serves baseline 1920x1080 JPEGs, which is
+    exactly what Glasshouse Home accepts, so they are uploaded as they come.
+
+    A TV that is off or unreachable, or that does not have Glasshouse Home switched
+    on, is skipped: only failing to reach Bing fails the job.
+    """
+    import json
+    import os
+    import urllib.request
+
+    SLOTS = ("morning", "afternoon", "evening", "night")
+    BING = "https://www.bing.com/HPImageArchive.aspx?format=js&idx=0&n=4&mkt=en-GB"
+    TOKEN = open("/secrets/token").read().strip()
+    HOSTS = [h for h in os.environ["TV_HOSTS"].split(",") if h]
+
+    def fetch(url, data=None, ctype=None, timeout=60):
+        headers = {"User-Agent": "glasshouse-wallpapers"}
+        if url.startswith("http://"):
+            headers["Authorization"] = "Bearer " + TOKEN
+        if ctype:
+            headers["Content-Type"] = ctype
+        req = urllib.request.Request(url, data=data, headers=headers)
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return r.read()
+
+    photos = json.loads(fetch(BING))["images"][: len(SLOTS)]
+    images = [(p.get("title") or p["urlbase"], fetch("https://www.bing.com" + p["urlbase"] + "_1920x1080.jpg"))
+              for p in photos]
+
+    for host in HOSTS:
+        base = "http://" + host + ":8080"
+        try:
+            home = json.loads(fetch(base + "/api/home", timeout=10))
+        except OSError as e:
+            print(host, "skipped, unreachable:", e)
+            continue
+        if not home.get("enabled"):
+            print(host, "skipped, Glasshouse Home is off")
+            continue
+        for slot, (title, data) in zip(SLOTS, images):
+            try:
+                ok = json.loads(fetch(base + "/api/home/wallpapers/upload?slot=" + slot, data, "image/jpeg", 120)).get("ok")
+            except OSError as e:
+                ok = e
+            print(host, slot, title, "->", ok)
