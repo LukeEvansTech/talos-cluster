@@ -4,6 +4,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: glasshouse-wallpapers
+  namespace: observability
 data:
   # Standard library only, so it runs on stock python with nothing to install.
   wallpapers.py: |-
@@ -22,13 +23,14 @@ data:
 
     SLOTS = ("morning", "afternoon", "evening", "night")
     BING = "https://www.bing.com/HPImageArchive.aspx?format=js&idx=0&n=4&mkt=en-GB"
-    TOKEN = open("/secrets/token").read().strip()
+    # The API bearer, read at run time from the mounted glasshouse-secret.
+    BEARER = open("/secrets/token").read().strip()
     HOSTS = [h for h in os.environ["TV_HOSTS"].split(",") if h]
 
     def fetch(url, data=None, ctype=None, timeout=60):
         headers = {"User-Agent": "glasshouse-wallpapers"}
         if url.startswith("http://"):
-            headers["Authorization"] = "Bearer " + TOKEN
+            headers["Authorization"] = "Bearer " + BEARER
         if ctype:
             headers["Content-Type"] = ctype
         req = urllib.request.Request(url, data=data, headers=headers)
