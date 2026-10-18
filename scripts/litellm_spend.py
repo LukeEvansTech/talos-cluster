@@ -25,9 +25,10 @@ def get(path):
 
 def fetch_rows(days):
     """Page through /spend/logs/ui; the plain /spend/logs aggregates by day when given dates."""
-    end = dt.datetime.now(dt.timezone.utc) + dt.timedelta(days=1)
-    start = end - dt.timedelta(days=days + 1)
-    rows, page = [], 1
+    # A fixed cutoff: rows written while paging would shift the offset pagination and repeat rows.
+    end = dt.datetime.now(dt.timezone.utc).replace(microsecond=0)
+    start = end - dt.timedelta(days=days)
+    rows, seen, page = [], set(), 1
     while True:
         query = urllib.parse.urlencode(
             {
@@ -38,7 +39,10 @@ def fetch_rows(days):
             }
         )
         data = get("/spend/logs/ui?" + query)
-        rows += data["data"]
+        for row in data["data"]:
+            if row.get("request_id") not in seen:
+                seen.add(row.get("request_id"))
+                rows.append(row)
         # total_pages stops at the 10,000-row count cap, so keep paging while capped.
         if not data["data"] or (page >= data.get("total_pages", 1) and not data.get("total_is_capped")):
             return rows
