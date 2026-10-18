@@ -12,8 +12,9 @@ An archived app is a directory .archive/kubernetes/apps/<ns>/<app> holding a
 ks.yaml. Its names are the directory name plus every Flux Kustomization that
 ks.yaml declares, since a dependsOn names the Kustomization, which can differ.
 Directories without a ks.yaml (partial archives such as retired MCP server
-manifests of an app that is still live) are not apps and are skipped, as is a
-name that a live kubernetes/apps/<ns>/<app>/ks.yaml declares again.
+manifests of an app that is still live) are not apps and are skipped. A name a
+live kubernetes/apps/<ns>/<app>/ks.yaml declares again is checked only as a
+dependsOn on its old (namespace, name), since the name itself is live.
 
 For each archived name, a tracked file under kubernetes/ fails when:
   - a path component of the file equals the name, or does once its extension
@@ -37,7 +38,7 @@ from __future__ import annotations
 import re
 import subprocess
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field as dc_field
 from pathlib import Path, PurePosixPath
 
 import yaml  # pylint: disable=import-error  # on the runner image; not in the linter's env
@@ -60,6 +61,7 @@ class Hit:
     path: str
     app: str
     reason: str
+    where: str = dc_field(default="", compare=False)
 
     @property
     def key(self) -> str:
@@ -81,25 +83,38 @@ def _kustomization_names(text: str) -> list[str]:
     return names
 
 
-def _app_names(root: Path, paths: list[str], prefix: tuple[str, ...]) -> dict[str, str]:
-    """Map name -> "<ns>/<app>" for every <prefix>/<ns>/<app>/ks.yaml: the directory name, plus
-    each Kustomization it declares, which can differ (dragonfly declares dragonfly-cluster)."""
-    found: dict[str, str] = {}
+def _app_ids(root: Path, paths: list[str], prefix: tuple[str, ...]) -> dict[tuple[str, str], str]:
+    """Map (ns, name) -> "<ns>/<app>" for every <prefix>/<ns>/<app>/ks.yaml: the directory name,
+    plus each Kustomization it declares, which can differ (dragonfly declares dragonfly-cluster)."""
+    found: dict[tuple[str, str], str] = {}
     n = len(prefix)
     for p in paths:
         parts = PurePosixPath(p).parts
         if len(parts) == n + 3 and parts[:n] == prefix and parts[-1] == "ks.yaml":
             where = f"{parts[n]}/{parts[n + 1]}"
             for name in [parts[n + 1], *_kustomization_names((root / p).read_text(encoding="utf-8"))]:
-                found.setdefault(name, where)
+                found.setdefault((parts[n], name), where)
     return found
 
 
-def archived_apps(root: Path, paths: list[str]) -> tuple[dict[str, str], list[str]]:
-    """(archived names, archived names skipped because a live ks.yaml declares them again)."""
-    archived = _app_names(root, paths, ARCHIVE_PREFIX)
-    live = _app_names(root, paths, LIVE_PREFIX)
-    return {k: v for k, v in archived.items() if k not in live}, sorted(set(archived) & set(live))
+@dataclass(frozen=True)
+class Archive:
+    """What is archived: names no live app uses, and every archived (ns, name) identity."""
+
+    names: dict[str, str]
+    ids: dict[tuple[str, str], str]
+    relive: list[str]
+
+
+def archived_apps(root: Path, paths: list[str]) -> Archive:
+    """Archived names, minus any a live ks.yaml declares again. The (ns, name) identities keep a
+    revived name's OLD namespace checkable: archived ai/whisper is not live media/whisper."""
+    archived = _app_ids(root, paths, ARCHIVE_PREFIX)
+    live = _app_ids(root, paths, LIVE_PREFIX)
+    live_names = {name for _, name in live}
+    names = {name: where for (_, name), where in archived.items() if name not in live_names}
+    ids = {k: v for k, v in archived.items() if k not in live}
+    return Archive(names, ids, sorted({name for _, name in archived} & live_names))
 
 
 def _tokens(path: str) -> set[str]:
@@ -118,19 +133,39 @@ def _mentions(text: str, app: str) -> bool:
     return re.search(rf"(?<![\w-]){re.escape(app)}(?![\w-])", text) is not None
 
 
-def _walk_depends_on(node: object) -> list[str]:
-    """Every dependsOn[].name anywhere in a parsed document."""
-    names: list[str] = []
+def _walk_depends_on(node: object) -> list[tuple[str, str | None]]:
+    """Every dependsOn entry anywhere in a parsed document, as (name, namespace or None)."""
+    found: list[tuple[str, str | None]] = []
     if isinstance(node, dict):
         for key, value in node.items():
             if key == "dependsOn" and isinstance(value, list):
-                names += [d["name"] for d in value if isinstance(d, dict) and isinstance(d.get("name"), str)]
+                for d in value:
+                    if isinstance(d, dict) and isinstance(d.get("name"), str):
+                        ns = d.get("namespace")
+                        found.append((d["name"], ns if isinstance(ns, str) else None))
             else:
-                names += _walk_depends_on(value)
+                found += _walk_depends_on(value)
     elif isinstance(node, list):
         for item in node:
-            names += _walk_depends_on(item)
-    return names
+            found += _walk_depends_on(item)
+    return found
+
+
+def _own_namespace(path: str) -> str | None:
+    """The namespace a dependsOn without one defaults to, from kubernetes/apps/<ns>/..."""
+    parts = PurePosixPath(path).parts
+    return parts[2] if len(parts) > 3 and parts[:2] == LIVE_PREFIX else None
+
+
+def _depends_on_hits(path: str, doc: dict, archive: Archive) -> list[Hit]:
+    hits: list[Hit] = []
+    for name, ns in _walk_depends_on(doc):
+        ident = (ns or _own_namespace(path), name)
+        if name in archive.names:
+            hits.append(Hit(path, name, f"dependsOn name '{name}'", archive.names[name]))
+        elif ident in archive.ids:
+            hits.append(Hit(path, name, f"dependsOn '{ident[0]}/{name}'", archive.ids[ident]))
+    return hits
 
 
 def _kustomization_hits(path: str, doc: dict, apps: dict[str, str]) -> list[Hit]:
@@ -146,7 +181,8 @@ def _kustomization_hits(path: str, doc: dict, apps: dict[str, str]) -> list[Hit]
     return hits
 
 
-def _document_hits(path: str, docs: list[object], apps: dict[str, str]) -> list[Hit]:
+def _document_hits(path: str, docs: list[object], archive: Archive) -> list[Hit]:
+    apps = archive.names
     hits: list[Hit] = []
     is_kustomization = PurePosixPath(path).name == "kustomization.yaml"
     for doc in docs:
@@ -154,17 +190,16 @@ def _document_hits(path: str, docs: list[object], apps: dict[str, str]) -> list[
             continue
         if is_kustomization:
             hits += _kustomization_hits(path, doc, apps)
-        for name in _walk_depends_on(doc):
-            if name in apps:
-                hits.append(Hit(path, name, f"dependsOn name '{name}'"))
+        hits += _depends_on_hits(path, doc, archive)
         meta = doc.get("metadata")
         if isinstance(meta, dict) and meta.get("name") in apps:
             hits.append(Hit(path, meta["name"], f"{doc.get('kind', 'resource')} metadata.name '{meta['name']}'"))
     return hits
 
 
-def find_hits(root: Path, paths: list[str], apps: dict[str, str]) -> list[Hit]:
-    """Every reference under kubernetes/ to an app in apps, with the files read from root."""
+def find_hits(root: Path, paths: list[str], archive: Archive) -> list[Hit]:
+    """Every reference under kubernetes/ to an archived app, with the files read from root."""
+    apps = archive.names
     hits: list[Hit] = []
     for path in paths:
         if PurePosixPath(path).parts[:1] != ("kubernetes",):
@@ -180,8 +215,8 @@ def find_hits(root: Path, paths: list[str], apps: dict[str, str]) -> list[Hit]:
             named = sorted(a for a in apps if _mentions(text, a))
             hits += [Hit(path, a, f"unparsable YAML ({err.__class__.__name__}) naming the app") for a in named]
             continue
-        hits += _document_hits(path, docs, apps)
-    return hits
+        hits += _document_hits(path, docs, archive)
+    return [h if h.where else Hit(h.path, h.app, h.reason, apps[h.app]) for h in hits]
 
 
 def _tracked(root: Path) -> list[str]:
@@ -191,22 +226,23 @@ def _tracked(root: Path) -> list[str]:
         capture_output=True,
         text=True,
     ).stdout
-    return sorted(p for p in out.split("\0") if p)
+    # A tracked file deleted but not yet staged (mid-step-2 of the runbook) is already gone.
+    return sorted(p for p in out.split("\0") if p and (root / p).is_file())
 
 
 def run(root: Path, paths: list[str], allowlist: dict[str, str]) -> tuple[int, str]:
     """Return (exit code, report) for the tree at root."""
-    apps, relive = archived_apps(root, paths)
-    if not apps:
+    archive = archived_apps(root, paths)
+    if not archive.ids:
         return 1, "archived-app-refs: no archived app found under .archive/; the path layout changed"
-    hits = find_hits(root, paths, apps)
+    hits = find_hits(root, paths, archive)
     used = {h.key for h in hits if h.key in allowlist}
     bad = [h for h in hits if h.key not in allowlist]
     stale = sorted(set(allowlist) - used)
     lines: list[str] = []
     if bad:
         lines.append("Archived apps still referenced under kubernetes/ (see docs/docs/operations/retiring-an-app.md):")
-        lines += [f"  {h.path}: {apps[h.app]} -- {h.reason}" for h in bad]
+        lines += [f"  {h.path}: {h.where} -- {h.reason}" for h in bad]
     if stale:
         lines.append("ALLOWLIST entries that match nothing (remove them):")
         lines += [f"  {k}" for k in stale]
@@ -214,8 +250,9 @@ def run(root: Path, paths: list[str], allowlist: dict[str, str]) -> tuple[int, s
         return 1, "\n".join(lines)
     scanned = sum(1 for p in paths if p.startswith("kubernetes/"))
     return 0, (
-        f"archived-app-refs: {len(apps)} archived app and Kustomization names, {scanned} files under kubernetes/, "
-        f"no dangling reference ({len(used)} allowlisted; live again, so skipped: {', '.join(relive) or 'none'})"
+        f"archived-app-refs: {len(archive.ids)} archived app and Kustomization names, {scanned} files under "
+        f"kubernetes/, no dangling reference ({len(used)} allowlisted; live again, checked only by namespace: "
+        f"{', '.join(archive.relive) or 'none'})"
     )
 
 

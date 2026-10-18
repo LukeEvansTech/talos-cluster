@@ -118,6 +118,28 @@ class KnownBad(TreeTest):
             "dependsOn name 'oldapp-cluster'",
         )
 
+    def test_depends_on_old_namespace_of_revived_app(self):
+        self.assert_fails(
+            {
+                "kubernetes/apps/ai/oldapp/ks.yaml": "kind: Kustomization\nmetadata:\n  name: oldapp\n",
+                "kubernetes/apps/ai/sonarr/ks.yaml": (
+                    "kind: Kustomization\nspec:\n  dependsOn:\n    - name: oldapp\n      namespace: media\n"
+                ),
+            },
+            "dependsOn 'media/oldapp'",
+        )
+
+    def test_depends_on_old_namespace_implicit(self):
+        self.assert_fails(
+            {
+                "kubernetes/apps/ai/oldapp/ks.yaml": "kind: Kustomization\nmetadata:\n  name: oldapp\n",
+                "kubernetes/apps/media/sonarr/ks.yaml": (
+                    "kind: Kustomization\nspec:\n  dependsOn:\n    - name: oldapp\n"
+                ),
+            },
+            "dependsOn 'media/oldapp'",
+        )
+
     def test_resource_named_for_app_in_other_file(self):
         self.assert_fails(
             {"kubernetes/apps/ai/litellm/app/virtualkeys/keys.yaml": "kind: PushSecret\nmetadata:\n  name: oldapp\n"},
