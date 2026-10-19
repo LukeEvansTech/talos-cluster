@@ -6,3 +6,6 @@ resources:
   - ./ocirepository.yaml
   - ./helmrelease.yaml
   - ./pvc.yaml
+  - ./externalsecret.yaml
+  - ./scrapeconfig.yaml
+  - ./prometheusrule.yaml
