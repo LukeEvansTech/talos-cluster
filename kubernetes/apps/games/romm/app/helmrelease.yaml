@@ -19,7 +19,7 @@ spec:
 
         containers:
           app:
-            image:
+            image: &image
               repository: ghcr.io/rommapp/romm
               tag: 5.4.0@sha256:03295f95a6290e752641f9553ac4198b0e5b71b879d57f7b2371b98f608feb54
             env:
@@ -72,6 +72,21 @@ spec:
               limits:
                 memory: 3500Mi
 
+        initContainers:
+          # A kubelet-created subPath directory is root-owned and not group-writable, so Valkey
+          # could not save there. Create redis/ as uid 1000 before the app mounts it.
+          redis-dir:
+            image: *image
+            command:
+              ["sh", "-c", "mkdir -p /cfg/redis && chmod 2775 /cfg/redis"]
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities: { drop: ["ALL"] }
+            resources:
+              limits:
+                memory: 32Mi
+
     defaultPodOptions:
       securityContext:
         runAsNonRoot: true
@@ -98,14 +113,18 @@ spec:
     persistence:
       config:
         existingClaim: "{{ .Release.Name }}"
-        globalMounts:
-          - path: /romm/resources
-            subPath: resources
-          - path: /romm/assets
-            subPath: assets
-          # Valkey snapshots here hourly: sessions and the LaunchBox store survive a restart.
-          - path: /redis-data
-            subPath: redis
+        advancedMounts:
+          romm:
+            app:
+              - path: /romm/resources
+                subPath: resources
+              - path: /romm/assets
+                subPath: assets
+              # Valkey snapshots here hourly: sessions and the LaunchBox store survive a restart.
+              - path: /redis-data
+                subPath: redis
+            redis-dir:
+              - path: /cfg
       library:
         type: nfs
         server: ${SECRET_STORAGE_SERVER}
