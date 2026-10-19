@@ -57,6 +57,35 @@ To rotate a password, update the 1Password item, then force-sync the tenant Exte
 and the app can disagree until both have synced. Removing a tenant file leaves the database and
 role in place (`retain`); drop them by hand.
 
+## Adding a subPath to an existing PVC
+
+A non-root app (uid 1000, `fsGroup: 1000`) cannot write into a subPath directory the kubelet
+creates: the kubelet makes it root-owned and not group-writable, and with
+`fsGroupChangePolicy: OnRootMismatch` nothing repairs it, because the volume root already matches.
+A volume restored from a snapshot taken before the directory existed hits the same wall. Create
+the directory in an init container that mounts the volume **root**, as RomM does for Valkey's
+`/redis-data` (#6341):
+
+```yaml
+initContainers:
+  data-dir:
+    image: *image # the app's own image, already pulled
+    command: ["sh", "-c", "mkdir -p /cfg/data && chown 1000:1000 /cfg/data && chmod 2775 /cfg/data"]
+    securityContext:
+      runAsUser: 0 # chown needs root, even for a directory that already exists root-owned
+      runAsNonRoot: false
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      capabilities: { drop: ["ALL"], add: ["CHOWN", "FOWNER"] }
+```
+
+Then mount the claim with `advancedMounts`, not `globalMounts`: the init container gets the root
+(`- path: /cfg`) and only the app gets the subPath. A `globalMounts` subPath also reaches the init
+container, and the kubelet creates the directory root-owned before the init container runs.
+Define the `&image` anchor on the app container: YAML needs the anchor before the alias, so the
+`initContainers` block goes after `containers`. The baseline pod-security default admits root with
+`CHOWN` and `FOWNER`.
+
 ## Backups
 
 PVC backups are handled by VolSync (Kopia to NFS, Restic to a remote R2 target); see
