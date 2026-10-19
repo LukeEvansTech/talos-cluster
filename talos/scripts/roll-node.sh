@@ -59,7 +59,7 @@ ceph_drained_ok() {
     | ([keys[] | select(IN("OSDMAP_FLAGS","OSD_FLAGS","OSD_DOWN","OSD_HOST_DOWN","MON_DOWN","PG_DEGRADED") | not)] | length == 0)
     and ((.OSDMAP_FLAGS // null) == null or .OSDMAP_FLAGS.summary.message == "noout flag(s) set")
     and ([.OSD_FLAGS.detail[]?.message | select(test("has flags noout$") | not)] | length == 0)' >/dev/null &&
-        tools ceph status -f json 2>/dev/null | jq -e '(.osdmap.num_osds - .osdmap.num_up_osds) <= 2
+        tools ceph status -f json 2>/dev/null | jq -e '(.osdmap.num_osds - .osdmap.num_up_osds) <= 2 and .osdmap.num_in_osds == .osdmap.num_osds
     and ([.pgmap.pgs_by_state[] | select(.state_name | startswith("active") | not) | .count] | add // 0) == 0' >/dev/null
 }
 # A mover evicted mid-backup loses that run; tuppr's TalosUpgrade gates on the same predicate.
