@@ -722,6 +722,9 @@
       description: "Minecraft (Paper): dashboard approval; wait for a STABLE Paper build",
       matchDatasources: ["custom.minecraft-release"],
       dependencyDashboardApproval: true,
+      // The Fill version list has no release date, so the preset's soak held every version as
+      // pending and it never reached the approval box; the STABLE-build check replaces the soak.
+      minimumReleaseAge: null,
     },
   ],
 }
