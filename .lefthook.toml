@@ -16,8 +16,10 @@ run = "mise x -- python3 .github/scripts/check_internal_identifiers.py --strip-g
 [pre-commit]
 parallel = true
 
+# Chained with prettier last: run in parallel, the two fight over flow mappings (`{drop: …}` vs
+# `{ drop: … }`) and CI's YAML_PRETTIER rejects yamlfmt's form when it lands last (#6299, #6309).
 [pre-commit.commands.format-yaml]
-run = "mise x -- yamlfmt {staged_files}"
+run = "mise x -- yamlfmt {staged_files} && mise x --quiet -- prettier -w --log-level warn {staged_files}"
 glob = ["*.yaml", "*.yml"]
 # .markdownlint.yml must byte-match the shared-workflows canonical (zensical drift check);
 # yamlfmt would add a `---` document-start and break that match.
@@ -45,12 +47,6 @@ glob = ["docs/docs/**/*.md", "docs/zensical.toml"]
 [pre-commit.commands.format-json]
 run = "mise x --quiet -- prettier -w --log-level warn {staged_files}"
 glob = ["*.json", "*.json5"]
-stage_fixed = true
-
-# Matches super-linter's YAML_PRETTIER rule so brace-spacing/quote-style fixes land at commit time.
-[pre-commit.commands.format-yaml-prettier]
-run = "mise x --quiet -- prettier -w --log-level warn {staged_files}"
-glob = ["*.yaml", "*.yml"]
 stage_fixed = true
 
 # Matches super-linter's MARKDOWN_PRETTIER rule: JSON and YAML were covered but Markdown was not,
