@@ -311,6 +311,9 @@ Flag consequential, repository-specific breakage. Prefer silence over style comm
   rebuild, such as a saved login or token. Every restart loses it; `epicgames` emailed a fresh
   sign-in link on each run until #5691 moved its config to a PVC. Rebuildable caches belong on
   `emptyDir`.
+- A new subPath on an existing PVC without an init container that creates and chowns it: the
+  kubelet makes it root-owned and a non-root app cannot write there. Pattern in
+  `docs/docs/architecture/storage.md` ("Adding a subPath to an existing PVC").
 - A new comment that narrates the manifest or runs past two short sentences.
 - Documentation moved out of a comment that states more than the comment did: a wider scope, two
   facts merged into one, or a conclusion the comment never drew.
