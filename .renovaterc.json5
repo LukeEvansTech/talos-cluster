@@ -51,6 +51,16 @@
         '{"releases": $map($filter(versions.*, function($v) { $not($contains($v, "-pre")) and $not($contains($v, "-rc")) }), function($v) { {"version": $v} }), "sourceUrl": "https://papermc.io", "homepage": "https://papermc.io"}',
       ],
     },
+    // Overrides the talosFactory preset's datasource of the same name. factory.talos.dev/versions
+    // returns bare strings with no release date, so the preset's minor/patch soak marked every
+    // Talos release pending forever and no node-version PR was raised after v1.14.1.
+    "talos-factory": {
+      defaultRegistryUrlTemplate: "https://api.github.com/repos/siderolabs/talos/releases?per_page=50",
+      format: "json",
+      transformTemplates: [
+        '{"releases": [$[prerelease = false and draft = false].{"version": tag_name, "releaseTimestamp": published_at}], "sourceUrl": "https://github.com/siderolabs/talos"}',
+      ],
+    },
   },
 
   // --- Custom managers (from customManagers.json5 + grafanaDashboards.json5) ---
