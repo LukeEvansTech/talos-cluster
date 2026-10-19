@@ -365,7 +365,8 @@ Tool-agnostic agent instructions and skills live under `.agents/`:
   defaults plus app-template-specific ordering). Apply when asked to sort YAML.
 - `.agents/instructions/cluster-ops.instructions.md` lists operational traps whose symptom points
   at the wrong cause: linting this repository locally, querying the live cluster with `kubectl`,
-  and batch-merging Renovate pull requests. Read it before any of those.
+  changing an app's state through its API, and batch-merging Renovate pull requests. Read it
+  before any of those.
 - `.agents/skills/add-app/` is a skill that scaffolds a new app-template application following the
   conventions above. Claude Code discovers it via a local `.claude/skills/add-app` symlink.
 - `.agents/skills/health-check/` is a read-only skill that snapshots cluster health
