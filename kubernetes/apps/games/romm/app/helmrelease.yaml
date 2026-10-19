@@ -29,7 +29,7 @@ spec:
               RESCAN_ON_FILESYSTEM_CHANGE: "false"
               SCHEDULED_RESCAN_CRON: "0 3 * * *"
               # Key-less metadata sources. Hasheous and PlayMatch match by file hash. LaunchBox's
-              # store lives in the emptyDir cache: refill it from Administration > Tasks after a restart.
+              # store is filled from Administration > Tasks and persists in /redis-data.
               # HowLongToBeat stays off: it rate-limited (503) a 13k-game scan.
               HASHEOUS_API_ENABLED: "true"
               PLAYMATCH_API_ENABLED: "true"
@@ -103,15 +103,14 @@ spec:
             subPath: resources
           - path: /romm/assets
             subPath: assets
+          # Valkey snapshots here hourly: sessions and the LaunchBox store survive a restart.
+          - path: /redis-data
+            subPath: redis
       library:
         type: nfs
         server: ${SECRET_STORAGE_SERVER}
         path: ${SECRET_STORAGE_SERVER_GAMES_NFS}
         globalMounts:
           - path: /romm/library
-      redis-data:
-        type: emptyDir
-        globalMounts:
-          - path: /redis-data
       tmp:
         type: emptyDir
