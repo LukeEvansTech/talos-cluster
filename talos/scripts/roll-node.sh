@@ -52,6 +52,14 @@ ceph_ok() {
     and .osdmap.num_up_osds == .osdmap.num_osds and .osdmap.num_in_osds == .osdmap.num_osds
     and ([.pgmap.pgs_by_state[] | select(.state_name != "active+clean") | .count] | add // 0) == 0' >/dev/null
 }
+# After a drain the node's OSDs and mon are evicted, so one host down is expected: require every PG
+# active and no health check beyond the ones a single drained host raises.
+ceph_drained_ok() {
+    tools ceph status -f json 2>/dev/null | jq -e '
+    ([.health.checks | keys[] | select(IN("OSDMAP_FLAGS","OSD_FLAGS","OSD_DOWN","OSD_HOST_DOWN","MON_DOWN","PG_DEGRADED") | not)] | length == 0)
+    and (.osdmap.num_osds - .osdmap.num_up_osds) <= 2
+    and ([.pgmap.pgs_by_state[] | select(.state_name | startswith("active") | not) | .count] | add // 0) == 0' >/dev/null
+}
 # A mover evicted mid-backup loses that run; tuppr's TalosUpgrade gates on the same predicate.
 volsync_idle() {
     kubectl get replicationsources -A -o json | jq -e '[.items[]
@@ -163,7 +171,7 @@ if [ "$phase" != finish ]; then
     # The drain and detach can take many minutes, and skip runs no pre-flight: gate again here.
     noout_set || fail "Ceph noout is not set before the reboot"
     volsync_idle || fail "a VolSync ReplicationSource started synchronizing before the reboot"
-    ceph_ok || fail "Ceph not clean before the reboot"
+    ceph_drained_ok || fail "Ceph has more than the drained host degraded before the reboot"
     etcd_ok || fail "etcd not healthy before the reboot"
     boot_before=$(talosctl -n "$ip" read /proc/sys/kernel/random/boot_id 2>/dev/null)
     if [ "$mode" = upgrade ]; then
