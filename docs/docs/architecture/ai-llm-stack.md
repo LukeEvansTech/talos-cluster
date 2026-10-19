@@ -275,7 +275,7 @@ Prefer a **scoped LiteLLM virtual key** (`/key/generate`, limited to the `self-h
 the master key for any workstation client: it's revocable on its own.
 
 Workstation Claude Code reaches the talos MCP through `litellm/app/virtualkeys/claudecode.yaml`: a
-`LiteLLMTeam` whose only MCP server is `talos` and only model `self-hosted`, plus a key in that team
+`LiteLLMTeam` whose only MCP server is `talos` and only model `self-hosted-uncensored` (no cloud fallback), plus a key in that team
 mirrored to the `litellm` item as `LITELLM_CLAUDECODE_API_KEY`. The client calls `/mcp/` with an
 `x-mcp-servers: talos` header.
 

@@ -7,12 +7,12 @@ metadata:
   namespace: ai
 spec:
   # Workstation Claude Code reaches the talos MCP through this team; it gets no other MCP server
-  # (flux and hamcp can write) and only the local model.
+  # (flux and hamcp can write) and only the local model (the alias with no cloud fallback).
   proxyRef: litellm
   mcpServers:
     - talos
   models:
-    - self-hosted
+    - self-hosted-uncensored
 ---
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/litellm.home-operations.com/litellmvirtualkey_v1alpha1.json
 apiVersion: litellm.home-operations.com/v1alpha1
@@ -27,7 +27,7 @@ spec:
   secretName: litellm-key-claudecode
   secretKey: api-key
   models:
-    - self-hosted
+    - self-hosted-uncensored
 ---
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/external-secrets.io/pushsecret_v1alpha1.json
 apiVersion: external-secrets.io/v1alpha1
