@@ -1,0 +1,52 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/litellm.home-operations.com/litellmteam_v1alpha1.json
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMTeam
+metadata:
+  name: claudecode
+  namespace: ai
+spec:
+  # Workstation Claude Code reaches the talos MCP through this team; it gets no other MCP server
+  # (flux and hamcp can write) and only the local model.
+  proxyRef: litellm
+  mcpServers:
+    - talos
+  models:
+    - self-hosted
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/litellm.home-operations.com/litellmvirtualkey_v1alpha1.json
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMVirtualKey
+metadata:
+  name: claudecode
+  namespace: ai
+spec:
+  proxyRef: litellm
+  keyAlias: claudecode
+  teamID: claudecode
+  secretName: litellm-key-claudecode
+  secretKey: api-key
+  models:
+    - self-hosted
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/external-secrets.io/pushsecret_v1alpha1.json
+apiVersion: external-secrets.io/v1alpha1
+kind: PushSecret
+metadata:
+  name: claudecode
+  namespace: ai
+spec:
+  refreshInterval: 1h
+  secretStoreRefs:
+    - name: onepassword-connect
+      kind: ClusterSecretStore
+  selector:
+    secret:
+      name: litellm-key-claudecode
+  updatePolicy: Replace
+  data:
+    - match:
+        secretKey: api-key
+        remoteRef:
+          remoteKey: litellm
+          property: LITELLM_CLAUDECODE_API_KEY
