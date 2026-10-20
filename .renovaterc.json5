@@ -257,8 +257,9 @@
       separateMultipleMinor: true,
     },
     {
-      // Minor lines (8.2, 8.3) stop getting patches once the next ships, so stay on major lines
-      // (X.0.y); docs/docs/apps/yourspotify.md.
+      // Pin to major lines (8.0.y, 9.0.y): minor lines (8.2, 8.3) stop getting patches once the
+      // next ships, and 9.0 downgrades straight to 8.0, so no minor tag is needed as a rollback
+      // target; docs/docs/apps/yourspotify.md.
       description: "MongoDB: major release lines only, never the minor track",
       matchDatasources: ["docker"],
       matchPackageNames: ["docker.io/library/mongo"],
