@@ -87,7 +87,8 @@ See the [AI / LLM stack](../architecture/ai-llm-stack.md) page for how it fits t
   mean something.
 - LiteLLM creates each counter series at its first event, and `increase()` never counts that
   first value, so the Claude alerts that must catch a single event also match a series absent an
-  hour earlier (`X unless X offset 1h`).
+  hour earlier (`X unless X offset 1h`). `.github/scripts/tests/prometheus/litellm.yaml` tests
+  those Claude alerts against that series shape and a quiet restart, in lefthook and CI.
 - The `*_fallbacks_total` counters only appear after the first fallback event (LiteLLM registers
   them lazily), so `LiteLLMFallbackChainExhausted` and `LiteLLMModelFailover` carry no `absent()`
   guard: their absence is the healthy steady state, not a stale metric.

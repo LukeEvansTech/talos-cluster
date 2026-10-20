@@ -321,6 +321,10 @@ Flag consequential, repository-specific breakage. Prefer silence over style comm
   absence-of-success alert. Liveness and `/health` stay green while the work fails: lurcher crashed
   mid-run every day for twelve days with its pod healthy. Mirror `GickupBackupStale` or
   `LurcherNotDelivering`: alert on the age of the last success, not on errors.
+- An alert meant to catch a single event that uses only `increase()` or `rate()` on a counter the
+  exporter creates at that first event (LiteLLM, most Python clients). The first sample is never
+  counted; also match `X unless X offset 1h`. Ask for a test in `.github/scripts/tests/prometheus/`
+  that feeds the series as absent then 1.
 - A change to the `curator` engine or `curatorjudge` with no matching change to `curatortv` or
   `curatortvjudge`, or the reverse, unless the PR body says why the sibling differs. The TV pair
   is a fork of the film pair, and a defect in one has twice been live in the other.
