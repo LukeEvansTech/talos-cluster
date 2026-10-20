@@ -208,12 +208,12 @@ refactors, because a Flux `Kustomization`'s inventory is keyed by its name and n
 Before any of these, say which stateful objects are in the inventory and how they are protected.
 Every `namespace.yaml` here carries `kustomize.toolkit.fluxcd.io/prune: disabled`; a PVC that must
 survive a rename needs the same annotation, or `helm.sh/resource-policy: keep` when Helm owns it.
-Setting `spec.prune: false` on the old `Kustomization` guards an in-place change to `spec.path`,
-`spec.targetNamespace` or `spec.components`, but not a rename or move, which deletes it: the root
-`cluster-apps` patch gives every child `deletionPolicy: WaitForTermination`, which deletes all
-managed objects when the `Kustomization` is deleted whatever `prune` says, and it overrides any
-`deletionPolicy` the child sets. For a rename or move the annotation is the only per-object guard,
-so add it and reconcile first. The failure mode when this is skipped is a pod stuck
+Children use Flux's default `deletionPolicy: MirrorPrune`, so a deleted `Kustomization` deletes
+what it manages only when it has `prune: true`. Setting `spec.prune: false` on the old
+`Kustomization` therefore guards a rename or move as well as an in-place change to `spec.path`,
+`spec.targetNamespace` or `spec.components`; otherwise the annotation is the per-object guard, so
+add it and reconcile first. The root `cluster-apps` is `deletionPolicy: Orphan`: deleting it
+leaves every child and its objects running. The failure mode when this is skipped is a pod stuck
 `Pending` with `persistentvolumeclaim "<name>" not found`, and the data is gone.
 
 ## Inspecting the live cluster
