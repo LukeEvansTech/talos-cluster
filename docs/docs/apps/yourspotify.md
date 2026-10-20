@@ -63,8 +63,9 @@ TO=9.0
 4. Merge the image bump to the `$TO` line and wait for the rollout.
 5. Burn in the new binary at the old FCV: the server logs are clean, the API route answers, and
    it runs a day of normal use before step 6. Raising the FCV enables features the previous
-   binary cannot read, so until then a rollback is a plain image revert; after it, a rollback is a
-   restore from the step 1 dump or the step 2 VolSync backup.
+   binary cannot read, so until then a rollback is an image revert; after it, lower the FCV first
+   or restore from the step 1 dump or the step 2 VolSync backup. For 9.0, follow "9.0 rollback"
+   below, which also removes a 9.0-only startup argument.
 6. Raise the FCV to `$TO` (`confirm: true` is required from 7.0 on), read it back as in step 3,
    and repeat the checks from step 5:
 
@@ -83,10 +84,12 @@ MongoDB supports a direct 9.0 → 8.0 downgrade for a standalone
 ([procedure](https://www.mongodb.com/docs/manual/release-notes/9.0-downgrade-to-8.0-standalone/)),
 so the 8.3 minor line is never needed as an escape tag:
 
-- While the FCV is still 8.0, revert the image tag to the last 8.0.y.
+- While the FCV is still 8.0, revert the image tag to the last 8.0.y **and** remove the mongodb
+  container's `args` block in the same commit: `internalQueryMaxMemoryUsageBytesPerOperation` is a
+  9.0-only parameter, and 8.0 exits on an unknown `--setParameter`, so the pod would crash-loop.
 - After the FCV is raised to 9.0, first lower it with
   `setFeatureCompatibilityVersion: '8.0', confirm: true`, remove any 9.0-only features, then revert
-  the image.
+  the image and drop the `args` block as above.
 - If that fails, restore the PVC from the pre-upgrade VolSync backup, or `mongorestore` the step 1
   dump into an empty 8.0 data directory.
 
@@ -95,10 +98,12 @@ in it.
 
 ## 9.0 notes
 
-- The mongod container passes `internalQueryMaxMemoryUsageBytesPerOperation=134217728`. 9.0 caps
+- The mongod container passes `internalQueryMaxMemoryUsageBytesPerOperation=134217728` (128 MiB,
+  which with the 256 MB WiredTiger cache stays under the limit). 9.0 caps
   a single query at 1 GB or 20% of memory, whichever is greater, which is above the 512Mi container
   limit, so without it a runaway query would OOM-kill the pod instead of failing with
-  `ExceededMemoryLimit`.
+  `ExceededMemoryLimit`. If the stats views start failing on long date ranges, raise it first;
+  `metrics.query.operationsFailedDueToMemoryLimit` in `serverStatus` counts those failures.
 - your_spotify 1.20.0 is validated upstream only up to MongoDB 8.3; 9.0 is an untested pairing, which
   is why the burn-in below matters.
 - At FCV 9.0, `listIndexes` reports `collation: { locale: "simple" }`
@@ -109,4 +114,5 @@ in it.
 ## Follow-up: raise the FCV to 9.0
 
 The 9.0.4 binary went live on FCV 8.0 (2026-10-20). After at least a day of clean burn-in, run steps 5
-and 6 above with `TO=9.0`. Until then a rollback is a plain image revert.
+and 6 above with `TO=9.0`. Until then a rollback is an image revert plus removing the 9.0-only
+`args` (see "9.0 rollback" above).

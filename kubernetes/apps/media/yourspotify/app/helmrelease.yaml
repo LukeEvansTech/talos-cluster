@@ -96,8 +96,8 @@ spec:
             image:
               repository: docker.io/library/mongo
               tag: 9.0.4@sha256:dc28ed5a9d0fc616903c3f463bb1e53b92b49f441721b91926e87d90bf957ce8
-            # 9.0's default per-query cap (1 GB minimum) sits above the 512Mi limit, so a runaway query OOM-kills
-            # the pod instead of failing; 128 MiB plus the 256 MB WiredTiger cache stays under the limit.
+            # 9.0's 1 GB minimum per-query cap exceeds the 512Mi limit, so a runaway query would OOM-kill the pod.
+            # 9.0-only parameter that 8.0 refuses at startup: drop these args when reverting to 8.0.
             args:
               - --setParameter
               - internalQueryMaxMemoryUsageBytesPerOperation=134217728
