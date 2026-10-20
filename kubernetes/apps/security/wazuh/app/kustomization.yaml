@@ -9,7 +9,7 @@ kind: Kustomization
 # The marker below only tracks upstream's manifest releases; a new tag opens a PR to
 # re-vendor by hand, since no tool can diff manifest shape for us.
 # renovate: datasource=github-tags depName=wazuh/wazuh-kubernetes
-# upstream-manifests: v4.14.7
+# upstream-manifests: v4.14.9
 resources:
   - ./externalsecret.yaml
   - ./configmap-indexer.yaml
