@@ -12,7 +12,9 @@ spec:
   values:
     replicaCount: 2
     deploymentAnnotations:
-      reloader.stakater.com/auto: "true"
+      # Scoped to Secrets: the chart's own checksum/config annotation already rolls the pods on a
+      # ConfigMap change, and a broad `auto` raced it into a second ReplicaSet on 6 of 11 rollouts.
+      secret.reloader.stakater.com/auto: "true"
     env:
       TZ: ${TIMEZONE}
     envFrom:
