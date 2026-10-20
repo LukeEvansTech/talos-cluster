@@ -183,10 +183,23 @@ falling back to `self-hosted` and then `openrouter/auto`. The model column is wh
 | `todoist-sort`  | `custom`  | `ANTHROPIC_API_KEY` | `[llm] model` in `app/resources/config.toml`   |
 | `suggestarr`    | `media`   | none (AI settings)  | its AI settings                                |
 
-Inside `ai`, `memini` (`MEMINI_LLM_MODEL`) and `hermes` (`model.default` in its ConfigMap) read
-their keys from their own `litellm-key-<app>` Secrets.
+Every other key is used inside `ai` or by hand, reading its own `litellm-key-<name>` Secret.
+Scope does not stop router fallbacks, so a `self-hosted`-only key can still reach `claude`:
 
-All seven live outside the `ai` namespace, so none of them mounts an `ai` Secret directly. Each
+| Key             | Used by                                                | Model scope                                   |
+| --------------- | ------------------------------------------------------ | --------------------------------------------- |
+| `memini`        | memini consolidation, `MEMINI_LLM_MODEL`               | `claude`, `self-hosted`                       |
+| `hermes`        | hermes, `model.default` in its ConfigMap               | `claude`, both self-hosted, `openrouter/auto` |
+| `open-webui`    | Open WebUI chat and RAG embedding                      | as hermes, plus `all-minilm`                  |
+| `repowiki`      | repowiki generation (kept local on cost)               | `self-hosted`                                 |
+| `toolhive-vmcp` | ToolHive vMCP gateway embedding                        | `all-minilm`, `qwen3-embedding`               |
+| `claudecode`    | workstation Claude Code, talos MCP team                | `self-hosted-uncensored`                      |
+| `subtitles`     | operator-run Whisper subtitle translation, 150 USD cap | `claude`                                      |
+
+`.github/scripts/check_virtualkey_docs.py` fails when a `LiteLLMVirtualKey` has no row in this
+section, so a new key's spend is never missing from it.
+
+The seven apps in the first table live outside the `ai` namespace, so none of them mounts an `ai` Secret directly. Each
 gets an operator-issued **scoped** key instead of the account-wide master key: a
 `LiteLLMVirtualKey` CR in `litellm/app/virtualkeys/<app>.yaml` (`ai` namespace) mints the key
 and writes it to an in-namespace Secret; a

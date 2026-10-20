@@ -66,6 +66,10 @@ jobs:
       # every gate against its fires/skips fixtures in the image the chart pins.
       - name: Chaski route gate check
         run: python3 .github/scripts/check_chaski_routes.py
+      # Spend per LiteLLM key is estimated from the docs consumer tables; an unlisted key hid
+      # most of a month's spend (#6327).
+      - name: LiteLLM virtual key docs check
+        run: python3 .github/scripts/check_virtualkey_docs.py
 
   archived-app-refs:
     name: Archived App References
