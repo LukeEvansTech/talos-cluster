@@ -20,14 +20,14 @@ spec:
             - name: gpu
               resourceClaimTemplateName: any-nvidia-gpu
         containers:
-          app:
+          app: &container
             # subgen serves the same /asr and /detect-language API as the webservice it replaced,
             # but times cues with stable-ts. Plain faster-whisper segments can open minutes before
             # the line is spoken, so subtitles appeared during silences.
             image:
               repository: docker.io/mccloud/subgen
               tag: 2026.07.3@sha256:2841515a3b409677669f0a10d77d49160bffb8111db91640fb33a4db06b3396c
-            env:
+            env: &env
               TRANSCRIBE_DEVICE: cuda
               # Multilingual, so Bazarr can also request task=translate; the turbo and distil
               # variants cannot translate.
@@ -92,7 +92,17 @@ spec:
               capabilities: { drop: ["ALL"] }
       # A second instance for bulk re-transcription runs, on another GPU node; Bazarr keeps
       # the whisper service to itself. Same pod spec, but its own model copy (see persistence).
-      batch: *controller
+      batch:
+        <<: *controller
+        containers:
+          app:
+            <<: *container
+            env:
+              <<: *env
+              # Its bulk work is English transcription (dub-matched and re-timed subtitles),
+              # which turbo does several times faster at close to large-v3's accuracy. Turbo
+              # can't translate, so Bazarr's own requests stay on the whisper service.
+              WHISPER_MODEL: large-v3-turbo
     defaultPodOptions:
       labels:
         gpu-workload: "true"
