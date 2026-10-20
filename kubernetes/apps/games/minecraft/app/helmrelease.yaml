@@ -23,7 +23,7 @@ spec:
               TZ: "${TIMEZONE}"
               TYPE: "PAPER"
               # renovate: datasource=custom.minecraft-release
-              VERSION: "26.2"
+              VERSION: "26.3"
               EULA: "TRUE"
               SERVER_NAME: "Minecraft Server"
               MODE: "survival"
