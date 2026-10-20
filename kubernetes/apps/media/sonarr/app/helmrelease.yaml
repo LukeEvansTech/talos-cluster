@@ -22,7 +22,7 @@ spec:
             env:
               SONARR__APP__INSTANCENAME: Sonarr
               SONARR__APP__THEME: dark
-              # v5 rewrites None/Basic to Forms; pinning it keeps config.xml declarative.
+              # v5 coerces None/Basic to Forms; the env var wins over whatever config.xml holds.
               SONARR__AUTH__METHOD: Forms
               # Not DisabledForLocalAddresses (Envoy's pod IP looks local, exempting all traffic) nor
               # DisabledForLocalhost (in-pod callers already send the API key).
