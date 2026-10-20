@@ -48,11 +48,11 @@ def rule_manifests() -> list[str]:
 
 def extract(manifest: str, dest: Path) -> Path:
     """Write the manifest's rule groups as a plain Prometheus rule file, as Flux would render them."""
-    text = (ROOT / manifest).read_text()
+    text = (ROOT / manifest).read_text(encoding="utf-8")
     text = SUBST.sub("FLUX_SUBSTITUTED", text).replace("$${", "${")
     docs = [d for d in yaml.safe_load_all(text) if d and d.get("kind") == "PrometheusRule"]
     out = dest / (manifest.replace("/", "__"))
-    out.write_text(yaml.safe_dump({"groups": [g for d in docs for g in d["spec"]["groups"]]}))
+    out.write_text(encoding="utf-8", data=yaml.safe_dump({"groups": [g for d in docs for g in d["spec"]["groups"]]}))
     return out
 
 
@@ -76,7 +76,7 @@ def main() -> int:
         failed |= not promtool_ok("check", "rules", *map(str, extracted.values()))
 
         for test in sorted(TESTS.glob("*.yaml")):
-            spec = yaml.safe_load(test.read_text())
+            spec = yaml.safe_load(test.read_text(encoding="utf-8"))
             missing = [r for r in spec["rule_files"] if r not in extracted]
             if missing:
                 print(f"{test.name}: rule_files not a PrometheusRule manifest: {missing}", file=sys.stderr)
@@ -84,7 +84,7 @@ def main() -> int:
                 continue
             spec["rule_files"] = [str(extracted[r]) for r in spec["rule_files"]]
             rewritten = dest / test.name
-            rewritten.write_text(yaml.safe_dump(spec))
+            rewritten.write_text(encoding="utf-8", data=yaml.safe_dump(spec))
             if not promtool_ok("test", "rules", str(rewritten)):
                 print(f"failed: {test.relative_to(ROOT)}", file=sys.stderr)
                 failed = True

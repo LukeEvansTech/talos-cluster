@@ -44,6 +44,11 @@ glob = [".github/workflows/*.yml", ".github/workflows/*.yaml", ".github/actions/
 run = "python3 .github/scripts/check_docs_linked.py"
 glob = ["docs/docs/**/*.md", "docs/zensical.toml"]
 
+# Spend is estimated from that table, so a key missing from it hides its spend (#6327).
+[pre-commit.commands.check-virtualkey-docs]
+run = "python3 .github/scripts/check_virtualkey_docs.py"
+glob = ["kubernetes/**/*.yaml", "docs/docs/architecture/ai-llm-stack.md", ".github/scripts/check_virtualkey_docs.py"]
+
 [pre-commit.commands.format-json]
 run = "mise x --quiet -- prettier -w --log-level warn {staged_files}"
 glob = ["*.json", "*.json5"]
