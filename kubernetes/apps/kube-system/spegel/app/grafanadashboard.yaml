@@ -14,5 +14,5 @@ spec:
     - datasourceName: prometheus
       inputName: DS_PROMETHEUS
   configMapRef:
-    name: spegel-dashboard
+    name: spegel-grafana-dashboard
     key: spegel.json

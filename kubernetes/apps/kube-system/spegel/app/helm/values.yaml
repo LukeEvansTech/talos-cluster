@@ -1,12 +1,12 @@
 ---
 spegel:
-  appendMirrors: true
   containerdSock: /run/containerd/containerd.sock
   containerdRegistryConfigPath: /etc/cri/conf.d/hosts
 service:
   registry:
+    # Outside the NodePort range: Cilium's kube-proxy replacement ignores host ports inside it,
+    # so the chart's 30020 default would never answer. 0.8.0 drops the host port; remove this
+    # stanza once the chart is on 0.8.0.
     hostPort: 29999
 serviceMonitor:
-  enabled: true
-grafanaDashboard:
   enabled: true
