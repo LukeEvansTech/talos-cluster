@@ -15,4 +15,4 @@ spec:
   grafanaCom:
     # renovate: depName="SMART Disk Monitoring"
     id: 22604
-    revision: 3
+    revision: 4
