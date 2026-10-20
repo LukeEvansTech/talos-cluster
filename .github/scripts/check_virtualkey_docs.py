@@ -32,12 +32,12 @@ def key_aliases() -> dict[str, str]:
         text=True,
         check=True,
     ).stdout.split()
-    return {alias: f for f in files for alias in ALIAS.findall(Path(f).read_text())}
+    return {alias: f for f in files for alias in ALIAS.findall(Path(f).read_text(encoding="utf-8"))}
 
 
 def section_text() -> str:
     """The consumers section, from its heading up to the next level-two heading."""
-    text = DOC.read_text()
+    text = DOC.read_text(encoding="utf-8")
     start = text.index(SECTION)
     end = text.find("\n## ", start + len(SECTION))
     return text[start : end if end != -1 else None]

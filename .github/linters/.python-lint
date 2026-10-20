@@ -7,6 +7,11 @@
 # 2. Test docstrings aren't required: a name like test_two_users_finishing_counts_two is already
 #    a sentence. Module, class and production-function docstrings still are.
 
+[MAIN]
+# Lint as CI's Python, not the local one: on 3.15 pylint drops unspecified-encoding (UTF-8 is the
+# default there), so a local pass let a missing encoding= fail CI on #6379.
+py-version = 3.12
+
 [MESSAGES CONTROL]
 # Duplicate-code flags the shared arrange/act shape every test suite has across test modules.
 disable = duplicate-code
