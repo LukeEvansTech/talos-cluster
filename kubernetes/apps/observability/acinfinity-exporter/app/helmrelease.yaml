@@ -18,7 +18,7 @@ spec:
           app:
             image:
               repository: ghcr.io/lukeevanstech/acinfinity-exporter
-              tag: 1.1.4@sha256:2704e67e3e6ee16fba669832fbc643beb4ffe0129057b989c912bf2883bb664d
+              tag: 1.1.5@sha256:32c65cab10194fe825a9f3d54a2e1ec04679a94fa4f93bb83578a18fa3beb291
             env:
               TZ: ${TIMEZONE:=UTC}
               METRICS_PORT: "8000"
