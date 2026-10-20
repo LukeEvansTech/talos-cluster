@@ -6,8 +6,9 @@ MongoDB (`yourspotify-mongodb`) whose data lives on the `yourspotify` PVC (VolSy
 ## MongoDB upgrades
 
 MongoDB only upgrades one release line at a time, and each step needs the
-`featureCompatibilityVersion` (FCV) raised by hand before the next one: 6.0 → 7.0 → 8.0. A binary
-started on data whose FCV is two lines behind refuses to start. MongoDB rules in
+`featureCompatibilityVersion` (FCV) raised by hand before the next one: 6.0 → 7.0 → 8.0 → 9.0.
+A binary started on data whose FCV is two lines behind refuses to start; 9.0 starts only on FCV
+8.0 or 8.3. MongoDB rules in
 `.renovaterc.json5` keep minor and major bumps manual, so only patches auto-merge, give each
 release line its own PR so no step gets skipped, and offer only major lines (`X.0.y`), never the
 8.2-style minor track.
@@ -16,11 +17,11 @@ The image tag is a plain version such as `8.0.32`, not a distribution-suffixed o
 the suffix ties the tag to one Ubuntu release, and when upstream moved to a newer base the
 suffixed tags stopped and Renovate stayed on the last one.
 
-For each step, set the line being left and the line being entered, e.g. for 7.0 → 8.0:
+For each step, set the line being left and the line being entered, e.g. for 8.0 → 9.0:
 
 ```bash
-FROM=7.0
-TO=8.0
+FROM=8.0
+TO=9.0
 ```
 
 1. Dump the database to the PVC:
@@ -63,7 +64,7 @@ TO=8.0
 5. Burn in the new binary at the old FCV: the server logs are clean, the API route answers, and
    it runs a day of normal use before step 6. Raising the FCV enables features the previous
    binary cannot read, so until then a rollback is a plain image revert; after it, a rollback is a
-   restore from the step 1 dump.
+   restore from the step 1 dump or the step 2 VolSync backup.
 6. Raise the FCV to `$TO` (`confirm: true` is required from 7.0 on), read it back as in step 3,
    and repeat the checks from step 5:
 
@@ -72,5 +73,40 @@ TO=8.0
      mongosh --quiet --eval "db.adminCommand({setFeatureCompatibilityVersion: '${TO}', confirm: true})"
    ```
 
-Moving to a minor line (8.2) is a separate FCV step too, and MongoDB stops patching a minor line
-once the next one ships, so this deployment stays on the 8.0 major line.
+Moving to a minor line (8.2, 8.3) is a separate FCV step too, and MongoDB stops patching a minor
+line once the next one ships, so this deployment follows major lines only (`X.0.y`) and the
+Renovate `allowedVersions` rule offers nothing else.
+
+## 9.0 rollback
+
+MongoDB supports a direct 9.0 → 8.0 downgrade for a standalone
+([procedure](https://www.mongodb.com/docs/manual/release-notes/9.0-downgrade-to-8.0-standalone/)),
+so the 8.3 minor line is never needed as an escape tag:
+
+- While the FCV is still 8.0, revert the image tag to the last 8.0.y.
+- After the FCV is raised to 9.0, first lower it with
+  `setFeatureCompatibilityVersion: '8.0', confirm: true`, remove any 9.0-only features, then revert
+  the image.
+- If that fails, restore the PVC from the pre-upgrade VolSync backup, or `mongorestore` the step 1
+  dump into an empty 8.0 data directory.
+
+9.0.4 also moves the image base from Ubuntu 24.04 to 26.04; `mongosh` and `mongodump` are still
+in it.
+
+## 9.0 notes
+
+- The mongod container passes `internalQueryMaxMemoryUsageBytesPerOperation=134217728`. 9.0 caps
+  a single query at 1 GB or 20% of memory, whichever is greater, which is above the 512Mi container
+  limit, so without it a runaway query would OOM-kill the pod instead of failing with
+  `ExceededMemoryLimit`.
+- your_spotify 1.20.0 is validated upstream only up to MongoDB 8.3; 9.0 is an untested pairing, which
+  is why the burn-in below matters.
+- At FCV 9.0, `listIndexes` reports `collation: { locale: "simple" }`
+  ([SERVER-89953](https://jira.mongodb.org/browse/SERVER-89953)), and Mongoose releases before
+  9.10.4 rebuild such indexes in `syncIndexes()`. your_spotify does not call `syncIndexes()`, so a
+  rebuild is not expected; if one shows in the logs it is benign.
+
+## Follow-up: raise the FCV to 9.0
+
+The 9.0.4 binary went live on FCV 8.0 (2026-10-20). After at least a day of clean burn-in, run steps 5
+and 6 above with `TO=9.0`. Until then a rollback is a plain image revert.
