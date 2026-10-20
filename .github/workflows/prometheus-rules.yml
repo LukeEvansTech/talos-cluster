@@ -1,0 +1,46 @@
+---
+# Alert expressions are otherwise checked only when Prometheus loads them, and series-shape bugs
+# (a counter born at its first event, a quiet restart) not even then; see the script docstring.
+name: Prometheus Rules
+
+on:
+  pull_request:
+    paths:
+      - "kubernetes/**"
+      - ".github/scripts/check_prometheus_rules.py"
+      - ".github/scripts/tests/prometheus/**"
+      - ".github/workflows/prometheus-rules.yml"
+
+permissions:
+  contents: read
+
+env:
+  # Keep in step with aqua:prometheus/prometheus in .mise.toml.
+  # renovate: datasource=github-releases depName=prometheus/prometheus
+  PROMETHEUS_VERSION: "v3.13.4"
+
+jobs:
+  prometheus-rules:
+    name: promtool check and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install promtool
+        run: |
+          v="${PROMETHEUS_VERSION#v}"
+          base="https://github.com/prometheus/prometheus/releases/download/${PROMETHEUS_VERSION}"
+          tarball="prometheus-${v}.linux-amd64.tar.gz"
+          curl -fsSLO "${base}/${tarball}"
+          curl -fsSL "${base}/sha256sums.txt" | grep " ${tarball}\$" | sha256sum -c -
+          tar -xzf "${tarball}" --strip-components=1 "prometheus-${v}.linux-amd64/promtool"
+          echo "${PWD}" >> "${GITHUB_PATH}"
+
+      - name: Check and test PrometheusRules
+        run: python3 .github/scripts/check_prometheus_rules.py

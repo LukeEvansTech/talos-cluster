@@ -1,0 +1,107 @@
+---
+# promtool unit tests for the LiteLLM Claude alerts; run by .github/scripts/check_prometheus_rules.py.
+# LiteLLM creates a counter at its first event, so "_x30 1" (absent, then 1) is the shape a first
+# rejection or first call really has.
+rule_files:
+  - kubernetes/apps/ai/litellm/app/prometheusrule.yaml
+evaluation_interval: 1m
+tests:
+  # The first Anthropic 400 creates the counter at 1; increase() alone never sees it.
+  - interval: 1m
+    input_series:
+      - series: 'litellm_deployment_successful_fallbacks_total{exception_status="400",exception_class="Anthropic.BadRequestError"}'
+        values: "_x30 1x120"
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: LiteLLMClaudeRequestRejected
+        exp_alerts: []
+      - eval_time: 35m
+        alertname: LiteLLMClaudeRequestRejected
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              exception_class: Anthropic.BadRequestError
+            exp_annotations:
+              summary: >-
+                Anthropic rejected LiteLLM requests (Anthropic.BadRequestError); check the LiteLLM logs for the param and add it to additional_drop_params
+      # An hour on with no new rejection, it clears.
+      - eval_time: 140m
+        alertname: LiteLLMClaudeRequestRejected
+        exp_alerts: []
+
+  # Claude calls with no budget gauge: the spend cap is unset. Fires from the first call.
+  - interval: 1m
+    input_series:
+      - series: 'litellm_deployment_success_responses_total{litellm_model_name="claude-sonnet-5-5"}'
+        values: "_x30 1+1x60"
+    alert_rule_test:
+      - eval_time: 50m
+        alertname: LiteLLMClaudeBudgetMetricAbsent
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+            exp_annotations:
+              summary: LiteLLM reports no Anthropic budget; the claude spend cap may be unset
+
+  # A quiet stretch after earlier calls: the counter sits flat and the gauge has gone stale.
+  # No claude traffic means nothing to cap, so it must not fire.
+  - interval: 1m
+    input_series:
+      - series: 'litellm_deployment_success_responses_total{litellm_model_name="claude-sonnet-5-5"}'
+        values: "5x240"
+    alert_rule_test:
+      - eval_time: 200m
+        alertname: LiteLLMClaudeBudgetMetricAbsent
+        exp_alerts: []
+
+  # Healthy: calls and a gauge.
+  - interval: 1m
+    input_series:
+      - series: 'litellm_deployment_success_responses_total{litellm_model_name="claude-sonnet-5-5"}'
+        values: "0+1x120"
+      - series: 'litellm_provider_remaining_budget_metric{api_provider="anthropic"}'
+        values: "150x120"
+    alert_rule_test:
+      - eval_time: 100m
+        alertname: LiteLLMClaudeBudgetMetricAbsent
+        exp_alerts: []
+      - eval_time: 100m
+        alertname: LiteLLMClaudeBudgetLow
+        exp_alerts: []
+
+  - interval: 1m
+    input_series:
+      - series: 'litellm_provider_remaining_budget_metric{api_provider="anthropic"}'
+        values: "35x10"
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: LiteLLMClaudeBudgetLow
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              api_provider: anthropic
+            exp_annotations:
+              summary: >-
+                LiteLLM Anthropic budget down to 35 USD; claude traffic moves to self-hosted when it runs out
+
+  # 1.5 USD an hour is 36 in a day, over the 20 threshold; 0.5 an hour (12) is under it.
+  - interval: 1h
+    input_series:
+      - series: 'litellm_spend_metric_total{model="claude-sonnet-5-5"}'
+        values: "0+1.5x30"
+    alert_rule_test:
+      - eval_time: 26h
+        alertname: LiteLLMClaudeSpendFast
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+            exp_annotations:
+              summary: LiteLLM claude spent 36 USD in the last 24h
+  - interval: 1h
+    input_series:
+      - series: 'litellm_spend_metric_total{model="claude-sonnet-5-5"}'
+        values: "0+0.5x30"
+    alert_rule_test:
+      - eval_time: 26h
+        alertname: LiteLLMClaudeSpendFast
+        exp_alerts: []
