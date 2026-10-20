@@ -18,12 +18,14 @@ spec:
           app:
             image:
               repository: ghcr.io/home-operations/sonarr
-              tag: 4.0.20.3012@sha256:1f19eb5e0f421418c1a956bbe01310a0141423afe28bd9a4b1dcb8629ff2bce2
+              tag: 5.0.0.2701@sha256:1620725621cfda0360bd680dacf3246c4696c27c4b768b4346e07e8917e94499
             env:
               SONARR__APP__INSTANCENAME: Sonarr
               SONARR__APP__THEME: dark
-              # Enabled, not DisabledForLocalAddresses: an Envoy pod IP looks RFC1918-local on every
-              # request, so that exemption covers all traffic; also pins config.xml against a reset.
+              # v5 coerces None/Basic to Forms; the env var wins over whatever config.xml holds.
+              SONARR__AUTH__METHOD: Forms
+              # Not DisabledForLocalAddresses (Envoy's pod IP looks local, exempting all traffic) nor
+              # DisabledForLocalhost (in-pod callers already send the API key).
               SONARR__AUTH__REQUIRED: Enabled
               SONARR__LOG__DBENABLED: "False"
               SONARR__LOG__LEVEL: info
@@ -57,6 +59,21 @@ spec:
                   timeoutSeconds: 5
                   failureThreshold: 3
               readiness: *probes
+              # The first start on a new major runs schema migrations before /ping binds; on this
+              # library's multi-GB database that outlasts liveness's 30s budget (allows 30 min).
+              startup:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /ping
+                    port: *port
+                    httpHeaders:
+                      - name: Host
+                        value: localhost
+                  periodSeconds: 10
+                  timeoutSeconds: 5
+                  failureThreshold: 180
             securityContext:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: true
