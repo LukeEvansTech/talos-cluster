@@ -12,9 +12,6 @@ spec:
     name: prometheus
   groupRef:
     name: mcp-tools
-  permissionProfile:
-    type: builtin
-    name: network
   env:
     - name: TALOS_MCP_TRANSPORT
       value: http
