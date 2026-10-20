@@ -51,6 +51,9 @@ l2announcements:
 loadBalancer:
   algorithm: maglev
   mode: dsr
+  # Spegel 0.8+ drops its hostPort and relies on the registry Service's trafficDistribution:
+  # PreferSameNode, which the kube-proxy replacement ignores unless this is on.
+  serviceTopology: true
 localRedirectPolicy: true
 socketLB:
   enabled: true
