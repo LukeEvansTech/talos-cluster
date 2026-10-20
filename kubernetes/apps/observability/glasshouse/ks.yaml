@@ -25,5 +25,6 @@ spec:
     namespace: flux-system
   targetNamespace: *namespace
   timeout: 5m
-  # CR-only app: Glasshouse runs on the TVs themselves, nothing in-cluster to health-check.
+  # Glasshouse runs on the TVs themselves; the only workload here is the wallpaper
+  # CronJob, which has nothing to health-check between runs.
   wait: false

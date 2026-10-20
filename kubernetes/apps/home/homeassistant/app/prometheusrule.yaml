@@ -1,0 +1,20 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: homeassistant
+spec:
+  groups:
+    - name: homeassistant
+      rules:
+        - alert: HomeAssistantScrapeDown
+          annotations:
+            description: >-
+              Prometheus has not scraped Home Assistant's /api/prometheus endpoint successfully
+              for 10 minutes. Every HA-derived alert (heating, batteries) is blind until this clears.
+            summary: Home Assistant metrics endpoint is down.
+          expr: absent(up{job="homeassistant"} == 1)
+          for: 10m
+          labels:
+            severity: critical

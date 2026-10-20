@@ -98,6 +98,31 @@ sync-oci:
         kubectl -n "$ns" annotate --field-manager flux-client-side-apply --overwrite ocirepo "$name" reconcile.fluxcd.io/requestedAt="$(date +%s)"
     done
 
+[doc('Count current Warning events by namespace, kind and reason, marking reasons the troubleshooting docs already cover. Messages are never printed: Flux ones embed credentialled URLs.')]
+warnings:
+    docs="{{ source_directory() }}/../docs/docs"; \
+    kubectl get events -A --field-selector type=Warning -o json \
+      | jq -r --rawfile noise "$docs/troubleshooting/known-noise.md" --rawfile backlog "$docs/operations/hardening-backlog.md" '
+          # A row is documented when its reason and object name sit in code spans on one line of the page,
+          # so the same reason on another object (the alertmanager Alert, say) stays UNKNOWN.
+          def lines: [split("\n")[] | [scan("`[^`]+`") | scan("[A-Za-z][A-Za-z0-9-]*[A-Za-z0-9]")] | select(length > 1)];
+          def documented($l): . as $e | any($l[]; index([$e.reason]) and index([$e.involvedObject.name]));
+          ($noise | lines) as $n | ($backlog | lines) as $b
+          | .items
+          | map(.doc = (if documented($n) then "known-noise" elif documented($b) then "hardening-backlog" else "UNKNOWN" end))
+          | group_by([.involvedObject.namespace, .involvedObject.kind, .involvedObject.name, .reason])
+          | map({ns: (.[0].involvedObject.namespace // "-"), kind: .[0].involvedObject.kind, reason: .[0].reason, doc: .[0].doc,
+                  count: (map(.series.count // .count // 1) | add),
+                  object: .[0].involvedObject.name})
+          | sort_by(-.count)
+          | (["COUNT", "NAMESPACE", "KIND", "OBJECT", "REASON", "DOCUMENTED"] | @tsv),
+            (.[] | [.count, .ns, .kind, .object, .reason, .doc] | @tsv)' \
+      | column -t -s $'\t'
+
+[doc('Summarise LiteLLM requests, spend and latency per key over N days')]
+litellm-spend days="7":
+    kubectl -n ai exec -i deploy/litellm -c litellm -- python3 - {{ days }} < "{{ justfile_directory() }}/scripts/litellm_spend.py"
+
 [doc('View a secret')]
 view-secret namespace secret:
     kubectl view-secret -n {{ namespace }} {{ secret }}

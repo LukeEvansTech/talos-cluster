@@ -18,7 +18,9 @@ spec:
       retries: 3
   values:
     commonAnnotations:
-      reloader.stakater.com/auto: "true"
+      # Scoped to Secrets: the chart's own checksum/config annotation already rolls both
+      # Deployments on a ConfigMap change, so a broad `auto` only adds a second rollout.
+      secret.reloader.stakater.com/auto: "true"
     replicaCount: 1
     timeZone: "${TIMEZONE}"
     loginRequired: true

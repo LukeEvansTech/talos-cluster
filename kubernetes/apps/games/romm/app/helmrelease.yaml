@@ -19,7 +19,7 @@ spec:
 
         containers:
           app:
-            image:
+            image: &image
               repository: ghcr.io/rommapp/romm
               tag: 5.4.0@sha256:03295f95a6290e752641f9553ac4198b0e5b71b879d57f7b2371b98f608feb54
             env:
@@ -28,6 +28,12 @@ spec:
               ENABLE_SCHEDULED_RESCAN: "true"
               RESCAN_ON_FILESYSTEM_CHANGE: "false"
               SCHEDULED_RESCAN_CRON: "0 3 * * *"
+              # Key-less metadata sources. Hasheous and PlayMatch match by file hash. LaunchBox's
+              # store is filled from Administration > Tasks and persists in /redis-data.
+              # HowLongToBeat stays off: it rate-limited (503) a 13k-game scan.
+              HASHEOUS_API_ENABLED: "true"
+              PLAYMATCH_API_ENABLED: "true"
+              LAUNCHBOX_API_ENABLED: "true"
             envFrom:
               - secretRef:
                   name: romm-secret
@@ -66,6 +72,27 @@ spec:
               limits:
                 memory: 3500Mi
 
+        initContainers:
+          # A kubelet-created (or restored) subPath directory is root-owned, and Valkey stops
+          # accepting writes when it cannot save there.
+          redis-dir:
+            image: *image
+            command:
+              [
+                "sh",
+                "-c",
+                "mkdir -p /cfg/redis && chown 1000:1000 /cfg/redis && chmod 2775 /cfg/redis",
+              ]
+            securityContext:
+              runAsUser: 0
+              runAsNonRoot: false
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities: { drop: ["ALL"], add: ["CHOWN", "FOWNER"] }
+            resources:
+              limits:
+                memory: 32Mi
+
     defaultPodOptions:
       securityContext:
         runAsNonRoot: true
@@ -92,20 +119,23 @@ spec:
     persistence:
       config:
         existingClaim: "{{ .Release.Name }}"
-        globalMounts:
-          - path: /romm/resources
-            subPath: resources
-          - path: /romm/assets
-            subPath: assets
+        advancedMounts:
+          romm:
+            app:
+              - path: /romm/resources
+                subPath: resources
+              - path: /romm/assets
+                subPath: assets
+              # Valkey snapshots here hourly: sessions and the LaunchBox store survive a restart.
+              - path: /redis-data
+                subPath: redis
+            redis-dir:
+              - path: /cfg
       library:
         type: nfs
         server: ${SECRET_STORAGE_SERVER}
         path: ${SECRET_STORAGE_SERVER_GAMES_NFS}
         globalMounts:
           - path: /romm/library
-      redis-data:
-        type: emptyDir
-        globalMounts:
-          - path: /redis-data
       tmp:
         type: emptyDir

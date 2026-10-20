@@ -18,7 +18,7 @@ spec:
           app:
             image:
               repository: itzg/minecraft-server
-              tag: java25@sha256:06afe09b335733b5094f752c5f78dec6936fc96efd77d3dbbb334124ab457fbb
+              tag: java25@sha256:0f3d1571b7d7bf237c08cbe5ee33cfd67e16bd66f454259ed0a2e35f1e2a2e70
             env:
               TZ: "${TIMEZONE}"
               TYPE: "PAPER"

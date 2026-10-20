@@ -9,11 +9,11 @@ data:
   # $${VAR} survives Flux's postBuild; Hermes' own loader (_expand_env_vars) expands it at startup.
   config.yaml: |-
     model:
-      default: self-hosted
+      default: claude
       provider: litellm
     providers:
-      # LiteLLM's OpenAI-compatible surface. `self-hosted` is the local
-      # llama.cpp model group; LiteLLM handles its own cloud fallback. The key
+      # LiteLLM's OpenAI-compatible surface; LiteLLM falls `claude` back to the
+      # local `self-hosted` group, then OpenRouter. The key
       # is an operator-minted LiteLLMVirtualKey (see virtualkey.yaml), not the
       # master key.
       litellm:

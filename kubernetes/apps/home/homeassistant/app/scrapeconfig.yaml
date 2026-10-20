@@ -1,0 +1,26 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/scrapeconfig_v1alpha1.json
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: ScrapeConfig
+metadata:
+  name: &name homeassistant
+spec:
+  # Home Assistant's built-in prometheus integration (enabled in its configuration.yaml on the
+  # PVC, filtered to climate/sensor/binary_sensor/water_heater) serves entity state as metrics.
+  # The endpoint needs a user token, so this is a ScrapeConfig with Bearer auth rather than a
+  # ServiceMonitor on the chart's service.
+  staticConfigs:
+    - targets:
+        - homeassistant.home.svc.cluster.local:8123
+  metricsPath: /api/prometheus
+  scrapeInterval: 60s
+  scrapeTimeout: 15s
+  authorization:
+    type: Bearer
+    credentials:
+      name: homeassistant-prometheus-secret
+      key: token
+  relabelings:
+    - action: replace
+      targetLabel: job
+      replacement: *name

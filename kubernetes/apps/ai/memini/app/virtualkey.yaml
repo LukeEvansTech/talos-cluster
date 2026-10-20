@@ -6,11 +6,12 @@ metadata:
   name: memini
   namespace: ai
 spec:
-  # Scoped to the consolidation model group, so a leak can't reach the master
+  # Scoped to the consolidation model groups, so a leak can't reach the master
   # key's full account access.
   proxyRef: litellm
   keyAlias: memini
   secretName: litellm-key-memini
   secretKey: api-key
   models:
+    - claude
     - self-hosted

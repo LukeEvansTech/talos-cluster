@@ -85,6 +85,10 @@ See the [AI / LLM stack](../architecture/ai-llm-stack.md) page for how it fits t
 - Thresholds sit lower than a busier upstream default: with one replica,
   `increase()` is the true event count, with no cross-replica summing, so small counts already
   mean something.
+- LiteLLM creates each counter series at its first event, and `increase()` never counts that
+  first value, so the Claude alerts that must catch a single event also match a series absent an
+  hour earlier (`X unless X offset 1h`). `.github/scripts/tests/prometheus/litellm.yaml` tests
+  those Claude alerts against that series shape and a quiet restart, in lefthook and CI.
 - The `*_fallbacks_total` counters only appear after the first fallback event (LiteLLM registers
   them lazily), so `LiteLLMFallbackChainExhausted` and `LiteLLMModelFailover` carry no `absent()`
   guard: their absence is the healthy steady state, not a stale metric.
@@ -96,6 +100,14 @@ See the [AI / LLM stack](../architecture/ai-llm-stack.md) page for how it fits t
   `max by (service)`, so it only fires once every scrape endpoint of a backend is unreachable.
   Its 15m `for:` absorbs pod restarts and cold GGUF loads; a fully-scaled-to-zero pod drops its
   endpoint entirely and goes stale rather than reporting `up == 0`, which this alert doesn't cover.
+- The four `LiteLLMClaude*` alerts watch the `claude` budget. `BudgetLow` and `SpendFast` read
+  the remaining budget and 24h spend. `BudgetMetricAbsent` covers what `BudgetLow` cannot: the
+  budget filter sets the remaining-budget gauge on every `claude` call, so a successful call with
+  no gauge means `provider_budget_config` is unset. `RequestRejected` fires on any Anthropic 400
+  that failed over, since
+  that is always a request param Anthropic does not accept (add it to `additional_drop_params` in
+  `models/claude.yaml`). A reply whose `model` is not `claude` is the same failure seen from a
+  client.
 
 ## Adding a cloud provider
 
@@ -179,5 +191,8 @@ spec:
 - Add models via a `LiteLLMModel` CR under `litellm/app/models/` (`proxyRef: litellm`). The
   operator hashes the rendered config into a pod annotation and rolls the Deployment automatically,
   with no manual restart or Reloader annotation needed.
+- `just kube litellm-spend [days]` prints requests, spend, failures and latency per key and model
+  group, plus the provider budgets, from the proxy's spend logs (`scripts/litellm_spend.py`, run
+  inside the pod so the master key stays there).
 - The Grafana "LiteLLM" / "LiteLLM Detail" dashboards and the Gatus check confirm health and metrics
   flow.

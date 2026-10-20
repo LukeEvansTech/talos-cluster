@@ -13,34 +13,50 @@ spec:
     name: whisper
   values:
     controllers:
-      whisper:
+      whisper: &controller
         strategy: Recreate
         pod:
           resourceClaims:
             - name: gpu
               resourceClaimTemplateName: any-nvidia-gpu
         containers:
-          app:
+          app: &container
+            # subgen serves the same /asr and /detect-language API as the webservice it replaced,
+            # but times cues with stable-ts. Plain faster-whisper segments can open minutes before
+            # the line is spoken, so subtitles appeared during silences.
             image:
-              repository: docker.io/onerahmet/openai-whisper-asr-webservice
-              tag: v1.10.0-gpu@sha256:3deb30cfd3d5614fd3885e6dfbef7dfcf95fe897300ecc703f7f3b3682b717ae
-            env:
-              ASR_ENGINE: faster_whisper
+              repository: docker.io/mccloud/subgen
+              tag: 2026.07.3@sha256:2841515a3b409677669f0a10d77d49160bffb8111db91640fb33a4db06b3396c
+            env: &env
+              TRANSCRIBE_DEVICE: cuda
               # Multilingual, so Bazarr can also request task=translate; the turbo and distil
               # variants cannot translate.
-              ASR_MODEL: large-v3
-              # The image defaults to float32 on GPU, about twice the VRAM for no accuracy gain.
-              ASR_QUANTIZATION: float16
+              WHISPER_MODEL: large-v3
+              # float32 is about twice the VRAM for no accuracy gain.
+              COMPUTE_TYPE: float16
+              # One job at a time: the card is shared, and a second film-length job doubled RAM.
+              CONCURRENT_TRANSCRIPTIONS: "1"
               # Frees the VRAM between jobs for the other tenants of this card; there is no VRAM
               # isolation between DRA shares.
-              MODEL_IDLE_TIMEOUT: "300"
-              ASR_MODEL_PATH: /models/whisper
+              CLEAR_VRAM_ON_COMPLETE: "True"
+              MODEL_CLEANUP_DELAY: "300"
+              # Parsed with ast.literal_eval, so Python's True, not JSON's true.
+              SUBGEN_KWARGS: "{'vad': True}"
+              # Serve Bazarr and dubsub only: no webhooks, folder scans or Plex queueing.
+              PROCESS_ADDED_MEDIA: "False"
+              PROCESS_MEDIA_ON_PLAY: "False"
+              MONITOR: "False"
+              SKIP_STARTUP_SCAN: "True"
+              DEBUG: "False"
+              # Already holds faster-whisper-large-v3 in Hugging Face cache layout.
+              MODEL_PATH: /models/whisper
               HF_HOME: /models/huggingface
               HOME: /tmp
               XDG_CACHE_HOME: /tmp/.cache
+              MPLCONFIGDIR: /tmp/.cache/matplotlib
             probes:
-              # TCP, not HTTP: /asr transcribes on the event loop, so the single process answers
-              # nothing else until a job finishes, while the kernel still accepts connections.
+              # TCP, not HTTP: the previous webservice answered no HTTP during a job; subgen has no
+              # documented health endpoint.
               liveness: &probes
                 enabled: true
                 custom: true
@@ -74,6 +90,22 @@ spec:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: true
               capabilities: { drop: ["ALL"] }
+      # A second instance for bulk re-transcription runs, on another GPU node; Bazarr keeps
+      # the whisper service to itself. Same pod spec, but its own model copy (see persistence).
+      batch:
+        <<: *controller
+        containers:
+          app:
+            <<: *container
+            env:
+              <<: *env
+              # Its bulk work is English transcription (dub-matched and re-timed subtitles),
+              # which turbo does several times faster at close to large-v3's accuracy. Turbo
+              # can't translate, so Bazarr's own requests stay on the whisper service.
+              WHISPER_MODEL: large-v3-turbo
+              # Turbo looped one phrase for minutes ("Woo-hoo-hoo..." over a stretch of Paw
+              # Patrol dialogue). Not feeding its own previous text back in breaks such loops.
+              SUBGEN_KWARGS: "{'vad': True, 'condition_on_previous_text': False}"
     defaultPodOptions:
       labels:
         gpu-workload: "true"
@@ -97,6 +129,11 @@ spec:
               labelSelector:
                 matchLabels:
                   llm-gpu-model: "true"
+            # One instance per card: whisper and batch each saturate a GPU on their own.
+            - topologyKey: kubernetes.io/hostname
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: whisper
           # Keeps transcription compute off the card Plex transcodes on when there is a choice.
           preferredDuringSchedulingIgnoredDuringExecution:
             - weight: 50
@@ -121,13 +158,30 @@ spec:
         seccompProfile: { type: RuntimeDefault }
     service:
       app:
+        controller: whisper
+        # Keeps the name Bazarr points at; a second service would otherwise rename it whisper-app.
+        forceRename: whisper
+        ports:
+          http:
+            port: *port
+      batch:
+        controller: batch
         ports:
           http:
             port: *port
     persistence:
       models:
         existingClaim: whisper-models
-        globalMounts:
-          - path: /models
+        advancedMounts:
+          whisper:
+            app:
+              - path: /models
+      # whisper-models is ReadWriteOnce, so batch downloads its own ~3 GB copy at start.
+      models-batch:
+        type: emptyDir
+        advancedMounts:
+          batch:
+            app:
+              - path: /models
       tmp:
         type: emptyDir

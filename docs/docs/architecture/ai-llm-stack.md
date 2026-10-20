@@ -148,39 +148,48 @@ LiteLLM `model_name` groups make the serving tier transparent to clients:
 - **`self-hosted`**: `llama-nvidia` (order 1), with live cloud fallbacks via
   `router_settings.fallbacks`: `claude` first, then `openrouter/auto` (both keys are in the
   `litellm` ExternalSecret).
-- **`claude`**: Claude Sonnet 5.5 on the Anthropic API, paid from a monthly provider credit.
-  `router_settings.provider_budget_config` caps `anthropic` spend at that credit per 30 days,
-  after which requests spill to `openrouter/auto`; `context_window_fallbacks` also sends
+- **`claude`**: Claude Sonnet 5.5 on the Anthropic API, paid from a monthly provider credit, and
+  the default model for most in-cluster callers. `router_settings.provider_budget_config` caps
+  `anthropic` spend at that credit per 30 days, after which requests fall back to `self-hosted`
+  (then `openrouter/auto`). `LiteLLMClaudeBudgetLow` and `LiteLLMClaudeSpendFast` alert on the
+  remaining budget and the daily spend rate. `context_window_fallbacks` also sends
   prompts too large for `self-hosted` here. Spend is computed from the per-token prices in
   `models/claude.yaml`, because this LiteLLM build has no price entry for the model; if those
   are missing the budget never trips. The LiteLLM window starts at first spend rather than the
   credit's renewal, so the hard stop is the workspace spend limit set in the provider console.
-  Callers can also request `claude` directly; `repowiki` is deliberately not scoped to it. The
+  `repowiki` stays on `self-hosted`: its overnight volume would exceed the credit. A key's
+  `models` list gates only the model a caller requests, not router fallbacks (tested
+  2026-10-18: a `self-hosted`-only key still fell back to `claude`), so the budget, not key
+  scope, is what bounds fallback spend. The
   key (`ANTHROPIC_API_KEY` in the `litellm` item) has an expiry date recorded on that item, and
-  an expired key fails over to OpenRouter silently.
+  an expired key falls back to `self-hosted` silently.
 - **`self-hosted-uncensored`**: the same `llama-nvidia` backend under a second name. Kept as
   its own group because its fallback semantics differ: no cloud fallback by design (a cloud
   model would reintroduce refusals), and existing clients keep working unchanged.
 
 ## In-cluster consumers
 
-Six in-cluster apps route through LiteLLM, all at `http://litellm.ai.svc.cluster.local:4000/v1`
-and the `self-hosted` model (with the `openrouter/auto` cloud fallback in scope):
+Seven in-cluster apps outside the `ai` namespace route through LiteLLM, all at
+`http://litellm.ai.svc.cluster.local:4000/v1` and, except `suggestarr`, the `claude` model,
+falling back to `self-hosted` and then `openrouter/auto`. The model column is where to change it:
 
-| App             | Namespace | Key env var         |
-| --------------- | --------- | ------------------- |
-| `contracthound` | `default` | `OPENAI_API_KEY`    |
-| `subspy`        | `default` | `OPENAI_API_KEY`    |
-| `jobops`        | `default` | `LLM_API_KEY`       |
-| `loupe`         | `custom`  | `OPENAI_API_KEY`    |
-| `todoist-sort`  | `custom`  | `ANTHROPIC_API_KEY` |
-| `suggestarr`    | `media`   | none (AI settings)  |
+| App             | Namespace | Key env var         | Model setting                                  |
+| --------------- | --------- | ------------------- | ---------------------------------------------- |
+| `contracthound` | `default` | `OPENAI_API_KEY`    | `OPENAI_MODEL` (HelmRelease)                   |
+| `subspy`        | `default` | `OPENAI_API_KEY`    | `OPENAI_MODEL` (HelmRelease)                   |
+| `jobops`        | `default` | `LLM_API_KEY`       | `MODEL` (HelmRelease), overridable in its UI   |
+| `lurcher`       | `default` | `LLM_API_KEY`       | `LLM_MODEL` (HelmRelease)                      |
+| `loupe`         | `custom`  | `OPENAI_API_KEY`    | `OPENAI_MODEL` (HelmRelease)                   |
+| `todoist-sort`  | `custom`  | `ANTHROPIC_API_KEY` | `[llm] model` in `app/resources/config.toml`   |
+| `suggestarr`    | `media`   | none (AI settings)  | its AI settings                                |
 
-All six live outside the `ai` namespace, so none of them mounts an `ai` Secret directly. Each
+Inside `ai`, `memini` (`MEMINI_LLM_MODEL`) and `hermes` (`model.default` in its ConfigMap) read
+their keys from their own `litellm-key-<app>` Secrets.
+
+All seven live outside the `ai` namespace, so none of them mounts an `ai` Secret directly. Each
 gets an operator-issued **scoped** key instead of the account-wide master key: a
-`LiteLLMVirtualKey` CR in `litellm/app/virtualkeys/<app>.yaml` (`ai` namespace, scoped to
-`claude` + `self-hosted` + `openrouter/auto` so the router's cloud fallbacks don't 401 the key when the
-local backend cools down) mints the key and writes it to an in-namespace Secret; a
+`LiteLLMVirtualKey` CR in `litellm/app/virtualkeys/<app>.yaml` (`ai` namespace) mints the key
+and writes it to an in-namespace Secret; a
 paired `PushSecret` then writes that key back to the `litellm` 1Password item as property
 `LITELLM_<APP>_API_KEY` (`updatePolicy: Replace`, `refreshInterval: 1h`). The consumer's own
 ExternalSecret extracts that property like any other `litellm`-item field, with no cross-namespace
@@ -264,6 +273,11 @@ Any OpenAI-compatible client can drive the self-hosted models through the gatewa
 
 Prefer a **scoped LiteLLM virtual key** (`/key/generate`, limited to the `self-hosted*` models) over
 the master key for any workstation client: it's revocable on its own.
+
+Workstation Claude Code reaches the talos MCP through `litellm/app/virtualkeys/claudecode.yaml`: a
+`LiteLLMTeam` whose only MCP server is `talos` and only model `self-hosted-uncensored` (no cloud fallback), plus a key in that team
+mirrored to the `litellm` item as `LITELLM_CLAUDECODE_API_KEY`. The client calls `/mcp/` with an
+`x-mcp-servers: talos` header.
 
 ### opencode and the context budget
 

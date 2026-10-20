@@ -192,6 +192,8 @@ Flux delete its live HelmRelease, PVC, and everything else it owns.
 Either way Flux **prunes the PVC**. Take a VolSync snapshot or copy the data out
 (`just kube browse-pvc`) first if it matters.
 
+Before closing an archive, read `docs/docs/operations/retiring-an-app.md`.
+
 ### Flux pruning beyond app removal
 
 Removing an app is the obvious prune. The same `prune: true` also fires on changes that look like
@@ -309,6 +311,9 @@ Flag consequential, repository-specific breakage. Prefer silence over style comm
   rebuild, such as a saved login or token. Every restart loses it; `epicgames` emailed a fresh
   sign-in link on each run until #5691 moved its config to a PVC. Rebuildable caches belong on
   `emptyDir`.
+- A new subPath on an existing PVC without an init container that creates and chowns it: the
+  kubelet makes it root-owned and a non-root app cannot write there. Pattern in
+  `docs/docs/architecture/storage.md` ("Adding a subPath to an existing PVC").
 - A new comment that narrates the manifest or runs past two short sentences.
 - Documentation moved out of a comment that states more than the comment did: a wider scope, two
   facts merged into one, or a conclusion the comment never drew.
@@ -316,6 +321,10 @@ Flag consequential, repository-specific breakage. Prefer silence over style comm
   absence-of-success alert. Liveness and `/health` stay green while the work fails: lurcher crashed
   mid-run every day for twelve days with its pod healthy. Mirror `GickupBackupStale` or
   `LurcherNotDelivering`: alert on the age of the last success, not on errors.
+- An alert meant to catch a single event that uses only `increase()` or `rate()` on a counter the
+  exporter creates at that first event (LiteLLM, most Python clients). The first sample is never
+  counted; also match `X unless X offset 1h`. Ask for a test in `.github/scripts/tests/prometheus/`
+  that feeds the series as absent then 1.
 - A change to the `curator` engine or `curatorjudge` with no matching change to `curatortv` or
   `curatortvjudge`, or the reverse, unless the PR body says why the sibling differs. The TV pair
   is a fork of the film pair, and a defect in one has twice been live in the other.
@@ -363,7 +372,8 @@ Tool-agnostic agent instructions and skills live under `.agents/`:
   defaults plus app-template-specific ordering). Apply when asked to sort YAML.
 - `.agents/instructions/cluster-ops.instructions.md` lists operational traps whose symptom points
   at the wrong cause: linting this repository locally, querying the live cluster with `kubectl`,
-  and batch-merging Renovate pull requests. Read it before any of those.
+  changing an app's state through its API, and batch-merging Renovate pull requests. Read it
+  before any of those.
 - `.agents/skills/add-app/` is a skill that scaffolds a new app-template application following the
   conventions above. Claude Code discovers it via a local `.claude/skills/add-app` symlink.
 - `.agents/skills/health-check/` is a read-only skill that snapshots cluster health
