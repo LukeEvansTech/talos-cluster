@@ -11,7 +11,7 @@ configMapGenerator:
     files:
       - values.yaml=./helm/values.yaml
   # The chart stopped shipping its dashboard in 0.8.0 (spegel-org/spegel#1512), so this is the
-  # 0.7.4 copy from charts/spegel/monitoring/grafana-dashboard.json.
+  # 0.7.4 copy, its advertised panels moved to the label-less spegel_advertised_keys (#1562).
   - name: spegel-grafana-dashboard
     files:
       - dashboards/spegel.json
