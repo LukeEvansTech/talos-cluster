@@ -18,7 +18,7 @@ spec:
           app:
             image:
               repository: docker.io/mm404/tautulli-exporter
-              tag: 1.0.3@sha256:cd6716e39f5095624337bc4cce9036f2c478575e6ccafe3e1576a3168ba4c83e
+              tag: 1.0.4@sha256:06e4f0d64800071e89ff7a1d336c6cef4404e56df346e2c4461fce1af4dfa520
             env:
               # The exporter appends /api/v2 itself, so this URL omits it.
               TAUTULLI_URL: http://tautulli.media.svc.cluster.local
