@@ -10,5 +10,14 @@ configMapGenerator:
   - name: spegel-values
     files:
       - values.yaml=./helm/values.yaml
+  # The chart stopped shipping its dashboard in 0.8.0 (spegel-org/spegel#1512), so this is the
+  # 0.7.4 copy from charts/spegel/monitoring/grafana-dashboard.json.
+  - name: spegel-grafana-dashboard
+    files:
+      - dashboards/spegel.json
+    options:
+      disableNameSuffixHash: true
+      annotations:
+        kustomize.toolkit.fluxcd.io/substitute: disabled
 configurations:
   - ./helm/kustomizeconfig.yaml
