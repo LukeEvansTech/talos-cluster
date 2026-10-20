@@ -103,6 +103,9 @@ spec:
               # which turbo does several times faster at close to large-v3's accuracy. Turbo
               # can't translate, so Bazarr's own requests stay on the whisper service.
               WHISPER_MODEL: large-v3-turbo
+              # Turbo looped one phrase for minutes ("Woo-hoo-hoo..." over a stretch of Paw
+              # Patrol dialogue). Not feeding its own previous text back in breaks such loops.
+              SUBGEN_KWARGS: "{'vad': True, 'condition_on_previous_text': False}"
     defaultPodOptions:
       labels:
         gpu-workload: "true"
