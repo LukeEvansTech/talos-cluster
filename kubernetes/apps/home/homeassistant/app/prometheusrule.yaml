@@ -18,3 +18,110 @@ spec:
           for: 10m
           labels:
             severity: critical
+    # tado X heating through the Tado Hijack integration in Full Cloud Mode: the Wireless
+    # Receiver X (bridge) is on the untrusted IoT VLAN, so HA reads everything from the tado
+    # cloud. Entity names come from HA; the battery binary_sensor is tado's own Normal/Low flag
+    # (no percentage exists for X devices), and cloud_connection is per device as seen by tado.
+    # "Calling for heat" is the zone's heating_power sensor (valve demand, 0-100 %), not the
+    # climate entity's hvac_action, which sat on idle while a zone showed 26 % on 2026-10-21.
+    # The sensor and climate entities share a room slug, so label_replace joins them; a bare
+    # $1 survives Flux, which substitutes only $${VAR}.
+    - name: homeassistant-tado
+      rules:
+        - alert: TadoBatteryLow
+          annotations:
+            description: >-
+              {{ $labels.friendly_name }} reports a low battery. The radiator valves and the
+              temperature sensor take 2x AA; swap them before the valve stops moving.
+            summary: tado device battery low.
+          expr: homeassistant_binary_sensor_state{entity=~"binary_sensor\\.tado_.*_battery"} == 1
+          for: 30m
+          labels:
+            severity: warning
+        - alert: TadoBridgeOffline
+          annotations:
+            description: >-
+              {{ $labels.friendly_name }} has been offline from the tado cloud for 15 minutes:
+              no schedule changes, no app control and nothing for HA to read. Check the
+              receiver's Wi-Fi LEDs and the IoT Untrusted SSID.
+            summary: tado bridge offline.
+          expr: homeassistant_binary_sensor_state{entity=~"binary_sensor\\.tado_ib_.*_cloud_connection"} == 0
+          for: 15m
+          labels:
+            severity: critical
+        - alert: TadoDeviceOffline
+          annotations:
+            description: >-
+              {{ $labels.friendly_name }} has been unreachable over Thread for 30 minutes
+              (the bridge itself is up). Usually flat batteries or the device sitting too far
+              from the bridge and the other valves.
+            summary: tado valve or sensor offline.
+          expr: >-
+            homeassistant_binary_sensor_state{entity=~"binary_sensor\\.tado_(smart_radiator_thermostat|temperature_sensor)_x_.*_cloud_connection"} == 0
+            and on(instance) homeassistant_binary_sensor_state{entity=~"binary_sensor\\.tado_ib_.*_cloud_connection"} == 1
+          for: 30m
+          labels:
+            severity: warning
+        - alert: TadoClimateUnavailable
+          annotations:
+            description: >-
+              HA has marked the {{ $labels.friendly_name }} climate entity unavailable for
+              30 minutes. Tado Hijack is loaded but not getting zone data; check the
+              integration and the API quota.
+            summary: tado zone unavailable in Home Assistant.
+          expr: homeassistant_entity_available{entity=~"climate\\..*"} == 0
+          for: 30m
+          labels:
+            severity: warning
+        - alert: TadoRoomTooCold
+          annotations:
+            description: >-
+              {{ $labels.friendly_name }} has been below 15 °C for an hour
+              (now {{ $value | printf "%.1f" }} °C). Frost risk if this keeps falling.
+            summary: Room too cold.
+          expr: homeassistant_climate_current_temperature_celsius < 15
+          for: 1h
+          labels:
+            severity: warning
+        - alert: TadoRoomNotReachingSetpoint
+          annotations:
+            description: >-
+              {{ $labels.friendly_name }} has called for heat for 3 hours and is still
+              {{ $value | printf "%.1f" }} °C below its setpoint. Boiler, valve or an open window.
+            summary: Room not reaching its setpoint.
+          expr: >-
+            (homeassistant_climate_target_temperature_celsius - homeassistant_climate_current_temperature_celsius > 2)
+            and on(entity) label_replace(
+              homeassistant_sensor_unit_percent{entity=~"sensor\\..*_heating_power"} > 0,
+              "entity", "climate.$1", "entity", "sensor\\.(.*)_heating_power")
+          for: 3h
+          labels:
+            severity: warning
+        - alert: TadoHeatingStuckOn
+          annotations:
+            description: >-
+              {{ $labels.friendly_name }} is {{ $value | printf "%.1f" }} °C above its setpoint
+              yet has been calling for heat for an hour. Suspect a valve stuck open or a
+              wrong temperature offset.
+            summary: Zone heating past its setpoint.
+          expr: >-
+            (homeassistant_climate_current_temperature_celsius - homeassistant_climate_target_temperature_celsius > 1.5)
+            and on(entity) label_replace(
+              homeassistant_sensor_unit_percent{entity=~"sensor\\..*_heating_power"} > 0,
+              "entity", "climate.$1", "entity", "sensor\\.(.*)_heating_power")
+          for: 1h
+          labels:
+            severity: warning
+        - alert: TadoApiQuotaLow
+          annotations:
+            description: >-
+              Only {{ $value | printf "%.0f" }}% of today's tado cloud API quota is left.
+              Tado Hijack slows its polling itself, but below this HA's readings go stale
+              until the daily reset.
+            summary: tado cloud API quota nearly spent.
+          expr: >-
+            100 * homeassistant_sensor_state{entity="sensor.tado_home_api_remaining"}
+            / on(instance) homeassistant_sensor_state{entity="sensor.tado_home_api_limit"} < 10
+          for: 15m
+          labels:
+            severity: warning
