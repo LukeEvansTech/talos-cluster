@@ -9,3 +9,4 @@ resources:
   - ./externalsecret.yaml
   - ./scrapeconfig.yaml
   - ./prometheusrule.yaml
+  - ./grafanadashboard.yaml
