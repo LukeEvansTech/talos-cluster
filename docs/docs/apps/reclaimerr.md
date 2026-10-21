@@ -52,11 +52,34 @@ bjw-s `app-template` deployment mirroring sibling apps (maintainerr, pulsarr).
 - **Startup probe must allow a slow first boot.** First launch generates the JWT/encryption
   keys and initialises the DB into the empty PVC; size the startup probe generously
   (`failureThreshold: 30`, `periodSeconds: 5`) so it does not CrashLoop before init finishes.
-- **Beta image, pinned by digest.** The image is a `0.1.0-betaN@sha256:...` tag; Renovate tracks
-  new releases. Keep the digest pin so a moving beta tag cannot silently change the running build.
+- **Release tag, pinned by digest.** The image moved off the beta tag to a `0.5.x@sha256:...`
+  release tag in #6104, and Renovate tracks releases. Keep the digest pin so a retagged release
+  cannot silently change the running build.
 - **Component path depth.** From `kubernetes/apps/media/reclaimerr/ks.yaml`, the component
   references need four `../` segments to reach `components/`. A wrong depth or a missing
   `VOLSYNC_CAPACITY` substitute fails the flate/flux render.
+
+## Notifications
+
+- **Pushover via Apprise.** Reclaimerr has one Apprise notification service, named "Pushover".
+  Like the other connections, it lives in the app's database on the PVC, not in Git.
+- **Credentials.** The Pushover application "Reclaimerr" has its token in the
+  `RECLAIMERR_PUSHOVER_TOKEN` field of the `pushover` item in the `Talos` 1Password vault, next to
+  the shared `PUSHOVER_USER_KEY`. The Apprise URL is `pover://<user key>@<app token>`; both halves
+  are credentials, so never print it.
+- **Enabled events:** New Cleanup Candidates (top 5 summary), Task Failures, Deletion Execution
+  Failures, Deletion Completed, Deletion Failed, and Your Requests Leaving Soon. Request
+  approved/declined and the admin request events are off (single-user instance). Update Available
+  is off because Renovate already raises release PRs.
+- **How it was created (2026-10-14).** A short Python script run inside the pod
+  (`PYTHONPATH=/app`) sent a test with the app's own
+  `backend.services.notifications.test_notification_url`, then inserted a `NotificationSetting`
+  row through `backend.database.async_db`. The URL was piped in on stdin from 1Password, so it
+  never went through the browser.
+- **The settings UI can blank the URL.** After a reload the UI showed the Apprise URL box empty,
+  although the settings API returns the stored URL. Saving that entry from the UI may overwrite the
+  URL with a blank one. Change it through the in-pod path instead, or confirm the box is filled
+  before saving.
 
 ## Operational notes
 
@@ -65,8 +88,9 @@ bjw-s `app-template` deployment mirroring sibling apps (maintainerr, pulsarr).
   VolSync snapshot/backup of the `reclaimerr` PVC. There is no 1Password copy of the keys.
 - **Runs unprivileged.** Pod security context is `runAsNonRoot` as UID/GID `1000` with
   `fsGroup: 1000` and `fsGroupChangePolicy: OnRootMismatch`; the container drops all
-  capabilities and disables privilege escalation. Resources are light (`cpu` request `10m`,
-  `memory` limit `512Mi`).
+  capabilities and disables privilege escalation. The `cpu` request is `10m`; the `memory`
+  limit is `6Gi` (#6105, #6111), because a full series sync holds Plex's whole play history in
+  memory and was OOMKilled at `2Gi`.
 - **First-run setup is manual.** After the pod is `Ready`, browse to the internal hostname and
   wire up Jellyfin/Plex and \*arr connections through the UI; nothing is pre-seeded.
 - **Verify after merge:** PVC `Bound`, pod `Running` / `Ready=1/1`, logs show it listening on
