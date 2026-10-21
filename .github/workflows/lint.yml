@@ -17,7 +17,7 @@ jobs:
       contents: read
       statuses: write
       pull-requests: write
-    uses: LukeEvansTech/shared-workflows/.github/workflows/super-linter.yml@73e389d042214f01e482a2bb64f3f71b00f63219 # v1
+    uses: LukeEvansTech/shared-workflows/.github/workflows/super-linter.yml@e3bba1540a9c691ff668a265af531e44d62a80fa # v1
     with:
       # Raw YAML source is meaningless until kustomize substitutes vars and merges components, so
       # kubeconform false-positives on every CRD-shaped file; real validation lives in flate.
