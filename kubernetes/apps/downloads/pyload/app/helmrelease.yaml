@@ -18,7 +18,7 @@ spec:
           app:
             image:
               repository: ghcr.io/home-operations/pyload-ng
-              tag: 0.5.0b3.dev101@sha256:9733ba6e8489dbb7a3ba91547cfa440ce5bbf33e6a6c30d1b5ccccc714a61d04
+              tag: 0.5.0b3.dev101@sha256:7b508f31140bb164a7799975e1ad62cf3bb460a0cc71a29a9d005a9b78d42865
             env:
               TZ: ${TIMEZONE}
             probes:
