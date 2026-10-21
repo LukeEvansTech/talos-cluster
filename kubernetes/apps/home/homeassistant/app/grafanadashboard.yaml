@@ -164,7 +164,9 @@ spec:
               },
               "expr": "homeassistant_sensor_unit_percent{entity=~\"sensor\\\\..*_heating_power\"}",
               "legendFormat": "{{friendly_name}}",
-              "refId": "A"
+              "refId": "A",
+              "instant": true,
+              "range": false
             }
           ],
           "title": "Heating power now",
@@ -537,7 +539,9 @@ spec:
               },
               "expr": "homeassistant_binary_sensor_state{entity=~\"binary_sensor\\\\.tado_.*_battery\"}",
               "legendFormat": "{{friendly_name}}",
-              "refId": "A"
+              "refId": "A",
+              "instant": true,
+              "range": false
             }
           ],
           "title": "Battery",
@@ -616,7 +620,9 @@ spec:
               },
               "expr": "homeassistant_binary_sensor_state{entity=~\"binary_sensor\\\\.tado_.*_cloud_connection\"}",
               "legendFormat": "{{friendly_name}}",
-              "refId": "A"
+              "refId": "A",
+              "instant": true,
+              "range": false
             }
           ],
           "title": "Cloud connection",
@@ -695,7 +701,9 @@ spec:
               },
               "expr": "homeassistant_sensor_state{entity=\"sensor.tado_home_api_remaining\"}",
               "legendFormat": "remaining",
-              "refId": "A"
+              "refId": "A",
+              "instant": true,
+              "range": false
             },
             {
               "datasource": {
@@ -704,7 +712,9 @@ spec:
               },
               "expr": "homeassistant_sensor_state{entity=\"sensor.tado_home_api_limit\"}",
               "legendFormat": "daily limit",
-              "refId": "B"
+              "refId": "B",
+              "instant": true,
+              "range": false
             }
           ],
           "title": "API calls remaining today",
