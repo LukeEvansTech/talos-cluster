@@ -121,3 +121,116 @@ spec:
           for: 30m
           labels:
             severity: warning
+        # br_smartctl_*, br_node_* and br_container_* come from br's own exporters, which
+        # br-power reads in the same nightly pass and republishes with a br_ prefix (cr's
+        # node-exporter carries cr's own series under the unprefixed names). Same caveat as
+        # above: each value is a once-a-night sample that holds all day.
+        - alert: BrStorageExportersUnread
+          annotations:
+            summary: >-
+              br-power could not read br-storage's {{ $labels.exporter }} exporter in
+              tonight's window, so its SMART or container metrics are stale.
+          expr: |-
+            br_exporter_scrape_success == 0
+          for: 15m
+          labels:
+            severity: warning
+        # 36h, as BrStorageHealthStale: one missed window plus slack.
+        - alert: BrStorageExportersStale
+          annotations:
+            summary: >-
+              No br-storage exporter snapshot in over 36h.
+          expr: |-
+            time() - br_exporter_collect_timestamp_seconds > 129600
+          for: 30m
+          labels:
+            severity: warning
+        # The file only appears after a window, so allow a full day before calling it missing.
+        - alert: BrStorageExportersMissing
+          annotations:
+            summary: >-
+              br-storage exporter metrics are absent; br-power has not written its exporter
+              snapshot.
+          expr: |-
+            absent(br_exporter_collect_timestamp_seconds)
+          for: 26h
+          labels:
+            severity: warning
+        - alert: BrStorageDiskSmartFailed
+          annotations:
+            summary: >-
+              br-storage disk {{ $labels.serial_number }} fails its SMART overall health check.
+          expr: |-
+            sum by (serial_number) (
+              br_smartctl_device_smart_status * on (device) group_left (serial_number) br_smartctl_device
+            ) != 1
+          for: 10m
+          labels:
+            severity: critical
+        # Disks are keyed by serial: br power-cycles nightly and sdX letters drift between boots.
+        - alert: BrStorageDiskPendingSectors
+          annotations:
+            summary: >-
+              br-storage disk {{ $labels.serial_number }} has {{ $value }} pending sector(s),
+              unreadable data awaiting remap.
+          expr: |-
+            sum by (serial_number) (
+              br_smartctl_device_attribute{
+                attribute_name="Current_Pending_Sector",
+                attribute_value_type="raw"
+              }
+              * on (device) group_left (serial_number) br_smartctl_device
+            ) > 0
+          for: 15m
+          labels:
+            severity: warning
+        # One sample a night, so compare with the lowest value in the last 36h: fires for
+        # up to a day and a half after a night whose count went up. Keyed by serial, since
+        # sdX letters can name a different disk after the nightly power-on.
+        - alert: BrStorageDiskReallocatedSectorsGrowing
+          annotations:
+            summary: >-
+              br-storage disk {{ $labels.serial_number }} reallocated {{ $value }} more sectors
+              since the previous night, plan a replacement.
+          expr: |-
+            sum by (serial_number) (
+              br_smartctl_device_attribute{
+                attribute_name="Reallocated_Sector_Ct",
+                attribute_value_type="raw"
+              }
+              * on (device) group_left (serial_number) br_smartctl_device
+            )
+            - min_over_time(
+              (
+                sum by (serial_number) (
+                  br_smartctl_device_attribute{
+                    attribute_name="Reallocated_Sector_Ct",
+                    attribute_value_type="raw"
+                  }
+                  * on (device) group_left (serial_number) br_smartctl_device
+                )
+              )[36h:15m]
+            ) > 0
+          for: 30m
+          labels:
+            severity: warning
+        # tailscale-state-check is a one-shot gate that exits by design.
+        - alert: BrStorageContainerDown
+          annotations:
+            summary: >-
+              Container {{ $labels.name }} on br-storage was {{ $labels.status }} in
+              tonight's window.
+          expr: |-
+            br_container_state_status{status=~"exited|dead|created|restarting", name!~".*state-check.*"} == 1
+          for: 15m
+          labels:
+            severity: warning
+        - alert: BrStorageContainerUnhealthy
+          annotations:
+            summary: >-
+              Container {{ $labels.name }} on br-storage was unhealthy in tonight's window.
+          expr: |-
+            br_container_state_health_status{health_status="unhealthy"} == 1
+          for: 15m
+          labels:
+            severity: warning

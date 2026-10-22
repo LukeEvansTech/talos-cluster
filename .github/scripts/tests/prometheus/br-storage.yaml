@@ -1,0 +1,36 @@
+---
+# promtool unit tests for the off-site TrueNAS SMART alerts; run by .github/scripts/check_prometheus_rules.py.
+# The box power-cycles nightly and sdX letters can move between boots, so the disk rules key on
+# serial_number. Here two disks swap letters overnight: SER_A keeps its 5 reallocated sectors,
+# SER_B goes from 0 to 3. Only SER_B may fire.
+rule_files:
+  - kubernetes/apps/observability/truenas-exporter/app/br-storage.prometheusrule.yaml
+evaluation_interval: 1m
+tests:
+  - interval: 5m
+    input_series:
+      - series: 'br_smartctl_device{device="sda",serial_number="SER_A"}'
+        values: "1x286"
+      - series: 'br_smartctl_device{device="sdb",serial_number="SER_B"}'
+        values: "1x286"
+      - series: 'br_smartctl_device{device="sda",serial_number="SER_B"}'
+        values: "_x288 1x287"
+      - series: 'br_smartctl_device{device="sdb",serial_number="SER_A"}'
+        values: "_x288 1x287"
+      - series: 'br_smartctl_device_attribute{device="sda",attribute_name="Reallocated_Sector_Ct",attribute_value_type="raw"}'
+        values: "5x286 _ 3x287"
+      - series: 'br_smartctl_device_attribute{device="sdb",attribute_name="Reallocated_Sector_Ct",attribute_value_type="raw"}'
+        values: "0x286 _ 5x287"
+    alert_rule_test:
+      - eval_time: 20h
+        alertname: BrStorageDiskReallocatedSectorsGrowing
+        exp_alerts: []
+      - eval_time: 30h
+        alertname: BrStorageDiskReallocatedSectorsGrowing
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              serial_number: SER_B
+            exp_annotations:
+              summary: >-
+                br-storage disk SER_B reallocated 3 more sectors since the previous night, plan a replacement.
