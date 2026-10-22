@@ -18,7 +18,7 @@ spec:
           app:
             image:
               repository: invoiceshelf/invoiceshelf
-              tag: 2.4.6@sha256:3cefda59e53ea027b52cd142b5339683afecaec3463db7c1af8462a661db6019
+              tag: 2.4.7@sha256:599dc6aa9d7303c9ae0d099397817c7f6002cd6f7af099bc90511d5eae4e9cd2
             env:
               TZ: ${TIMEZONE}
               APP_ENV: production
