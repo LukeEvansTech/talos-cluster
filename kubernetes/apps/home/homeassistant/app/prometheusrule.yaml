@@ -125,3 +125,68 @@ spec:
           for: 15m
           labels:
             severity: warning
+    - name: homeassistant-appliances
+      rules:
+        # LG ThinQ washer and dishwasher via HA's lg_thinq integration (cloud push). Their
+        # status is a text enum, which the prometheus integration does not export, so the
+        # running/finished/error signals come from template binary sensors in HA.
+        - alert: LgApplianceUnavailable
+          annotations:
+            description: >-
+              {{ $labels.friendly_name }} has been unavailable to Home Assistant for 12 hours:
+              switched off at the wall, dropped off Wi-Fi, or the LG cloud has lost it.
+            summary: LG appliance unavailable.
+          expr: >-
+            homeassistant_entity_available{entity=~"sensor\\.(front_load_washer|dishwasher)_current_status"} == 0
+          for: 12h
+          labels:
+            severity: warning
+        - alert: LgApplianceError
+          annotations:
+            description: >-
+              {{ $labels.friendly_name }}: the appliance reports an error state. Check its
+              display or the ThinQ app for the code.
+            summary: LG appliance error.
+          expr: >-
+            homeassistant_binary_sensor_state{entity=~"binary_sensor\\.(washer|dishwasher)_error"} == 1
+          for: 2m
+          labels:
+            severity: warning
+        - alert: LgWasherFinished
+          annotations:
+            description: The washing finished ten minutes ago and is still in the drum.
+            summary: Washing machine finished.
+          expr: >-
+            homeassistant_binary_sensor_state{entity="binary_sensor.washer_finished"} == 1
+          for: 10m
+          labels:
+            severity: warning
+        - alert: LgDishwasherFinished
+          annotations:
+            description: The dishwasher finished ten minutes ago and has not been opened.
+            summary: Dishwasher finished.
+          expr: >-
+            homeassistant_binary_sensor_state{entity="binary_sensor.dishwasher_finished"} == 1
+          for: 10m
+          labels:
+            severity: warning
+        - alert: LgApplianceRunningTooLong
+          annotations:
+            description: >-
+              {{ $labels.friendly_name }} has been running for 5 hours. No LG cycle is that
+              long; suspect a stuck status or a problem with the machine.
+            summary: LG appliance cycle running too long.
+          expr: >-
+            homeassistant_binary_sensor_state{entity=~"binary_sensor\\.(washer|dishwasher)_running"} == 1
+          for: 5h
+          labels:
+            severity: warning
+        - alert: LgDishwasherRinseAidLow
+          annotations:
+            description: The dishwasher is asking for rinse aid.
+            summary: Dishwasher rinse aid low.
+          expr: >-
+            homeassistant_binary_sensor_state{entity="binary_sensor.dishwasher_rinse_refill_needed"} == 1
+          for: 1h
+          labels:
+            severity: warning
