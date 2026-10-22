@@ -35,7 +35,7 @@ spec:
                     ephemeral-storage: 20Gi
   values:
     fullnameOverride: *name
-    githubConfigUrl: https://github.com/LukeEvansTech/truenas-apps
+    githubConfigUrl: https://github.com/LukeEvansTech/truenas-apps-cr
     githubConfigSecret: truenas-runner-secret
     runnerScaleSetName: truenas
     # Three, as lurcher: lint, scans and image builds each take a runner, and one runner made
