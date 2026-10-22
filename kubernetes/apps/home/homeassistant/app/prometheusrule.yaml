@@ -130,15 +130,17 @@ spec:
         # LG ThinQ washer and dishwasher via HA's lg_thinq integration (cloud push). Their
         # status is a text enum, which the prometheus integration does not export, so the
         # running/finished/error signals come from template binary sensors in HA.
-        - alert: LgApplianceUnavailable
+        # Washer only: the dishwasher reports unavailable whenever it is switched off at its
+        # panel, which is most of the day, so an unreachable alert on it would be noise.
+        - alert: LgWasherUnavailable
           annotations:
             description: >-
-              {{ $labels.friendly_name }} has been unavailable to Home Assistant for 12 hours:
+              The washing machine has been unavailable to Home Assistant for 24 hours:
               switched off at the wall, dropped off Wi-Fi, or the LG cloud has lost it.
-            summary: LG appliance unavailable.
+            summary: LG washer unavailable.
           expr: >-
-            homeassistant_entity_available{entity=~"sensor\\.(front_load_washer|dishwasher)_current_status"} == 0
-          for: 12h
+            homeassistant_entity_available{entity="sensor.front_load_washer_current_status"} == 0
+          for: 24h
           labels:
             severity: warning
         - alert: LgApplianceError
