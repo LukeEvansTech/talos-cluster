@@ -1,0 +1,84 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/helm.toolkit.fluxcd.io/helmrelease_v2.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: &name truenas-br-runner
+spec:
+  chartRef:
+    kind: OCIRepository
+    name: gha-runner-scale-set-truenas-br
+  interval: 1h
+  # ARC generates the Docker sidecar; patch its resources after chart rendering.
+  postRenderers:
+    - kustomize:
+        patches:
+          - target:
+              group: actions.github.com
+              version: v1alpha1
+              kind: AutoscalingRunnerSet
+              name: truenas-br
+            patch: |-
+              - op: test
+                path: /spec/template/spec/initContainers/1/name
+                value: dind
+              - op: add
+                path: /spec/template/spec/initContainers/1/resources
+                value:
+                  requests:
+                    cpu: "1"
+                    memory: 2Gi
+                    ephemeral-storage: 8Gi
+                  limits:
+                    cpu: "4"
+                    memory: 8Gi
+                    ephemeral-storage: 20Gi
+  values:
+    fullnameOverride: *name
+    githubConfigUrl: https://github.com/LukeEvansTech/truenas-apps-br
+    githubConfigSecret: truenas-br-runner-secret
+    runnerScaleSetName: truenas-br
+    # One: this repository's only self-hosted job is lint (one per PR, a few PRs a week), and its CI deploys
+    # nothing. Raise it as truenas did if jobs start queueing.
+    maxRunners: 1
+    minRunners: 0
+    containerMode:
+      # Docker actions used by lint and security workflows need a daemon.
+      type: dind
+    template:
+      spec:
+        # uid 1001 needs fsGroup to write miroir-local's root:root ext4 volume (#3739).
+        securityContext:
+          fsGroup: 1001
+        containers:
+          - name: runner
+            # Same digest as talos-cluster-runner; Renovate manages it.
+            image: ghcr.io/home-operations/actions-runner:2.338.0@sha256:7ece17219b5ce764fff8bd2206bf66a612580fdc82d84b0097fbe6f4e8729801
+            resources:
+              requests:
+                cpu: 250m
+                memory: 512Mi
+              limits:
+                cpu: "2"
+                memory: 4Gi
+            command:
+              - "/home/runner/run.sh"
+            volumeMounts:
+              - name: work
+                mountPath: /home/runner/_work
+        volumes:
+          - name: work
+            ephemeral:
+              volumeClaimTemplate:
+                spec:
+                  accessModes:
+                    - "ReadWriteOnce"
+                  storageClassName: miroir-local
+                  resources:
+                    requests:
+                      # 40Gi vs talos-cluster's 25Gi: super-linter plus checkov/trivy need headroom.
+                      # Not dind's image store (node ephemeral); Spegel doesn't mirror dind pulls.
+                      storage: 40Gi
+    controllerServiceAccount:
+      name: actions-runner-controller
+      namespace: actions-runner-system

@@ -16,3 +16,4 @@ resources:
   - ./talos-cluster
   - ./terraform-vsphere
   - ./truenas
+  - ./truenas-br
