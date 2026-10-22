@@ -26,7 +26,7 @@ matches its `runners/` directory name except for `packer`, whose `runnerScaleSet
 | `subspy`            | LukeEvansTech/subspy             | dind       | 3            | 40Gi         |
 | `talos-cluster`     | LukeEvansTech/talos-cluster      | dind       | 3            | 25Gi         |
 | `terraform-vsphere` | codelooks-com/terraform-vsphere  | kubernetes | 2            | 5Gi          |
-| `truenas`           | LukeEvansTech/truenas-apps       | dind       | 3            | 40Gi         |
+| `truenas`           | LukeEvansTech/truenas-apps-cr    | dind       | 3            | 40Gi         |
 
 The repository pools (`lurcher`, `networkops`, `nut`, `seedbox`, `subspy`, `truenas`) started at
 `maxRunners: 1` and have since grown to 3; `lgwebos`, `loupe` and `nixconfig` start at 2 because
