@@ -192,3 +192,105 @@ spec:
           for: 1h
           labels:
             severity: warning
+    - name: homeassistant-mg-ev4
+      rules:
+        # MG EV4 via the MG SAIC custom integration (iSMART cloud, polled with a secondary
+        # account). The API names the car "MG MG4 Electric", hence the mg_mg4_electric ids.
+        # Reachability, Data Freshness and Charging Status are text enums, which the
+        # prometheus integration does not export, so those signals come from template binary
+        # sensors in HA, the same pattern as the LG washer:
+        #   binary_sensor.mg_ev4_unreachable     = Reachability is "unreachable"
+        #   binary_sensor.mg_ev4_polls_failed    = Data Freshness is "failed"
+        #   binary_sensor.mg_ev4_charge_finished = Charging Status is "Charging Finished"
+        # Value sensors retain their last reading through failed polls and stay available,
+        # and Last Update Time records when a poll completed, cached or failed-with-retries,
+        # so neither is a measure of the car actually reporting.
+        - alert: MgEv4Unreachable
+          annotations:
+            description: >-
+              The integration has reported the car unreachable for 2 hours: parked without
+              signal, 12 V battery flat, or the iSMART cloud has lost it. Live polls fail
+              and the figures shown are cached.
+            summary: MG EV4 unreachable.
+          expr: >-
+            homeassistant_binary_sensor_state{entity="binary_sensor.mg_ev4_unreachable"} == 1
+          for: 2h
+          labels:
+            severity: warning
+        - alert: MgEv4Unavailable
+          annotations:
+            description: >-
+              The MG SAIC integration's polls have failed for 6 hours: the iSMART API is
+              down or the login has failed. Check the integration page in Home Assistant.
+              (Last Update Time is used because the value sensors such as state of charge
+              retain their last reading and stay available through failed polls.)
+            summary: MG EV4 unavailable in Home Assistant.
+          expr: >-
+            homeassistant_entity_available{entity="sensor.mg_mg4_electric_last_update_time"} == 0
+          for: 6h
+          labels:
+            severity: warning
+        - alert: MgEv4PollsFailing
+          annotations:
+            description: >-
+              Status polls have failed for 2 hours (Data Freshness "failed") while the
+              integration itself stays loaded, so the value sensors are showing retained
+              readings. Check the MG SAIC integration page and the iSMART login.
+            summary: MG EV4 status polls failing.
+          expr: >-
+            homeassistant_binary_sensor_state{entity="binary_sensor.mg_ev4_polls_failed"} == 1
+          for: 2h
+          labels:
+            severity: warning
+        - alert: MgEv4AuxBatteryLow
+          annotations:
+            description: >-
+              The 12 V battery has read {{ $value | printf "%.2f" }} V for an hour. Below
+              12 V it is under half charged; the car may not wake. Every live poll wakes the
+              car and dips it further, so lengthen the poll interval if this keeps firing.
+            summary: MG EV4 12 V battery low.
+          expr: >-
+            homeassistant_sensor_voltage_v{entity="sensor.mg_mg4_electric_ancillary_battery_voltage"} < 12
+          for: 1h
+          labels:
+            severity: warning
+        - alert: MgEv4BatteryLowUnplugged
+          annotations:
+            description: >-
+              State of charge is {{ $value | printf "%.0f" }}% and the car is not plugged in.
+            summary: MG EV4 below 20% and unplugged.
+          expr: >-
+            homeassistant_sensor_battery_percent{entity="sensor.mg_mg4_electric_state_of_charge"} < 20
+            and on() homeassistant_binary_sensor_state{entity="binary_sensor.mg_mg4_electric_charging_gun_state"} == 0
+          for: 30m
+          labels:
+            severity: warning
+        - alert: MgEv4ChargeComplete
+          annotations:
+            description: >-
+              The car reports its charge finished (Charging Status "Charging Finished") and
+              has been plugged in since. Unplug when convenient.
+            summary: MG EV4 charge complete.
+          expr: >-
+            homeassistant_binary_sensor_state{entity="binary_sensor.mg_ev4_charge_finished"} == 1
+          for: 10m
+          labels:
+            severity: warning
+        - alert: MgEv4LeftUnlocked
+          annotations:
+            description: The car has been unlocked for an hour.
+            summary: MG EV4 left unlocked.
+          expr: >-
+            homeassistant_binary_sensor_state{entity="binary_sensor.mg_mg4_electric_lock_status"} == 1
+          for: 1h
+          labels:
+            severity: warning
+        - alert: MgEv4LeftOpen
+          annotations:
+            description: "{{ $labels.friendly_name }} has been open for 15 minutes."
+            summary: MG EV4 door, boot or bonnet open.
+          expr: >-
+            homeassistant_binary_sensor_state{entity=~"binary_sensor\\.mg_mg4_electric_(door_.*|boot_status|bonnet_status)"} == 1
+          for: 15m
+          labels:
+            severity: warning
