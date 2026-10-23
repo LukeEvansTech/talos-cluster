@@ -35,7 +35,7 @@ jobs:
       pull-requests: write
       statuses: write
       id-token: write
-    uses: LukeEvansTech/shared-workflows/.github/workflows/renovate-review.yml@e3bba1540a9c691ff668a265af531e44d62a80fa # v1
+    uses: LukeEvansTech/shared-workflows/.github/workflows/renovate-review.yml@88e2614117b0d11fd7f2e0bd81de3975eff17394 # v1
     with:
       # Derived at runtime from the "Protected infra" packageRules entry in .renovaterc.json5, so
       # the blast list can never drift from the Renovate config the way a hardcoded regex would.
