@@ -17,7 +17,7 @@ permissions:
 env:
   # Keep in step with aqua:prometheus/prometheus in .mise.toml.
   # renovate: datasource=github-releases depName=prometheus/prometheus
-  PROMETHEUS_VERSION: "v3.15.0"
+  PROMETHEUS_VERSION: "v3.15.1"
 
 jobs:
   prometheus-rules:
