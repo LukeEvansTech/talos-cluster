@@ -82,7 +82,10 @@ spec:
               requests:
                 cpu: 500m
               limits:
-                memory: 4Gi
+                # .NET caps the managed heap at 75% of this; at 4Gi Sonarr hit
+                # OutOfMemoryException near 3.2GiB during large series searches
+                # and queue reads, six times in two days (2026-10-22/24).
+                memory: 6Gi
           metrics:
             dependsOn: app
             image:
