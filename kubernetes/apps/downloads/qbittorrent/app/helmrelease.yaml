@@ -73,7 +73,7 @@ spec:
                 # Disk cache is pinned to 256 MiB (apply-settings.sh), but RSS grows with
                 # torrent and file count: six whole-platform ROM torrents (~18,500 files)
                 # reached 1.2Gi and were OOM-killed twice at 2Gi on 2026-10-24.
-                memory: 4Gi
+                memory: 8Gi
           metrics:
             dependsOn: app
             image:
