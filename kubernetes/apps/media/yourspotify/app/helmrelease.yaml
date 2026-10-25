@@ -6,12 +6,12 @@ metadata:
   name: yourspotify
 spec:
   interval: 1h
-  # Outlasts the server's 30-minute startup probe, so an upgrade is not rolled back mid-repair.
+  # The server can sit unready while Spotify throttles it; give an upgrade time before rollback.
   timeout: 40m
   chartRef:
     kind: OCIRepository
     name: yourspotify
-  # app-template cannot set progressDeadlineSeconds; the 600s default would fail an upgrade mid-startup.
+  # app-template cannot set progressDeadlineSeconds; the 600s default would fail an upgrade first.
   postRenderers:
     - kustomize:
         patches:
@@ -25,6 +25,8 @@ spec:
   values:
     controllers:
       server:
+        # The imports PVC is RWO.
+        strategy: Recreate
         annotations:
           reloader.stakater.com/auto: "true"
         containers:
@@ -42,30 +44,23 @@ spec:
             envFrom:
               - secretRef:
                   name: "{{ .Release.Name }}-secret"
+            # No liveness or startup probe: a throttled server waits silently, even at startup, and a
+            # restart re-arms the throttle. See docs/docs/apps/yourspotify.md.
             probes:
-              liveness: &probes
+              liveness:
+                enabled: false
+              startup:
+                enabled: false
+              readiness:
                 enabled: true
                 custom: true
                 spec:
                   httpGet:
                     path: /
                     port: &serverPort 8080
-                  initialDelaySeconds: 0
                   periodSeconds: 10
                   timeoutSeconds: 1
                   failureThreshold: 3
-              readiness: *probes
-              # Startup repairs missing album data for imported plays before it listens,
-              # which outlasted liveness and crash-looped the server.
-              startup:
-                enabled: true
-                custom: true
-                spec:
-                  httpGet:
-                    path: /
-                    port: *serverPort
-                  periodSeconds: 10
-                  failureThreshold: 180
             securityContext:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: true
@@ -200,6 +195,18 @@ spec:
           mongodb:
             app:
               - path: /data/db
+      # Uploaded history files must survive a restart, or a stalled import cannot be retried.
+      imports:
+        # The default name is the release name, which is already the MongoDB data PVC.
+        forceRename: "{{ .Release.Name }}-imports"
+        type: persistentVolumeClaim
+        accessMode: ReadWriteOnce
+        size: 2Gi
+        storageClass: ceph-block
+        advancedMounts:
+          server:
+            app:
+              - path: /tmp/imports
       tmpfs:
         type: emptyDir
         advancedMounts:
