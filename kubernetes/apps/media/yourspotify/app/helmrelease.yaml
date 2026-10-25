@@ -24,6 +24,8 @@ spec:
               API_ENDPOINT: https://yourspotify-api.${SECRET_DOMAIN}
               CLIENT_ENDPOINT: https://yourspotify.${SECRET_DOMAIN}
               MONGO_ENDPOINT: mongodb://yourspotify-mongodb:27017/your_spotify
+              # A full-history import exhausted the default ~256MB V8 heap and crash-looped the server.
+              NODE_OPTIONS: --max-old-space-size=768
             envFrom:
               - secretRef:
                   name: "{{ .Release.Name }}-secret"
@@ -48,7 +50,7 @@ spec:
               requests:
                 cpu: 10m
               limits:
-                memory: 512Mi
+                memory: 1Gi
       web:
         pod:
           securityContext:
