@@ -6,9 +6,22 @@ metadata:
   name: yourspotify
 spec:
   interval: 1h
+  # Outlasts the server's 30-minute startup probe, so an upgrade is not rolled back mid-repair.
+  timeout: 40m
   chartRef:
     kind: OCIRepository
     name: yourspotify
+  # app-template cannot set progressDeadlineSeconds; the 600s default would fail an upgrade mid-startup.
+  postRenderers:
+    - kustomize:
+        patches:
+          - target:
+              kind: Deployment
+              name: yourspotify-server
+            patch: |-
+              - op: add
+                path: /spec/progressDeadlineSeconds
+                value: 2400
   values:
     controllers:
       server:
@@ -42,6 +55,17 @@ spec:
                   timeoutSeconds: 1
                   failureThreshold: 3
               readiness: *probes
+              # Startup repairs missing album data for imported plays before it listens,
+              # which outlasted liveness and crash-looped the server.
+              startup:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /
+                    port: *serverPort
+                  periodSeconds: 10
+                  failureThreshold: 180
             securityContext:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: true
