@@ -11,3 +11,4 @@ resources:
   - ./prometheusrule.yaml
   - ./grafanadashboard.yaml
   - ./grafanadashboard-appliances.yaml
+  - ./grafanadashboard-mg.yaml
