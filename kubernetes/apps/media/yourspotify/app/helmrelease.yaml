@@ -6,6 +6,8 @@ metadata:
   name: yourspotify
 spec:
   interval: 1h
+  # Outlasts the server's 30-minute startup probe, so an upgrade is not rolled back mid-repair.
+  timeout: 40m
   chartRef:
     kind: OCIRepository
     name: yourspotify
