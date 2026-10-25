@@ -19,7 +19,7 @@ spec:
           app:
             image:
               repository: maelgangloff/domain-watchdog
-              tag: v1.4.5@sha256:296ef2397ef66b8e65c6986c706f33e2c237734f78aa0926346b70741f480e77
+              tag: v1.4.6@sha256:4144c18ac8d7b42827a31659aa3c944cac016057bdc105f1297c8697a360e862
             env:
               TZ: ${TIMEZONE}
               APP_ENV: prod
@@ -60,7 +60,7 @@ spec:
           worker:
             image:
               repository: maelgangloff/domain-watchdog
-              tag: v1.4.5@sha256:296ef2397ef66b8e65c6986c706f33e2c237734f78aa0926346b70741f480e77
+              tag: v1.4.6@sha256:4144c18ac8d7b42827a31659aa3c944cac016057bdc105f1297c8697a360e862
             command:
               - php
               - bin/console
