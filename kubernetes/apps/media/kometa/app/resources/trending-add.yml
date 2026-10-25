@@ -1,0 +1,14 @@
+---
+# Radarr feed for TMDb Trending, kept apart from the Plex collection so it can
+# be filtered. TMDb's weekly chart is worldwide and carried Indian releases
+# every week (15 added in a month, none wanted). check_missing_filters applies
+# TMDb filters such as original_language to missing items before the add.
+collections:
+  TMDb Trending Radarr Feed:
+    tmdb_trending_weekly: 100
+    build_collection: false
+    filters:
+      original_language.not: hi, ta, te, ml, kn, bn, mr, pa # codespell:ignore te
+    radarr_add_missing: true
+    radarr_search: true
+    radarr_tag: kometa, kometa-trending
