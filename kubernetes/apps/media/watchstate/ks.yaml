@@ -20,7 +20,7 @@ spec:
   postBuild:
     substitute:
       APP: *app
-      VOLSYNC_CAPACITY: 2Gi
+      VOLSYNC_CAPACITY: 5Gi
       HOMEPAGE_NAME: Watchstate
       HOMEPAGE_GROUP: Media
       HOMEPAGE_ICON: /icons/dracula/watchstate.svg
