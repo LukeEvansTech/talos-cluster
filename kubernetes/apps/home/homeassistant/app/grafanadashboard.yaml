@@ -93,7 +93,7 @@ spec:
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "homeassistant_climate_current_temperature_celsius",
+              "expr": "homeassistant_climate_current_temperature_celsius and on(entity) label_replace(homeassistant_sensor_unit_percent{entity=~\"sensor\\\\..*_heating_power\"}, \"entity\", \"climate.$1\", \"entity\", \"sensor\\\\.(.*)_heating_power\")",
               "legendFormat": "{{friendly_name}}",
               "refId": "A"
             }
@@ -243,7 +243,7 @@ spec:
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "homeassistant_climate_current_temperature_celsius",
+              "expr": "homeassistant_climate_current_temperature_celsius and on(entity) label_replace(homeassistant_sensor_unit_percent{entity=~\"sensor\\\\..*_heating_power\"}, \"entity\", \"climate.$1\", \"entity\", \"sensor\\\\.(.*)_heating_power\")",
               "legendFormat": "{{friendly_name}}",
               "refId": "A"
             },
@@ -252,7 +252,7 @@ spec:
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "homeassistant_climate_target_temperature_celsius",
+              "expr": "homeassistant_climate_target_temperature_celsius and on(entity) label_replace(homeassistant_sensor_unit_percent{entity=~\"sensor\\\\..*_heating_power\"}, \"entity\", \"climate.$1\", \"entity\", \"sensor\\\\.(.*)_heating_power\")",
               "legendFormat": "{{friendly_name}} setpoint",
               "refId": "B"
             }

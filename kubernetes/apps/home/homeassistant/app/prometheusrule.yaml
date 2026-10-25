@@ -26,6 +26,9 @@ spec:
     # climate entity's hvac_action, which sat on idle while a zone showed 26 % on 2026-10-21.
     # The sensor and climate entities share a room slug, so label_replace joins them; a bare
     # $1 survives Flux, which substitutes only $${VAR}.
+    # The climate availability and temperature rules use the same join to stay on tado zones:
+    # the MG car exports a climate entity with the same metrics, and its cabin at 14 °C
+    # fired TadoRoomTooCold on 2026-10-23.
     - name: homeassistant-tado
       rules:
         - alert: TadoBatteryLow
@@ -69,7 +72,11 @@ spec:
               30 minutes. Tado Hijack is loaded but not getting zone data; check the
               integration and the API quota.
             summary: tado zone unavailable in Home Assistant.
-          expr: homeassistant_entity_available{entity=~"climate\\..*"} == 0
+          expr: |-
+            homeassistant_entity_available{entity=~"climate\\..*"} == 0
+            and on(entity) label_replace(
+              homeassistant_entity_available{entity=~"sensor\\..*_heating_power"},
+              "entity", "climate.$1", "entity", "sensor\\.(.*)_heating_power")
           for: 30m
           labels:
             severity: warning
@@ -79,7 +86,11 @@ spec:
               {{ $labels.friendly_name }} has been below 15 °C for an hour
               (now {{ $value | printf "%.1f" }} °C). Frost risk if this keeps falling.
             summary: Room too cold.
-          expr: homeassistant_climate_current_temperature_celsius < 15
+          expr: |-
+            homeassistant_climate_current_temperature_celsius < 15
+            and on(entity) label_replace(
+              homeassistant_sensor_unit_percent{entity=~"sensor\\..*_heating_power"},
+              "entity", "climate.$1", "entity", "sensor\\.(.*)_heating_power")
           for: 1h
           labels:
             severity: warning
