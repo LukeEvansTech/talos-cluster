@@ -13,3 +13,10 @@ from adding load to the single-threaded server.
 The liveness probe tolerates the same stall differently: its 10s timeout can still catch the
 stall once, but 3 consecutive failures 30s apart (about 90s) are needed before it actually
 restarts a hung process.
+
+## Liveness uses `/health/live`
+
+`/health/ready` also checks that Sonarr and Radarr answer. While liveness pointed at it, every
+Sonarr or Radarr outage restarted deduparr, which was healthy and only waiting: 29 restarts on
+2026-10-20 during the Sonarr v5 upgrade, and about one a day otherwise. Liveness now uses
+`/health/live`, which answers whenever the process does; readiness keeps `/health/ready`.

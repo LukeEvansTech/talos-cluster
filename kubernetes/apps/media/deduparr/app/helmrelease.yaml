@@ -37,14 +37,14 @@ spec:
               - secretRef:
                   name: deduparr-secret
             probes:
-              # Tolerates the ~13s per-cycle health stall (2m dedup interval): a 10s timeout can
-              # catch it once, but 3 consecutive 30s-apart failures are needed to actually restart.
+              # /health/ready also checks Sonarr and Radarr, so as liveness it restarted deduparr
+              # whenever either was down (29 restarts during the Sonarr v5 upgrade).
               liveness:
                 enabled: true
                 custom: true
                 spec:
                   httpGet:
-                    path: /health/ready
+                    path: /health/live
                     port: *port
                   initialDelaySeconds: 15
                   periodSeconds: 30
