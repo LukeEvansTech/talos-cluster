@@ -129,6 +129,8 @@ the web login all wait silently behind it (upstream issues
 
 The deployment is shaped around that:
 
+- Helm does not wait for the server to become ready, so a rollout during a throttle is not
+  rolled back.
 - The server has a readiness probe only. A liveness or startup probe killed it while it waited,
   and each restart's first Spotify call re-armed the throttle (2026-10-25).
 - Uploaded files land on the `yourspotify-imports` PVC at `/tmp/imports`, not on the
@@ -139,7 +141,9 @@ To run an import:
 1. Upload a few files at a time, not the whole export; once one batch finishes, add the next.
 2. Leave the server alone while it runs. A stall with no new log lines is the throttle; it resumes
    by itself when the wait ends. Restarting the pod marks the import failed.
-3. Check progress and the wait in MongoDB:
+3. Check progress in MongoDB. This shows how far the import got, not how long the throttle
+   lasts: that wait lives only in the server's memory and is logged only at debug level
+   (`Delaying request for Xms due to Retry-After`).
 
    ```bash
    kubectl -n media exec deploy/yourspotify-mongodb -- mongosh --quiet your_spotify \

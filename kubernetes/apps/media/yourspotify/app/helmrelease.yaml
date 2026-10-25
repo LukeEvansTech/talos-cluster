@@ -6,22 +6,14 @@ metadata:
   name: yourspotify
 spec:
   interval: 1h
-  # The server can sit unready while Spotify throttles it; give an upgrade time before rollback.
-  timeout: 40m
   chartRef:
     kind: OCIRepository
     name: yourspotify
-  # app-template cannot set progressDeadlineSeconds; the 600s default would fail an upgrade first.
-  postRenderers:
-    - kustomize:
-        patches:
-          - target:
-              kind: Deployment
-              name: yourspotify-server
-            patch: |-
-              - op: add
-                path: /spec/progressDeadlineSeconds
-                value: 2400
+  # A throttled server can stay unready for hours; waiting on it would time out and roll back.
+  install:
+    disableWait: true
+  upgrade:
+    disableWait: true
   values:
     controllers:
       server:
