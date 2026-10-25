@@ -232,7 +232,7 @@ url = "https://github.com/helmfile/helmfile/releases/download/v1.8.2/helmfile_1.
 url_api = "https://api.github.com/repos/helmfile/helmfile/releases/assets/647791352"
 
 [[tools."aqua:helmfile/vals"]]
-version = "0.47.0"
+version = "0.50.0"
 backend = "aqua:helmfile/vals"
 
 [tools."aqua:helmfile/vals"."platforms.linux-arm64"]
