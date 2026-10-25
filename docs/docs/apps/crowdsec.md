@@ -40,5 +40,8 @@ onedr0p's `kubernetes/apps/network/crowdsec/bouncer` in `home-ops` is the refere
 own addresses first (a `cscli allowlists` entry), and alert on the bouncer's health, since a
 failing external authoriser can reject every request.
 
-Enrolling in the CrowdSec console is optional: set `ENROLL_KEY` on the local API from a `crowdsec`
-item in the `Talos` vault, through an ExternalSecret.
+## Console
+
+The local API enrols in the CrowdSec console as `talos-cluster`, with `ENROLL_KEY` from the
+`crowdsec` item in the `Talos` vault. A new enrolment shows in the console as pending; it sends
+alerts only once it is accepted there.

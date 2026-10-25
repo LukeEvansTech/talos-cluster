@@ -25,6 +25,13 @@ spec:
       env:
         - name: USE_WAL
           value: "true"
+        - name: ENROLL_INSTANCE_NAME
+          value: talos-cluster
+        - name: ENROLL_TAGS
+          value: k8s talos envoy
+      envFrom:
+        - secretRef:
+            name: crowdsec-secret
       persistentVolume:
         data:
           storageClassName: ceph-block
