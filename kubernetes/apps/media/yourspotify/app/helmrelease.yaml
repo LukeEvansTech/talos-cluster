@@ -42,6 +42,17 @@ spec:
                   timeoutSeconds: 1
                   failureThreshold: 3
               readiness: *probes
+              # Startup repairs missing album data for imported plays before it listens,
+              # which outlasted liveness and crash-looped the server.
+              startup:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /
+                    port: *serverPort
+                  periodSeconds: 10
+                  failureThreshold: 180
             securityContext:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: true
