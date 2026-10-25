@@ -13,6 +13,9 @@ mkdir -p /config/qBittorrent
 # seeding time aren't tracked: torrents stop on completion. Upload is capped at ~1 MB/s,
 # enough for peers to reciprocate on big slow swarms (10 KB/s got choked) without
 # saturating the line.
+# qBittorrent 5.3.0 moved the WebUI keys from [Preferences] WebUI\Key to [WebUI] Key, and its
+# one-time migration copies the old key over the new one. Both namespaces are set: the old one
+# survives that migration on a fresh volume, the new one is what 5.3.0 reads afterwards.
 settings=$(
     cat <<'EOF'
 BitTorrent|Session\DiskCacheSize|256
@@ -27,6 +30,8 @@ BitTorrent|Session\GlobalMaxSeedingMinutes|0
 BitTorrent|Session\ShareLimitAction|Stop
 Preferences|WebUI\LocalHostAuth|true
 Preferences|WebUI\AuthSubnetWhitelistEnabled|false
+WebUI|LocalHostAuth|true
+WebUI|AuthSubnetWhitelistEnabled|false
 EOF
 )
 
