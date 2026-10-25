@@ -12,7 +12,9 @@ defaults to true and this cluster does not override it, so any signed-in user co
 address into their own profile and have Pocket ID assert it as verified to every relying party.
 
 The fix dropped `EMAILS_VERIFIED` and set `EMAIL_VERIFICATION_ENABLED: "true"` instead, a separate
-setting that also defaults to false. It gates the real "verify your email" flow: Pocket ID sends a
+setting that also defaults to false. Pocket ID v2.19.0 renamed it to `EMAIL_VERIFICATION`
+(`disabled`, `optional` or `required`); the manifest now sets `optional`, the same behaviour, since the
+old name is only honoured by a shim due to go in v3. It gates the real "verify your email" flow: Pocket ID sends a
 confirmation link and only claims `email_verified: true` once the user completes it. Both settings
 matter independently. Enabling verification without dropping the old flag would have left the old
 flag in place, and dropping the old flag without enabling verification would leave every new or
