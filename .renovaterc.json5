@@ -9,11 +9,11 @@
   // cluster runs are extended directly below. phanpy is the only apps/ preset not deployed here.
   extends: [
     "github>LukeEvansTech/renovate-config",
-    "github>home-operations/renovate-presets//apps/cnpg.json5#10.0.0",
-    "github>home-operations/renovate-presets//apps/grafanaDashboards.json5#10.0.0",
-    "github>home-operations/renovate-presets//apps/llamacpp.json5#10.0.0",
-    "github>home-operations/renovate-presets//apps/searxng.json5#10.0.0",
-    "github>home-operations/renovate-presets//apps/talosFactory.json5#10.0.0",
+    "github>home-operations/renovate-presets//apps/cnpg.json5#10.0.1",
+    "github>home-operations/renovate-presets//apps/grafanaDashboards.json5#10.0.1",
+    "github>home-operations/renovate-presets//apps/llamacpp.json5#10.0.1",
+    "github>home-operations/renovate-presets//apps/searxng.json5#10.0.1",
+    "github>home-operations/renovate-presets//apps/talosFactory.json5#10.0.1",
   ],
   // Assign manual PRs to me so they reach my GitHub "Participating" notifications.
   // assignAutomerge:false (the Renovate default, pinned here for clarity) means
