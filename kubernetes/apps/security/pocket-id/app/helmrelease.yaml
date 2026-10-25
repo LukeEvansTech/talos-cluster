@@ -26,7 +26,7 @@ spec:
           app:
             image:
               repository: ghcr.io/pocket-id/pocket-id
-              tag: v2.18.0@sha256:323e7ef5bfacf7cf32f22f3d10ccdf48e0c97c94d67e7e40b0b996830deb5165
+              tag: v2.19.1@sha256:f085157f0b6ea4b2e8aa5ecfd99eada0d83a4960f3a3dcfd46014097d0ef7ab5
             env:
               TZ: ${TIMEZONE}
               ALLOW_USER_SIGNUPS: "withToken" # Can be: disabled, withToken, open
@@ -34,8 +34,9 @@ spec:
               APP_URL: "https://id.${SECRET_DOMAIN}"
               DB_PROVIDER: postgres
               # Replaces a bare EMAILS_VERIFIED: "true", which marked any user-edited
-              # email as OIDC-verified without proving the user controlled it.
-              EMAIL_VERIFICATION_ENABLED: "true"
+              # email as OIDC-verified without proving the user controlled it. v2.19.0 renamed
+              # EMAIL_VERIFICATION_ENABLED: "true" to this; "optional" is the same behaviour.
+              EMAIL_VERIFICATION: "optional"
               KEYS_STORAGE: database
               UI_CONFIG_DISABLED: "true"
               SMTP_FROM: "pocket-id@${SECRET_DOMAIN}"
