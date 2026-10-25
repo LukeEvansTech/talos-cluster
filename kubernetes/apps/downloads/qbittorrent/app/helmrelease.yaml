@@ -22,7 +22,7 @@ spec:
               # libtorrent v1.2.x: better private-tracker compatibility, fewer libtorrent-v2
               # disk/memory quirks.
               repository: ghcr.io/home-operations/qbittorrent-libtorrentv1
-              tag: 5.2.4@sha256:6c303adb93d995ba33dcdce45ee89181a370b6ad745b4148e7f73bde43e5d482
+              tag: 5.3.0@sha256:74a9dd7824d960e1c3355ab07ba23c9946aa18236eebac0c51fe9f5cac35ff8f
             # QBT_* vars are CLI options only; apply-settings below declares the rest of
             # qBittorrent.conf.
             env:
