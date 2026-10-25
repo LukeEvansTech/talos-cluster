@@ -55,10 +55,11 @@ spec:
                         resources:
                           requests:
                             cpu: 500m
-                            memory: 512Mi
+                            memory: 1Gi
                           limits:
                             cpu: null
-                            memory: 512Mi
+                            # Peaks reached 487Mi most days; a merge burst OOM-killed it at 512Mi (2026-10-25).
+                            memory: 1Gi
             target:
               kind: Deployment
               name: kustomize-controller
