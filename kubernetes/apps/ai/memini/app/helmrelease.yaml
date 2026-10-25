@@ -117,6 +117,12 @@ spec:
     persistence:
       data:
         existingClaim: memini
+      # SQLite spills sorts and index builds to its temp directory, which defaults
+      # to /tmp; the root filesystem is read-only, so without this they fail.
+      tmp:
+        type: emptyDir
+        globalMounts:
+          - path: /tmp
     route:
       internal:
         enabled: true
