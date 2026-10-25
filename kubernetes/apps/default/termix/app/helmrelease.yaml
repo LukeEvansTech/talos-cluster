@@ -18,7 +18,7 @@ spec:
           app:
             image:
               repository: ghcr.io/termix-ssh/termix
-              tag: 26.10.3@sha256:b40d35bb0b1cbc5d9f761d962a390edfec17806d7687d97b54d2fd109a600fd6
+              tag: 26.10.5@sha256:28a627c1e2a568ea8c2d3fd83861675fdd3d8327a09f5a245c399b4864ad5ceb
             env:
               TZ: ${TIMEZONE}
               PORT: &port 8080
