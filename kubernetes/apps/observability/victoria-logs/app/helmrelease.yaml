@@ -23,9 +23,10 @@ spec:
       resources:
         requests:
           cpu: 10m
-          memory: 1Gi
-        limits:
           memory: 2Gi
+        # Steady state is 1.4-1.7Gi, so a wide query reached the old 2Gi limit (OOM-killed 2026-10-24).
+        limits:
+          memory: 4Gi
       persistentVolume:
         enabled: true
         storageClass: ceph-block
