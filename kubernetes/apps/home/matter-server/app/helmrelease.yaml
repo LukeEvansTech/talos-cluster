@@ -19,7 +19,7 @@ spec:
           sysctl:
             image:
               repository: ghcr.io/matter-js/matterjs-server
-              tag: 1.5.0@sha256:b051f3f5bcc8df0f582773055d18e68136332135587d7bfc8b6c1bb8eacb75c7
+              tag: 1.5.5@sha256:ee149c7c67eff0e90f131e8f0d628f7b099591ec58473c8cda1209e8ae4df66e
             command:
               - /bin/sh
               - -ec
@@ -38,7 +38,7 @@ spec:
             image:
               # matter.js replaces the archived python-matter-server: same ws API and CLI flags.
               repository: ghcr.io/matter-js/matterjs-server
-              tag: 1.5.0@sha256:b051f3f5bcc8df0f582773055d18e68136332135587d7bfc8b6c1bb8eacb75c7
+              tag: 1.5.5@sha256:ee149c7c67eff0e90f131e8f0d628f7b099591ec58473c8cda1209e8ae4df66e
             args:
               - --storage-path
               - /data
