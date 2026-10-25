@@ -35,7 +35,7 @@ spec:
         containers:
           - name: runner
             # Pinned to a digest; a stale :latest missed a pywinrm build and broke WinRM (#3034).
-            image: ghcr.io/codelooks-com/packer-runner:latest@sha256:f64eba4b20efb94ae1b7cbd50c1327c466c85ceb88379848fc0abece6f2ba1d4
+            image: ghcr.io/codelooks-com/packer-runner:latest@sha256:c67a42f8badd8ad3718ef7c36f1b0728a0390ce989677889de3d9a8e4ea06dbe
             command:
               - "/home/runner/run.sh"
             env:
