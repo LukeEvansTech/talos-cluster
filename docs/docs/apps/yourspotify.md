@@ -116,3 +116,39 @@ in it.
 The 9.0.4 binary went live on FCV 8.0 (2026-10-20). After at least a day of clean burn-in, run steps 5
 and 6 above with `TO=9.0`. Until then a rollback is an image revert plus removing the 9.0-only
 `args` (see "9.0 rollback" above).
+
+## Importing streaming history
+
+The "Extended streaming history" import looks up every track it has not seen before, as fast as it
+can. A full export (about 255k plays here) gets the app throttled by Spotify, with `Retry-After`
+values from minutes to a day. Since 1.20.0 the server holds every Spotify call behind one
+process-wide gate until that time passes, logged only at debug level. Startup, the 2-minute sync and
+the web login all wait silently behind it (upstream issues
+[#619](https://github.com/Yooooomi/your_spotify/issues/619) and
+[#627](https://github.com/Yooooomi/your_spotify/issues/627)).
+
+The deployment is shaped around that:
+
+- Helm does not wait for the server to become ready, so a rollout during a throttle is not
+  rolled back.
+- The server has a readiness probe only. A liveness or startup probe killed it while it waited,
+  and each restart's first Spotify call re-armed the throttle (2026-10-25).
+- Uploaded files land on the `yourspotify-imports` PVC at `/tmp/imports`, not on the
+  `/tmp` emptyDir, so a restart no longer deletes them and a failed import can be retried.
+
+To run an import:
+
+1. Upload a few files at a time, not the whole export; once one batch finishes, add the next.
+2. Leave the server alone while it runs. A stall with no new log lines is the throttle; it resumes
+   by itself when the wait ends. Restarting the pod marks the import failed.
+3. Check progress in MongoDB. This shows how far the import got, not how long the throttle
+   lasts: that wait lives only in the server's memory and is logged only at debug level
+   (`Delaying request for Xms due to Retry-After`).
+
+   ```bash
+   kubectl -n media exec deploy/yourspotify-mongodb -- mongosh --quiet your_spotify \
+     --eval 'db.importerstates.find({}, {status: 1, current: 1, total: 1, updatedAt: 1})'
+   ```
+
+Re-uploading a file already imported skips its duplicate plays, but its tracks are looked up again,
+which spends the same Spotify budget.
