@@ -22,7 +22,10 @@ spec:
             env:
               TZ: ${TIMEZONE}
               WS_CRON_IMPORT: true
+              # Off :00 so the 00:00/12:00 file pruner is not queued behind an import and missed.
+              WS_CRON_IMPORT_AT: "5 */1 * * *"
               WS_CRON_EXPORT: true
+              WS_LOGS_PRUNE_AFTER: 7
             probes:
               liveness: &probes
                 enabled: true
