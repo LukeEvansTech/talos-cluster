@@ -22,7 +22,8 @@ spec:
   postBuild:
     substitute:
       APP: *app
-      VOLSYNC_CAPACITY: 50Gi
+      # Scraped artwork and manuals reached 48Gi with 10 of 53 platforms scraped (2026-10-26).
+      VOLSYNC_CAPACITY: 150Gi
       HOMEPAGE_NAME: ROMM
       HOMEPAGE_GROUP: Games
       HOMEPAGE_ICON: /icons/dracula/romm.svg
