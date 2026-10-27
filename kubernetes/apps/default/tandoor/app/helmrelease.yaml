@@ -27,7 +27,7 @@ spec:
           app:
             image:
               repository: ghcr.io/tandoorrecipes/recipes
-              tag: 2.6.15@sha256:2e759dd1478a2ed119ee474e28522079fb1cfa50b3fd25cba89f6b9a67abad72
+              tag: 2.7.1@sha256:10e3d2cef6b4eaa24a9c548a25dc892ce70266fc888bd85d4b349eb5a7143945
             env:
               TZ: ${TIMEZONE}
               ALLOWED_HOSTS: "*"
@@ -39,6 +39,9 @@ spec:
               EMAIL_PORT: "25"
               EMAIL_USE_TLS: "1"
               ENABLE_PDF_EXPORT: "1"
+              # Since 2.7.0 this also blocks OIDC first logins and invite links, not only the local
+              # form. Deliberate: accounts here are created by an admin, and already-linked OIDC
+              # users still sign in. Set "1" (with SOCIALACCOUNT_ONLY "1") to let new OIDC users in.
               ENABLE_SIGNUP: "0"
               FRACTION_PREF_DEFAULT: "0"
               GUNICORN_MEDIA: "0"
