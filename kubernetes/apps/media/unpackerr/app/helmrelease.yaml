@@ -18,7 +18,7 @@ spec:
           app:
             image:
               repository: ghcr.io/unpackerr/unpackerr
-              tag: v0.16.1@sha256:406586865431b40b29353d899fb75a788f5384743f7f381444db5fe55d206914
+              tag: v1.0.0@sha256:21c6bfa4f4c86ab2dd0232da0dfb3ed4c5d929e42e09894e7b4d2154d0c144f6
             # Newer Starr versions report the protocol's class name; list both spellings.
             env:
               TZ: ${TIMEZONE}
@@ -27,6 +27,11 @@ spec:
               UN_PARALLEL: "1"
               UN_WEBSERVER_METRICS: "true"
               UN_WEBSERVER_LISTEN_ADDR: 0.0.0.0:5656
+              # v1 serves /metrics only to an API key with system:metrics:read. The key
+              # (UN_WEBSERVER_API_KEYS_0_KEY) comes from the secret; the scrape below sends it.
+              UN_WEBSERVER_ROLES_metrics_PERMISSIONS_0: system:metrics:read
+              UN_WEBSERVER_API_KEYS_0_NAME: prometheus
+              UN_WEBSERVER_API_KEYS_0_ROLES_0: metrics
               UN_SONARR_0_URL: http://sonarr.media.svc.cluster.local
               UN_SONARR_0_PATHS_0: /media/downloads/seedbox/sonarr-home
               UN_SONARR_0_PROTOCOLS: torrent,TorrentDownloadProtocol
@@ -74,6 +79,11 @@ spec:
             path: /metrics
             interval: 1m
             scrapeTimeout: 10s
+            authorization:
+              type: Bearer
+              credentials:
+                name: unpackerr-secret
+                key: UN_WEBSERVER_API_KEYS_0_KEY
     persistence:
       tmp:
         type: emptyDir
