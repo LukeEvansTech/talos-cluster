@@ -38,6 +38,10 @@ spec:
             # 2.0.0 refuses a non-loopback bind without OAuth. The ToolHive proxy reaches this pod
             # over the pod network, and 1.24.0 had no auth either, so this keeps the same exposure.
             - --allow-unauthenticated
+            # 2.0.0 loads only core and helm by default; keep the read-side sets that 1.24.0
+            # registered and that match what runs here (Flux, cert-manager, Cilium).
+            - --toolsets
+            - core,helm,diagnostics,security,cost,crds,gitops,certs,cilium
           env:
             - name: MCP_K8S_PROVIDER
               value: in-cluster
