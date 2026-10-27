@@ -60,7 +60,7 @@ run = "uv pip install -r docs/requirements.txt"
 "aqua:zizmorcore/zizmor" = "1.31.1"
 "github:home-operations/flate" = "latest"
 "github:home-operations/yayamlls" = "latest"
-python = "3.15.1"
+python = "3.15.2"
 uv = "0.13.5"
 # Exact pins, not ranges: an in-range update is lockfile-only for Renovate, and that path fails on
 # Mend hosted (the node/prettier "-lockfile" branches errored every tick; ordinary bump-toml+lock
