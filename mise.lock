@@ -232,23 +232,23 @@ url = "https://github.com/helmfile/helmfile/releases/download/v1.8.2/helmfile_1.
 url_api = "https://api.github.com/repos/helmfile/helmfile/releases/assets/647791352"
 
 [[tools."aqua:helmfile/vals"]]
-version = "0.47.0"
+version = "0.50.0"
 backend = "aqua:helmfile/vals"
 
 [tools."aqua:helmfile/vals"."platforms.linux-arm64"]
-checksum = "sha256:835f3d5d438ab92ce7929498b6fe0543d1972efde39cfd956b1ecda3dc6adff7"
-url = "https://github.com/helmfile/vals/releases/download/v0.47.0/vals_0.47.0_linux_arm64.tar.gz"
-url_api = "https://api.github.com/repos/helmfile/vals/releases/assets/578292727"
+checksum = "sha256:1e7c4d2b187391c7ef33be69c548cc6624152e75816c9d458e52a462e409542f"
+url = "https://github.com/helmfile/vals/releases/download/v0.50.0/vals_0.50.0_linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/helmfile/vals/releases/assets/662121358"
 
 [tools."aqua:helmfile/vals"."platforms.linux-x64"]
-checksum = "sha256:b327e52811c0c84c5adad26bf2536491e07fc75018a84a66109e1e5325a3d833"
-url = "https://github.com/helmfile/vals/releases/download/v0.47.0/vals_0.47.0_linux_amd64.tar.gz"
-url_api = "https://api.github.com/repos/helmfile/vals/releases/assets/578292795"
+checksum = "sha256:4cb1664b1e0aa49481cb05fabe2c52d4944dcaab31c4805924b668ae9f54c379"
+url = "https://github.com/helmfile/vals/releases/download/v0.50.0/vals_0.50.0_linux_amd64.tar.gz"
+url_api = "https://api.github.com/repos/helmfile/vals/releases/assets/662121543"
 
 [tools."aqua:helmfile/vals"."platforms.macos-arm64"]
-checksum = "sha256:a76255090319c61e701d32633d4d89ccc7891f1e4bd3c1c8fa6bc38184df3fd4"
-url = "https://github.com/helmfile/vals/releases/download/v0.47.0/vals_0.47.0_darwin_arm64.tar.gz"
-url_api = "https://api.github.com/repos/helmfile/vals/releases/assets/578292723"
+checksum = "sha256:8f960625cc7f96d7055d02882d5d3b22c5ba31b8e2b31dcd948eb79eb4e105c5"
+url = "https://github.com/helmfile/vals/releases/download/v0.50.0/vals_0.50.0_darwin_arm64.tar.gz"
+url_api = "https://api.github.com/repos/helmfile/vals/releases/assets/662121360"
 
 [[tools."aqua:jqlang/jq"]]
 version = "1.7.1"
