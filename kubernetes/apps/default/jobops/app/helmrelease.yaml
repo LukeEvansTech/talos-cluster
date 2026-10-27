@@ -20,7 +20,7 @@ spec:
           app:
             image:
               repository: ghcr.io/dakheera47/job-ops
-              tag: v0.13.1@sha256:42831cacd2021d65f808c9f0363e53d081fb55cb2626da7c9d233616618276c9
+              tag: v0.14.0@sha256:4e94e734b03030a6299b4562d9d52b21185d7e3b797342bb30926039dfc92ab1
             env:
               TZ: ${TIMEZONE}
               PORT: &port 3001
