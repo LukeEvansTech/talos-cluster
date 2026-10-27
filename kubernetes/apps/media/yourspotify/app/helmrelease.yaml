@@ -108,7 +108,7 @@ spec:
           app:
             image:
               repository: docker.io/library/mongo
-              tag: 9.0.4@sha256:dc28ed5a9d0fc616903c3f463bb1e53b92b49f441721b91926e87d90bf957ce8
+              tag: 9.0.4@sha256:741da947cd8d22a4f564ece5e03c8fd93394c16ae469253b12472fe1a81412fa
             # 9.0's 1 GB minimum per-query cap exceeds the 512Mi limit, so a runaway query would OOM-kill the pod.
             # 9.0-only parameter that 8.0 refuses at startup: drop these args when reverting to 8.0.
             args:
