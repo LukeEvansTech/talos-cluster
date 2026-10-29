@@ -5,3 +5,4 @@ kind: Kustomization
 resources:
   - ./iot.yaml
   - ./iot-legacy.yaml
+  - ./iot-homeassistant.yaml
