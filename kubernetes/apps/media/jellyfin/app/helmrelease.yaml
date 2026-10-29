@@ -123,6 +123,11 @@ spec:
         # /config/data holds jellyfin.db and users, so it stays on the VolSync-backed config claim.
         globalMounts:
           - path: /config/metadata
+      # 95Gi with about 35k of 54k items done filled the 100Gi config claim (2026-10-29).
+      config-trickplay:
+        existingClaim: "{{ .Release.Name }}-trickplay"
+        globalMounts:
+          - path: /config/data/trickplay
       config-logs:
         type: emptyDir
         globalMounts:
