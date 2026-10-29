@@ -7,6 +7,12 @@ bpf:
   datapathMode: netkit
   masquerade: true
   preallocateMaps: true
+  # Cilium's BPF on the uplink drops every 802.1Q-tagged frame unless its VLAN is listed here
+  # (node_config.h read `VLAN_FILTER(ifindex, vlan_id) return false`). The Multus macvlan
+  # networks ride the node's tagged sub-interface, so until this landed every pod leg on them
+  # had only ever counted tx_dropped (2026-10-29).
+  vlanBypass:
+    - 68
 bpfClockProbe: true
 bgpControlPlane:
   enabled: true
