@@ -278,6 +278,19 @@ ALLOWLIST: tuple[Allow, ...] = (
         regex=r'^\s+"master": "wan\.\d+",$',
     ),
     Allow(
+        "kubernetes/apps/kube-system/multus/networks/iot-homeassistant.yaml",
+        ("VLAN interface",),
+        "multus VLAN master interface",
+        regex=r'^\s+"master": "wan\.\d+",$',
+    ),
+    Allow(
+        "kubernetes/apps/kube-system/multus/networks/iot-homeassistant.yaml",
+        ("LAN IP",),
+        "multus static IPAM routes to the phone networks",
+        regex=r'^\s+\{"dst": "[\d.]+/\d+", "gw": "[\d.]+"\},?$',
+        per_line=2,
+    ),
+    Allow(
         "kubernetes/apps/network/envoy-gateway/app/envoy.yaml",
         ("LAN IP",),
         "Envoy LB listener IPs",
