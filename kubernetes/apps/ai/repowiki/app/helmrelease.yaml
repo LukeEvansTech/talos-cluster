@@ -92,7 +92,7 @@ spec:
           app:
             image:
               repository: python
-              tag: "3.15@sha256:f6f18f3fb3bb7894ccb1879c93a328f5df2bee04f7bf0d76ec79ac822fd1312a"
+              tag: "3.15@sha256:f17ec845ebdd4f3347431579e1c22eaeec82913f039f2a54b937c7ff870bacdb"
             command:
               - "python3"
               - "/config/generate.py"
