@@ -234,3 +234,38 @@ spec:
           for: 15m
           labels:
             severity: warning
+        # br_power_bmc_*, br_power_window_open and br_power_watch_* come from br-power's watch
+        # thread, which reads br's BMC every 5 minutes, day and night: unlike the snapshots
+        # above, these are live.
+        - alert: BrStorageOnOutsideWindow
+          annotations:
+            summary: >-
+              br-storage has been on for 30m with no br-power window owning it, so nothing will
+              shut it down: left on by hand, or a night run on a box that was on already. Run
+              br/up.sh --end after a hand power-on, otherwise power it off through the BMC.
+          expr: |-
+            br_power_bmc_power_on == 1 and br_power_window_open == 0
+          for: 30m
+          labels:
+            severity: warning
+        - alert: BrStorageBmcUnreachable
+          annotations:
+            summary: >-
+              br-power has not reached br-storage's BMC for an hour. The friend's gateway or
+              internet is probably down; br cannot be powered on or off until it returns.
+          expr: |-
+            br_power_bmc_reachable == 0
+          for: 1h
+          labels:
+            severity: warning
+        - alert: BrPowerWatchStale
+          annotations:
+            summary: >-
+              br-power's BMC watch has not written in over 30m, or its metrics are absent. Check
+              `docker logs br-power` on the NAS.
+          expr: |-
+            time() - br_power_watch_timestamp_seconds > 1800
+            or absent(br_power_watch_timestamp_seconds)
+          for: 15m
+          labels:
+            severity: warning
