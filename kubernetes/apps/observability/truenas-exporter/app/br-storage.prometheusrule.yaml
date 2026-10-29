@@ -241,8 +241,9 @@ spec:
           annotations:
             summary: >-
               br-storage has been on for 30m with no br-power window owning it, so nothing will
-              shut it down: left on by hand, or a night run on a box that was on already. Run
-              br/up.sh --end after a hand power-on, otherwise power it off through the BMC.
+              shut it down: powered on outside br/up.sh, a night run on a box that was on
+              already, or a deadline shutdown that failed. Shut it down through the BMC
+              (br/power.sh with GracefulShutdown, in the truenas Scratch notes).
           expr: |-
             br_power_bmc_power_on == 1 and br_power_window_open == 0
           for: 30m
