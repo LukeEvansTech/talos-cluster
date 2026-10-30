@@ -84,8 +84,10 @@ spec:
               limits:
                 # .NET caps the managed heap at 75% of this; at 4Gi Sonarr hit
                 # OutOfMemoryException near 3.2GiB during large series searches
-                # and queue reads, six times in two days (2026-10-22/24).
-                memory: 6Gi
+                # and queue reads, six times in two days (2026-10-22/24). At 6Gi
+                # it still ran out near 4.5GiB, most hours, on the hourly
+                # Profilarr upgrade search of Bleach (2026-10-29/30).
+                memory: 10Gi
           metrics:
             dependsOn: app
             image:

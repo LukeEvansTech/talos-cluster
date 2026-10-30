@@ -83,6 +83,9 @@ spec:
           - path: /config/config.yml
             subPath: config.yml
             readOnly: true
+          - path: /config/trending-add.yml
+            subPath: trending-add.yml
+            readOnly: true
       assets:
         type: emptyDir
         globalMounts:
