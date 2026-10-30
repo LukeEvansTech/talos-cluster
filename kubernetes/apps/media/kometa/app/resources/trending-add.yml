@@ -3,8 +3,7 @@
 # be filtered. TMDb's weekly chart is worldwide and carried Indian releases
 # every week (15 added in a month, none wanted). check_missing_filters applies
 # TMDb filters such as original_language to missing items before the add.
-# The rating floor keeps out direct-to-video releases: before it, 13 of 159
-# films added cleared 6.5 on 200+ votes.
+# The rating floor keeps out direct-to-video releases.
 collections:
   TMDb Trending Radarr Feed:
     tmdb_trending_weekly: 100
