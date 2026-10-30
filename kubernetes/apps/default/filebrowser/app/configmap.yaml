@@ -25,6 +25,11 @@ data:
               create: true
               delete: false
               configured: true
+        - path: "/roms"
+          name: roms
+          config:
+            defaultEnabled: true
+            defaultPermissions: *perms
         - path: "/backups/rook"
           name: backups-rook
           config:
