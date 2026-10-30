@@ -26,8 +26,6 @@ libraries:
           visible_home_trending: true
           visible_shared_trending: true
           visible_library_trending: true
-      # Trending adds to Radarr through this file instead, which drops Indian-language films.
-      - file: /config/trending-add.yml
       - default: imdb
         template_variables:
           use_lowest: false
@@ -259,8 +257,8 @@ tautulli:
   url: http://tautulli.media.svc.cluster.local
   apikey: <<TAUTULLI_API_KEY>>
 
-# Global add_missing stays off. Only IMDb Top 250, Oscar Best Picture and TMDb
-# Trending (trending-add.yml) add missing titles, 2160p with
+# Global add_missing stays off. Only IMDb Top 250 and Oscar Best Picture add
+# missing titles to Radarr, 2160p with
 # search on add, tagged "kometa" plus a per-source tag so each list's additions
 # can be found and judged in Radarr and Sonarr.
 radarr:
