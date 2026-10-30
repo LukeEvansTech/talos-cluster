@@ -18,7 +18,7 @@ spec:
           app:
             image:
               repository: ghcr.io/lukeevanstech/shelly-prometheus-exporter
-              tag: 0.4.1@sha256:a64977f1bbb38b71da946526953b57aa139973c8c274d4187065e2aca0ea08bc
+              tag: 0.4.1@sha256:02a5521e3d774b88211bced3d40024731ac4220bba38a383d41ff1c4df2de335
             args:
               - --config
               - /config/config.yaml
