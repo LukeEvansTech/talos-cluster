@@ -95,6 +95,12 @@ spec:
         path: /mnt/pool/media
         globalMounts:
           - path: /media
+      roms:
+        type: nfs
+        server: ${SECRET_STORAGE_SERVER:-localhost}
+        path: ${SECRET_STORAGE_SERVER_GAMES_NFS}
+        globalMounts:
+          - path: /roms
       backups-rook:
         type: nfs
         server: ${SECRET_STORAGE_SERVER:-localhost}
