@@ -88,7 +88,8 @@ spec:
                 # it still ran out near 4.5GiB, most hours, on the hourly
                 # Profilarr upgrade search of Bleach (2026-10-29/30). At 10Gi that
                 # search reached 7Gi of a 7.5GiB heap; nodes have ~190Gi each.
-                memory: 16Gi
+                # At 16Gi it reached 10.6Gi of a 12GiB heap (2026-10-30).
+                memory: 24Gi
           metrics:
             dependsOn: app
             image:
