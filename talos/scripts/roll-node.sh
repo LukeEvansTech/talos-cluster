@@ -32,7 +32,7 @@ fail() {
 }
 tools() { kubectl -n rook-ceph exec deploy/rook-ceph-tools -- "$@"; }
 # Runs privileged with hostPID on the node, so it is digest-pinned (Renovate: .renovaterc.json5).
-helper_image="docker.io/library/busybox:1.38.0@sha256:fd7dc98638c8e305f4dc34e979f1c0fdfdcaeb0fbf8fcff77ae834b6da3d7e6e"
+helper_image="docker.io/library/busybox:1.38.0@sha256:a46257e06c82ad85242d0d38077d0a52d9896389ca60a1a59d3463db586e5fa4"
 # Any unhandled failure still ends in the marker a backgrounded caller waits on.
 trap 'echo "ROLL-FAIL $node unexpected failure at line $LINENO: $BASH_COMMAND"' ERR
 trap 'echo "ROLL-FAIL $node interrupted"; exit 130' INT TERM HUP
