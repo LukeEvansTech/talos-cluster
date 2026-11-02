@@ -9,8 +9,10 @@ tests:
   # Fresh exporter pod: the series appears at 5 and holds.
   - interval: 1m
     input_series:
-      - series: 'ruckus_ap_reboot_total{job="ruckus-exporter",site="gh",ap_name="ap-1",reason="powercycle",pod="a"}'
+      - series: 'ruckus_ap_reboot_total{job="ruckus-exporter",site="gh",ap_name="ap-1",ap_mac="x",reason="powercycle",pod="a"}'
         values: "_x40 5x60"
+      - series: 'ruckus_ap_status{job="ruckus-exporter",site="gh",ap_name="ap-1",ap_mac="x",ap_model="m",pod="a"}'
+        values: "_x40 1x60"
     alert_rule_test:
       - eval_time: 41m
         alertname: RuckusApRebooted
@@ -21,8 +23,10 @@ tests:
   # A power cut: 5 -> 6 fires with the reason, and clears after 30m.
   - interval: 1m
     input_series:
-      - series: 'ruckus_ap_reboot_total{job="ruckus-exporter",site="gh",ap_name="ap-1",reason="powercycle",pod="a"}'
+      - series: 'ruckus_ap_reboot_total{job="ruckus-exporter",site="gh",ap_name="ap-1",ap_mac="x",reason="powercycle",pod="a"}'
         values: "5x59 6x60"
+      - series: 'ruckus_ap_status{job="ruckus-exporter",site="gh",ap_name="ap-1",ap_mac="x",ap_model="m",pod="a"}'
+        values: "1x120"
     alert_rule_test:
       - eval_time: 61m
         alertname: RuckusApRebooted
@@ -32,6 +36,7 @@ tests:
               job: ruckus-exporter
               site: gh
               ap_name: ap-1
+              ap_mac: x
               reason: powercycle
               pod: a
             exp_annotations:
@@ -42,12 +47,49 @@ tests:
   # A decrease (5 -> 3) is what increase() would misread as a reset plus 3 reboots.
   - interval: 1m
     input_series:
-      - series: 'ruckus_ap_reboot_total{job="ruckus-exporter",site="gh",ap_name="ap-1",reason="powercycle",pod="a"}'
+      - series: 'ruckus_ap_reboot_total{job="ruckus-exporter",site="gh",ap_name="ap-1",ap_mac="x",reason="powercycle",pod="a"}'
         values: "5x59 3x60"
+      - series: 'ruckus_ap_status{job="ruckus-exporter",site="gh",ap_name="ap-1",ap_mac="x",ap_model="m",pod="a"}'
+        values: "1x120"
     alert_rule_test:
       - eval_time: 61m
         alertname: RuckusApRebooted
         exp_alerts: []
+  # Disconnected for 10m: the exporter writes N/A counters as 0, then the old count returns.
+  - interval: 1m
+    input_series:
+      - series: 'ruckus_ap_reboot_total{job="ruckus-exporter",site="gh",ap_name="ap-1",ap_mac="x",reason="powercycle",pod="a"}'
+        values: "5x49 0x9 5x60"
+      - series: 'ruckus_ap_status{job="ruckus-exporter",site="gh",ap_name="ap-1",ap_mac="x",ap_model="m",pod="a"}'
+        values: "1x49 0x9 1x60"
+    alert_rule_test:
+      - eval_time: 61m
+        alertname: RuckusApRebooted
+        exp_alerts: []
+      - eval_time: 85m
+        alertname: RuckusApRebooted
+        exp_alerts: []
+  # Scrape succeeds but the AP-stats call fails, so no AP series reach Prometheus.
+  - interval: 1m
+    input_series:
+      - series: 'up{job="ruckus-exporter",site="gh",pod="a"}'
+        values: "1x30"
+      - series: 'ruckus_scrape_success{job="ruckus-exporter",site="gh",pod="a"}'
+        values: "1x30"
+      - series: 'up{job="ruckus-exporter",site="cr",pod="b"}'
+        values: "1x30"
+      - series: 'ruckus_ap_status{job="ruckus-exporter",site="cr",ap_name="ap-2",ap_mac="y",ap_model="m",pod="b"}'
+        values: "1x30"
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: RuckusExporterDown
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              job: ruckus-exporter
+              site: gh
+            exp_annotations:
+              summary: "Ruckus exporter for site gh is down or cannot read its controller's APs."
   # cr has no target at all; gh answers but cannot reach its controller.
   - interval: 1m
     input_series:
@@ -67,13 +109,13 @@ tests:
               job: ruckus-exporter
               site: gh
             exp_annotations:
-              summary: "Ruckus exporter for site gh is down or cannot reach its controller."
+              summary: "Ruckus exporter for site gh is down or cannot read its controller's APs."
           - exp_labels:
               severity: warning
               job: ruckus-exporter
               site: cr
             exp_annotations:
-              summary: "Ruckus exporter for site cr is down or cannot reach its controller."
+              summary: "Ruckus exporter for site cr is down or cannot read its controller's APs."
   - interval: 1m
     input_series:
       - series: 'ruckus_ap_status{job="ruckus-exporter",site="cr",ap_name="ap-2",ap_model="m",ap_mac="x"}'
