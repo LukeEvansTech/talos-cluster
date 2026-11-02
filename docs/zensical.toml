@@ -106,6 +106,7 @@ nav = [
     { "Plex exporter" = "apps/plex-exporter.md" },
     { "Pocket ID" = "apps/pocket-id.md" },
     { "Prowler" = "apps/prowler.md" },
+    { "qBittorrent" = "apps/qbittorrent.md" },
     { "Radarr" = "apps/radarr.md" },
     { "Reactive Resume" = "apps/reactiveresume.md" },
     { "Reclaimerr" = "apps/reclaimerr.md" },
