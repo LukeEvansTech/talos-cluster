@@ -31,7 +31,7 @@ spec:
               # A digest bump once moved this image's runtime to JRuby 10 under an unchanged
               # tag and broke the plugin (docs/docs/troubleshooting/kb/157-digest-bump-jruby.md).
               repository: ghcr.io/lukeevanstech/logstash-sentinel
-              tag: 9.5.5@sha256:0698024a09e07429043df9b2e46473db7219180488f5a2c98ea91e32f8099df5
+              tag: 9.5.6@sha256:823a072fe305d9c1572679fa595cc4c04223e77369fdf69306780eda78d3a0ae
             env:
               TZ: ${TIMEZONE}
               # Also bounds Netty's off-heap growth; uncapped it OOMKilled about every 4h
