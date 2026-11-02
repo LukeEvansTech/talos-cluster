@@ -43,7 +43,7 @@ spec:
           app:
             image:
               repository: ghcr.io/gregtwallace/certwarden
-              tag: v0.30.1@sha256:df553c2242b2a8b972b5281c5e5e94db005bbfe33dc321501890342b95b34e2d
+              tag: v0.31.0@sha256:0db81a87e9679430c2e7fe4600b205371f0c17c42c040cca4f293b492254ec36
             env:
               - name: PATH
                 value: "/shared-bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
