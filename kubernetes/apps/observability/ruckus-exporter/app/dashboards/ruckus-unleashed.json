@@ -2006,7 +2006,6 @@
               "model": 13,
               "rssi_level": 14,
               "health_level": 15,
-              "vlan": 16,
               "ipv6": 17
             },
             "renameByName": {

@@ -2,6 +2,7 @@
 # dashboards/ruckus-unleashed.json is upstream's dashboard (ccmpbll/ruckus-unleashed-exporter,
 # GPL-3.0, tag v2026.10.20), modified: a multi-select `site` variable replaces the unused
 # datasource picker, every ruckus_* selector filters on it, and the client-detail join adds site.
+# The client table's column-order entry for vlan is dropped: the identifier scan reads it as a VLAN ID.
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/grafana.integreatly.org/grafanadashboard_v1beta1.json
 apiVersion: grafana.integreatly.org/v1beta1
 kind: GrafanaDashboard
