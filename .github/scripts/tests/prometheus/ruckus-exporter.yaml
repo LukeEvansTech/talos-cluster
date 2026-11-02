@@ -69,6 +69,30 @@ tests:
       - eval_time: 85m
         alertname: RuckusApRebooted
         exp_alerts: []
+  # A 40m power cut: counters read 0 while disconnected, then return one higher.
+  - interval: 1m
+    input_series:
+      - series: 'ruckus_ap_reboot_total{job="ruckus-exporter",site="gh",ap_name="ap-1",ap_mac="x",reason="powercycle",pod="a"}'
+        values: "5x59 0x39 6x60"
+      - series: 'ruckus_ap_status{job="ruckus-exporter",site="gh",ap_name="ap-1",ap_mac="x",ap_model="m",pod="a"}'
+        values: "1x59 0x39 1x60"
+    alert_rule_test:
+      - eval_time: 101m
+        alertname: RuckusApRebooted
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              job: ruckus-exporter
+              site: gh
+              ap_name: ap-1
+              ap_mac: x
+              reason: powercycle
+              pod: a
+            exp_annotations:
+              summary: "Ruckus AP ap-1 at site gh rebooted (reason: powercycle; powercycle means it lost power)."
+      - eval_time: 135m
+        alertname: RuckusApRebooted
+        exp_alerts: []
   # Scrape succeeds but the AP-stats call fails, so no AP series reach Prometheus.
   - interval: 1m
     input_series:

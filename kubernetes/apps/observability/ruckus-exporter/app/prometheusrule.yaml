@@ -43,9 +43,11 @@ spec:
           labels:
             severity: warning
         # The reboot counters are gauges read from the controller, so increase() would read any
-        # decrease as a reset and fire; a plain delta cannot. A series younger than 30m (a fresh
-        # exporter pod) has no offset sample and so cannot fire either. A disconnected AP reports
-        # its counters as N/A, which the exporter writes as 0, so both ends must be connected.
+        # decrease as a reset and fire; comparing against a past maximum cannot. A disconnected AP
+        # reports its counters as N/A, which the exporter writes as 0, so only connected samples
+        # count on either side. The baseline is the highest connected count in the 6h before the
+        # last 30m, so a reboot is still seen after an outage of up to about 6h, and a series with
+        # no history (a fresh exporter pod) has no baseline and cannot fire.
         - alert: RuckusApRebooted
           annotations:
             summary: "Ruckus AP {{ $labels.ap_name }} at site {{ $labels.site }} rebooted (reason: {{ $labels.reason }}; powercycle means it lost power)."
@@ -56,10 +58,12 @@ spec:
               ruckus_ap_status{job="ruckus-exporter"} == 1
             )
             -
-            (
-              ruckus_ap_reboot_total{job="ruckus-exporter"} offset 30m
-              and on (site, ap_mac, ap_name)
-              ruckus_ap_status{job="ruckus-exporter"} offset 30m == 1
+            max_over_time(
+              (
+                ruckus_ap_reboot_total{job="ruckus-exporter"}
+                and on (site, ap_mac, ap_name)
+                ruckus_ap_status{job="ruckus-exporter"} == 1
+              )[6h:1m] offset 30m
             )
             > 0
           labels:
