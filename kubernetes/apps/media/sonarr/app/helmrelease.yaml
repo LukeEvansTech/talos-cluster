@@ -82,17 +82,9 @@ spec:
               requests:
                 cpu: 500m
               limits:
-                # .NET caps the managed heap at 75% of this; at 4Gi Sonarr hit
-                # OutOfMemoryException near 3.2GiB during large series searches
-                # and queue reads, six times in two days (2026-10-22/24). At 6Gi
-                # it still ran out near 4.5GiB, most hours, on the hourly
-                # Profilarr upgrade search of Bleach (2026-10-29/30). At 10Gi that
-                # search reached 7Gi of a 7.5GiB heap; nodes have ~190Gi each.
-                # At 16Gi it reached 10.6Gi of a 12GiB heap (2026-10-30); at 24Gi,
-                # 12.5Gi of 18GiB (2026-11-01); at 40Gi an Attack on Titan search
-                # climbed 5Gi per 15 min past 17Gi of 30GiB the same morning. At
-                # 64Gi, concurrent Pokemon + Attack on Titan searches passed 28Gi
-                # of 48GiB (2026-11-02).
+                # .NET caps the managed heap at 75% of this. Profilarr's hourly
+                # upgrade searches of very large series (Bleach, Pokemon, Attack
+                # on Titan) need tens of GiB; sizing history is in git log.
                 memory: 96Gi
           metrics:
             dependsOn: app
