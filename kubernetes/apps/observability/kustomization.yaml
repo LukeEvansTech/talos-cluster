@@ -35,6 +35,7 @@ resources:
   - ./pushoverquota/ks.yaml
   - ./qbittorrent-exporter/ks.yaml
   - ./redfish-fleet/ks.yaml
+  - ./ruckus-exporter/ks.yaml
   - ./sabnzbd-dashboard/ks.yaml
   - ./seedbox/ks.yaml
   - ./silence-operator/ks.yaml

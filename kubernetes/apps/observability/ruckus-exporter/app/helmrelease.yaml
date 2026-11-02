@@ -1,0 +1,109 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: &app ruckus-exporter
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: ruckus-exporter
+  values:
+    # The exporter serves one controller per process, so each site gets its own controller.
+    controllers:
+      gh:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        containers:
+          app:
+            image: &image
+              repository: docker.io/ccmpbll/ruckus-unleashed-exporter
+              tag: 2026.10.20@sha256:3bb23b049a03fec6739ff803c3c870234f80d37bc58f55acb1dfc2c157019d8d
+            env:
+              RUCKUS_HOST:
+                valueFrom:
+                  secretKeyRef:
+                    name: ruckus-exporter-secret
+                    key: RUCKUS_GH_HOST
+              RUCKUS_USER:
+                valueFrom:
+                  secretKeyRef:
+                    name: ruckus-exporter-secret
+                    key: RUCKUS_GH_USERNAME
+              RUCKUS_PASS:
+                valueFrom:
+                  secretKeyRef:
+                    name: ruckus-exporter-secret
+                    key: RUCKUS_GH_PASSWORD
+            # TCP only: an HTTP probe on /metrics would trigger a live controller scrape.
+            probes: &probes
+              liveness: &tcpProbe
+                enabled: true
+                custom: true
+                spec:
+                  tcpSocket:
+                    port: 9785
+                  periodSeconds: 30
+              readiness: *tcpProbe
+            resources: &resources
+              requests:
+                cpu: 10m
+                memory: 64Mi
+              limits:
+                memory: 256Mi
+            securityContext: &securityContext
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop:
+                  - ALL
+      cr:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        containers:
+          app:
+            image: *image
+            env:
+              RUCKUS_HOST:
+                valueFrom:
+                  secretKeyRef:
+                    name: ruckus-exporter-secret
+                    key: RUCKUS_CR_HOST
+              RUCKUS_USER:
+                valueFrom:
+                  secretKeyRef:
+                    name: ruckus-exporter-secret
+                    key: RUCKUS_CR_USERNAME
+              RUCKUS_PASS:
+                valueFrom:
+                  secretKeyRef:
+                    name: ruckus-exporter-secret
+                    key: RUCKUS_CR_PASSWORD
+            probes: *probes
+            resources: *resources
+            securityContext: *securityContext
+    defaultPodOptions:
+      securityContext:
+        # The image's own non-root user.
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+    service:
+      gh:
+        controller: gh
+        primary: true
+        labels:
+          site: gh
+        ports:
+          metrics:
+            port: 9785
+            protocol: TCP
+      cr:
+        controller: cr
+        labels:
+          site: cr
+        ports:
+          metrics:
+            port: 9785
+            protocol: TCP

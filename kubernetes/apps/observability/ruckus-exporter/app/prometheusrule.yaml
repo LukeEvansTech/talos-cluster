@@ -1,0 +1,70 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: ruckus-exporter.rules
+spec:
+  groups:
+    - name: ruckus-exporter.rules
+      rules:
+        # A controller the exporter cannot reach still answers 200, either with
+        # ruckus_scrape_success 0 or, when only the AP-stats call fails, with success 1 and no AP
+        # series at all; both leave the AP alerts blind, so both belong here.
+        - alert: RuckusExporterDown
+          annotations:
+            summary: "Ruckus exporter for site {{ $labels.site }} is down or cannot read its controller's APs."
+          # Every branch reduces to (job, site) so one outage raises one alert per site.
+          expr: |-
+            count by (job, site) (
+              up{job="ruckus-exporter"} == 0
+              or
+              ruckus_scrape_success{job="ruckus-exporter"} == 0
+            )
+            or
+            (
+              count by (job, site) (up{job="ruckus-exporter"} == 1)
+              unless on (site)
+              count by (site) (ruckus_ap_status{job="ruckus-exporter"})
+            )
+            or
+            absent(up{job="ruckus-exporter", site="gh"})
+            or
+            absent(up{job="ruckus-exporter", site="cr"})
+          for: 15m
+          labels:
+            severity: warning
+        - alert: RuckusApDisconnected
+          annotations:
+            summary: "Ruckus AP {{ $labels.ap_name }} at site {{ $labels.site }} has been disconnected from its controller for 5m."
+          expr: |-
+            ruckus_ap_status{job="ruckus-exporter"} == 0
+          for: 5m
+          labels:
+            severity: warning
+        # The reboot counters are gauges read from the controller, so increase() would read any
+        # decrease as a reset and fire; comparing against a past maximum cannot. A disconnected AP
+        # reports its counters as N/A, which the exporter writes as 0, so only connected samples
+        # count on either side. The baseline is the highest connected count in the 6h before the
+        # last 30m, so a reboot is still seen after an outage of up to about 6h, and a series with
+        # no history (a fresh exporter pod) has no baseline and cannot fire.
+        - alert: RuckusApRebooted
+          annotations:
+            summary: "Ruckus AP {{ $labels.ap_name }} at site {{ $labels.site }} rebooted (reason: {{ $labels.reason }}; powercycle means it lost power)."
+          expr: |-
+            (
+              ruckus_ap_reboot_total{job="ruckus-exporter"}
+              and on (site, ap_mac, ap_name)
+              ruckus_ap_status{job="ruckus-exporter"} == 1
+            )
+            -
+            max_over_time(
+              (
+                ruckus_ap_reboot_total{job="ruckus-exporter"}
+                and on (site, ap_mac, ap_name)
+                ruckus_ap_status{job="ruckus-exporter"} == 1
+              )[6h:1m] offset 30m
+            )
+            > 0
+          labels:
+            severity: warning
