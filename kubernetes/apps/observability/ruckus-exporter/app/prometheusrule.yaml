@@ -1,0 +1,46 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: ruckus-exporter.rules
+spec:
+  groups:
+    - name: ruckus-exporter.rules
+      rules:
+        # The exporter answers 200 with ruckus_scrape_success 0 when the controller is unreachable,
+        # and then emits no AP series, so that case belongs here rather than to the AP alerts.
+        - alert: RuckusExporterDown
+          annotations:
+            summary: "Ruckus exporter for site {{ $labels.site }} is down or cannot reach its controller."
+          expr: |-
+            up{job="ruckus-exporter"} == 0
+            or
+            ruckus_scrape_success{job="ruckus-exporter"} == 0
+            or
+            absent(up{job="ruckus-exporter", site="gh"})
+            or
+            absent(up{job="ruckus-exporter", site="cr"})
+          for: 15m
+          labels:
+            severity: warning
+        - alert: RuckusApDisconnected
+          annotations:
+            summary: "Ruckus AP {{ $labels.ap_name }} at site {{ $labels.site }} has been disconnected from its controller for 5m."
+          expr: |-
+            ruckus_ap_status{job="ruckus-exporter"} == 0
+          for: 5m
+          labels:
+            severity: warning
+        # The reboot counters are gauges read from the controller, so increase() would read any
+        # decrease as a reset and fire; a plain delta cannot. A series younger than 30m (a fresh
+        # exporter pod) has no offset sample and so cannot fire either.
+        - alert: RuckusApRebooted
+          annotations:
+            summary: "Ruckus AP {{ $labels.ap_name }} at site {{ $labels.site }} rebooted (reason: {{ $labels.reason }}; powercycle means it lost power)."
+          expr: |-
+            ruckus_ap_reboot_total{job="ruckus-exporter"}
+            - ruckus_ap_reboot_total{job="ruckus-exporter"} offset 30m
+            > 0
+          labels:
+            severity: warning
