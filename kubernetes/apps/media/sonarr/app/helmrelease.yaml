@@ -20,6 +20,9 @@ spec:
               repository: ghcr.io/home-operations/sonarr
               tag: 5.0.0.2907@sha256:75866f930b8e49c0acfc965c8ace0429231cdc69e2e4b287eb51443aa3249d86
             env:
+              # Compact the large-object heap when fragmented instead of growing into the limit;
+              # big series searches allocate huge release lists (0-9, 7 = aggressive).
+              DOTNET_GCConserveMemory: "7"
               SONARR__APP__INSTANCENAME: Sonarr
               SONARR__APP__THEME: dark
               # v5 coerces None/Basic to Forms; the env var wins over whatever config.xml holds.
@@ -82,10 +85,9 @@ spec:
               requests:
                 cpu: 500m
               limits:
-                # .NET caps the managed heap at 75% of this. Profilarr's hourly
-                # upgrade searches of very large series (Bleach, Pokemon, Attack
-                # on Titan) need tens of GiB; sizing history is in git log.
-                memory: 96Gi
+                # .NET caps the managed heap at 75% of this. Idle use is under 1Gi;
+                # peaks come from Profilarr upgrade searches of very large series.
+                memory: 16Gi
           metrics:
             dependsOn: app
             image:
