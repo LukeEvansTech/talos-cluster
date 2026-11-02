@@ -33,6 +33,10 @@ spec:
               EXECUTIONS_DATA_SAVE_ON_ERROR: all
               EXECUTIONS_DATA_SAVE_ON_SUCCESS: all
               EXECUTIONS_DATA_SAVE_MANUAL_EXECUTIONS: "true"
+              # n8n 3.0 lowers these defaults; pin the 2.x values
+              N8N_RUNNERS_TASK_TIMEOUT: "300"
+              N8N_COMPRESSION_NODE_MAX_DECOMPRESSED_SIZE_BYTES: "2147483648"
+              N8N_COMPRESSION_NODE_MAX_ZIP_ENTRIES: "5000"
             envFrom:
               - secretRef:
                   name: n8n-secret
