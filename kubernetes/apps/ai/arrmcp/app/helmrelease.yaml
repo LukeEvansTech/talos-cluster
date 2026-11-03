@@ -30,7 +30,7 @@ spec:
           app:
             image:
               repository: ghcr.io/bardesss/arr-mcp
-              tag: 1.54.0@sha256:ac629a245870b31ae677c09167568a78196ff02a46526e890d33966f4b4959a7
+              tag: 1.56.0@sha256:97bcba8e07078301139cdf79bc00c4ad024148da5abec41369991e846016ea47
             env:
               ARR_MCP_PORT: &port 6060
               TZ: ${TIMEZONE}
