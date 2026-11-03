@@ -75,3 +75,20 @@ This does not apply to the `remote` templates. Those use `spec.restic` with a di
 it with a `/${APP}` suffix), so there is no shared repository index and this growth math does not
 transfer. Their `cacheCapacity: 16Gi` is the same literal default, unverified against any
 per-app-repository growth measurement.
+
+## volsync: mover anti-affinity (cache placement)
+
+Every mover template carries a _preferred_ `podAntiAffinity` on `kubernetes.io/hostname` against
+other pods labelled `app.kubernetes.io/created-by: volsync`, in any namespace. The cache PVC is
+`miroir-local`, which is node-local and `WaitForFirstConsumer`, so the node the first mover lands on
+holds that app's cache for good, and every later mover for the app must run there. With nothing
+steering that first placement, 90 of the 100 kopia (`nfs`) caches had piled onto one node by
+2026-11-03, against 6 and 4 on the other two (the restic `r2` caches happened to land the other way
+round, 3, 48 and 49). Each kopia cache holds the shared ~7.5Gi index set, so that node had about
+800GB less free `/var` than its peers, which trips `CephNodeDiskspaceWarning` after a burst.
+
+The rule is preferred so that movers still schedule when only one node is available. It only
+affects where a _new_ cache is created: an existing cache's PV node affinity is a hard constraint
+and wins. To move an app's cache, delete its `volsync-src-<app>-nfs-cache` (or `-r2-cache`) PVC
+while no mover is running. The next sync recreates it, and that first sync is slower while the
+cache refills.
