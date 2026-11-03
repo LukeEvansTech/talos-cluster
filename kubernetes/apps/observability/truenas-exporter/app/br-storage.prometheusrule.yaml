@@ -262,7 +262,7 @@ spec:
             and max by (instance) (br_power_powered_on_by_window) == 1
             and max by (instance) (br_power_last_window_start_timestamp_seconds)
               - max by (instance) (br_power_last_window_start_timestamp_seconds offset 1d)
-              > 43200
+              > 43200 < 129600
           for: 2h
           labels:
             severity: warning
