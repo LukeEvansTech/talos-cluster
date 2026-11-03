@@ -143,6 +143,11 @@ spec:
         # running/finished/error signals come from template binary sensors in HA.
         # Washer only: the dishwasher reports unavailable whenever it is switched off at its
         # panel, which is most of the day, so an unreachable alert on it would be noise.
+        # Both machines hold the "end" status for 30 seconds before going to power_off, so the
+        # finished helpers carry a 15-minute delay_off and the washer's also counts cool_down
+        # (the anti-crease tumble after drying) as finished; the alerts below fire on the first
+        # scrapes that see them and are labelled pushover_event so they push once, with no
+        # resolved message, through the pushover-event route.
         - alert: LgWasherUnavailable
           annotations:
             description: >-
@@ -167,21 +172,23 @@ spec:
             severity: warning
         - alert: LgWasherFinished
           annotations:
-            description: The washing finished ten minutes ago and is still in the drum.
+            description: The washing machine has finished its cycle.
             summary: Washing machine finished.
           expr: >-
             homeassistant_binary_sensor_state{entity="binary_sensor.washer_finished"} == 1
-          for: 10m
+          for: 1m
           labels:
+            pushover_event: "true"
             severity: warning
         - alert: LgDishwasherFinished
           annotations:
-            description: The dishwasher finished ten minutes ago and has not been opened.
+            description: The dishwasher has finished its cycle.
             summary: Dishwasher finished.
           expr: >-
             homeassistant_binary_sensor_state{entity="binary_sensor.dishwasher_finished"} == 1
-          for: 10m
+          for: 1m
           labels:
+            pushover_event: "true"
             severity: warning
         - alert: LgApplianceRunningTooLong
           annotations:
