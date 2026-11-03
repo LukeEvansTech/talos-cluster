@@ -46,6 +46,15 @@ spec:
           - name: pushover_priority
             value: emergency
             matchType: =
+      # Events rather than conditions (a wash finishing): one push when they fire and no
+      # resolved message, whatever their severity. Alerts opt in with pushover_event=true.
+      - receiver: pushover-event
+        groupWait: 30s
+        repeatInterval: 24h
+        matchers:
+          - name: pushover_event
+            value: "true"
+            matchType: =
       - receiver: pushover
         matchers:
           - name: severity
@@ -164,6 +173,21 @@ spec:
           message: *message
           priority: "0"
           sendResolved: true
+          title: *title
+          ttl: 86400s
+          token:
+            name: *secret
+            key: ALERTMANAGER_PUSHOVER_TOKEN
+          userKey:
+            name: *secret
+            key: PUSHOVER_USER_KEY
+          urlTitle: View in Alertmanager
+    - name: pushover-event
+      pushoverConfigs:
+        - html: true
+          message: *message
+          priority: "0"
+          sendResolved: false
           title: *title
           ttl: 86400s
           token:
