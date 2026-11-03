@@ -414,6 +414,17 @@
       minimumGroupSize: 1,
     },
     {
+      // n8n's task-runner docs require the runners image to match the n8n version.
+      description: "n8n Group (app + runners sidecar move in lockstep)",
+      groupName: "n8n",
+      matchDatasources: ["docker"],
+      matchPackageNames: ["ghcr.io/n8n-io/n8n", "ghcr.io/n8n-io/runners"],
+      group: {
+        commitMessageTopic: "{{{groupName}}} group",
+      },
+      minimumGroupSize: 2,
+    },
+    {
       description: "Profilarr Group (app + parser move in lockstep)",
       groupName: "Profilarr",
       matchDatasources: ["docker"],

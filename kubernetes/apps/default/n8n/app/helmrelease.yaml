@@ -33,8 +33,10 @@ spec:
               EXECUTIONS_DATA_SAVE_ON_ERROR: all
               EXECUTIONS_DATA_SAVE_ON_SUCCESS: all
               EXECUTIONS_DATA_SAVE_MANUAL_EXECUTIONS: "true"
+              # Code nodes run in the runners sidecar, away from the credentials and encryption key
+              N8N_RUNNERS_MODE: external
               # n8n 3.0 lowers these defaults; pin the 2.x values
-              N8N_RUNNERS_TASK_TIMEOUT: "300"
+              N8N_RUNNERS_TASK_TIMEOUT: &taskTimeout "300"
               N8N_COMPRESSION_NODE_MAX_DECOMPRESSED_SIZE_BYTES: "2147483648"
               N8N_COMPRESSION_NODE_MAX_ZIP_ENTRIES: "5000"
             envFrom:
@@ -46,6 +48,39 @@ spec:
                 memory: 512Mi
               limits:
                 memory: 2Gi
+          runners:
+            image:
+              repository: ghcr.io/n8n-io/runners
+              tag: 3.1.0@sha256:730c78a31b9d5711319fff053a18e98ba5265f11769c88d1917506e9b33d2616
+            env:
+              GENERIC_TIMEZONE: ${TIMEZONE}
+              N8N_RUNNERS_AUTH_TOKEN:
+                valueFrom:
+                  secretKeyRef:
+                    name: n8n-secret
+                    key: N8N_RUNNERS_AUTH_TOKEN
+              N8N_RUNNERS_TASK_BROKER_URI: http://127.0.0.1:5679
+              N8N_RUNNERS_TASK_TIMEOUT: *taskTimeout
+            probes:
+              liveness: &runnerProbe
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /healthz
+                    port: 5680
+                  periodSeconds: 10
+              readiness: *runnerProbe
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities: { drop: ["ALL"] }
+            resources:
+              requests:
+                cpu: 10m
+                memory: 128Mi
+              limits:
+                memory: 1Gi
     defaultPodOptions:
       securityContext:
         runAsNonRoot: true
@@ -70,5 +105,14 @@ spec:
     persistence:
       data:
         existingClaim: "{{ .Release.Name }}"
-        globalMounts:
-          - path: /home/node/.n8n
+        advancedMounts:
+          n8n:
+            app:
+              - path: /home/node/.n8n
+      runner-tmp:
+        type: emptyDir
+        advancedMounts:
+          n8n:
+            runners:
+              # Python runner's multiprocessing forkserver socket
+              - path: /tmp
