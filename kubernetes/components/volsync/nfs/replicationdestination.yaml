@@ -20,6 +20,17 @@ spec:
     cleanupTempPVC: true
     copyMethod: Snapshot
     enableFileDeletion: true
+    # Preferred only: spreads new node-local caches; see docs/docs/apps/components.md.
+    moverAffinity:
+      podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/created-by: volsync
+              namespaceSelector: {}
+              topologyKey: kubernetes.io/hostname
     moverSecurityContext:
       runAsUser: ${VOLSYNC_PUID:=1000}
       runAsGroup: ${VOLSYNC_PGID:=1000}
