@@ -223,13 +223,19 @@ def same_name(repo_name: str, image: str) -> bool:
     return bool(a and b) and (a in b or b in a)
 
 
-def source_repo(image: str, meta: dict) -> str | None:
-    """Upstream GitHub `owner/name` from the source label, else from a ghcr.io path."""
+def label_repo(meta: dict) -> tuple[str, str] | None:
+    """GitHub (owner, name) from the image's source label, or None."""
     label = meta.get("labels", {}).get("org.opencontainers.image.source", "")
     match = re.search(r"github\.com[/:]([\w.-]+)/([\w.-]+?)(?:\.git)?(?:[/#?]|$)", label)
+    return (match[1], match[2]) if match else None
+
+
+def source_repo(image: str, meta: dict) -> str | None:
+    """Upstream GitHub `owner/name` from the source label, else from a ghcr.io path."""
+    label = label_repo(meta)
     # A label inherited from a base image or a shared build repo names someone else's releases.
-    if match and same_name(match[2], image):
-        return f"{match[1]}/{match[2]}"
+    if label and same_name(label[1], image):
+        return "/".join(label)
     parts = image.split("/")
     if parts[0] == "ghcr.io" and len(parts) >= 3:
         return f"{parts[1]}/{parts[2]}"
@@ -351,6 +357,9 @@ def release_reasons(image: str, tag: str, info: dict, now: datetime) -> list[str
         if not trackable:
             name = release["tagName"]
             reasons.append(f"upstream {name} is not published as a `{shape(tag)}` tag")
+        elif released > RELEASE_GRACE_DAYS and same_shape and not tag_exists(image, ours):
+            # oxidized-exporter tagged v1.0.6 and v1.0.7 but both image builds failed.
+            reasons.append(f"{WATCH}upstream {release['tagName']} has no `{ours}` image")
         elif released > RELEASE_GRACE_DAYS:
             reasons.append(f"upstream {release['tagName']} released {released} days ago")
     return reasons
@@ -378,7 +387,9 @@ def assess(
     if info:
         release = (info.get("latestRelease") or {}).get("tagName", "")
         # GitHub redirects old renames forever; a move matters once it carries newer releases.
-        if repo and info["nameWithOwner"].lower() != repo.lower() and newer(release, tag):
+        # An image whose own label names the new repository was always built there (miniflux/v2).
+        now_at, built_at = info["nameWithOwner"].lower(), "/".join(label_repo(meta) or ()).lower()
+        if repo and now_at not in (repo.lower(), built_at) and newer(release, tag):
             reasons.append(f"repository moved to {info['nameWithOwner']}")
         if info["isArchived"] and stale:
             reasons.append("upstream archived")
@@ -409,7 +420,7 @@ def render(rows: list[str], watch: list[str], skipped: list[str], checked: int) 
     )
     sections = (
         ("Updates Renovate will not raise", rows),
-        ("Upstream quiet for over a year", watch),
+        ("Upstream quiet for over a year, or released with no image", watch),
     )
     for title, items in sections:
         if items:

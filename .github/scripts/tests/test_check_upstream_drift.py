@@ -179,6 +179,46 @@ CASES = [
         None,
     ),
     (
+        "rename behind a release, label names the new repository",
+        "ghcr.io/o/miniflux",
+        "2.3.4-distroless",
+        {**FRESH, "labels": {"org.opencontainers.image.source": "https://github.com/o/v2"}},
+        "o/miniflux",
+        info("o/v2", "2.3.5", "2026-10-10T00:00:00Z"),
+        {"2.3.5-distroless"},
+        None,
+    ),
+    (
+        "rename behind a release, no label to say so",
+        "ghcr.io/o/miniflux",
+        "2.3.4-distroless",
+        FRESH,
+        "o/miniflux",
+        info("o/v2", "2.3.5", "2026-10-10T00:00:00Z"),
+        {"2.3.5-distroless"},
+        "moved to o/v2",
+    ),
+    (
+        "release whose image build failed",
+        "ghcr.io/o/oxidized-exporter",
+        "v1.0.5",
+        FRESH,
+        "o/oxidized-exporter",
+        info("o/oxidized-exporter", "v1.0.7"),
+        {"v1.0.5"},
+        "has no `v1.0.7` image",
+    ),
+    (
+        "same shape, overdue, image published",
+        "ghcr.io/o/app",
+        "v1.0.5",
+        FRESH,
+        "o/app",
+        info("o/app", "v1.0.7"),
+        {"v1.0.7"},
+        "released 42 days ago",
+    ),
+    (
         "short floating track still published",
         "ghcr.io/o/jellyfin",
         "12.2",
@@ -219,6 +259,14 @@ class AssessTest(unittest.TestCase):
         """An old build with nothing else wrong yields a single watch-only reason."""
         old = {"created": "2024-02-16T00:00:00Z", "labels": {}}
         reasons = drift.assess("ghcr.io/o/x", "1.0.0", old, ("o/x", info("o/x", "1.0.0")), NOW)
+        self.assertEqual(len(reasons), 1)
+        self.assertTrue(reasons[0].startswith(drift.WATCH))
+
+    def test_missing_release_image_is_watch_only(self) -> None:
+        """A release upstream never built an image for is a watch row, not an action row."""
+        setattr(drift, "tag_exists", lambda _image, _tag: False)
+        upstream = ("o/x", info("o/x", "v1.0.7"))
+        reasons = drift.assess("ghcr.io/o/x", "v1.0.5", FRESH, upstream, NOW)
         self.assertEqual(len(reasons), 1)
         self.assertTrue(reasons[0].startswith(drift.WATCH))
 
