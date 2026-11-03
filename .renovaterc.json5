@@ -9,11 +9,11 @@
   // cluster runs are extended directly below. phanpy is the only apps/ preset not deployed here.
   extends: [
     "github>LukeEvansTech/renovate-config",
-    "github>home-operations/renovate-presets//apps/cnpg.json5#10.0.1",
-    "github>home-operations/renovate-presets//apps/grafanaDashboards.json5#10.0.1",
-    "github>home-operations/renovate-presets//apps/llamacpp.json5#10.0.1",
-    "github>home-operations/renovate-presets//apps/searxng.json5#10.0.1",
-    "github>home-operations/renovate-presets//apps/talosFactory.json5#10.0.1",
+    "github>home-operations/renovate-presets//apps/cnpg.json5#11.0.0",
+    "github>home-operations/renovate-presets//apps/grafanaDashboards.json5#11.0.0",
+    "github>home-operations/renovate-presets//apps/llamacpp.json5#11.0.0",
+    "github>home-operations/renovate-presets//apps/searxng.json5#11.0.0",
+    "github>home-operations/renovate-presets//apps/talosFactory.json5#11.0.0",
   ],
   // Assign manual PRs to me so they reach my GitHub "Participating" notifications.
   // assignAutomerge:false (the Renovate default, pinned here for clarity) means
@@ -193,8 +193,14 @@
       description: "Protected infra — never auto-merge, manual review only",
       // The datasource list must cover every datasource the preset auto-merges,
       // or a tier-0 component tracked through another one slips past the guard
-      // entirely. github-releases was exactly that gap (#3869).
-      matchDatasources: ["docker", "helm", "github-releases"],
+      // entirely. github-releases was exactly that gap (#3869), and custom.talos-factory became one
+      // when talosFactory 11.0.0 split Talos patches into a branch of factory pins alone.
+      matchDatasources: [
+        "docker",
+        "helm",
+        "github-releases",
+        "custom.talos-factory",
+      ],
       matchPackageNames: [
         "/gateway-api/", // Envoy Gateway CRDs; envoyproxy itself is protected below
         "/cilium/",
@@ -482,6 +488,9 @@
       // without a matching node image, and a 3 would hold the whole group back
       // until every pin moved.
       minimumGroupSize: 2,
+      // The talosFactory preset splits patches out for its own datasource only, which would put
+      // the node pins and the CLI pins on separate branches; split every Talos pin the same way.
+      separateMinorPatch: true,
     },
     {
       description: "Your Spotify Group",
