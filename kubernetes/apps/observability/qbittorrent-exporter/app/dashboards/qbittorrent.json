@@ -1468,7 +1468,7 @@
       "pluginVersion": "11.4.0",
       "targets": [
         {
-          "expr": "qbittorrent_torrent_download_speed_bytes",
+          "expr": "max by (name) (qbittorrent_torrent_download_speed_bytes) and on (name) topk(20, max by (name) (max_over_time(qbittorrent_torrent_download_speed_bytes[$__range] @ end())) > 0)",
           "legendFormat": "{{name}}",
           "refId": "A",
           "datasource": {
@@ -1565,7 +1565,7 @@
       "pluginVersion": "11.4.0",
       "targets": [
         {
-          "expr": "qbittorrent_torrent_upload_speed_bytes",
+          "expr": "max by (name) (qbittorrent_torrent_upload_speed_bytes) and on (name) topk(20, max by (name) (max_over_time(qbittorrent_torrent_upload_speed_bytes[$__range] @ end())) > 0)",
           "legendFormat": "{{name}}",
           "refId": "A",
           "datasource": {
@@ -1841,7 +1841,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "qbittorrent_torrent_ratio",
+          "expr": "topk(50, max by (name) (qbittorrent_torrent_ratio))",
           "legendFormat": "{{name}}",
           "refId": "A"
         }
