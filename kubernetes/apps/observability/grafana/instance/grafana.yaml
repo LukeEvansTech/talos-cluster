@@ -60,7 +60,8 @@ spec:
                   cpu: 50m
                   memory: 512Mi
                 limits:
-                  memory: 1Gi
+                  # 13.3 holds wide range-query results in memory; 1Gi OOMKilled on a 2,900-series panel.
+                  memory: 2Gi
               securityContext:
                 allowPrivilegeEscalation: false
                 readOnlyRootFilesystem: true
