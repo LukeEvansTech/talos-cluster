@@ -42,7 +42,7 @@ tests:
               severity: warning
             exp_annotations:
               summary: >-
-                br-power's last two nightly windows on br-storage both ended without starting replication task 12, so Garage's off-site copy is not moving. One skipped night is normal (task 11 ran into 08:00); two in a row is not. Run br/status.sh 2 in the truenas Scratch notes for each window's log and cr's replication runs.
+                The off-site NAS's last two nightly power windows both ended without starting its Garage replication task, so Garage's off-site copy is not moving. One skipped night is normal (the main replication ran into the morning cut-off); two in a row is not. Check br-power's window log and the replication job history.
       - eval_time: 51h
         alertname: BrStorageGarageFillNotStarted
         exp_alerts:
@@ -51,4 +51,4 @@ tests:
               severity: warning
             exp_annotations:
               summary: >-
-                br-power's last two nightly windows on br-storage both ended without starting replication task 12, so Garage's off-site copy is not moving. One skipped night is normal (task 11 ran into 08:00); two in a row is not. Run br/status.sh 2 in the truenas Scratch notes for each window's log and cr's replication runs.
+                The off-site NAS's last two nightly power windows both ended without starting its Garage replication task, so Garage's off-site copy is not moving. One skipped night is normal (the main replication ran into the morning cut-off); two in a row is not. Check br-power's window log and the replication job history.
