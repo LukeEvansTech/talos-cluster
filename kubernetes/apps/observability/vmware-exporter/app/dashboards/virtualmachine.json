@@ -1876,17 +1876,13 @@
       },
       {
         "allValue": null,
-        "current": {
-          "selected": true,
-          "text": ["All"],
-          "value": ["$__all"]
-        },
+        "current": {},
         "datasource": "$datasource",
         "definition": "label_values(vm_name)",
         "hide": 0,
-        "includeAll": true,
+        "includeAll": false,
         "label": "vm",
-        "multi": true,
+        "multi": false,
         "name": "vm",
         "options": [],
         "query": "label_values(vm_name)",
