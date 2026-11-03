@@ -7,11 +7,15 @@ metadata:
   namespace: observability
 data:
   # Names and the secret keys they read, never values (public repo).
+  # The two WiFi controllers hold different admin passwords, and an enable password's
+  # fingerprint comes from its credential's secret, so each needs its own enable entry:
+  # a shared name would be recreated by one credential and pruned by the other every run.
   credentials.json: |
     [
       {"name": "unimus-ssh",     "type": "USERNAME_SSH",      "username": "unimus", "secret_field": "UNIMUS_SSH_KEY"},
       {"name": "unimus-ssh-rsa", "type": "USERNAME_SSH",      "username": "unimus", "secret_field": "UNIMUS_RSA_SSH_KEY"},
-      {"name": "ruckus-admin",   "type": "USERNAME_PASSWORD", "username_field": "RUCKUS_USERNAME", "secret_field": "RUCKUS_PASSWORD", "enable": "ruckus-enable"}
+      {"name": "ruckus-admin",    "type": "USERNAME_PASSWORD", "username_field": "RUCKUS_USERNAME",    "secret_field": "RUCKUS_PASSWORD",    "enable": "ruckus-enable"},
+      {"name": "ruckus-gh-admin", "type": "USERNAME_PASSWORD", "username_field": "RUCKUS_GH_USERNAME", "secret_field": "RUCKUS_GH_PASSWORD", "enable": "ruckus-gh-enable"}
     ]
   # Descriptions only; every address arrives through the Secret (public repo).
   # core-switch takes the RSA key: its firmware negotiates no other SSH key type.
@@ -23,6 +27,7 @@ data:
       {"name": "firewall",             "host_field": "OPNSENSE_HOST",        "credential": "unimus-ssh"},
       {"name": "nas",                  "host_field": "TRUENAS_HOST",         "credential": "unimus-ssh"},
       {"name": "wifi-controller",      "host_field": "RUCKUS_HOST",          "credential": "ruckus-admin"},
+      {"name": "wifi-controller-gh",   "host_field": "RUCKUS_GH_HOST",       "credential": "ruckus-gh-admin"},
       {"name": "oob-router",           "host_field": "CHATEAU_HOST",         "credential": "unimus-ssh"}
     ]
   seed.py: |-
