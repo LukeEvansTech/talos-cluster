@@ -705,15 +705,6 @@
       versioning: "docker",
     },
     {
-      // pulsarr upstream (github.com/jamcalli/Pulsarr) is still on 0.15.x.
-      // Stray 1.x tags appeared on Docker Hub (1.1.5, 1.1.6) and were pulled.
-      // Block the whole 1.x major until upstream legitimately ships a 1.0 release.
-      description: "Block pulsarr 1.x: no matching upstream release",
-      matchDatasources: ["docker"],
-      matchPackageNames: ["docker.io/lakker/pulsarr"],
-      allowedVersions: "<1.0.0",
-    },
-    {
       // Upstream moved from calver (v2026.9.24) to semver (v0.21.6); docker
       // versioning ranks the old calver tags higher and would "upgrade" back.
       description: "hermes-agent: semver tags only, never the retired calver ones",
