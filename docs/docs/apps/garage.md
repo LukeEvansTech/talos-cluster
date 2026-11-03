@@ -38,8 +38,9 @@ API answers an anonymous GET with 403.
 
 Garage 2.4.0 panicked at startup with `kubernetes_discovery` enabled: its kube client built a
 rustls `ClientConfig` with no crypto provider installed, which crashlooped the pod and stalled the
-Helm rollback, so the image was held at v2.3.0 (#4980). `.renovaterc.json5` blocks only that one
-release, so later patches flow through Renovate normally; 2.4.1 is what runs today (#5009).
+Helm rollback, so the image was held at v2.3.0 (#4980). A `.renovaterc.json5` rule then blocked
+only that one release so later patches still flowed (2.4.1 in #5009); it was removed once the
+cluster had moved past it to v2.5.0.
 
 ## Cluster-to-NAS sync
 
@@ -71,4 +72,3 @@ come from the `garage` 1Password item.
 - `kubernetes/apps/storage/garage/app/sync-cronjob.yaml`, `sync-externalsecret.yaml` - the
   cluster-to-NAS backup job.
 - `kubernetes/apps/storage/garage/webui/` - the browser UI and its ExternalSecret.
-- `.renovaterc.json5` - the standing block on Garage `v2.4.0`.

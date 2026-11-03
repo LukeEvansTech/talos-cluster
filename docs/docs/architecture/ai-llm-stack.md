@@ -554,8 +554,7 @@ Increase `MAX_REPOS_PER_RUN` only if the model has headroom.
   `LiteLLMModel`/`LiteLLMMCPServer`/`LiteLLMProxy` CR rolls the Deployment on its own, with no
   Reloader annotation or manual restart needed.
 - **open-webui's database is still SQLite**: on a `ReadWriteOnce` ceph-block PVC, with `strategy:
-Recreate` and `TIMER_POLL_INTERVAL: "30"` working around a full-table-scan bug in the unused
-  scheduler loop (see [Open WebUI](../apps/open-webui.md)). Web search, RAG embeddings, and
+Recreate` (see [Open WebUI](../apps/open-webui.md)). Web search, RAG embeddings, and
   Dragonfly-backed websockets are independent of this. Postgres migration is a separate,
   not-yet-scheduled decision.
 - **Cross-namespace netpol**: `kubernetes/apps/ai/netpol.yaml` allows ingress to the `ai`
