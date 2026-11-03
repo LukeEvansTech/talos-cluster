@@ -16,18 +16,41 @@ spec:
           app:
             image:
               repository: ghcr.io/maintainerr/maintainerr
-              tag: 2.19.0@sha256:bf50fe264b3818dcef2f7ea7345a6db531d21ec333d3891cca9a2c0b242b34dd
+              tag: 3.31.0@sha256:33d86e5f03ed25204788b1e9cd9a2b3f0299cf49fae968220484b57008962399
             env:
+              TELEMETRY: "off"
               TZ: ${TIMEZONE}
               UI_PORT: &port 80
             probes:
               liveness:
                 enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /api/health/live
+                    port: *port
+                  initialDelaySeconds: 0
+                  periodSeconds: 10
+                  timeoutSeconds: 1
+                  failureThreshold: 3
               readiness:
                 enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /api/health/ready
+                    port: *port
+                  initialDelaySeconds: 0
+                  periodSeconds: 10
+                  timeoutSeconds: 1
+                  failureThreshold: 3
               startup:
                 enabled: true
+                custom: true
                 spec:
+                  httpGet:
+                    path: /api/health/live
+                    port: *port
                   failureThreshold: 30
                   periodSeconds: 5
             securityContext:
@@ -56,7 +79,8 @@ spec:
         annotations:
           gatus.home-operations.com/endpoint: |-
             group: internal
-            conditions: ["[STATUS] == 404"]
+            url: https://{{ .Release.Name }}.${SECRET_DOMAIN}/api/health/ready
+            conditions: ["[STATUS] == 200"]
         hostnames:
           - "{{ .Release.Name }}.${SECRET_DOMAIN}"
         parentRefs:
