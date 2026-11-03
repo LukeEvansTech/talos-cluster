@@ -20,9 +20,10 @@ releases:
 
   - name: envoy-gateway
     namespace: network
-    chart: oci://mirror.gcr.io/envoyproxy/gateway-helm
-    # Unprefixed like the Flux OCIRepository: Renovate proposes the unprefixed tag, so a v-prefixed
-    # pin left its update branch erroring (v1.9.1 -> 1.9.2).
+    # Docker Hub, not mirror.gcr.io: the shared preset renames helmfile deps to their aliased
+    # docker.io name, so Renovate cannot confirm its own edit to a mirror.gcr.io pin.
+    chart: oci://docker.io/envoyproxy/gateway-helm
+    # Unprefixed like the Flux OCIRepository: vX.Y.Z and X.Y.Z are separate builds upstream.
     version: 1.9.2
 
   - name: grafana-operator
