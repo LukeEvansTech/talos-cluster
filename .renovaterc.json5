@@ -488,6 +488,9 @@
       // without a matching node image, and a 3 would hold the whole group back
       // until every pin moved.
       minimumGroupSize: 2,
+      // The talosFactory preset splits patches out for its own datasource only, which would put
+      // the node pins and the CLI pins on separate branches; split every Talos pin the same way.
+      separateMinorPatch: true,
     },
     {
       description: "Your Spotify Group",
