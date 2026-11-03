@@ -1,0 +1,61 @@
+---
+# promtool unit tests for BrStorageGarageFillNotStarted; run by .github/scripts/check_prometheus_rules.py.
+# br-power writes a window's gauges once, when it ends, so "the sample a day ago" is the previous
+# window only if both windows ended at about the same time. Instance a: two full windows in a row
+# start no fill, so it fires. Instance b: a window that ends early (01:00) with no fill, then a good
+# one; a day after the early end both samples are that one window, and it must not fire. Instance c:
+# a miss, a good window, then a miss that ends early (01:00); a day back is then the first miss, two
+# windows ago, and it must not fire either. Instance d: a window on a box that was on already (it
+# skips the fill by design), then an owned miss: only one eligible window, so no alert.
+rule_files:
+  - kubernetes/apps/observability/truenas-exporter/app/br-storage.prometheusrule.yaml
+evaluation_interval: 1m
+tests:
+  - interval: 5m
+    input_series:
+      - series: 'br_power_fill_started{instance="a"}'
+        values: "_x95 0x720"
+      - series: 'br_power_powered_on_by_window{instance="a"}'
+        values: "_x95 1x720"
+      - series: 'br_power_last_window_start_timestamp_seconds{instance="a"}'
+        values: "_x95 2700x287 89100x400"
+      - series: 'br_power_fill_started{instance="b"}'
+        values: "_x95 1x203 0x371 1x150"
+      - series: 'br_power_powered_on_by_window{instance="b"}'
+        values: "_x95 1x725"
+      - series: 'br_power_last_window_start_timestamp_seconds{instance="b"}'
+        values: "_x95 2700x203 89100x371 175500x150"
+      - series: 'br_power_fill_started{instance="c"}'
+        values: "_x95 0x287 1x203 0x150"
+      - series: 'br_power_powered_on_by_window{instance="c"}'
+        values: "_x95 1x700"
+      - series: 'br_power_last_window_start_timestamp_seconds{instance="c"}'
+        values: "_x95 2700x287 89100x203 175500x150"
+      - series: 'br_power_fill_started{instance="d"}'
+        values: "_x95 0x720"
+      - series: 'br_power_powered_on_by_window{instance="d"}'
+        values: "_x95 0x287 1x400"
+      - series: 'br_power_last_window_start_timestamp_seconds{instance="d"}'
+        values: "_x95 2700x287 89100x400"
+    alert_rule_test:
+      - eval_time: 31h
+        alertname: BrStorageGarageFillNotStarted
+        exp_alerts: []
+      - eval_time: 35h
+        alertname: BrStorageGarageFillNotStarted
+        exp_alerts:
+          - exp_labels:
+              instance: a
+              severity: warning
+            exp_annotations:
+              summary: >-
+                The off-site NAS's last two nightly power windows both ended without starting its Garage replication task, so Garage's off-site copy is not moving. One skipped night is normal (the main replication ran into the morning cut-off); two in a row is not. Check br-power's window log and the replication job history.
+      - eval_time: 51h
+        alertname: BrStorageGarageFillNotStarted
+        exp_alerts:
+          - exp_labels:
+              instance: a
+              severity: warning
+            exp_annotations:
+              summary: >-
+                The off-site NAS's last two nightly power windows both ended without starting its Garage replication task, so Garage's off-site copy is not moving. One skipped night is normal (the main replication ran into the morning cut-off); two in a row is not. Check br-power's window log and the replication job history.

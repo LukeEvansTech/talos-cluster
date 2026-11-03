@@ -249,6 +249,24 @@ spec:
           for: 30m
           labels:
             severity: warning
+        - alert: BrStorageGarageFillNotStarted
+          annotations:
+            summary: >-
+              The off-site NAS's last two nightly power windows both ended without starting its
+              Garage replication task, so Garage's off-site copy is not moving. One skipped night
+              is normal (the main replication ran into the morning cut-off); two in a row is not.
+              Check br-power's window log and the replication job history.
+          expr: |-
+            max by (instance) (br_power_fill_started) == 0
+            and max by (instance) (br_power_fill_started offset 1d) == 0
+            and max by (instance) (br_power_powered_on_by_window) == 1
+            and max by (instance) (br_power_powered_on_by_window offset 1d) == 1
+            and max by (instance) (br_power_last_window_start_timestamp_seconds)
+              - max by (instance) (br_power_last_window_start_timestamp_seconds offset 1d)
+              > 43200 < 129600
+          for: 2h
+          labels:
+            severity: warning
         - alert: BrStorageBmcUnreachable
           annotations:
             summary: >-
