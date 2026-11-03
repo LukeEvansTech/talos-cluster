@@ -249,6 +249,20 @@ spec:
           for: 30m
           labels:
             severity: warning
+        - alert: BrStorageGarageFillNotStarted
+          annotations:
+            summary: >-
+              br-power's last two nightly windows on br-storage both ended without starting
+              replication task 12, so Garage's off-site copy is not moving. One skipped night is
+              normal (task 11 ran into 08:00); two in a row is not. Run br/status.sh 2 in the
+              truenas Scratch notes for each window's log and cr's replication runs.
+          expr: |-
+            max by (instance) (br_power_fill_started) == 0
+            and max by (instance) (br_power_fill_started offset 1d) == 0
+            and max by (instance) (br_power_powered_on_by_window) == 1
+          for: 2h
+          labels:
+            severity: warning
         - alert: BrStorageBmcUnreachable
           annotations:
             summary: >-
