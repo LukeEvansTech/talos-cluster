@@ -5,7 +5,8 @@
 # start no fill, so it fires. Instance b: a window that ends early (01:00) with no fill, then a good
 # one; a day after the early end both samples are that one window, and it must not fire. Instance c:
 # a miss, a good window, then a miss that ends early (01:00); a day back is then the first miss, two
-# windows ago, and it must not fire either.
+# windows ago, and it must not fire either. Instance d: a window on a box that was on already (it
+# skips the fill by design), then an owned miss: only one eligible window, so no alert.
 rule_files:
   - kubernetes/apps/observability/truenas-exporter/app/br-storage.prometheusrule.yaml
 evaluation_interval: 1m
@@ -30,6 +31,12 @@ tests:
         values: "_x95 1x700"
       - series: 'br_power_last_window_start_timestamp_seconds{instance="c"}'
         values: "_x95 2700x287 89100x203 175500x150"
+      - series: 'br_power_fill_started{instance="d"}'
+        values: "_x95 0x720"
+      - series: 'br_power_powered_on_by_window{instance="d"}'
+        values: "_x95 0x287 1x400"
+      - series: 'br_power_last_window_start_timestamp_seconds{instance="d"}'
+        values: "_x95 2700x287 89100x400"
     alert_rule_test:
       - eval_time: 31h
         alertname: BrStorageGarageFillNotStarted
