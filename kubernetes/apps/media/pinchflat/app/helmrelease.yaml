@@ -18,14 +18,29 @@ spec:
           resourceClaims:
             - name: gpu
               resourceClaimTemplateName: any-nvidia-gpu
+        initContainers:
+          # The fork's yt-dlp updater rewrites its binary in place; this gives it a writable copy.
+          yt-dlp:
+            image:
+              repository: ghcr.io/thebadfella/pinchflat-ngx
+              tag: 2026.10.20@sha256:4d3f7450a8bcbf21ae5ddad353891381c8e62824930fb716cd7166864409eb96
+            command:
+              - "sh"
+              - "-c"
+              - "cp /usr/local/bin/yt-dlp /yt-dlp-bin/yt-dlp && chmod 0755 /yt-dlp-bin/yt-dlp"
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities: { drop: ["ALL"] }
         containers:
           app:
             image:
-              repository: ghcr.io/kieraneglin/pinchflat
-              tag: v2025.6.6@sha256:4e975edf58f0861a5cbfe8fc6aac4851ff5a02dfc3f05ffeea4982e3084a5a4a
+              repository: ghcr.io/thebadfella/pinchflat-ngx
+              tag: 2026.10.20@sha256:4d3f7450a8bcbf21ae5ddad353891381c8e62824930fb716cd7166864409eb96
             env:
+              PATH: /yt-dlp-bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
               TZ: ${TIMEZONE}
-              TZ_DATA_DIR: /tmp/elixir_tz_data
+              TZ_DATA_PATH: /tmp/elixir_tz_data
               PORT: &port 80
             probes:
               liveness: &probes
@@ -113,6 +128,14 @@ spec:
         type: emptyDir
         globalMounts:
           - path: /etc/yt-dlp
+      yt-dlp-bin:
+        type: emptyDir
+        advancedMounts:
+          pinchflat:
+            yt-dlp:
+              - path: /yt-dlp-bin
+            app:
+              - path: /yt-dlp-bin
       media:
         type: nfs
         server: ${SECRET_STORAGE_SERVER:-localhost}
