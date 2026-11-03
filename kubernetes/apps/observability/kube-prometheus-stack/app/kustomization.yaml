@@ -10,3 +10,12 @@ resources:
   - ./grafanadashboard.yaml
   - ./grafanadashboard-node-exporter.yaml
   - ./scrapeconfig.yaml
+configMapGenerator:
+  - name: kubernetes-volumes-dashboard
+    files:
+      - kubernetes-volumes.json=./dashboards/kubernetes-volumes.json
+generatorOptions:
+  disableNameSuffixHash: true
+  annotations:
+    # Grafana's own ${DS_OPENSHIFT_PROMETHEUS} macro would be blanked by Flux substitution.
+    kustomize.toolkit.fluxcd.io/substitute: disabled
