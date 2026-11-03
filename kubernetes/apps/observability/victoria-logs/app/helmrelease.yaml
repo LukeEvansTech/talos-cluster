@@ -32,6 +32,8 @@ spec:
         storageClass: ceph-block
         size: 100Gi
       retentionPeriod: 28d
+      serviceMonitor:
+        enabled: true
       route:
         enabled: true
         hostnames:
@@ -52,8 +54,6 @@ spec:
                     type: ReplaceFullPath
                     replaceFullPath: /select/vmui/
                   statusCode: 302
-    serviceMonitor:
-      enabled: true
     dashboards:
       enabled: true
     extraObjects:

@@ -1,4 +1,6 @@
 ---
+# Vendored from grafana.com 2842 revision 18 and 5336 revision 9 (Ceph OSD below): their apply and commit
+# latency heatmaps bucket on a log2 scale, which throws on BlueStore's all-zero values.
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/grafana.integreatly.org/grafanadashboard_v1beta1.json
 apiVersion: grafana.integreatly.org/v1beta1
 kind: GrafanaDashboard
@@ -9,10 +11,10 @@ spec:
   instanceSelector:
     matchLabels:
       grafana.internal/instance: grafana
-  grafanaCom:
-    # renovate: depName="Ceph Cluster"
-    id: 2842
-    revision: 18
+  resyncPeriod: 1h
+  configMapRef:
+    name: ceph-cluster-dashboard
+    key: ceph-cluster.json
 ---
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/grafana.integreatly.org/grafanadashboard_v1beta1.json
 apiVersion: grafana.integreatly.org/v1beta1
@@ -24,10 +26,10 @@ spec:
   instanceSelector:
     matchLabels:
       grafana.internal/instance: grafana
-  grafanaCom:
-    # renovate: depName="Ceph - OSD (Single)"
-    id: 5336
-    revision: 9
+  resyncPeriod: 1h
+  configMapRef:
+    name: ceph-osd-dashboard
+    key: ceph-osd.json
 ---
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/grafana.integreatly.org/grafanadashboard_v1beta1.json
 apiVersion: grafana.integreatly.org/v1beta1

@@ -13,6 +13,9 @@ spec:
     # renovate: depName="VolSync Dashboard"
     id: 21356
     revision: 3
+  # The operator caches the model after datasource mapping and, with no duration, never refetches,
+  # so a mapping change here does not apply until the cache expires.
+  contentCacheDuration: 24h
   datasources:
     - inputName: DS_PROMETHEUS
       datasourceName: prometheus
