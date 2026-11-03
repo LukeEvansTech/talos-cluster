@@ -17,8 +17,9 @@ spec:
         containers:
           app:
             image:
-              repository: docker.io/lakker/pulsarr
-              tag: 1.1.6@sha256:4830936b1d77ca321ab2d8cdbf734f5feee35c65e99b0264569df5816cb49dcc
+              # GHCR, not Docker Hub: Docker Hub still serves stray old builds tagged 1.1.5/1.1.6, which Renovate ranks above the real releases (#6952 crash-looped).
+              repository: ghcr.io/jamcalli/pulsarr
+              tag: 1.1.0@sha256:cbed707f4a8b7bd3846306e9ed07228b9e211013ee4d37782cdc6fe61ec902d8
             env:
               TZ: ${TIMEZONE}
               port: &port 3003
