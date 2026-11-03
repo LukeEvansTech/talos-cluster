@@ -7,13 +7,11 @@ See the [AI / LLM stack](../architecture/ai-llm-stack.md) page for how it fits t
 
 ## Deploy gotchas
 
-- `TIMER_POLL_INTERVAL` is set to 30, not the default of 1. Since v0.11.0, open-webui starts its
-  scheduler loop unconditionally and polls for due timers before checking whether automations
-  are enabled at all. That poll query filters on three `JSON_EXTRACT` predicates over
-  `chat.meta` that no index can serve, so SQLite full-scans the chat table every second, even
-  with no timers in use here. The cost grows with chat history, not timer count. 30s trades
-  timer latency for CPU; drop back to the default of 1 once the upstream fix
-  (open-webui#27663, unreleased) ships.
+- `TIMER_POLL_INTERVAL` is left at its default of 1. From v0.11.0 the always-on scheduler loop
+  polled for due timers with three `JSON_EXTRACT` predicates over `chat.meta` that no index could
+  serve, so SQLite full-scanned the chat table every second; this app ran with 30 as a
+  workaround. open-webui#27663 (first released in v0.11.1) moved the poll onto an indexed
+  `chat.timer_at` column, and the override was dropped on v0.13.0.
 - `v0.11.0` renamed the web search settings from `RAG_WEB_SEARCH_*` / `ENABLE_RAG_WEB_SEARCH` to
   `WEB_SEARCH_*` / `ENABLE_WEB_SEARCH` (`backend/open_webui/config.py:1129,1138,1147,1164,1185`);
   the old names are not read by this version.

@@ -25,7 +25,7 @@ spec:
               N8N_HOST: "{{ .Release.Name }}.${SECRET_DOMAIN}"
               N8N_PORT: &port 5678
               N8N_PROTOCOL: https
-              WEBHOOK_URL: "https://{{ .Release.Name }}.${SECRET_DOMAIN}"
+              N8N_WEBHOOK_URL: "https://{{ .Release.Name }}.${SECRET_DOMAIN}"
               DB_TYPE: sqlite
               DB_SQLITE_VACUUM_ON_STARTUP: "true"
               EXECUTIONS_DATA_PRUNE: "true"

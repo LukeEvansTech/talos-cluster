@@ -24,10 +24,6 @@ spec:
               repository: ghcr.io/open-webui/open-webui
               tag: v0.13.0@sha256:2272b0fb7c8783a016bcc179abb467cfa34590c99c5e6560fe0e9155b4820a09
             env:
-              # Works around a full-table scan in the always-on scheduler loop; revert to
-              # the default of 1 once open-webui#27663 ships (docs/docs/apps/open-webui.md).
-              - name: TIMER_POLL_INTERVAL
-                value: "30"
               - name: ENABLE_OLLAMA_API
                 value: "false"
               - name: OPENAI_API_BASE_URL
