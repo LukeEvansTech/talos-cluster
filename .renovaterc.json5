@@ -193,8 +193,14 @@
       description: "Protected infra — never auto-merge, manual review only",
       // The datasource list must cover every datasource the preset auto-merges,
       // or a tier-0 component tracked through another one slips past the guard
-      // entirely. github-releases was exactly that gap (#3869).
-      matchDatasources: ["docker", "helm", "github-releases"],
+      // entirely. github-releases was exactly that gap (#3869), and custom.talos-factory became one
+      // when talosFactory 11.0.0 split Talos patches into a branch of factory pins alone.
+      matchDatasources: [
+        "docker",
+        "helm",
+        "github-releases",
+        "custom.talos-factory",
+      ],
       matchPackageNames: [
         "/gateway-api/", // Envoy Gateway CRDs; envoyproxy itself is protected below
         "/cilium/",
