@@ -22,12 +22,14 @@ spec:
         - alert: PushoverQuotaPaceHigh
           annotations:
             description: >-
-              Per-sender burn: sum by (target) (increase(chaski_target_sends_total[6h])). Alertmanager
+              Per-sender burn: sum by (target) (increase(chaski_target_sends_total[24h])). Alertmanager
               and other direct senders are not in that metric. The fix is in the PushoverQuota row of known-noise.md.
-            summary: "At the last 6h rate Pushover runs out before its monthly reset (projected {{ $value | humanize }} messages left)."
+            summary: "At the last 24h rate Pushover runs out before its monthly reset (projected {{ $value | humanize }} messages left)."
+          # The subquery joins the series across exporter pod restarts. A 6h window on a fresh pod
+          # forecast an hour's burst over the whole month and fired falsely (2026-11-02).
           expr: >-
-            predict_linear(pushover_messages_remaining[6h],
-              scalar(pushover_limit_reset_timestamp_seconds - time())) < 0
+            predict_linear(max without (pod, instance) (pushover_messages_remaining)[24h:5m],
+              scalar(max(pushover_limit_reset_timestamp_seconds) - time())) < 0
           for: 1h
           labels:
             severity: warning
