@@ -13,3 +13,6 @@ spec:
     # renovate: depName="Prometheus Blackbox Exporter"
     id: 7587
     revision: 3
+  datasources:
+    - inputName: DS_SIGNCL-PROMETHEUS
+      datasourceName: prometheus

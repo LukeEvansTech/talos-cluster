@@ -6,3 +6,15 @@ resources:
   - ./ocirepository.yaml
   - ./helmrelease.yaml
   - ./grafanadashboard.yaml
+configMapGenerator:
+  - name: ceph-cluster-dashboard
+    files:
+      - ceph-cluster.json=./dashboards/ceph-cluster.json
+  - name: ceph-osd-dashboard
+    files:
+      - ceph-osd.json=./dashboards/ceph-osd.json
+generatorOptions:
+  disableNameSuffixHash: true
+  annotations:
+    # Grafana's own ${DS_PROMETHEUS} variable would be blanked by Flux substitution.
+    kustomize.toolkit.fluxcd.io/substitute: disabled
