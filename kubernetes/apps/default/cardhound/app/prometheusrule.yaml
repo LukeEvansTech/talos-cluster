@@ -1,0 +1,39 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: cardhound
+  namespace: default
+spec:
+  groups:
+    - name: cardhound
+      rules:
+        # Alerts on the outcome, not process health (the lurcher lesson): a sweep counts only when
+        # it searched and its alerts did not fail. Sweeps run four times a day, so 26h tolerates
+        # several failed sweeps; the 3h wait covers the first sweep after a fresh install, when the
+        # metric is still 0.
+        - alert: CardhoundNotDelivering
+          annotations:
+            summary: >-
+              cardhound has not completed a delivering sweep in over 26h, so card deal
+              alerts have stopped.
+            description: >-
+              The last cardhound sweep that searched eBay and sent its alerts finished
+              {{ $value | humanizeDuration }} ago. Check the Runs page, or
+              kubectl -n default logs deploy/cardhound for browser or eBay failures.
+          expr: |-
+            time() - cardhound_last_success_timestamp_seconds > 93600
+          for: 3h
+          labels:
+            severity: warning
+        - alert: CardhoundMetricsMissing
+          annotations:
+            summary: >-
+              cardhound /metrics has not been scraped for 30m, so sweep delivery is
+              unmonitored.
+          expr: |-
+            absent(cardhound_last_success_timestamp_seconds)
+          for: 30m
+          labels:
+            severity: warning

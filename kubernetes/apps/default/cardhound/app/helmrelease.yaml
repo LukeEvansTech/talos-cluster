@@ -1,0 +1,117 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: cardhound
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: cardhound
+  values:
+    controllers:
+      cardhound:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        # Recreate avoids a multi-attach deadlock on this RWO ceph-block PVC.
+        strategy: Recreate
+        containers:
+          app:
+            image:
+              repository: ghcr.io/lukeevanstech/cardhound
+              # Built from main (d05146f); switch to the v0.1.0 release tag once it is cut.
+              tag: d05146f@sha256:023f898ee0364b2b13ebfb886fd692a8c36b52721971251c5d0937161c072666
+            env:
+              TZ: ${TIMEZONE}
+              CARDHOUND_DATA: /data
+              CARDHOUND_PUBLIC_URL: https://cardhound.${SECRET_DOMAIN}
+              # Four sweeps a day, as the Mac watch it replaces ran.
+              CARDHOUND_SCHEDULE: "0 2,8,14,20 * * *"
+              CARDHOUND_TZ: Europe/London
+            envFrom:
+              - secretRef:
+                  name: cardhound-secret
+            probes:
+              liveness:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /health
+                    port: &port 8080
+                  initialDelaySeconds: 10
+                  periodSeconds: 30
+                  timeoutSeconds: 5
+                  failureThreshold: 3
+              readiness:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /health
+                    port: *port
+                  initialDelaySeconds: 5
+                  periodSeconds: 10
+                  timeoutSeconds: 10
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop:
+                  - ALL
+            # Headless Chromium runs inside the pod during a sweep; it needs the headroom.
+            resources:
+              requests:
+                cpu: 50m
+                memory: 256Mi
+              limits:
+                memory: 2Gi
+    defaultPodOptions:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+    service:
+      app:
+        controller: cardhound
+        ports:
+          http:
+            port: *port
+    # /metrics carries the last delivering sweep; /health cannot see that.
+    serviceMonitor:
+      app:
+        serviceName: "{{ .Release.Name }}"
+        endpoints:
+          - port: http
+            scheme: http
+            path: /metrics
+            interval: 1m
+            scrapeTimeout: 10s
+    route:
+      app:
+        annotations:
+          gatus.home-operations.com/endpoint: |-
+            name: cardhound
+            group: internal
+            url: http://cardhound.default.svc.cluster.local:8080/health
+            conditions: ["[STATUS] == 200"]
+        hostnames:
+          - "cardhound.${SECRET_DOMAIN}"
+        parentRefs:
+          - name: envoy-internal
+            namespace: network
+    persistence:
+      data:
+        existingClaim: cardhound
+        globalMounts:
+          - path: /data
+      tmp:
+        type: emptyDir
+        globalMounts:
+          - path: /tmp
