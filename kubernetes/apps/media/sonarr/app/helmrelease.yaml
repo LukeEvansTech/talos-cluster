@@ -44,11 +44,11 @@ spec:
               - secretRef:
                   name: sonarr-secret
             probes:
-              liveness: &probes
+              readiness:
                 enabled: true
                 custom: true
                 spec:
-                  httpGet:
+                  httpGet: &ping
                     path: /ping
                     port: *port
                     # kubelet sends the pod IP as Host; the allowlist above accepts only localhost.
@@ -57,13 +57,23 @@ spec:
                         value: localhost
                   initialDelaySeconds: 0
                   periodSeconds: 10
-                  # 1s killed a busy-but-alive Sonarr: big release searches pin its CPU and /ping
-                  # answers slowly (3 liveness restarts on 2026-09-29/30). A wedged Sonarr still fails.
+                  # 1s is too tight: big release searches pin Sonarr's CPU and /ping answers slowly.
                   timeoutSeconds: 5
                   failureThreshold: 3
-              readiness: *probes
+              # A whole-series upgrade search of a huge series runs the GC at the heap ceiling, and
+              # /ping stalls for over 30s; a kill aborts the search, so Profilarr re-picks it next hour.
+              # Two minutes rides that out; a wedged Sonarr is still restarted.
+              liveness:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet: *ping
+                  initialDelaySeconds: 0
+                  periodSeconds: 10
+                  timeoutSeconds: 10
+                  failureThreshold: 12
               # The first start on a new major runs schema migrations before /ping binds; on this
-              # library's multi-GB database that outlasts liveness's 30s budget (allows 30 min).
+              # library's multi-GB database that outlasts liveness's 2-minute budget (allows 30 min).
               startup:
                 enabled: true
                 custom: true
