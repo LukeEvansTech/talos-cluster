@@ -21,7 +21,7 @@ spec:
             image:
               repository: ghcr.io/lukeevanstech/cardhound
               # Built from main (d05146f); switch to the v0.1.0 release tag once it is cut.
-              tag: 31cddd0@sha256:650898474fe3eb8b6a5ee04e6fd675263e5471f63a4596de53bb5ea4958a91f0
+              tag: dde579c@sha256:cae3deea7582b66ca04f5ff0b59db55e435dc688fe8f6affcf98d4d5db7a7ba6
             env:
               TZ: ${TIMEZONE}
               CARDHOUND_DATA: /data
