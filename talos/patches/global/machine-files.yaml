@@ -29,6 +29,7 @@ machine:
     # inert for the NFSv4.x mounts made here but matters on a v3 fallback.
     # noresvport sources connections from unprivileged ports, so a reconnect is not starved of
     # privileged ports stuck in TIME_WAIT; the NAS export allows non-root source ports.
+    # nfs-utils ignores an unterminated last line and yamlfmt forces `|-` here, so a comment goes last.
     - op: overwrite
       path: /etc/nfsmount.conf
       permissions: 0o644
@@ -38,3 +39,4 @@ machine:
         nconnect=8
         noatime=True
         noresvport=True
+        # options above this line; nfs-utils drops an unterminated final line
