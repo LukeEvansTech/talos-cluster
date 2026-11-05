@@ -23,7 +23,7 @@ spec:
           yt-dlp:
             image:
               repository: ghcr.io/thebadfella/pinchflat-ngx
-              tag: 2026.11.0@sha256:ea6d43d11ecb99de558935b61414bf7efaf7f1382d4a05c15800fddb72778f80
+              tag: 2026.11.1@sha256:80be35d383971463efe748986539d26b7fb4fcbdb1a0c6aff8a96c280faed398
             command:
               - "sh"
               - "-c"
@@ -36,7 +36,7 @@ spec:
           app:
             image:
               repository: ghcr.io/thebadfella/pinchflat-ngx
-              tag: 2026.11.0@sha256:ea6d43d11ecb99de558935b61414bf7efaf7f1382d4a05c15800fddb72778f80
+              tag: 2026.11.1@sha256:80be35d383971463efe748986539d26b7fb4fcbdb1a0c6aff8a96c280faed398
             env:
               PATH: /yt-dlp-bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
               TZ: ${TIMEZONE}
