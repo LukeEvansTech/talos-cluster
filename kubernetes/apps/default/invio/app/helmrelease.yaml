@@ -27,7 +27,7 @@ spec:
             image:
               # renovate: datasource=docker depName=ghcr.io/kittendevv/invio
               repository: ghcr.io/kittendevv/invio
-              tag: v2.4.0@sha256:cfb18f44e2ecf11fa952b71f5b9a5bc74f15ca390c4273ea0e640b6c2d3d5680
+              tag: v2.4.1@sha256:a1c10bd5248eb3c6aeebfc6a524055082951a1f6c57f5f6ab8479a93ab8a5f86
             # Default Cmd logs where user 1000 can't write; -l redirects the logfile to /tmp.
             command:
               - "/usr/bin/supervisord"
@@ -71,7 +71,7 @@ spec:
             image:
               # renovate: datasource=docker depName=ghcr.io/kittendevv/invio
               repository: ghcr.io/kittendevv/invio
-              tag: v2.4.0@sha256:cfb18f44e2ecf11fa952b71f5b9a5bc74f15ca390c4273ea0e640b6c2d3d5680
+              tag: v2.4.1@sha256:a1c10bd5248eb3c6aeebfc6a524055082951a1f6c57f5f6ab8479a93ab8a5f86
             command:
               - sh
               - -c
