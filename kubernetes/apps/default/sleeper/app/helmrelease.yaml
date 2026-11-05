@@ -20,8 +20,8 @@ spec:
           app:
             image:
               repository: ghcr.io/lukeevanstech/sleeper
-              # Built from main (9b77ce3); switch to the v0.1.0 release tag once it is cut.
-              tag: b847509@sha256:f98b22f5955537ed987d3e5cd700d24e4cfb3eec8e2dc4c1bb46b136e5acc1e4
+              # Built from main (5488e90); switch to the v0.1.0 release tag once it is cut.
+              tag: 5488e90@sha256:35fab9ae089cdf99d0f5d72a7a9ec9768d3ef89026cfd62edeff60e97b2ebe15
             env:
               TZ: ${TIMEZONE}
               SLEEPER_DATA: /data
@@ -29,6 +29,11 @@ spec:
               # Four sweeps a day, as the Mac watch it replaces ran.
               SLEEPER_SCHEDULE: "0 2,8,14,20 * * *"
               SLEEPER_TZ: Europe/London
+              # Daily summary email at 08:30 through smtp2graph; the LAN name matches its
+              # certificate. The recipient comes from the secret (SLEEPER_SUMMARY_TO).
+              SLEEPER_SMTP_HOST: smtp.${SECRET_DOMAIN}
+              SLEEPER_MAIL_FROM: noreply@${SECRET_DOMAIN}
+              SLEEPER_SUMMARY_SCHEDULE: "30 8 * * *"
             envFrom:
               - secretRef:
                   name: sleeper-secret
