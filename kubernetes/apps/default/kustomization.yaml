@@ -14,7 +14,7 @@ resources:
   - ./actual/ks.yaml
   - ./apprise/ks.yaml
   - ./atuin/ks.yaml
-  - ./cardhound/ks.yaml
+  - ./sleeper/ks.yaml
   - ./changedetection/ks.yaml
   - ./chaski/ks.yaml
   - ./coder/ks.yaml
