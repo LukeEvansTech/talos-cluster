@@ -1,0 +1,38 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: sakuga
+  namespace: custom
+spec:
+  groups:
+    - name: sakuga
+      rules:
+        # Alerts on the outcome, not process health: a sweep counts only when it read listings.
+        # Sweeps run every 30 minutes, so 6h is twelve missed sweeps; the 1h wait covers a fresh
+        # install, when the metric is still 0 until the first sweep finishes.
+        - alert: SakugaNotDelivering
+          annotations:
+            summary: >-
+              sakuga has not completed a sweep that read listings in over 6h, so the
+              cel catalogue and the daily digest are stale.
+            description: >-
+              The last sakuga sweep that read listings finished
+              {{ $value | humanizeDuration }} ago. Check the Log page, or
+              kubectl -n custom logs deploy/sakuga for browser or marketplace failures.
+          expr: |-
+            time() - sakuga_last_success_timestamp_seconds > 21600
+          for: 1h
+          labels:
+            severity: warning
+        - alert: SakugaMetricsMissing
+          annotations:
+            summary: >-
+              sakuga /metrics has not been scraped for 30m, so its sweeps are
+              unmonitored.
+          expr: |-
+            absent(sakuga_last_success_timestamp_seconds)
+          for: 30m
+          labels:
+            severity: warning

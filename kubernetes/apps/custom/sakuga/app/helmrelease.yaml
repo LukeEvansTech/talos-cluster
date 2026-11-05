@@ -1,0 +1,119 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: sakuga
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: sakuga
+  values:
+    controllers:
+      sakuga:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        # Recreate avoids a multi-attach deadlock on this RWO ceph-block PVC.
+        strategy: Recreate
+        containers:
+          app:
+            image:
+              repository: ghcr.io/lukeevanstech/sakuga
+              tag: IMAGE_TAG
+            env:
+              TZ: ${TIMEZONE}
+              SAKUGA_DATA: /data
+              SAKUGA_PUBLIC_URL: https://sakuga.${SECRET_DOMAIN}
+              # Sweeps every 30 minutes; one Pushover digest of new cels at 08:00.
+              SAKUGA_SCHEDULE: "*/30 * * * *"
+              SAKUGA_DIGEST: "0 8 * * *"
+              SAKUGA_TZ: Europe/London
+              SAKUGA_LLM_URL: http://litellm.ai.svc.cluster.local:4000/v1
+              SAKUGA_LLM_MODEL: claude
+            envFrom:
+              - secretRef:
+                  name: sakuga-secret
+            probes:
+              liveness:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /health
+                    port: &port 8080
+                  initialDelaySeconds: 10
+                  periodSeconds: 30
+                  timeoutSeconds: 5
+                  failureThreshold: 3
+              readiness:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /health
+                    port: *port
+                  initialDelaySeconds: 5
+                  periodSeconds: 10
+                  timeoutSeconds: 10
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop:
+                  - ALL
+            # Headless Chromium runs inside the pod during a sweep; it needs the headroom.
+            resources:
+              requests:
+                cpu: 50m
+                memory: 256Mi
+              limits:
+                memory: 2Gi
+    defaultPodOptions:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+    service:
+      app:
+        controller: sakuga
+        ports:
+          http:
+            port: *port
+    # /metrics carries the last delivering sweep; /health cannot see that.
+    serviceMonitor:
+      app:
+        serviceName: "{{ .Release.Name }}"
+        endpoints:
+          - port: http
+            scheme: http
+            path: /metrics
+            interval: 1m
+            scrapeTimeout: 10s
+    route:
+      app:
+        annotations:
+          gatus.home-operations.com/endpoint: |-
+            name: sakuga
+            group: internal
+            url: http://sakuga.custom.svc.cluster.local:8080/health
+            conditions: ["[STATUS] == 200"]
+        hostnames:
+          - "sakuga.${SECRET_DOMAIN}"
+        parentRefs:
+          - name: envoy-internal
+            namespace: network
+    persistence:
+      data:
+        existingClaim: sakuga
+        globalMounts:
+          - path: /data
+      tmp:
+        type: emptyDir
+        globalMounts:
+          - path: /tmp
