@@ -3,15 +3,15 @@
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
-  name: cardhound
+  name: sleeper
 spec:
   interval: 1h
   chartRef:
     kind: OCIRepository
-    name: cardhound
+    name: sleeper
   values:
     controllers:
-      cardhound:
+      sleeper:
         annotations:
           reloader.stakater.com/auto: "true"
         # Recreate avoids a multi-attach deadlock on this RWO ceph-block PVC.
@@ -19,19 +19,19 @@ spec:
         containers:
           app:
             image:
-              repository: ghcr.io/lukeevanstech/cardhound
-              # Built from main (072c5e0); switch to the v0.1.0 release tag once it is cut.
-              tag: 072c5e0@sha256:8d1859bcc5078e7e9786309ec2ce2947bf2c9a484a290a9ec8dbe035196d82ae
+              repository: ghcr.io/lukeevanstech/sleeper
+              # Built from main (9b77ce3); switch to the v0.1.0 release tag once it is cut.
+              tag: 9b77ce3@sha256:a9f7c0ab101deff6e878af6a08c5516bee28903f39482f17a690f7bb3e839925
             env:
               TZ: ${TIMEZONE}
-              CARDHOUND_DATA: /data
-              CARDHOUND_PUBLIC_URL: https://cardhound.${SECRET_DOMAIN}
+              SLEEPER_DATA: /data
+              SLEEPER_PUBLIC_URL: https://sleeper.${SECRET_DOMAIN}
               # Four sweeps a day, as the Mac watch it replaces ran.
-              CARDHOUND_SCHEDULE: "0 2,8,14,20 * * *"
-              CARDHOUND_TZ: Europe/London
+              SLEEPER_SCHEDULE: "0 2,8,14,20 * * *"
+              SLEEPER_TZ: Europe/London
             envFrom:
               - secretRef:
-                  name: cardhound-secret
+                  name: sleeper-secret
             probes:
               liveness:
                 enabled: true
@@ -79,7 +79,7 @@ spec:
           type: RuntimeDefault
     service:
       app:
-        controller: cardhound
+        controller: sleeper
         ports:
           http:
             port: *port
@@ -97,18 +97,18 @@ spec:
       app:
         annotations:
           gatus.home-operations.com/endpoint: |-
-            name: cardhound
+            name: sleeper
             group: internal
-            url: http://cardhound.default.svc.cluster.local:8080/health
+            url: http://sleeper.default.svc.cluster.local:8080/health
             conditions: ["[STATUS] == 200"]
         hostnames:
-          - "cardhound.${SECRET_DOMAIN}"
+          - "sleeper.${SECRET_DOMAIN}"
         parentRefs:
           - name: envoy-internal
             namespace: network
     persistence:
       data:
-        existingClaim: cardhound
+        existingClaim: sleeper
         globalMounts:
           - path: /data
       tmp:

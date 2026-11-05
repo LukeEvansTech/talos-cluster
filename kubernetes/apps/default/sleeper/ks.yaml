@@ -3,7 +3,7 @@
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
-  name: &app cardhound
+  name: &app sleeper
   namespace: &namespace default
 spec:
   commonMetadata:
@@ -15,14 +15,14 @@ spec:
     - name: onepassword-connect
       namespace: external-secrets
   interval: 1h
-  path: ./kubernetes/apps/default/cardhound/app
+  path: ./kubernetes/apps/default/sleeper/app
   postBuild:
     substitute:
       APP: *app
       VOLSYNC_CAPACITY: 2Gi
       VOLSYNC_PUID: "65532"
       VOLSYNC_PGID: "65532"
-      HOMEPAGE_NAME: Cardhound
+      HOMEPAGE_NAME: Sleeper
       HOMEPAGE_GROUP: Productivity
       HOMEPAGE_ICON: mdi-cards-playing
       HOMEPAGE_DESCRIPTION: Trading-card deal finder
