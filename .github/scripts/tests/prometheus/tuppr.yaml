@@ -1,0 +1,52 @@
+---
+# promtool unit tests for UpgradeNotProgressing; run by .github/scripts/check_prometheus_rules.py.
+# tuppr sets Progressing=False for Pending and the terminal phases alike, so the series shape that
+# matters is a gauge pinned at 0 under a reason that is not a deliberate hold.
+rule_files:
+  - kubernetes/apps/system-upgrade/tuppr/upgrades/prometheusrule.yaml
+evaluation_interval: 1m
+tests:
+  # Steady state and the deliberate holds: Progressing is false for hours and must stay quiet.
+  - interval: 1m
+    input_series:
+      - series: 'tuppr_upgrade_progressing{namespace="system-upgrade",upgrade_type="talos",name="talos",reason="Completed"}'
+        values: "0x120"
+      - series: 'tuppr_upgrade_progressing{namespace="system-upgrade",upgrade_type="kubernetes",name="kubernetes",reason="WaitingForImage"}'
+        values: "0x120"
+    alert_rule_test:
+      - eval_time: 90m
+        alertname: UpgradeNotProgressing
+        exp_alerts: []
+
+  # A pre-pull that never completes: the phase stays Pending, so no in-flight rule sees it.
+  - interval: 1m
+    input_series:
+      - series: 'tuppr_upgrade_progressing{namespace="system-upgrade",upgrade_type="talos",name="talos",reason="PrePullFailed"}'
+        values: "0x120"
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: UpgradeNotProgressing
+        exp_alerts: []
+      - eval_time: 40m
+        alertname: UpgradeNotProgressing
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              namespace: system-upgrade
+              upgrade_type: talos
+              name: talos
+            exp_annotations:
+              summary: >-
+                Talos upgrade talos has not progressed for 30 minutes
+              description: >-
+                The Progressing condition on talos upgrade talos has been false outside a deliberate hold. Read its reason and message for the cause; a failed image pre-pull is the usual one.
+
+  # A node upgrade in flight reports Progressing=true, so the rule must not fire alongside it.
+  - interval: 1m
+    input_series:
+      - series: 'tuppr_upgrade_progressing{namespace="system-upgrade",upgrade_type="talos",name="talos",reason="Rebooting"}'
+        values: "1x120"
+    alert_rule_test:
+      - eval_time: 90m
+        alertname: UpgradeNotProgressing
+        exp_alerts: []
