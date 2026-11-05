@@ -9,4 +9,5 @@ components:
 resources:
   - ./namespace.yaml
   - ./loupe/ks.yaml
+  - ./sakuga/ks.yaml
   - ./todoist-sort/ks.yaml

@@ -1,0 +1,14 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ./externalsecret.yaml
+  - ./pvc.yaml
+  - ./ocirepository.yaml
+  - ./helmrelease.yaml
+  - ./prometheusrule.yaml
+  # Backups only, not the full volsync component: its pvc.yaml would provision the PVC from a
+  # ReplicationDestination (the cardhound and lurcher pattern).
+  - ../../../../components/volsync/nfs
+  - ../../../../components/volsync/remote

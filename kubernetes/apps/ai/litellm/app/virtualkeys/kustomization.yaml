@@ -8,6 +8,7 @@ resources:
   - ./jobops.yaml
   - ./loupe.yaml
   - ./lurcher.yaml
+  - ./sakuga.yaml
   - ./subspy.yaml
   - ./subtitles.yaml
   - ./suggestarr.yaml

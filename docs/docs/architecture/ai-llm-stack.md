@@ -169,7 +169,7 @@ LiteLLM `model_name` groups make the serving tier transparent to clients:
 
 ## In-cluster consumers
 
-Seven in-cluster apps outside the `ai` namespace route through LiteLLM, all at
+Eight in-cluster apps outside the `ai` namespace route through LiteLLM, all at
 `http://litellm.ai.svc.cluster.local:4000/v1` and, except `suggestarr`, the `claude` model,
 falling back to `self-hosted` and then `openrouter/auto`. The model column is where to change it:
 
@@ -180,6 +180,7 @@ falling back to `self-hosted` and then `openrouter/auto`. The model column is wh
 | `jobops`        | `default` | `LLM_API_KEY`       | `MODEL` (HelmRelease), overridable in its UI   |
 | `lurcher`       | `default` | `LLM_API_KEY`       | `LLM_MODEL` (HelmRelease)                      |
 | `loupe`         | `custom`  | `OPENAI_API_KEY`    | `OPENAI_MODEL` (HelmRelease)                   |
+| `sakuga`        | `custom`  | `SAKUGA_LLM_KEY`    | `SAKUGA_LLM_MODEL` (HelmRelease); vision       |
 | `todoist-sort`  | `custom`  | `ANTHROPIC_API_KEY` | `[llm] model` in `app/resources/config.toml`   |
 | `suggestarr`    | `media`   | none (AI settings)  | its AI settings                                |
 
