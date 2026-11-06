@@ -35,16 +35,18 @@ spec:
               interval: 5m
               rules:
                 - alert: YourSpotifyNotRecording
-                  # stats count() returns c=0 on an empty match, so a silent pod still produces a row.
+                  # Counts completed syncs ("no new music" or the "N tracks" summary), not "refreshing...",
+                  # which is logged before the token check. stats count() returns c=0 on an empty match.
                   expr: >-
                     _time:24h {kubernetes.pod_namespace="media",kubernetes.pod_name=~"yourspotify-server-.+"}
-                    "refreshing..." | stats count() as c | filter c:0
+                    ~`\]: (no new music|[0-9]+ tracks, [0-9]+ albums, [0-9]+ artists)$`
+                    | stats count() as c | filter c:0
                   for: 10m
                   labels:
                     severity: warning
                     namespace: media
                   annotations:
-                    summary: "YourSpotify has logged no sync in 24h, so no listens are being recorded."
+                    summary: "YourSpotify has completed no sync in 24h, so no listens are being recorded."
                 - alert: YourSpotifyNoUsers
                   # Every sync-loop line of the last hour said 0 users: the account vanished (2026-09-22,
                   # four weeks unnoticed). A restart that logs one non-zero line clears it.

@@ -124,11 +124,12 @@ YourSpotify exports no metrics and its pod stays Ready with no user, so two log-
 
 | Alert | Fires when | Fix |
 | ----- | ---------- | --- |
-| `YourSpotifyNotRecording` | the server pod has logged no `refreshing...` line for 24h | Check the pod and its `[DbLoop]` lines; a pod that is down shows here too |
+| `YourSpotifyNotRecording` | the server pod has logged no completed sync (`no new music` or `N tracks, N albums, N artists`) for 24h | Check the pod and its logs for `Error during refresh` or `has not access token`; a pod that is down shows here too |
 | `YourSpotifyNoUsers` | every `[DbLoop] starting for N users` line of the last hour said `0 users` | Log in to the web client again; the account record is missing |
 
-Both are `warning` and match the strings the server logs now; a YourSpotify release that rewords them
-silences the rules without an error, so re-check the queries after an upgrade.
+Both are `warning` and match the strings the server logs now. A YourSpotify release that rewords the
+completed-sync lines makes `YourSpotifyNotRecording` fire falsely after 24h; rewording the `[DbLoop]`
+line silences `YourSpotifyNoUsers` without an error. Re-check both queries after an upgrade.
 
 ## Importing streaming history
 
