@@ -457,6 +457,8 @@
     {
       description: "Kubernetes Group",
       groupName: "Kubernetes",
+      // Keep a patch PR for the running minor once the next minor ships; that minor waits on Talos.
+      separateMinorPatch: true,
       matchDatasources: ["docker"],
       matchPackageNames: [
         "/kube-apiserver/",
