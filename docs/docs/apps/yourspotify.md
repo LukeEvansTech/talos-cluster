@@ -117,6 +117,20 @@ The 9.0.4 binary went live on FCV 8.0 (2026-10-20). After at least a day of clea
 and 6 above with `TO=9.0`. Until then a rollback is an image revert plus removing the 9.0-only
 `args` (see "9.0 rollback" above).
 
+## Alerts
+
+YourSpotify exports no metrics and its pod stays Ready with no user, so two log-based rules in
+[vmalert](vmalert.md) watch its sync loop (issue #6447: it stored nothing for four weeks):
+
+| Alert | Fires when | Fix |
+| ----- | ---------- | --- |
+| `YourSpotifyNotRecording` | the server pod has logged no completed sync (`no new music` or `N tracks, N albums, N artists`) for 24h | Check the pod and its logs for `Error during refresh` or `has not access token`; a pod that is down shows here too |
+| `YourSpotifyNoUsers` | every `[DbLoop] starting for N users` line of the last hour said `0 users` | Log in to the web client again; the account record is missing |
+
+Both are `warning` and match the strings the server logs now. A YourSpotify release that rewords the
+completed-sync lines makes `YourSpotifyNotRecording` fire falsely after 24h; rewording the `[DbLoop]`
+line silences `YourSpotifyNoUsers` without an error. Re-check both queries after an upgrade.
+
 ## Importing streaming history
 
 The "Extended streaming history" import looks up every track it has not seen before, as fast as it

@@ -1,0 +1,62 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/helm.toolkit.fluxcd.io/helmrelease_v2.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: vmalert
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: vmalert
+  dependsOn:
+    - name: victoria-logs
+  values:
+    fullnameOverride: vmalert
+    serviceMonitor:
+      enabled: true
+    server:
+      datasource:
+        url: http://victoria-logs-server.observability.svc.cluster.local:9428
+      notifier:
+        url: http://kube-prometheus-stack-alertmanager.observability.svc.cluster.local:9093
+      resources:
+        requests:
+          cpu: 10m
+          memory: 64Mi
+        limits:
+          memory: 256Mi
+      config:
+        alerts:
+          groups:
+            # Absence-of-success for apps that log their work but export no metrics (docs/docs/apps/yourspotify.md).
+            - name: yourspotify
+              type: vlogs
+              interval: 5m
+              rules:
+                - alert: YourSpotifyNotRecording
+                  # Counts completed syncs ("no new music" or the "N tracks" summary), not "refreshing...",
+                  # which is logged before the token check. stats count() returns c=0 on an empty match.
+                  expr: >-
+                    _time:24h {kubernetes.pod_namespace="media",kubernetes.pod_name=~"yourspotify-server-.+"}
+                    ~`\]: (no new music|[0-9]+ tracks, [0-9]+ albums, [0-9]+ artists)$`
+                    | stats count() as c | filter c:0
+                  for: 10m
+                  labels:
+                    severity: warning
+                    namespace: media
+                  annotations:
+                    summary: "YourSpotify has completed no sync in 24h, so no listens are being recorded."
+                - alert: YourSpotifyNoUsers
+                  # Every sync-loop line of the last hour said 0 users: the account vanished (2026-09-22,
+                  # four weeks unnoticed). A restart that logs one non-zero line clears it.
+                  expr: >-
+                    _time:1h {kubernetes.pod_namespace="media",kubernetes.pod_name=~"yourspotify-server-.+"}
+                    "[DbLoop] starting for" | stats count() if ("starting for 0 users") as zero,
+                    count() if (!"starting for 0 users") as active | filter zero:>0 active:0 | fields zero
+                  for: 5m
+                  labels:
+                    severity: warning
+                    namespace: media
+                  annotations:
+                    summary: "YourSpotify's sync loop has run for 0 users for the last hour; log in again to recreate the account."
