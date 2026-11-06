@@ -465,6 +465,7 @@
         "/kube-controller-manager/",
         "/kube-proxy/",
         "/kube-scheduler/",
+        "/kubelet/", // the cluster's Kubernetes version: talconfig, talenv and the tuppr upgrade
       ],
       group: {
         commitMessageTopic: "{{{groupName}}} group",
