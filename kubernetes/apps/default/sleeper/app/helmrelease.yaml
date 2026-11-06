@@ -21,7 +21,7 @@ spec:
             image:
               repository: ghcr.io/lukeevanstech/sleeper
               # Built from main (5488e90); switch to the v0.1.0 release tag once it is cut.
-              tag: fb30b5e@sha256:2ae7aae0f3a7d949e979ccbda98a67a0dad469df370fe7d04d0f8c1273045326
+              tag: 1bf618a@sha256:42f141dac54a4f2c9544396acfd8074f8762eaae0f5a9101320b1231808a48bf
             env:
               TZ: ${TIMEZONE}
               SLEEPER_DATA: /data
