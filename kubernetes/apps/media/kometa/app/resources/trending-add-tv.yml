@@ -1,0 +1,23 @@
+---
+# Sonarr feed for TMDb Trending, kept apart from the Plex collection so it can
+# be filtered. TMDb's weekly TV chart carries long-running daily shows: on
+# 2026-10-30 it added The Tonight Show (2,364 episodes), and on 2026-11-05 The
+# Daily Show (4,613), Tomorrow Is Ours (a French daily soap, 2,329) and Diners,
+# Drive-ins and Dives (720), each with every episode monitored and searched
+# (~1.6 TB). The type and genre filters drop talk, news, reality and soap; the
+# rating floor drops the rest, and anything that passes adds its pilot only.
+collections:
+  TMDb Trending Sonarr Feed:
+    tmdb_trending_weekly: 100
+    build_collection: false
+    sync_mode: append # Kometa requires append with build_collection: false
+    filters:
+      tmdb_type.not: news, talk_show, reality, video
+      tmdb_genre.not: Soap, News, Talk
+      original_language.not: hi, ta, te, ml, kn, bn, mr, pa # codespell:ignore te
+      tmdb_vote_average.gte: 7.0
+      tmdb_vote_count.gte: 100
+    sonarr_add_missing: true
+    sonarr_search: true
+    sonarr_monitor: pilot
+    sonarr_tag: kometa, kometa-trending

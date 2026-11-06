@@ -128,10 +128,8 @@ libraries:
           visible_home_trending: true
           visible_shared_trending: true
           visible_library_trending: true
-          sonarr_add_missing_trending: true
-          sonarr_search_trending: true
-          sonarr_monitor_trending: all
-          sonarr_tag_trending: kometa, kometa-trending
+      # Trending adds to Sonarr through this file instead, which drops daily shows and adds pilots only.
+      - file: /config/trending-add-tv.yml
       - default: imdb
         template_variables:
           visible_library_top: true

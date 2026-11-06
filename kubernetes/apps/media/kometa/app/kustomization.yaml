@@ -13,5 +13,6 @@ configMapGenerator:
     files:
       - config.yml=./resources/config.yml
       - trending-add.yml=./resources/trending-add.yml
+      - trending-add-tv.yml=./resources/trending-add-tv.yml
 generatorOptions:
   disableNameSuffixHash: true
