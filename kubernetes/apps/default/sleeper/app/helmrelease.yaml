@@ -21,11 +21,13 @@ spec:
             image:
               repository: ghcr.io/lukeevanstech/sleeper
               # Built from main (5488e90); switch to the v0.1.0 release tag once it is cut.
-              tag: 5488e90@sha256:35fab9ae089cdf99d0f5d72a7a9ec9768d3ef89026cfd62edeff60e97b2ebe15
+              tag: fb30b5e@sha256:2ae7aae0f3a7d949e979ccbda98a67a0dad469df370fe7d04d0f8c1273045326
             env:
               TZ: ${TIMEZONE}
               SLEEPER_DATA: /data
               SLEEPER_PUBLIC_URL: https://sleeper.${SECRET_DOMAIN}
+              SLEEPER_LLM_URL: http://litellm.ai.svc.cluster.local:4000/v1
+              SLEEPER_LLM_MODEL: claude
               # Four sweeps a day, as the Mac watch it replaces ran.
               SLEEPER_SCHEDULE: "0 2,8,14,20 * * *"
               SLEEPER_TZ: Europe/London
