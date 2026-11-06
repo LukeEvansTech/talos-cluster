@@ -21,8 +21,8 @@ spec:
               tag: 2.2.1@sha256:f3cf8a850b57497c529774f9791590cf799db2173a3ba068f9ac13c6535b8b5b
             env:
               TZ: ${TIMEZONE}
-              # The image default MaxRAMPercentage=75 lets heap plus non-heap pass the 1Gi limit and the kernel
-              # OOM-kills it every 1-2 days. Live heap is ~150Mi.
+              # 75% of 1Gi let heap plus non-heap pass the limit (kernel OOM); 40% of 1Gi hit heap OOM 125 times
+              # in 3 days. 40% of 2Gi gives ~820Mi heap with headroom for non-heap.
               JAVA_TOOL_OPTIONS: -XX:+UseContainerSupport -XX:MaxRAMPercentage=40 -XX:+ExitOnOutOfMemoryError -Djava.security.egd=file:/dev/urandom -Dfile.encoding=UTF-8
               SEARCH_INTERVAL: 1hour
               SEARCH_AMOUNT: "5"
@@ -42,7 +42,7 @@ spec:
               requests:
                 cpu: 10m
               limits:
-                memory: 1Gi
+                memory: 2Gi
     defaultPodOptions:
       securityContext:
         runAsNonRoot: true
