@@ -46,4 +46,5 @@ resources:
   - ./unimus/ks.yaml
   - ./veeam-backup/ks.yaml
   - ./victoria-logs/ks.yaml
+  - ./vmalert/ks.yaml
   - ./vmware-exporter/ks.yaml

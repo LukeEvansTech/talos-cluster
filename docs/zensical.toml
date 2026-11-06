@@ -132,6 +132,7 @@ nav = [
     { "tuppr" = "apps/tuppr.md" },
     { "Veeam backup monitoring" = "apps/veeam-backup.md" },
     { "VictoriaLogs" = "apps/victoria-logs.md" },
+    { "vmalert" = "apps/vmalert.md" },
     { "VMware exporter" = "apps/vmware-exporter.md" },
     { "Wazuh XDR/SIEM" = "apps/wazuh.md" },
     { "Your Spotify" = "apps/yourspotify.md" },
