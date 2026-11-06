@@ -24,7 +24,7 @@ releases:
     # docker.io name, so Renovate cannot confirm its own edit to a mirror.gcr.io pin.
     chart: oci://docker.io/envoyproxy/gateway-helm
     # Unprefixed like the Flux OCIRepository: vX.Y.Z and X.Y.Z are separate builds upstream.
-    version: 1.9.3
+    version: 1.10.0
 
   - name: grafana-operator
     namespace: observability
