@@ -1,0 +1,40 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/litellm.home-operations.com/litellmvirtualkey_v1alpha1.json
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMVirtualKey
+metadata:
+  name: sleeper
+  namespace: ai
+spec:
+  # Cross-namespace key: PushSecret mirrors it to the litellm 1Password item
+  # (docs/docs/architecture/ai-llm-stack.md In-cluster consumers).
+  proxyRef: litellm
+  keyAlias: sleeper
+  secretName: litellm-key-sleeper
+  secretKey: api-key
+  # Reads the slab label on each PSA 10 listing's photo once (vision), so a CGC slab titled
+  # PSA 10 is dropped; up to 60 calls a sweep, a handful after the first.
+  models:
+    - claude
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/external-secrets.io/pushsecret_v1alpha1.json
+apiVersion: external-secrets.io/v1alpha1
+kind: PushSecret
+metadata:
+  name: sleeper
+  namespace: ai
+spec:
+  refreshInterval: 1h
+  secretStoreRefs:
+    - name: onepassword-connect
+      kind: ClusterSecretStore
+  selector:
+    secret:
+      name: litellm-key-sleeper
+  updatePolicy: Replace
+  data:
+    - match:
+        secretKey: api-key
+        remoteRef:
+          remoteKey: litellm
+          property: LITELLM_SLEEPER_API_KEY
