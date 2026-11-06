@@ -42,11 +42,13 @@ extraArgs:
   # terraform-entra's var.sentinel_syslog_oidc_issuer. Control-plane change (rolling apiserver
   # restart); existing pods re-auth as their projected SA tokens rotate (self-healing, brief).
   service-account-issuer: https://oidc-talos.codelooks.com
+# Peaked at ~4.07GB RSS on all three nodes against the old 4Gi limit (2026-11); GOMEMLIMIT held it
+# there by GC pressure rather than OOM.
 resources:
   requests:
     memory: 2Gi
   limits:
-    memory: 4Gi
+    memory: 8Gi
 ---
 apiVersion: v1alpha1
 kind: KubeControllerManagerConfig
