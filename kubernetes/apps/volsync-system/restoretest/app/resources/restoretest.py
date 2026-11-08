@@ -210,6 +210,7 @@ def verify_pod(name, mover, image, verify_src):
         "metadata": {"name": f"{name}-verify", "labels": MANAGED},
         "spec": {
             "restartPolicy": "Never",
+            "activeDeadlineSeconds": VERIFY_TIMEOUT,
             "automountServiceAccountToken": False,
             "securityContext": pod_sc,
             "volumes": [
@@ -263,6 +264,8 @@ def problems(report):
         found.append(f"read errors in {report['eio'][:5]}")
     if report["bad"]:
         found.append(f"SQLite failures {report['bad'][:5]}")
+    if report.get("unverified"):
+        found.append(f"SQLite not verifiable {report['unverified'][:5]}")
     return found
 
 
@@ -283,7 +286,7 @@ def run_one(t, image, verify_src):
         log(
             tag,
             f"OK files={report['files']} bytes={report['bytes']} sqlite={report['sqlite']} "
-            f"denied={report['denied']} unverified={report.get('unverified', [])} in {time.time() - started:.0f}s",
+            f"denied={report['denied']} in {time.time() - started:.0f}s",
         )
     except Exception as e:  # pylint: disable=broad-exception-caught  # the error text is the report
         result["error"] = str(e)
@@ -294,6 +297,7 @@ def run_one(t, image, verify_src):
         except Exception as e:  # pylint: disable=broad-exception-caught  # the next run retries cleanup
             log(tag, f"cleanup failed: {e}")
     else:
+        call("DELETE", f"{CORE}/{ns}/pods/{name}-verify", missing_ok=True)  # keep the data, not a running pod
         log(tag, f"kept {ns}/{name} for inspection; a run more than {SWEEP_AGE // 3600}h later deletes it")
     return result
 

@@ -23,8 +23,8 @@ is tested about once a month. For each app and each repository (R2 restic and NF
 A target fails when the restore does not succeed, the volume does not mount (ceph-csi runs `fsck`
 first), the volume is empty, a read returns an I/O error, or any SQLite check is not `ok`. A file
 counts as SQLite if its header still shows SQLite's shape, so a damaged header is checked rather
-than skipped. A database over 4GiB with a non-empty `-wal` is reported as unverified, because it is
-checked in place and an immutable read would skip the WAL. The Job
+than skipped. A database over 4GiB with a non-empty `-wal` fails as unverifiable, because it is
+checked in place and an immutable read would skip the WAL; test such an app by hand. The Job
 exits non-zero if any target fails. Files the verify user cannot read are counted as `denied`, not
 failed, because the mover that backed them up ran as the same user.
 
