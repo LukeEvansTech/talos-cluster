@@ -6,6 +6,7 @@ namespace: media
 components:
   - ../../components/global-vars
   - ../../components/alerts
+  - ../../components/netpol
 resources:
   - ./namespace.yaml
   - ./netpol.yaml

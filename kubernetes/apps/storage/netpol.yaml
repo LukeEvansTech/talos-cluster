@@ -1,0 +1,24 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/cilium.io/ciliumnetworkpolicy_v2.json
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: allow-garage-from-consumers
+spec:
+  description: "Allow S3 consumers (CNPG backups, tracearr-db, reactiveresume) to reach garage"
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: garage
+  ingress:
+    - fromEndpoints:
+        - matchExpressions:
+            - key: io.kubernetes.pod.namespace
+              operator: In
+              values:
+                - database
+                - default
+                - media
+      toPorts:
+        - ports:
+            - port: "3900"
+              protocol: TCP

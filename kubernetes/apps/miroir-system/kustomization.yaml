@@ -6,6 +6,7 @@ namespace: miroir-system
 components:
   - ../../components/global-vars
   - ../../components/alerts
+  - ../../components/netpol
 resources:
   - ./namespace.yaml
   - ./miroir/ks.yaml

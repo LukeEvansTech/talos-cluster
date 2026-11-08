@@ -6,6 +6,7 @@ namespace: actions-runner-system
 components:
   - ../../components/global-vars
   - ../../components/alerts
+  - ../../components/netpol
 resources:
   - ./namespace.yaml
   - ./actions-runner-controller/ks.yaml

@@ -6,6 +6,7 @@ namespace: gpu-operator
 components:
   - ../../components/global-vars
   - ../../components/alerts
+  - ../../components/netpol
 resources:
   - ./namespace.yaml
   - ./dra-driver-nvidia-gpu/ks.yaml

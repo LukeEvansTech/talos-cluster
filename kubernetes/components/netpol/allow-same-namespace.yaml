@@ -1,0 +1,20 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/cilium.io/ciliumnetworkpolicy_v2.json
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: allow-same-namespace
+spec:
+  # Namespaced on purpose: in a CiliumClusterwideNetworkPolicy an empty fromEndpoints selector
+  # matches every namespace, which is what made the clusterwide rule of this name admit all pods.
+  description: "Allow ingress from pods in the same namespace"
+  endpointSelector:
+    matchExpressions:
+      - key: app.kubernetes.io/name
+        operator: NotIn
+        values:
+          # thunderbird has no auth of its own; see the clusterwide policy.
+          - thunderbird
+  ingress:
+    - fromEndpoints:
+        - {}
