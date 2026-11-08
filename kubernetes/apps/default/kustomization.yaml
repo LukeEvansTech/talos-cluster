@@ -55,7 +55,6 @@ resources:
   - ./privatebin/ks.yaml
   - ./rackula/ks.yaml
   - ./reactiveresume/ks.yaml
-  - ./reconcilable/ks.yaml
   - ./redditvault/ks.yaml
   - ./searxng/ks.yaml
   - ./shlink/ks.yaml
