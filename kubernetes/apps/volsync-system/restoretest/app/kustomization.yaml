@@ -1,0 +1,22 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# Checkov CKV_K8S_21: generated ConfigMaps need an explicit namespace rather
+# than inheriting the Flux target.
+namespace: volsync-system
+resources:
+  - ./ocirepository.yaml
+  - ./rbac.yaml
+  - ./helmrelease.yaml
+  - ./prometheusrule.yaml
+configMapGenerator:
+  - name: restoretest-code
+    files:
+      - ./resources/restoretest.py
+      - ./resources/verify.py
+generatorOptions:
+  disableNameSuffixHash: true
+  annotations:
+    # Shipped code: a future ${...} in it must not be blanked by Flux substitution.
+    kustomize.toolkit.fluxcd.io/substitute: disabled
