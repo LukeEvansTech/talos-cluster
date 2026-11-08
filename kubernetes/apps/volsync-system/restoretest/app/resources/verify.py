@@ -34,12 +34,12 @@ def looks_like_sqlite(name, head):
 
 def read_tree(root):
     """Read every regular file; return (report, sqlite paths)."""
-    report = {"files": 0, "bytes": 0, "denied": 0, "eio": []}
+    report = {"files": 0, "bytes": 0, "denied": [], "eio": []}
     dbs = []
 
     def walk_error(err):
         if err.errno in DENIED:
-            report["denied"] += 1
+            report["denied"].append(os.path.relpath(err.filename, root))
         else:
             report["eio"].append(f"{os.path.relpath(err.filename, root)}: {err.strerror}")
 
@@ -59,7 +59,7 @@ def read_tree(root):
                         total += len(chunk)
             except OSError as e:
                 if e.errno in DENIED:
-                    report["denied"] += 1
+                    report["denied"].append(os.path.relpath(path, root))
                 else:
                     report["eio"].append(f"{os.path.relpath(path, root)}: {e.strerror}")
                 continue

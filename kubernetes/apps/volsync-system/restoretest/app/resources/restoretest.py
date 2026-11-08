@@ -264,6 +264,8 @@ def problems(report):
         found.append(f"read errors in {report['eio'][:5]}")
     if report["bad"]:
         found.append(f"SQLite failures {report['bad'][:5]}")
+    if report["denied"]:
+        found.append(f"unreadable as the mover's user {report['denied'][:5]}")
     if report.get("unverified"):
         found.append(f"SQLite not verifiable {report['unverified'][:5]}")
     return found
@@ -278,6 +280,7 @@ def run_one(t, image, verify_src):
     result = {"target": tag, "ok": False}
     try:
         mover = restore(ns, name, t["rd"]["spec"])
+        result["restored"] = True
         report = verify(ns, name, t["capacity"], mover, image, verify_src)
         result |= report
         if found := problems(report):
@@ -286,12 +289,13 @@ def run_one(t, image, verify_src):
         log(
             tag,
             f"OK files={report['files']} bytes={report['bytes']} sqlite={report['sqlite']} "
-            f"denied={report['denied']} in {time.time() - started:.0f}s",
+            f"in {time.time() - started:.0f}s",
         )
     except Exception as e:  # pylint: disable=broad-exception-caught  # the error text is the report
         result["error"] = str(e)
         log(tag, f"FAIL {e}")
-    if result["ok"] or not KEEP_FAILED:
+    # Keep only a restored volume worth inspecting; a timed-out restore is deleted so its mover stops.
+    if result["ok"] or not KEEP_FAILED or not result.get("restored"):
         try:
             cleanup(ns, name)
         except Exception as e:  # pylint: disable=broad-exception-caught  # the next run retries cleanup
