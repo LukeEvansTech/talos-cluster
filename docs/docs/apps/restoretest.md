@@ -9,17 +9,22 @@ A weekly CronJob (Sunday 03:00) picks a quarter of the apps, by a hash of `names
 is tested about once a month. For each app and each repository (R2 restic and NFS Kopia) it:
 
 1. Copies the app's live ReplicationDestination (`<app>-dst` or `<app>-nfs-dst`) as
-   `rt-<app>` or `rt-<app>-nfs`, with a fresh manual trigger. This is the same restore path a
+   `rt-<app>[-nfs]-<run>`, with a fresh manual trigger; per-run names let a manual run overlap
+   the weekly one. This is the same restore path a
    disaster recovery uses: mover restore, VolumeSnapshot, PVC populated from it.
 2. Creates a PVC from it, with the app's capacity and storage class.
 3. Mounts that PVC read-only in a verify pod running as the mover's user, reads every byte of every
    file, and runs `pragma quick_check` on every SQLite database (on a private copy, so a `-wal` is
    replayed as the app would replay it).
-4. Deletes the scratch objects. A **failed** target's objects are kept for inspection and deleted at
-   the start of the next run.
+4. Deletes the scratch objects. A **failed** target's objects are kept for inspection; each run
+   starts by deleting any scratch objects older than 7 hours, past the Job's 6-hour deadline, so no
+   live run's objects are touched.
 
 A target fails when the restore does not succeed, the volume does not mount (ceph-csi runs `fsck`
-first), the volume is empty, a read returns an I/O error, or any SQLite check is not `ok`. The Job
+first), the volume is empty, a read returns an I/O error, or any SQLite check is not `ok`. A file
+counts as SQLite if its header still shows SQLite's shape, so a damaged header is checked rather
+than skipped. A database over 4GiB with a non-empty `-wal` is reported as unverified, because it is
+checked in place and an immutable read would skip the WAL. The Job
 exits non-zero if any target fails. Files the verify user cannot read are counted as `denied`, not
 failed, because the mover that backed them up ran as the same user.
 

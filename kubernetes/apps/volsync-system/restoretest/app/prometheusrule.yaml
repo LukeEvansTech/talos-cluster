@@ -15,7 +15,7 @@ spec:
             description: >-
               The weekly restore test replays each app's real restore path into a scratch PVC.
               The Job log's FAILED lines name the app, the repository and the reason; a failed
-              target's scratch PVC is kept as rt-<app>[-nfs] in the app's namespace for inspection.
+              target's scratch PVC is kept as rt-<app>[-nfs]-<run> in the app's namespace for inspection.
               See docs/docs/apps/restoretest.md.
           expr: |-
             max by (job_name) (kube_job_status_failed{namespace="volsync-system", job_name=~"restoretest-.*"}) > 0

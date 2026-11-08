@@ -35,6 +35,9 @@ CONCURRENCY = int(os.environ.get("CONCURRENCY", "3"))
 RESTORE_TIMEOUT = int(os.environ.get("RESTORE_TIMEOUT", "2700"))
 VERIFY_TIMEOUT = int(os.environ.get("VERIFY_TIMEOUT", "2700"))
 KEEP_FAILED = os.environ.get("KEEP_FAILED", "true") == "true"
+# Past the Job's activeDeadlineSeconds (6h) no run can still own an object, so the sweep is safe.
+SWEEP_AGE = int(os.environ.get("SWEEP_AGE", "25200"))
+SUFFIX = f"{zlib.crc32(RUN.encode()):08x}"[:5]  # per-run names, so overlapping runs never collide
 
 _PRINT_LOCK = threading.Lock()
 _SSL: dict[str, ssl.SSLContext] = {}
@@ -136,12 +139,16 @@ def cleanup(ns, name):
 
 
 def sweep():
-    """Delete every earlier run's scratch objects, whatever this run selects (failures are kept until now)."""
+    """Delete earlier runs' scratch objects older than any run can last, whatever this run selects."""
     selector = "labelSelector=app.kubernetes.io%2Fmanaged-by%3Drestoretest"
+    now = datetime.datetime.now(datetime.UTC)
     found = set()
     for path in (f"{VS}/replicationdestinations", "/api/v1/persistentvolumeclaims", "/api/v1/pods"):
         for item in call("GET", f"{path}?{selector}")["items"]:
-            found.add((item["metadata"]["namespace"], item["metadata"]["name"].removesuffix("-verify")))
+            meta = item["metadata"]
+            born = datetime.datetime.fromisoformat(meta["creationTimestamp"].replace("Z", "+00:00"))
+            if (now - born).total_seconds() > SWEEP_AGE:
+                found.add((meta["namespace"], meta["name"].removesuffix("-verify")))
     for ns, name in sorted(found):
         log("sweep", f"deleting {ns}/{name} from an earlier run")
         cleanup(ns, name)
@@ -262,12 +269,11 @@ def problems(report):
 def run_one(t, image, verify_src):
     """Restore and verify one target; never raises, so one failure cannot stop the run."""
     ns, repo = t["ns"], t["repo"]
-    name = f"rt-{t['app']}" + ("-nfs" if repo == "nfs" else "")
+    name = f"rt-{t['app']}" + ("-nfs" if repo == "nfs" else "") + f"-{SUFFIX}"
     tag = f"{ns}/{t['app']}:{repo}"
     started = time.time()
     result = {"target": tag, "ok": False}
     try:
-        cleanup(ns, name)
         mover = restore(ns, name, t["rd"]["spec"])
         report = verify(ns, name, t["capacity"], mover, image, verify_src)
         result |= report
@@ -277,7 +283,7 @@ def run_one(t, image, verify_src):
         log(
             tag,
             f"OK files={report['files']} bytes={report['bytes']} sqlite={report['sqlite']} "
-            f"denied={report['denied']} in {time.time() - started:.0f}s",
+            f"denied={report['denied']} unverified={report.get('unverified', [])} in {time.time() - started:.0f}s",
         )
     except Exception as e:  # pylint: disable=broad-exception-caught  # the error text is the report
         result["error"] = str(e)
@@ -288,7 +294,7 @@ def run_one(t, image, verify_src):
         except Exception as e:  # pylint: disable=broad-exception-caught  # the next run retries cleanup
             log(tag, f"cleanup failed: {e}")
     else:
-        log(tag, f"kept {ns}/{name} for inspection; the next run deletes it")
+        log(tag, f"kept {ns}/{name} for inspection; a run more than {SWEEP_AGE // 3600}h later deletes it")
     return result
 
 

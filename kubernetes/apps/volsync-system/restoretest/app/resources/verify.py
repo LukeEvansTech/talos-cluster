@@ -13,11 +13,23 @@ import stat
 
 ROOT = "/d"
 SCRATCH = "/tmp/db"
-COPY_LIMIT = 4 * 2**30  # larger databases are checked in place, immutable, without their -wal
+COPY_LIMIT = 4 * 2**30  # larger databases are checked in place, immutable, so a non-empty -wal is unverified
 DENIED = (errno.EACCES, errno.EPERM)
 MAGIC = b"SQLite format 3\x00"
-# A database whose header page was zeroed has no magic left, so these names are checked anyway.
 DB_SUFFIXES = (".db", ".sqlite", ".sqlite3", ".db3")
+
+
+def looks_like_sqlite(name, head):
+    """True for an intact header, and for a damaged one that still shows SQLite's shape.
+
+    Damage can hit the magic itself, so a few corrupted magic bytes, the fixed payload-fraction bytes
+    (offsets 21-23) or a zeroed header on a database-named file all still count.
+    """
+    if head.startswith(MAGIC) or head[21:24] == b"\x40\x20\x20":
+        return True
+    if len(head) >= 16 and sum(a != b for a, b in zip(head[:16], MAGIC)) <= 3:
+        return True
+    return name.lower().endswith(DB_SUFFIXES) and bool(head) and not any(head)
 
 
 def read_tree(root):
@@ -53,13 +65,16 @@ def read_tree(root):
                 continue
             report["files"] += 1
             report["bytes"] += total
-            if head.startswith(MAGIC) or (n.lower().endswith(DB_SUFFIXES) and head and not any(head)):
+            if looks_like_sqlite(n, head):
                 dbs.append(path)
     return report, dbs
 
 
 def check_db(path):
-    """Return None when quick_check passes, else the failure text."""
+    """Return ("ok"|"bad"|"unverified", detail) from quick_check."""
+    wal = path + "-wal"
+    if os.path.getsize(path) > COPY_LIMIT and os.path.exists(wal) and os.path.getsize(wal) > 0:
+        return "unverified", "too large to copy and has a non-empty -wal that an immutable read would skip"
     try:
         if os.path.getsize(path) <= COPY_LIMIT:
             os.makedirs(SCRATCH, exist_ok=True)
@@ -72,9 +87,9 @@ def check_db(path):
             con = sqlite3.connect(f"file:{path}?immutable=1", uri=True)
         rows = con.execute("pragma quick_check").fetchall()
         con.close()
-        return None if rows == [("ok",)] else str(rows[:3])[:200]
+        return ("ok", "") if rows == [("ok",)] else ("bad", str(rows[:3])[:200])
     except (sqlite3.Error, OSError) as e:  # "not a database" is itself the finding
-        return str(e)
+        return "bad", str(e)
     finally:
         shutil.rmtree(SCRATCH, ignore_errors=True)
 
@@ -83,10 +98,11 @@ def main():
     """Print the JSON report for /d."""
     report, dbs = read_tree(ROOT)
     report["sqlite"] = len(dbs)
-    report["bad"] = []
+    report["bad"], report["unverified"] = [], []
     for path in dbs:
-        if (why := check_db(path)) is not None:
-            report["bad"].append(f"{os.path.relpath(path, ROOT)}: {why}")
+        verdict, why = check_db(path)
+        if verdict != "ok":
+            report[verdict].append(f"{os.path.relpath(path, ROOT)}: {why}")
     print(json.dumps(report))
 
 
