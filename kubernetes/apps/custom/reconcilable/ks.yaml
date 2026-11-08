@@ -4,19 +4,24 @@ apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
   name: &app reconcilable
-  namespace: &namespace default
+  namespace: &namespace custom
 spec:
   commonMetadata:
     labels:
       app.kubernetes.io/name: *app
   components:
+    - ../../../../components/homepage
     - ../../../../components/volsync
   interval: 1h
-  path: ./kubernetes/apps/default/reconcilable/app
+  path: ./kubernetes/apps/custom/reconcilable/app
   postBuild:
     substitute:
       APP: *app
       VOLSYNC_CAPACITY: 1Gi
+      HOMEPAGE_NAME: Reconcilable
+      HOMEPAGE_GROUP: Tools
+      HOMEPAGE_ICON: mdi-scale-balance
+      HOMEPAGE_DESCRIPTION: Credit card statement reconciliation
   prune: true
   retryInterval: 2m
   sourceRef:
