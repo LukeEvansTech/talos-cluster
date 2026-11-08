@@ -8,7 +8,16 @@ components:
   - ../../components/alerts
 resources:
   - ./namespace.yaml
+  - ./contracthound/ks.yaml
+  - ./curator/ks.yaml
+  - ./curatorjudge/ks.yaml
+  - ./domainpulse/ks.yaml
+  - ./examprep/ks.yaml
   - ./loupe/ks.yaml
+  - ./lurcher/ks.yaml
   - ./reconcilable/ks.yaml
+  - ./redditvault/ks.yaml
   - ./sakuga/ks.yaml
+  - ./sleeper/ks.yaml
+  - ./subspy/ks.yaml
   - ./todoist-sort/ks.yaml

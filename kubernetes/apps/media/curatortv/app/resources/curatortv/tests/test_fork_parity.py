@@ -11,7 +11,11 @@ import unittest
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent.parent
-FILM = HERE.parents[3] / "curator" / "app" / "resources" / "curator"
+# Globbed across namespaces, so the two engines need not share one.
+FILM = next(
+    HERE.parents[4].glob("*/curator/app/resources/curator"),
+    HERE.parents[3] / "curator" / "app" / "resources" / "curator",
+)
 SHARED = ("s3.py", "store.py")
 
 

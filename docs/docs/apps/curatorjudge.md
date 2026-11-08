@@ -1,6 +1,6 @@
 # Curatorjudge
 
-The taste half of the weekly Radarr library cleanup, in the `media` namespace. Reads the plan
+The taste half of the weekly Radarr library cleanup, in the `custom` namespace. Reads the plan
 `curator` left on the shared volume, asks Claude which candidates are worth keeping, and applies
 whatever the engine still agrees with half an hour later. `curator`'s own
 `app/resources/curator/README.md` covers the engine side; this page covers the judge's own
