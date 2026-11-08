@@ -36,6 +36,14 @@ replacing, VolSync for those apps.
   is the worked example. See
   [Plex media bundles volume](../migrations/plex-media-bundles-volume.md).
 
+## Restore testing
+
+A weekly CronJob restores a quarter of the apps from both repositories through the real restore
+path and checks the data (every byte read, every SQLite database `quick_check`ed), so each app is
+proven restorable about monthly. A mover reporting `Successful` is not that proof. See
+[Restore test](../apps/restoretest.md). After any restore by hand, run the same SQLite check before
+trusting the app: on 2026-11-08 sizes, usage and HTTP 200s all looked right on damaged databases.
+
 ## Operating
 
 - NFS backups run every 4 hours (`0 */4 * * *`); remote (R2) backups run nightly (`30 0 * * *`).

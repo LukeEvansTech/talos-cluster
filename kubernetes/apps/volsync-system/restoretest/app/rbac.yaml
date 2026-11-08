@@ -1,0 +1,48 @@
+---
+# Cluster-wide because every app's repository Secret, and so its scratch restore, lives in the
+# app's own namespace. Creating pods anywhere is the sharp edge; PSA still applies to them.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: restoretest
+rules:
+  - apiGroups:
+      - "volsync.backube"
+    resources:
+      - "replicationdestinations"
+    verbs:
+      - "get"
+      - "list"
+      - "create"
+      - "delete"
+  - apiGroups:
+      - ""
+    resources:
+      - "persistentvolumeclaims"
+      - "pods"
+    verbs:
+      - "get"
+      - "list"
+      - "create"
+      - "delete"
+  - apiGroups:
+      - ""
+    resources:
+      - "pods/log"
+      - "events"
+    verbs:
+      - "get"
+      - "list"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: restoretest
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: restoretest
+subjects:
+  - kind: ServiceAccount
+    name: restoretest
+    namespace: volsync-system

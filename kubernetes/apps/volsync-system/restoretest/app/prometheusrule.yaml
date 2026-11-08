@@ -1,0 +1,41 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: restoretest
+spec:
+  groups:
+    - name: restoretest
+      rules:
+        - alert: VolsyncRestoreTestFailed
+          annotations:
+            summary: >-
+              A VolSync restore test failed: at least one app's backup did not restore to readable data.
+            description: >-
+              The weekly restore test replays each app's real restore path into a scratch PVC.
+              The Job log's FAILED lines name the app, the repository and the reason; a failed
+              target's scratch PVC is kept as rt-<app>[-nfs]-<run> in the app's namespace for inspection.
+              See docs/docs/apps/restoretest.md.
+          expr: |-
+            max by (job_name) (kube_job_status_failed{namespace="volsync-system", job_name=~"restoretest-.*"}) > 0
+          labels:
+            severity: warning
+        # Age of the last success, as CuratorPlanStale; the creation-time fallback covers a
+        # CronJob that never succeeded. Weekly schedule, so 8 days means a missed run.
+        - alert: VolsyncRestoreTestStale
+          annotations:
+            summary: >-
+              The VolSync restore test has not succeeded in over 8 days.
+            description: >-
+              No weekly restore test has passed, so nothing currently proves the backups restore.
+              Check the latest restoretest Job in volsync-system.
+          expr: |-
+            time() - (
+              kube_cronjob_status_last_successful_time{namespace="volsync-system", cronjob="restoretest"}
+              or
+              kube_cronjob_created{namespace="volsync-system", cronjob="restoretest"}
+            ) > 691200
+          for: 2h
+          labels:
+            severity: warning

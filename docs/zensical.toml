@@ -109,6 +109,7 @@ nav = [
     { "Radarr" = "apps/radarr.md" },
     { "Reactive Resume" = "apps/reactiveresume.md" },
     { "Reclaimerr" = "apps/reclaimerr.md" },
+    { "Restore test" = "apps/restoretest.md" },
     { "Repowiki" = "apps/repowiki.md" },
     { "rook-ceph" = "apps/rook-ceph.md" },
     { "Scanopy" = "apps/scanopy.md" },
