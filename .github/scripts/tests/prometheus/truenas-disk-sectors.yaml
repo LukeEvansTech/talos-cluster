@@ -1,0 +1,39 @@
+---
+# promtool unit tests for the main NAS's pending-sector alert; run by .github/scripts/check_prometheus_rules.py.
+# The alert is about growth: sda holds a steady 8 pending sectors and must stay quiet, sdb goes from
+# 8 to 9 and must fire, sdc goes from 0 to 1 (a first bad sector on a healthy disk) and must fire.
+rule_files:
+  - kubernetes/apps/observability/truenas-exporter/app/prometheusrule.yaml
+evaluation_interval: 1m
+tests:
+  - interval: 5m
+    input_series:
+      - series: 'smartctl_device_attribute{job="smartctl-exporter",device="sda",attribute_name="Current_Pending_Sector",attribute_value_type="raw"}'
+        values: "8x575"
+      - series: 'smartctl_device_attribute{job="smartctl-exporter",device="sdb",attribute_name="Current_Pending_Sector",attribute_value_type="raw"}'
+        values: "8x287 9x287"
+      - series: 'smartctl_device_attribute{job="smartctl-exporter",device="sdc",attribute_name="Current_Pending_Sector",attribute_value_type="raw"}'
+        values: "0x287 1x287"
+    alert_rule_test:
+      - eval_time: 23h
+        alertname: TrueNASDiskPendingSectorsGrowing
+        exp_alerts: []
+      - eval_time: 25h
+        alertname: TrueNASDiskPendingSectorsGrowing
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              job: smartctl-exporter
+              device: sdb
+              attribute_name: Current_Pending_Sector
+              attribute_value_type: raw
+            exp_annotations:
+              summary: "TrueNAS disk sdb has 1 more pending sector(s) than 24h ago (unreadable data awaiting remap); watch for a replacement."
+          - exp_labels:
+              severity: warning
+              job: smartctl-exporter
+              device: sdc
+              attribute_name: Current_Pending_Sector
+              attribute_value_type: raw
+            exp_annotations:
+              summary: "TrueNAS disk sdc has 1 more pending sector(s) than 24h ago (unreadable data awaiting remap); watch for a replacement."
