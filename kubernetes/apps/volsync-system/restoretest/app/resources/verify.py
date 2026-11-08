@@ -72,9 +72,9 @@ def read_tree(root):
 
 def check_db(path):
     """Return ("ok"|"bad"|"unverified", detail) from quick_check."""
-    wal = path + "-wal"
-    if os.path.getsize(path) > COPY_LIMIT and os.path.exists(wal) and os.path.getsize(wal) > 0:
-        return "unverified", "too large to copy and has a non-empty -wal that an immutable read would skip"
+    sidecars = [path + "-wal", path + "-journal"]  # an immutable read would skip either's recovery
+    if os.path.getsize(path) > COPY_LIMIT and any(os.path.exists(f) and os.path.getsize(f) > 0 for f in sidecars):
+        return "unverified", "too large to copy and has a non-empty -wal or -journal that an immutable read would skip"
     try:
         if os.path.getsize(path) <= COPY_LIMIT:
             os.makedirs(SCRATCH, exist_ok=True)
