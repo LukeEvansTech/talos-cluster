@@ -20,18 +20,22 @@ spec:
           app:
             image:
               repository: ghcr.io/lukeevanstech/sakuga
-              # Built from main (22583a3); switch to a release tag once v0.1.0 is cut.
-              tag: 72969d4@sha256:38afef195d7fdacc463ffcccca5f518c4a8d8d57d8b92702c63fa3cc103d875b
+              # Built from main (068e870); switch to a release tag once v0.1.0 is cut.
+              tag: 068e870@sha256:ec836b2a997de0c561986f1861d0bdaee2e99276f0fa1bf0c3c9b7d4fbd21d16
             env:
               TZ: ${TIMEZONE}
               SAKUGA_DATA: /data
               SAKUGA_PUBLIC_URL: https://sakuga.${SECRET_DOMAIN}
-              # Sweeps every 30 minutes; one Pushover digest of new cels at 08:00.
+              # Sweeps every 30 minutes; at 08:00 one Pushover digest of new cels and the daily email.
               SAKUGA_SCHEDULE: "*/30 * * * *"
               SAKUGA_DIGEST: "0 8 * * *"
               SAKUGA_TZ: Europe/London
               SAKUGA_LLM_URL: http://litellm.ai.svc.cluster.local:4000/v1
               SAKUGA_LLM_MODEL: claude
+              # The daily email through smtp2graph, as sleeper's summary; the LAN name matches its
+              # certificate. The recipient comes from the secret (SAKUGA_DIGEST_TO).
+              SAKUGA_SMTP_HOST: smtp.${SECRET_DOMAIN}
+              SAKUGA_MAIL_FROM: noreply@${SECRET_DOMAIN}
             envFrom:
               - secretRef:
                   name: sakuga-secret
