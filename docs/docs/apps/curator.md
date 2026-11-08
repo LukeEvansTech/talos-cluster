@@ -1,12 +1,12 @@
 # Curator
 
-The deterministic half of the weekly Radarr library cleanup, in the `media` namespace. Assesses
+The deterministic half of the weekly Radarr library cleanup, in the `custom` namespace. Assesses
 every film and writes `cleanup-plan/plan.json`; it never deletes or changes a tag. `curatorjudge`
 reads that plan half an hour later and supplies the taste half of the decision.
 
 ## Purpose
 
-The engine is a small Python app checked into `kubernetes/apps/media/curator/app/resources/curator/`,
+The engine is a small Python app checked into `kubernetes/apps/custom/curator/app/resources/curator/`,
 shipped to both `curator` and `curatorjudge` as one ConfigMap. Its own
 `app/resources/curator/README.md` is the primary design document: the eight things that are easy
 to get wrong, the first in-cluster run, and how to undo a deletion. This page covers the operational

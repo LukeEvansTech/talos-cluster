@@ -13,8 +13,6 @@ resources:
   - ./autopulse/ks.yaml
   - ./bazarr/ks.yaml
   - ./decluttarr/ks.yaml
-  - ./curator/ks.yaml
-  - ./curatorjudge/ks.yaml
   - ./curatortv/ks.yaml
   - ./curatortvjudge/ks.yaml
   - ./deduparr/ks.yaml

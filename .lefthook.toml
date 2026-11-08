@@ -127,5 +127,5 @@ exclude = ["docs/**"]
 # No CI job runs the curator engines' fixture suites, and the two engines are a fork whose fixes
 # drift apart (test_fork_parity); both suites take under a second.
 [pre-commit.commands.test-curator-engines]
-run = "for d in curator curatortv; do (cd kubernetes/apps/media/$d/app/resources && mise x -- python3 -m unittest discover -q -s $d/tests -t .) || exit 1; done"
-glob = ["kubernetes/apps/media/curator/app/resources/**/*.py", "kubernetes/apps/media/curatortv/app/resources/**/*.py", "kubernetes/apps/media/curatorjudge/app/resources/*.py", "kubernetes/apps/media/curatortvjudge/app/resources/*.py"]
+run = "for d in curator curatortv; do (cd kubernetes/apps/*/$d/app/resources && mise x -- python3 -m unittest discover -q -s $d/tests -t .) || exit 1; done"
+glob = ["kubernetes/apps/*/curator/app/resources/**/*.py", "kubernetes/apps/*/curatortv/app/resources/**/*.py", "kubernetes/apps/*/curatorjudge/app/resources/*.py", "kubernetes/apps/*/curatortvjudge/app/resources/*.py"]

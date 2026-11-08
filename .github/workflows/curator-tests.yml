@@ -6,11 +6,11 @@ name: Curator Tests
 on:
   pull_request:
     paths:
-      - "kubernetes/apps/media/curator/app/resources/**"
-      - "kubernetes/apps/media/curatortv/app/resources/**"
+      - "kubernetes/apps/*/curator/app/resources/**"
+      - "kubernetes/apps/*/curatortv/app/resources/**"
       # The suites load each judge's read_verdicts.py.
-      - "kubernetes/apps/media/curatorjudge/app/resources/**"
-      - "kubernetes/apps/media/curatortvjudge/app/resources/**"
+      - "kubernetes/apps/*/curatorjudge/app/resources/**"
+      - "kubernetes/apps/*/curatortvjudge/app/resources/**"
       - ".github/workflows/curator-tests.yml"
 
 permissions:
@@ -36,7 +36,8 @@ jobs:
           persist-credentials: false
 
       - name: Run the ${{ matrix.engine }} fixture suite
-        working-directory: kubernetes/apps/media/${{ matrix.engine }}/app/resources
+        # Globbed, not a fixed namespace, so an engine can move without editing this.
+        working-directory: kubernetes/apps
         env:
           ENGINE: ${{ matrix.engine }}
-        run: python3 -m unittest discover -s "$ENGINE/tests" -t .
+        run: cd ./*/"$ENGINE"/app/resources && python3 -m unittest discover -s "$ENGINE/tests" -t .

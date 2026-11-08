@@ -42,16 +42,16 @@ kind: CiliumNetworkPolicy
 metadata:
   name: allow-chaski-from-media
 spec:
-  # curatorjudge and kometa (media) post straight to chaski's ClusterIP rather than out through
-  # the gateway and back; additive to the policy above, which otherwise admits only `network`.
-  description: "Allow the curatorjudge and kometa jobs (media) to reach chaski"
+  # curatorjudge (custom) and kometa (media) post straight to chaski's ClusterIP rather than out
+  # through the gateway and back; additive to the policy above, which otherwise admits only `network`.
+  description: "Allow the curatorjudge (custom) and kometa (media) jobs to reach chaski"
   endpointSelector:
     matchLabels:
       app.kubernetes.io/name: chaski
   ingress:
     - fromEndpoints:
         - matchLabels:
-            io.kubernetes.pod.namespace: media
+            io.kubernetes.pod.namespace: custom
             app.kubernetes.io/name: curatorjudge
         - matchLabels:
             io.kubernetes.pod.namespace: media
