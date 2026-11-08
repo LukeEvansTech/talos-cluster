@@ -42,6 +42,9 @@ spec:
               PLEX_PREFERENCE_4: "LanNetworksBandwidth=${CR_LAN_CIDR:-0.0.0.0/0},${GH_LAN_CIDR:-0.0.0.0/0}"
               PLEX_PREFERENCE_5: "HardwareAcceleratedCodecs=1"
               PLEX_PREFERENCE_6: "HardwareAcceleratedEncoders=1"
+              # The DRA driver mounts the NVIDIA libs in /usr/lib, which the transcoder's musl path
+              # file omits; without this every transcode falls back to CPU ("Cannot load libcuda.so.1").
+              LD_LIBRARY_PATH: /usr/lib
               # (7 retired: TranscoderTempDirectory=/transcode is the image entrypoint default)
               # Disable services that don't work in Kubernetes
               PLEX_PREFERENCE_8: "GdmEnabled=0"
