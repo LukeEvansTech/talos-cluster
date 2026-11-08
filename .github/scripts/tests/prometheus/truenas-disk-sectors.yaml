@@ -1,39 +1,65 @@
 ---
-# promtool unit tests for the main NAS's pending-sector alert; run by .github/scripts/check_prometheus_rules.py.
-# The alert is about growth: sda holds a steady 8 pending sectors and must stay quiet, sdb goes from
-# 8 to 9 and must fire, sdc goes from 0 to 1 (a first bad sector on a healthy disk) and must fire.
+# promtool unit tests for the main NAS's pending-sector alerts; run by .github/scripts/check_prometheus_rules.py.
+# Both alerts key on serial_number. SER_A holds a steady 8 and moves from sda to sdd at 30h (a reboot
+# reletters it): quiet. At 48h SER_B goes 8 -> 9 and SER_C 0 -> 1 (growth fires), and SER_D appears
+# on sde already carrying 3 (arrival fires).
 rule_files:
   - kubernetes/apps/observability/truenas-exporter/app/prometheusrule.yaml
 evaluation_interval: 1m
 tests:
   - interval: 5m
     input_series:
-      - series: 'smartctl_device_attribute{job="smartctl-exporter",device="sda",attribute_name="Current_Pending_Sector",attribute_value_type="raw"}'
-        values: "8x575"
-      - series: 'smartctl_device_attribute{job="smartctl-exporter",device="sdb",attribute_name="Current_Pending_Sector",attribute_value_type="raw"}'
-        values: "8x287 9x287"
-      - series: 'smartctl_device_attribute{job="smartctl-exporter",device="sdc",attribute_name="Current_Pending_Sector",attribute_value_type="raw"}'
-        values: "0x287 1x287"
+      - series: 'smartctl_device{job="smartctl-exporter",instance="nas:9633",device="sda",serial_number="SER_A"}'
+        values: "1x359"
+      - series: 'smartctl_device_attribute{job="smartctl-exporter",instance="nas:9633",device="sda",attribute_name="Current_Pending_Sector",attribute_value_type="raw"}'
+        values: "8x359"
+      - series: 'smartctl_device{job="smartctl-exporter",instance="nas:9633",device="sdd",serial_number="SER_A"}'
+        values: "_x360 1x359"
+      - series: 'smartctl_device_attribute{job="smartctl-exporter",instance="nas:9633",device="sdd",attribute_name="Current_Pending_Sector",attribute_value_type="raw"}'
+        values: "_x360 8x359"
+      - series: 'smartctl_device{job="smartctl-exporter",instance="nas:9633",device="sdb",serial_number="SER_B"}'
+        values: "1x719"
+      - series: 'smartctl_device_attribute{job="smartctl-exporter",instance="nas:9633",device="sdb",attribute_name="Current_Pending_Sector",attribute_value_type="raw"}'
+        values: "8x575 9x143"
+      - series: 'smartctl_device{job="smartctl-exporter",instance="nas:9633",device="sdc",serial_number="SER_C"}'
+        values: "1x719"
+      - series: 'smartctl_device_attribute{job="smartctl-exporter",instance="nas:9633",device="sdc",attribute_name="Current_Pending_Sector",attribute_value_type="raw"}'
+        values: "0x575 1x143"
+      - series: 'smartctl_device{job="smartctl-exporter",instance="nas:9633",device="sde",serial_number="SER_D"}'
+        values: "_x576 1x143"
+      - series: 'smartctl_device_attribute{job="smartctl-exporter",instance="nas:9633",device="sde",attribute_name="Current_Pending_Sector",attribute_value_type="raw"}'
+        values: "_x576 3x143"
     alert_rule_test:
-      - eval_time: 23h
+      - eval_time: 47h
         alertname: TrueNASDiskPendingSectorsGrowing
         exp_alerts: []
-      - eval_time: 25h
+      - eval_time: 47h
+        alertname: TrueNASDiskArrivedWithPendingSectors
+        exp_alerts: []
+      - eval_time: 49h
         alertname: TrueNASDiskPendingSectorsGrowing
         exp_alerts:
           - exp_labels:
               severity: warning
-              job: smartctl-exporter
-              device: sdb
-              attribute_name: Current_Pending_Sector
-              attribute_value_type: raw
+              serial_number: SER_B
             exp_annotations:
-              summary: "TrueNAS disk sdb has 1 more pending sector(s) than 24h ago (unreadable data awaiting remap); watch for a replacement."
+              summary: >-
+                TrueNAS disk SER_B has 1 more pending sector(s) than its lowest in the last 24h
+                (unreadable data awaiting remap); watch for a replacement.
           - exp_labels:
               severity: warning
-              job: smartctl-exporter
-              device: sdc
-              attribute_name: Current_Pending_Sector
-              attribute_value_type: raw
+              serial_number: SER_C
             exp_annotations:
-              summary: "TrueNAS disk sdc has 1 more pending sector(s) than 24h ago (unreadable data awaiting remap); watch for a replacement."
+              summary: >-
+                TrueNAS disk SER_C has 1 more pending sector(s) than its lowest in the last 24h
+                (unreadable data awaiting remap); watch for a replacement.
+      - eval_time: 49h
+        alertname: TrueNASDiskArrivedWithPendingSectors
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              serial_number: SER_D
+            exp_annotations:
+              summary: >-
+                TrueNAS disk SER_D appeared with 3 pending sector(s) already (unreadable data
+                awaiting remap); check it before trusting it.

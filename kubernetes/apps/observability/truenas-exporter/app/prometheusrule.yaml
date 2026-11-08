@@ -60,19 +60,56 @@ spec:
             severity: warning
         # Growth, not presence: a disk can sit on a few stable pending sectors for months, and an
         # alert on any non-zero count pages daily for a drive that is worth keeping in service.
+        # Keyed by serial: sdX letters can move after a reboot, which would make a disk look new.
+        # Subqueries on the raw series rather than a recording rule, so the 24h history exists from
+        # the first evaluation instead of every disk with pending sectors looking new for a day.
         - alert: TrueNASDiskPendingSectorsGrowing
           annotations:
             summary: >-
-              TrueNAS disk {{ $labels.device }} has {{ $value | printf "%.0f" }} more pending sector(s)
-              than 24h ago (unreadable data awaiting remap); watch for a replacement.
+              TrueNAS disk {{ $labels.serial_number }} has {{ $value | printf "%.0f" }} more pending
+              sector(s) than its lowest in the last 24h (unreadable data awaiting remap); watch for a
+              replacement.
           expr: |-
-            delta(
-              smartctl_device_attribute{
-                job="smartctl-exporter",
-                attribute_name="Current_Pending_Sector",
-                attribute_value_type="raw"
-              }[24h]
+            max by (serial_number) (
+              smartctl_device_attribute{job="smartctl-exporter", attribute_name="Current_Pending_Sector", attribute_value_type="raw"}
+              * on (instance, device) group_left (serial_number) smartctl_device{job="smartctl-exporter"}
+            )
+            - on (serial_number)
+            min_over_time(
+              (
+                max by (serial_number) (
+                  smartctl_device_attribute{job="smartctl-exporter", attribute_name="Current_Pending_Sector", attribute_value_type="raw"}
+                  * on (instance, device) group_left (serial_number) smartctl_device{job="smartctl-exporter"}
+                )
+              )[24h:5m]
+            )
+            > 0
+          for: 30m
+          labels:
+            severity: warning
+        # The growth rule above has nothing to compare against for a disk that shows up already
+        # carrying pending sectors (a replacement or second-hand drive). Fires for a day after a
+        # serial with pending sectors appears that was not seen at all the day before. An exporter
+        # outage of more than a day would make every such disk look new once.
+        - alert: TrueNASDiskArrivedWithPendingSectors
+          annotations:
+            summary: >-
+              TrueNAS disk {{ $labels.serial_number }} appeared with {{ $value | printf "%.0f" }}
+              pending sector(s) already (unreadable data awaiting remap); check it before trusting it.
+          expr: |-
+            max by (serial_number) (
+              smartctl_device_attribute{job="smartctl-exporter", attribute_name="Current_Pending_Sector", attribute_value_type="raw"}
+              * on (instance, device) group_left (serial_number) smartctl_device{job="smartctl-exporter"}
             ) > 0
+            unless on (serial_number)
+            max_over_time(
+              (
+                max by (serial_number) (
+                  smartctl_device_attribute{job="smartctl-exporter", attribute_name="Current_Pending_Sector", attribute_value_type="raw"}
+                  * on (instance, device) group_left (serial_number) smartctl_device{job="smartctl-exporter"}
+                )
+              )[1d:5m] offset 1d
+            )
           for: 30m
           labels:
             severity: warning
