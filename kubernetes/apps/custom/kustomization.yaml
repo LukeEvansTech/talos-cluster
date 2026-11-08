@@ -6,8 +6,10 @@ namespace: custom
 components:
   - ../../components/global-vars
   - ../../components/alerts
+  - ../../components/netpol
 resources:
   - ./namespace.yaml
+  - ./netpol.yaml
   - ./contracthound/ks.yaml
   - ./curator/ks.yaml
   - ./curatorjudge/ks.yaml

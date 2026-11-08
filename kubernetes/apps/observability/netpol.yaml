@@ -15,3 +15,24 @@ spec:
             io.kubernetes.pod.namespace: network
     - fromEntities:
         - world
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: allow-in-cluster-consumers
+spec:
+  # By namespace, not app: grafana, seedbox-pull and the rook operator carry no app.kubernetes.io/name.
+  description: "Allow in-cluster consumers of Prometheus, Alertmanager and Grafana (homepage, Flux, tuppr, rook, toolhive, seedbox-pull)"
+  endpointSelector: {}
+  ingress:
+    - fromEndpoints:
+        - matchExpressions:
+            - key: io.kubernetes.pod.namespace
+              operator: In
+              values:
+                - ai
+                - default
+                - downloads
+                - flux-system
+                - rook-ceph
+                - system-upgrade

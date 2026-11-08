@@ -6,6 +6,7 @@ namespace: flux-system
 components:
   - ../../components/alerts
   - ../../components/global-vars
+  - ../../components/netpol
 resources:
   - ./namespace.yaml
   - ./netpol.yaml

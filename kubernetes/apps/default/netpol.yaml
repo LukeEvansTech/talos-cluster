@@ -44,7 +44,7 @@ metadata:
 spec:
   # curatorjudge (custom) and kometa (media) post straight to chaski's ClusterIP rather than out
   # through the gateway and back; additive to the policy above, which otherwise admits only `network`.
-  description: "Allow the curatorjudge (custom) and kometa (media) jobs to reach chaski"
+  description: "Allow the curator judges (custom) and kometa, radarr and sonarr (media) to reach chaski"
   endpointSelector:
     matchLabels:
       app.kubernetes.io/name: chaski
@@ -53,6 +53,15 @@ spec:
         - matchLabels:
             io.kubernetes.pod.namespace: custom
             app.kubernetes.io/name: curatorjudge
+        - matchLabels:
+            io.kubernetes.pod.namespace: custom
+            app.kubernetes.io/name: curatortvjudge
+        - matchLabels:
+            io.kubernetes.pod.namespace: media
+            app.kubernetes.io/name: radarr
+        - matchLabels:
+            io.kubernetes.pod.namespace: media
+            app.kubernetes.io/name: sonarr
         - matchLabels:
             io.kubernetes.pod.namespace: media
             app.kubernetes.io/name: kometa

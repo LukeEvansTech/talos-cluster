@@ -40,3 +40,33 @@ spec:
         - matchLabels:
             io.kubernetes.pod.namespace: ai
             app.kubernetes.io/name: arrmcp
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: allow-curator-from-custom
+spec:
+  description: "Allow the curator engines and judges (custom) to reach the media services"
+  endpointSelector:
+    matchExpressions:
+      - key: app.kubernetes.io/name
+        operator: In
+        values:
+          - radarr
+          - seerr
+          - sonarr
+          - tautulli
+  ingress:
+    - fromEndpoints:
+        - matchExpressions:
+            - key: io.kubernetes.pod.namespace
+              operator: In
+              values:
+                - custom
+            - key: app.kubernetes.io/name
+              operator: In
+              values:
+                - curator
+                - curatorjudge
+                - curatortv
+                - curatortvjudge

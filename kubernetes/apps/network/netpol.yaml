@@ -13,3 +13,21 @@ spec:
             io.kubernetes.pod.namespace: observability
     - fromEntities:
         - world
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: allow-ts-seedbox-from-arr
+spec:
+  description: "Allow the arr apps and seedbox-pull to reach the seedbox through its Tailscale egress proxy"
+  endpointSelector:
+    matchLabels:
+      tailscale.com/parent-resource: seedbox
+  ingress:
+    - fromEndpoints:
+        - matchExpressions:
+            - key: io.kubernetes.pod.namespace
+              operator: In
+              values:
+                - downloads
+                - media

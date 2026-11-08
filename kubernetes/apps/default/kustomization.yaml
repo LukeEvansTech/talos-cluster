@@ -6,6 +6,7 @@ namespace: default
 components:
   - ../../components/global-vars
   - ../../components/alerts
+  - ../../components/netpol
   # Drops kopiur-nas-secret (KOPIA_PASSWORD) in locally, replacing credentialProjection.
   - ../../components/kopiur/secret
 resources:
