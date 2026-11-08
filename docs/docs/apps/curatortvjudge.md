@@ -1,6 +1,6 @@
 # Curatortvjudge
 
-The taste half of the weekly Sonarr library cleanup, in the `media` namespace. It is
+The taste half of the weekly Sonarr library cleanup, in the `custom` namespace. It is
 [Curatorjudge](curatorjudge.md) pointed at the TV engine: the same three steps (`prompt`, `judge`,
 `app`), the same hardening, `backoffLimit: 0`, a judge that never mounts the state volume, and an
 executor run with `--read-only` and `CLEANUP_MODE: dry-run`. Read that page for the trust boundary

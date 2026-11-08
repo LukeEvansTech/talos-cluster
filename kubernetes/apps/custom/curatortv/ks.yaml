@@ -4,7 +4,7 @@ apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
   name: &app curatortv
-  namespace: &namespace media
+  namespace: &namespace custom
 spec:
   commonMetadata:
     labels:
@@ -17,7 +17,7 @@ spec:
     - name: onepassword-connect
       namespace: external-secrets
   interval: 1h
-  path: ./kubernetes/apps/media/curatortv/app
+  path: ./kubernetes/apps/custom/curatortv/app
   postBuild:
     substitute:
       APP: *app

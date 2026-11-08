@@ -13,20 +13,20 @@ spec:
         - alert: CuratortvjudgeStale
           annotations:
             summary: >-
-              The curatortvjudge CronJob (media/curatortvjudge) has not succeeded in
+              The curatortvjudge CronJob (custom/curatortvjudge) has not succeeded in
               over 8 days.
             description: >-
               No successful weekly TV judgement in over 8 days. The Job exits non-zero
               when judging, executing, tagging or delivering the digest failed, so the
               reason is in the latest curatortvjudge Job's logs and in
               /state/cleanup-plan/report.md. Trigger a run with
-              kubectl -n media create job --from=cronjob/curatortvjudge once the
+              kubectl -n custom create job --from=cronjob/curatortvjudge once the
               curatortv plan is fresh.
           expr: |-
             time() - (
-              kube_cronjob_status_last_successful_time{namespace="media", cronjob="curatortvjudge"}
+              kube_cronjob_status_last_successful_time{namespace="custom", cronjob="curatortvjudge"}
               or
-              kube_cronjob_created{namespace="media", cronjob="curatortvjudge"}
+              kube_cronjob_created{namespace="custom", cronjob="curatortvjudge"}
             ) > 691200
           for: 2h
           labels:

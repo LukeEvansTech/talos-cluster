@@ -13,18 +13,18 @@ spec:
         - alert: CuratortvPlanStale
           annotations:
             summary: >-
-              The curatortv CronJob (media/curatortv) has not succeeded in over 8 days.
+              The curatortv CronJob (custom/curatortv) has not succeeded in over 8 days.
             description: >-
               No successful weekly plan of the Sonarr library in over 8 days, so
               curatortvjudge has nothing current to judge and its digest reports a
               stale plan. Check the latest curatortv Job's logs; a blocked plan still
               exits 0, so a failure here is a crash or a timeout. Trigger a run with
-              kubectl -n media create job --from=cronjob/curatortv.
+              kubectl -n custom create job --from=cronjob/curatortv.
           expr: |-
             time() - (
-              kube_cronjob_status_last_successful_time{namespace="media", cronjob="curatortv"}
+              kube_cronjob_status_last_successful_time{namespace="custom", cronjob="curatortv"}
               or
-              kube_cronjob_created{namespace="media", cronjob="curatortv"}
+              kube_cronjob_created{namespace="custom", cronjob="curatortv"}
             ) > 691200
           for: 2h
           labels:
