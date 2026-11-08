@@ -11,6 +11,8 @@ resources:
   - ./contracthound/ks.yaml
   - ./curator/ks.yaml
   - ./curatorjudge/ks.yaml
+  - ./curatortv/ks.yaml
+  - ./curatortvjudge/ks.yaml
   - ./domainpulse/ks.yaml
   - ./examprep/ks.yaml
   - ./loupe/ks.yaml

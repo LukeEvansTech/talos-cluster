@@ -1,12 +1,12 @@
 # Curatortv
 
-The deterministic half of the weekly Sonarr library cleanup, in the `media` namespace. A fork of
+The deterministic half of the weekly Sonarr library cleanup, in the `custom` namespace. A fork of
 [Curator](curator.md) with TV semantics: it assesses every series and writes `cleanup-plan/plan.json`
 on its own volume, and `curatortvjudge` reads that plan half an hour later. The shared design
 (fail-closed sources, the identity join, per-deletion re-checks, execute failure semantics) is on
 the [Curator](curator.md) page and in the film engine's README; this page covers what differs.
 
-The engine lives in `kubernetes/apps/media/curatortv/app/resources/curatortv/`, shipped as the
+The engine lives in `kubernetes/apps/custom/curatortv/app/resources/curatortv/`, shipped as the
 `curatortv-code` ConfigMap. Its `README.md` is the design note for the TV differences.
 
 ## What differs from Curator
