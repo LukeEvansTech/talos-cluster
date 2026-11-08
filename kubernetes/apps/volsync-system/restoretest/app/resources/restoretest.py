@@ -37,7 +37,8 @@ VERIFY_TIMEOUT = int(os.environ.get("VERIFY_TIMEOUT", "2700"))
 KEEP_FAILED = os.environ.get("KEEP_FAILED", "true") == "true"
 # Past the Job's activeDeadlineSeconds (6h) no run can still own an object, so the sweep is safe.
 SWEEP_AGE = int(os.environ.get("SWEEP_AGE", "25200"))
-SUFFIX = f"{zlib.crc32(RUN.encode()):08x}"[:5]  # per-run names, so overlapping runs never collide
+# From the pod name, unique per run, so overlapping runs never share an object name.
+SUFFIX = f"{zlib.crc32(os.environ.get('HOSTNAME', RUN).encode()):08x}"[:6]
 
 _PRINT_LOCK = threading.Lock()
 _SSL: dict[str, ssl.SSLContext] = {}
@@ -258,8 +259,8 @@ def verify(ns, name, capacity, mover, image, verify_src):
 def problems(report):
     """Return the reasons a verify report fails, empty when it passes."""
     found = []
-    if report["files"] == 0:
-        found.append("restored volume is empty")
+    if report["files"] == 0 or report["bytes"] == 0:
+        found.append("restored volume holds no data")
     if report["eio"]:
         found.append(f"read errors in {report['eio'][:5]}")
     if report["bad"]:
