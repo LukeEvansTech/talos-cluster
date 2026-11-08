@@ -135,6 +135,18 @@ def cleanup(ns, name):
         raise RuntimeError(f"{ns}/{name} did not delete within 300s")
 
 
+def sweep():
+    """Delete every earlier run's scratch objects, whatever this run selects (failures are kept until now)."""
+    selector = "labelSelector=app.kubernetes.io%2Fmanaged-by%3Drestoretest"
+    found = set()
+    for path in (f"{VS}/replicationdestinations", "/api/v1/persistentvolumeclaims", "/api/v1/pods"):
+        for item in call("GET", f"{path}?{selector}")["items"]:
+            found.add((item["metadata"]["namespace"], item["metadata"]["name"].removesuffix("-verify")))
+    for ns, name in sorted(found):
+        log("sweep", f"deleting {ns}/{name} from an earlier run")
+        cleanup(ns, name)
+
+
 def restore(ns, name, source_spec):
     """Run the copied ReplicationDestination to completion; return its mover spec."""
     spec = copy.deepcopy(source_spec)
@@ -283,6 +295,7 @@ def run_one(t, image, verify_src):
 def main():
     """Run this week's targets and exit non-zero if any failed or none ran."""
     verify_src = read(os.path.join(os.path.dirname(os.path.abspath(__file__)), "verify.py"))
+    sweep()
     items = call("GET", f"{VS}/replicationdestinations")["items"]
     shard, picked, skipped = select(items, datetime.date.today().isocalendar().week)
     own = call("GET", f"{CORE}/{read(f'{SA}/namespace').strip()}/pods/{os.environ['HOSTNAME']}")

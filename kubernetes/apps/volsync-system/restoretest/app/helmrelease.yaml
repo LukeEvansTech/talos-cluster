@@ -22,8 +22,8 @@ spec:
           failedJobsHistory: 2
           backoffLimit: 0
           activeDeadlineSeconds: 21600
-          # A failed Job keeps VolsyncRestoreTestFailed firing until the next weekly run.
-          ttlSecondsAfterFinished: 518400
+          # The repo-wide maximum; VolsyncRestoreTestStale keeps a failure visible after the Job goes.
+          ttlSecondsAfterFinished: 86400
         pod:
           automountServiceAccountToken: true
         serviceAccount:

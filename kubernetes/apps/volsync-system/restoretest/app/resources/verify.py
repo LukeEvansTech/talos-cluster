@@ -9,11 +9,15 @@ import json
 import os
 import shutil
 import sqlite3
+import stat
 
 ROOT = "/d"
 SCRATCH = "/tmp/db"
 COPY_LIMIT = 4 * 2**30  # larger databases are checked in place, immutable, without their -wal
 DENIED = (errno.EACCES, errno.EPERM)
+MAGIC = b"SQLite format 3\x00"
+# A database whose header page was zeroed has no magic left, so these names are checked anyway.
+DB_SUFFIXES = (".db", ".sqlite", ".sqlite3", ".db3")
 
 
 def read_tree(root):
@@ -32,11 +36,12 @@ def read_tree(root):
             dirs.remove("lost+found")
         for n in names:
             path = os.path.join(dirpath, n)
-            if os.path.islink(path) or not os.path.isfile(path):
-                continue
             try:
+                # lstat, not isfile(): isfile() swallows EIO and would skip a damaged inode silently.
+                if not stat.S_ISREG(os.lstat(path).st_mode):
+                    continue
                 with open(path, "rb") as fh:
-                    head = fh.read(16)
+                    head = fh.read(100)
                     total = len(head)
                     while chunk := fh.read(1 << 20):
                         total += len(chunk)
@@ -48,7 +53,7 @@ def read_tree(root):
                 continue
             report["files"] += 1
             report["bytes"] += total
-            if head == b"SQLite format 3\x00":
+            if head.startswith(MAGIC) or (n.lower().endswith(DB_SUFFIXES) and head and not any(head)):
                 dbs.append(path)
     return report, dbs
 

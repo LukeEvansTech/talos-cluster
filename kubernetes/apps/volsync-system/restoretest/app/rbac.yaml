@@ -22,6 +22,7 @@ rules:
       - "pods"
     verbs:
       - "get"
+      - "list"
       - "create"
       - "delete"
   - apiGroups:
