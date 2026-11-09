@@ -31,3 +31,24 @@ spec:
               values:
                 - downloads
                 - media
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: allow-gateway-from-cluster
+spec:
+  description: "Allow in-cluster pods to reach the gateways, since apps call each other by their public hostname"
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: envoy
+  ingress:
+    - fromEntities:
+        - cluster
+      toPorts:
+        - ports:
+            - port: "10080"
+              protocol: TCP
+            - port: "10443"
+              protocol: TCP
+            - port: "10443"
+              protocol: UDP
