@@ -48,7 +48,15 @@ ARCHIVE_PREFIX = (".archive", "kubernetes", "apps")
 LIVE_PREFIX = ("kubernetes", "apps")
 
 # "path::app": reason
-ALLOWLIST: dict[str, str] = {}
+_LOUPE_RUNNER = "kubernetes/apps/actions-runner-system/actions-runner-controller/runners/"
+_LOUPE_REASON = "the loupe repository's CI runner, kept while the app is archived temporarily"
+ALLOWLIST: dict[str, str] = {
+    f"{_LOUPE_RUNNER}kustomization.yaml::loupe": _LOUPE_REASON,
+    f"{_LOUPE_RUNNER}loupe/externalsecret.yaml::loupe": _LOUPE_REASON,
+    f"{_LOUPE_RUNNER}loupe/helmrelease.yaml::loupe": _LOUPE_REASON,
+    f"{_LOUPE_RUNNER}loupe/kustomization.yaml::loupe": _LOUPE_REASON,
+    f"{_LOUPE_RUNNER}loupe/ocirepository.yaml::loupe": _LOUPE_REASON,
+}
 
 
 # Tolerate the custom tags some manifests carry instead of refusing the whole file.

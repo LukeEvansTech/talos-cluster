@@ -18,8 +18,8 @@ kind: CiliumNetworkPolicy
 metadata:
   name: allow-litellm-from-consumers
 spec:
-  # subspy (default) and loupe (custom) will need pod-to-pod ingress to LiteLLM
-  # once they move off Ollama; additive to the policy above, scoped to this endpoint only.
+  # LiteLLM consumers in default and custom reach it pod-to-pod; additive to the policy above,
+  # scoped to this endpoint only.
   description: "Allow LiteLLM consumers in default/custom to reach litellm"
   endpointSelector:
     matchLabels:

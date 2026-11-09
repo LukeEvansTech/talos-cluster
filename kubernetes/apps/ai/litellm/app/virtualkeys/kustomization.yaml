@@ -5,7 +5,6 @@ kind: Kustomization
 resources:
   - ./claudecode.yaml
   - ./jobops.yaml
-  - ./loupe.yaml
   - ./lurcher.yaml
   - ./sakuga.yaml
   - ./sleeper.yaml
