@@ -203,3 +203,13 @@ data:
         <location>/var/ossec/logs/active-responses.log</location>
       </localfile>
     </ossec_config>
+  # Replaces the stock example file on every start. Reasons per rule: docs/docs/apps/wazuh.md.
+  local_rules.xml: |-
+    <group name="local,sshd,">
+      <rule id="100110" level="3">
+        <if_sid>40112</if_sid>
+        <user>^unimus$</user>
+        <match>Accepted publickey for unimus </match>
+        <description>Unimus config backup logged in by key after trying other pool credentials.</description>
+      </rule>
+    </group>

@@ -128,6 +128,12 @@ spec:
                 readOnly: true,
               }
             - {
+                name: conf,
+                mountPath: /wazuh-config-mount/etc/rules/local_rules.xml,
+                subPath: local_rules.xml,
+                readOnly: true,
+              }
+            - {
                 name: certs,
                 mountPath: /etc/ssl/root-ca.pem,
                 subPath: root-ca.pem,
