@@ -41,7 +41,7 @@ WATCH = "watch: "
 
 # image (no tag): reason
 # Private packages pulled with an imagePullSecret; the check reads registries anonymously.
-PRIVATE = {"ghcr.io/lukeevanstech/contracthound", "ghcr.io/lukeevanstech/subspy"}
+PRIVATE = {"ghcr.io/lukeevanstech/subspy"}
 
 IGNORE = {
     "ghcr.io/claabs/epicgames-freegames-node": "upstream publishes only `latest`",
