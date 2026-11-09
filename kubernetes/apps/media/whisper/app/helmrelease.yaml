@@ -94,6 +94,11 @@ spec:
       # the whisper service to itself. Same pod spec, but its own model copy (see persistence).
       batch:
         <<: *controller
+        # Off by default. Nothing in the cluster calls it, and a loaded CUDA context keeps the
+        # card at P0 (about 34 W against 16 W with no context) even when idle. Scale it up for a
+        # bulk run: `kubectl -n media scale deploy/whisper-batch --replicas=1`, and back to 0
+        # afterwards. A Helm upgrade (any change to this file) resets it to this value.
+        replicas: 0
         containers:
           app:
             <<: *container
