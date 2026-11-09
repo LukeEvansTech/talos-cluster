@@ -19,7 +19,7 @@ spec:
       APP: *app
       VOLSYNC_CAPACITY: 1Gi
       HOMEPAGE_NAME: Reconcilable
-      HOMEPAGE_GROUP: Tools
+      HOMEPAGE_GROUP: Custom
       HOMEPAGE_ICON: mdi-scale-balance
       HOMEPAGE_DESCRIPTION: Credit card statement reconciliation
   prune: true

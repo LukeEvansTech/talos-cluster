@@ -10,6 +10,10 @@ iconStyle: theme
 headerStyle: underlined
 statusStyle: dot
 layout:
+  # Custom: the self-built apps in kubernetes/apps/custom, first on the page
+  Custom:
+    style: row
+    columns: 5
   Media:
     style: row
     columns: 3
