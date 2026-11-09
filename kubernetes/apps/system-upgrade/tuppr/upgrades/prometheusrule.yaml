@@ -96,10 +96,12 @@ spec:
         # The Stuck rules above only match in-flight phases, so an upgrade held in Pending — a
         # failed image pre-pull, an unreachable node — progresses nowhere with nothing firing.
         # The excluded reasons are tuppr's deliberate holds, plus Failed, already covered above.
+        # From 0.5.13 a failing health check parks the run in HealthChecking instead of failing
+        # it, so that is a hold too; the Stuck rules above already alert when that phase lasts.
         - alert: UpgradeNotProgressing
           expr: >-
             max by (namespace, upgrade_type, name) (
-              tuppr_upgrade_progressing{reason!~"Completed|Failed|MaintenanceWindow|Waiting.*|Suspended"}
+              tuppr_upgrade_progressing{reason!~"Completed|Failed|MaintenanceWindow|Waiting.*|Suspended|HealthChecking"}
             ) == 0
           for: 30m
           labels:
