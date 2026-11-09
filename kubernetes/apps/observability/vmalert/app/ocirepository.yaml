@@ -9,7 +9,7 @@ spec:
   provider: generic
   url: oci://ghcr.io/victoriametrics/helm-charts/victoria-metrics-alert
   ref:
-    tag: 0.52.1
+    tag: 0.53.0
   layerSelector:
     mediaType: application/vnd.cncf.helm.chart.content.v1.tar+gzip
     operation: copy
