@@ -27,6 +27,6 @@ spec:
       APP: *app
       VOLSYNC_CAPACITY: 1Gi
       HOMEPAGE_NAME: RedditVault
-      HOMEPAGE_GROUP: Tools
+      HOMEPAGE_GROUP: Custom
       HOMEPAGE_ICON: /icons/dracula/redditvault.svg
       HOMEPAGE_DESCRIPTION: Reddit saved items viewer

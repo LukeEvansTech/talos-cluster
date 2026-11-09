@@ -24,7 +24,7 @@ spec:
       APP: *app
       VOLSYNC_CAPACITY: 5Gi
       HOMEPAGE_NAME: Loupe
-      HOMEPAGE_GROUP: Productivity
+      HOMEPAGE_GROUP: Custom
       HOMEPAGE_ICON: mdi-magnify-scan
       HOMEPAGE_DESCRIPTION: Trading card pre-grader
   prune: true

@@ -22,7 +22,7 @@ spec:
       APP: *app
       VOLSYNC_CAPACITY: 1Gi
       HOMEPAGE_NAME: ContractHound
-      HOMEPAGE_GROUP: Productivity
+      HOMEPAGE_GROUP: Custom
       HOMEPAGE_ICON: mdi-file-search-outline
       HOMEPAGE_DESCRIPTION: Contract feed monitoring
   prune: true
