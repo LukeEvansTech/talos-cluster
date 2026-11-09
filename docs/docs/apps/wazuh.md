@@ -46,6 +46,20 @@ stays a manual, reviewed step.
   ExternalSecret refreshed, while the indexer's security index still held the old hashes. See
   [credential rotation](#credential-rotation) below for why that race matters and how it is avoided.
 
+## Local rules
+
+`local_rules.xml` comes from the `wazuh-manager-conf` ConfigMap and overwrites the copy on the PVC at
+every start, so a rule added through the dashboard is lost on restart. Add it here instead.
+
+- **100110: Unimus nightly backup (downgrades 40112 from 12 to 3).** Unimus cannot bind a credential to
+  a device through its API, so at 03:00 its discovery-and-backup job tries every credential in its pool
+  against every device before the right one succeeds. All of those attempts come from the node Unimus runs
+  on, so stock rule 40111 counts them as a brute force and 40112 emails "multiple authentication failures
+  followed by a success" when the key login lands. The exception matches only user `unimus` logging in by
+  public key: a password success, or any other user, still fires at level 12. The event is still
+  indexed and visible in the dashboard at level 3; it only stops the email. Removing the failures at
+  source means binding each device's credential in the Unimus UI.
+
 ## Deploy prerequisite: vm.max_map_count
 
 The indexer's `increase-the-vm-max-map-count` init container is removed (it needs `privileged:
