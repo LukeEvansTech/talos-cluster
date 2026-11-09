@@ -10,7 +10,6 @@ components:
 resources:
   - ./namespace.yaml
   - ./netpol.yaml
-  - ./contracthound/ks.yaml
   - ./curator/ks.yaml
   - ./curatorjudge/ks.yaml
   - ./curatortv/ks.yaml

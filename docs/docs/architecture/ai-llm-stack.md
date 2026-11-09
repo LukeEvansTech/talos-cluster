@@ -169,13 +169,12 @@ LiteLLM `model_name` groups make the serving tier transparent to clients:
 
 ## In-cluster consumers
 
-Nine in-cluster apps outside the `ai` namespace route through LiteLLM, all at
+Eight in-cluster apps outside the `ai` namespace route through LiteLLM, all at
 `http://litellm.ai.svc.cluster.local:4000/v1` and, except `suggestarr`, the `claude` model,
 falling back to `self-hosted` and then `openrouter/auto`. The model column is where to change it:
 
 | App             | Namespace | Key env var         | Model setting                                  |
 | --------------- | --------- | ------------------- | ---------------------------------------------- |
-| `contracthound` | `default` | `OPENAI_API_KEY`    | `OPENAI_MODEL` (HelmRelease)                   |
 | `subspy`        | `default` | `OPENAI_API_KEY`    | `OPENAI_MODEL` (HelmRelease)                   |
 | `jobops`        | `default` | `LLM_API_KEY`       | `MODEL` (HelmRelease), overridable in its UI   |
 | `lurcher`       | `default` | `LLM_API_KEY`       | `LLM_MODEL` (HelmRelease)                      |
