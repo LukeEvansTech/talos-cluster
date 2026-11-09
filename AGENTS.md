@@ -153,10 +153,22 @@ The `.agents/skills/add-app` skill scaffolds the four manifests; the cluster-spe
 out-of-band prerequisites and the validation the skill cannot do.
 
 - **Secrets and external stores are provisioned outside Git, then referenced by an ExternalSecret.**
-  Create the item in the `Talos` 1Password vault first
-  (`op item create --vault Talos --category "API Credential" --title <app> "FIELD[password]=…"`);
-  the app's `externalsecret.yaml` then `extract`s it. Generate values with `openssl rand -hex 32` and
-  never echo them.
+  Create the item in the `Talos` 1Password vault first; the app's `externalsecret.yaml` then
+  `extract`s it. Generate values with `openssl rand -hex 32` and never echo them or put them in
+  argv. Pick the category by whether a person signs in to the app in a browser:
+- **Browser login: a `Login` item carrying the app's URL.**
+  `op item create --vault Talos --category Login --title <app> --url https://<app>.<domain> --generate-password=letters,digits,32 username=<user>`.
+  The template reads `.username` and `.password`: a Login's built-in fields are always labelled
+  that, so don't add `ADMIN_PASSWORD`-style custom copies of the pair. Then set the site to
+  **Only fill on this exact host** in the 1Password app (edit the item, site autofill
+  options). `op` cannot set it, and the default fills on every subdomain, so the login would be
+  offered on every other app's sign-in page.
+- **No browser login (API keys, tokens, database passwords): `API Credential` or `Password`
+  with no URL.** Leaving the URL off keeps the browser extension from offering a machine
+  credential on a sign-in page.
+- **The title is the app name and stays fixed.** ExternalSecrets find items by title and fields
+  by label, so renaming an item or relabelling a field breaks its Secret. One item per app; add
+  fields to it rather than creating a second item.
 - **Each shared data service needs its own step.** One top-level item per service:
 - **CNPG Postgres.** Declare the database and role as a tenant file in
   `kubernetes/apps/database/cloudnative-pg/tenants/` (copy `paperless.yaml`; role = database name;

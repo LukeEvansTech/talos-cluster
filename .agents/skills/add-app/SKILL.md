@@ -240,7 +240,8 @@ spec:
 ```
 
 Mirror the templated `target.template.data` keys from a similar existing app rather than forcing a
-generic template. The 1Password item must live in the `Talos` vault.
+generic template. The 1Password item must live in the `Talos` vault. Create it as a `Login` with
+the app URL when people sign in through a browser (see AGENTS.md, Provisioning a new app).
 
 ### Step 9: Register the app in the namespace kustomization
 
