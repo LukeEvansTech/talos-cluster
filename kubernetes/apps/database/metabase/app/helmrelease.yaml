@@ -27,7 +27,7 @@ spec:
           app:
             image:
               repository: docker.io/metabase/metabase
-              tag: v0.65.3@sha256:9930a9b0e6974926319f691d1e55f0f9f97996e9ab658cd0cc04d9f86b0f0c1c
+              tag: v0.65.4@sha256:a562492ba594acd71a2976a08dfcb4a67af7ad56a614048c7a10af18ec560e3c
             # Named ports are required: app-template doesn't synthesise them, and the
             # PodMonitor needs port: metrics.
             ports:
