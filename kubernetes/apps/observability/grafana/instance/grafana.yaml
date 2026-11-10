@@ -10,7 +10,7 @@ spec:
   # The operator writes its own default here on first reconcile if Git leaves it unset, which held the
   # instance on 12.1.0 for a year with nothing in Git to bump.
   # renovate: datasource=docker depName=grafana/grafana
-  version: 13.3.0
+  version: 13.3.1
   config:
     analytics:
       check_for_updates: "false"
