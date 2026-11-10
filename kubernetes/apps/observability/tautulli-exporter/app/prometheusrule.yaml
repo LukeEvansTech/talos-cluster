@@ -25,3 +25,18 @@ spec:
           for: 15m
           labels:
             severity: warning
+        - alert: PlexTranscodingOnCPU
+          annotations:
+            summary: "Plex has transcoded for 30m with its GPU encoder idle, so it is transcoding on the CPU."
+            description: >-
+              Check the probe under gpu-operator in docs/docs/operations/upgrade-playbooks.md; the
+              usual cause is libcuda moving off the transcoder's musl search path (#7153).
+          # plex_transcode_video_sessions is always 0 from this exporter; active_streams_transcode is live.
+          # The encoder series is per-card, so a co-tenant encoding on Plex's card can mask this, never fake it.
+          expr: |-
+            (max(min_over_time(plex_active_streams_transcode{job="tautulli-exporter"}[20m])) > 0)
+            and on ()
+            (max(max_over_time(DCGM_FI_DEV_ENC_UTIL{exported_namespace="media", exported_pod=~"plex-[0-9a-f]+-[0-9a-z]+"}[20m])) == 0)
+          for: 10m
+          labels:
+            severity: warning

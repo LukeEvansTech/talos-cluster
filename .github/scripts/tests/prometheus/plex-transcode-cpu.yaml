@@ -1,0 +1,41 @@
+---
+# promtool unit tests for PlexTranscodingOnCPU. A sustained transcode with Plex's card encoder idle
+# fires; the same transcode with encoder bursts, or a sidecar pod named plex-*, must not.
+rule_files:
+  - kubernetes/apps/observability/tautulli-exporter/app/prometheusrule.yaml
+evaluation_interval: 1m
+tests:
+  # CPU transcode from 10m, encoder flat at 0: pending at 30m, firing from 40m.
+  - interval: 1m
+    input_series:
+      - series: 'plex_active_streams_transcode{job="tautulli-exporter"}'
+        values: "0x9 1x60"
+      - series: 'DCGM_FI_DEV_ENC_UTIL{exported_namespace="media",exported_pod="plex-58d57c96dd-ph578"}'
+        values: "0x70"
+    alert_rule_test:
+      - eval_time: 35m
+        alertname: PlexTranscodingOnCPU
+        exp_alerts: []
+      - eval_time: 45m
+        alertname: PlexTranscodingOnCPU
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+            exp_annotations:
+              summary: "Plex has transcoded for 30m with its GPU encoder idle, so it is transcoding on the CPU."
+              description: >-
+                Check the probe under gpu-operator in docs/docs/operations/upgrade-playbooks.md; the
+                usual cause is libcuda moving off the transcoder's musl search path (#7153).
+  # GPU transcode: throttled, so the encoder bursts once every 10 minutes and idles between.
+  - interval: 1m
+    input_series:
+      - series: 'plex_active_streams_transcode{job="tautulli-exporter"}'
+        values: "1x60"
+      - series: 'DCGM_FI_DEV_ENC_UTIL{exported_namespace="media",exported_pod="plex-58d57c96dd-ph578"}'
+        values: "40 0 0 0 0 0 0 0 0 0 40 0 0 0 0 0 0 0 0 0 40 0 0 0 0 0 0 0 0 0 40 0 0 0 0 0 0 0 0 0 40 0 0 0 0 0 0 0 0 0 40 0 0 0 0 0 0 0 0 0 40"
+      - series: 'DCGM_FI_DEV_ENC_UTIL{exported_namespace="media",exported_pod="plex-auto-languages-6ffdb676b5-qcs5h"}'
+        values: "0x60"
+    alert_rule_test:
+      - eval_time: 45m
+        alertname: PlexTranscodingOnCPU
+        exp_alerts: []
