@@ -26,18 +26,17 @@ spec:
           app:
             image:
               repository: docker.io/clusterzx/paperless-ai
-              tag: 3.0.9@sha256:2b65888163fd59716f1c8285b31c5bd0b30c9c3c192c42b516688e3887d4ba60
+              tag: 4.0.0@sha256:bea1e218755ba7940da9748ce64e3d7020f15059eab8eb5c6e5470d3d60436a6
             env:
               TZ: ${TIMEZONE}
               AI_PROVIDER: openai
               OPENAI_MODEL: gpt-4o
               PAPERLESS_AI_PORT: &port 3000
               PAPERLESS_API_URL: "http://paperless.default.svc.cluster.local:8000/api"
-              PGID: "1000"
-              PUID: "1000"
-              RAG_SERVICE_ENABLED: "true"
-              RAG_SERVICE_URL: "http://localhost:8000"
+              RAG_ENABLED: "true"
               SCAN_INTERVAL: "*/30 * * * *"
+              # Envoy terminates TLS, so trust one hop for req.protocol (Secure cookie) and client IPs.
+              TRUST_PROXY: "1"
             envFrom:
               - secretRef:
                   name: paperless-ai-secret
@@ -96,31 +95,6 @@ spec:
         existingClaim: "{{ .Release.Name }}"
         globalMounts:
           - path: /app/data
-      cache:
-        type: emptyDir
-        sizeLimit: 100Mi
-        globalMounts:
-          - path: /app/public/images
-      home:
-        type: emptyDir
-        sizeLimit: 100Mi
-        globalMounts:
-          - path: /home/node/.pm2
-      logs:
-        type: emptyDir
-        sizeLimit: 100Mi
-        globalMounts:
-          - path: /app/logs
-      nltk:
-        type: emptyDir
-        sizeLimit: 100Mi
-        globalMounts:
-          - path: /home/node/nltk_data
-      openapi:
-        type: emptyDir
-        sizeLimit: 1Mi
-        globalMounts:
-          - path: /app/OPENAPI
       tmp:
         type: emptyDir
         medium: Memory
