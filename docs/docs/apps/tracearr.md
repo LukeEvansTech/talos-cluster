@@ -19,7 +19,7 @@ the full TimescaleDB build, not the Apache-only `timescaledb-oss` image CloudNat
   CloudNativePG rejects `imageName` when it cannot parse a major version from the tag
   (`pg18.6-ts2.30.2`). `postgresUID/GID: 1000` match the image's postgres user.
 - **Operator access.** A CiliumNetworkPolicy lets the CNPG operator in `database` reach the
-  instances; the clusterwide `allow-same-namespace` policy blocks it otherwise. Any dedicated
+  instances; the namespaced `allow-same-namespace` policy blocks it otherwise. Any dedicated
   cluster outside `database` needs the same.
 - **Backups.** WAL archiving and daily base backups go to the `cnpg-tracearr` Garage bucket
   through the barman-cloud plugin (30-day retention), with its own key so the shared CNPG key
