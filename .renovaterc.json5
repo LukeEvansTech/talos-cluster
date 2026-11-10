@@ -727,6 +727,14 @@
       allowedVersions: "/^v\\d{1,3}\\.\\d+\\.\\d+$/",
     },
     {
+      // The 1.0.5 image ships without the packaging module, so gunicorn cannot load its gevent
+      // worker and the backend never starts (sassanix/Warracker#293). Drop once a fixed tag ships.
+      description: "warracker: skip the broken 1.0.5 image",
+      matchDatasources: ["docker"],
+      matchPackageNames: ["ghcr.io/sassanix/warracker/main"],
+      allowedVersions: "!/^1\\.0\\.5$/",
+    },
+    {
       // Paper lists new Minecraft versions before any STABLE build exists
       // (e.g. 26.2 shipped ALPHA/BETA only, PR #3533); the itzg image
       // defaults PAPER_CHANNEL to stable-only, so merging early crash-loops
