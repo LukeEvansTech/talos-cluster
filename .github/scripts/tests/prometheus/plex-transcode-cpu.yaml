@@ -1,17 +1,25 @@
 ---
-# promtool unit tests for PlexTranscodingOnCPU. A sustained transcode with Plex's card encoder idle
-# fires; the same transcode with encoder bursts, or a sidecar pod named plex-*, must not.
+# promtool unit tests for PlexTranscodingOnCPU. A video transcode on the CPU fires; a GPU transcode
+# whose encoder samples land on a co-tenant, an audio-only conversion, and a frozen Tautulli do not.
 rule_files:
   - kubernetes/apps/observability/tautulli-exporter/app/prometheusrule.yaml
 evaluation_interval: 1m
 tests:
-  # CPU transcode from 10m, encoder flat at 0: pending at 30m, firing from 40m.
+  # CPU transcode from 10m on 6 cores, card encoder flat at 0: pending at 30m, firing from 40m.
   - interval: 1m
     input_series:
       - series: 'plex_active_streams_transcode{job="tautulli-exporter"}'
         values: "0x9 1x60"
-      - series: 'DCGM_FI_DEV_ENC_UTIL{exported_namespace="media",exported_pod="plex-58d57c96dd-ph578"}'
+      - series: 'plex_up{job="tautulli-exporter"}'
+        values: "1x70"
+      - series: 'container_cpu_usage_seconds_total{namespace="media",pod="plex-58d57c96dd-ph578",container="app"}'
+        values: "0+360x70"
+      - series: 'kube_pod_info{namespace="media",pod="plex-58d57c96dd-ph578",node="node-c"}'
+        values: "1x70"
+      - series: 'DCGM_FI_DEV_ENC_UTIL{hostname="node-c",exported_pod="plex-58d57c96dd-ph578"}'
         values: "0x70"
+      - series: 'DCGM_FI_DEV_ENC_UTIL{hostname="node-a",exported_pod="tdarr-79d9c7b45c-s2dnv"}'
+        values: "60x70"
     alert_rule_test:
       - eval_time: 35m
         alertname: PlexTranscodingOnCPU
@@ -22,19 +30,59 @@ tests:
           - exp_labels:
               severity: warning
             exp_annotations:
-              summary: "Plex has transcoded for 30m with its GPU encoder idle, so it is transcoding on the CPU."
+              summary: "Plex has transcoded for 30m on over 2 CPU cores with its GPU encoder idle."
               description: >-
                 Check the probe under gpu-operator in docs/docs/operations/upgrade-playbooks.md; the
                 usual cause is libcuda moving off the transcoder's musl search path (#7153).
-  # GPU transcode: throttled, so the encoder bursts once every 10 minutes and idles between.
+  # GPU transcode with CPU busy: the card's encoder bursts are stamped on a co-tenant on the same node.
   - interval: 1m
     input_series:
       - series: 'plex_active_streams_transcode{job="tautulli-exporter"}'
-        values: "1x60"
-      - series: 'DCGM_FI_DEV_ENC_UTIL{exported_namespace="media",exported_pod="plex-58d57c96dd-ph578"}'
-        values: "40 0 0 0 0 0 0 0 0 0 40 0 0 0 0 0 0 0 0 0 40 0 0 0 0 0 0 0 0 0 40 0 0 0 0 0 0 0 0 0 40 0 0 0 0 0 0 0 0 0 40 0 0 0 0 0 0 0 0 0 40"
-      - series: 'DCGM_FI_DEV_ENC_UTIL{exported_namespace="media",exported_pod="plex-auto-languages-6ffdb676b5-qcs5h"}'
-        values: "0x60"
+        values: "0x9 1x60"
+      - series: 'plex_up{job="tautulli-exporter"}'
+        values: "1x70"
+      - series: 'container_cpu_usage_seconds_total{namespace="media",pod="plex-58d57c96dd-ph578",container="app"}'
+        values: "0+360x70"
+      - series: 'kube_pod_info{namespace="media",pod="plex-58d57c96dd-ph578",node="node-c"}'
+        values: "1x70"
+      - series: 'DCGM_FI_DEV_ENC_UTIL{hostname="node-c",exported_pod="plex-58d57c96dd-ph578"}'
+        values: "0x70"
+      - series: 'DCGM_FI_DEV_ENC_UTIL{hostname="node-c",exported_pod="jellyfin-654cf4dc9c-s4lgb"}'
+        values: "40 0 0 0 0 0 0 0 0 0 40 0 0 0 0 0 0 0 0 0 40 0 0 0 0 0 0 0 0 0 40 0 0 0 0 0 0 0 0 0 40 0 0 0 0 0 0 0 0 0 40 0 0 0 0 0 0 0 0 0 40 0 0 0 0 0 0 0 0 0 40"
+    alert_rule_test:
+      - eval_time: 45m
+        alertname: PlexTranscodingOnCPU
+        exp_alerts: []
+  # Audio-only conversion: Tautulli counts a transcode, but Plex's CPU stays under a core.
+  - interval: 1m
+    input_series:
+      - series: 'plex_active_streams_transcode{job="tautulli-exporter"}'
+        values: "0x9 1x60"
+      - series: 'plex_up{job="tautulli-exporter"}'
+        values: "1x70"
+      - series: 'container_cpu_usage_seconds_total{namespace="media",pod="plex-58d57c96dd-ph578",container="app"}'
+        values: "0+30x70"
+      - series: 'kube_pod_info{namespace="media",pod="plex-58d57c96dd-ph578",node="node-c"}'
+        values: "1x70"
+      - series: 'DCGM_FI_DEV_ENC_UTIL{hostname="node-c",exported_pod="plex-58d57c96dd-ph578"}'
+        values: "0x70"
+    alert_rule_test:
+      - eval_time: 45m
+        alertname: PlexTranscodingOnCPU
+        exp_alerts: []
+  # Tautulli unreachable from 5m: its transcode gauge freezes at 1 while plex_up drops to 0.
+  - interval: 1m
+    input_series:
+      - series: 'plex_active_streams_transcode{job="tautulli-exporter"}'
+        values: "1x70"
+      - series: 'plex_up{job="tautulli-exporter"}'
+        values: "1x4 0x65"
+      - series: 'container_cpu_usage_seconds_total{namespace="media",pod="plex-58d57c96dd-ph578",container="app"}'
+        values: "0+360x70"
+      - series: 'kube_pod_info{namespace="media",pod="plex-58d57c96dd-ph578",node="node-c"}'
+        values: "1x70"
+      - series: 'DCGM_FI_DEV_ENC_UTIL{hostname="node-c",exported_pod="plex-58d57c96dd-ph578"}'
+        values: "0x70"
     alert_rule_test:
       - eval_time: 45m
         alertname: PlexTranscodingOnCPU
