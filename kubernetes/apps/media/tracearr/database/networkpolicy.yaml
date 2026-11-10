@@ -6,7 +6,7 @@ metadata:
   name: tracearr-postgres-operator
 spec:
   description: "Let the CNPG operator reach the tracearr-postgres instances"
-  # The clusterwide allow-same-namespace policy otherwise blocks the operator in database.
+  # The namespaced allow-same-namespace policy otherwise blocks the operator in database.
   endpointSelector:
     matchLabels:
       cnpg.io/cluster: tracearr-postgres
