@@ -25,3 +25,28 @@ spec:
           for: 15m
           labels:
             severity: warning
+        - alert: PlexTranscodingOnCPU
+          annotations:
+            summary: "Plex has transcoded for 30m on over 2 CPU cores with its GPU encoder idle."
+            description: >-
+              Check the probe under gpu-operator in docs/docs/operations/upgrade-playbooks.md; the
+              usual cause is libcuda moving off the transcoder's musl search path (#7153).
+          # active_streams_transcode also counts audio-only conversions (the video-only gauge is
+          # always 0 here), so Plex's CPU must be busy too. The encoder is read for Plex's whole
+          # card via its node, since DCGM stamps each sample on one of the card's tenants.
+          expr: |-
+            (max(min_over_time(plex_active_streams_transcode{job="tautulli-exporter"}[20m])) > 0)
+            and on ()
+            (max(plex_up{job="tautulli-exporter"}) == 1)
+            and on ()
+            (min_over_time(sum(rate(container_cpu_usage_seconds_total{namespace="media", pod=~"plex-[0-9a-f]+-[0-9a-z]+", container="app"}[5m]))[20m:1m]) > 2)
+            and on ()
+            (
+              max by (hostname) (max_over_time(DCGM_FI_DEV_ENC_UTIL[20m]))
+              * on (hostname) group_left ()
+              max by (hostname) (label_replace(kube_pod_info{namespace="media", pod=~"plex-[0-9a-f]+-[0-9a-z]+"}, "hostname", "$1", "node", "(.*)"))
+              == 0
+            )
+          for: 10m
+          labels:
+            severity: warning

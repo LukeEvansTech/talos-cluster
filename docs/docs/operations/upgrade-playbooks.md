@@ -358,9 +358,12 @@ required driver version against the Talos extension's driver.
 | --- | --- |
 | Swapping the device-plugin implementation or rolling its DaemonSet races the kubelet's plugin registration; a node shows `allocatable.nvidia.com/gpu = 0` while the plugin pod logs claim success | Delete that node's plugin pod; allocatable returns in ~10 s. [KB-014](../troubleshooting/kb/014-gpu-device-plugin-handover-allocatable-zero.md) |
 | The operator's Kubernetes ceiling is behind the running version | Watch its pods after any Kubernetes bump; nothing has broken yet at one minor ahead |
+| A change to how pods get the card (the DRA move, #5299) changes where the NVIDIA libraries are mounted; Plex's bundled musl loader stops finding `libcuda` and silently transcodes on the CPU (seven weeks until #7153) | Run the Plex probe below; `PlexTranscodingOnCPU` catches it once someone transcodes |
 
 **After merge:** every node reports `nvidia.com/gpu: 5`; the DCGM exporter scrapes; a workload
 with `runtimeClassName: nvidia` starts and sees the card (`nvidia-smi` in an Ollama pod).
+Plex can load CUDA: `kubectl -n media exec deploy/plex -c app -- "/usr/lib/plexmediaserver/Plex Transcoder" -init_hw_device cuda=cu:0 -i /nonexistent`
+must fail on the missing input, not on `Cannot load libcuda.so.1`.
 
 **Rollback caveats:** none beyond the tag. The RuntimeClass is repo-owned, not chart-owned.
 
