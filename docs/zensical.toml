@@ -130,6 +130,7 @@ nav = [
     { "Todoist Sort" = "apps/todoist-sort.md" },
     { "TrueNAS exporter" = "apps/truenas-exporter.md" },
     { "tuppr" = "apps/tuppr.md" },
+    { "Unimus" = "apps/unimus.md" },
     { "Veeam backup monitoring" = "apps/veeam-backup.md" },
     { "VictoriaLogs" = "apps/victoria-logs.md" },
     { "vmalert" = "apps/vmalert.md" },

@@ -80,7 +80,8 @@ data:
     fingerprint is HMAC-SHA256 of the secret keyed by the API token, so a reader of
     this ConfigMap or of the device list cannot brute-force a secret offline.
     Rotating the API token changes every fingerprint and therefore recreates every
-    credential once, which is harmless. Anything else sharing a name is left alone:
+    credential once, dropping the bindings made in the UI (docs/docs/apps/unimus.md).
+    Anything else sharing a name is left alone:
     this script deletes only what it can prove it made.
 
     A listed credential is read for its description and uuid and nothing else.
