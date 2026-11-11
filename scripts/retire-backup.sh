@@ -12,31 +12,70 @@ kss=("$@")
     exit 2
 }
 
-# Flux skips the prune for a Kustomization or HelmRelease deleted while suspended, so resume on
-# every exit, failure included; the app runs again until the PR merges.
-# shellcheck disable=SC2329 # invoked by the EXIT trap
-resume() {
-    for k in "${kss[@]}"; do
-        flux resume hr "$k" -n "$ns" >/dev/null 2>&1 || echo "WARN: flux resume hr $k failed" >&2
-        flux resume ks "$k" -n "$ns" >/dev/null 2>&1 || echo "WARN: flux resume ks $k failed" >&2
+# Every change made here, so cleanup can put it back: no HelmRelease here enables drift
+# detection, so resuming one does not restore replicas or CronJobs.
+scaled=()    # "kind/name replicas"
+suspended=() # "cronjob/name"
+
+# Restore what was stopped, then resume Flux: it skips the prune for a Kustomization or
+# HelmRelease deleted while suspended. Returns nonzero if anything could not be put back.
+cleanup() {
+    local rc=0 entry k
+    for entry in "${scaled[@]+"${scaled[@]}"}"; do
+        kubectl -n "$ns" scale "${entry% *}" --replicas="${entry##* }" >/dev/null || {
+            echo "RESTORE FAILED: scale ${entry% *} to ${entry##* }" >&2
+            rc=1
+        }
     done
-    echo "resumed: ${kss[*]}"
+    for entry in "${suspended[@]+"${suspended[@]}"}"; do
+        kubectl -n "$ns" patch "$entry" -p '{"spec":{"suspend":false}}' >/dev/null || {
+            echo "RESTORE FAILED: unsuspend $entry" >&2
+            rc=1
+        }
+    done
+    for k in "${kss[@]}"; do
+        flux resume hr "$k" -n "$ns" >/dev/null || {
+            echo "RESUME FAILED: hr $k" >&2
+            rc=1
+        }
+        flux resume ks "$k" -n "$ns" >/dev/null || {
+            echo "RESUME FAILED: ks $k" >&2
+            rc=1
+        }
+    done
+    return "$rc"
 }
-trap resume EXIT
+# shellcheck disable=SC2329 # invoked by the EXIT trap
+on_exit() {
+    cleanup || echo "CLEANUP INCOMPLETE: restore the app by hand before merging" >&2
+}
+trap on_exit EXIT
 
 for k in "${kss[@]}"; do
     flux suspend ks "$k" -n "$ns"
     flux suspend hr "$k" -n "$ns"
     sel="helm.toolkit.fluxcd.io/name=$k"
-    kubectl -n "$ns" scale deploy,statefulset -l "$sel" --replicas=0
-    for cj in $(kubectl -n "$ns" get cronjob -l "$sel" -o name); do
+    # Assigned on their own line so a failed query stops the run instead of reading as "none".
+    workloads=$(kubectl -n "$ns" get deploy,statefulset -l "$sel" \
+        -o jsonpath='{range .items[*]}{.kind}/{.metadata.name} {.spec.replicas}{"\n"}{end}')
+    while read -r obj replicas; do
+        [ -n "$obj" ] || continue
+        scaled+=("$obj $replicas")
+        kubectl -n "$ns" scale "$obj" --replicas=0
+    done <<<"$workloads"
+    cronjobs=$(kubectl -n "$ns" get cronjob -l "$sel" \
+        -o jsonpath='{range .items[*]}cronjob/{.metadata.name} {.spec.suspend}{"\n"}{end}')
+    while read -r cj already; do
+        [ -n "$cj" ] || continue
+        [ "$already" = "true" ] && continue
+        suspended+=("$cj")
         kubectl -n "$ns" patch "$cj" -p '{"spec":{"suspend":true}}'
-    done
-    # A zeroscaler HPA would restore a replica.
+    done <<<"$cronjobs"
+    # A zeroscaler HPA would restore a replica; the Kustomization recreates it on resume.
     kubectl -n "$ns" delete hpa -l "kustomize.toolkit.fluxcd.io/name=$k" --ignore-not-found
 done
 
-# A failed query must not read as "no writers": both commands have to succeed.
+# Also waits out running Jobs: a CronJob's pod that mounts the claim is a writer.
 for claim in "${kss[@]}"; do
     until pods=$(kubectl get pods -n "$ns" -o json) && users=$(jq -r --arg c "$claim" \
         '.items[] | select(.status.phase != "Succeeded" and .status.phase != "Failed")
@@ -57,8 +96,11 @@ for k in "${kss[@]}"; do
         until [ "$(kubectl -n "$ns" get replicationsource "$rs" \
             -o jsonpath='{.status.conditions[?(@.type=="Synchronizing")].status}')" = "False" ]; do sleep 10; done
         t="retire-$(date +%s)"
-        kubectl -n "$ns" patch replicationsource "$rs" --type merge -p "{\"spec\":{\"trigger\":{\"manual\":\"$t\"}}}" >/dev/null
-        until [ "$(kubectl -n "$ns" get replicationsource "$rs" -o jsonpath='{.status.lastManualSync}')" = "$t" ]; do sleep 10; done
+        kubectl -n "$ns" patch replicationsource "$rs" --type merge \
+            -p "{\"spec\":{\"trigger\":{\"manual\":\"$t\"}}}" >/dev/null
+        until [ "$(kubectl -n "$ns" get replicationsource "$rs" -o jsonpath='{.status.lastManualSync}')" = "$t" ]; do
+            sleep 10
+        done
         line=$(kubectl -n "$ns" get replicationsource "$rs" \
             -o jsonpath='{.metadata.name} {.status.latestMoverStatus.result} {.status.lastSyncTime}')
         echo "$line"
@@ -66,9 +108,15 @@ for k in "${kss[@]}"; do
     done
 done
 
-if [ "$rc" -eq 0 ]; then
-    echo "BACKUP OK: merge the archive PR now; writes after the resume are not in the backup."
-else
-    echo "BACKUP INCOMPLETE: do not merge." >&2
+# Restore before the verdict, so "BACKUP OK" appears only once the app runs again.
+trap - EXIT
+if ! cleanup; then
+    echo "CLEANUP INCOMPLETE: restore the app by hand; do not merge until Flux is resumed." >&2
+    exit 1
 fi
-exit "$rc"
+echo "restored and resumed: ${kss[*]}"
+if [ "$rc" -ne 0 ]; then
+    echo "BACKUP INCOMPLETE: do not merge." >&2
+    exit 1
+fi
+echo "BACKUP OK: merge the archive PR now; writes after the resume are not in the backup."

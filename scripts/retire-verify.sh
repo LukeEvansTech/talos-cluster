@@ -22,11 +22,23 @@ report() { # <label> <lines>
     fi
 }
 
-report "Flux Kustomizations" "$(flux get kustomizations -A --no-header | grep -E "$m" || true)"
-report "Flux HelmReleases" "$(flux get helmreleases -A --no-header | grep -E "$m" || true)"
-report "objects in $ns" "$(kubectl -n "$ns" get deploy,statefulset,cronjob,pvc,replicationsource,replicationdestination,httproute,externalsecret \
-    --no-headers -o name | grep -E "/${app}([-]|$)" || true)"
-report "LiteLLM virtual key and PushSecret" "$(kubectl -n ai get litellmvirtualkeys,pushsecrets --no-headers -o name | grep -E "/${app}$" || true)"
+# Each inventory is captured on its own line so a failed query reports BLIND, never "gone".
+inventory() { # <label> <filter regex> <command...>
+    local label=$1 re=$2 out
+    shift 2
+    if ! out=$("$@"); then
+        echo "BLIND $label: the query failed"
+        left=1
+        return
+    fi
+    report "$label" "$(grep -E "$re" <<<"$out" || true)"
+}
+
+inventory "Flux Kustomizations" "$m" flux get kustomizations -A --no-header
+inventory "Flux HelmReleases" "$m" flux get helmreleases -A --no-header
+inventory "objects in $ns" "/${app}([-]|$)" kubectl -n "$ns" get \
+    deploy,statefulset,cronjob,pvc,replicationsource,replicationdestination,httproute,externalsecret -o name
+inventory "LiteLLM virtual key and PushSecret" "/${app}$" kubectl -n ai get litellmvirtualkeys,pushsecrets -o name
 
 # The key list is queried inside the litellm pod, which holds the master key, with a live alias as
 # the control so an empty answer from a broken query cannot pass.
@@ -53,8 +65,13 @@ else
 fi
 
 field="LITELLM_$(tr 'a-z-' 'A-Z_' <<<"$app")_API_KEY"
-readers=$(git grep -n "$field" origin/main -- kubernetes || true)
-report "readers of 1Password field $field on origin/main" "$readers"
+# git grep exits 1 on no match and above 1 on error; only the error is a failed query.
+# shellcheck disable=SC2329 # invoked through inventory
+readers() {
+    git grep -n -e "$field" origin/main -- kubernetes || [ $? -eq 1 ]
+}
+git fetch -q origin main
+inventory "readers of 1Password field $field on origin/main" "." readers
 echo "check 1Password by hand: delete field $field from the litellm item once it has no readers"
 
 python3 "$(git rev-parse --show-toplevel)/.github/scripts/check_archived_app_refs.py" || left=1
