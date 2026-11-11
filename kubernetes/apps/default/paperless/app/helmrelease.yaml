@@ -36,11 +36,15 @@ spec:
               PAPERLESS_DATA_DIR: /data/data
               PAPERLESS_EXPORT_DIR: /data/export
               PAPERLESS_MEDIA_ROOT: /data/media
-              # /data/consume is a subPath mount, so inotify doesn't fire reliably; this keeps
-              # polling instead of v3's default native watch.
+              # /data/consume is an NFS mount that scanners fill over SMB on the NAS; inotify
+              # never sees those writes, so poll instead of v3's default native watch.
               PAPERLESS_CONSUMER_POLLING_INTERVAL: "360"
               PAPERLESS_CONSUMER_RECURSIVE: "true"
               PAPERLESS_CONSUMER_SUBDIRS_AS_TAGS: "true"
+              # PATCH-T separator sheets split a batch into documents; ASN labels set the
+              # archive serial number that matches the paper binder.
+              PAPERLESS_CONSUMER_ENABLE_BARCODES: "true"
+              PAPERLESS_CONSUMER_ENABLE_ASN_BARCODE: "true"
               PAPERLESS_FILENAME_FORMAT: "{correspondent}/{created_year}/{title}"
               PAPERLESS_TASK_WORKERS: "2"
               PAPERLESS_WEBSERVER_WORKERS: "2"
@@ -98,13 +102,19 @@ spec:
             namespace: network
 
     persistence:
+      consume:
+        type: custom
+        volumeSpec:
+          nfs:
+            server: "${SECRET_STORAGE_SERVER}"
+            path: /mnt/pool/paperless-consume
+        globalMounts:
+          - path: /data/consume
       data:
         existingClaim: "{{ .Release.Name }}"
         advancedMounts:
           paperless:
             app:
-              - path: /data/consume
-                subPath: consume
               - path: /data/data
                 subPath: data
               - path: /data/export

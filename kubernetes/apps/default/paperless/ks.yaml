@@ -22,7 +22,7 @@ spec:
   postBuild:
     substitute:
       APP: *app
-      VOLSYNC_CAPACITY: 5Gi
+      VOLSYNC_CAPACITY: 30Gi
       HOMEPAGE_NAME: Paperless
       HOMEPAGE_GROUP: Productivity
       HOMEPAGE_ICON: /icons/dracula/paperless.svg
