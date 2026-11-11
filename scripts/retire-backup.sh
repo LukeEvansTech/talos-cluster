@@ -75,7 +75,15 @@ for k in "${kss[@]}"; do
     kubectl -n "$ns" delete hpa -l "kustomize.toolkit.fluxcd.io/name=$k" --ignore-not-found
 done
 
-# Also waits out running Jobs: a CronJob's pod that mounts the claim is a writer.
+# A Job between retries has no pod but will write again, so wait until every Job its suspended
+# CronJobs own has finished, not just until its pods are gone.
+owners=$(printf '%s\n' "${suspended[@]+"${suspended[@]}"}" | sed -n 's|^cronjob/||p' | jq -R . | jq -sc .)
+until jobs=$(kubectl get jobs -n "$ns" -o json) && open=$(jq -r --argjson o "$owners" \
+    '.items[] | select(any(.metadata.ownerReferences[]?; .kind == "CronJob" and (.name | IN($o[]))))
+    | select(any(.status.conditions[]?; (.type == "Complete" or .type == "Failed") and .status == "True") | not)
+    | .metadata.name' <<<"$jobs") && [ -z "$open" ]; do sleep 10; done
+
+# Pods that still mount a claim are writers: a scaled-down Deployment's terminating pod, a Job's.
 for claim in "${kss[@]}"; do
     until pods=$(kubectl get pods -n "$ns" -o json) && users=$(jq -r --arg c "$claim" \
         '.items[] | select(.status.phase != "Succeeded" and .status.phase != "Failed")

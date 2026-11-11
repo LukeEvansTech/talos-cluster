@@ -36,7 +36,8 @@ inventory() { # <label> <filter regex> <command...>
 
 inventory "Flux Kustomizations" "$m" flux get kustomizations -A --no-header
 inventory "Flux HelmReleases" "$m" flux get helmreleases -A --no-header
-inventory "objects in $ns" "/${app}([-]|$)" kubectl -n "$ns" get \
+# "/([^/]*-)?" also catches StatefulSet claims, named <template>-<app>-<ordinal>.
+inventory "objects in $ns" "/([^/]*-)?${app}(-|$)" kubectl -n "$ns" get \
     deploy,statefulset,cronjob,pvc,replicationsource,replicationdestination,httproute,externalsecret -o name
 inventory "LiteLLM virtual key and PushSecret" "/${app}$" kubectl -n ai get litellmvirtualkeys,pushsecrets -o name
 
