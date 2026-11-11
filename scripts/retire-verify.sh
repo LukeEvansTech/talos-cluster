@@ -48,8 +48,8 @@ inventory() { # <label> <filter regex> <command...>
     fi
     out=$(grep -E "$re" <<<"$out" || true)
     if [ -n "$keep" ] && [ -n "$out" ]; then
-        grep -E "$keep" <<<"$out" | awk -v l="$label" '{ print "kept  " l ": " $0 }' || true
-        out=$(grep -v -E "$keep" <<<"$out" || true)
+        grep -E -- "$keep" <<<"$out" | awk -v l="$label" '{ print "kept  " l ": " $0 }' || true
+        out=$(grep -v -E -- "$keep" <<<"$out" || true)
     fi
     report "$label" "$out"
 }

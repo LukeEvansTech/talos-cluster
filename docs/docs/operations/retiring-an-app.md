@@ -66,8 +66,10 @@ failure, it restores the replica counts and CronJobs and resumes Flux: Flux skip
 for a Kustomization deleted while suspended, and helm-controller skips the uninstall of a suspended
 HelmRelease.
 
-Go on only on `BACKUP OK`. For a claim reported with no ReplicationSource, copy it out (below)
-and run the archive with that evidence instead. Then merge the step 2 PR straight away (`flux reconcile source git flux-system`):
+Go on only on `BACKUP OK`. The script restarts the app before it exits, so for a claim reported
+with no ReplicationSource, stop the app again by hand (suspend its Kustomization and HelmRelease,
+scale it to 0), copy the claim out while it is stopped (below), and merge the archive with the app
+still stopped. Then merge the step 2 PR straight away (`flux reconcile source git flux-system`):
 anything written between the resume and the prune is not in the backup.
 
 An app without the `volsync` component has no backup at all: copy the data out with

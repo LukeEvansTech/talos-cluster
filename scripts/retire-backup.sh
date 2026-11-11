@@ -2,7 +2,8 @@
 # Stop an app being retired and take a fresh VolSync sync of every destination, so the backup
 # postdates the app's last write. Runbook: docs/docs/operations/retiring-an-app.md, step 1.
 # Usage: retire-backup.sh <namespace> <kustomization>...  (every Kustomization in the app's ks.yaml)
-# RETIRE_TIMEOUT (seconds, default 1800) bounds all the waits together.
+# RETIRE_TIMEOUT (seconds, default 1800) bounds stopping the writers; RETIRE_SYNC_TIMEOUT (default
+# 2700) bounds each sync, which the volsync mover jitter alone can delay by up to 15 minutes.
 set -euo pipefail
 
 ns=${1:?namespace}
@@ -105,8 +106,8 @@ if [ -n "$foreign" ]; then
     exit 1
 fi
 
-# Every wait shares one deadline, so a writer that can never finish (an ImageMaid Job that needs
-# Plex running) fails the run, and the EXIT trap restores the app, instead of hanging.
+# Bounded waits, so a writer that can never finish (an ImageMaid Job that needs Plex running)
+# fails the run, and the EXIT trap restores the app, instead of hanging.
 deadline=$(($(date +%s) + ${RETIRE_TIMEOUT:-1800}))
 tick() {
     [ "$(date +%s)" -lt "$deadline" ] || {
@@ -169,6 +170,7 @@ while read -r claim; do
         continue
     fi
     for rs in $mine; do
+        deadline=$(($(date +%s) + ${RETIRE_SYNC_TIMEOUT:-2700}))
         # A run already in progress completes as the manual sync and may predate the stop.
         until [ "$(kubectl -n "$ns" get replicationsource "$rs" \
             -o jsonpath='{.status.conditions[?(@.type=="Synchronizing")].status}')" = "False" ]; do tick "$rs to go idle"; done
