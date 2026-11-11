@@ -2,6 +2,7 @@
 # Stop an app being retired and take a fresh VolSync sync of every destination, so the backup
 # postdates the app's last write. Runbook: docs/docs/operations/retiring-an-app.md, step 1.
 # Usage: retire-backup.sh <namespace> <kustomization>...  (every Kustomization in the app's ks.yaml)
+# RETIRE_TIMEOUT (seconds, default 1800) bounds all the waits together.
 set -euo pipefail
 
 ns=${1:?namespace}
@@ -104,6 +105,17 @@ if [ -n "$foreign" ]; then
     exit 1
 fi
 
+# Every wait shares one deadline, so a writer that can never finish (an ImageMaid Job that needs
+# Plex running) fails the run, and the EXIT trap restores the app, instead of hanging.
+deadline=$(($(date +%s) + ${RETIRE_TIMEOUT:-1800}))
+tick() {
+    [ "$(date +%s)" -lt "$deadline" ] || {
+        echo "TIMED OUT waiting for: $1" >&2
+        exit 1
+    }
+    sleep 10
+}
+
 trap on_exit EXIT
 
 for k in "${kss[@]}"; do
@@ -139,11 +151,11 @@ done <<<"$cronjobs"
 until jobs=$(kubectl get jobs -n "$ns" -o json) && open=$(jq -r --argjson c "$claims" \
     '.items[] | select(any(.spec.template.spec.volumes[]?; .persistentVolumeClaim.claimName | IN($c[])))
     | select(any(.status.conditions[]?; (.type == "Complete" or .type == "Failed") and .status == "True") | not)
-    | .metadata.name' <<<"$jobs") && [ -z "$open" ]; do sleep 10; done
+    | .metadata.name' <<<"$jobs") && [ -z "$open" ]; do tick "unfinished Jobs"; done
 until pods=$(kubectl get pods -n "$ns" -o json) && users=$(jq -r --argjson c "$claims" \
     '.items[] | select(.status.phase != "Succeeded" and .status.phase != "Failed")
     | select(any(.spec.volumes[]?; .persistentVolumeClaim.claimName | IN($c[]))) | .metadata.name' \
-    <<<"$pods") && [ -z "$users" ]; do sleep 10; done
+    <<<"$pods") && [ -z "$users" ]; do tick "pods mounting a claim"; done
 echo "writers stopped: $(date -u +%FT%TZ)"
 
 rc=0
@@ -159,12 +171,12 @@ while read -r claim; do
     for rs in $mine; do
         # A run already in progress completes as the manual sync and may predate the stop.
         until [ "$(kubectl -n "$ns" get replicationsource "$rs" \
-            -o jsonpath='{.status.conditions[?(@.type=="Synchronizing")].status}')" = "False" ]; do sleep 10; done
+            -o jsonpath='{.status.conditions[?(@.type=="Synchronizing")].status}')" = "False" ]; do tick "$rs to go idle"; done
         t="retire-$(date +%s)"
         kubectl -n "$ns" patch replicationsource "$rs" --type merge \
             -p "{\"spec\":{\"trigger\":{\"manual\":\"$t\"}}}" >/dev/null
         until [ "$(kubectl -n "$ns" get replicationsource "$rs" -o jsonpath='{.status.lastManualSync}')" = "$t" ]; do
-            sleep 10
+            tick "$rs manual sync"
         done
         line=$(kubectl -n "$ns" get replicationsource "$rs" \
             -o jsonpath='{.metadata.name} {.status.latestMoverStatus.result} {.status.lastSyncTime}')

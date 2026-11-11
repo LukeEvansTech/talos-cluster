@@ -10,6 +10,15 @@ set -euo pipefail
 ns=${1:?namespace}
 app=${2:?app}
 keep=${3:-}
+# An invalid regex would make every filtered grep fail quietly and report leftovers as gone.
+if [ -n "$keep" ]; then
+    status=0
+    grep -E -q -- "$keep" <<<"" 2>/dev/null || status=$?
+    [ "$status" -le 1 ] || {
+        echo "keep-regex is not a valid extended regex: $keep" >&2
+        exit 2
+    }
+fi
 [[ "$app" =~ ^[a-z0-9][a-z0-9-]*$ ]] || {
     echo "app must be a plain name" >&2
     exit 2
