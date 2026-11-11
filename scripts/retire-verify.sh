@@ -3,6 +3,8 @@
 # Runbook: docs/docs/operations/retiring-an-app.md, steps 4-6 and "Done when".
 # Usage: retire-verify.sh <namespace> <app> [keep-regex]
 #   keep-regex: objects kept on purpose (e.g. 'loupe-runner'), listed as kept rather than left.
+# Objects are matched by the app's name, so leftovers of a release named otherwise (memini's
+# llama-embed) are not found: check the archived manifests for such names by hand.
 set -euo pipefail
 
 ns=${1:?namespace}

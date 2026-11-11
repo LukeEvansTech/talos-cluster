@@ -60,32 +60,42 @@ for k in "${kss[@]}"; do
     done < <(grep '_helm.toolkit.fluxcd.io_HelmRelease$' <<<"$inv" || true)
 done
 hrs_json=$(printf '%s\n' "${hrs[@]+"${hrs[@]}"}" | jq -R 'select(. != "")' | jq -sc .)
+kss_json=$(printf '%s\n' "${kss[@]}" | jq -R . | jq -sc .)
+# A controller is the app's if one of its HelmReleases or, for plain manifests, one of its
+# Kustomizations applied it.
+# shellcheck disable=SC2016 # jq variables, not shell ones
+mine_jq='def mine: ((.metadata.labels["helm.toolkit.fluxcd.io/name"] // "") | IN($h[]))
+    or ((.metadata.labels["kustomize.toolkit.fluxcd.io/name"] // "") | IN($k[]));'
 
 # Every claim the app's controllers mount, StatefulSet claims included: each needs a backup.
 controllers=$(kubectl get deploy,statefulset,cronjob -n "$ns" -o json)
 pvcs=$(kubectl get pvc -n "$ns" -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}')
 claims_txt=$(
-    jq -r --argjson h "$hrs_json" '
-        .items[] | select((.metadata.labels["helm.toolkit.fluxcd.io/name"] // "") | IN($h[]))
+    jq -r --argjson h "$hrs_json" --argjson k "$kss_json" "$mine_jq"'
+        .items[] | select(mine)
         | (.spec.template.spec // .spec.jobTemplate.spec.template.spec).volumes[]?
         | .persistentVolumeClaim.claimName // empty' <<<"$controllers"
-    jq -r --argjson h "$hrs_json" '
+    jq -r --argjson h "$hrs_json" --argjson k "$kss_json" "$mine_jq"'
         .items[] | select(.kind == "StatefulSet")
-        | select((.metadata.labels["helm.toolkit.fluxcd.io/name"] // "") | IN($h[]))
+        | select(mine)
         | .metadata.name as $s | .spec.volumeClaimTemplates[]?.metadata.name | "^\(.)-\($s)-[0-9]+$"' \
         <<<"$controllers" | while read -r re; do grep -E "$re" <<<"$pvcs" || true; done
 )
 claims_txt=$(sort -u <<<"$claims_txt" | sed '/^$/d')
-[ -n "$claims_txt" ] || echo "note: no claim mounted by ${hrs[*]:-no HelmRelease}; nothing to back up"
+if [ -z "$claims_txt" ]; then
+    echo "REFUSED: found no claim mounted by the app's controllers; if it is stateless it needs no" >&2
+    echo "backup, otherwise find its claims by hand (runbook step 1)." >&2
+    exit 1
+fi
 claims=$(jq -R . <<<"$claims_txt" | jq -sc 'map(select(. != ""))')
 
 # Refuse before changing anything if a running controller outside these HelmReleases mounts a
 # claim: another app sharing it (curatorjudge writes to curator's) would keep writing.
-foreign=$(jq -r --argjson h "$hrs_json" --argjson c "$claims" '
+foreign=$(jq -r --argjson h "$hrs_json" --argjson k "$kss_json" --argjson c "$claims" "$mine_jq"'
     .items[]
     | (.spec.template.spec // .spec.jobTemplate.spec.template.spec) as $pod
     | select(any($pod.volumes[]?; .persistentVolumeClaim.claimName | IN($c[])))
-    | select((.metadata.labels["helm.toolkit.fluxcd.io/name"] // "") | IN($h[]) | not)
+    | select(mine | not)
     | select(.spec.suspend != true and (.spec.replicas // 1) > 0)
     | "\(.kind)/\(.metadata.name)"' <<<"$controllers")
 if [ -n "$foreign" ]; then
@@ -105,23 +115,24 @@ done
 for h in "${hrs[@]+"${hrs[@]}"}"; do
     flux suspend hr "$h" -n "$ns"
     paused=("hr $h" "${paused[@]}")
-    sel="helm.toolkit.fluxcd.io/name=$h"
-    workloads=$(kubectl -n "$ns" get deploy,statefulset -l "$sel" \
-        -o jsonpath='{range .items[*]}{.kind}/{.metadata.name} {.spec.replicas}{"\n"}{end}')
-    while read -r obj replicas; do
-        [ -n "$obj" ] || continue
-        scaled+=("$obj $replicas")
-        kubectl -n "$ns" scale "$obj" --replicas=0
-    done <<<"$workloads"
-    cronjobs=$(kubectl -n "$ns" get cronjob -l "$sel" \
-        -o jsonpath='{range .items[*]}cronjob/{.metadata.name} {.spec.suspend}{"\n"}{end}')
-    while read -r cj already; do
-        [ -n "$cj" ] || continue
-        [ "$already" = "true" ] && continue
-        suspended+=("$cj")
-        kubectl -n "$ns" patch "$cj" -p '{"spec":{"suspend":true}}'
-    done <<<"$cronjobs"
 done
+workloads=$(jq -r --argjson h "$hrs_json" --argjson k "$kss_json" "$mine_jq"'
+    .items[] | select(.kind != "CronJob") | select(mine) | "\(.kind)/\(.metadata.name) \(.spec.replicas // 1)"' \
+    <<<"$controllers")
+while read -r obj replicas; do
+    [ -n "$obj" ] || continue
+    scaled+=("$obj $replicas")
+    kubectl -n "$ns" scale "$obj" --replicas=0
+done <<<"$workloads"
+cronjobs=$(jq -r --argjson h "$hrs_json" --argjson k "$kss_json" "$mine_jq"'
+    .items[] | select(.kind == "CronJob") | select(mine) | "cronjob/\(.metadata.name) \(.spec.suspend // false)"' \
+    <<<"$controllers")
+while read -r cj already; do
+    [ -n "$cj" ] || continue
+    [ "$already" = "true" ] && continue
+    suspended+=("$cj")
+    kubectl -n "$ns" patch "$cj" -p '{"spec":{"suspend":true}}'
+done <<<"$cronjobs"
 
 # A Job between retries has no pod but will write again, so wait until every Job that mounts a
 # claim has finished, whoever owns it; then until no pod mounts one.
