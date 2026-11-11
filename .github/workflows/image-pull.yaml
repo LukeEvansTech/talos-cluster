@@ -18,7 +18,7 @@ concurrency:
 
 env:
   # renovate: datasource=github-releases depName=home-operations/flate
-  FLATE_VERSION: "v0.6.5"
+  FLATE_VERSION: "v0.7.1"
   # renovate: datasource=github-releases depName=siderolabs/talos
   TALOS_VERSION: "v1.14.5"
 
@@ -87,22 +87,25 @@ jobs:
         run: |
           flate get images \
             --path default/kubernetes/flux/cluster \
-            --allow-missing-secrets \
+            --allow-missing-kinds Secret,ConfigMap \
             --output json > /tmp/default-images.json
 
       - name: Extract Images from Pull Request Branch
         run: |
           flate get images \
             --path pull/kubernetes/flux/cluster \
-            --allow-missing-secrets \
+            --allow-missing-kinds Secret,ConfigMap \
             --output json > /tmp/pull-images.json
 
       - name: Set Outputs
         id: set-outputs
         run: |
-          # flate `get images -o json` emits a flat JSON array of image strings.
-          DEFAULT_IMAGES=$(jq -c 'unique' /tmp/default-images.json)
-          PULL_IMAGES=$(jq -c 'unique' /tmp/pull-images.json)
+          # flate `get images -o json` emits a flat JSON array of image strings. Since 0.7 it also
+          # emits bare component names (driver, dcgm, ...) from custom resources such as the GPU
+          # operator's ClusterPolicy; keep only references with a tag or digest, so the pull matrix
+          # never gets an unpullable name.
+          DEFAULT_IMAGES=$(jq -c 'map(select(test("[:@]"))) | unique' /tmp/default-images.json)
+          PULL_IMAGES=$(jq -c 'map(select(test("[:@]"))) | unique' /tmp/pull-images.json)
           {
             echo "default_images=${DEFAULT_IMAGES}"
             echo "pull_images=${PULL_IMAGES}"
