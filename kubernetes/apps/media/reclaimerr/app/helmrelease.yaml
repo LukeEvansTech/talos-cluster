@@ -16,7 +16,7 @@ spec:
           app:
             image:
               repository: ghcr.io/jessielw/reclaimerr
-              tag: 0.6.10@sha256:131be7c06a9fa4a0fd8dea3405db138969adb5c66c7f7440a13d39c19dc6f0ab
+              tag: 0.6.11@sha256:ac8826f5d25e748673e3cc937bfbf65b37d7dd33dedd7a682d8a681ccc70107b
             # Skip the image entrypoint: with TZ set it writes /etc/localtime, which the read-only root refuses.
             command:
               - sh
