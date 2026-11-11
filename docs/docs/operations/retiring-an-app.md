@@ -53,18 +53,21 @@ declares three), and the move prunes all of them. Cover every one:
 just kube retire-backup <ns> <each Kustomization name in the app's ks.yaml>
 ```
 
-`scripts/retire-backup.sh` first refuses if a running controller from another app mounts one of the
+`scripts/retire-backup.sh` reads the HelmReleases each Kustomization applies from its inventory
+(`memini-models` applies `llama-embed` and `llama-rerank`) and every claim their controllers mount,
+StatefulSet claims included. It refuses if a running controller from another app mounts one of those
 claims (`curatorjudge` writes to `curator`'s): suspend or scale that writer yourself, then run it
-again. It then suspends each Kustomization and HelmRelease so Flux neither reverts the manual
-trigger nor scales the app back up, scales its Deployments and StatefulSets to 0, suspends its
-CronJobs, deletes any `zeroscaler` HPA, waits until every Job and pod that mounts a claim has
-finished, then triggers a fresh sync of every `<ks>-nfs` and `<ks>-r2` source and prints each
-result. On exit, success or failure, it restores the replica counts and CronJobs and resumes Flux:
-Flux skips garbage collection for a Kustomization deleted while suspended, and helm-controller skips
-the uninstall of a suspended HelmRelease.
+again. It then suspends the Kustomizations and HelmReleases so Flux neither reverts the manual
+trigger nor scales the app back up, deletes any `zeroscaler` HPA, scales the Deployments and
+StatefulSets to 0, suspends the CronJobs, waits until every Job and pod that mounts a claim has
+finished, then triggers a fresh sync of every ReplicationSource of every claim and prints each
+result. A claim with no ReplicationSource (`yourspotify-imports`) fails the run. On exit, success or
+failure, it restores the replica counts and CronJobs and resumes Flux: Flux skips garbage collection
+for a Kustomization deleted while suspended, and helm-controller skips the uninstall of a suspended
+HelmRelease.
 
-Go on only on `BACKUP OK`. A `NotFound` means that Kustomization has no backup, so copy its claim
-out instead. Then merge the step 2 PR straight away (`flux reconcile source git flux-system`):
+Go on only on `BACKUP OK`. For a claim reported with no ReplicationSource, copy it out (below)
+and run the archive with that evidence instead. Then merge the step 2 PR straight away (`flux reconcile source git flux-system`):
 anything written between the resume and the prune is not in the backup.
 
 An app without the `volsync` component has no backup at all: copy the data out with
@@ -234,7 +237,8 @@ maintenance over 24 to 48 hours. Delete the Job when done.
 
 ## Done when
 
-`just kube retire-verify <ns> <app>` runs the checks below plus the LiteLLM key list (with a live
+`just kube retire-verify <ns> <app> [keep-regex]` (the regex lists objects kept on purpose, such as
+`loupe-runner`) runs the checks below plus the LiteLLM key list (with a live
 alias as the control) and the readers of the `LITELLM_<APP>_API_KEY` field, and exits 0 only when
 nothing is left.
 

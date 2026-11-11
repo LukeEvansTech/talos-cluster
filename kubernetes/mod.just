@@ -127,8 +127,8 @@ litellm-spend days="7":
 retire-backup ns +kss:
     "{{ justfile_directory() }}/scripts/retire-backup.sh" "$@"
 
-[doc('After an archive PR merges, list what of the app is still live (Flux, objects, LiteLLM key, 1Password field readers)')]
-retire-verify ns app:
+[doc('After an archive PR merges, list what of the app is still live; keep is a regex for objects kept on purpose')]
+retire-verify ns app keep="":
     "{{ justfile_directory() }}/scripts/retire-verify.sh" "$@"
 
 [doc('View a secret')]

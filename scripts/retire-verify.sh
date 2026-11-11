@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 # After an archive PR merges, list what of the app is still live. Prints only names, never values.
 # Runbook: docs/docs/operations/retiring-an-app.md, steps 4-6 and "Done when".
-# Usage: retire-verify.sh <namespace> <app>
+# Usage: retire-verify.sh <namespace> <app> [keep-regex]
+#   keep-regex: objects kept on purpose (e.g. 'loupe-runner'), listed as kept rather than left.
 set -euo pipefail
 
 ns=${1:?namespace}
 app=${2:?app}
+keep=${3:-}
 [[ "$app" =~ ^[a-z0-9][a-z0-9-]*$ ]] || {
     echo "app must be a plain name" >&2
     exit 2
@@ -33,7 +35,12 @@ inventory() { # <label> <filter regex> <command...>
         left=1
         return
     fi
-    report "$label" "$(grep -E "$re" <<<"$out" || true)"
+    out=$(grep -E "$re" <<<"$out" || true)
+    if [ -n "$keep" ] && [ -n "$out" ]; then
+        grep -E "$keep" <<<"$out" | awk -v l="$label" '{ print "kept  " l ": " $0 }' || true
+        out=$(grep -v -E "$keep" <<<"$out" || true)
+    fi
+    report "$label" "$out"
 }
 
 inventory "Flux Kustomizations" "$m" flux get kustomizations -A --no-header

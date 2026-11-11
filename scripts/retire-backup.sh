@@ -16,6 +16,7 @@ kss=("$@")
 # detection, so resuming one does not restore replicas or CronJobs.
 scaled=()    # "kind/name replicas"
 suspended=() # "cronjob/name"
+paused=()    # "hr name" / "ks name", resumed HelmReleases first
 
 # Restore what was stopped, then resume Flux: it skips the prune for a Kustomization or
 # HelmRelease deleted while suspended. Returns nonzero if anything could not be put back.
@@ -33,13 +34,9 @@ cleanup() {
             rc=1
         }
     done
-    for k in "${kss[@]}"; do
-        flux resume hr "$k" -n "$ns" >/dev/null || {
-            echo "RESUME FAILED: hr $k" >&2
-            rc=1
-        }
-        flux resume ks "$k" -n "$ns" >/dev/null || {
-            echo "RESUME FAILED: ks $k" >&2
+    for entry in "${paused[@]+"${paused[@]}"}"; do
+        flux resume "${entry% *}" "${entry##* }" -n "$ns" >/dev/null || {
+            echo "RESUME FAILED: $entry" >&2
             rc=1
         }
     done
@@ -49,14 +46,46 @@ cleanup() {
 on_exit() {
     cleanup || echo "CLEANUP INCOMPLETE: restore the app by hand before merging" >&2
 }
-# Refuse before changing anything if a controller outside these HelmReleases mounts a claim:
-# another app sharing it (curatorjudge writes to curator's) would keep writing after the stop.
+# The HelmReleases each Kustomization applies; their names need not match (memini-models applies
+# llama-embed and llama-rerank). Assigned on their own lines so a failed query stops the run.
+hrs=()
+for k in "${kss[@]}"; do
+    inv=$(kubectl -n "$ns" get kustomization "$k" -o jsonpath='{range .status.inventory.entries[*]}{.id}{"\n"}{end}')
+    while IFS=_ read -r hns hname _; do
+        [ "$hns" = "$ns" ] || {
+            echo "REFUSED: $k applies HelmRelease $hname in $hns; retire each namespace separately" >&2
+            exit 1
+        }
+        hrs+=("$hname")
+    done < <(grep '_helm.toolkit.fluxcd.io_HelmRelease$' <<<"$inv" || true)
+done
+hrs_json=$(printf '%s\n' "${hrs[@]+"${hrs[@]}"}" | jq -R 'select(. != "")' | jq -sc .)
+
+# Every claim the app's controllers mount, StatefulSet claims included: each needs a backup.
 controllers=$(kubectl get deploy,statefulset,cronjob -n "$ns" -o json)
-foreign=$(jq -r --argjson kss "$(printf '%s\n' "${kss[@]}" | jq -R . | jq -sc .)" '
+pvcs=$(kubectl get pvc -n "$ns" -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}')
+claims_txt=$(
+    jq -r --argjson h "$hrs_json" '
+        .items[] | select((.metadata.labels["helm.toolkit.fluxcd.io/name"] // "") | IN($h[]))
+        | (.spec.template.spec // .spec.jobTemplate.spec.template.spec).volumes[]?
+        | .persistentVolumeClaim.claimName // empty' <<<"$controllers"
+    jq -r --argjson h "$hrs_json" '
+        .items[] | select(.kind == "StatefulSet")
+        | select((.metadata.labels["helm.toolkit.fluxcd.io/name"] // "") | IN($h[]))
+        | .metadata.name as $s | .spec.volumeClaimTemplates[]?.metadata.name | "^\(.)-\($s)-[0-9]+$"' \
+        <<<"$controllers" | while read -r re; do grep -E "$re" <<<"$pvcs" || true; done
+)
+claims_txt=$(sort -u <<<"$claims_txt" | sed '/^$/d')
+[ -n "$claims_txt" ] || echo "note: no claim mounted by ${hrs[*]:-no HelmRelease}; nothing to back up"
+claims=$(jq -R . <<<"$claims_txt" | jq -sc 'map(select(. != ""))')
+
+# Refuse before changing anything if a running controller outside these HelmReleases mounts a
+# claim: another app sharing it (curatorjudge writes to curator's) would keep writing.
+foreign=$(jq -r --argjson h "$hrs_json" --argjson c "$claims" '
     .items[]
     | (.spec.template.spec // .spec.jobTemplate.spec.template.spec) as $pod
-    | select(any($pod.volumes[]?; .persistentVolumeClaim.claimName | IN($kss[])))
-    | select((.metadata.labels["helm.toolkit.fluxcd.io/name"] // "") | IN($kss[]) | not)
+    | select(any($pod.volumes[]?; .persistentVolumeClaim.claimName | IN($c[])))
+    | select((.metadata.labels["helm.toolkit.fluxcd.io/name"] // "") | IN($h[]) | not)
     | select(.spec.suspend != true and (.spec.replicas // 1) > 0)
     | "\(.kind)/\(.metadata.name)"' <<<"$controllers")
 if [ -n "$foreign" ]; then
@@ -69,9 +98,14 @@ trap on_exit EXIT
 
 for k in "${kss[@]}"; do
     flux suspend ks "$k" -n "$ns"
-    flux suspend hr "$k" -n "$ns"
-    sel="helm.toolkit.fluxcd.io/name=$k"
-    # Assigned on their own line so a failed query stops the run instead of reading as "none".
+    paused=("ks $k" "${paused[@]+"${paused[@]}"}")
+    # A zeroscaler HPA would restore a replica after the scale-down; the Kustomization recreates it.
+    kubectl -n "$ns" delete hpa -l "kustomize.toolkit.fluxcd.io/name=$k" --ignore-not-found
+done
+for h in "${hrs[@]+"${hrs[@]}"}"; do
+    flux suspend hr "$h" -n "$ns"
+    paused=("hr $h" "${paused[@]}")
+    sel="helm.toolkit.fluxcd.io/name=$h"
     workloads=$(kubectl -n "$ns" get deploy,statefulset -l "$sel" \
         -o jsonpath='{range .items[*]}{.kind}/{.metadata.name} {.spec.replicas}{"\n"}{end}')
     while read -r obj replicas; do
@@ -87,35 +121,31 @@ for k in "${kss[@]}"; do
         suspended+=("$cj")
         kubectl -n "$ns" patch "$cj" -p '{"spec":{"suspend":true}}'
     done <<<"$cronjobs"
-    # A zeroscaler HPA would restore a replica; the Kustomization recreates it on resume.
-    kubectl -n "$ns" delete hpa -l "kustomize.toolkit.fluxcd.io/name=$k" --ignore-not-found
 done
 
 # A Job between retries has no pod but will write again, so wait until every Job that mounts a
-# claim has finished, whoever owns it, not just until its pods are gone.
-claims=$(printf '%s\n' "${kss[@]}" | jq -R . | jq -sc .)
+# claim has finished, whoever owns it; then until no pod mounts one.
 until jobs=$(kubectl get jobs -n "$ns" -o json) && open=$(jq -r --argjson c "$claims" \
     '.items[] | select(any(.spec.template.spec.volumes[]?; .persistentVolumeClaim.claimName | IN($c[])))
     | select(any(.status.conditions[]?; (.type == "Complete" or .type == "Failed") and .status == "True") | not)
     | .metadata.name' <<<"$jobs") && [ -z "$open" ]; do sleep 10; done
-
-# Pods that still mount a claim are writers: a scaled-down Deployment's terminating pod, a Job's.
-for claim in "${kss[@]}"; do
-    until pods=$(kubectl get pods -n "$ns" -o json) && users=$(jq -r --arg c "$claim" \
-        '.items[] | select(.status.phase != "Succeeded" and .status.phase != "Failed")
-        | select(any(.spec.volumes[]?; .persistentVolumeClaim.claimName == $c)) | .metadata.name' \
-        <<<"$pods") && [ -z "$users" ]; do sleep 10; done
-done
+until pods=$(kubectl get pods -n "$ns" -o json) && users=$(jq -r --argjson c "$claims" \
+    '.items[] | select(.status.phase != "Succeeded" and .status.phase != "Failed")
+    | select(any(.spec.volumes[]?; .persistentVolumeClaim.claimName | IN($c[]))) | .metadata.name' \
+    <<<"$pods") && [ -z "$users" ]; do sleep 10; done
 echo "writers stopped: $(date -u +%FT%TZ)"
 
 rc=0
-for k in "${kss[@]}"; do
-    for rs in "$k-nfs" "$k-r2"; do
-        if ! kubectl -n "$ns" get replicationsource "$rs" >/dev/null 2>&1; then
-            echo "$rs NotFound (no backup: copy the claim out instead)"
-            rc=1
-            continue
-        fi
+sources=$(kubectl -n "$ns" get replicationsource -o jsonpath='{range .items[*]}{.spec.sourcePVC} {.metadata.name}{"\n"}{end}')
+while read -r claim; do
+    [ -n "$claim" ] || continue
+    mine=$(awk -v c="$claim" '$1 == c { print $2 }' <<<"$sources")
+    if [ -z "$mine" ]; then
+        echo "claim $claim: no ReplicationSource (no backup: copy it out instead)"
+        rc=1
+        continue
+    fi
+    for rs in $mine; do
         # A run already in progress completes as the manual sync and may predate the stop.
         until [ "$(kubectl -n "$ns" get replicationsource "$rs" \
             -o jsonpath='{.status.conditions[?(@.type=="Synchronizing")].status}')" = "False" ]; do sleep 10; done
@@ -127,10 +157,10 @@ for k in "${kss[@]}"; do
         done
         line=$(kubectl -n "$ns" get replicationsource "$rs" \
             -o jsonpath='{.metadata.name} {.status.latestMoverStatus.result} {.status.lastSyncTime}')
-        echo "$line"
+        echo "claim $claim: $line"
         [ "$(cut -d' ' -f2 <<<"$line")" = "Successful" ] || rc=1
     done
-done
+done <<<"$claims_txt"
 
 # Restore before the verdict, so "BACKUP OK" appears only once the app runs again.
 trap - EXIT
@@ -138,7 +168,7 @@ if ! cleanup; then
     echo "CLEANUP INCOMPLETE: restore the app by hand; do not merge until Flux is resumed." >&2
     exit 1
 fi
-echo "restored and resumed: ${kss[*]}"
+echo "restored and resumed: ${kss[*]} (HelmReleases: ${hrs[*]:-none})"
 if [ "$rc" -ne 0 ]; then
     echo "BACKUP INCOMPLETE: do not merge." >&2
     exit 1
