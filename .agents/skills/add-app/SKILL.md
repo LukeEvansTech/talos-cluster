@@ -254,7 +254,7 @@ list alphabetical. Match the exact reference style used by neighbours (e.g. `./<
 2. The namespace `kustomization.yaml` references the new app.
 3. The HelmRelease `chartRef` points at the per-app `OCIRepository`, not a shared `app-template`.
 4. No plain-text secrets, LAN IPs, or internal hostnames were introduced.
-5. Render and validate with flate (just wrappers add `--allow-missing-secrets`):
+5. Render and validate with flate (just wrappers add `--allow-missing-kinds Secret,ConfigMap`):
 
    ```bash
    just kube flate-build-hr <namespace> <app>

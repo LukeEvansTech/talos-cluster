@@ -20,15 +20,15 @@ delete-ks ns ks:
 
 [doc('Render a HelmRelease offline with flate (postBuild substitutions resolved)')]
 flate-build-hr ns hr:
-    flate build hr "{{ hr }}" --namespace "{{ ns }}" --path "{{ source_directory() }}/flux/cluster" --allow-missing-secrets
+    flate build hr "{{ hr }}" --namespace "{{ ns }}" --path "{{ source_directory() }}/flux/cluster" --allow-missing-kinds Secret,ConfigMap
 
 [doc('Render a Kustomization offline with flate (postBuild substitutions resolved)')]
 flate-build-ks ns ks:
-    flate build ks "{{ ks }}" --namespace "{{ ns }}" --path "{{ source_directory() }}/flux/cluster" --allow-missing-secrets
+    flate build ks "{{ ks }}" --namespace "{{ ns }}" --path "{{ source_directory() }}/flux/cluster" --allow-missing-kinds Secret,ConfigMap
 
 [doc('Test all manifests offline with flate (flux-local test equivalent)')]
 flate-test:
-    flate test all --path "{{ source_directory() }}/flux/cluster" --allow-missing-secrets
+    flate test all --path "{{ source_directory() }}/flux/cluster" --allow-missing-kinds Secret,ConfigMap
 
 [doc('Open a shell on a node')]
 node-shell node:
@@ -129,4 +129,4 @@ view-secret namespace secret:
 
 [private]
 render-local-ks ns ks:
-    flate build ks "{{ ks }}" --namespace "{{ ns }}" --path "{{ source_directory() }}/flux/cluster" --allow-missing-secrets
+    flate build ks "{{ ks }}" --namespace "{{ ns }}" --path "{{ source_directory() }}/flux/cluster" --allow-missing-kinds Secret,ConfigMap

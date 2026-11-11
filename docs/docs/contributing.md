@@ -75,8 +75,8 @@ just kube flate-test
 
 ```bash
 # Underlying flate invocations
-flate build hr <app> -n <namespace> --path kubernetes/flux/cluster --allow-missing-secrets
-flate test all --path kubernetes/flux/cluster --allow-missing-secrets
+flate build hr <app> -n <namespace> --path kubernetes/flux/cluster --allow-missing-kinds Secret,ConfigMap
+flate test all --path kubernetes/flux/cluster --allow-missing-kinds Secret,ConfigMap
 ```
 
 ### Pre-commit hooks (lefthook)

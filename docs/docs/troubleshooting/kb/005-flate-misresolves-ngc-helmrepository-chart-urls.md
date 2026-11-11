@@ -17,7 +17,7 @@ avoid a hard failure pulling the NGC chart.
 and no skip:
 
 ```bash
-flate test all --path kubernetes/flux/cluster --allow-missing-secrets
+flate test all --path kubernetes/flux/cluster --allow-missing-kinds Secret,ConfigMap
 ```
 
 A once-retry is included for occasional flakiness (substitution-cache
@@ -67,7 +67,7 @@ spec:
 With the NGC `HelmRepository` no longer in the resolution path, flate's
 relative-URL bug stopped affecting CI. The per-namespace skip was removed and
 CI was simplified to a single unconditional `flate test all --path
-kubernetes/flux/cluster --allow-missing-secrets` run.
+kubernetes/flux/cluster --allow-missing-kinds Secret,ConfigMap` run.
 
 The community mirror is intended as a temporary measure; NVIDIA's native OCI
 artifact support is tracked upstream in `NVIDIA/gpu-operator#2520`. The mirror
