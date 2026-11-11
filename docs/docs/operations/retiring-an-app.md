@@ -33,6 +33,11 @@ kubectl get litellmvirtualkeys,pushsecrets -n ai | grep -E "(^|[/ ])${app}([- ]|
 The pattern also matches `<app>-…` names, because the app's own objects are called `<app>-nfs`,
 `<app>-r2` and so on. A line for a different live app that shares the prefix is not a leftover.
 
+An app built from its own repository may also have a GitHub Actions runner scale set under
+`kubernetes/apps/actions-runner-system/actions-runner-controller/runners/<app>/`. Decide whether
+it goes too: keep it while the repository still builds (as for `loupe`, allowlisted in the check),
+or remove it and its entry in that directory's `kustomization.yaml` with the app.
+
 Note the answers to three questions for the PR body: what the PVC holds, whether the app has
 VolSync backups, and whether anything else depends on it.
 
@@ -42,53 +47,31 @@ PVC. A sync that finished after the app's last write is not proof: with `copyMet
 then take a fresh sync of each destination (as in [Your Spotify](../apps/yourspotify.md), step 2).
 
 A `ks.yaml` can declare several Kustomizations, each with its own claim and backups (`paperless`
-declares three), and the move prunes all of them. Cover every one: set
-`kss=(<each Kustomization name in the app's ks.yaml>)` and run each step for every name.
+declares three), and the move prunes all of them. Cover every one:
 
-1. Suspend each Kustomization and its HelmRelease, so Flux neither reverts the manual trigger nor
-   scales the app back up:
-   `for k in "${kss[@]}"; do flux suspend ks "$k" -n "$ns"; flux suspend hr "$k" -n "$ns"; done`.
-2. Stop the writers: scale its Deployments and StatefulSets to 0, `kubectl patch cronjob … -p
-   '{"spec":{"suspend":true}}'` for each CronJob and let any running Job finish, and delete the
-   app's HPA if it uses the `zeroscaler` component (the HPA would otherwise restore a replica).
-3. Wait until no pod mounts any of the claims (run this once per claim). `kubectl scale` returns before the pods have shut down,
-   and some apps checkpoint in a long termination grace period:
+```bash
+just kube retire-backup <ns> <each Kustomization name in the app's ks.yaml>
+```
 
-   ```bash
-   claim=<claim>
-   # A failed query must not read as "no writers": both commands have to succeed.
-   until pods=$(kubectl get pods -n "$ns" -o json) && users=$(jq -r --arg c "$claim" \
-     '.items[] | select(.status.phase != "Succeeded" and .status.phase != "Failed")
-       | select(any(.spec.volumes[]?; .persistentVolumeClaim.claimName == $c)) | .metadata.name' \
-     <<<"$pods") && [ -z "$users" ]
-   do sleep 10; done
-   ```
+`scripts/retire-backup.sh` reads the HelmReleases each Kustomization applies from its inventory
+(`memini-models` applies `llama-embed` and `llama-rerank`) and every claim their controllers mount,
+StatefulSet claims included. It refuses if a running controller from another app mounts one of those
+claims (`curatorjudge` writes to `curator`'s): suspend or scale that writer yourself, then run it
+again. It then suspends the Kustomizations and HelmReleases so Flux neither reverts the manual
+trigger nor scales the app back up, deletes any `zeroscaler` HPA, scales the Deployments and
+StatefulSets to 0, suspends the CronJobs, waits until every Job and pod that mounts a claim has
+finished, then triggers a fresh sync of every ReplicationSource of every claim and prints each
+result. A claim with no ReplicationSource (`yourspotify-imports`) fails the run. On exit, success or
+failure, it restores the replica counts and CronJobs and resumes Flux: Flux skips garbage collection
+for a Kustomization deleted while suspended, and helm-controller skips the uninstall of a suspended
+HelmRelease.
 
-4. Take a fresh sync of each destination:
-
-   ```bash
-   for rs in $(for k in "${kss[@]}"; do echo "$k-nfs" "$k-r2"; done); do
-     kubectl -n "$ns" get replicationsource "$rs" >/dev/null || { echo "$rs NotFound"; continue; }
-     # A run already in progress completes as the manual sync and may predate the stop.
-     until [ "$(kubectl -n "$ns" get replicationsource "$rs" \
-       -o jsonpath='{.status.conditions[?(@.type=="Synchronizing")].status}')" = "False" ]; do sleep 10; done
-     t="retire-$(date +%s)"
-     kubectl -n "$ns" patch replicationsource "$rs" --type merge -p "{\"spec\":{\"trigger\":{\"manual\":\"$t\"}}}"
-     until [ "$(kubectl -n "$ns" get replicationsource "$rs" \
-       -o jsonpath='{.status.lastManualSync}')" = "$t" ]; do sleep 10; done
-     kubectl -n "$ns" get replicationsource "$rs" -o jsonpath='{.metadata.name} {.status.latestMoverStatus.result}{"\n"}'
-   done
-   ```
-
-5. Go on only if every line ends `Successful`; a `NotFound` means that Kustomization has no
-   backup, so copy its claim out instead. Then resume every HelmRelease and Kustomization
-   (`for k in "${kss[@]}"; do flux resume hr "$k" -n "$ns"; flux resume ks "$k" -n "$ns"; done`)
-   and merge the step 2 PR straight away
-   (`flux reconcile source git flux-system`). Both resumes are required: Flux skips garbage
-   collection for a Kustomization deleted while suspended, and helm-controller skips the uninstall
-   of a suspended HelmRelease, so the chart's objects would be orphaned. Resuming restores the
-   replicas, CronJobs and any `zeroscaler` HPA from Git, so anything written between the resume
-   and the prune is not in the backup; keep that window short.
+Go on only on `BACKUP OK`. The script restarts the app before it exits, so for a claim reported
+with no ReplicationSource, stop the app again by hand: suspend its Kustomization and HelmRelease,
+scale its workloads to 0 and suspend its CronJobs, then copy the claim out (below). Resume the
+HelmRelease and Kustomization before merging, or Flux skips the prune; with no HelmRelease here
+enabling drift detection, resuming leaves the workloads at 0, so the copy stays the last write. Then merge the step 2 PR straight away (`flux reconcile source git flux-system`):
+anything written between the resume and the prune is not in the backup.
 
 An app without the `volsync` component has no backup at all: copy the data out with
 `just kube browse-pvc <ns> <claim>` first. Put the evidence (the sync times, or where the copy
@@ -256,6 +239,11 @@ maintenance over 24 to 48 hours. Delete the Job when done.
   keys.
 
 ## Done when
+
+`just kube retire-verify <ns> <app> [keep-regex]` (the regex lists objects kept on purpose, such as
+`loupe-runner`) runs the checks below plus the LiteLLM key list (with a live
+alias as the control) and the readers of the `LITELLM_<APP>_API_KEY` field, and exits 0 only when
+nothing is left.
 
 Every command below prints nothing, apart from lines for a different live app whose name shares
 the prefix, and the check passes:

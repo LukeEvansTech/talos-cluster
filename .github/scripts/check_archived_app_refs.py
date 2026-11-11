@@ -27,8 +27,10 @@ For each archived name, a tracked file under kubernetes/ fails when:
 Matching is whole-token: `sonarr` never matches `sonarr-exporter`. Comments are
 not parsed, so a commented-out `# - ./<app>/ks.yaml` line passes.
 
-ALLOWLIST accepts a hit by "path::app" with a reason. An entry that matches
-nothing fails the run, so a stale entry cannot silently accept a later hit.
+ALLOWLIST accepts a hit by "path::app" with a reason, where app is the bare
+name (`loupe`, not `custom/loupe`); a failing run prints the exact key. An
+entry that matches nothing fails the run, so a stale entry cannot silently
+accept a later hit.
 
 Run locally:  python3 .github/scripts/check_archived_app_refs.py
 """
@@ -257,7 +259,7 @@ def run(root: Path, paths: list[str], allowlist: dict[str, str]) -> tuple[int, s
     lines: list[str] = []
     if bad:
         lines.append("Archived apps still referenced under kubernetes/ (see docs/docs/operations/retiring-an-app.md):")
-        lines += [f"  {h.path}: {h.where} -- {h.reason}" for h in bad]
+        lines += [f'  {h.path}: {h.where} -- {h.reason}\n    to keep it, allowlist "{h.key}"' for h in bad]
     if stale:
         lines.append("ALLOWLIST entries that match nothing (remove them):")
         lines += [f"  {k}" for k in stale]

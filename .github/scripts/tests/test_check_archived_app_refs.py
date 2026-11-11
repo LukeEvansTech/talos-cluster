@@ -167,6 +167,10 @@ class KnownBad(TreeTest):
             "unparsable YAML",
         )
 
+    def test_failure_prints_the_allowlist_key(self):
+        path = "kubernetes/apps/ai/litellm/app/virtualkeys/oldapp.yaml"
+        self.assert_fails({path: "kind: ConfigMap\n"}, f'allowlist "{path}::oldapp"')
+
     def test_stale_allowlist_entry_fails(self):
         code, report = self.run_check({}, {"kubernetes/gone.yaml::oldapp": "was a reason once"})
         self.assertEqual(code, 1, report)

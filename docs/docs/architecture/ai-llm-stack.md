@@ -169,7 +169,7 @@ LiteLLM `model_name` groups make the serving tier transparent to clients:
 
 ## In-cluster consumers
 
-Seven in-cluster apps outside the `ai` namespace route through LiteLLM, all at
+The in-cluster apps below, all outside the `ai` namespace, route through LiteLLM at
 `http://litellm.ai.svc.cluster.local:4000/v1` and, except `suggestarr`, the `claude` model,
 falling back to `self-hosted` and then `openrouter/auto`. The model column is where to change it:
 

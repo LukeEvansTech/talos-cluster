@@ -123,6 +123,14 @@ warnings:
 litellm-spend days="7":
     kubectl -n ai exec -i deploy/litellm -c litellm -- python3 - {{ days }} < "{{ justfile_directory() }}/scripts/litellm_spend.py"
 
+[doc('Stop an app being retired and take a fresh VolSync sync of each destination (pass every Kustomization in its ks.yaml)')]
+retire-backup ns +kss:
+    "{{ justfile_directory() }}/scripts/retire-backup.sh" "$@"
+
+[doc('After an archive PR merges, list what of the app is still live; keep is a regex for objects kept on purpose')]
+retire-verify ns app keep="":
+    "{{ justfile_directory() }}/scripts/retire-verify.sh" "$@"
+
 [doc('View a secret')]
 view-secret namespace secret:
     kubectl view-secret -n {{ namespace }} {{ secret }}
