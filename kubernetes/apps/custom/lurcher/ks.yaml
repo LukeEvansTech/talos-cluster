@@ -24,7 +24,6 @@ spec:
       VOLSYNC_PUID: "65532"
       VOLSYNC_PGID: "65532"
       HOMEPAGE_NAME: Lurcher
-      HOMEPAGE_GROUP: Custom
       HOMEPAGE_ICON: /icons/dracula/lurcher.svg
       HOMEPAGE_DESCRIPTION: Contract-listing scraper and triage
   prune: true

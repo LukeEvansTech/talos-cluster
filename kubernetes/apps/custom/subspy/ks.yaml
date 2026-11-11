@@ -22,7 +22,6 @@ spec:
       APP: *app
       VOLSYNC_CAPACITY: 1Gi
       HOMEPAGE_NAME: SubSpy
-      HOMEPAGE_GROUP: Custom
       HOMEPAGE_ICON: mdi-reddit
       HOMEPAGE_DESCRIPTION: Subreddit keyword alerts
   prune: true
