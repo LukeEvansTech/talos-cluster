@@ -16,6 +16,7 @@ kss=("$@")
 # detection, so resuming one does not restore replicas or CronJobs.
 scaled=()    # "kind/name replicas"
 suspended=() # "cronjob/name"
+owned=()     # every selected CronJob name, suspended here or already: its Jobs are writers
 
 # Restore what was stopped, then resume Flux: it skips the prune for a Kustomization or
 # HelmRelease deleted while suspended. Returns nonzero if anything could not be put back.
@@ -67,6 +68,7 @@ for k in "${kss[@]}"; do
         -o jsonpath='{range .items[*]}cronjob/{.metadata.name} {.spec.suspend}{"\n"}{end}')
     while read -r cj already; do
         [ -n "$cj" ] || continue
+        owned+=("${cj#cronjob/}")
         [ "$already" = "true" ] && continue
         suspended+=("$cj")
         kubectl -n "$ns" patch "$cj" -p '{"spec":{"suspend":true}}'
@@ -75,9 +77,9 @@ for k in "${kss[@]}"; do
     kubectl -n "$ns" delete hpa -l "kustomize.toolkit.fluxcd.io/name=$k" --ignore-not-found
 done
 
-# A Job between retries has no pod but will write again, so wait until every Job its suspended
+# A Job between retries has no pod but will write again, so wait until every Job the app's
 # CronJobs own has finished, not just until its pods are gone.
-owners=$(printf '%s\n' "${suspended[@]+"${suspended[@]}"}" | sed -n 's|^cronjob/||p' | jq -R . | jq -sc .)
+owners=$(printf '%s\n' "${owned[@]+"${owned[@]}"}" | jq -R 'select(. != "")' | jq -sc .)
 until jobs=$(kubectl get jobs -n "$ns" -o json) && open=$(jq -r --argjson o "$owners" \
     '.items[] | select(any(.metadata.ownerReferences[]?; .kind == "CronJob" and (.name | IN($o[]))))
     | select(any(.status.conditions[]?; (.type == "Complete" or .type == "Failed") and .status == "True") | not)

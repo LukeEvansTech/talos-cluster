@@ -11,6 +11,8 @@ app=${2:?app}
     exit 2
 }
 m="(^|[/[:space:]])${app}([-[:space:]]|$)"
+# just runs module recipes from kubernetes/; the git pathspecs below are relative to the root.
+cd "$(git rev-parse --show-toplevel)"
 left=0
 report() { # <label> <lines>
     if [ -n "$2" ]; then
