@@ -16,7 +16,6 @@ kss=("$@")
 # detection, so resuming one does not restore replicas or CronJobs.
 scaled=()    # "kind/name replicas"
 suspended=() # "cronjob/name"
-owned=()     # every selected CronJob name, suspended here or already: its Jobs are writers
 
 # Restore what was stopped, then resume Flux: it skips the prune for a Kustomization or
 # HelmRelease deleted while suspended. Returns nonzero if anything could not be put back.
@@ -50,6 +49,22 @@ cleanup() {
 on_exit() {
     cleanup || echo "CLEANUP INCOMPLETE: restore the app by hand before merging" >&2
 }
+# Refuse before changing anything if a controller outside these HelmReleases mounts a claim:
+# another app sharing it (curatorjudge writes to curator's) would keep writing after the stop.
+controllers=$(kubectl get deploy,statefulset,cronjob -n "$ns" -o json)
+foreign=$(jq -r --argjson kss "$(printf '%s\n' "${kss[@]}" | jq -R . | jq -sc .)" '
+    .items[]
+    | (.spec.template.spec // .spec.jobTemplate.spec.template.spec) as $pod
+    | select(any($pod.volumes[]?; .persistentVolumeClaim.claimName | IN($kss[])))
+    | select((.metadata.labels["helm.toolkit.fluxcd.io/name"] // "") | IN($kss[]) | not)
+    | select(.spec.suspend != true and (.spec.replicas // 1) > 0)
+    | "\(.kind)/\(.metadata.name)"' <<<"$controllers")
+if [ -n "$foreign" ]; then
+    echo "REFUSED: other running controllers mount the claim; suspend or scale them to 0 first:" >&2
+    awk '{ print "    " $0 }' <<<"$foreign" >&2
+    exit 1
+fi
+
 trap on_exit EXIT
 
 for k in "${kss[@]}"; do
@@ -68,7 +83,6 @@ for k in "${kss[@]}"; do
         -o jsonpath='{range .items[*]}cronjob/{.metadata.name} {.spec.suspend}{"\n"}{end}')
     while read -r cj already; do
         [ -n "$cj" ] || continue
-        owned+=("${cj#cronjob/}")
         [ "$already" = "true" ] && continue
         suspended+=("$cj")
         kubectl -n "$ns" patch "$cj" -p '{"spec":{"suspend":true}}'
@@ -77,11 +91,11 @@ for k in "${kss[@]}"; do
     kubectl -n "$ns" delete hpa -l "kustomize.toolkit.fluxcd.io/name=$k" --ignore-not-found
 done
 
-# A Job between retries has no pod but will write again, so wait until every Job the app's
-# CronJobs own has finished, not just until its pods are gone.
-owners=$(printf '%s\n' "${owned[@]+"${owned[@]}"}" | jq -R 'select(. != "")' | jq -sc .)
-until jobs=$(kubectl get jobs -n "$ns" -o json) && open=$(jq -r --argjson o "$owners" \
-    '.items[] | select(any(.metadata.ownerReferences[]?; .kind == "CronJob" and (.name | IN($o[]))))
+# A Job between retries has no pod but will write again, so wait until every Job that mounts a
+# claim has finished, whoever owns it, not just until its pods are gone.
+claims=$(printf '%s\n' "${kss[@]}" | jq -R . | jq -sc .)
+until jobs=$(kubectl get jobs -n "$ns" -o json) && open=$(jq -r --argjson c "$claims" \
+    '.items[] | select(any(.spec.template.spec.volumes[]?; .persistentVolumeClaim.claimName | IN($c[])))
     | select(any(.status.conditions[]?; (.type == "Complete" or .type == "Failed") and .status == "True") | not)
     | .metadata.name' <<<"$jobs") && [ -z "$open" ]; do sleep 10; done
 

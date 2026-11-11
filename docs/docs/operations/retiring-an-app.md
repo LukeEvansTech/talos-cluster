@@ -53,12 +53,15 @@ declares three), and the move prunes all of them. Cover every one:
 just kube retire-backup <ns> <each Kustomization name in the app's ks.yaml>
 ```
 
-`scripts/retire-backup.sh` suspends each Kustomization and HelmRelease so Flux neither reverts
-the manual trigger nor scales the app back up, scales its Deployments and StatefulSets to 0,
-suspends its CronJobs, deletes any `zeroscaler` HPA, waits until no pod mounts a claim, then
-triggers a fresh sync of every `<ks>-nfs` and `<ks>-r2` source and prints each result. It resumes
-everything on exit, success or failure: Flux skips garbage collection for a Kustomization deleted
-while suspended, and helm-controller skips the uninstall of a suspended HelmRelease.
+`scripts/retire-backup.sh` first refuses if a running controller from another app mounts one of the
+claims (`curatorjudge` writes to `curator`'s): suspend or scale that writer yourself, then run it
+again. It then suspends each Kustomization and HelmRelease so Flux neither reverts the manual
+trigger nor scales the app back up, scales its Deployments and StatefulSets to 0, suspends its
+CronJobs, deletes any `zeroscaler` HPA, waits until every Job and pod that mounts a claim has
+finished, then triggers a fresh sync of every `<ks>-nfs` and `<ks>-r2` source and prints each
+result. On exit, success or failure, it restores the replica counts and CronJobs and resumes Flux:
+Flux skips garbage collection for a Kustomization deleted while suspended, and helm-controller skips
+the uninstall of a suspended HelmRelease.
 
 Go on only on `BACKUP OK`. A `NotFound` means that Kustomization has no backup, so copy its claim
 out instead. Then merge the step 2 PR straight away (`flux reconcile source git flux-system`):
