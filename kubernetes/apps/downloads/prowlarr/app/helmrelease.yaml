@@ -121,8 +121,8 @@ spec:
               readiness: *probes
             securityContext:
               runAsNonRoot: true
-              runAsUser: 568
-              runAsGroup: 568
+              runAsUser: 1000
+              runAsGroup: 1000
               seccompProfile: { type: RuntimeDefault }
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: true
@@ -168,8 +168,8 @@ spec:
                   periodSeconds: 5
                   failureThreshold: 30
             securityContext:
-              runAsUser: 568
-              runAsGroup: 568
+              runAsUser: 1000
+              runAsGroup: 1000
               runAsNonRoot: true
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: false
@@ -199,8 +199,8 @@ spec:
                     key: PROWLARR__AUTH__APIKEY
             securityContext:
               runAsNonRoot: true
-              runAsUser: 568
-              runAsGroup: 568
+              runAsUser: 1000
+              runAsGroup: 1000
               seccompProfile: { type: RuntimeDefault }
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: true
@@ -217,7 +217,7 @@ spec:
     defaultPodOptions:
       terminationGracePeriodSeconds: 300
       securityContext:
-        fsGroup: 568
+        fsGroup: 1000
         fsGroupChangePolicy: OnRootMismatch
         supplementalGroups:
           - 10000
