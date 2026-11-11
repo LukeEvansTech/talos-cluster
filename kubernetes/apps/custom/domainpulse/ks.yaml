@@ -22,7 +22,6 @@ spec:
       APP: *app
       VOLSYNC_CAPACITY: 1Gi
       HOMEPAGE_NAME: DomainPulse
-      HOMEPAGE_GROUP: Custom
       HOMEPAGE_ICON: mdi-heart-pulse
       HOMEPAGE_DESCRIPTION: Domain email-security health
   prune: true

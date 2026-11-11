@@ -24,7 +24,6 @@ spec:
       VOLSYNC_PUID: "65532"
       VOLSYNC_PGID: "65532"
       HOMEPAGE_NAME: Sleeper
-      HOMEPAGE_GROUP: Custom
       HOMEPAGE_ICON: mdi-cards-playing
       HOMEPAGE_DESCRIPTION: Trading-card deal finder
   prune: true

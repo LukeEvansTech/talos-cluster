@@ -30,6 +30,5 @@ spec:
       APP: *app
       VOLSYNC_CAPACITY: 1Gi
       HOMEPAGE_NAME: Exam Prep
-      HOMEPAGE_GROUP: Custom
       HOMEPAGE_ICON: /icons/dracula/examprep.svg
       HOMEPAGE_DESCRIPTION: Certification exam practice

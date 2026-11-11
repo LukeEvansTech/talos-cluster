@@ -25,7 +25,6 @@ spec:
       VOLSYNC_PUID: "65532"
       VOLSYNC_PGID: "65532"
       HOMEPAGE_NAME: Sakuga
-      HOMEPAGE_GROUP: Custom
       HOMEPAGE_ICON: mdi-image-filter-frames
       HOMEPAGE_DESCRIPTION: Anime cel catalogue
   prune: true
