@@ -67,9 +67,10 @@ for a Kustomization deleted while suspended, and helm-controller skips the unins
 HelmRelease.
 
 Go on only on `BACKUP OK`. The script restarts the app before it exits, so for a claim reported
-with no ReplicationSource, stop the app again by hand (suspend its Kustomization and HelmRelease,
-scale it to 0), copy the claim out while it is stopped (below), and merge the archive with the app
-still stopped. Then merge the step 2 PR straight away (`flux reconcile source git flux-system`):
+with no ReplicationSource, stop the app again by hand: suspend its Kustomization and HelmRelease,
+scale its workloads to 0 and suspend its CronJobs, then copy the claim out (below). Resume the
+HelmRelease and Kustomization before merging, or Flux skips the prune; with no HelmRelease here
+enabling drift detection, resuming leaves the workloads at 0, so the copy stays the last write. Then merge the step 2 PR straight away (`flux reconcile source git flux-system`):
 anything written between the resume and the prune is not in the backup.
 
 An app without the `volsync` component has no backup at all: copy the data out with
