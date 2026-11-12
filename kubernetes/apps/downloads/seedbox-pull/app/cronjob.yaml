@@ -65,6 +65,8 @@ spec:
               volumeMounts:
                 - name: downloads
                   mountPath: /downloads
+                - name: games
+                  mountPath: /games
                 - name: scripts
                   mountPath: /scripts
                   readOnly: true
@@ -103,6 +105,10 @@ spec:
             - name: scripts
               configMap:
                 name: seedbox-pull
+            - name: games
+              nfs:
+                server: ${SECRET_STORAGE_SERVER:-localhost}
+                path: ${SECRET_STORAGE_SERVER_GAMES_NFS}
             - name: secret
               secret:
                 secretName: seedbox-pull-secret
