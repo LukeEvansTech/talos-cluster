@@ -20,7 +20,7 @@ spec:
           app:
             image:
               repository: ghcr.io/claabs/epicgames-freegames-node
-              tag: latest@sha256:a0b7d5343d60a73b61bb4b8c67eb0c5a7c136330abe4ac928b20908cfcb58522
+              tag: latest@sha256:217b96c48e11207451052fe3bccaad12ec37ff418ce1483b50a0c20da64d4ec2
             env:
               TZ: Europe/London
               BASE_URL: https://epicgames.${SECRET_DOMAIN}
