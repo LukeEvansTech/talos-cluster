@@ -16,6 +16,7 @@
 set -u
 STAGE="${STAGE:-/downloads/seedbox}"
 GAMES_STAGE="${GAMES_STAGE:-/games/_staging/switch-torrents}"
+PS4_STAGE="${PS4_STAGE:-/games/_staging/ps4-torrents}"
 KEEP_DAYS="${KEEP_DAYS:-14}"
 failed=0
 
@@ -69,12 +70,15 @@ run() {
     wait $!
 }
 
-for cat in sonarr-home radarr-home roms-switch-home; do
+for cat in sonarr-home radarr-home roms-switch-home roms-ps4-home; do
     dest="$STAGE/$cat"
     incoming="$STAGE/.incoming/$cat"
     if [ "$cat" = roms-switch-home ]; then
         dest="$GAMES_STAGE"
         incoming="$GAMES_STAGE/.incoming"
+    elif [ "$cat" = roms-ps4-home ]; then
+        dest="$PS4_STAGE"
+        incoming="$PS4_STAGE/.incoming"
     fi
     if ! mkdir -p "$dest" "$incoming"; then
         log "FAIL $cat: cannot create destination"
