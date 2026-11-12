@@ -301,6 +301,14 @@ spec:
           sabnzbd:
             app:
               - path: /config/scripts
+      games:
+        type: nfs
+        server: ${SECRET_STORAGE_SERVER:-localhost}
+        path: ${SECRET_STORAGE_SERVER_GAMES_NFS}
+        advancedMounts:
+          sabnzbd:
+            app:
+              - path: /games
       media:
         type: nfs
         server: ${SECRET_STORAGE_SERVER:-localhost}

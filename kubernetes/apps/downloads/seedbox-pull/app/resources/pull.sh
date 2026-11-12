@@ -15,6 +15,7 @@
 # still uses.
 set -u
 STAGE="${STAGE:-/downloads/seedbox}"
+GAMES_STAGE="${GAMES_STAGE:-/games/_staging/switch-torrents}"
 KEEP_DAYS="${KEEP_DAYS:-14}"
 failed=0
 
@@ -68,8 +69,18 @@ run() {
     wait $!
 }
 
-for cat in sonarr-home radarr-home; do
-    mkdir -p "$STAGE/$cat" "$STAGE/.incoming/$cat"
+for cat in sonarr-home radarr-home roms-switch-home; do
+    dest="$STAGE/$cat"
+    incoming="$STAGE/.incoming/$cat"
+    if [ "$cat" = roms-switch-home ]; then
+        dest="$GAMES_STAGE"
+        incoming="$GAMES_STAGE/.incoming"
+    fi
+    if ! mkdir -p "$dest" "$incoming"; then
+        log "FAIL $cat: cannot create destination"
+        failed=1
+        continue
+    fi
     # Top-level entries only; dot entries are the seedbox hook's staging dirs.
     if ! run rclone lsf --max-depth 1 --exclude '.*' --exclude '.*/**' "seedbox:$cat" >/tmp/entries; then
         log "FAIL $cat: cannot list outbox"
@@ -78,12 +89,12 @@ for cat in sonarr-home radarr-home; do
     fi
     # An entry already gone from the outbox but still in .incoming was fully
     # moved by a run that died before publishing it.
-    for inc in "$STAGE/.incoming/$cat"/*; do
+    for inc in "$incoming"/*; do
         [ -e "$inc" ] || continue
         name="${inc##*/}"
         grep -qxF -e "$name" -e "$name/" /tmp/entries && continue
-        if [ ! -e "$STAGE/$cat/$name" ] && mv "$inc" "$STAGE/$cat/$name"; then
-            touch "$STAGE/$cat/$name"
+        if [ ! -e "$dest/$name" ] && mv "$inc" "$dest/$name"; then
+            touch "$dest/$name"
             log "RECOVERED $cat/$name"
         else
             log "FAIL $cat/$name: stranded in .incoming"
@@ -93,24 +104,24 @@ for cat in sonarr-home radarr-home; do
     while IFS= read -r entry; do
         [ -n "$entry" ] || continue
         name="${entry%/}"
-        if [ -e "$STAGE/$cat/$name" ]; then
+        if [ -e "$dest/$name" ]; then
             log "SKIP $cat/$name: already home (outbox entry left for inspection)"
             continue
         fi
         start=$(date +%s)
         if [ "$entry" != "$name" ]; then
-            run rclone move "seedbox:$cat/$name" "$STAGE/.incoming/$cat/$name" \
+            run rclone move "seedbox:$cat/$name" "$incoming/$name" \
                 --delete-empty-src-dirs --transfers 4 --multi-thread-streams 4 --stats 0 &&
                 run rclone rmdir "seedbox:$cat/$name"
         else
-            run rclone moveto "seedbox:$cat/$name" "$STAGE/.incoming/$cat/$name" \
+            run rclone moveto "seedbox:$cat/$name" "$incoming/$name" \
                 --multi-thread-streams 4 --stats 0
         fi
         rc=$?
-        if [ "$rc" -eq 0 ] && mv "$STAGE/.incoming/$cat/$name" "$STAGE/$cat/$name"; then
+        if [ "$rc" -eq 0 ] && mv "$incoming/$name" "$dest/$name"; then
             # Stamp arrival time for the prune below (rclone keeps the seedbox mtime).
-            touch "$STAGE/$cat/$name"
-            size=$(du -sm "$STAGE/$cat/$name" | cut -f1)
+            touch "$dest/$name"
+            size=$(du -sm "$dest/$name" | cut -f1)
             secs=$(($(date +%s) - start))
             log "OK $cat/$name ${size}MiB in ${secs}s"
         else
@@ -120,6 +131,7 @@ for cat in sonarr-home radarr-home; do
     done </tmp/entries
 done
 
+# ROMs have no arr hardlink import and must not expire with the media staging files.
 for cat in sonarr-home radarr-home; do
     if ! find "$STAGE/$cat" -mindepth 1 -maxdepth 1 -mtime +"$KEEP_DAYS" >/tmp/expired; then
         log "FAIL $cat: cannot scan for expired entries"
