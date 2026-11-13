@@ -11,8 +11,6 @@ spec:
     - fromEndpoints:
         - matchLabels:
             io.kubernetes.pod.namespace: network
-    - fromEntities:
-        - world
 ---
 # yaml-language-server: $schema=https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/cilium.io/ciliumnetworkpolicy_v2.json
 apiVersion: cilium.io/v2
@@ -31,3 +29,21 @@ spec:
         - matchLabels:
             io.kubernetes.pod.namespace: ai
             toolhive-name: hamcp
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/cilium.io/ciliumnetworkpolicy_v2.json
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: allow-world-ingress
+spec:
+  description: "Allow world ingress only to the pod behind this namespace's LoadBalancer service"
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: mosquitto
+  ingress:
+    - fromEntities:
+        - world
+      toPorts:
+        - ports:
+            - port: "8883"
+              protocol: TCP
