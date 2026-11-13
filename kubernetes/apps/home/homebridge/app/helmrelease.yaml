@@ -18,7 +18,7 @@ spec:
           app:
             image:
               repository: homebridge/homebridge
-              tag: "2026-11-10@sha256:49e10e19bce69de56b0b77c724f317858dcd32e17cd9f379833660b1af26dbd5"
+              tag: "2026-11-13@sha256:15b784180f8833891a5c467b4e1bf54c4e6da3c168595301c0f245f493c2fc09"
             env:
               TZ: ${TIMEZONE}
               # Must be the string "0": the image bakes in a default of "1", so omitting
