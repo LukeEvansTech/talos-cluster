@@ -29,5 +29,22 @@ spec:
             io.kubernetes.pod.namespace: flux-system
         - matchLabels:
             io.kubernetes.pod.namespace: network
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/cilium.io/ciliumnetworkpolicy_v2.json
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: allow-world-ingress
+spec:
+  description: "Allow world ingress only to the pod behind this namespace's LoadBalancer service"
+  endpointSelector:
+    matchLabels:
+      cnpg.io/cluster: postgres18
+      cnpg.io/instanceRole: primary
+  ingress:
     - fromEntities:
         - world
+      toPorts:
+        - ports:
+            - port: "5432"
+              protocol: TCP

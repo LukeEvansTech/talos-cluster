@@ -11,8 +11,6 @@ spec:
     - fromEndpoints:
         - matchLabels:
             io.kubernetes.pod.namespace: observability
-    - fromEntities:
-        - world
 ---
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
@@ -44,6 +42,29 @@ spec:
   ingress:
     - fromEntities:
         - cluster
+      toPorts:
+        - ports:
+            - port: "10080"
+              protocol: TCP
+            - port: "10443"
+              protocol: TCP
+            - port: "10443"
+              protocol: UDP
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/cilium.io/ciliumnetworkpolicy_v2.json
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: allow-world-ingress
+spec:
+  description: "Allow world ingress only to the pod behind this namespace's LoadBalancer service"
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: envoy
+      app.kubernetes.io/component: proxy
+  ingress:
+    - fromEntities:
+        - world
       toPorts:
         - ports:
             - port: "10080"

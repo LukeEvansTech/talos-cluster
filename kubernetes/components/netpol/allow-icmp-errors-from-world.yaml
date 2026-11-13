@@ -1,0 +1,26 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/cilium.io/ciliumnetworkpolicy_v2.json
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: allow-icmp-errors-from-world
+spec:
+  # Errors answering a pod's own outbound traffic (unreachable, fragmentation needed) still pass
+  # through ingress policy; dropping them turns fast failures and path-MTU discovery into timeouts.
+  description: "Allow ICMP error replies from outside the cluster"
+  endpointSelector: {}
+  ingress:
+    - fromEntities:
+        - world
+      icmps:
+        - fields:
+            - type: 3
+              family: IPv4
+            - type: 11
+              family: IPv4
+            - type: 1
+              family: IPv6
+            - type: 2
+              family: IPv6
+            - type: 3
+              family: IPv6

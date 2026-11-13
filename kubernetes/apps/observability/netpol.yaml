@@ -5,16 +5,12 @@ kind: CiliumNetworkPolicy
 metadata:
   name: allow-cross-namespace-ingress
 spec:
-  # `fromEntities: world` was for NUT clients reaching an in-cluster LoadBalancer that no longer
-  # exists; left as-is on purpose, since tightening it is a blast-radius change for the namespace.
-  description: "Allow ingress from gateway and from world (see note above)"
+  description: "Allow ingress from gateway (network namespace)"
   endpointSelector: {}
   ingress:
     - fromEndpoints:
         - matchLabels:
             io.kubernetes.pod.namespace: network
-    - fromEntities:
-        - world
 ---
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
@@ -36,3 +32,23 @@ spec:
                 - flux-system
                 - rook-ceph
                 - system-upgrade
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/cilium.io/ciliumnetworkpolicy_v2.json
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: allow-world-ingress
+spec:
+  description: "Allow world ingress only to the pod behind this namespace's LoadBalancer service"
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: victoria-logs-single
+  ingress:
+    - fromEntities:
+        - world
+      toPorts:
+        - ports:
+            - port: "5514"
+              protocol: TCP
+            - port: "5514"
+              protocol: UDP
