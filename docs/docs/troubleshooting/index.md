@@ -25,6 +25,7 @@ Work down from what you observe to the most likely entry:
   - `NodeHighNumberConntrackEntriesUsed` on every node at once right after deploying a scanner → [KB-023](kb/023-node-conntrack-saturation-host-network-scanner.md)
   - A dozen Gatus endpoints across `media`/`downloads` go red at once with HTTP 503, DNS still resolves, pods are simply absent (zeroscaler at 0/1) → [KB-027](kb/027-dns-cleanup-scaled-nfs-apps-to-zero.md)
   - One internal hostname never gets its record (or resolves to the wrong value) while every other new app is fine; the name is already in Unbound as a hand-made row → [KB-033](kb/033-opnsense-record-exists-but-is-unowned.md)
+  - Dozens of Flux Kustomizations fail on `failed calling webhook ... context deadline exceeded` right after a network policy merge, and the webhook answers again seconds later → [KB-209](kb/209-netpol-enforcement-before-clusterwide-allow.md)
   - `OPNsenseDeleteBlocked` fires, or opnsense-dns fails every reconcile with `row has alias children; refusing to delete` → [KB-034](kb/034-opnsense-delete-blocked-by-alias.md)
   - A certificate on a Traefik instance outside the cluster nears expiry and nothing alerts; ACME renewal has been failing quietly → [KB-049](kb/049-acme-token-ip-allowlist-broke-renewal-silently.md)
 - **Storage / backups**
@@ -127,3 +128,4 @@ Work down from what you observe to the most likely entry:
 - [KB-159: Prowler's Celery Worker Never Authenticated to Dragonfly](kb/159-prowler-dragonfly-auth-silent-failure.md)
 - [KB-207: A Static-Passphrase LUKS Slot Insures Against a BIOS Secure Boot Key Wipe](kb/207-tpm-luks-slot-survives-bios-secure-boot-wipe.md)
 - [KB-208: Login loops in one browser profile while the app logs a successful login](kb/208-login-loop-parent-domain-cookies.md)
+- [KB-209: Webhooks time out for seconds after a network policy change, and Flux Kustomizations stay failed](kb/209-netpol-enforcement-before-clusterwide-allow.md)

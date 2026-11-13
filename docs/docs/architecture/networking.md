@@ -5,6 +5,11 @@
 Pod networking is Cilium. Pod and service CIDRs are the standard cluster-internal ranges and are not
 sensitive. Network policy is enforced with `CiliumNetworkPolicy` (mind the gotchas around empty
 rules, `ingressDeny`, and egress-to-world).
+Every namespace is default-deny for ingress; a missing allow shows up as a timeout, not a refusal.
+World ingress reaches only the pods behind LoadBalancer services, so a new LoadBalancer needs its
+own `allow-world-ingress` rule in that namespace's `netpol.yaml`. Stage new or widened policies with
+`enableDefaultDeny: {ingress: false}` and enforce in a follow-up PR ([KB-209](../troubleshooting/kb/209-netpol-enforcement-before-clusterwide-allow.md)),
+and verify with `just kube hubble-drops` and `just kube lb-probe`.
 
 ## Ingress: Envoy Gateway (Gateway API)
 
