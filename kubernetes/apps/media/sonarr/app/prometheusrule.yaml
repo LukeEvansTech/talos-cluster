@@ -1,0 +1,43 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: sonarr
+spec:
+  groups:
+    - name: sonarr
+      rules:
+        # A liveness kill after a managed OutOfMemoryException exits 137 with reason Error, not
+        # OOMKilled, and a few a day never count as KubePodCrashLooping.
+        - alert: SonarrContainerRestarted
+          annotations:
+            summary: Sonarr's app container in {{ $labels.pod }} restarted in the last hour.
+            description: >-
+              The usual cause is a whole-series search of a very long series driving the
+              .NET heap to its ceiling until /ping stalls and the liveness probe kills the
+              container. Check SonarrMemoryAtHeapCeiling and the Sonarr logs from before the
+              restart for OutOfMemoryException.
+          expr: |-
+            max by (namespace, pod, container) (
+              increase(kube_pod_container_status_restarts_total{namespace="media", pod=~"sonarr-.*", container="app"}[1h])
+            ) > 0
+          labels:
+            severity: warning
+        # The liveness probe kills a stalled Sonarr 7-10m after it reaches the ceiling, so a
+        # longer `for` never fires.
+        - alert: SonarrMemoryAtHeapCeiling
+          annotations:
+            summary: Sonarr in {{ $labels.pod }} has used {{ $value | humanize1024 }}B for 5m.
+            description: >-
+              Sonarr's working set is above 11 GiB, at the .NET heap ceiling under its 16 GiB
+              limit. Searches throw OutOfMemoryException and /ping stalls; the liveness probe
+              usually restarts it within minutes. Look for a whole-series search of a very
+              long series in the Sonarr queue.
+          expr: |-
+            max by (namespace, pod, container) (
+              container_memory_working_set_bytes{namespace="media", pod=~"sonarr-.*", container="app"}
+            ) > 11 * 1024 ^ 3
+          for: 5m
+          labels:
+            severity: warning
