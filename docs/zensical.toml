@@ -192,6 +192,7 @@ nav = [
       { "157: Renovate digest bump silently changed a custom image's base runtime and broke its plugin" = "troubleshooting/kb/157-digest-bump-jruby.md" },
       { "159: Prowler's Celery Worker Never Authenticated to Dragonfly" = "troubleshooting/kb/159-prowler-dragonfly-auth-silent-failure.md" },
       { "207: A Static-Passphrase LUKS Slot Insures Against a BIOS Secure Boot Key Wipe" = "troubleshooting/kb/207-tpm-luks-slot-survives-bios-secure-boot-wipe.md" },
+      { "208: Login loops in one browser profile while the app logs a successful login" = "troubleshooting/kb/208-login-loop-parent-domain-cookies.md" },
     ] },
   ] },
   { "FAQ" = "faq.md" },
