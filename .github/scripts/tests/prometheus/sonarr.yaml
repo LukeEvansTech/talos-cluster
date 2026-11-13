@@ -1,0 +1,77 @@
+---
+# promtool unit tests for the Sonarr rules. A liveness restart fires once and clears after an hour;
+# a fresh pod starting at zero restarts does not fire. Memory at the heap ceiling fires after 5m,
+# including across the container ID change a restart brings; a 4m spike does not.
+rule_files:
+  - kubernetes/apps/media/sonarr/app/prometheusrule.yaml
+evaluation_interval: 1m
+tests:
+  # One restart at 10m, then a new pod from a rollout whose counter is born at 0.
+  - interval: 1m
+    input_series:
+      - series: 'kube_pod_container_status_restarts_total{namespace="media",pod="sonarr-574c6ccdc9-7tcsr",container="app",uid="a"}'
+        values: "0x9 1x100"
+      - series: 'kube_pod_container_status_restarts_total{namespace="media",pod="sonarr-6f8b9cd6d9-q72vp",container="app",uid="b"}'
+        values: "_x30 0x80"
+      - series: 'kube_pod_container_status_restarts_total{namespace="media",pod="radarr-5b5c49478-zs9fd",container="app",uid="c"}'
+        values: "0x9 1x100"
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: SonarrContainerRestarted
+        exp_alerts: []
+      - eval_time: 15m
+        alertname: SonarrContainerRestarted
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              namespace: media
+              pod: sonarr-574c6ccdc9-7tcsr
+              container: app
+            exp_annotations:
+              summary: "Sonarr's app container in sonarr-574c6ccdc9-7tcsr restarted in the last hour."
+              description: >-
+                The usual cause is a whole-series search of a very long series driving the
+                .NET heap to its ceiling until /ping stalls and the liveness probe kills the
+                container. Check SonarrMemoryAtHeapCeiling and the Sonarr logs from before the
+                restart for OutOfMemoryException.
+      - eval_time: 80m
+        alertname: SonarrContainerRestarted
+        exp_alerts: []
+  # 12.2 GiB for 8m (the 11-03 shape), with the cAdvisor container ID changing mid-way.
+  - interval: 1m
+    input_series:
+      - series: 'container_memory_working_set_bytes{namespace="media",pod="sonarr-574c6ccdc9-7tcsr",container="app",id="/one"}'
+        values: "4000000000x9 13100000000x4"
+      - series: 'container_memory_working_set_bytes{namespace="media",pod="sonarr-574c6ccdc9-7tcsr",container="app",id="/two"}'
+        values: "_x14 13100000000x3 500000000x20"
+    alert_rule_test:
+      - eval_time: 13m
+        alertname: SonarrMemoryAtHeapCeiling
+        exp_alerts: []
+      - eval_time: 16m
+        alertname: SonarrMemoryAtHeapCeiling
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              namespace: media
+              pod: sonarr-574c6ccdc9-7tcsr
+              container: app
+            exp_annotations:
+              summary: "Sonarr in sonarr-574c6ccdc9-7tcsr has used 12.2GiB for 5m."
+              description: >-
+                Sonarr's working set is above 11 GiB, at the .NET heap ceiling under its 16 GiB
+                limit. Searches throw OutOfMemoryException and /ping stalls; the liveness probe
+                usually restarts it within minutes. Look for a whole-series search of a very
+                long series in the Sonarr queue.
+      - eval_time: 25m
+        alertname: SonarrMemoryAtHeapCeiling
+        exp_alerts: []
+  # A 4m spike to the ceiling that GC recovers from.
+  - interval: 1m
+    input_series:
+      - series: 'container_memory_working_set_bytes{namespace="media",pod="sonarr-574c6ccdc9-7tcsr",container="app",id="/one"}'
+        values: "4000000000x9 13100000000x3 4000000000x20"
+    alert_rule_test:
+      - eval_time: 14m
+        alertname: SonarrMemoryAtHeapCeiling
+        exp_alerts: []
