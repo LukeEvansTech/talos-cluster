@@ -245,6 +245,10 @@ through the toolbox, the read-only MCP servers. Two rules apply to how it is don
   their pods with them, so `kubectl logs` has nothing; query LogsQL through the API proxy:
   `kubectl get --raw "/api/v1/namespaces/observability/services/victoria-logs-server:9428/proxy/select/logsql/query?query=<urlencoded>&start=<RFC3339>&limit=500"`
   with a query such as `kubernetes.pod_namespace:media AND kubernetes.pod_name:curatorjudge-29830050* | sort by (_time)`.
+- **Uptime and alerts have read-only APIs through the same proxy.** Gatus:
+  `kubectl get --raw "/api/v1/namespaces/observability/services/gatus:8080/proxy/api/v1/endpoints/statuses?page=1&pageSize=500"`
+  (count `.results[-1].success`). Firing alerts:
+  `kubectl get --raw "/api/v1/namespaces/observability/services/kube-prometheus-stack-alertmanager:9093/proxy/api/v2/alerts?active=true&silenced=false&inhibited=false"`.
 
 Before acting on an alert, read [known noise](docs/docs/troubleshooting/known-noise.md): it lists
 the cases where the obvious fix is wrong. After any change to protected infrastructure, run the

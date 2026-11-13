@@ -30,6 +30,42 @@ flate-build-ks ns ks:
 flate-test:
     flate test all --path "{{ source_directory() }}/flux/cluster" --allow-missing-kinds Secret,ConfigMap
 
+[doc('Watch Hubble drops for N minutes from a throwaway pod, one line per distinct flow (optional namespaces filter the destination)')]
+hubble-drops minutes="10" *namespaces:
+    # Runs in kube-system: hubble-relay admits same-namespace ingress, and the relay name does not
+    # resolve from the cilium agent's host-network DNS.
+    img=$(kubectl get ds cilium -n kube-system -o jsonpath='{.spec.template.spec.containers[0].image}')
+    pod="hubble-drops-$(date +%s)"
+    kubectl run "$pod" -n kube-system --restart=Never --image="$img" --command -- sleep $(( {{ minutes }} * 60 + 60 )) >/dev/null
+    trap 'kubectl delete pod -n kube-system "$pod" --wait=false >/dev/null' EXIT
+    kubectl wait -n kube-system pod/"$pod" --for=condition=Ready --timeout=120s >/dev/null
+    filters=()
+    for ns in {{ namespaces }}; do filters+=(--to-namespace "$ns"); done
+    kubectl exec -n kube-system "$pod" -- timeout $(( {{ minutes }} * 60 )) hubble observe \
+        --server hubble-relay.kube-system.svc.cluster.local:80 --follow --verdict DROPPED ${filters[@]+"${filters[@]}"} -o jsonpb \
+        | jq --unbuffered -Rr 'fromjson? | .flow
+            | def who(e): if (e.namespace // "") != "" then "\(e.namespace)/\((e.workloads // [])[0].name // e.pod_name // "?")"
+                else ((e.labels // []) | map(select(startswith("reserved:"))) | join("+")) end;
+            "\(.time[11:19]) \(.drop_reason_desc) \(who(.source)) -> \(who(.destination)):\(.l4.TCP.destination_port // .l4.UDP.destination_port // "icmp")"' \
+        | awk '{ k = $0; sub(/^[^ ]+ /, "", k) } !seen[k]++ { print; fflush() }' && rc=0 || rc=("${PIPESTATUS[@]}")
+    # 124 is the timeout ending the watch as planned; anything else means nothing was observed.
+    if [[ "${rc[0]}" != 0 && "${rc[0]}" != 124 ]] || [[ "${rc[*]:1}" =~ [1-9] ]]; then
+        echo "hubble-drops: observer failed (exit ${rc[*]}); nothing was watched" >&2
+        exit 1
+    fi
+    echo "hubble-drops: watch ended"
+
+[doc('TCP-connect to every LoadBalancer service port from this machine; diff the output before and after a policy change')]
+lb-probe:
+    kubectl get svc -A -o json \
+        | jq -r '.items[] | select(.spec.type == "LoadBalancer") | . as $s
+            | .spec.ports[] | select(.protocol == "TCP")
+            | "\($s.metadata.namespace)/\($s.metadata.name) \($s.status.loadBalancer.ingress[0].ip) \(.port)"' \
+        | while read -r name ip port; do
+            if timeout 3 bash -c "</dev/tcp/$ip/$port" 2>/dev/null; then r=open; else r=CLOSED; fi
+            echo "$name:$port $r"
+        done
+
 [doc('Open a shell on a node')]
 node-shell node:
     kubectl debug node/{{ node }} -n default -it --image="mirror.gcr.io/alpine:latest" --profile sysadmin
@@ -46,6 +82,32 @@ snapshot:
     kubectl get replicationsources --no-headers -A | while read -r ns name _; do
         kubectl -n "$ns" patch replicationsources "$name" --type merge -p "{\"spec\":{\"trigger\":{\"manual\":\"$(date +%s)\"}}}"
     done
+
+[doc('Trigger one VolSync ReplicationSource and wait for that sync to finish')]
+snapshot-one ns rs:
+    # Flux strips spec.trigger.manual on its next reconcile, so lastManualSync is no proof the run
+    # happened; wait for lastSyncTime to pass the trigger time instead.
+    # A paused source still advances lastSyncTime without taking a snapshot.
+    if [ "$(kubectl -n "{{ ns }}" get replicationsource "{{ rs }}" -o jsonpath='{.spec.paused}')" = "true" ]; then
+        echo "snapshot-one: {{ ns }}/{{ rs }} is paused; unpause it first" >&2
+        exit 1
+    fi
+    deadline=$(( $(date +%s) + 3600 ))
+    # A run in progress, or one parked on an error, would satisfy the timestamp check with a snapshot
+    # taken before the trigger; idle means waiting with no sync started.
+    until [[ "$(kubectl -n "{{ ns }}" get replicationsource "{{ rs }}" -o jsonpath='{.status.conditions[?(@.type=="Synchronizing")].reason}|{.status.lastSyncStartTime}')" == WaitingFor*"|" ]]; do
+        (( $(date +%s) < deadline )) || { echo "snapshot-one: source still busy after 60m" >&2; exit 1; }
+        sleep 15
+    done
+    start=$(date -u +%FT%TZ)
+    kubectl -n "{{ ns }}" patch replicationsource "{{ rs }}" --type merge -p "{\"spec\":{\"trigger\":{\"manual\":\"$(date +%s)\"}}}" >/dev/null
+    until [[ "$(kubectl -n "{{ ns }}" get replicationsource "{{ rs }}" -o jsonpath='{.status.lastSyncTime}')" > "$start" ]]; do
+        (( $(date +%s) < deadline )) || { echo "snapshot-one: no sync completed within 60m" >&2; exit 1; }
+        sleep 15
+    done
+    [ "$(kubectl -n "{{ ns }}" get replicationsource "{{ rs }}" -o jsonpath='{.spec.paused}')" != "true" ] \
+        || { echo "snapshot-one: {{ ns }}/{{ rs }} was paused during the sync; no snapshot was taken" >&2; exit 1; }
+    kubectl -n "{{ ns }}" get replicationsource "{{ rs }}" -o jsonpath='{.status.lastSyncTime} {.status.latestMoverStatus.result}{"\n"}'
 
 [doc('Pin (suspend) or release (resume) zeroscaler HPAs during node drains')]
 zeroscaler state:
