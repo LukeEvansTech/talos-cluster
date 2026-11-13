@@ -28,7 +28,7 @@ spec:
           api:
             image: &image
               repository: prowlercloud/prowler-api
-              tag: 5.48.0@sha256:1b92c73b576c06e303c8dc24759f8977b5d16aca676b4b0e1472513196d62945
+              tag: 5.49.0@sha256:54f552aa9126767dc5d60cf5a448f6d9ca282785e4e01401d6f35601c6d67271
             env: &commonEnv
               TZ: ${TIMEZONE}
               DJANGO_SETTINGS_MODULE: config.django.production
