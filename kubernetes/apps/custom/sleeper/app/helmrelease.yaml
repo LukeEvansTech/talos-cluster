@@ -20,8 +20,8 @@ spec:
           app:
             image:
               repository: ghcr.io/lukeevanstech/sleeper
-              # Built from main (dfa30b3); switch to the v0.1.0 release tag once it is cut.
-              tag: dfa30b3@sha256:469a49eda372d95291622d15147b07560467761ce2dd0daf00880b789f7b4719
+              # Built from main (f88be70); switch to the v0.1.0 release tag once it is cut.
+              tag: f88be70@sha256:3be9989d3802c307f3ad2f3cdef26e2782ca407fcef8deaa82a4a27e610200e8
             env:
               TZ: ${TIMEZONE}
               SLEEPER_DATA: /data
