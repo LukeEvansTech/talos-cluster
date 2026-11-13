@@ -6,8 +6,10 @@ namespace: volsync-system
 components:
   - ../../components/global-vars
   - ../../components/alerts
+  - ../../components/netpol
 resources:
   - ./namespace.yaml
+  - ./netpol.yaml
   - ./backrest/ks.yaml
   - ./kopia/ks.yaml
   - ./restoretest/ks.yaml

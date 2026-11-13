@@ -6,17 +6,7 @@ metadata:
   name: allow-kube-apiserver
 spec:
   description: "Allow ingress from kube-apiserver and host for webhooks and health probes"
-  endpointSelector:
-    matchExpressions:
-      - key: io.kubernetes.pod.namespace
-        operator: NotIn
-        values:
-          - kube-system
-          - cert-manager
-          - external-secrets
-          - rook-ceph
-          - volsync-system
-          - system-upgrade
+  endpointSelector: {}
   ingress:
     - fromEntities:
         - kube-apiserver

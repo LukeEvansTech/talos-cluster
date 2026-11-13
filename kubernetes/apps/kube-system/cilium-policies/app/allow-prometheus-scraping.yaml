@@ -8,15 +8,6 @@ spec:
   description: "Allow ingress from observability namespace for Prometheus scraping"
   endpointSelector:
     matchExpressions:
-      - key: io.kubernetes.pod.namespace
-        operator: NotIn
-        values:
-          - kube-system
-          - cert-manager
-          - external-secrets
-          - rook-ceph
-          - volsync-system
-          - system-upgrade
       - key: app.kubernetes.io/name
         operator: NotIn
         values:
