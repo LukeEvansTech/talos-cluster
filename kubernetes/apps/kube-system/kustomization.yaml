@@ -6,8 +6,10 @@ namespace: kube-system
 components:
   - ../../components/global-vars
   - ../../components/alerts
+  - ../../components/netpol
 resources:
   - ./namespace.yaml
+  - ./netpol.yaml
   - ./cilium/ks.yaml
   - ./cilium-policies/ks.yaml
   - ./coredns/ks.yaml

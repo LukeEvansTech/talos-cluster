@@ -6,6 +6,7 @@ namespace: cert-manager
 components:
   - ../../components/global-vars
   - ../../components/alerts
+  - ../../components/netpol
 resources:
   - ./namespace.yaml
   - ./cert-manager/ks.yaml

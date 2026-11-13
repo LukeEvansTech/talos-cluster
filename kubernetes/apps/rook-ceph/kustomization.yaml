@@ -6,6 +6,7 @@ namespace: rook-ceph
 components:
   - ../../components/global-vars
   - ../../components/alerts
+  - ../../components/netpol
 resources:
   - ./namespace.yaml
   - ./rook-ceph/ks.yaml
