@@ -46,3 +46,4 @@ persistence:
 
 - `kubernetes/apps/media/radarr/app/helmrelease.yaml`, `persistence.tmp`
 - #4814 (the fix), #4816 (the auth rollout it unblocked)
+- [KB-208](208-login-loop-parent-domain-cookies.md): the browser-side neighbour, where the login succeeds on the server but the browser loops back to the login page

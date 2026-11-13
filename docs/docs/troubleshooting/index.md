@@ -49,6 +49,7 @@ Work down from what you observe to the most likely entry:
   - SABnzbd's post-processing queue stops advancing while downloads keep completing → [KB-059](kb/059-sabnzbd-post-processing-helper-hang.md)
   - A once-a-day job goes silent for days while `/health` answers OK and the pod restarts once a day → [KB-085](kb/085-lurcher-oom-invisible-to-health-check.md)
   - An `*arr` app returns HTTP 401 on the correct password and logs an encryption error → [KB-113](kb/113-arr-readonly-root-no-tmp-401-on-correct-password.md)
+  - A web login loops back to the login page in one browser profile while the app logs a successful login, and a private window works → [KB-208](kb/208-login-loop-parent-domain-cookies.md)
   - A custom image crashloops right after a Renovate digest bump that changed its base runtime → [KB-157](kb/157-digest-bump-jruby.md)
   - Prowler's worker and beat pods restart in a loop on a Dragonfly authentication error → [KB-159](kb/159-prowler-dragonfly-auth-silent-failure.md)
 - **Monitoring / Grafana**
@@ -125,3 +126,4 @@ Work down from what you observe to the most likely entry:
 - [KB-157: Renovate digest bump silently changed a custom image's base runtime and broke its plugin](kb/157-digest-bump-jruby.md)
 - [KB-159: Prowler's Celery Worker Never Authenticated to Dragonfly](kb/159-prowler-dragonfly-auth-silent-failure.md)
 - [KB-207: A Static-Passphrase LUKS Slot Insures Against a BIOS Secure Boot Key Wipe](kb/207-tpm-luks-slot-survives-bios-secure-boot-wipe.md)
+- [KB-208: Login loops in one browser profile while the app logs a successful login](kb/208-login-loop-parent-domain-cookies.md)
