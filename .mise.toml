@@ -67,7 +67,7 @@ uv = "0.13.7"
 # updates, e.g. just 1.57.0 in #3601, work fine). Every other tool here is already exact-pinned.
 node = "26.13.1"
 "npm:markdownlint-cli" = "0.50.0"
-"npm:prettier" = "3.9.10"
+"npm:prettier" = "3.10.0"
 "pipx:black" = "26.10.1"
 "pipx:codespell" = "2.4.3"
 "pipx:isort" = "9.0.2"
