@@ -42,6 +42,23 @@ spec:
           for: 10m
           labels:
             severity: warning
+        # Catches a cooling regression long before the absolute limit: on 2026-11-09 a BMC fan-mode
+        # change left HDDs 22 °C over their weekly median at 58-60 °C for two days without
+        # tripping > 60. Normal swing is within 3 °C of the median. HDDs only (sd*): the NVMe
+        # drives on this job swing with load. Stops firing once a hot spell drags the median up
+        # (~3.5 days); the absolute rule above still holds then.
+        - alert: TrueNASDiskTemperatureAboveBaseline
+          annotations:
+            summary: >-
+              TrueNAS disk {{ $labels.device }} is {{ $value | printf "%.0f" }}°C above its 7-day
+              median; check the chassis fans and fan mode.
+          expr: |-
+            smartctl_device_temperature{job="smartctl-exporter", temperature_type="current", device=~"sd.*"}
+            - quantile_over_time(0.5, smartctl_device_temperature{job="smartctl-exporter", temperature_type="current", device=~"sd.*"}[7d])
+            > 10
+          for: 1h
+          labels:
+            severity: warning
         # Mirrors the seedbox pair; the ATA attribute names exclude the cluster's NVMe drives on
         # the same job. One NAS disk went 0 -> 5 reallocated on 2026-10-09 with nothing firing.
         - alert: TrueNASDiskReallocatedSectorsGrowing
