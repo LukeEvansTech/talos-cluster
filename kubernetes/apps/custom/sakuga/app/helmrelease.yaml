@@ -20,8 +20,8 @@ spec:
           app:
             image:
               repository: ghcr.io/lukeevanstech/sakuga
-              # Built from main (a64ebc2); switch to a release tag once v0.1.0 is cut.
-              tag: a64ebc2@sha256:46d008d09af0d1618679998c5d92be1fd9e36ef5a6c3a845c85f4b235a103577
+              # Built from main (4b6e464); switch to a release tag once v0.1.0 is cut.
+              tag: 4b6e464@sha256:7d1e76e947b1f705c4928584296586c2641b356f2837be2d1bafaf2eed5bb992
             env:
               TZ: ${TIMEZONE}
               SAKUGA_DATA: /data
