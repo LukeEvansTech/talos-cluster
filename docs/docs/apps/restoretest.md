@@ -30,6 +30,17 @@ exits non-zero if any target fails. A file the verify pod, running as the mover'
 also fails the target: the mover read it to back it up, so the restore should have kept that
 access.
 
+An empty restore passes only when the app's own ReplicationSource for the same repository says
+its last backup found the volume empty: the mover then logs `Directory is empty skipping backup`
+and takes no snapshot, so there is nothing to restore. The log line names that source. If the
+source took a snapshot, or no source matches, the empty restore still fails.
+
+An FTS3 or FTS4 table built with an app's own tokenizer (Thunderbird's `mozporter`) cannot be
+opened by the verify pod's SQLite. The check then removes that virtual table from the private
+copy's schema and runs `quick_check` again, which still reads every page of its index data. The
+database passes with a `note` line in the log naming the table. Any other error, including FTS5
+tables, which report only a generic error, still fails.
+
 Volumes over 50Gi are skipped and listed in the log; test them by hand (below).
 
 ## Alerts
