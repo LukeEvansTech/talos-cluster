@@ -27,3 +27,18 @@ spec:
           for: 5m
           labels:
             severity: critical
+
+        - alert: VolSyncMoverFailing
+          expr: |
+            max by (namespace, job_name) (kube_job_status_failed{job_name=~"volsync-src-.*"}) >= 3
+          annotations:
+            summary: >-
+              {{ $labels.namespace }}/{{ $labels.job_name }} mover has failed {{ $value }} times in its current sync
+            description: >-
+              VolSync retries a failing mover inside the same sync, so the volume can still
+              report in sync while every backup attempt fails. Read the log of the newest
+              failed mover pod. If restic reports a stale lock, clear it by setting the
+              ReplicationSource's spec.restic.unlock to a new string.
+          for: 15m
+          labels:
+            severity: critical
