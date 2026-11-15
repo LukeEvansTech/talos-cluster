@@ -7,6 +7,7 @@ filesystem; SQLite is checked on a private copy so a -wal beside it is replayed 
 import errno
 import json
 import os
+import re
 import shutil
 import sqlite3
 import stat
@@ -17,6 +18,8 @@ COPY_LIMIT = 4 * 2**30  # larger databases are checked in place, immutable, so a
 DENIED = (errno.EACCES, errno.EPERM)
 MAGIC = b"SQLite format 3\x00"
 DB_SUFFIXES = (".db", ".sqlite", ".sqlite3", ".db3")
+# An FTS3/4 table built with an app's own C tokenizer (Thunderbird's mozporter) cannot be opened here.
+UNKNOWN_TOKENIZER = re.compile(r"(?:unknown|no such) tokenizer: (\S+)")
 
 
 def looks_like_sqlite(name, head):
@@ -70,11 +73,45 @@ def read_tree(root):
     return report, dbs
 
 
+def quick_check(target, uri=False):
+    """Return quick_check's rows for a database."""
+    con = sqlite3.connect(target, uri=uri)
+    try:
+        return con.execute("pragma quick_check").fetchall()
+    finally:
+        con.close()
+
+
+def drop_tokenizer_tables(target, tokenizer):
+    """Remove the FTS3/FTS4 tables using tokenizer from a copy's schema; return their names.
+
+    Their shadow tables (_content, _segments, _segdir) stay, so quick_check still reads every page of
+    the index data; only the virtual table, which needs the missing tokenizer to open, is skipped.
+    """
+    con = sqlite3.connect(target)
+    try:
+        rows = con.execute("select name, sql from sqlite_master where type = 'table'").fetchall()
+        names = [
+            name
+            for name, sql in rows
+            if re.match(r"create virtual table\s.*\busing\s+fts[34]\b", (sql or "").lower(), re.S)
+            and re.search(rf"tokenize\W+{re.escape(tokenizer.lower())}\b", sql.lower())
+        ]
+        if names:
+            con.execute("pragma writable_schema = on")
+            con.executemany("delete from sqlite_master where type = 'table' and name = ?", [(n,) for n in names])
+            con.commit()
+        return names
+    finally:
+        con.close()
+
+
 def check_db(path):
-    """Return ("ok"|"bad"|"unverified", detail) from quick_check."""
+    """Return ("ok"|"bad"|"unverified", detail) from quick_check; detail on "ok" is a note."""
     sidecars = [path + "-wal", path + "-journal"]  # an immutable read would skip either's recovery
     if os.path.getsize(path) > COPY_LIMIT and any(os.path.exists(f) and os.path.getsize(f) > 0 for f in sidecars):
         return "unverified", "too large to copy and has a non-empty -wal or -journal that an immutable read would skip"
+    note = ""
     try:
         if os.path.getsize(path) <= COPY_LIMIT:
             os.makedirs(SCRATCH, exist_ok=True)
@@ -82,13 +119,23 @@ def check_db(path):
             for suffix in ("", "-wal", "-journal"):
                 if os.path.exists(path + suffix):
                     shutil.copyfile(path + suffix, target + suffix)
-            con = sqlite3.connect(target)
+            try:
+                rows = quick_check(target)
+            except sqlite3.Error as e:
+                match = UNKNOWN_TOKENIZER.search(str(e))
+                dropped = drop_tokenizer_tables(target, match.group(1)) if match else []
+                if not dropped:
+                    raise
+                rows = quick_check(target)
+                note = f"FTS table(s) {dropped} use tokenizer {match.group(1)!r}, not loadable here; data pages checked"
         else:
-            con = sqlite3.connect(f"file:{path}?immutable=1", uri=True)
-        rows = con.execute("pragma quick_check").fetchall()
-        con.close()
-        return ("ok", "") if rows == [("ok",)] else ("bad", str(rows[:3])[:200])
-    except (sqlite3.Error, OSError) as e:  # "not a database" is itself the finding
+            rows = quick_check(f"file:{path}?immutable=1", uri=True)
+        return ("ok", note) if rows == [("ok",)] else ("bad", str(rows[:3])[:200])
+    except sqlite3.Error as e:
+        if UNKNOWN_TOKENIZER.search(str(e)) and os.path.getsize(path) > COPY_LIMIT:
+            return "unverified", f"too large to copy, and {e}"
+        return "bad", str(e)  # "not a database" is itself the finding
+    except OSError as e:
         return "bad", str(e)
     finally:
         shutil.rmtree(SCRATCH, ignore_errors=True)
@@ -98,11 +145,11 @@ def main():
     """Print the JSON report for /d."""
     report, dbs = read_tree(ROOT)
     report["sqlite"] = len(dbs)
-    report["bad"], report["unverified"] = [], []
+    report["bad"], report["unverified"], report["notes"] = [], [], []
     for path in dbs:
         verdict, why = check_db(path)
-        if verdict != "ok":
-            report[verdict].append(f"{os.path.relpath(path, ROOT)}: {why}")
+        if why:
+            report["notes" if verdict == "ok" else verdict].append(f"{os.path.relpath(path, ROOT)}: {why}")
     print(json.dumps(report))
 
 

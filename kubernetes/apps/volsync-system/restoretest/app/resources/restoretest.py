@@ -37,6 +37,13 @@ VERIFY_TIMEOUT = int(os.environ.get("VERIFY_TIMEOUT", "2700"))
 KEEP_FAILED = os.environ.get("KEEP_FAILED", "true") == "true"
 # Past the Job's activeDeadlineSeconds (6h) no run can still own an object, so the sweep is safe.
 SWEEP_AGE = int(os.environ.get("SWEEP_AGE", "25200"))
+# The VolSync mover's own words when it skips a backup because the source volume has nothing in it.
+EMPTY_SOURCE = "Directory is empty skipping backup"
+# The restore mover's words when it selected no snapshot. Kopia's discovery listing ("- Last snapshot:")
+# follows that line, and in a successful restore only that branch prints it; a long listing can push
+# the line itself out of the status's short log tail.
+NOTHING_RESTORED = ("No eligible snapshots found", "No data will be restored", " - Last snapshot: ")
+RESTORED = "Snapshot restore completed successfully"
 # From the pod name, unique per run, so overlapping runs never share an object name.
 SUFFIX = f"{zlib.crc32(os.environ.get('HOSTNAME', RUN).encode()):08x}"[:6]
 
@@ -156,7 +163,7 @@ def sweep():
 
 
 def restore(ns, name, source_spec):
-    """Run the copied ReplicationDestination to completion; return its mover spec."""
+    """Run the copied ReplicationDestination to completion; return its mover spec and mover log."""
     spec = copy.deepcopy(source_spec)
     spec["trigger"] = {"manual": RUN}
     mover = spec.get("restic") or spec.get("kopia")
@@ -181,7 +188,12 @@ def restore(ns, name, source_spec):
     if mover_status.get("result") != "Successful" or not (st.get("latestImage") or {}).get("name"):
         logs = str(mover_status.get("logs", ""))[-400:]
         raise RuntimeError(f"restore result {mover_status.get('result')!r}: {logs}")
-    return mover
+    return mover, str(mover_status.get("logs", ""))
+
+
+def nothing_restored(logs):
+    """True when a successful restore's log shows it selected no snapshot."""
+    return RESTORED not in logs and any(marker in logs for marker in NOTHING_RESTORED)
 
 
 def verify_pod(name, mover, image, verify_src):
@@ -256,10 +268,36 @@ def verify(ns, name, capacity, mover, image, verify_src):
     return json.loads(lines[-1])
 
 
-def problems(report):
-    """Return the reasons a verify report fails, empty when it passes."""
+def empty_source(ns, rd_spec):
+    """Name the ReplicationSource whose last backup found its volume empty, or return None.
+
+    It is the source writing to the same repository Secret as the destination. Its mover skips an
+    empty directory rather than snapshot it, so an empty restore is correct only when this says so;
+    a source with data, or none found, leaves the empty restore failing.
+    """
+    mover = rd_spec.get("restic") or rd_spec.get("kopia") or {}
+    sources = [
+        rs
+        for rs in call("GET", f"{VS}/namespaces/{ns}/replicationsources")["items"]
+        if ((rs["spec"].get("restic") or rs["spec"].get("kopia") or {}).get("repository") == mover.get("repository"))
+    ]
+    if not sources:
+        return None
+    for rs in sources:
+        if EMPTY_SOURCE not in str(((rs.get("status") or {}).get("latestMoverStatus") or {}).get("logs", "")):
+            return None
+    return ", ".join(rs["metadata"]["name"] for rs in sources)
+
+
+def problems(report, source_empty=None):
+    """Return the reasons a verify report fails, empty when it passes.
+
+    source_empty names the ReplicationSource that found its volume empty, given only when the restore
+    also selected no snapshot; it allows only an empty restore, and no other finding.
+    """
     found = []
-    if report["files"] == 0 or report["bytes"] == 0:
+    empty = report["files"] == 0 and report["bytes"] == 0
+    if (report["files"] == 0 or report["bytes"] == 0) and not (empty and source_empty):
         found.append("restored volume holds no data")
     if report["eio"]:
         found.append(f"read errors in {report['eio'][:5]}")
@@ -280,18 +318,26 @@ def run_one(t, image, verify_src):
     started = time.time()
     result = {"target": tag, "ok": False}
     try:
-        mover = restore(ns, name, t["rd"]["spec"])
+        mover, restore_log = restore(ns, name, t["rd"]["spec"])
         result["restored"] = True
         report = verify(ns, name, t["capacity"], mover, image, verify_src)
         result |= report
-        if found := problems(report):
+        empty = report["files"] == 0 and report["bytes"] == 0
+        # Both sides must agree: the restore found no snapshot, and the source skipped backing up an empty volume.
+        source = empty_source(ns, t["rd"]["spec"]) if empty and nothing_restored(restore_log) else None
+        if found := problems(report, source):
             raise RuntimeError("; ".join(found))
         result["ok"] = True
+        why = (
+            f" (source empty: no snapshot to restore, and {source} skipped its last backup as empty)" if source else ""
+        )
         log(
             tag,
-            f"OK files={report['files']} bytes={report['bytes']} sqlite={report['sqlite']} "
+            f"OK files={report['files']} bytes={report['bytes']} sqlite={report['sqlite']}{why} "
             f"in {time.time() - started:.0f}s",
         )
+        for note in report.get("notes") or []:
+            log(tag, f"note {note}")
     except Exception as e:  # pylint: disable=broad-exception-caught  # the error text is the report
         result["error"] = str(e)
         log(tag, f"FAIL {e}")
