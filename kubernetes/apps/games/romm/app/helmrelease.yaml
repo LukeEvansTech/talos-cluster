@@ -28,6 +28,8 @@ spec:
               ENABLE_SCHEDULED_RESCAN: "true"
               RESCAN_ON_FILESYSTEM_CHANGE: "false"
               SCHEDULED_RESCAN_CRON: "0 3 * * *"
+              # The nightly scan of the ~31k-ROM library outran the default 4 h limit; 8 h ends by 11:00.
+              SCAN_TIMEOUT: "28800"
               # Key-less metadata sources. Hasheous and PlayMatch match by file hash. LaunchBox's
               # store is filled from Administration > Tasks and persists in /redis-data.
               # HowLongToBeat stays off: it rate-limited (503) a 13k-game scan.
@@ -78,11 +80,9 @@ spec:
           redis-dir:
             image: *image
             command:
-              [
-                "sh",
-                "-c",
-                "mkdir -p /cfg/redis && chown 1000:1000 /cfg/redis && chmod 2775 /cfg/redis",
-              ]
+              - "sh"
+              - "-c"
+              - "mkdir -p /cfg/redis && chown 1000:1000 /cfg/redis && chmod 2775 /cfg/redis"
             securityContext:
               runAsUser: 0
               runAsNonRoot: false
