@@ -83,7 +83,7 @@ def quick_check(target, uri=False):
 
 
 def drop_tokenizer_tables(target, tokenizer):
-    """Remove the FTS tables using tokenizer from a copy's schema; return their names.
+    """Remove the FTS3/FTS4 tables using tokenizer from a copy's schema; return their names.
 
     Their shadow tables (_content, _segments, _segdir) stay, so quick_check still reads every page of
     the index data; only the virtual table, which needs the missing tokenizer to open, is skipped.
@@ -94,7 +94,7 @@ def drop_tokenizer_tables(target, tokenizer):
         names = [
             name
             for name, sql in rows
-            if (sql or "").lower().startswith("create virtual table")
+            if re.match(r"create virtual table\s.*\busing\s+fts[34]\b", (sql or "").lower(), re.S)
             and re.search(rf"tokenize\W+{re.escape(tokenizer.lower())}\b", sql.lower())
         ]
         if names:

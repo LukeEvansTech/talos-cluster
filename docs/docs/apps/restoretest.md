@@ -30,10 +30,12 @@ exits non-zero if any target fails. A file the verify pod, running as the mover'
 also fails the target: the mover read it to back it up, so the restore should have kept that
 access.
 
-An empty restore passes only when the app's own ReplicationSource for the same repository says
-its last backup found the volume empty: the mover then logs `Directory is empty skipping backup`
-and takes no snapshot, so there is nothing to restore. The log line names that source. If the
-source took a snapshot, or no source matches, the empty restore still fails.
+An empty restore passes only when both sides agree there was nothing to restore. The restore's
+own log shows it selected no snapshot (`No eligible snapshots found`, or Kopia's listing of other
+snapshots, which it prints only then), and the app's ReplicationSource for the same repository
+logged `Directory is empty skipping backup` on its last run. The log line names that source. An
+empty volume restored from a real snapshot, a source that took a snapshot, or no matching source
+still fails.
 
 An FTS3 or FTS4 table built with an app's own tokenizer (Thunderbird's `mozporter`) cannot be
 opened by the verify pod's SQLite. The check then removes that virtual table from the private
