@@ -67,6 +67,19 @@ endpoints:
     conditions:
       - "[DNS_RCODE] == NXDOMAIN"
 
+  # DDR opt-out (RFC 9462). Unbound answers resolver.arpa from a built-in local
+  # zone, so clients find no designated resolver and stay on the split-DNS path;
+  # this fails if a firewall change starts forwarding it upstream instead.
+  - name: ddr-opt-out
+    group: split-dns
+    url: "${OPNSENSE_ADDR}"
+    interval: 2m
+    dns:
+      query-name: "_dns.resolver.arpa"
+      query-type: "SVCB"
+    conditions:
+      - "[DNS_RCODE] == NXDOMAIN"
+
   # End-to-end through the proxy: resolves via cluster DNS (which forwards to
   # the same redirect), connects to the nginx SNI relay, and out through the
   # gluetun tunnel. Covers the half the DNS checks cannot see. The nginx
