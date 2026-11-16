@@ -241,26 +241,26 @@ url_api = "https://api.github.com/repos/helmfile/helmfile/releases/assets/741828
 provenance = "github-attestations"
 
 [[tools."aqua:helmfile/vals"]]
-version = "0.51.0"
+version = "0.51.1"
 backend = "aqua:helmfile/vals"
 
 [tools."aqua:helmfile/vals"."platforms.linux-arm64"]
-checksum = "sha256:9315a0263bd18ba2e625c8259bc50b94881f57140464fddc9507e1c799aa61c7"
+checksum = "sha256:a61ca3407ec60dde9ea61442addb5c99a46f1925f0b35e295da05da94ce191b6"
 checksum_source = "mise-versions"
-url = "https://github.com/helmfile/vals/releases/download/v0.51.0/vals_0.51.0_linux_arm64.tar.gz"
-url_api = "https://api.github.com/repos/helmfile/vals/releases/assets/722975665"
+url = "https://github.com/helmfile/vals/releases/download/v0.51.1/vals_0.51.1_linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/helmfile/vals/releases/assets/745927724"
 
 [tools."aqua:helmfile/vals"."platforms.linux-x64"]
-checksum = "sha256:189de2b4a00e7abd6bf7626010f0a985e615006a6575b249915fb80791ff8f2f"
+checksum = "sha256:2f6ca3eb403ce35647c0ca9bca9b2b3535197b28f82d3a1919b2ccc4218a9c03"
 checksum_source = "mise-versions"
-url = "https://github.com/helmfile/vals/releases/download/v0.51.0/vals_0.51.0_linux_amd64.tar.gz"
-url_api = "https://api.github.com/repos/helmfile/vals/releases/assets/722975680"
+url = "https://github.com/helmfile/vals/releases/download/v0.51.1/vals_0.51.1_linux_amd64.tar.gz"
+url_api = "https://api.github.com/repos/helmfile/vals/releases/assets/745927725"
 
 [tools."aqua:helmfile/vals"."platforms.macos-arm64"]
-checksum = "sha256:a07209f6a75ab1046281a4865a008de7b848eb00be4673060aeaf8824811c9fb"
+checksum = "sha256:38a4af1d38057cce8f98d137fed67bd17afc95461ed0f3dc18dc5f60bd50cea8"
 checksum_source = "mise-versions"
-url = "https://github.com/helmfile/vals/releases/download/v0.51.0/vals_0.51.0_darwin_arm64.tar.gz"
-url_api = "https://api.github.com/repos/helmfile/vals/releases/assets/722975687"
+url = "https://github.com/helmfile/vals/releases/download/v0.51.1/vals_0.51.1_darwin_arm64.tar.gz"
+url_api = "https://api.github.com/repos/helmfile/vals/releases/assets/745927723"
 
 [[tools."aqua:jqlang/jq"]]
 version = "1.7.1"
