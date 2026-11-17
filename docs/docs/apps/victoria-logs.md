@@ -22,13 +22,20 @@ use the same listener.
 
 ## Tailnet access for the seedbox collector
 
-`extraObjects` adds a second, dedicated `ClusterIP` Service (`victoria-logs-tailnet`) alongside
-the chart's own server Service. The chart's Service is headless (`clusterIP: None`, the
-StatefulSet default), and the tailscale-operator refuses to publish a headless Service
-("headless Services are not supported"). `clusterIP` is immutable, so the existing Service can't
-be converted in place; this second Service exists purely to give the operator something it will
-publish. It's exposed under the tailnet hostname `victoria-logs`, which the seedbox's Vector
-collector uses to push its Docker and journald logs over Tailscale (#3385).
+`extraObjects` adds a second Service (`victoria-logs-tailnet`) alongside the chart's own server
+Service, exposed under the tailnet hostname `victoria-logs`. The seedbox's Vector collector uses it
+to push its Docker and journald logs over Tailscale (#3385). The chart's Service is headless
+(`clusterIP: None`, the StatefulSet default), and the tailscale-operator refuses to publish a
+headless Service ("headless Services are not supported").
+
+The second Service is an `ExternalName` pointing at the headless Service's DNS name, not a
+`ClusterIP`. For a `ClusterIP` Service the operator's proxy DNATs tailnet packets to the
+ClusterIP inside its own pod network namespace. Cilium runs socket LB with full coverage
+(`socketLB.hostNamespaceOnly` unset, #3755), which turns off per-packet service translation in the
+pod datapath, so those SYNs left the node still addressed to the ClusterIP and timed out. For an
+`ExternalName` Service the proxy resolves the name itself and DNATs straight to the pod IP, which
+needs no service translation. The proxy re-resolves every 10 minutes, so after the server pod is
+rescheduled the seedbox's pushes fail for up to that long and Vector retries them.
 
 ## Collector volume mount propagation
 
