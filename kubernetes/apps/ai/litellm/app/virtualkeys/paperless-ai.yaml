@@ -12,7 +12,9 @@ spec:
   keyAlias: paperless-ai
   secretName: litellm-key-paperless-ai
   secretKey: api-key
-  # Titles, tags and correspondents for scanned personal paperwork: kept on the local model.
+  # Titles, tags and correspondents for scanned personal paperwork, on the local model first.
+  # Router fallbacks (claude, then openrouter/auto) still apply when llama-nvidia is down or
+  # busy; that is no wider than the direct OpenAI calls this replaced.
   models:
     - self-hosted
 ---
