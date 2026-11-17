@@ -25,6 +25,9 @@ spec:
               # Opt out of the silent GA4 telemetry (Tautulli/Tautulli#2781).
               # Must be "0": any other value fails int() and falls back to on.
               TAUTULLI_SYSTEM_ANALYTICS: "0"
+              # 2.19 makes login mandatory; behind the gateway the login redirect must use
+              # the forwarded scheme and host, or it sends the browser to plain http.
+              TAUTULLI_HTTP_PROXY: "1"
             envFrom:
               - secretRef:
                   name: "{{ .Release.Name }}-secret"
