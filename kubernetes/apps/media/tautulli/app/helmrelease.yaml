@@ -18,13 +18,16 @@ spec:
           app:
             image:
               repository: ghcr.io/home-operations/tautulli
-              tag: 2.18.2@sha256:d7ea1a79cf8cc2603890287d7c0e5bc277e4909c1df93f48f000833d2771eca0
+              tag: 2.19.1@sha256:602dc59bbc24f3127e086c1b702860b02abb846e7669e2ed53157bc7572c5c9b
             env:
               TZ: ${TIMEZONE}
               TAUTULLI_HTTP_PORT: &port 80
               # Opt out of the silent GA4 telemetry (Tautulli/Tautulli#2781).
               # Must be "0": any other value fails int() and falls back to on.
               TAUTULLI_SYSTEM_ANALYTICS: "0"
+              # 2.19 makes login mandatory; behind the gateway the login redirect must use
+              # the forwarded scheme and host, or it sends the browser to plain http.
+              TAUTULLI_HTTP_PROXY: "1"
             envFrom:
               - secretRef:
                   name: "{{ .Release.Name }}-secret"
