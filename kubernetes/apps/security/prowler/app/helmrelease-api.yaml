@@ -42,6 +42,9 @@ spec:
               DJANGO_WORKERS: "4"
               # Same problem hits Celery's prefork pool, which also defaults to the core count.
               DJANGO_CELERY_WORKER_CONCURRENCY: "4"
+              # 5.50+ refuses a kubeconfig whose API server is private unless listed here.
+              # Service CIDR, so an in-cluster provider via kubernetes.default.svc is allowed.
+              PROWLER_ALLOWED_PRIVATE_NETWORKS: "10.43.0.0/16"
             envFrom: &envFrom
               - secretRef:
                   name: prowler-secret
