@@ -6,6 +6,7 @@ resources:
   - ./claudecode.yaml
   - ./jobops.yaml
   - ./lurcher.yaml
+  - ./paperless-ai.yaml
   - ./sakuga.yaml
   - ./sleeper.yaml
   - ./subspy.yaml
