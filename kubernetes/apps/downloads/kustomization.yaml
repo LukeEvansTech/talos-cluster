@@ -18,6 +18,5 @@ resources:
   - ./sabnzbd/ks.yaml
   - ./seedbox-pull/ks.yaml
   - ./flaresolverr/ks.yaml
-  - ./byparr/ks.yaml
   - ./imgur-proxy/ks.yaml
   - ./stacks/ks.yaml
