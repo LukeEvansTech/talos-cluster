@@ -29,8 +29,10 @@ spec:
               tag: 4.1.0@sha256:ccc6cb3ef433ccf3bcf8ed5d27cb0d0e0802d3f567a80c2fae90ae7e7b6d32cd
             env:
               TZ: ${TIMEZONE}
-              AI_PROVIDER: openai
-              OPENAI_MODEL: gpt-4o
+              # LiteLLM's OpenAI-compatible endpoint with a scoped key (litellm virtualkeys/paperless-ai.yaml).
+              AI_PROVIDER: custom
+              CUSTOM_BASE_URL: http://litellm.ai.svc.cluster.local:4000/v1
+              CUSTOM_MODEL: self-hosted
               PAPERLESS_AI_PORT: &port 3000
               PAPERLESS_API_URL: "http://paperless.default.svc.cluster.local:8000/api"
               RAG_ENABLED: "true"

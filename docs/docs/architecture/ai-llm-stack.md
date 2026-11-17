@@ -170,7 +170,7 @@ LiteLLM `model_name` groups make the serving tier transparent to clients:
 ## In-cluster consumers
 
 The in-cluster apps below, all outside the `ai` namespace, route through LiteLLM at
-`http://litellm.ai.svc.cluster.local:4000/v1` and, except `suggestarr`, the `claude` model,
+`http://litellm.ai.svc.cluster.local:4000/v1` and, except `suggestarr` and `paperless-ai`, the `claude` model,
 falling back to `self-hosted` and then `openrouter/auto`. The model column is where to change it:
 
 | App             | Namespace | Key env var         | Model setting                                  |
@@ -178,6 +178,7 @@ falling back to `self-hosted` and then `openrouter/auto`. The model column is wh
 | `subspy`        | `default` | `OPENAI_API_KEY`    | `OPENAI_MODEL` (HelmRelease)                   |
 | `jobops`        | `default` | `LLM_API_KEY`       | `MODEL` (HelmRelease), overridable in its UI   |
 | `lurcher`       | `default` | `LLM_API_KEY`       | `LLM_MODEL` (HelmRelease)                      |
+| `paperless-ai`  | `default` | `CUSTOM_API_KEY`    | `CUSTOM_MODEL` (HelmRelease); `self-hosted`    |
 | `sakuga`        | `custom`  | `SAKUGA_LLM_KEY`    | `SAKUGA_LLM_MODEL` (HelmRelease); vision       |
 | `sleeper`       | `default` | `SLEEPER_LLM_KEY`   | `SLEEPER_LLM_MODEL` (HelmRelease); vision      |
 | `todoist-sort`  | `custom`  | `ANTHROPIC_API_KEY` | `[llm] model` in `app/resources/config.toml`   |
