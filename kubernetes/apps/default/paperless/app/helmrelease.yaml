@@ -49,6 +49,9 @@ spec:
               PAPERLESS_TASK_WORKERS: "2"
               PAPERLESS_WEBSERVER_WORKERS: "2"
               PAPERLESS_URL: "https://paperless.${SECRET_DOMAIN}"
+              # From 3.5.0 a set PAPERLESS_URL drops the "*" default, leaving only localhost and
+              # the URL's host; paperless-ai and paperless-gpt call the Service name.
+              PAPERLESS_ALLOWED_HOSTS: "paperless.default.svc.cluster.local"
               # Dragonfly's cluster_mode=emulated forces every app onto db 0, so this prefixes
               # paperless's Celery keys away from prowler's worker.
               PAPERLESS_REDIS_PREFIX: "paperless:"
