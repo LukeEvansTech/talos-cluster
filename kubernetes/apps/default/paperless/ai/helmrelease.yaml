@@ -35,6 +35,10 @@ spec:
               PAPERLESS_API_URL: "http://paperless.default.svc.cluster.local:8000/api"
               RAG_ENABLED: "true"
               SCAN_INTERVAL: "*/30 * * * *"
+              # PaddleOCR (local, CPU) re-reads documents with missing or poor text before tagging and
+              # writes the cleaner text back to Paperless; models cache under /app/data/models.
+              OCR_ENABLED: "true"
+              OCR_MODE: poor
               # Envoy terminates TLS, so trust one hop for req.protocol (Secure cookie) and client IPs.
               TRUST_PROXY: "1"
             envFrom:
@@ -64,7 +68,7 @@ spec:
                 cpu: 10m
                 memory: 1Gi
               limits:
-                memory: 1Gi
+                memory: 2Gi
 
     defaultPodOptions:
       securityContext:
