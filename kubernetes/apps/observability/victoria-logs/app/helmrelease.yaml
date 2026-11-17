@@ -57,8 +57,10 @@ spec:
     dashboards:
       enabled: true
     extraObjects:
-      # Separate Service: tailscale-operator rejects the chart's headless one, and clusterIP
-      # can't change in place. Lets the seedbox's Vector push logs to this instance.
+      # Lets the seedbox's Vector push logs here over the tailnet. ExternalName, not ClusterIP:
+      # the proxy DNATs packets inside its pod, and with full socket LB Cilium never translates a
+      # packet-level ClusterIP, so SYNs left the node untranslated. The headless name resolves to
+      # the pod IP; the proxy re-resolves it every 10 minutes, so a rescheduled pod gaps that long.
       - apiVersion: v1
         kind: Service
         metadata:
@@ -67,16 +69,12 @@ spec:
             tailscale.com/expose: "true"
             tailscale.com/hostname: victoria-logs
         spec:
-          type: ClusterIP
-          selector:
-            app: server
-            app.kubernetes.io/instance: victoria-logs
-            app.kubernetes.io/name: victoria-logs-single
+          type: ExternalName
+          externalName: victoria-logs-server.observability.svc.cluster.local
           ports:
             - name: http
               port: 9428
               protocol: TCP
-              targetPort: http
       # Cluster, not Local: a Local lease can land off-pod and drop traffic (sentinel-syslog #4070).
       - apiVersion: v1
         kind: Service
