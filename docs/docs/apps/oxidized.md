@@ -59,8 +59,10 @@ GUI/SSH edits) that bypass the IaC.
   dropped, and `seccompProfile: RuntimeDefault`. The main `app` container must start as root
   (`runAsUser: 0`, `runAsNonRoot: false`, `readOnlyRootFilesystem: false`) because the oxidized image
   bootstraps via runit/runsvdir before using `gosu` to drop to uid `30000` at runtime; it is granted
-  the minimal capabilities needed for that handover (`CHOWN`, `SETUID`, `SETGID`) and all others are
-  dropped.
+  the minimal capabilities needed for that handover (`CHOWN`, `DAC_OVERRIDE`, `SETUID`, `SETGID`) and
+  all others are dropped. `DAC_OVERRIDE` is needed since 0.38.0: the Debian trixie base creates
+  `/home/oxidized` as mode `0700` owned by uid `30000`, so root can't otherwise enter it to remove the
+  stale `pid` file, and oxidized then exits with "A server is already running".
 - **Backups + routing.** The state PVC is `ceph-block` (RWO) and snapshotted by the VolSync component
   (`VOLSYNC_CAPACITY: 1Gi`). The UI is reached via an internal `HTTPRoute` on `envoy-internal`
   (`oxidized.${SECRET_DOMAIN}`). Both images are Renovate-tracked and digest-pinned.

@@ -109,6 +109,9 @@ spec:
                   - ALL
                 add:
                   - CHOWN
+                  # Since 0.38 (Debian trixie base) /home/oxidized is 0700 uid 30000; root needs this
+                  # to reach it and clear the stale pid file before gosu drops privileges.
+                  - DAC_OVERRIDE
                   - SETUID
                   - SETGID
               seccompProfile: { type: RuntimeDefault }
