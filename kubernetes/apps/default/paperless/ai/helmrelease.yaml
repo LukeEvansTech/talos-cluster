@@ -39,6 +39,8 @@ spec:
               # writes the cleaner text back to Paperless; models cache under /app/data/models.
               OCR_ENABLED: "true"
               OCR_MODE: poor
+              # Write-back replaces the whole document text, so read every page (default cap is 50).
+              OCR_MAX_PAGES: "0"
               # Envoy terminates TLS, so trust one hop for req.protocol (Secure cookie) and client IPs.
               TRUST_PROXY: "1"
             envFrom:
