@@ -555,7 +555,7 @@ version = "9.0.2"
 backend = "pipx:isort"
 
 [[tools."pipx:pylint"]]
-version = "4.1.3"
+version = "4.1.4"
 backend = "pipx:pylint"
 
 [[tools."pipx:yamllint"]]
