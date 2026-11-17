@@ -30,7 +30,8 @@ spec:
               DNS_KEEP_NAMESERVER: "on"
               FIREWALL: true
               FIREWALL_DEBUG: on
-              FIREWALL_INPUT_PORTS: 80,3000,9707,9999
+              # 8191 is Byparr's, for the kubelet liveness probe that arrives on the pod IP.
+              FIREWALL_INPUT_PORTS: 80,3000,8191,9707,9999
               FIREWALL_OUTBOUND_SUBNETS: '"${CLUSTER_PODS_CIDR},${CLUSTER_SVCS_CIDR},${CR_LAN_CIDR},${GH_LAN_CIDR}"'
               HEALTH_SERVER_ADDRESS: ":9999"
               HEALTH_VPN_DURATION_INITIAL: 60s
@@ -132,6 +133,42 @@ spec:
                 cpu: 100m
               limits:
                 memory: 1Gi
+          # Shares gluetun's network namespace so Byparr solves challenges from the same egress IP
+          # Prowlarr replays them from; Cloudflare binds cf_clearance to that IP and user agent.
+          byparr:
+            image:
+              repository: ghcr.io/thephaseless/byparr
+              tag: 3.1.1@sha256:c66fa161187b8fa527bfad7eefa2647ea1c553f77df68cbffd6fe83366d1787b
+            env:
+              TZ: ${TIMEZONE}
+            probes:
+              # The port stays closed for up to ~5m while the GeoIP database downloads, so this
+              # container must not gate pod readiness; liveness alone, after that window.
+              liveness:
+                enabled: true
+                custom: true
+                spec:
+                  tcpSocket:
+                    port: 8191
+                  initialDelaySeconds: 360
+                  periodSeconds: 60
+                  timeoutSeconds: 15
+                  failureThreshold: 3
+              readiness:
+                enabled: false
+              startup:
+                enabled: false
+            resources:
+              requests:
+                cpu: 100m
+                memory: 1Gi
+              limits:
+                memory: 2Gi
+            securityContext:
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop:
+                  - ALL
           gluetun-webui:
             dependsOn: app
             image:
