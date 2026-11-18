@@ -26,8 +26,9 @@ spec:
               requests:
                 cpu: 10m
                 memory: 128Mi
+              # 26.11.2 runs each plugin in its own Node process; 512Mi OOM-killed it during startup.
               limits:
-                memory: 512Mi
+                memory: 2Gi
     defaultPodOptions:
       securityContext:
         runAsNonRoot: false
