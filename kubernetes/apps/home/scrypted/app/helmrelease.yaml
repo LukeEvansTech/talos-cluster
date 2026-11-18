@@ -21,7 +21,7 @@ spec:
             image:
               repository: ghcr.io/koush/scrypted
               # `-noble-full` mirrors upstream's `:latest` tag; Renovate stays within this suffix.
-              tag: v0.148.0-noble-full@sha256:24f34decf3a15a92e4b9d31e91c0bf220e2a81638ae3c5150cb7693de471ac8f
+              tag: v0.148.5-noble-full@sha256:555696966bf5240c7a9c5678099907f6825b4154f16ff9200058271a7a608ea9
             env:
               TZ: ${TIMEZONE}
               # Routing the gateway at this plain-HTTP port avoids a BackendTLSPolicy for
