@@ -125,12 +125,12 @@ lowercase `prometheus` datasource (KB-021).
 - `llm-nvidia-node`: three deviations from the source, each verified live against this cluster's
   `kube-prometheus-stack` rather than assumed from the source repository:
   - `namespace="llm"` becomes `namespace="ai"`; Jory's cluster names the LLM namespace `llm`.
-  - `DCGM_FI_DEV_FB_USED`'s pod-level panels ("Largest pod VRAM", "VRAM by pod") and the
+  - `DCGM_FI_DEV_FB_USED_BYTES`'s pod-level panels ("Largest pod VRAM", "VRAM by pod") and the
     `$$namespace`/`$$pod` variables key off `exported_namespace`/`exported_pod` instead of
     `namespace`/`pod`. This cluster's dcgm-exporter `ServiceMonitor` keeps `namespace`/`pod` as
     the exporter's own scrape-target identity (an `honor_labels` collision) and carries the real
     workload mapping under `exported_namespace`/`exported_pod`, confirmed by querying
-    `DCGM_FI_DEV_FB_USED` directly: the raw `namespace`/`pod` labels read
+    `DCGM_FI_DEV_FB_USED_BYTES` directly: the raw `namespace`/`pod` labels read
     `gpu-operator`/`nvidia-dcgm-exporter-xxxxx` (the exporter itself), while
     `exported_namespace`/`exported_pod` correctly read `ai`/`llama-nvidia-...`.
   - The `$$instance` variable populates from DCGM's `hostname` label instead of its `instance`
