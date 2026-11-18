@@ -71,7 +71,7 @@ QUIET = {
     "corentinth/it-tools": "2026-11-16: still the latest release; static toolbox",
     "docker.io/hon95/prometheus-nut-exporter": "2026-11-16: latest release; NUT protocol is stable",
     "docker.io/khairul169/garage-webui": "2026-11-16: latest release",
-    "docker.io/prodrigestivill/postgres-backup-local": "2026-11-16: rolling `18` tag, upstream not rebuilt",
+    "docker.io/prodrigestivill/postgres-backup-local": "2026-11-16: no tags; Renovate tracks `18`",
     "docker.io/pryorda/vmware_exporter": "2026-11-16: unmaintained since 2024; works, replace when it breaks",
     "ghcr.io/onedr0p/exportarr": "2026-11-16: latest release",
     "ghcr.io/schlagmichdoch/pairdrop": "2026-11-16: latest release",
@@ -288,18 +288,40 @@ def graphql(query: str) -> dict:
 
 
 def upstream(repos: list[str]) -> dict[str, dict | None]:
-    """Name, archived flag and latest release for each repo, 40 per query; None when not found."""
+    """Name, archived flag and latest release (or tag) per repo, 40 per query; None if not found."""
     out: dict[str, dict | None] = {}
     for start in range(0, len(repos), 40):
         chunk = repos[start : start + 40]
         body = " ".join(
             f'r{n}: repository(owner: "{r.split("/")[0]}", name: "{r.split("/")[1]}") '
-            "{ nameWithOwner isArchived latestRelease { tagName publishedAt } }"
+            "{ nameWithOwner isArchived latestRelease { tagName publishedAt } "
+            f"{LATEST_TAG} }}"
             for n, r in enumerate(chunk)
         )
         data = graphql(f"{{ {body} }}")
-        out.update({r: data.get(f"r{n}") for n, r in enumerate(chunk)})
+        out.update({r: tag_as_release(data.get(f"r{n}")) for n, r in enumerate(chunk)})
     return out
+
+
+# Newest tag by commit date; annotated tags point at a Tag object, lightweight ones at the commit.
+LATEST_TAG = (
+    'refs(refPrefix: "refs/tags/", first: 1, orderBy: {field: TAG_COMMIT_DATE, direction: DESC}) '
+    "{ nodes { name target { ... on Commit { committedDate } "
+    "... on Tag { target { ... on Commit { committedDate } } } } } }"
+)
+
+
+def tag_as_release(repo: dict | None) -> dict | None:
+    """Stand the newest tag in for latestRelease when a project tags without GitHub Releases."""
+    if not repo:
+        return repo
+    nodes = (repo.pop("refs", None) or {}).get("nodes") or []
+    if repo.get("latestRelease") or not nodes:
+        return repo
+    target = nodes[0].get("target") or {}
+    date = target.get("committedDate") or (target.get("target") or {}).get("committedDate")
+    repo["latestRelease"] = {"tagName": nodes[0]["name"], "publishedAt": date}
+    return repo
 
 
 def renovate_pending() -> list[str]:

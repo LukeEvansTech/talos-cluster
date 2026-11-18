@@ -323,6 +323,21 @@ class AssessTest(unittest.TestCase):
         image, repo = next(iter(drift.SOURCE.items()))
         self.assertEqual(drift.source_repo(image, {"labels": {}}), repo)
 
+    def test_tag_stands_in_for_a_missing_release(self) -> None:
+        """Projects that only tag (Apache Guacamole) still expose their newest version."""
+        tagged = {
+            "nameWithOwner": "apache/guacamole-server",
+            "isArchived": False,
+            "latestRelease": None,
+            "refs": {"nodes": [{"name": "1.7.0", "target": {"target": {"committedDate": "X"}}}]},
+        }
+        got = drift.tag_as_release(tagged)
+        assert got is not None
+        self.assertEqual(got["latestRelease"], {"tagName": "1.7.0", "publishedAt": "X"})
+        self.assertNotIn("refs", got)
+        released = {"latestRelease": {"tagName": "v2"}, "refs": {"nodes": [{"name": "v3"}]}}
+        self.assertEqual(drift.tag_as_release(released), {"latestRelease": {"tagName": "v2"}})
+
     def test_epoch_build_time_is_not_stale(self) -> None:
         """Reproducible builds stamp the epoch, which must not read as age."""
         self.assertIsNone(drift.age_days("1970-01-01T00:00:01Z", NOW))
