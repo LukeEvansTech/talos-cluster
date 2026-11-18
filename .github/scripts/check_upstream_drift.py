@@ -9,7 +9,8 @@ them a two-major Jellyfin gap, a game server whose registry had vanished and a 2
 This asks each image's upstream GitHub repository instead of its tag list. The repository comes
 from the image's `org.opencontainers.image.source` label, else from a ghcr.io path. Updates that
 already have an open Renovate PR or a Dependency Dashboard entry are dropped, so what is left is
-what Renovate will never raise. IGNORE lists deliberate exceptions; say why.
+what Renovate will never raise. IGNORE lists deliberate exceptions and QUIET reviewed-stale
+images; say why. The issue stays open while any row, watch rows included, remains.
 
 Run locally:  GH_TOKEN=$(gh auth token) python3 .github/scripts/check_upstream_drift.py
 Prints a Markdown report. Exits 0 when clean, 10 with findings, 11 when some images could not be
@@ -51,6 +52,32 @@ IGNORE = {
     "ghcr.io/ggml-org/llama.cpp": "`server` track, versioned by the llamacpp Renovate preset",
     "mikolatero/vlmcsd": "upstream archived in 2020; nothing newer exists",
     "ghcr.io/timothystewart6/prometheus-plex-exporter": "dormant fork, no releases to move to",
+}
+
+# image (no tag): upstream `owner/name`, for images whose source label is missing or names a base.
+SOURCE = {
+    "corentinth/it-tools": "CorentinTh/it-tools",
+    "docker.io/hon95/prometheus-nut-exporter": "hon95/prometheus-nut-exporter",
+    "docker.io/khairul169/garage-webui": "khairul169/garage-webui",
+    "docker.io/prodrigestivill/postgres-backup-local": "prodrigestivill/docker-postgres-backup-local",
+    "docker.io/pryorda/vmware_exporter": "pryorda/vmware_exporter",
+    "guacamole/guacamole": "apache/guacamole-client",
+    "guacamole/guacd": "apache/guacamole-server",
+}
+
+# image (no tag): why its age alone is accepted. Excuses only the "image built N days ago" watch
+# row, so a new release, an archive or a missing image still reports. Date each review.
+QUIET = {
+    "corentinth/it-tools": "2026-11-16: still the latest release; static toolbox",
+    "docker.io/hon95/prometheus-nut-exporter": "2026-11-16: latest release; NUT protocol is stable",
+    "docker.io/khairul169/garage-webui": "2026-11-16: latest release",
+    "docker.io/prodrigestivill/postgres-backup-local": "2026-11-16: rolling `18` tag, upstream not rebuilt",
+    "docker.io/pryorda/vmware_exporter": "2026-11-16: unmaintained since 2024; works, replace when it breaks",
+    "ghcr.io/onedr0p/exportarr": "2026-11-16: latest release",
+    "ghcr.io/schlagmichdoch/pairdrop": "2026-11-16: latest release",
+    "ghcr.io/yoryan/mailrise": "2026-11-16: latest tag",
+    "guacamole/guacamole": "2026-11-16: latest Apache release",
+    "guacamole/guacd": "2026-11-16: latest Apache release",
 }
 
 # Comment lines may sit between repository and tag; CNPG clusters name theirs `imageName`.
@@ -231,7 +258,9 @@ def label_repo(meta: dict) -> tuple[str, str] | None:
 
 
 def source_repo(image: str, meta: dict) -> str | None:
-    """Upstream GitHub `owner/name` from the source label, else from a ghcr.io path."""
+    """Upstream GitHub `owner/name` from SOURCE, the source label, else a ghcr.io path."""
+    if image in SOURCE:
+        return SOURCE[image]
     label = label_repo(meta)
     # A label inherited from a base image or a shared build repo names someone else's releases.
     if label and same_name(label[1], image):
@@ -394,7 +423,7 @@ def assess(
         if info["isArchived"] and stale:
             reasons.append("upstream archived")
         reasons += release_reasons(image, tag, info, now)
-    if stale and not reasons:
+    if stale and not reasons and image not in QUIET:
         reasons.append(f"{WATCH}image built {built} days ago")
     return reasons
 
@@ -415,7 +444,8 @@ def collect() -> tuple[list[Ref], dict[Ref, dict], dict[Ref, str | None], dict, 
 def render(rows: list[str], watch: list[str], skipped: list[str], checked: int) -> None:
     """Print the Markdown report."""
     print(
-        f"Checked {checked} images ({len(IGNORE)} ignored, {len(skipped)} unreachable): "
+        f"Checked {checked} images ({len(IGNORE)} ignored, {len(QUIET)} accepted as quiet, "
+        f"{len(skipped)} unreachable): "
         f"{len(rows)} need action, {len(watch)} to watch.\n"
     )
     sections = (
