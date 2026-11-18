@@ -126,7 +126,7 @@ spec:
           app:
             image:
               repository: ghcr.io/dispatcharr/dispatcharr
-              tag: 0.34.0@sha256:df1591fac494ca1a8dbfb79c31f3041f188e74a292a45be5912a9872a2b3ecc4
+              tag: 0.34.1@sha256:11d341c8b01e54ef3f90b29be199b32845e3d6e3f595d5f81fbe6f19b51fa0d0
             env:
               TZ: ${TIMEZONE}
               DISPATCHARR_ENV: aio
