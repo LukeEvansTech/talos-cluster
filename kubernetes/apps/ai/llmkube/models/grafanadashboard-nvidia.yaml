@@ -64,13 +64,13 @@ spec:
           "targets": [
             {
               "datasource": {"type": "prometheus", "uid": "$${datasource}"},
-              "expr": "DCGM_FI_DEV_GPU_UTIL{hostname=~\"$$instance\", gpu=~\"$$gpu\"}",
+              "expr": "DCGM_FI_DEV_GPU_UTIL_RATIO{hostname=~\"$$instance\", gpu=~\"$$gpu\"} * 100",
               "legendFormat": "gpu busy {{gpu}}",
               "refId": "A"
             },
             {
               "datasource": {"type": "prometheus", "uid": "$${datasource}"},
-              "expr": "DCGM_FI_DEV_MEM_COPY_UTIL{hostname=~\"$$instance\", gpu=~\"$$gpu\"}",
+              "expr": "DCGM_FI_DEV_MEMORY_UTIL_RATIO{hostname=~\"$$instance\", gpu=~\"$$gpu\"} * 100",
               "legendFormat": "memory busy {{gpu}}",
               "refId": "B"
             }
@@ -114,7 +114,7 @@ spec:
           "targets": [
             {
               "datasource": {"type": "prometheus", "uid": "$${datasource}"},
-              "expr": "max(DCGM_FI_DEV_GPU_UTIL{hostname=~\"$$instance\", gpu=~\"$$gpu\"})",
+              "expr": "max(DCGM_FI_DEV_GPU_UTIL_RATIO{hostname=~\"$$instance\", gpu=~\"$$gpu\"}) * 100",
               "legendFormat": "GPU busy",
               "refId": "A"
             }
@@ -150,7 +150,7 @@ spec:
           "targets": [
             {
               "datasource": {"type": "prometheus", "uid": "$${datasource}"},
-              "expr": "max(DCGM_FI_DEV_MEM_COPY_UTIL{hostname=~\"$$instance\", gpu=~\"$$gpu\"})",
+              "expr": "max(DCGM_FI_DEV_MEMORY_UTIL_RATIO{hostname=~\"$$instance\", gpu=~\"$$gpu\"}) * 100",
               "legendFormat": "memory busy",
               "refId": "A"
             }
@@ -186,7 +186,7 @@ spec:
           "targets": [
             {
               "datasource": {"type": "prometheus", "uid": "$${datasource}"},
-              "expr": "100 * sum(DCGM_FI_DEV_FB_USED{hostname=~\"$$instance\", gpu=~\"$$gpu\"}) / clamp_min(sum(DCGM_FI_DEV_FB_USED{hostname=~\"$$instance\", gpu=~\"$$gpu\"} + DCGM_FI_DEV_FB_FREE{hostname=~\"$$instance\", gpu=~\"$$gpu\"}), 1)",
+              "expr": "100 * sum(DCGM_FI_DEV_FB_USED_BYTES{hostname=~\"$$instance\", gpu=~\"$$gpu\"}) / clamp_min(sum(DCGM_FI_DEV_FB_USED_BYTES{hostname=~\"$$instance\", gpu=~\"$$gpu\"} + DCGM_FI_DEV_FB_FREE_BYTES{hostname=~\"$$instance\", gpu=~\"$$gpu\"}), 1)",
               "legendFormat": "VRAM used",
               "refId": "A"
             }
@@ -272,7 +272,7 @@ spec:
           "targets": [
             {
               "datasource": {"type": "prometheus", "uid": "$${datasource}"},
-              "expr": "topk(1, sum by (exported_pod) (DCGM_FI_DEV_FB_USED{hostname=~\"$$instance\", exported_namespace=~\"$$namespace\", exported_pod=~\"$$pod\"} * 1048576))",
+              "expr": "topk(1, sum by (exported_pod) (DCGM_FI_DEV_FB_USED_BYTES{hostname=~\"$$instance\", exported_namespace=~\"$$namespace\", exported_pod=~\"$$pod\"}))",
               "legendFormat": "{{exported_pod}}",
               "refId": "A"
             }
@@ -301,19 +301,19 @@ spec:
           "targets": [
             {
               "datasource": {"type": "prometheus", "uid": "$${datasource}"},
-              "expr": "DCGM_FI_DEV_POWER_USAGE{hostname=~\"$$instance\", gpu=~\"$$gpu\"}",
+              "expr": "DCGM_FI_DEV_BOARD_POWER_WATTS{hostname=~\"$$instance\", gpu=~\"$$gpu\"}",
               "legendFormat": "power {{gpu}}",
               "refId": "A"
             },
             {
               "datasource": {"type": "prometheus", "uid": "$${datasource}"},
-              "expr": "DCGM_FI_DEV_GPU_TEMP{hostname=~\"$$instance\", gpu=~\"$$gpu\"}",
+              "expr": "DCGM_FI_DEV_GPU_TEMP_CELSIUS{hostname=~\"$$instance\", gpu=~\"$$gpu\"}",
               "legendFormat": "gpu temp {{gpu}}",
               "refId": "B"
             },
             {
               "datasource": {"type": "prometheus", "uid": "$${datasource}"},
-              "expr": "DCGM_FI_DEV_MEMORY_TEMP{hostname=~\"$$instance\", gpu=~\"$$gpu\"}",
+              "expr": "DCGM_FI_DEV_MEMORY_TEMP_CELSIUS{hostname=~\"$$instance\", gpu=~\"$$gpu\"}",
               "legendFormat": "mem temp {{gpu}}",
               "refId": "C"
             }
@@ -323,7 +323,7 @@ spec:
         },
         {
           "datasource": {"type": "prometheus", "uid": "$${datasource}"},
-          "description": "Framebuffer memory allocation from DCGM. Metrics are reported in MiB and converted here to bytes for Grafana units.",
+          "description": "Framebuffer memory allocation from DCGM, reported in bytes.",
           "fieldConfig": {"defaults": {"unit": "bytes"}, "overrides": []},
           "gridPos": {"h": 7, "w": 12, "x": 12, "y": 14},
           "id": 13,
@@ -334,19 +334,19 @@ spec:
           "targets": [
             {
               "datasource": {"type": "prometheus", "uid": "$${datasource}"},
-              "expr": "DCGM_FI_DEV_FB_USED{hostname=~\"$$instance\", gpu=~\"$$gpu\"} * 1048576",
+              "expr": "DCGM_FI_DEV_FB_USED_BYTES{hostname=~\"$$instance\", gpu=~\"$$gpu\"}",
               "legendFormat": "used {{gpu}}",
               "refId": "A"
             },
             {
               "datasource": {"type": "prometheus", "uid": "$${datasource}"},
-              "expr": "DCGM_FI_DEV_FB_FREE{hostname=~\"$$instance\", gpu=~\"$$gpu\"} * 1048576",
+              "expr": "DCGM_FI_DEV_FB_FREE_BYTES{hostname=~\"$$instance\", gpu=~\"$$gpu\"}",
               "legendFormat": "free {{gpu}}",
               "refId": "B"
             },
             {
               "datasource": {"type": "prometheus", "uid": "$${datasource}"},
-              "expr": "DCGM_FI_DEV_FB_RESERVED{hostname=~\"$$instance\", gpu=~\"$$gpu\"} * 1048576",
+              "expr": "DCGM_FI_DEV_FB_RESERVED_BYTES{hostname=~\"$$instance\", gpu=~\"$$gpu\"}",
               "legendFormat": "reserved {{gpu}}",
               "refId": "C"
             }
@@ -367,7 +367,7 @@ spec:
           "targets": [
             {
               "datasource": {"type": "prometheus", "uid": "$${datasource}"},
-              "expr": "sum by (exported_pod) (DCGM_FI_DEV_FB_USED{hostname=~\"$$instance\", exported_namespace=~\"$$namespace\", exported_pod=~\"$$pod\"} * 1048576)",
+              "expr": "sum by (exported_pod) (DCGM_FI_DEV_FB_USED_BYTES{hostname=~\"$$instance\", exported_namespace=~\"$$namespace\", exported_pod=~\"$$pod\"})",
               "legendFormat": "{{exported_pod}}",
               "refId": "A"
             }
@@ -388,19 +388,19 @@ spec:
           "targets": [
             {
               "datasource": {"type": "prometheus", "uid": "$${datasource}"},
-              "expr": "DCGM_FI_DEV_SM_CLOCK{hostname=~\"$$instance\", gpu=~\"$$gpu\"}",
+              "expr": "DCGM_FI_DEV_SM_CLOCK_HERTZ{hostname=~\"$$instance\", gpu=~\"$$gpu\"} / 1000000",
               "legendFormat": "sm clock {{gpu}}",
               "refId": "A"
             },
             {
               "datasource": {"type": "prometheus", "uid": "$${datasource}"},
-              "expr": "DCGM_FI_DEV_MEM_CLOCK{hostname=~\"$$instance\", gpu=~\"$$gpu\"}",
+              "expr": "DCGM_FI_DEV_MEMORY_CLOCK_HERTZ{hostname=~\"$$instance\", gpu=~\"$$gpu\"} / 1000000",
               "legendFormat": "mem clock {{gpu}}",
               "refId": "B"
             },
             {
               "datasource": {"type": "prometheus", "uid": "$${datasource}"},
-              "expr": "DCGM_FI_DEV_PCIE_REPLAY_COUNTER{hostname=~\"$$instance\", gpu=~\"$$gpu\"}",
+              "expr": "DCGM_FI_DEV_PCIE_REPLAY_TOTAL{hostname=~\"$$instance\", gpu=~\"$$gpu\"}",
               "legendFormat": "pcie replays {{gpu}}",
               "refId": "C"
             }
@@ -555,7 +555,7 @@ spec:
         },
         {
           "datasource": {"type": "prometheus", "uid": "$${datasource}"},
-          "description": "GPU energy consumed over the selected range. DCGM counter is in millijoules; converted to kWh.",
+          "description": "GPU energy consumed over the selected range. DCGM counter is in joules; converted to kWh.",
           "fieldConfig": {"defaults": {"unit": "kwatth", "decimals": 3}, "overrides": []},
           "gridPos": {"h": 7, "w": 6, "x": 18, "y": 37},
           "id": 23,
@@ -570,7 +570,7 @@ spec:
           "targets": [
             {
               "datasource": {"type": "prometheus", "uid": "$${datasource}"},
-              "expr": "sum(increase(DCGM_FI_DEV_TOTAL_ENERGY_CONSUMPTION{hostname=~\"$$instance\", gpu=~\"$$gpu\"}[$$__range])) / 3.6e9",
+              "expr": "sum(increase(DCGM_FI_DEV_GPU_ENERGY_JOULES_TOTAL{hostname=~\"$$instance\", gpu=~\"$$gpu\"}[$$__range])) / 3.6e6",
               "legendFormat": "energy",
               "refId": "A"
             }
@@ -641,12 +641,12 @@ spec:
           {
             "current": {},
             "datasource": {"type": "prometheus", "uid": "$${datasource}"},
-            "definition": "label_values(DCGM_FI_DEV_GPU_UTIL, hostname)",
+            "definition": "label_values(DCGM_FI_DEV_GPU_UTIL_RATIO, hostname)",
             "hide": 0,
             "includeAll": false,
             "multi": false,
             "name": "instance",
-            "query": {"query": "label_values(DCGM_FI_DEV_GPU_UTIL, hostname)", "refId": "StandardVariableQuery"},
+            "query": {"query": "label_values(DCGM_FI_DEV_GPU_UTIL_RATIO, hostname)", "refId": "StandardVariableQuery"},
             "sort": 1,
             "type": "query"
           },
@@ -654,13 +654,13 @@ spec:
             "allValue": ".*",
             "current": {"selected": true, "text": "All", "value": "$$__all"},
             "datasource": {"type": "prometheus", "uid": "$${datasource}"},
-            "definition": "label_values(DCGM_FI_DEV_GPU_UTIL{hostname=~\"$$instance\"}, gpu)",
+            "definition": "label_values(DCGM_FI_DEV_GPU_UTIL_RATIO{hostname=~\"$$instance\"}, gpu)",
             "hide": 0,
             "includeAll": true,
             "multi": true,
             "name": "gpu",
             "query": {
-              "query": "label_values(DCGM_FI_DEV_GPU_UTIL{hostname=~\"$$instance\"}, gpu)",
+              "query": "label_values(DCGM_FI_DEV_GPU_UTIL_RATIO{hostname=~\"$$instance\"}, gpu)",
               "refId": "StandardVariableQuery"
             },
             "sort": 1,
@@ -670,13 +670,13 @@ spec:
             "allValue": ".*",
             "current": {"selected": true, "text": "All", "value": "$$__all"},
             "datasource": {"type": "prometheus", "uid": "$${datasource}"},
-            "definition": "label_values(DCGM_FI_DEV_FB_USED{hostname=~\"$$instance\"}, exported_namespace)",
+            "definition": "label_values(DCGM_FI_DEV_FB_USED_BYTES{hostname=~\"$$instance\"}, exported_namespace)",
             "hide": 0,
             "includeAll": true,
             "multi": true,
             "name": "namespace",
             "query": {
-              "query": "label_values(DCGM_FI_DEV_FB_USED{hostname=~\"$$instance\"}, exported_namespace)",
+              "query": "label_values(DCGM_FI_DEV_FB_USED_BYTES{hostname=~\"$$instance\"}, exported_namespace)",
               "refId": "StandardVariableQuery"
             },
             "sort": 1,
@@ -686,13 +686,13 @@ spec:
             "allValue": ".*",
             "current": {"selected": true, "text": "All", "value": "$$__all"},
             "datasource": {"type": "prometheus", "uid": "$${datasource}"},
-            "definition": "label_values(DCGM_FI_DEV_FB_USED{hostname=~\"$$instance\", exported_namespace=~\"$$namespace\"}, exported_pod)",
+            "definition": "label_values(DCGM_FI_DEV_FB_USED_BYTES{hostname=~\"$$instance\", exported_namespace=~\"$$namespace\"}, exported_pod)",
             "hide": 0,
             "includeAll": true,
             "multi": true,
             "name": "pod",
             "query": {
-              "query": "label_values(DCGM_FI_DEV_FB_USED{hostname=~\"$$instance\", exported_namespace=~\"$$namespace\"}, exported_pod)",
+              "query": "label_values(DCGM_FI_DEV_FB_USED_BYTES{hostname=~\"$$instance\", exported_namespace=~\"$$namespace\"}, exported_pod)",
               "refId": "StandardVariableQuery"
             },
             "sort": 1,

@@ -16,9 +16,9 @@ tests:
         values: "0+360x70"
       - series: 'kube_pod_info{namespace="media",pod="plex-58d57c96dd-ph578",node="node-c"}'
         values: "1x70"
-      - series: 'DCGM_FI_DEV_ENC_UTIL{hostname="node-c",exported_pod="plex-58d57c96dd-ph578"}'
+      - series: 'DCGM_FI_DEV_ENC_UTIL_RATIO{hostname="node-c",exported_pod="plex-58d57c96dd-ph578"}'
         values: "0x70"
-      - series: 'DCGM_FI_DEV_ENC_UTIL{hostname="node-a",exported_pod="tdarr-79d9c7b45c-s2dnv"}'
+      - series: 'DCGM_FI_DEV_ENC_UTIL_RATIO{hostname="node-a",exported_pod="tdarr-79d9c7b45c-s2dnv"}'
         values: "60x70"
     alert_rule_test:
       - eval_time: 35m
@@ -45,9 +45,9 @@ tests:
         values: "0+360x70"
       - series: 'kube_pod_info{namespace="media",pod="plex-58d57c96dd-ph578",node="node-c"}'
         values: "1x70"
-      - series: 'DCGM_FI_DEV_ENC_UTIL{hostname="node-c",exported_pod="plex-58d57c96dd-ph578"}'
+      - series: 'DCGM_FI_DEV_ENC_UTIL_RATIO{hostname="node-c",exported_pod="plex-58d57c96dd-ph578"}'
         values: "0x70"
-      - series: 'DCGM_FI_DEV_ENC_UTIL{hostname="node-c",exported_pod="jellyfin-654cf4dc9c-s4lgb"}'
+      - series: 'DCGM_FI_DEV_ENC_UTIL_RATIO{hostname="node-c",exported_pod="jellyfin-654cf4dc9c-s4lgb"}'
         values: "40 0 0 0 0 0 0 0 0 0 40 0 0 0 0 0 0 0 0 0 40 0 0 0 0 0 0 0 0 0 40 0 0 0 0 0 0 0 0 0 40 0 0 0 0 0 0 0 0 0 40 0 0 0 0 0 0 0 0 0 40 0 0 0 0 0 0 0 0 0 40"
     alert_rule_test:
       - eval_time: 45m
@@ -64,7 +64,7 @@ tests:
         values: "0+30x70"
       - series: 'kube_pod_info{namespace="media",pod="plex-58d57c96dd-ph578",node="node-c"}'
         values: "1x70"
-      - series: 'DCGM_FI_DEV_ENC_UTIL{hostname="node-c",exported_pod="plex-58d57c96dd-ph578"}'
+      - series: 'DCGM_FI_DEV_ENC_UTIL_RATIO{hostname="node-c",exported_pod="plex-58d57c96dd-ph578"}'
         values: "0x70"
     alert_rule_test:
       - eval_time: 45m
@@ -81,7 +81,7 @@ tests:
         values: "0+360x70"
       - series: 'kube_pod_info{namespace="media",pod="plex-58d57c96dd-ph578",node="node-c"}'
         values: "1x70"
-      - series: 'DCGM_FI_DEV_ENC_UTIL{hostname="node-c",exported_pod="plex-58d57c96dd-ph578"}'
+      - series: 'DCGM_FI_DEV_ENC_UTIL_RATIO{hostname="node-c",exported_pod="plex-58d57c96dd-ph578"}'
         values: "0x70"
     alert_rule_test:
       - eval_time: 45m

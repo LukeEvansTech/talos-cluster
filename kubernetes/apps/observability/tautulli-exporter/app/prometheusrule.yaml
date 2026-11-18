@@ -42,7 +42,7 @@ spec:
             (min_over_time(sum(rate(container_cpu_usage_seconds_total{namespace="media", pod=~"plex-[0-9a-f]+-[0-9a-z]+", container="app"}[5m]))[20m:1m]) > 2)
             and on ()
             (
-              max by (hostname) (max_over_time(DCGM_FI_DEV_ENC_UTIL[20m]))
+              max by (hostname) (max_over_time(DCGM_FI_DEV_ENC_UTIL_RATIO[20m]))
               * on (hostname) group_left ()
               max by (hostname) (label_replace(kube_pod_info{namespace="media", pod=~"plex-[0-9a-f]+-[0-9a-z]+"}, "hostname", "$1", "node", "(.*)"))
               == 0

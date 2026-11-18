@@ -87,7 +87,7 @@ Three consequences, in increasing order of seriousness:
 - The `media` apps share one `ResourceClaimTemplate`, so they would all need the same
   explicit `capacity.requests.memory`.
 - **That figure cannot be measured here.** Without MIG there is no per-process attribution:
-  `DCGM_FI_DEV_FB_USED` reports the device total and the exporter attributes that same total to
+  `DCGM_FI_DEV_FB_USED_BYTES` reports the device total and the exporter attributes that same total to
   every co-tenant. Any value chosen is an estimate presented as a measurement.
 - **It converts a soft risk into a hard one.** Today a media pod landing on the inference card
   is harmless to scheduling — it takes one of five shares and the model still fits. Under
