@@ -303,19 +303,20 @@ def upstream(repos: list[str]) -> dict[str, dict | None]:
     return out
 
 
-# Newest tag by commit date; annotated tags point at a Tag object, lightweight ones at the commit.
+# Newest tags by commit date; annotated tags point at a Tag object, lightweight ones at the commit.
 LATEST_TAG = (
-    'refs(refPrefix: "refs/tags/", first: 1, orderBy: {field: TAG_COMMIT_DATE, direction: DESC}) '
+    'refs(refPrefix: "refs/tags/", first: 10, orderBy: {field: TAG_COMMIT_DATE, direction: DESC}) '
     "{ nodes { name target { ... on Commit { committedDate } "
     "... on Tag { target { ... on Commit { committedDate } } } } } }"
 )
 
 
 def tag_as_release(repo: dict | None) -> dict | None:
-    """Stand the newest tag in for latestRelease when a project tags without GitHub Releases."""
+    """Stand the newest stable tag in for latestRelease when a project tags without Releases."""
     if not repo:
         return repo
     nodes = (repo.pop("refs", None) or {}).get("nodes") or []
+    nodes = [n for n in nodes if not PRERELEASE_RE.search(n["name"])]
     if repo.get("latestRelease") or not nodes:
         return repo
     target = nodes[0].get("target") or {}

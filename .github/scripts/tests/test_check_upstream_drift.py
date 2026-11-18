@@ -335,6 +335,9 @@ class AssessTest(unittest.TestCase):
         assert got is not None
         self.assertEqual(got["latestRelease"], {"tagName": "1.7.0", "publishedAt": "X"})
         self.assertNotIn("refs", got)
+        rc = {"name": "1.8.0-RC1", "target": {"committedDate": "Y"}}
+        tagged = {"latestRelease": None, "refs": {"nodes": [rc, {"name": "1.7.0", "target": {}}]}}
+        self.assertEqual(drift.tag_as_release(tagged)["latestRelease"]["tagName"], "1.7.0")
         released = {"latestRelease": {"tagName": "v2"}, "refs": {"nodes": [{"name": "v3"}]}}
         self.assertEqual(drift.tag_as_release(released), {"latestRelease": {"tagName": "v2"}})
 
