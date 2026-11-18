@@ -307,6 +307,40 @@ class AssessTest(unittest.TestCase):
         own = {"labels": {"org.opencontainers.image.source": "https://github.com/Sonarr/Sonarr"}}
         self.assertEqual(drift.source_repo("ghcr.io/home-operations/sonarr", own), "Sonarr/Sonarr")
 
+    def test_quiet_excuses_only_age(self) -> None:
+        """A reviewed-quiet image drops its age row but still reports a release it cannot see."""
+        old = {"created": "2024-01-01T00:00:00Z", "labels": {}}
+        image = next(iter(drift.QUIET))
+        same = ("o/x", info("o/x", "1.0.0"))
+        self.assertEqual(drift.assess(image, "1.0.0", old, same, NOW), [])
+        self.assertTrue(drift.assess("ghcr.io/o/x", "1.0.0", old, same, NOW))
+        setattr(drift, "tag_exists", lambda _image, _tag: False)
+        moved = ("o/x", info("o/x", "v2.0.0", published="2026-06-01T00:00:00Z"))
+        self.assertTrue(drift.assess(image, "1.0.0", old, moved, NOW))
+
+    def test_source_override_beats_label(self) -> None:
+        """SOURCE names the upstream when the image carries no usable label."""
+        image, repo = next(iter(drift.SOURCE.items()))
+        self.assertEqual(drift.source_repo(image, {"labels": {}}), repo)
+
+    def test_tag_stands_in_for_a_missing_release(self) -> None:
+        """Projects that only tag (Apache Guacamole) still expose their newest version."""
+        tagged = {
+            "nameWithOwner": "apache/guacamole-server",
+            "isArchived": False,
+            "latestRelease": None,
+            "refs": {"nodes": [{"name": "1.7.0", "target": {"target": {"committedDate": "X"}}}]},
+        }
+        got = drift.tag_as_release(tagged)
+        assert got is not None
+        self.assertEqual(got["latestRelease"], {"tagName": "1.7.0", "publishedAt": "X"})
+        self.assertNotIn("refs", got)
+        rc = {"name": "1.8.0-RC1", "target": {"committedDate": "Y"}}
+        tagged = {"latestRelease": None, "refs": {"nodes": [rc, {"name": "1.7.0", "target": {}}]}}
+        self.assertEqual(drift.tag_as_release(tagged)["latestRelease"]["tagName"], "1.7.0")
+        released = {"latestRelease": {"tagName": "v2"}, "refs": {"nodes": [{"name": "v3"}]}}
+        self.assertEqual(drift.tag_as_release(released), {"latestRelease": {"tagName": "v2"}})
+
     def test_epoch_build_time_is_not_stale(self) -> None:
         """Reproducible builds stamp the epoch, which must not read as age."""
         self.assertIsNone(drift.age_days("1970-01-01T00:00:01Z", NOW))
