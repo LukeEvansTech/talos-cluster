@@ -101,6 +101,8 @@ spec:
             scrapeTimeout: 10s
     route:
       app:
+        # A second route would otherwise rename this one sakuga-app; the pocket-id component targets .
+        forceRename: "{{ .Release.Name }}"
         annotations:
           gatus.home-operations.com/endpoint: |-
             name: sakuga
@@ -112,6 +114,24 @@ spec:
         parentRefs:
           - name: envoy-internal
             namespace: network
+      # Outside the Pocket ID sign-in: the digest email loads cel images from here, and a mail
+      # client has no session cookie.
+      public:
+        annotations:
+          gatus.home-operations.com/enabled: "false"
+        hostnames:
+          - "sakuga.${SECRET_DOMAIN}"
+        parentRefs:
+          - name: envoy-internal
+            namespace: network
+        rules:
+          - matches:
+              - path:
+                  type: PathPrefix
+                  value: /img
+            backendRefs:
+              - identifier: app
+                port: *port
     persistence:
       data:
         existingClaim: sakuga

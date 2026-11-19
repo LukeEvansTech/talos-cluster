@@ -31,9 +31,39 @@ file and renaming it into place in the same directory. The database is a rebuild
 public MaxMind artifact rather than state, so it follows the same rule as this cluster's other
 rebuildable caches (tracearr's poster cache, #4561): keep it off the backed-up PVC.
 
+## Putting an app behind Pocket ID
+
+The `pocket-id` component (`kubernetes/components/pocket-id`) signs people in at the gateway, so
+the app itself needs no login code. It adds an Envoy Gateway `SecurityPolicy` with OIDC on the
+HTTPRoute named `${APP}`: a browser with no session is sent to `https://id.${SECRET_DOMAIN}`, comes
+back to `/oauth2/callback`, and gets a cookie for that app's host. `/oauth2/logout` clears it. The
+Pocket ID session itself lasts 30 days (`SESSION_DURATION`), so after the first sign-in each further
+app costs one redirect and no prompt.
+
+To put an app behind it:
+
+1. Create a Pocket ID OIDC client whose ID is the app name, with the callback URL
+   `https://<app>.${SECRET_DOMAIN}/oauth2/callback`, PKCE on, consent skipped and access restricted
+   to the `admins` group. Create a client secret and store it in the app's 1Password item (`Talos`
+   vault) as `POCKET_ID_CLIENT_SECRET`.
+2. Add `../../../../components/pocket-id` to `components` in the app's `ks.yaml`.
+3. Keep the route that serves the browser named `${APP}`. A HelmRelease with more than one route
+   names them `<app>-<key>`, so set `forceRename: "{{ .Release.Name }}"` on `route.app`.
+4. Give any path that must work without a browser session its own route on the same host,
+   with `PathPrefix` rules: API clients with their own keys, webhooks, images a mail client
+   loads. The policy only targets `${APP}`, and the gateway sends each request to the longest
+   matching prefix across both routes.
+5. Point the Gatus endpoint at the Service (`http://<app>.<namespace>.svc.cluster.local:<port>/health`),
+   since the route now answers 302 to anything without a session.
+
+The policy covers traffic through the gateway only. A pod that can reach the Service skips it, so
+this relies on the namespace's network policies admitting ingress from `network` and the
+namespace itself, as `custom` does.
+
 ## References
 
 - `kubernetes/apps/security/pocket-id/app/helmrelease.yaml`, the email verification and GeoLite2
   settings.
 - [#3990](https://github.com/LukeEvansTech/talos-cluster/pull/3990), the email verification fix.
 - [#4562](https://github.com/LukeEvansTech/talos-cluster/pull/4562), enabling GeoLite2 geolocation.
+- `kubernetes/components/pocket-id`, the gateway sign-in component; `sakuga` is its first consumer.

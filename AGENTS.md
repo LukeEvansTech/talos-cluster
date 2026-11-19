@@ -85,7 +85,7 @@ HelmRelease install/upgrade/rollback strategy defaults.
 
 Every app follows the same shape. The `ks.yaml` is the Flux entry point and uses YAML anchors
 (`&app`, `&namespace`, `*app`) for DRY references; it sets `targetNamespace: *namespace`, and any
-`components` (`volsync`, `alerts`, `homepage`, `kopiur`) plus their `postBuild.substitute` values
+`components` (`volsync`, `alerts`, `homepage`, `kopiur`, `pocket-id`) plus their `postBuild.substitute` values
 (`APP: *app`, `VOLSYNC_CAPACITY`) live in `ks.yaml`, never duplicated into `app/kustomization.yaml`.
 
 Inside `app/`:
