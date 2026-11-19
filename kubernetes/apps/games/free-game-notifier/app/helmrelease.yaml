@@ -44,3 +44,6 @@ spec:
         runAsNonRoot: true
         runAsUser: 1000
         runAsGroup: 1000
+        # The image's /app/src is root:root 0750 since its 2026-11-09 rebuild; root's group is the only non-root way to read it.
+        supplementalGroups:
+          - 0
