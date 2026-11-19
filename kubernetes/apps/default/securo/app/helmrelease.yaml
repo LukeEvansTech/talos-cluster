@@ -109,13 +109,14 @@ spec:
                 memory: 1Gi
           beat:
             image: *backendImage
+            # On the PVC: a lost schedule restarts every interval, so frequent pod replacement can starve the 24h jobs.
             command:
               - "celery"
               - "-A"
               - "app.worker"
               - "beat"
               - "--loglevel=info"
-              - "--schedule=/tmp/celerybeat-schedule"
+              - "--schedule=/app/data/celerybeat-schedule"
             env: *env
             envFrom: *envFrom
             securityContext: *securityContext
@@ -210,11 +211,11 @@ spec:
               - path: /app/data
             worker:
               - path: /app/data
+            beat:
+              - path: /app/data
       tmp:
         type: emptyDir
         advancedMounts:
           securo:
-            beat:
-              - path: /tmp
             redis:
               - path: /data
