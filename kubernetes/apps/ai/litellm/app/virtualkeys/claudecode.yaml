@@ -7,7 +7,7 @@ metadata:
   namespace: ai
 spec:
   # Workstation Claude Code reaches the talos MCP through this team; it gets no other MCP server
-  # (flux and hamcp can write) and only the local model (the alias with no cloud fallback).
+  # (hamcp can write) and only the local model (the alias with no cloud fallback).
   proxyRef: litellm
   mcpServers:
     - talos

@@ -320,7 +320,7 @@ CRDs + operator charts, see `toolhive/app/ocirepository.yaml` for the current pi
 | Server    | Source                          | Access                                                    |
 | --------- | ------------------------------- | --------------------------------------------------------- |
 | `kubectl` | kubectl-mcp-server              | cluster read-only, secrets excluded                       |
-| `flux`    | flux-operator-mcp               | Flux read + write (reconcile/suspend/resume/apply/delete) |
+| `flux`    | flux-operator-mcp               | Flux read (`--read-only`)                                 |
 | `talos`   | talos-mcp                       | Talos `os:reader` (talosconfig SA)                        |
 | `searxng` | mcp-searxng → `searxng.default` | web search                                                |
 | `github`  | github-mcp-server               | GitHub read-only (`GITHUB_READ_ONLY`, fine-grained PAT)   |
@@ -438,32 +438,21 @@ Its `llama.cpp` flags were tuned against several OOM and timeout incidents, all 
   server exit with "invalid argument: --mmap" before it binds a port. `--load-mode` works on both
   the old and new builds, so it's used here.
 
-### flux-mcp write access (enabled)
+### flux-mcp is read-only
 
-The flux MCP has had write access to Flux CRDs since this was enabled: `flux-mcp-write`, a
-`ClusterRole` + `ClusterRoleBinding` in `toolhive/mcp-servers/flux/rbac.yaml`, grants the
-`flux-mcp` ServiceAccount `create`/`patch`/`update`/`delete` on every Flux kind installed on this
-cluster, one rule per apiGroup (`fluxcd.controlplane.io`, `helm.toolkit.fluxcd.io`,
-`kustomize.toolkit.fluxcd.io`, `notification.toolkit.fluxcd.io`, `source.toolkit.fluxcd.io`),
-each listing its resources by name rather than `resources: ["*"]`, because a wildcard trips Trivy
-KSV-0046 and Checkov's wildcard-RBAC check even when the apiGroups are this narrow. The resource
-list for each apiGroup comes from `kubectl api-resources --api-group=<group> -o name` against the
-live cluster, and deliberately excludes subresources like `<kind>/status`: `flux-operator-mcp`'s
-write tools only ever patch spec or annotations on the main object, never status. Nothing outside
-Flux CRDs, and no `secrets` access (core `""` is never included). `image.toolkit.fluxcd.io`
-has no rule because this cluster doesn't run the Flux image-automation controller. Add one
-(`imagepolicies`, `imagerepositories`, `imageupdateautomations`) if that ever changes, and add
-any other new Flux kind by hand when a component upgrade introduces one. This lets it (and
-therefore any model behind LiteLLM) reconcile, suspend, resume, apply, and delete Flux objects.
+The flux MCP runs with `--read-only`, and its ServiceAccount holds only the two read bindings in
+`toolhive/mcp-servers/flux/rbac.yaml`. It had write access to Flux CRDs from #4578 until November
+2026, through a `flux-mcp-write` `ClusterRole`. That was withdrawn for two reasons that only
+showed up together. `flux-operator-mcp`'s HTTP transport authenticates no caller, and the
+namespace policy admits every pod in `ai` to it, so the write tools were open to any workload in
+the namespace and not only to models behind LiteLLM. Write on Flux kinds is also wider than it
+reads: a `Kustomization` or `HelmRelease` is applied by controllers bound to `cluster-admin`, so
+the role was cluster-admin in effect.
 
-The `flux-operator-mcp` image's own `--read-only` flag defaults to `false` and this deployment
-has never set it, so the write tools were already registered at the MCP layer before this
-change. RBAC was, and remains, the only enforcement boundary.
-
-This grants an LLM mutate access to the cluster's GitOps controller; the owner has accepted
-that blast radius. **To revoke**, delete the `flux-mcp-write` `ClusterRole` and
-`ClusterRoleBinding` from `toolhive/mcp-servers/flux/rbac.yaml` (the two read-only bindings are
-unaffected).
+To give an agent Flux write access again, restore the role and drop the flag, and first put a
+caller check in front of the server, such as a network policy admitting only the gateway. A
+`serviceAccountName` default on the Flux controllers narrows what an applied object can do, but it
+filters no caller, so it is an addition to that check and not a substitute for it.
 
 ### Adding an MCP server
 

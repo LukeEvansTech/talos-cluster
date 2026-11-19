@@ -21,12 +21,13 @@ spec:
     spec:
       containers:
         - name: mcp
-          # --read-only defaults to false and is never set; RBAC in rbac.yaml is the only
-          # enforcement layer (docs/docs/architecture/ai-llm-stack.md flux-mcp write access).
+          # The HTTP transport authenticates no caller, so any pod in this namespace could
+          # reach the write tools; --read-only stops them being registered at all.
           args:
             - serve
             - --transport=http
             - --port=8000
+            - --read-only
           env:
             # In-cluster mode: no KUBECONFIG, uses the pod service account.
             - name: RUNTIME_NAMESPACE
