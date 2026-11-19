@@ -1,0 +1,57 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/external-secrets.io/externalsecret_v1.json
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+# On a password rotation force-sync this and default/securo's ExternalSecret together: each
+# refreshes hourly on its own, so the role and the app's DATABASE_URL can disagree until both do.
+metadata:
+  name: securo-pg
+spec:
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: onepassword-connect
+  target:
+    name: securo-pg
+    template:
+      metadata:
+        labels:
+          # CNPG applies a changed role password at once only when its Secret carries this label.
+          cnpg.io/reload: "true"
+      type: kubernetes.io/basic-auth
+      engineVersion: v2
+      data:
+        username: securo
+        password: "{{ .SECURO_POSTGRES_PASSWORD }}"
+  dataFrom:
+    - extract:
+        key: securo
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/postgresql.cnpg.io/databaserole_v1.json
+apiVersion: postgresql.cnpg.io/v1
+kind: DatabaseRole
+metadata:
+  name: securo
+spec:
+  cluster:
+    name: postgres18
+  name: securo
+  login: true
+  passwordSecret:
+    name: securo-pg
+  databaseRoleReclaimPolicy: retain
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/postgresql.cnpg.io/database_v1.json
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: securo
+spec:
+  cluster:
+    name: postgres18
+  name: securo
+  owner: securo
+  databaseReclaimPolicy: retain
+  # pgvector is an untrusted extension, so the app role's migration cannot create it itself.
+  extensions:
+    - name: vector
+      ensure: present
