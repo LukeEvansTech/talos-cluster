@@ -19,7 +19,7 @@ spec:
           app:
             image:
               repository: ghcr.io/gameyfin/gameyfin
-              tag: 2.6.2@sha256:1042f8c7ccce1ce98b9d6b4314937f80c37c360f2e1fbbe7e4a0a9434facb930
+              tag: 2.7.0@sha256:42c9d1a2e992d9bb18b540a27eb7708533b51a4af5ff684b9872bfb15eaee737
             env:
               TZ: ${TIMEZONE}
               PUID: 1000
@@ -76,6 +76,10 @@ spec:
                 subPath: db
               - path: /opt/gameyfin/plugindata
                 subPath: plugin
+              # 2.7.0 no longer bakes plugins into the image; it downloads them once and
+              # records that in the database, so the jars must persist with it.
+              - path: /opt/gameyfin/plugins
+                subPath: plugins
       games:
         type: nfs
         server: ${SECRET_STORAGE_SERVER}
