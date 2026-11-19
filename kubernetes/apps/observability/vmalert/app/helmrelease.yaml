@@ -65,15 +65,14 @@ spec:
               interval: 5m
               rules:
                 - alert: EpicGamesNotClaiming
-                  # Runs every 6h. Counts runs that logged in and either found nothing or mailed the checkout
-                  # link; "Exiting successfully" is logged even when the account or the send failed (mail
-                  # failed 2026-10-22 to 11-08 unnoticed). 12h tolerates one missed run.
+                  # "Exiting successfully" is logged even when login or the checkout mail failed (mail failed
+                  # 2026-10-22 to 11-08 unnoticed), so count delivered results. Runs every 6h; 12h is one missed run.
                   expr: >-
                     _time:12h {kubernetes.pod_namespace="games",kubernetes.pod_name=~"epicgames-.+"}
                     | stats count() if ("INFO: No free games available") as idle,
                     count() if ("INFO: Dispatching checkout notification") as sent,
                     count() if ("ERROR: Error sending email") as failed
-                    | math idle + sent - failed as ok | filter ok:<=0 | fields ok
+                    | math idle + max(sent - failed, 0) as ok | filter ok:<=0 | fields ok
                   for: 10m
                   labels:
                     severity: warning
