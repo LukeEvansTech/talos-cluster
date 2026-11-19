@@ -44,8 +44,8 @@ To put an app behind it:
 
 1. Create a Pocket ID OIDC client whose ID is the app name, with the callback URL
    `https://<app>.${SECRET_DOMAIN}/oauth2/callback`, PKCE on, consent skipped and access restricted
-   to one access tier (below). Create a client secret and store it in the app's 1Password item
-   (`Talos` vault) as `POCKET_ID_CLIENT_SECRET`.
+   to one access tier (below). Create a client secret and store it as `POCKET_ID_CLIENT_SECRET` in
+   a 1Password item of its own, `<app>-pocket-id` (`Talos` vault).
 2. Add `../../../../components/pocket-id` to `components` in the app's `ks.yaml`.
 3. Keep the route that serves the browser named `${APP}`. A HelmRelease with more than one route
    names them `<app>-<key>`, so set `forceRename: "{{ .Release.Name }}"` on `route.app`.
@@ -53,8 +53,10 @@ To put an app behind it:
    with `PathPrefix` rules: API clients with their own keys, webhooks, images a mail client
    loads. The policy only targets `${APP}`, and the gateway sends each request to the longest
    matching prefix across both routes.
-5. Point the Gatus endpoint at the Service (`http://<app>.<namespace>.svc.cluster.local:<port>/health`),
-   since the route now answers 302 to anything without a session.
+5. The component sets the route's Gatus check to expect the 302 to Pocket ID, which proves the
+   gateway and sign-in path but not the app. To check the app too, annotate its Service with
+   `gatus.home-operations.com/enabled: "true"` and an endpoint named `<app>-service` (the sidecar
+   names a Service's endpoint after it, which would collide with the route's).
 
 The policy covers traffic through the gateway only. A pod that can reach the Service skips it, so
 this relies on the namespace's network policies admitting ingress from `network` and the

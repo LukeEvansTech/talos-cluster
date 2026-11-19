@@ -8,6 +8,7 @@ metadata:
 spec:
   components:
     - ../../../../components/homepage
+    - ../../../../components/pocket-id
   dependsOn:
     - name: onepassword-connect
       namespace: external-secrets
