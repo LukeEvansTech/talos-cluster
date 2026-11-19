@@ -4,7 +4,6 @@
 # observed as the healthy maximum over 14 days (quiet), then past the threshold (fires).
 rule_files:
   - kubernetes/apps/ai/memini/app/prometheusrule.yaml
-  - kubernetes/apps/ai/repowiki/app/prometheusrule.yaml
   - kubernetes/apps/custom/todoist-sort/app/prometheusrule.yaml
   - kubernetes/apps/games/free-game-notifier/app/prometheusrule.yaml
   - kubernetes/apps/media/deduparr/app/prometheusrule.yaml
@@ -35,31 +34,6 @@ tests:
                 No successful daily fsck in over 48h. Check the latest memini-fsck Job (a pod stuck in
                 ContainerCreating did not land on the main pod's node), then trigger a run with kubectl -n ai
                 create job --from=cronjob/memini-fsck memini-fsck-manual.
-
-  # RepowikiGenStale: threshold 129600s plus 1h wait.
-  - interval: 5m
-    input_series:
-      - series: 'kube_cronjob_status_last_successful_time{namespace="ai",cronjob="repowiki-repowiki-gen"}'
-        values: "0x448"
-    alert_rule_test:
-      - eval_time: 1110m
-        alertname: RepowikiGenStale
-        exp_alerts: []
-      - eval_time: 2230m
-        alertname: RepowikiGenStale
-        exp_alerts:
-          - exp_labels:
-              severity: warning
-              namespace: ai
-              cronjob: repowiki-repowiki-gen
-            exp_annotations:
-              summary: >-
-                The repowiki generator CronJob (ai/repowiki-repowiki-gen) has not succeeded in over 36h, so the
-                repository wiki is stale.
-              description: >-
-                No successful generator run in over 36h. Check the latest repowiki-repowiki-gen Job's logs, then
-                trigger a run with kubectl -n ai create job --from=cronjob/repowiki-repowiki-gen
-                repowiki-gen-manual.
 
   # TodoistSortInboxStale: threshold 32400s plus 30m wait.
   - interval: 5m

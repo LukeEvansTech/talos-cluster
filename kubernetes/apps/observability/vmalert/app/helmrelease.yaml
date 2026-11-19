@@ -65,17 +65,36 @@ spec:
               interval: 5m
               rules:
                 - alert: EpicGamesNotClaiming
-                  # The in-process cron runs every 6h and logs this line only when a run ends cleanly; 12h
-                  # tolerates one missed run.
+                  # Runs every 6h. Both lines follow login and the offer fetch; "Exiting successfully" is
+                  # logged even when the account failed. 12h tolerates one missed run.
                   expr: >-
                     _time:12h {kubernetes.pod_namespace="games",kubernetes.pod_name=~"epicgames-.+"}
-                    "INFO: Exiting successfully" | stats count() as c | filter c:0
+                    ("INFO: No free games available" OR "INFO: Dispatching checkout notification")
+                    | stats count() as c | filter c:0
                   for: 10m
                   labels:
                     severity: warning
                     namespace: games
                   annotations:
-                    summary: "epicgames has finished no claim run in 12h, so free games are not being claimed."
+                    summary: "epicgames has completed no logged-in check in 12h, so free games are not being claimed."
+            - name: repowiki
+              type: vlogs
+              interval: 5m
+              rules:
+                - alert: RepowikiNotCommitting
+                  # A failed repository is logged and skipped and the Job still succeeds, so count commits.
+                  # Runs every 12h; the largest gap between commits over 14 days was 21h. A run with nothing
+                  # stale commits nothing and counts as healthy.
+                  expr: >-
+                    _time:36h {kubernetes.pod_namespace="ai",kubernetes.pod_name=~"repowiki-repowiki-gen-.+"}
+                    | stats count() if ("  committed ") as committed,
+                    count() if (~", 0 to regenerate this run") as idle | filter committed:0 idle:0
+                  for: 10m
+                  labels:
+                    severity: warning
+                    namespace: ai
+                  annotations:
+                    summary: "repowiki has committed no regenerated wiki in 36h; check the repowiki-repowiki-gen Job logs for skipped repositories."
             - name: domainpulse
               type: vlogs
               interval: 5m
