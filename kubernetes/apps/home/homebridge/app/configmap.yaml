@@ -9,4 +9,4 @@ metadata:
 data:
   startup.sh: |-
     #!/bin/sh
-    npm install --save homebridge-dummy@latest
+    npm install --save homebridge-dummy@2.1.5

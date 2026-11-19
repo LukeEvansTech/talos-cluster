@@ -71,10 +71,11 @@ data:
     get_fragmentation() {
         NODE="$1"
         # Get etcd status and parse the in-use percentage
-        STATUS=$(talosctl -n "$NODE" etcd status 2>/dev/null || echo "")
-        if [ -z "$STATUS" ]; then
-            echo "0"
-            return
+        # A failed query must fail the Job: reporting 0% hid an expired client
+        # certificate for five days in November 2026.
+        if ! STATUS=$(talosctl -n "$NODE" etcd status 2>&1); then
+            echo "ERROR: etcd status failed on $NODE: $STATUS" >&2
+            return 1
         fi
 
         # Format: NODE  MEMBER  DB SIZE  IN USE (with percentage)  LEADER  ...
@@ -87,7 +88,8 @@ data:
             FRAG=$(awk "BEGIN {printf \"%.0f\", 100 - $IN_USE_PCT}")
             echo "$FRAG"
         else
-            echo "0"
+            echo "ERROR: no in-use percentage in etcd status for $NODE" >&2
+            return 1
         fi
     }
 
