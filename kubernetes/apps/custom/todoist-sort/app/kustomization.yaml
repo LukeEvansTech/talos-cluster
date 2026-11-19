@@ -6,6 +6,7 @@ resources:
   - ./ocirepository.yaml
   - ./helmrelease.yaml
   - ./externalsecret.yaml
+  - ./prometheusrule.yaml
 configMapGenerator:
   - name: todoist-sort-config
     files:

@@ -1,0 +1,38 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: deduparr
+  namespace: media
+spec:
+  groups:
+    - name: deduparr
+      rules:
+        # Alerts on the outcome, as LurcherNotDelivering. The service loop runs every 2m and the
+        # largest healthy age seen over a week was 6m, so 15m is several missed passes, not one slow one.
+        - alert: DeduparrNotRunning
+          annotations:
+            summary: >-
+              deduparr has not completed a successful pass for {{ $labels.exported_instance }}
+              in over 15m, so duplicate downloads are no longer being removed.
+            description: >-
+              The last successful deduparr pass for {{ $labels.exported_instance }} finished
+              {{ $value | humanizeDuration }} ago. Check kubectl -n media logs deploy/deduparr
+              for an API key or connection failure to that instance.
+          expr: |-
+            time() - deduparr_last_successful_run_timestamp > 900
+          for: 5m
+          labels:
+            severity: warning
+        # The rule above is silent when the metric vanishes, which a crash-looping pod also causes.
+        - alert: DeduparrMetricsMissing
+          annotations:
+            summary: >-
+              deduparr /metrics has not been scraped for 30m, so its passes are unmonitored.
+          expr: |-
+            absent(deduparr_last_successful_run_timestamp)
+          for: 30m
+          labels:
+            severity: warning
+            namespace: media

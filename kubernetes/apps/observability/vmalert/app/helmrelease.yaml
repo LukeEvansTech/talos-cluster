@@ -60,3 +60,55 @@ spec:
                     namespace: media
                   annotations:
                     summary: "YourSpotify's sync loop has run for 0 users for the last hour; log in again to recreate the account."
+            - name: epicgames
+              type: vlogs
+              interval: 5m
+              rules:
+                - alert: EpicGamesNotClaiming
+                  # "Exiting successfully" is logged even when login or the checkout mail failed (mail failed
+                  # 2026-10-22 to 11-08 unnoticed), so count delivered results. Runs every 6h; 12h is one missed run.
+                  expr: >-
+                    _time:12h {kubernetes.pod_namespace="games",kubernetes.pod_name=~"epicgames-.+"}
+                    | stats count() if ("INFO: No free games available") as idle,
+                    count() if ("INFO: Dispatching checkout notification") as sent,
+                    count() if ("ERROR: Error sending email") as failed
+                    | math idle + max(sent - failed, 0) as ok | filter ok:<=0 | fields ok
+                  for: 10m
+                  labels:
+                    severity: warning
+                    namespace: games
+                  annotations:
+                    summary: "epicgames has completed no check in 12h that logged in and delivered its result; check its logs for a login or mail failure."
+            - name: repowiki
+              type: vlogs
+              interval: 5m
+              rules:
+                - alert: RepowikiNotCommitting
+                  # A failed repository is logged and skipped and the Job still succeeds, so count commits.
+                  # Runs every 12h; the largest gap between commits over 14 days was 21h. "0 to regenerate" is
+                  # not treated as healthy: a failed lookup also logs it, and no run has been idle since October.
+                  expr: >-
+                    _time:36h {kubernetes.pod_namespace="ai",kubernetes.pod_name=~"repowiki-repowiki-gen-.+"}
+                    "  committed " | stats count() as c | filter c:0
+                  for: 10m
+                  labels:
+                    severity: warning
+                    namespace: ai
+                  annotations:
+                    summary: "repowiki has committed no regenerated wiki in 36h; check the repowiki-repowiki-gen Job logs for skipped repositories."
+            - name: domainpulse
+              type: vlogs
+              interval: 5m
+              rules:
+                - alert: DomainPulseScanStale
+                  # Daily scan at 02:00; a completion that scanned 0 domains does not count. 48h tolerates
+                  # one missed run.
+                  expr: >-
+                    _time:48h {kubernetes.pod_namespace="custom",kubernetes.pod_name=~"domainpulse-.+"}
+                    ~"Scheduled scan completed: [1-9]" | stats count() as c | filter c:0
+                  for: 10m
+                  labels:
+                    severity: warning
+                    namespace: custom
+                  annotations:
+                    summary: "DomainPulse has completed no scheduled domain scan in 48h, so its security results are stale."

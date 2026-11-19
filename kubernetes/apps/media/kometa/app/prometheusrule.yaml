@@ -1,0 +1,31 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: kometa
+  namespace: media
+spec:
+  groups:
+    - name: kometa
+      rules:
+        # Age of the last success, as GickupBackupStale. Daily at 02:00 with runs of up to about an
+        # hour; 48h tolerates one missed run.
+        - alert: KometaRunStale
+          annotations:
+            summary: >-
+              The kometa CronJob (media/kometa) has not succeeded in over 48h, so Plex
+              collections and overlays are not being updated.
+            description: >-
+              No successful nightly Kometa run in over 48h. Check the latest kometa
+              Job's logs (docs/docs/apps/kometa.md), then trigger a run with kubectl
+              -n media create job --from=cronjob/kometa kometa-manual.
+          expr: |-
+            time() - (
+              kube_cronjob_status_last_successful_time{namespace="media", cronjob="kometa"}
+              or
+              kube_cronjob_created{namespace="media", cronjob="kometa"}
+            ) > 172800
+          for: 1h
+          labels:
+            severity: warning

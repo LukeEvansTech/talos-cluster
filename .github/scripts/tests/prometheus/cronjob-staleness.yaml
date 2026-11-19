@@ -1,0 +1,203 @@
+---
+# promtool unit tests for the CronJob and deduparr absence-of-success alerts; run by
+# .github/scripts/check_prometheus_rules.py. Each CronJob case holds the last success at the age
+# observed as the healthy maximum over 14 days (quiet), then past the threshold (fires).
+rule_files:
+  - kubernetes/apps/ai/memini/app/prometheusrule.yaml
+  - kubernetes/apps/custom/todoist-sort/app/prometheusrule.yaml
+  - kubernetes/apps/games/free-game-notifier/app/prometheusrule.yaml
+  - kubernetes/apps/media/deduparr/app/prometheusrule.yaml
+  - kubernetes/apps/media/kometa/app/prometheusrule.yaml
+evaluation_interval: 1m
+tests:
+  # MeminiFsckStale: threshold 172800s plus 1h wait.
+  - interval: 5m
+    input_series:
+      - series: 'kube_cronjob_status_last_successful_time{namespace="ai",cronjob="memini-fsck"}'
+        values: "0x592"
+    alert_rule_test:
+      - eval_time: 1440m
+        alertname: MeminiFsckStale
+        exp_alerts: []
+      - eval_time: 2950m
+        alertname: MeminiFsckStale
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              namespace: ai
+              cronjob: memini-fsck
+            exp_annotations:
+              summary: >-
+                The memini-fsck CronJob (ai/memini-fsck) has not succeeded in over 48h, so the memory store's
+                integrity is unchecked.
+              description: >-
+                No successful daily fsck in over 48h. Check the latest memini-fsck Job (a pod stuck in
+                ContainerCreating did not land on the main pod's node), then trigger a run with kubectl -n ai
+                create job --from=cronjob/memini-fsck memini-fsck-manual.
+
+  # TodoistSortInboxStale: threshold 32400s plus 30m wait.
+  - interval: 5m
+    input_series:
+      - series: 'kube_cronjob_status_last_successful_time{namespace="custom",cronjob="todoist-sort-sort-inbox"}'
+        values: "0x118"
+    alert_rule_test:
+      - eval_time: 495m
+        alertname: TodoistSortInboxStale
+        exp_alerts: []
+      - eval_time: 580m
+        alertname: TodoistSortInboxStale
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              namespace: custom
+              cronjob: todoist-sort-sort-inbox
+            exp_annotations:
+              summary: >-
+                The todoist-sort sort-inbox CronJob (custom/todoist-sort-sort-inbox) has not succeeded in over
+                9h, so the Todoist inbox is not being sorted.
+              description: >-
+                No successful inbox sort in over 9h. Check the latest todoist-sort-sort-inbox Job's logs for a
+                Todoist or LiteLLM failure, then trigger a run with kubectl -n custom create job
+                --from=cronjob/todoist-sort-sort-inbox sort-inbox-manual.
+
+  # TodoistPlanDayStale: threshold 172800s plus 1h wait.
+  - interval: 5m
+    input_series:
+      - series: 'kube_cronjob_status_last_successful_time{namespace="custom",cronjob="todoist-sort-plan-day"}'
+        values: "0x592"
+    alert_rule_test:
+      - eval_time: 1440m
+        alertname: TodoistPlanDayStale
+        exp_alerts: []
+      - eval_time: 2950m
+        alertname: TodoistPlanDayStale
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              namespace: custom
+              cronjob: todoist-sort-plan-day
+            exp_annotations:
+              summary: >-
+                The todoist-sort plan-day CronJob (custom/todoist-sort-plan-day) has not succeeded in over 48h,
+                so no daily plan is being written.
+              description: >-
+                No successful plan-day run in over 48h. Check the latest todoist-sort-plan-day Job's logs for a
+                Todoist or LiteLLM failure, then trigger a run with kubectl -n custom create job
+                --from=cronjob/todoist-sort-plan-day plan-day-manual.
+
+  # FreeGameNotifierStale: threshold 691200s plus 1h wait.
+  - interval: 5m
+    input_series:
+      - series: 'kube_cronjob_status_last_successful_time{namespace="games",cronjob="free-game-notifier"}'
+        values: "0x2320"
+    alert_rule_test:
+      - eval_time: 10080m
+        alertname: FreeGameNotifierStale
+        exp_alerts: []
+      - eval_time: 11590m
+        alertname: FreeGameNotifierStale
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              namespace: games
+              cronjob: free-game-notifier
+            exp_annotations:
+              summary: >-
+                The free-game-notifier CronJob (games/free-game-notifier) has not succeeded in over 8 days, so
+                this week's free games were not announced.
+              description: >-
+                No successful weekly run in over 8 days. Check the latest free-game-notifier Job's logs (an
+                image update that moved the entry point fails with MODULE_NOT_FOUND), then trigger a run with
+                kubectl -n games create job --from=cronjob/free-game-notifier free-game-notifier-manual.
+
+  # A CronJob that has never succeeded has no last-success series; creation time stands in.
+  - interval: 5m
+    input_series:
+      - series: 'kube_cronjob_created{namespace="games",cronjob="free-game-notifier"}'
+        values: "0x2320"
+    alert_rule_test:
+      - eval_time: 11590m
+        alertname: FreeGameNotifierStale
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              namespace: games
+              cronjob: free-game-notifier
+            exp_annotations:
+              summary: >-
+                The free-game-notifier CronJob (games/free-game-notifier) has not succeeded in over 8 days, so
+                this week's free games were not announced.
+              description: >-
+                No successful weekly run in over 8 days. Check the latest free-game-notifier Job's logs (an
+                image update that moved the entry point fails with MODULE_NOT_FOUND), then trigger a run with
+                kubectl -n games create job --from=cronjob/free-game-notifier free-game-notifier-manual.
+
+  # KometaRunStale: threshold 172800s plus 1h wait.
+  - interval: 5m
+    input_series:
+      - series: 'kube_cronjob_status_last_successful_time{namespace="media",cronjob="kometa"}'
+        values: "0x592"
+    alert_rule_test:
+      - eval_time: 1500m
+        alertname: KometaRunStale
+        exp_alerts: []
+      - eval_time: 2950m
+        alertname: KometaRunStale
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              namespace: media
+              cronjob: kometa
+            exp_annotations:
+              summary: >-
+                The kometa CronJob (media/kometa) has not succeeded in over 48h, so Plex collections and
+                overlays are not being updated.
+              description: >-
+                No successful nightly Kometa run in over 48h. Check the latest kometa Job's logs
+                (docs/docs/apps/kometa.md), then trigger a run with kubectl -n media create job
+                --from=cronjob/kometa kometa-manual.
+  # deduparr: a pass every 2m keeps it quiet; one stuck at its last success fires after 15m + 5m.
+  - interval: 1m
+    input_series:
+      - series: 'deduparr_last_successful_run_timestamp{namespace="media",exported_instance="movies"}'
+        values: "0+60x10 600x40"
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: DeduparrNotRunning
+        exp_alerts: []
+      - eval_time: 20m
+        alertname: DeduparrNotRunning
+        exp_alerts: []
+      - eval_time: 31m
+        alertname: DeduparrNotRunning
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              namespace: media
+              exported_instance: movies
+            exp_annotations:
+              summary: >-
+                deduparr has not completed a successful pass for movies in over 15m, so duplicate downloads
+                are no longer being removed.
+              description: >-
+                The last successful deduparr pass for movies finished 21m 0s ago. Check kubectl -n media
+                logs deploy/deduparr for an API key or connection failure to that instance.
+
+  # The series vanishing (pod gone, scrape broken) is caught separately.
+  - interval: 1m
+    input_series:
+      - series: 'deduparr_last_successful_run_timestamp{namespace="media",exported_instance="movies"}'
+        values: "0+60x5"
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: DeduparrMetricsMissing
+        exp_alerts: []
+      - eval_time: 45m
+        alertname: DeduparrMetricsMissing
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              namespace: media
+            exp_annotations:
+              summary: >-
+                deduparr /metrics has not been scraped for 30m, so its passes are unmonitored.

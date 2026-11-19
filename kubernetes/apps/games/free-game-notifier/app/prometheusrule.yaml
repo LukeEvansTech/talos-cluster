@@ -1,0 +1,34 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: free-game-notifier
+  namespace: games
+spec:
+  groups:
+    - name: free-game-notifier
+      rules:
+        # Age of the last success, as GickupBackupStale; KubeJobFailed clears once the failed Job is
+        # reaped after 24h. Weekly, and the free games rotate weekly, so 8 days fires a day after the
+        # first missed run.
+        - alert: FreeGameNotifierStale
+          annotations:
+            summary: >-
+              The free-game-notifier CronJob (games/free-game-notifier) has not
+              succeeded in over 8 days, so this week's free games were not announced.
+            description: >-
+              No successful weekly run in over 8 days. Check the latest
+              free-game-notifier Job's logs (an image update that moved the entry
+              point fails with MODULE_NOT_FOUND), then trigger a run with kubectl -n
+              games create job --from=cronjob/free-game-notifier
+              free-game-notifier-manual.
+          expr: |-
+            time() - (
+              kube_cronjob_status_last_successful_time{namespace="games", cronjob="free-game-notifier"}
+              or
+              kube_cronjob_created{namespace="games", cronjob="free-game-notifier"}
+            ) > 691200
+          for: 1h
+          labels:
+            severity: warning
