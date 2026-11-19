@@ -6,7 +6,8 @@
 for the storage host's metrics. The exporter setup, port inventory and the "metric reality"
 of TrueNAS SCALE 25.10 are covered in
 [TrueNAS monitoring setup](../operations/truenas-monitoring.md). This page covers what that
-one doesn't: the replication-alert design and the scrapeconfig job-naming decision.
+one doesn't: the replication-alert design, the disk-temperature baseline alert and the
+scrapeconfig job-naming decision.
 
 ## Replication alert design
 
@@ -50,6 +51,24 @@ Each alert covers one blind spot the others can't see:
 `TrueNASReplicationDisabled` and `TrueNASReplicationMetricsMissing` are the only two rules
 scoped to a specific task ID. If the DR replication task is ever recreated in TrueNAS, it
 gets a new middleware ID, and both expressions need updating to match.
+
+## Disk-temperature baseline alert
+
+`TrueNASDiskTemperatureAboveBaseline` warns when an HDD runs more than 10 °C over its own
+7-day median for an hour. It exists because the absolute rule (`> 60` °C) missed a real
+cooling regression: on 2026-11-09 a BMC fan-mode change left the HDDs 22 °C over their weekly
+median, at 58-60 °C, for two days without tripping it. In normal running each disk stays
+within 3 °C of its median.
+
+The rule selects `device=~"sd.*"` because the NVMe drives on the same job swing with load and
+would make a median baseline noisy. It keys each disk by serial number, as the pending-sector
+rules do, because `sdX` names can move after a reboot and would compare one disk against
+another's history.
+
+The baseline moves with the data, so a sustained hot spell drags the median up and the alert
+stops firing after about 3.5 days. Past that point only the absolute rule is left, and it fires
+above 60 °C: a disk that settles at 58-60 °C, as in the 2026-11-09 incident, goes unalerted
+once the baseline clears. Treat a firing baseline alert as something to fix within those days.
 
 ## Scrapeconfig job naming
 
