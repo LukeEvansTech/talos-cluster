@@ -52,6 +52,7 @@ resources:
   - ./rackula/ks.yaml
   - ./reactiveresume/ks.yaml
   - ./searxng/ks.yaml
+  - ./securo/ks.yaml
   - ./shlink/ks.yaml
   - ./smokeping/ks.yaml
   - ./bentopdf/ks.yaml

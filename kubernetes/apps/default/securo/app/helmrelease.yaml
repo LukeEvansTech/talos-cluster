@@ -1,0 +1,220 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: &app securo
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: securo
+  values:
+    controllers:
+      securo:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        initContainers:
+          migrate:
+            image: &backendImage
+              repository: ghcr.io/securo-finance/securo-backend
+              tag: 0.20.0@sha256:c161123067ada4fe332e5647e5af2b0c1e2840087166638b52b6db42a7d4a2c0
+            command:
+              - "alembic"
+              - "upgrade"
+              - "head"
+            env: &env
+              TZ: ${TIMEZONE}
+              FRONTEND_URL: "https://securo.${SECRET_DOMAIN}"
+              DEFAULT_CURRENCY: GBP
+              # Celery has no key prefix and Dragonfly forces every app onto db 0, so a shared
+              # broker would mix this app's `celery` queue with other apps'; Redis runs in-pod.
+              REDIS_URL: redis://127.0.0.1:6379/0
+              # Envoy and the in-pod nginx are both proxies ahead of the backend.
+              TRUSTED_PROXY_HOPS: "2"
+              STORAGE_PROVIDER: local
+              STORAGE_LOCAL_PATH: /app/data/attachments
+              AGENTS_KNOWLEDGE_STORAGE_PATH: /app/data/agent_knowledge
+              AGENTS_ENABLED: "false"
+              PLUGINS_ENABLED: "false"
+              TESOURO_DIRETO_ENABLED: "false"
+            envFrom: &envFrom
+              - secretRef:
+                  name: securo-secret
+            securityContext: &securityContext
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+              capabilities: { drop: ["ALL"] }
+        containers:
+          app:
+            image: *backendImage
+            command:
+              - "uvicorn"
+              - "app.main:app"
+              - "--host"
+              - "127.0.0.1"
+              - "--port"
+              - "8000"
+            env: *env
+            envFrom: *envFrom
+            # Bound to loopback so only the in-pod nginx reaches it and TRUSTED_PROXY_HOPS holds;
+            # kubelet probes come from outside the pod, so they exec instead.
+            probes:
+              liveness: &backendProbe
+                enabled: true
+                custom: true
+                spec:
+                  exec:
+                    command: &healthCheck
+                      - python
+                      - -c
+                      - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=5)
+                  periodSeconds: 15
+                  timeoutSeconds: 6
+                  failureThreshold: 4
+              readiness: *backendProbe
+              startup:
+                enabled: true
+                custom: true
+                spec:
+                  exec:
+                    command: *healthCheck
+                  periodSeconds: 5
+                  timeoutSeconds: 6
+                  failureThreshold: 30
+            securityContext: *securityContext
+            resources:
+              requests:
+                cpu: 10m
+                memory: 256Mi
+              limits:
+                memory: 1Gi
+          worker:
+            image: *backendImage
+            command:
+              - "celery"
+              - "-A"
+              - "app.worker"
+              - "worker"
+              - "--loglevel=info"
+              - "--concurrency=2"
+            env: *env
+            envFrom: *envFrom
+            securityContext: *securityContext
+            resources:
+              requests:
+                cpu: 10m
+                memory: 256Mi
+              limits:
+                memory: 1Gi
+          beat:
+            image: *backendImage
+            command:
+              - "celery"
+              - "-A"
+              - "app.worker"
+              - "beat"
+              - "--loglevel=info"
+              - "--schedule=/tmp/celerybeat-schedule"
+            env: *env
+            envFrom: *envFrom
+            securityContext: *securityContext
+            resources:
+              requests:
+                cpu: 5m
+                memory: 128Mi
+              limits:
+                memory: 512Mi
+          frontend:
+            image:
+              repository: ghcr.io/securo-finance/securo-frontend
+              tag: 0.20.0@sha256:5ee5d91f46c5da54ee2479038a9a4ac3f90c8a0bf8c9124d8455c4f77e94cffc
+            env:
+              BACKEND_URL: http://127.0.0.1:8000
+              FRONTEND_URL: "https://securo.${SECRET_DOMAIN}"
+            probes:
+              liveness: &frontendProbe
+                enabled: true
+                custom: true
+                spec:
+                  tcpSocket:
+                    port: &port 8080
+                  periodSeconds: 15
+              readiness: *frontendProbe
+            securityContext:
+              runAsUser: 101
+              runAsGroup: 101
+              runAsNonRoot: true
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+              capabilities: { drop: ["ALL"] }
+            resources:
+              requests:
+                cpu: 5m
+                memory: 32Mi
+              limits:
+                memory: 128Mi
+          redis:
+            image:
+              repository: docker.io/library/redis
+              tag: 8.10.3-alpine@sha256:7958cfbb9d152f87dadfbc89f1b0b15938f0b81ff8982feb327476f4911935c3
+            # Broker only: queued tasks are re-enqueued by beat, so nothing is persisted.
+            args:
+              - "--bind"
+              - "127.0.0.1"
+              - "--save"
+              - ""
+              - "--appendonly"
+              - "no"
+            securityContext:
+              runAsUser: 999
+              runAsGroup: 999
+              runAsNonRoot: true
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities: { drop: ["ALL"] }
+            resources:
+              requests:
+                cpu: 5m
+                memory: 16Mi
+              limits:
+                memory: 128Mi
+
+    defaultPodOptions:
+      securityContext:
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile: { type: RuntimeDefault }
+
+    service:
+      app:
+        controller: securo
+        ports:
+          http:
+            port: *port
+
+    route:
+      app:
+        hostnames:
+          - "{{ .Release.Name }}.${SECRET_DOMAIN}"
+        parentRefs:
+          - name: envoy-internal
+            namespace: network
+
+    persistence:
+      data:
+        existingClaim: "{{ .Release.Name }}"
+        advancedMounts:
+          securo:
+            app:
+              - path: /app/data
+            worker:
+              - path: /app/data
+      tmp:
+        type: emptyDir
+        advancedMounts:
+          securo:
+            beat:
+              - path: /tmp
+            redis:
+              - path: /data
