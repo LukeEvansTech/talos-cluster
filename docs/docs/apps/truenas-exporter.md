@@ -61,10 +61,14 @@ median, at 58-60 °C, for two days without tripping it. In normal running each d
 within 3 °C of its median.
 
 The rule selects `device=~"sd.*"` because the NVMe drives on the same job swing with load and
-would make a median baseline noisy.
+would make a median baseline noisy. It keys each disk by serial number, as the pending-sector
+rules do, because `sdX` names can move after a reboot and would compare one disk against
+another's history.
 
 The baseline moves with the data, so a sustained hot spell drags the median up and the alert
-stops firing after about 3.5 days. The absolute rule still covers that case.
+stops firing after about 3.5 days. Past that point only the absolute rule is left, and it fires
+above 60 °C: a disk that settles at 58-60 °C, as in the 2026-11-09 incident, goes unalerted
+once the baseline clears. Treat a firing baseline alert as something to fix within those days.
 
 ## Scrapeconfig job naming
 

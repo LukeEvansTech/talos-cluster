@@ -42,16 +42,27 @@ spec:
           for: 10m
           labels:
             severity: warning
-        # Catches a cooling regression that stays under the absolute limit above; HDDs only, as
-        # the NVMe drives swing with load. Design: docs/docs/apps/truenas-exporter.md.
+        # Catches a cooling regression that stays under the absolute limit above; keyed by serial
+        # like the pending-sector rules below. Design: docs/docs/apps/truenas-exporter.md.
         - alert: TrueNASDiskTemperatureAboveBaseline
           annotations:
             summary: >-
-              TrueNAS disk {{ $labels.device }} is {{ $value | printf "%.0f" }}°C above its 7-day
-              median; check the chassis fans and fan mode.
+              TrueNAS disk {{ $labels.serial_number }} is {{ $value | printf "%.0f" }}°C above its
+              7-day median; check the chassis fans and fan mode.
           expr: |-
-            smartctl_device_temperature{job="smartctl-exporter", temperature_type="current", device=~"sd.*"}
-            - quantile_over_time(0.5, smartctl_device_temperature{job="smartctl-exporter", temperature_type="current", device=~"sd.*"}[7d])
+            max by (serial_number) (
+              smartctl_device_temperature{job="smartctl-exporter", temperature_type="current", device=~"sd.*"}
+              * on (instance, device) group_left (serial_number) smartctl_device{job="smartctl-exporter"}
+            )
+            - on (serial_number)
+            quantile_over_time(0.5,
+              (
+                max by (serial_number) (
+                  smartctl_device_temperature{job="smartctl-exporter", temperature_type="current", device=~"sd.*"}
+                  * on (instance, device) group_left (serial_number) smartctl_device{job="smartctl-exporter"}
+                )
+              )[7d:5m]
+            )
             > 10
           for: 1h
           labels:
