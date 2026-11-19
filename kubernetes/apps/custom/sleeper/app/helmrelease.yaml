@@ -20,7 +20,7 @@ spec:
           app:
             image:
               repository: ghcr.io/lukeevanstech/sleeper
-              tag: 0.2.5@sha256:12f57c305d5240451a144309e17a109c34cf865ee761df095284ef6ce2a3739f
+              tag: 0.2.6@sha256:1114f184f24c7238e63dc66fb208ee323ee8f819d35458d8af83ce85dccbd84e
             env:
               TZ: ${TIMEZONE}
               SLEEPER_DATA: /data
