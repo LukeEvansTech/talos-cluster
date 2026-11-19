@@ -65,18 +65,21 @@ spec:
               interval: 5m
               rules:
                 - alert: EpicGamesNotClaiming
-                  # Runs every 6h. Both lines follow login and the offer fetch; "Exiting successfully" is
-                  # logged even when the account failed. 12h tolerates one missed run.
+                  # Runs every 6h. Counts runs that logged in and either found nothing or mailed the checkout
+                  # link; "Exiting successfully" is logged even when the account or the send failed (mail
+                  # failed 2026-10-22 to 11-08 unnoticed). 12h tolerates one missed run.
                   expr: >-
                     _time:12h {kubernetes.pod_namespace="games",kubernetes.pod_name=~"epicgames-.+"}
-                    ("INFO: No free games available" OR "INFO: Dispatching checkout notification")
-                    | stats count() as c | filter c:0
+                    | stats count() if ("INFO: No free games available") as idle,
+                    count() if ("INFO: Dispatching checkout notification") as sent,
+                    count() if ("ERROR: Error sending email") as failed
+                    | math idle + sent - failed as ok | filter ok:<=0
                   for: 10m
                   labels:
                     severity: warning
                     namespace: games
                   annotations:
-                    summary: "epicgames has completed no logged-in check in 12h, so free games are not being claimed."
+                    summary: "epicgames has completed no check in 12h that logged in and delivered its result; check its logs for a login or mail failure."
             - name: repowiki
               type: vlogs
               interval: 5m
