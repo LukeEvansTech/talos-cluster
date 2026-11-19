@@ -59,6 +59,15 @@ spec:
       automountServiceAccountToken: true
     service:
       app:
+        # The route only proves the sign-in redirect (pocket-id component), and the pod has no
+        # readiness probe, so this is the check that sees the app itself.
+        annotations:
+          gatus.home-operations.com/enabled: "true"
+          gatus.home-operations.com/endpoint: |-
+            name: certwarden-service
+            group: internal
+            url: http://certwarden.infrastructure.svc.cluster.local:4050/certwarden/app/
+            conditions: ["[STATUS] == 200"]
         controller: certwarden
         ports:
           http:
