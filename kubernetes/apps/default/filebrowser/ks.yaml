@@ -13,6 +13,9 @@ spec:
     - ../../../../components/homepage
     - ../../../../components/pocket-id
     - ../../../../components/volsync
+  dependsOn:
+    - name: onepassword-connect
+      namespace: external-secrets
   interval: 1h
   path: ./kubernetes/apps/default/filebrowser/app
   postBuild:
