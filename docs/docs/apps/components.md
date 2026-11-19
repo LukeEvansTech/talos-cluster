@@ -5,7 +5,7 @@
 `kubernetes/components` holds the reusable Kustomize components every app draws on: `homepage`
 (dashboard tiles), `global-vars` (`cluster-secrets` and `cluster-settings`, substituted into every
 app), `alerts`, `volsync` (NFS and remote backup wiring), `kopiur` (snapshot-based backup wiring),
-and `zeroscaler`.
+`pocket-id` (sign-in at the gateway; see [Pocket ID](pocket-id.md)) and `zeroscaler`.
 
 ## Homepage: route-based discovery
 

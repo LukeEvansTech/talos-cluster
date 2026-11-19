@@ -1,0 +1,9 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+# Puts the app's HTTPRoute (named ${APP}) behind a Pocket ID sign-in at the gateway.
+# Onboarding and exceptions: docs/docs/apps/pocket-id.md.
+resources:
+  - ./externalsecret.yaml
+  - ./securitypolicy.yaml
