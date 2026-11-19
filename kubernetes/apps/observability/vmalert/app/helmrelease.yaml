@@ -60,3 +60,35 @@ spec:
                     namespace: media
                   annotations:
                     summary: "YourSpotify's sync loop has run for 0 users for the last hour; log in again to recreate the account."
+            - name: epicgames
+              type: vlogs
+              interval: 5m
+              rules:
+                - alert: EpicGamesNotClaiming
+                  # The in-process cron runs every 6h and logs this line only when a run ends cleanly; 12h
+                  # tolerates one missed run.
+                  expr: >-
+                    _time:12h {kubernetes.pod_namespace="games",kubernetes.pod_name=~"epicgames-.+"}
+                    "INFO: Exiting successfully" | stats count() as c | filter c:0
+                  for: 10m
+                  labels:
+                    severity: warning
+                    namespace: games
+                  annotations:
+                    summary: "epicgames has finished no claim run in 12h, so free games are not being claimed."
+            - name: domainpulse
+              type: vlogs
+              interval: 5m
+              rules:
+                - alert: DomainPulseScanStale
+                  # Daily scan at 02:00; a completion that scanned 0 domains does not count. 48h tolerates
+                  # one missed run.
+                  expr: >-
+                    _time:48h {kubernetes.pod_namespace="custom",kubernetes.pod_name=~"domainpulse-.+"}
+                    ~"Scheduled scan completed: [1-9]" | stats count() as c | filter c:0
+                  for: 10m
+                  labels:
+                    severity: warning
+                    namespace: custom
+                  annotations:
+                    summary: "DomainPulse has completed no scheduled domain scan in 48h, so its security results are stale."

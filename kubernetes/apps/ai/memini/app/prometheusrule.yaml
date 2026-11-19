@@ -1,0 +1,32 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: memini
+  namespace: ai
+spec:
+  groups:
+    - name: memini
+      rules:
+        # Age of the last success, as GickupBackupStale: also catches a suspended or unscheduled
+        # CronJob. Daily; 48h tolerates one missed run.
+        - alert: MeminiFsckStale
+          annotations:
+            summary: >-
+              The memini-fsck CronJob (ai/memini-fsck) has not succeeded in over 48h,
+              so the memory store's integrity is unchecked.
+            description: >-
+              No successful daily fsck in over 48h. Check the latest memini-fsck Job
+              (a pod stuck in ContainerCreating did not land on the main pod's node),
+              then trigger a run with kubectl -n ai create job
+              --from=cronjob/memini-fsck memini-fsck-manual.
+          expr: |-
+            time() - (
+              kube_cronjob_status_last_successful_time{namespace="ai", cronjob="memini-fsck"}
+              or
+              kube_cronjob_created{namespace="ai", cronjob="memini-fsck"}
+            ) > 172800
+          for: 1h
+          labels:
+            severity: warning

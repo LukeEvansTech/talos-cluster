@@ -1,0 +1,31 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: repowiki
+  namespace: ai
+spec:
+  groups:
+    - name: repowiki
+      rules:
+        # Age of the last success, as GickupBackupStale. Runs every 12h but take up to about 7h, so
+        # the healthy maximum is about 18h; 36h tolerates one missed run.
+        - alert: RepowikiGenStale
+          annotations:
+            summary: >-
+              The repowiki generator CronJob (ai/repowiki-repowiki-gen) has not
+              succeeded in over 36h, so the repository wiki is stale.
+            description: >-
+              No successful generator run in over 36h. Check the latest
+              repowiki-repowiki-gen Job's logs, then trigger a run with kubectl -n ai
+              create job --from=cronjob/repowiki-repowiki-gen repowiki-gen-manual.
+          expr: |-
+            time() - (
+              kube_cronjob_status_last_successful_time{namespace="ai", cronjob="repowiki-repowiki-gen"}
+              or
+              kube_cronjob_created{namespace="ai", cronjob="repowiki-repowiki-gen"}
+            ) > 129600
+          for: 1h
+          labels:
+            severity: warning

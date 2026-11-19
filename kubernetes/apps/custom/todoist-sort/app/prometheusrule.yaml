@@ -1,0 +1,52 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: todoist-sort
+  namespace: custom
+spec:
+  groups:
+    - name: todoist-sort
+      rules:
+        # Age of the last success, as GickupBackupStale. Runs every 15 minutes from 07:00 to 22:45, so
+        # the overnight gap of 8h15m is the healthy maximum; 9h is that plus three missed runs.
+        - alert: TodoistSortInboxStale
+          annotations:
+            summary: >-
+              The todoist-sort sort-inbox CronJob (custom/todoist-sort-sort-inbox) has
+              not succeeded in over 9h, so the Todoist inbox is not being sorted.
+            description: >-
+              No successful inbox sort in over 9h. Check the latest
+              todoist-sort-sort-inbox Job's logs for a Todoist or LiteLLM failure,
+              then trigger a run with kubectl -n custom create job
+              --from=cronjob/todoist-sort-sort-inbox sort-inbox-manual.
+          expr: |-
+            time() - (
+              kube_cronjob_status_last_successful_time{namespace="custom", cronjob="todoist-sort-sort-inbox"}
+              or
+              kube_cronjob_created{namespace="custom", cronjob="todoist-sort-sort-inbox"}
+            ) > 32400
+          for: 30m
+          labels:
+            severity: warning
+        # Daily at 07:00; 48h tolerates one missed run.
+        - alert: TodoistPlanDayStale
+          annotations:
+            summary: >-
+              The todoist-sort plan-day CronJob (custom/todoist-sort-plan-day) has not
+              succeeded in over 48h, so no daily plan is being written.
+            description: >-
+              No successful plan-day run in over 48h. Check the latest
+              todoist-sort-plan-day Job's logs for a Todoist or LiteLLM failure, then
+              trigger a run with kubectl -n custom create job
+              --from=cronjob/todoist-sort-plan-day plan-day-manual.
+          expr: |-
+            time() - (
+              kube_cronjob_status_last_successful_time{namespace="custom", cronjob="todoist-sort-plan-day"}
+              or
+              kube_cronjob_created{namespace="custom", cronjob="todoist-sort-plan-day"}
+            ) > 172800
+          for: 1h
+          labels:
+            severity: warning
