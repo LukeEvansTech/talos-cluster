@@ -9,5 +9,6 @@ components:
   - ../../components/netpol
 resources:
   - ./namespace.yaml
+  - ./etcd-defrag/ks.yaml
   - ./talosbackup/ks.yaml
   - ./tuppr/ks.yaml

@@ -14,7 +14,6 @@ resources:
   - ./cilium-policies/ks.yaml
   - ./coredns/ks.yaml
   - ./descheduler/ks.yaml
-  - ./etcd-defrag/ks.yaml
   - ./fstrim/ks.yaml
   - ./generic-device-plugin/ks.yaml
   - ./metrics-server/ks.yaml

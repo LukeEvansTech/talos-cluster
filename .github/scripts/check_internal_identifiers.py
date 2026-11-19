@@ -260,18 +260,6 @@ ALLOWLIST: tuple[Allow, ...] = (
         regex=r'^\s+- cidr: "[\d.]+/24"$',
     ),
     Allow(
-        "kubernetes/apps/kube-system/etcd-defrag/app/configmap.yaml",
-        ("LAN IP",),
-        "etcd-defrag node targets",
-        regex=r'^\s+NODE\d+="[\d.]+"$',
-    ),
-    Allow(
-        "kubernetes/apps/kube-system/etcd-defrag/app/configmap.yaml",
-        ("node name",),
-        "etcd-defrag node target names",
-        regex=r'^\s+NODE\d+_NAME="[^"]+"$',
-    ),
-    Allow(
         "kubernetes/apps/kube-system/multus/networks/iot.yaml",
         ("VLAN interface",),
         "multus VLAN master interface",

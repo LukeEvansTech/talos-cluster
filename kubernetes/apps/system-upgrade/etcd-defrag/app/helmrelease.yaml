@@ -26,20 +26,15 @@ spec:
               tag: 3.24.4@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf
             command:
               - /bin/sh
-              - -c
-              - |
-                # Install talosctl using wget (Alpine built-in).
-                # This URL is tracked by the "Track the talosctl binary fetched
-                # by etcd-defrag" customManager in .renovaterc.json5, so it moves
-                # with the rest of the Talos pins instead of drifting. It had
-                # been left on v1.11.5 while the fleet ran v1.13.7.
-                wget -qO /usr/local/bin/talosctl https://github.com/siderolabs/talos/releases/download/v1.14.6/talosctl-linux-amd64
-                chmod +x /usr/local/bin/talosctl
-                # Run defrag script
-                sh /scripts/defrag.sh
+              - /scripts/defrag.sh
             env:
-              - name: TZ
-                value: UTC
+              HOST_IP:
+                valueFrom:
+                  fieldRef:
+                    fieldPath: status.hostIP
+              PATH: /talos:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+              TALOSCONFIG: /var/run/secrets/talos.dev/config
+              TZ: UTC
             resources:
               requests:
                 cpu: 25m
@@ -48,16 +43,20 @@ spec:
                 memory: 128Mi
             securityContext:
               allowPrivilegeEscalation: false
-              readOnlyRootFilesystem: false
+              readOnlyRootFilesystem: true
               capabilities:
                 drop:
                   - ALL
     defaultPodOptions:
+      nodeSelector:
+        node-role.kubernetes.io/control-plane: ""
       securityContext:
-        # talosctl needs root to reach the Talos API.
-        runAsNonRoot: false
-        runAsUser: 0
-        fsGroup: 0
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+        fsGroup: 65534
+        seccompProfile:
+          type: RuntimeDefault
     persistence:
       script:
         type: configMap
@@ -69,5 +68,15 @@ spec:
         type: secret
         name: etcd-defrag-talosconfig
         globalMounts:
-          - path: /var/run/secrets/talos
+          - path: /var/run/secrets/talos.dev
+            readOnly: true
+      # The signed talosctl image mounted as a volume, in place of a runtime download.
+      talosctl:
+        type: image
+        image:
+          repository: ghcr.io/siderolabs/talosctl
+          tag: v1.14.6@sha256:82c9a9985fc7292a222e680414c65955ac0566db588b84d88f620b05d16b1d5b
+        pullPolicy: IfNotPresent
+        globalMounts:
+          - path: /talos
             readOnly: true
