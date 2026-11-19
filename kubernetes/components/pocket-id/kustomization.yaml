@@ -7,3 +7,23 @@ kind: Component
 resources:
   - ./externalsecret.yaml
   - ./securitypolicy.yaml
+# Behind the sign-in every browser path answers 302, so the route's Gatus check expects that
+# redirect: it proves the gateway and Pocket ID path. App health is the pod's readiness, or a
+# Service check the app adds itself.
+patches:
+  - target:
+      kind: HelmRelease
+    patch: |-
+      apiVersion: helm.toolkit.fluxcd.io/v2
+      kind: HelmRelease
+      metadata:
+        name: placeholder
+      spec:
+        values:
+          route:
+            app:
+              annotations:
+                gatus.home-operations.com/endpoint: |-
+                  client:
+                    ignore-redirect: true
+                  conditions: ["[STATUS] == 302"]

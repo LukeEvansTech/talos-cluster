@@ -11,6 +11,7 @@ spec:
       app.kubernetes.io/name: *app
   components:
     - ../../../../components/homepage
+    - ../../../../components/pocket-id
     - ../../../../components/volsync
   dependsOn:
     - name: onepassword-connect

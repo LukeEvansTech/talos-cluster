@@ -85,6 +85,14 @@ spec:
           type: RuntimeDefault
     service:
       app:
+        # The route only proves the sign-in redirect (pocket-id component); this checks the app.
+        annotations:
+          gatus.home-operations.com/enabled: "true"
+          gatus.home-operations.com/endpoint: |-
+            name: sakuga-service
+            group: internal
+            url: http://sakuga.custom.svc.cluster.local:8080/health
+            conditions: ["[STATUS] == 200"]
         controller: sakuga
         ports:
           http:
@@ -103,12 +111,6 @@ spec:
       app:
         # A second route would otherwise rename this one sakuga-app; the pocket-id component targets .
         forceRename: "{{ .Release.Name }}"
-        annotations:
-          gatus.home-operations.com/endpoint: |-
-            name: sakuga
-            group: internal
-            url: http://sakuga.custom.svc.cluster.local:8080/health
-            conditions: ["[STATUS] == 200"]
         hostnames:
           - "sakuga.${SECRET_DOMAIN}"
         parentRefs:
