@@ -42,11 +42,8 @@ spec:
           for: 10m
           labels:
             severity: warning
-        # Catches a cooling regression long before the absolute limit: on 2026-11-09 a BMC fan-mode
-        # change left HDDs 22 °C over their weekly median at 58-60 °C for two days without
-        # tripping > 60. Normal swing is within 3 °C of the median. HDDs only (sd*): the NVMe
-        # drives on this job swing with load. Stops firing once a hot spell drags the median up
-        # (~3.5 days); the absolute rule above still holds then.
+        # Catches a cooling regression that stays under the absolute limit above; HDDs only, as
+        # the NVMe drives swing with load. Design: docs/docs/apps/truenas-exporter.md.
         - alert: TrueNASDiskTemperatureAboveBaseline
           annotations:
             summary: >-
