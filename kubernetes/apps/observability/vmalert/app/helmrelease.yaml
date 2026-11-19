@@ -83,12 +83,11 @@ spec:
               rules:
                 - alert: RepowikiNotCommitting
                   # A failed repository is logged and skipped and the Job still succeeds, so count commits.
-                  # Runs every 12h; the largest gap between commits over 14 days was 21h. A run with nothing
-                  # stale commits nothing and counts as healthy.
+                  # Runs every 12h; the largest gap between commits over 14 days was 21h. "0 to regenerate" is
+                  # not treated as healthy: a failed lookup also logs it, and no run has been idle since October.
                   expr: >-
                     _time:36h {kubernetes.pod_namespace="ai",kubernetes.pod_name=~"repowiki-repowiki-gen-.+"}
-                    | stats count() if ("  committed ") as committed,
-                    count() if (~", 0 to regenerate this run") as idle | filter committed:0 idle:0
+                    "  committed " | stats count() as c | filter c:0
                   for: 10m
                   labels:
                     severity: warning
