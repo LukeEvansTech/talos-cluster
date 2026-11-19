@@ -9,6 +9,8 @@ web:
   enabled: true
   config:
     authentication:
+      # Every request becomes group flux-admin; the Pocket ID SecurityPolicy in ../webauth is
+      # what decides who may send one.
       type: Anonymous
       anonymous:
         username: flux
@@ -22,6 +24,10 @@ web:
       gethomepage.dev/group: Infrastructure
       gethomepage.dev/icon: /icons/dracula/flux.svg
       gethomepage.dev/description: GitOps
+      gatus.home-operations.com/endpoint: |-
+        client:
+          ignore-redirect: true
+        conditions: ["[STATUS] == 302"]
     hostnames:
       - flux.${SECRET_DOMAIN}
     parentRefs:
