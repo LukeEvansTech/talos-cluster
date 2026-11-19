@@ -44,8 +44,8 @@ To put an app behind it:
 
 1. Create a Pocket ID OIDC client whose ID is the app name, with the callback URL
    `https://<app>.${SECRET_DOMAIN}/oauth2/callback`, PKCE on, consent skipped and access restricted
-   to the `admins` group. Create a client secret and store it in the app's 1Password item (`Talos`
-   vault) as `POCKET_ID_CLIENT_SECRET`.
+   to one access tier (below). Create a client secret and store it in the app's 1Password item
+   (`Talos` vault) as `POCKET_ID_CLIENT_SECRET`.
 2. Add `../../../../components/pocket-id` to `components` in the app's `ks.yaml`.
 3. Keep the route that serves the browser named `${APP}`. A HelmRelease with more than one route
    names them `<app>-<key>`, so set `forceRename: "{{ .Release.Name }}"` on `route.app`.
@@ -59,6 +59,25 @@ To put an app behind it:
 The policy covers traffic through the gateway only. A pod that can reach the Service skips it, so
 this relies on the namespace's network policies admitting ingress from `network` and the
 namespace itself, as `custom` does.
+
+## Access tiers
+
+Pocket ID groups describe what a member is trusted with, not which app they use, and every OIDC
+client is restricted to exactly one of them. No client is open to every user, so a new account
+reaches nothing until it joins a group. Pocket ID has no nested groups, so the owner is a member of
+all three.
+
+| Group | Trusted with | Notes |
+| --- | --- | --- |
+| `infra` | Anything that can reach or change the estate | Clients require re-authentication |
+| `personal` | The owner's private data | |
+| `household` | What other household members share | |
+
+If an app maps groups onto its own roles, those groups are named after the app
+(`paperless-admins`), not added as tiers.
+
+Apps whose phone or TV clients call the API directly cannot sit behind the gateway redirect; they
+keep their own OIDC login, restricted to a tier in the same way.
 
 ## References
 
