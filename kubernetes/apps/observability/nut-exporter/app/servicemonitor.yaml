@@ -22,6 +22,15 @@ spec:
           - ${NUT_SERVER_ADDR}:3493
         ups:
           - cr-ups-main
+      # Scrape the Service, not each pod: with the pod label gone both replicas collapse into
+      # one target, and a pod stranded on a dead node cannot hold up at 0
+      # (docs/docs/apps/nut-exporter.md).
+      relabelings: &viaService
+        - action: replace
+          targetLabel: __address__
+          replacement: nut-exporter.observability.svc.cluster.local:9995
+        - action: labeldrop
+          regex: pod
       metricRelabelings:
         - action: replace
           sourceLabels:
@@ -38,6 +47,7 @@ spec:
           - ${NUT_SERVER_ADDR}:3493
         ups:
           - cr-ups-comms
+      relabelings: *viaService
       metricRelabelings:
         - action: replace
           sourceLabels:
