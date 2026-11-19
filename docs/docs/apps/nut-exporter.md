@@ -48,6 +48,27 @@ a routine one, has happened since the appliance became the only NUT server. Fedo
 an upgrade before rebooting, so the reboot itself should look the same, but if this alert ever does
 false-fire, the fix is to measure the real window, not to guess at a new number.
 
+## Two replicas behind one scrape target
+
+The alert did false-fire on 2026-11-19, and the measured window showed the fuse was not the
+problem. A control-plane node was shut down for planned work with the single exporter pod on it.
+The replacement pod was answering scrapes 90 seconds later, but the old pod stayed in service
+discovery for five minutes, timing out on every scrape, and `up == 0` on that one stranded series
+carried the alert past 3m and paged at emergency priority. An earlier reboot the same day left the
+same five-minute trail without quite firing.
+
+Two changes close this:
+
+- The exporter runs two replicas spread across nodes, so a node going away never leaves UPS state
+  unread.
+- Each ServiceMonitor endpoint rewrites `__address__` to the exporter's Service and drops the `pod`
+  label. Both pods then relabel to an identical target, which Prometheus scrapes once, through the
+  Service. Only ready pods sit behind the Service, so a pod stranded on a dead node drops out of
+  the path instead of holding its own `up` series at 0.
+
+The exporter is a stateless proxy, so which pod answers a scrape makes no difference to the
+metrics. The cost is that `up` no longer says which pod failed; the pod logs do.
+
 ## UPSBatteryRuntimeLow: why 300s, not 900s
 
 The threshold used to be 900s (15m), and it had to come down. The main UPS delivers only about
