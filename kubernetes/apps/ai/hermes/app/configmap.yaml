@@ -69,9 +69,9 @@ data:
       # backends behind one endpoint), not per-proxy entries or the LiteLLM
       # /mcp aggregate. Tool names are namespaced `{workload}_<tool>`; the
       # built-in semantic optimizer (find_tool/call_tool) trims the list
-      # before it reaches the agent. flux's tools include write verbs since
-      # #4578. approvals.mode gates terminal commands only; trust: untrusted is
-      # what queues an MCP call without readOnlyHint for approval.
+      # before it reaches the agent. approvals.mode gates terminal commands
+      # only; trust: untrusted is what queues an MCP call without readOnlyHint
+      # for approval.
       toolhive:
         url: http://vmcp-mcp-gateway.ai.svc.cluster.local:4483/mcp
         trust: untrusted

@@ -37,9 +37,8 @@ publishes a generic installer image for 1.14+; the pins carry `depName=siderolab
 `talos/talenv.yaml` (`talosVersion`, read by the `just talos` recipes), the `TalosUpgrade` CR at
 `kubernetes/apps/system-upgrade/tuppr/upgrades/talosupgrade.yaml` (tuppr drives the roll), the
 `talosctl` CLI in `.mise.toml` (`aqua:siderolabs/talos`, in the same group since the regular expression
-dropped its datasource restriction), and the `talosctl` download URL baked into the etcd-defrag
-HelmRelease (`kubernetes/apps/kube-system/etcd-defrag/app/helmrelease.yaml`, tracked by a custom
-manager). A rollback that touches only the first three leaves both clients on a different version
+dropped its datasource restriction), and the `talosctl` image mounted into the etcd-defrag
+HelmRelease (`kubernetes/apps/system-upgrade/etcd-defrag/app/helmrelease.yaml`). A rollback that touches only the first three leaves both clients on a different version
 from the nodes. The machine-config patches under `talos/patches/` are the deviations.
 
 **Read before merging:** the Talos release notes for **every** intervening patch, the tuppr
@@ -196,7 +195,7 @@ at 1 Gi after the merge-burst OOM, CPU limits stripped) are the deviations.
 | Pattern | Required action |
 | --- | --- |
 | A merge burst spikes source-controller past its limit; every HelmRelease then fails `Could not load chart` and the Git fix cannot self-apply | Break glass: edit the live `FluxInstance` CR (flux-operator reconciles it independently of source-controller), then land the same value in Git. Limit is 1 Gi today |
-| The MCP server renames tools between versions | No repository change: nothing hardcodes tool names, and the `flux-mcp-write` ClusterRole is the write boundary |
+| The MCP server renames tools between versions | No repository change: nothing hardcodes tool names, and the server runs with `--read-only` |
 
 **After merge:** `flux version` shows the expected `distribution:`; the `FluxInstance`
 `status.lastAppliedRevision` matches; all four controllers Running with no restarts; `flux get

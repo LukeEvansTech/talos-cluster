@@ -39,6 +39,9 @@ API, encrypts it with [age](https://github.com/FiloSottile/age), and commits onl
   credentials (`OPNSENSE_HOST`, `OPNSENSE_API_KEY`, `OPNSENSE_API_SECRET`) from the
   `opnsensegh-config-backup` item and the `DEPLOY_KEY` and `KNOWN_HOSTS` fields from
   `opnsense-config-backup`. Its absence only affects the second job.
+- **`OPNSENSE_HOST` is a name, not an address.** Each job verifies the firewall's certificate
+  before sending the API credential, and neither certificate carries an IP subject alternative
+  name, so an address in either item fails that job.
 - **No push race.** The schedules are 15 minutes apart, and a rejected push is retried after
   `git pull --rebase`, so the jobs cannot lose each other's commits.
 - **Absence-of-success alert.** `OPNsenseConfigBackupStale` fires when either CronJob has not

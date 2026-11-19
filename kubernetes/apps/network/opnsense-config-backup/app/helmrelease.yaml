@@ -52,7 +52,9 @@ spec:
                 export GIT_SSH_COMMAND="ssh -i $${HOME}/.ssh/id_ed25519 -o IdentitiesOnly=yes -o UserKnownHostsFile=$${HOME}/.ssh/known_hosts"
 
                 AUTH=$(printf '%s:%s' "$(cat /secrets/OPNSENSE_API_KEY)" "$(cat /secrets/OPNSENSE_API_SECRET)" | base64 | tr -d '\n')
-                wget --no-check-certificate -q -O /work/config.xml \
+                # OPNSENSE_HOST is the firewall's certificate name, never its address: the
+                # certificate carries no IP SAN and this request carries the API credential.
+                wget -q -O /work/config.xml \
                   --header="Authorization: Basic $${AUTH}" \
                   "https://$(cat /secrets/OPNSENSE_HOST)/api/core/backup/download/this"
 
