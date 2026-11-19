@@ -73,7 +73,7 @@ spec:
                     | stats count() if ("INFO: No free games available") as idle,
                     count() if ("INFO: Dispatching checkout notification") as sent,
                     count() if ("ERROR: Error sending email") as failed
-                    | math idle + sent - failed as ok | filter ok:<=0
+                    | math idle + sent - failed as ok | filter ok:<=0 | fields ok
                   for: 10m
                   labels:
                     severity: warning
