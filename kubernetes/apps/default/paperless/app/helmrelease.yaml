@@ -52,8 +52,7 @@ spec:
               # From 3.5.0 a set PAPERLESS_URL drops the "*" default, leaving only localhost and
               # the URL's host; paperless-ai and paperless-gpt call the Service name.
               PAPERLESS_ALLOWED_HOSTS: "paperless.default.svc.cluster.local"
-              # Dragonfly's cluster_mode=emulated forces every app onto db 0, so this prefixes
-              # paperless's Celery keys away from prowler's worker.
+              # paperless shares Dragonfly db 0 with prowler's worker, so this prefixes its Celery keys.
               PAPERLESS_REDIS_PREFIX: "paperless:"
               PAPERLESS_DBENGINE: postgresql
               PAPERLESS_APPS: allauth.socialaccount.providers.openid_connect
