@@ -27,9 +27,6 @@ spec:
               TZ: ${TIMEZONE}
               FRONTEND_URL: "https://securo.${SECRET_DOMAIN}"
               DEFAULT_CURRENCY: GBP
-              # Celery has no key prefix and Dragonfly forces every app onto db 0, so a shared
-              # broker would mix this app's `celery` queue with other apps'; Redis runs in-pod.
-              REDIS_URL: redis://127.0.0.1:6379/0
               # Envoy and the in-pod nginx are both proxies ahead of the backend.
               TRUSTED_PROXY_HOPS: "2"
               STORAGE_PROVIDER: local
@@ -155,31 +152,6 @@ spec:
                 memory: 32Mi
               limits:
                 memory: 128Mi
-          redis:
-            image:
-              repository: docker.io/library/redis
-              tag: 8.10.3-alpine@sha256:7958cfbb9d152f87dadfbc89f1b0b15938f0b81ff8982feb327476f4911935c3
-            # Broker only: queued tasks are re-enqueued by beat, so nothing is persisted.
-            args:
-              - "--bind"
-              - "127.0.0.1"
-              - "--save"
-              - ""
-              - "--appendonly"
-              - "no"
-            securityContext:
-              runAsUser: 999
-              runAsGroup: 999
-              runAsNonRoot: true
-              allowPrivilegeEscalation: false
-              readOnlyRootFilesystem: true
-              capabilities: { drop: ["ALL"] }
-            resources:
-              requests:
-                cpu: 5m
-                memory: 16Mi
-              limits:
-                memory: 128Mi
 
     defaultPodOptions:
       securityContext:
@@ -213,9 +185,3 @@ spec:
               - path: /app/data
             beat:
               - path: /app/data
-      tmp:
-        type: emptyDir
-        advancedMounts:
-          securo:
-            redis:
-              - path: /data
