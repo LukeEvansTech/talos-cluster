@@ -1,0 +1,62 @@
+---
+# promtool unit tests for UPSUnreachable; run by .github/scripts/check_prometheus_rules.py.
+# The alert pages at emergency priority, so the reboot-length gap that must stay silent is
+# tested beside the outage that must fire.
+rule_files:
+  - kubernetes/apps/observability/nut-exporter/app/prometheusrule.yaml
+evaluation_interval: 30s
+tests:
+  # A 2m scrape gap, the longest routine reboot measured, stays under the 3m fuse.
+  - interval: 30s
+    input_series:
+      - series: 'up{job="nut-exporter",endpoint="metrics"}'
+        values: "1x10 0x4 1x20"
+    alert_rule_test:
+      - eval_time: 7m
+        alertname: UPSUnreachable
+        exp_alerts: []
+      - eval_time: 12m
+        alertname: UPSUnreachable
+        exp_alerts: []
+  # Scrapes failing for longer than the fuse page.
+  - interval: 30s
+    input_series:
+      - series: 'up{job="nut-exporter",endpoint="metrics"}'
+        values: "1x10 0x20"
+    alert_rule_test:
+      - eval_time: 7m
+        alertname: UPSUnreachable
+        exp_alerts: []
+      - eval_time: 9m
+        alertname: UPSUnreachable
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              pushover_priority: emergency
+              job: nut-exporter
+              endpoint: metrics
+            exp_annotations:
+              summary: UPS monitoring is blind. nut-exporter is not returning UPS metrics.
+              description: >-
+                nut-exporter has had no successful scrape for over 3 minutes (up == 0 or
+                target absent). The external NUT appliance is likely down or unreachable,
+                so UPS state is invisible during a power event.
+  # The target vanishing entirely pages through absent().
+  - interval: 30s
+    input_series:
+      - series: 'up{job="other"}'
+        values: "1x30"
+    alert_rule_test:
+      - eval_time: 4m
+        alertname: UPSUnreachable
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              pushover_priority: emergency
+              job: nut-exporter
+            exp_annotations:
+              summary: UPS monitoring is blind. nut-exporter is not returning UPS metrics.
+              description: >-
+                nut-exporter has had no successful scrape for over 3 minutes (up == 0 or
+                target absent). The external NUT appliance is likely down or unreachable,
+                so UPS state is invisible during a power event.

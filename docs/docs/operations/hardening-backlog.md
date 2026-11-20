@@ -21,6 +21,23 @@ instance but not the class, say so; the class is what stays open.
 
 ## Open
 
+### H-24: Nine CronJobs have no alert on the age of their last success
+
+**Found:** 2026-11-20, after `etcd-defrag` ran green for five days without defragmenting.
+
+A CronJob that is suspended, never schedules, or never succeeds after a rebuild raises nothing:
+`KubeJobFailed` needs a failed Job. 13 of 30 CronJobs in git had no last-success alert. Five now
+have one (`etcd-defrag`, both Postgres backups, the Garage copy to the NAS, the Wazuh retention
+job), and `.github/scripts/check_cronjob_stale_alert.py` fails a new CronJob that lacks one.
+
+**Still open:** the nine entries in that script's `ALLOWLIST` marked as predating the check
+(`repowiki-gen`, both `sabnzbd` cleanups, `nextdns-linkip`, `fstrim`, `exclusion-sync`,
+`imagemaid`, the `glasshouse` wallpapers job) and the disabled `recyclarr`. Each needs an alert
+sized to its schedule, or a stated reason it needs none.
+
+The check cannot see a job that exits 0 without doing its work, which is what `etcd-defrag` did.
+Only the job's own exit codes cover that.
+
 ### H-23: Flux commit statuses are missing for about 40% of Kustomizations on most commits
 
 **Found:** 2026-10-18, while deciding whether `NotificationDispatchFailed` warnings were noise.

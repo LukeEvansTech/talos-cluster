@@ -1,0 +1,164 @@
+#!/usr/bin/env python3
+"""Fail if a CronJob in git has no alert on the age of its last success.
+
+A CronJob that stops succeeding is silent by default: KubeJobFailed needs a failed
+Job, so a suspended CronJob, one that never schedules, or one that never succeeds
+after a rebuild raises nothing. In November 2026 13 of 30 CronJobs had no such
+alert, the Postgres backups among them.
+
+A CronJob passes when an alert expression in some PrometheusRule in git reads
+kube_cronjob_status_last_successful_time for it, selected as `cronjob="<name>"`
+or a `cronjob=~"<regex>"` that fully matches, the shape GickupBackupStale uses.
+Its namespace and cronjob matchers are evaluated as Prometheus would.
+app-template renders a controller as the release name when it is the release's
+only controller or shares its name, and as `<release>-<controller>` otherwise.
+The CronJob's namespace is taken to be its directory under kubernetes/apps/.
+
+This does not catch a job that exits 0 without doing its work; only the job's own
+exit codes can.
+
+ALLOWLIST is for a CronJob that needs no such alert, or is watched another way;
+say why.
+
+Run locally:  python3 .github/scripts/check_cronjob_stale_alert.py
+"""
+
+from __future__ import annotations
+
+import pathlib
+import re
+import subprocess
+import sys
+
+import yaml  # pylint: disable=import-error  # on the runner image; not in the linter's env
+
+NO_ALERT_YET = "predates this check; no last-success alert yet (hardening backlog H-24)"
+# "path::controller-or-name": reason
+ALLOWLIST: dict[str, str] = {
+    "kubernetes/apps/ai/repowiki/app/helmrelease.yaml::repowiki-gen": NO_ALERT_YET,
+    "kubernetes/apps/downloads/sabnzbd/app/cleanup-cronjob.yaml::sabnzbd-incomplete-cleanup": NO_ALERT_YET,
+    "kubernetes/apps/downloads/sabnzbd/app/complete-cleanup-cronjob.yaml::sabnzbd-complete-cleanup": NO_ALERT_YET,
+    "kubernetes/apps/infrastructure/nextdns/app/cronjob.yaml::nextdns-linkip": NO_ALERT_YET,
+    "kubernetes/apps/kube-system/fstrim/app/helmrelease.yaml::fstrim": NO_ALERT_YET,
+    "kubernetes/apps/media/exclusion-sync/app/cronjob.yaml::exclusion-sync": NO_ALERT_YET,
+    "kubernetes/apps/media/imagemaid/app/helmrelease.yaml::imagemaid": NO_ALERT_YET,
+    "kubernetes/apps/observability/glasshouse/app/helmrelease.yaml::wallpapers": NO_ALERT_YET,
+    "kubernetes/apps/media/recyclarr/app/helmrelease.yaml::recyclarr": "disabled in the namespace kustomization",
+}
+LAST_SUCCESS = re.compile(r"kube_cronjob_status_last_successful_time\s*\{([^}]*)\}")
+MATCHER = re.compile(r'(namespace|cronjob)\s*(=~|!~|!=|=)\s*"([^"]*)"')
+Selector = tuple[tuple[str, str, str], ...]
+
+# Tolerate the custom tags some manifests carry instead of refusing the whole file.
+yaml.SafeLoader.add_multi_constructor("", lambda _loader, _suffix, _node: None)
+
+
+def _tracked_manifests() -> list[pathlib.Path]:
+    out = subprocess.run(
+        ["git", "ls-files", "kubernetes/*.yaml", "kubernetes/**/*.yaml"],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.split()
+    return sorted({pathlib.Path(p) for p in out})
+
+
+def _holds(operator: str, pattern: str, value: str) -> bool:
+    """Evaluate one label matcher the way Prometheus does: regexes are fully anchored."""
+    if operator in ("=", "!="):
+        return (pattern == value) == (operator == "=")
+    try:
+        return bool(re.fullmatch(pattern, value)) == (operator == "=~")
+    except re.error:
+        return False
+
+
+def _alerted(names: set[str], namespace: str, selectors: set[Selector]) -> bool:
+    """True when some selector positively picks a rendered name and none of its matchers excludes it."""
+    for selector in selectors:
+        if not any(label == "cronjob" and op in ("=", "=~") for label, op, _ in selector):
+            continue
+        for name in names:
+            actual = {"namespace": namespace, "cronjob": name}
+            if all(_holds(op, pattern, actual[label]) for label, op, pattern in selector):
+                return True
+    return False
+
+
+def _selectors_in(docs: list[object]) -> set[Selector]:
+    """Return the namespace and cronjob matchers of every last-success read in an alert expression."""
+    found: set[Selector] = set()
+    for doc in docs:
+        if not isinstance(doc, dict) or doc.get("kind") != "PrometheusRule":
+            continue
+        for group in (doc.get("spec") or {}).get("groups") or []:
+            for rule in group.get("rules") or []:
+                if "alert" not in rule:
+                    continue
+                for labels in LAST_SUCCESS.findall(str(rule.get("expr", ""))):
+                    found.add(tuple(MATCHER.findall(labels)))
+    return found
+
+
+def _cronjobs_in(docs: list[object]) -> list[tuple[str, set[str]]]:
+    """Return (allowlist name, acceptable rendered names) for each CronJob in one file."""
+    found: list[tuple[str, set[str]]] = []
+    for doc in docs:
+        if not isinstance(doc, dict):
+            continue
+        name = (doc.get("metadata") or {}).get("name", "?")
+        if doc.get("kind") == "CronJob":
+            found.append((name, {name}))
+        elif doc.get("kind") == "HelmRelease":
+            controllers = (((doc.get("spec") or {}).get("values") or {}).get("controllers")) or {}
+            for ctl_name, ctl in controllers.items():
+                if isinstance(ctl, dict) and ctl.get("type") == "cronjob":
+                    alone = len(controllers) == 1 or ctl_name == name
+                    found.append((ctl_name, {name if alone else f"{name}-{ctl_name}"}))
+    return found
+
+
+def main() -> int:
+    """Check every tracked manifest; print a count on a pass so it is provably not empty."""
+    files = _tracked_manifests()
+    selected: set[Selector] = set()
+    cronjobs: list[tuple[str, set[str]]] = []
+    problems: list[str] = []
+    for path in files:
+        text = path.read_text(encoding="utf-8")
+        if "PrometheusRule" not in text and "cronjob" not in text.lower():
+            continue
+        try:
+            docs = list(yaml.safe_load_all(text))
+        except yaml.YAMLError as err:
+            problems.append(f"{path}: unparsable YAML ({err.__class__.__name__}), cannot check it")
+            continue
+        selected |= _selectors_in(docs)
+        cronjobs += [(f"{path}::{key}", names) for key, names in _cronjobs_in(docs)]
+    seen = {key for key, _ in cronjobs}
+    for key, names in cronjobs:
+        namespace = key.split("/")[2]
+        if not _alerted(names, namespace, selected) and key not in ALLOWLIST:
+            want = f'namespace="{namespace}", cronjob="{sorted(names)[0]}"'
+            problems.append(f"{key}: no alert reads the last success of {want}")
+    for key in sorted(set(ALLOWLIST) - seen):
+        problems.append(f"{key}: allowlisted but no such CronJob in git; drop the entry")
+    for key, names in cronjobs:
+        if key in ALLOWLIST and _alerted(names, key.split("/")[2], selected):
+            problems.append(f"{key}: allowlisted but an alert now selects it; drop the entry")
+    if problems:
+        print("CronJobs with no alert on the age of their last success:")
+        for p in problems:
+            print(f"  {p}")
+        print("Add one shaped like GickupBackupStale, or an ALLOWLIST entry with the reason.")
+        return 1
+    if not cronjobs or not selected:
+        print(f"cronjob-stale-alert: {len(files)} manifests read but nothing to compare; the parser is broken")
+        return 1
+    spared = len(ALLOWLIST)
+    print(f"cronjob-stale-alert: {len(cronjobs)} CronJobs, {len(cronjobs) - spared} alerted, {spared} allowlisted")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

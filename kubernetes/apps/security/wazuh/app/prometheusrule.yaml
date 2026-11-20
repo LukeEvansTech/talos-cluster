@@ -1,0 +1,27 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: wazuh-retention
+spec:
+  groups:
+    - name: wazuh-retention
+      rules:
+        # Age of the last success, same shape as GickupBackupStale: catches a suspended CronJob
+        # and, through the creation-time fallback, one that has never succeeded.
+        - alert: WazuhRetentionStale
+          annotations:
+            summary: >-
+              The daily wazuh-retention CronJob has not succeeded in over 36h.
+            description: >-
+              Old indices are not being pruned, so the indexer volume will fill. Read the latest Job log in the security namespace.
+          expr: |-
+            time() - (
+              kube_cronjob_status_last_successful_time{namespace="security", cronjob="wazuh-retention"}
+              or
+              kube_cronjob_created{namespace="security", cronjob="wazuh-retention"}
+            ) > 129600
+          for: 1h
+          labels:
+            severity: warning
