@@ -11,6 +11,8 @@ kube_cronjob_status_last_successful_time for it, selected as `cronjob="<name>"`
 or a `cronjob=~"<regex>"` that fully matches, the shape GickupBackupStale uses.
 app-template renders a controller as the release name when it is the release's
 only controller or shares its name, and as `<release>-<controller>` otherwise.
+A selector that names a namespace must name the CronJob's own, which is the
+directory under kubernetes/apps/.
 
 This does not catch a job that exits 0 without doing its work; only the job's own
 exit codes can.
@@ -44,6 +46,7 @@ ALLOWLIST: dict[str, str] = {
     "kubernetes/apps/media/recyclarr/app/helmrelease.yaml::recyclarr": "disabled in the namespace kustomization",
 }
 LAST_SUCCESS = re.compile(r"kube_cronjob_status_last_successful_time\s*\{([^}]*)\}")
+NAMESPACE = re.compile(r'namespace\s*=\s*"([^"]+)"')
 SELECTED = re.compile(r'cronjob\s*=~?\s*"([^"]+)"')
 
 # Tolerate the custom tags some manifests carry instead of refusing the whole file.
@@ -60,9 +63,11 @@ def _tracked_manifests() -> list[pathlib.Path]:
     return sorted({pathlib.Path(p) for p in out})
 
 
-def _alerted(names: set[str], selectors: set[str]) -> bool:
-    """True when a selector names, or as a regex fully matches, one of the rendered names."""
-    for sel in selectors:
+def _alerted(names: set[str], namespace: str, selectors: set[tuple[str, str]]) -> bool:
+    """True when a selector for this namespace names, or as a regex fully matches, a rendered name."""
+    for sel_ns, sel in selectors:
+        if sel_ns not in ("", namespace):
+            continue
         try:
             if any(re.fullmatch(sel, n) for n in names):
                 return True
@@ -71,9 +76,9 @@ def _alerted(names: set[str], selectors: set[str]) -> bool:
     return False
 
 
-def _selectors_in(docs: list[object]) -> set[str]:
-    """Return the cronjob selectors of every last-success read in an alert expression."""
-    found: set[str] = set()
+def _selectors_in(docs: list[object]) -> set[tuple[str, str]]:
+    """Return (namespace, cronjob selector) for every last-success read in an alert expression."""
+    found: set[tuple[str, str]] = set()
     for doc in docs:
         if not isinstance(doc, dict) or doc.get("kind") != "PrometheusRule":
             continue
@@ -82,7 +87,8 @@ def _selectors_in(docs: list[object]) -> set[str]:
                 if "alert" not in rule:
                     continue
                 for labels in LAST_SUCCESS.findall(str(rule.get("expr", ""))):
-                    found.update(SELECTED.findall(labels))
+                    in_ns = NAMESPACE.search(labels)
+                    found.update((in_ns.group(1) if in_ns else "", sel) for sel in SELECTED.findall(labels))
     return found
 
 
@@ -107,7 +113,7 @@ def _cronjobs_in(docs: list[object]) -> list[tuple[str, set[str]]]:
 def main() -> int:
     """Check every tracked manifest; print a count on a pass so it is provably not empty."""
     files = _tracked_manifests()
-    selected: set[str] = set()
+    selected: set[tuple[str, str]] = set()
     cronjobs: list[tuple[str, set[str]]] = []
     problems: list[str] = []
     for path in files:
@@ -123,12 +129,14 @@ def main() -> int:
         cronjobs += [(f"{path}::{key}", names) for key, names in _cronjobs_in(docs)]
     seen = {key for key, _ in cronjobs}
     for key, names in cronjobs:
-        if not _alerted(names, selected) and key not in ALLOWLIST:
-            problems.append(f'{key}: no PrometheusRule selects cronjob="{sorted(names)[0]}"')
+        namespace = key.split("/")[2]
+        if not _alerted(names, namespace, selected) and key not in ALLOWLIST:
+            want = f'namespace="{namespace}", cronjob="{sorted(names)[0]}"'
+            problems.append(f"{key}: no alert reads the last success of {want}")
     for key in sorted(set(ALLOWLIST) - seen):
         problems.append(f"{key}: allowlisted but no such CronJob in git; drop the entry")
     for key, names in cronjobs:
-        if key in ALLOWLIST and _alerted(names, selected):
+        if key in ALLOWLIST and _alerted(names, key.split("/")[2], selected):
             problems.append(f"{key}: allowlisted but an alert now selects it; drop the entry")
     if problems:
         print("CronJobs with no alert on the age of their last success:")
