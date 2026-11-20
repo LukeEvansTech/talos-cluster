@@ -90,7 +90,10 @@ A person signs in once per app. Which sign-in that is depends on the app:
   itself and the gateway component is left off. The client keeps the app's name and tier, with
   the app's callback (termix `/plugin-api/sso/callback`, filebrowser `/api/auth/oidc/callback`),
   and the app reads the secret from the same `<app>-pocket-id` item through its own
-  ExternalSecret. Turn password login off once the owner's account signs in through Pocket ID.
+  ExternalSecret. Filebrowser sends no PKCE challenge, so its client has PKCE off; change that
+  before the cutover or Pocket ID rejects every sign-in. Filebrowser creates a new user on the
+  first OIDC sign-in and refuses one whose username matches an existing password user, so check
+  for a clash first. Turn password login off once the owner's account signs in through Pocket ID.
 - **Its own login that can be switched off** (backrest): switch it off and keep the gateway.
   Backrest's config is seeded with auth disabled on each start.
 - **Its own login that can neither use Pocket ID nor be switched off** (certwarden): keep both
