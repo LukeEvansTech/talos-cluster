@@ -1,0 +1,27 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: etcd-defrag
+spec:
+  groups:
+    - name: etcd-defrag
+      rules:
+        # Age of the last success, same shape as GickupBackupStale: catches a suspended CronJob
+        # and, through the creation-time fallback, one that has never succeeded.
+        - alert: EtcdDefragStale
+          annotations:
+            summary: >-
+              The etcd-defrag CronJob has not succeeded in over 36h.
+            description: >-
+              The daily run has not completed successfully. Read the latest Job log in system-upgrade; a credential or member-discovery failure exits non-zero by design.
+          expr: |-
+            time() - (
+              kube_cronjob_status_last_successful_time{namespace="system-upgrade", cronjob="etcd-defrag"}
+              or
+              kube_cronjob_created{namespace="system-upgrade", cronjob="etcd-defrag"}
+            ) > 129600
+          for: 1h
+          labels:
+            severity: warning

@@ -337,6 +337,9 @@ Flag consequential, repository-specific breakage. Prefer silence over style comm
   absence-of-success alert. Liveness and `/health` stay green while the work fails: lurcher crashed
   mid-run every day for twelve days with its pod healthy. Mirror `GickupBackupStale` or
   `LurcherNotDelivering`: alert on the age of the last success, not on errors.
+- An emergency-priority alert on `up` for an exporter scraped one target per pod. A pod stranded
+  on a dead node keeps its own `up` series at 0 after its replacement is healthy, and that series
+  pages. Scrape through the Service, as `nut-exporter` does, or aggregate with `max()`.
 - An alert meant to catch a single event that uses only `increase()` or `rate()` on a counter the
   exporter creates at that first event (LiteLLM, most Python clients). The first sample is never
   counted; also match `X unless X offset 1h`. Ask for a test in `.github/scripts/tests/prometheus/`

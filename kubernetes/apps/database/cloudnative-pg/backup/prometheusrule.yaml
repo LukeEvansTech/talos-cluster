@@ -1,0 +1,42 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: postgres18-backup
+spec:
+  groups:
+    - name: postgres18-backup
+      rules:
+        # Age of the last success, same shape as GickupBackupStale: catches a suspended CronJob
+        # and, through the creation-time fallback, one that has never succeeded.
+        - alert: PostgresDumpBackupStale
+          annotations:
+            summary: >-
+              The hourly postgres18-backup CronJob has not succeeded in over 6h.
+            description: >-
+              No logical dump has completed in six scheduled runs. Read the latest Job log in the database namespace.
+          expr: |-
+            time() - (
+              kube_cronjob_status_last_successful_time{namespace="database", cronjob="postgres18-backup"}
+              or
+              kube_cronjob_created{namespace="database", cronjob="postgres18-backup"}
+            ) > 21600
+          for: 30m
+          labels:
+            severity: warning
+        - alert: PostgresR2BackupStale
+          annotations:
+            summary: >-
+              The daily postgres18-r2-backup CronJob has not succeeded in over 36h.
+            description: >-
+              The off-site copy of the Postgres backups has missed a daily run. Read the latest Job log in the database namespace.
+          expr: |-
+            time() - (
+              kube_cronjob_status_last_successful_time{namespace="database", cronjob="postgres18-r2-backup"}
+              or
+              kube_cronjob_created{namespace="database", cronjob="postgres18-r2-backup"}
+            ) > 129600
+          for: 1h
+          labels:
+            severity: warning
