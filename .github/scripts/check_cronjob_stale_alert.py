@@ -9,10 +9,10 @@ alert, the Postgres backups among them.
 A CronJob passes when an alert expression in some PrometheusRule in git reads
 kube_cronjob_status_last_successful_time for it, selected as `cronjob="<name>"`
 or a `cronjob=~"<regex>"` that fully matches, the shape GickupBackupStale uses.
+Its namespace and cronjob matchers are evaluated as Prometheus would.
 app-template renders a controller as the release name when it is the release's
 only controller or shares its name, and as `<release>-<controller>` otherwise.
-A selector that names a namespace must name the CronJob's own, which is the
-directory under kubernetes/apps/.
+The CronJob's namespace is taken to be its directory under kubernetes/apps/.
 
 This does not catch a job that exits 0 without doing its work; only the job's own
 exit codes can.
@@ -46,8 +46,8 @@ ALLOWLIST: dict[str, str] = {
     "kubernetes/apps/media/recyclarr/app/helmrelease.yaml::recyclarr": "disabled in the namespace kustomization",
 }
 LAST_SUCCESS = re.compile(r"kube_cronjob_status_last_successful_time\s*\{([^}]*)\}")
-NAMESPACE = re.compile(r'namespace\s*=\s*"([^"]+)"')
-SELECTED = re.compile(r'cronjob\s*=~?\s*"([^"]+)"')
+MATCHER = re.compile(r'(namespace|cronjob)\s*(=~|!~|!=|=)\s*"([^"]*)"')
+Selector = tuple[tuple[str, str, str], ...]
 
 # Tolerate the custom tags some manifests carry instead of refusing the whole file.
 yaml.SafeLoader.add_multi_constructor("", lambda _loader, _suffix, _node: None)
@@ -63,22 +63,31 @@ def _tracked_manifests() -> list[pathlib.Path]:
     return sorted({pathlib.Path(p) for p in out})
 
 
-def _alerted(names: set[str], namespace: str, selectors: set[tuple[str, str]]) -> bool:
-    """True when a selector for this namespace names, or as a regex fully matches, a rendered name."""
-    for sel_ns, sel in selectors:
-        if sel_ns not in ("", namespace):
+def _holds(operator: str, pattern: str, value: str) -> bool:
+    """Evaluate one label matcher the way Prometheus does: regexes are fully anchored."""
+    if operator in ("=", "!="):
+        return (pattern == value) == (operator == "=")
+    try:
+        return bool(re.fullmatch(pattern, value)) == (operator == "=~")
+    except re.error:
+        return False
+
+
+def _alerted(names: set[str], namespace: str, selectors: set[Selector]) -> bool:
+    """True when some selector positively picks a rendered name and none of its matchers excludes it."""
+    for selector in selectors:
+        if not any(label == "cronjob" and op in ("=", "=~") for label, op, _ in selector):
             continue
-        try:
-            if any(re.fullmatch(sel, n) for n in names):
+        for name in names:
+            actual = {"namespace": namespace, "cronjob": name}
+            if all(_holds(op, pattern, actual[label]) for label, op, pattern in selector):
                 return True
-        except re.error:
-            continue
     return False
 
 
-def _selectors_in(docs: list[object]) -> set[tuple[str, str]]:
-    """Return (namespace, cronjob selector) for every last-success read in an alert expression."""
-    found: set[tuple[str, str]] = set()
+def _selectors_in(docs: list[object]) -> set[Selector]:
+    """Return the namespace and cronjob matchers of every last-success read in an alert expression."""
+    found: set[Selector] = set()
     for doc in docs:
         if not isinstance(doc, dict) or doc.get("kind") != "PrometheusRule":
             continue
@@ -87,8 +96,7 @@ def _selectors_in(docs: list[object]) -> set[tuple[str, str]]:
                 if "alert" not in rule:
                     continue
                 for labels in LAST_SUCCESS.findall(str(rule.get("expr", ""))):
-                    in_ns = NAMESPACE.search(labels)
-                    found.update((in_ns.group(1) if in_ns else "", sel) for sel in SELECTED.findall(labels))
+                    found.add(tuple(MATCHER.findall(labels)))
     return found
 
 
@@ -113,7 +121,7 @@ def _cronjobs_in(docs: list[object]) -> list[tuple[str, set[str]]]:
 def main() -> int:
     """Check every tracked manifest; print a count on a pass so it is provably not empty."""
     files = _tracked_manifests()
-    selected: set[tuple[str, str]] = set()
+    selected: set[Selector] = set()
     cronjobs: list[tuple[str, set[str]]] = []
     problems: list[str] = []
     for path in files:
