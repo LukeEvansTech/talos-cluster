@@ -6,11 +6,11 @@ Job, so a suspended CronJob, one that never schedules, or one that never succeed
 after a rebuild raises nothing. In November 2026 13 of 30 CronJobs had no such
 alert, the Postgres backups among them.
 
-A CronJob passes when some PrometheusRule in git selects it by name, as
-`cronjob="<name>"` or a `cronjob=~"<regex>"` that fully matches it, the shape
-GickupBackupStale uses on kube_cronjob_status_last_successful_time. The rendered name of an app-template
-controller depends on the chart, so the controller name, the release name and
-`<release>-<controller>` are all accepted.
+A CronJob passes when an alert expression in some PrometheusRule in git reads
+kube_cronjob_status_last_successful_time for it, selected as `cronjob="<name>"`
+or a `cronjob=~"<regex>"` that fully matches, the shape GickupBackupStale uses.
+app-template renders a controller as the release name when it is the release's
+only controller or shares its name, and as `<release>-<controller>` otherwise.
 
 This does not catch a job that exits 0 without doing its work; only the job's own
 exit codes can.
@@ -43,6 +43,7 @@ ALLOWLIST: dict[str, str] = {
     "kubernetes/apps/observability/glasshouse/app/helmrelease.yaml::wallpapers": NO_ALERT_YET,
     "kubernetes/apps/media/recyclarr/app/helmrelease.yaml::recyclarr": "disabled in the namespace kustomization",
 }
+LAST_SUCCESS = re.compile(r"kube_cronjob_status_last_successful_time\s*\{([^}]*)\}")
 SELECTED = re.compile(r'cronjob\s*=~?\s*"([^"]+)"')
 
 # Tolerate the custom tags some manifests carry instead of refusing the whole file.
@@ -70,6 +71,21 @@ def _alerted(names: set[str], selectors: set[str]) -> bool:
     return False
 
 
+def _selectors_in(docs: list[object]) -> set[str]:
+    """Return the cronjob selectors of every last-success read in an alert expression."""
+    found: set[str] = set()
+    for doc in docs:
+        if not isinstance(doc, dict) or doc.get("kind") != "PrometheusRule":
+            continue
+        for group in (doc.get("spec") or {}).get("groups") or []:
+            for rule in group.get("rules") or []:
+                if "alert" not in rule:
+                    continue
+                for labels in LAST_SUCCESS.findall(str(rule.get("expr", ""))):
+                    found.update(SELECTED.findall(labels))
+    return found
+
+
 def _cronjobs_in(docs: list[object]) -> list[tuple[str, set[str]]]:
     """Return (allowlist name, acceptable rendered names) for each CronJob in one file."""
     found: list[tuple[str, set[str]]] = []
@@ -83,7 +99,8 @@ def _cronjobs_in(docs: list[object]) -> list[tuple[str, set[str]]]:
             controllers = (((doc.get("spec") or {}).get("values") or {}).get("controllers")) or {}
             for ctl_name, ctl in controllers.items():
                 if isinstance(ctl, dict) and ctl.get("type") == "cronjob":
-                    found.append((ctl_name, {ctl_name, name, f"{name}-{ctl_name}"}))
+                    alone = len(controllers) == 1 or ctl_name == name
+                    found.append((ctl_name, {name if alone else f"{name}-{ctl_name}"}))
     return found
 
 
@@ -102,8 +119,7 @@ def main() -> int:
         except yaml.YAMLError as err:
             problems.append(f"{path}: unparsable YAML ({err.__class__.__name__}), cannot check it")
             continue
-        if any(isinstance(d, dict) and d.get("kind") == "PrometheusRule" for d in docs):
-            selected.update(SELECTED.findall(text))
+        selected |= _selectors_in(docs)
         cronjobs += [(f"{path}::{key}", names) for key, names in _cronjobs_in(docs)]
     seen = {key for key, _ in cronjobs}
     for key, names in cronjobs:

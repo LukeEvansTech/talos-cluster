@@ -276,7 +276,7 @@ apart; run it before acting on the presenting symptom.
 | Plex (or any NFS app) at 0/1 with NFS healthy | blackbox's NFS probe fails after the exporter pod reschedules (stale resolver state) | NFS resolves and connects from a `netshoot` pod in the same namespace |
 | `GpuHighMemoryUsage` blaming a transcoder pod | DCGM stamps a time-sliced card's whole `FB_USED` on one co-tenant at a time | Compare the series across an hour: the label alternates between tenants |
 | A Gatus internal endpoint fails DNS on a name that should exist | The live HTTPRoute drifted to the placeholder hostname | `kubectl get httproute -A -o json \| jq '.items[] \| select(.spec.hostnames[]? \| test("example"))'` |
-| An emergency Pushover page still sounding with every device healthy | The alert already resolved; an emergency page repeats every minute for up to an hour until acknowledged, and the resolved message does not cancel it | `just kube alert-history "<alert>"` shows the firing window; nothing active in Alertmanager means acknowledge it in the app |
+| An emergency Pushover page still sounding with every device healthy | The alert already resolved; an emergency page repeats every minute for up to an hour until acknowledged, and the resolved message does not cancel it | Alertmanager lists no active alert of that name, and graphing `ALERTS{alertname="<alert>"}` in Prometheus shows the window already closed; acknowledge the page in the app |
 | Ceph `HEALTH_WARN: N daemons have recently crashed` blocking tuppr | Archived-or-not crash reports from a daemon that recovered on its own | `ceph crash ls-new`; archive them, then re-check `ceph health` |
 
 ## Escalate: do not attempt these autonomously
