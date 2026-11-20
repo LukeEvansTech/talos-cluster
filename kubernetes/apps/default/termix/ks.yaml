@@ -11,6 +11,7 @@ spec:
       app.kubernetes.io/name: *app
   components:
     - ../../../../components/homepage
+    # Until the owner's account is linked to SSO and password login is off; then this goes.
     - ../../../../components/pocket-id
     - ../../../../components/volsync
   dependsOn:

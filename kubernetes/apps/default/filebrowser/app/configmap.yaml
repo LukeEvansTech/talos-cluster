@@ -64,8 +64,19 @@ data:
           admin: true
           share: true
           api: false
+    # One login: filebrowser's own OIDC against Pocket ID (client `filebrowser`, infra tier).
+    # Members of `infra` get admin; the callback is /api/auth/oidc/callback.
     auth:
       methods:
         noauth: false
         password:
+          enabled: false
+        oidc:
           enabled: true
+          clientId: filebrowser
+          clientSecret: "$${POCKET_ID_CLIENT_SECRET}"
+          issuerUrl: https://id.${SECRET_DOMAIN}
+          scopes: openid email profile groups
+          userIdentifier: preferred_username
+          groupsClaim: groups
+          adminGroup: infra
