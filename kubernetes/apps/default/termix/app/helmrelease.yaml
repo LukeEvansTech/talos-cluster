@@ -22,9 +22,9 @@ spec:
             env:
               TZ: ${TIMEZONE}
               PORT: &port 8080
-              # Sign-in is termix's own SSO against Pocket ID (client `termix`, infra tier), so
-              # there is one login. Auto-provisioning stays off: the existing admin is linked to
-              # SSO under Settings, then ALLOW_PASSWORD_LOGIN turns off.
+              # Sign-in moves to termix's own SSO against Pocket ID (client `termix`, infra tier).
+              # Auto-provisioning stays off: the existing admin is linked to SSO under Settings,
+              # then ALLOW_PASSWORD_LOGIN turns off and the gateway component comes off.
               OIDC_CLIENT_ID: termix
               OIDC_ISSUER_URL: https://id.${SECRET_DOMAIN}
               OIDC_AUTHORIZATION_URL: https://id.${SECRET_DOMAIN}/authorize

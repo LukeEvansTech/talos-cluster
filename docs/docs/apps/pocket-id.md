@@ -93,7 +93,8 @@ A person signs in once per app. Which sign-in that is depends on the app:
   ExternalSecret. Filebrowser sends no PKCE challenge, so its client has PKCE off; change that
   before the cutover or Pocket ID rejects every sign-in. Filebrowser creates a new user on the
   first OIDC sign-in and refuses one whose username matches an existing password user, so check
-  for a clash first. Turn password login off once the owner's account signs in through Pocket ID.
+  for a clash first. termix links an existing account to SSO instead, so it keeps the gateway and
+  its password login until the owner has linked theirs, then loses both in one change.
 - **Its own login that can be switched off** (backrest): switch it off and keep the gateway.
   Backrest's config is seeded with auth disabled on each start.
 - **Its own login that can neither use Pocket ID nor be switched off** (certwarden): keep both
