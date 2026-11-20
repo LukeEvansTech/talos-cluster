@@ -30,6 +30,12 @@ spec:
                   secretKeyRef:
                     name: filebrowser-secret
                     key: password
+              # Read by auth.methods.oidc.clientSecret in config.yaml (filebrowser expands env).
+              POCKET_ID_CLIENT_SECRET:
+                valueFrom:
+                  secretKeyRef:
+                    name: filebrowser-secret
+                    key: POCKET_ID_CLIENT_SECRET
             probes:
               liveness: &probes
                 enabled: true

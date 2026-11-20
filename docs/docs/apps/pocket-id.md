@@ -81,6 +81,22 @@ If an app maps groups onto its own roles, those groups are named after the app
 Apps whose phone or TV clients call the API directly cannot sit behind the gateway redirect; they
 keep their own OIDC login, restricted to a tier in the same way.
 
+## One login per app
+
+A person signs in once per app. Which sign-in that is depends on the app:
+
+- **No login of its own** (kopia, cupdate): the gateway component is the sign-in.
+- **Its own login, with OIDC support** (termix, filebrowser): the app signs in against Pocket ID
+  itself and the gateway component is left off. The client keeps the app's name and tier, with
+  the app's callback (termix `/plugin-api/sso/callback`, filebrowser `/api/auth/oidc/callback`),
+  and the app reads the secret from the same `<app>-pocket-id` item through its own
+  ExternalSecret. Turn password login off once the owner's account signs in through Pocket ID.
+- **Its own login that can be switched off** (backrest): switch it off and keep the gateway.
+  Backrest's config is seeded with auth disabled on each start.
+- **Its own login that can neither use Pocket ID nor be switched off** (certwarden): keep both
+  until the app can. CertWarden's OIDC requires a custom scope that Pocket ID grants only to
+  requests carrying an RFC 8707 `resource` parameter, which CertWarden does not send.
+
 ## References
 
 - `kubernetes/apps/security/pocket-id/app/helmrelease.yaml`, the email verification and GeoLite2
