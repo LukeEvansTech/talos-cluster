@@ -33,9 +33,8 @@ libraries:
           use_lowest: false
           visible_library_top: true
           visible_library_popular: true
-          radarr_add_missing_top: true
-          radarr_search_top: true
-          radarr_tag_top: kometa, kometa-top250
+      # IMDb Top 250 adds to Radarr through this file instead, which drops Indian-language films.
+      - file: /config/top250-add.yml
       - default: tautulli
         template_variables:
           use_watched: false
@@ -134,10 +133,9 @@ libraries:
         template_variables:
           visible_library_top: true
           visible_library_popular: true
-          sonarr_add_missing_top: true
-          sonarr_search_top: true
-          sonarr_monitor_top: all
-          sonarr_tag_top: kometa, kometa-top250
+      # IMDb Top 250 adds to Sonarr through this file instead, which drops Indian-language,
+      # reality, talk, news and soap series.
+      - file: /config/top250-add-tv.yml
       - default: tautulli
         template_variables:
           use_watched: false
@@ -258,10 +256,11 @@ tautulli:
   url: http://tautulli.media.svc.cluster.local
   apikey: <<TAUTULLI_API_KEY>>
 
-# Global add_missing stays off. Only IMDb Top 250, Oscar Best Picture and TMDb
-# Trending (trending-add.yml) add missing titles, 2160p with
-# search on add, tagged "kometa" plus a per-source tag so each list's additions
-# can be found and judged in Radarr and Sonarr.
+# Global add_missing stays off. Only IMDb Top 250 (top250-add.yml,
+# top250-add-tv.yml), TMDb Trending (trending-add.yml, trending-add-tv.yml) and
+# Oscar Best Picture add missing titles, 2160p with search on add, tagged
+# "kometa" plus a per-source tag so each list's additions can be found and
+# judged in Radarr and Sonarr.
 radarr:
   url: http://radarr.media.svc.cluster.local
   token: <<RADARR_API_KEY>>

@@ -15,5 +15,7 @@ configMapGenerator:
       - config.yml=./resources/config.yml
       - trending-add.yml=./resources/trending-add.yml
       - trending-add-tv.yml=./resources/trending-add-tv.yml
+      - top250-add.yml=./resources/top250-add.yml
+      - top250-add-tv.yml=./resources/top250-add-tv.yml
 generatorOptions:
   disableNameSuffixHash: true

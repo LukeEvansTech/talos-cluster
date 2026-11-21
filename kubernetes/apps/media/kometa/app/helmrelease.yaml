@@ -89,6 +89,12 @@ spec:
           - path: /config/trending-add-tv.yml
             subPath: trending-add-tv.yml
             readOnly: true
+          - path: /config/top250-add.yml
+            subPath: top250-add.yml
+            readOnly: true
+          - path: /config/top250-add-tv.yml
+            subPath: top250-add-tv.yml
+            readOnly: true
       assets:
         type: emptyDir
         globalMounts:
