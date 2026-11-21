@@ -81,6 +81,11 @@ def unknown_provenance() -> Provenance:
     return Provenance(origin=Origin.UNKNOWN, evidence=("no request record and no feed tag",))
 
 
+def requested_provenance(who: str = "Sam") -> Provenance:
+    """Provenance proving somebody asked for the series."""
+    return Provenance(origin=Origin.REQUESTED, evidence=(f"request system: requested by {who}",), requested_by=who)
+
+
 def import_event(when: datetime, episode_id: int = 1, **extra) -> dict:
     """A Sonarr ``downloadFolderImported`` history row for one episode."""
     return {"eventType": "downloadFolderImported", "date": when.isoformat(), "episodeId": episode_id, **extra}

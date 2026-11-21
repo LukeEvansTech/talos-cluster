@@ -1,12 +1,13 @@
 # curatortv
 
 The deterministic half of the weekly Sonarr library cleanup, forked from the
-film engine in `kubernetes/apps/media/curator/app/resources/curator/`. Judgement
+film engine in `kubernetes/apps/custom/curator/app/resources/curator/`. Judgement
 belongs to `curatortvjudge`. The film engine's readme is the design document for
-everything shared: the fail-closed rules, why a zero play count has four
-meanings, why the identity join runs from history rows, why every output names
-its plan, and why the volatile checks are re-read per deletion. All of that
-holds here unchanged. This file covers only what is different about TV.
+everything shared: what the engine decides and in what order, the fail-closed
+rules, why a zero play count has four meanings, why the identity join runs from
+history rows, why every output names its plan, and why the volatile checks are
+re-read per deletion. All of that holds here unchanged. This file covers only
+what is different about TV.
 
 ## Commands
 
@@ -28,27 +29,27 @@ python3 -m curatortv.provision                      # show decision-tag changes
 which is what the staleness alert keys on. The CronJob's shell keeps the first
 non-zero code and still sends the digest.
 
-| Code | Meaning                                                           |
-| ---- | ----------------------------------------------------------------- |
-| 2    | the plan recorded blocking issues                                 |
-| 3    | another run holds the execute lock                                |
-| 4    | a deletion failed or could not be confirmed                       |
-| 5    | refused: `--read-only` in act mode, or a stale or wrong-mode plan |
-| 7    | the recommendations were judged against a different plan          |
-| 8    | a `keep` tag could not be confirmed on re-read                    |
-| 9    | a candidate came back unjudged, or a verdict was rejected         |
-| 10   | a deletion was skipped because a safety check could not be read   |
+| Code | Meaning                                                            |
+| ---- | ------------------------------------------------------------------ |
+| 2    | the plan recorded blocking issues                                  |
+| 3    | another run holds the execute lock                                 |
+| 4    | a deletion failed or could not be confirmed                        |
+| 5    | refused: `--read-only` in act mode, or a stale or wrong-mode plan  |
+| 7    | the recommendations were judged against a different plan           |
+| 8    | a `keep` tag could not be confirmed on re-read                     |
+| 9    | an offered candidate came back unjudged, or a verdict was rejected |
+| 10   | a deletion was skipped because a safety check could not be read    |
 
 `report` exits 6 when the digest could not be delivered.
 
-## The one deliberate deviation: `keep` is written in a dry run
+## `keep` is written in a dry run here
 
-The film engine writes nothing at all in a dry run. This one adds the `keep`
-tag, to the series over the rating bar and to every series the judge verdicts
-`keep`, when `TAG_KEEPS_IN_DRY_RUN=true`, even under `--read-only`. Reclaimerr
-protects anything tagged `keep`, so a dry run that writes nothing leaves it
-blind to every decision this engine has made; and an add-only tag is reversible
-by removing it, which a deletion is not.
+Both engines can add the `keep` tag in a dry run when
+`TAG_KEEPS_IN_DRY_RUN=true`, even under `--read-only`; only this one's manifest
+sets it. The tag goes to the series over the rating bar and to every series the
+judge verdicts `keep`. Reclaimerr protects anything tagged `keep`, so a dry run
+that writes nothing leaves it blind to every decision this engine has made; and
+an add-only tag is reversible by removing it, which a deletion is not.
 
 The live tags are re-read before each addition, and a series carrying
 `cleanup-eligible`, `cleanup-dismissed` or `keep-review` is never tagged: those
@@ -70,10 +71,15 @@ whole series with its files and adds an import-list exclusion keyed on TVDB ID.
 
 **Availability is per episode.** Each episode keeps its _earliest_ import, so a
 quality upgrade cannot restart a clock. An ended series' window runs from its
-first import. A continuing series' window runs from the newest episode's first
-import, because a season that arrived last month is not something anybody has
-had a chance to watch. The history-coverage check still uses the series' first
-import: old seasons were watchable too, and their plays have to be visible.
+first import. A continuing series somebody has played runs from the newest
+episode's first import, because a season that arrived last month is not
+something anybody has had a chance to watch. A continuing series nobody has
+played at all runs from its first import: left on the newest episode's clock,
+an airing show nobody watches never came due. That zero has to be trustworthy,
+so a history that is incomplete, unresolved or unavailable keeps the later
+clock. The window is 180 days, 60 when the IMDb score is under 5.5. The
+history-coverage check always uses the series' first import: old seasons were
+watchable too, and their plays have to be visible.
 
 **Viewing is counted in episodes.** Tautulli episode rows are joined to a series
 by `grandparent_rating_key`, the show's own Plex item. Every key sharing any
@@ -81,9 +87,15 @@ TVDB, TMDb or IMDb ID with the series counts, since an older key may know it by
 only one of them; a key naming a different ID under any scheme is another show.
 The title-and-year fallback (used only when no ID matches), retired-key taint and
 ambiguity rules are as in the film engine. A person counts as a
-viewer once they finish (85%+) one episode; two viewers send the series to a
-person, mirroring two completers for a film. `episodes_completed` is the most
+viewer once they finish (85%+) one episode; two viewers protect the series,
+mirroring two completers for a film. `episodes_completed` is the most
 distinct episodes any one person has finished.
+
+**The rating bar does not apply to reality series.** A series whose genres
+include `Reality` is neither protected by the bar nor given the `keep` tag by
+it, whatever its rating: for these a rating says little about whether anyone
+here wants them, so the judge sees them all. One that already carries `keep`
+stays protected, and a keep the judge hands down is tagged like any other.
 
 **A retired show key taints on title alone.** An episode row's `year` is the
 episode's, not the premiere's, so a play behind an unresolvable show key taints
@@ -98,19 +110,29 @@ gained `cleanup-dismissed`, as well as any veto tag, since the plan.
 import history and episode-file count are re-read; anything imported after the
 plan, or more files than the plan saw, skips the series this week.
 
+**A play stops a deletion that rested on there being none.** A continuing
+series that was due only because nobody had played it is skipped if anybody has
+played any part of an episode since the plan. An unfinished play is invisible to
+the completion check, and it puts the series back on its newest episode's clock.
+
 **Provenance comes from Kometa tags.** Sonarr here has no import lists. A series
 is `feed` when it carries any tag in `FEED_TAGS` (default `kometa`), `requested`
 when Seerr has a request for its TVDB ID (or TMDb ID as a fallback), and
-`unknown` otherwise. Unknown origin is never authorised for deletion; a person's
-`cleanup-eligible` tag authorises it.
+`unknown` otherwise. As for films, origin is on the judge's record and is not a
+permission: none of the three holds a series back or lets it through. A show is
+often requested a season at a time, so the earliest request is kept as the
+origin and the newest is what "requested since the plan" is tested against.
 
 **There are no collections.** The film engine's monitored-collection protection,
 `siblings_owned` and collection anomaly checks have no TV equivalent and are
 gone. Genre `subject_counts` remain.
 
-**Scope.** `upcoming` series are out of scope. `CLEANUP_SCOPE_START` gates on the
-added date as before; Sonarr was rebuilt in February 2026, so most added dates
-fall then, before the default `2026-03-01`.
+**Scope.** `upcoming` series are out of scope. Everything else is in, unless
+`CLEANUP_SCOPE_START` is set: then a series added before that date is out of
+scope, as before.
+
+**Budgets.** `CLEANUP_JUDGE_LIMIT` defaults to 30 candidates a run and
+`CLEANUP_MAX_DELETIONS` to 10 deletions in a rolling seven days.
 
 ## Configuration
 

@@ -6,8 +6,8 @@ of automatic origin available in this stack.
 
 This is a configuration change, so it does nothing without ``--apply``. It is also
 **not retrospective**: films already in the library keep their unknown origin
-forever, and the only way to authorise one of those for cleanup is the
-``cleanup-eligible`` tag applied by a person.
+forever. That does not hold them back: origin is evidence the judge is given,
+and a film of unknown origin is a candidate like any other.
 
     python3 -m curator.provision            # show what would change
     python3 -m curator.provision --apply    # make the change

@@ -43,7 +43,8 @@ class Outcome(str, Enum):
     PROTECTED = "protected"  # a veto applies; never offered for judgement
     NOT_DUE = "not_due"  # in scope but still inside its viewing window
     MISSING_FILE = "missing_file"  # nothing to reclaim; belongs in its own report
-    REVIEW = "review"  # cannot be judged safely; needs a person
+    REVIEW = "review"  # cannot be assessed, or the judge asked for a person
+    SPARED = "spared"  # a standing keep or dismissal; nothing is asked of anyone
     CANDIDATE = "candidate"  # eligible for Claude's judgement
     OUT_OF_SCOPE = "out_of_scope"
 
@@ -99,6 +100,7 @@ class Show:
     imdb_votes: int | None
     genres: tuple[str, ...] = ()
     network: str | None = None
+    original_language: str | None = None
     overview: str = ""
     episode_file_count: int = 0
     season_count: int = 0
@@ -230,6 +232,7 @@ class Assessment:
             "reopened_dismissal": TAG_HUMAN_DISMISSED in self.show.tags,
             "genres": list(show.genres),
             "network": show.network,
+            "original_language": show.original_language,
             # The judge reads this field and injection handling is written against
             # it; omit it and both go silently inert.
             "overview": show.overview,

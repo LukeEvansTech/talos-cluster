@@ -13,8 +13,9 @@ resources:
 configMapGenerator:
   - name: curatortvjudge-prompt
     files:
-      - ./resources/build_prompt.py
-      - ./resources/read_verdicts.py
+      - ./resources/curatortvjudge/build_prompt.py
+      - ./resources/curatortvjudge/judge.py
+      - ./resources/curatortvjudge/read_verdicts.py
       - ./resources/taste.md
 generatorOptions:
   disableNameSuffixHash: true

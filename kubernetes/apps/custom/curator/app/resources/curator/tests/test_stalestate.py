@@ -45,7 +45,7 @@ def _judge_script() -> Path:
     """
     here = Path(__file__).resolve()
     for parent in here.parents:
-        candidate = parent / "curatorjudge" / "app" / "resources" / "read_verdicts.py"
+        candidate = parent / "curatorjudge" / "app" / "resources" / "curatorjudge" / "read_verdicts.py"
         if candidate.is_file():
             return candidate
     return here.with_name("read_verdicts-not-mounted.py")
@@ -90,6 +90,14 @@ class LeftoverRecommendationsTests(unittest.TestCase):
             encoding="utf-8",
         )
 
+    def batch(self, result) -> None:
+        """One batch for this week's plan, and what the judge step left for it."""
+        batches = {"plan_run_id": "this-week", "id_field": "movie_id", "batches": [{"name": "001", "ids": [7]}]}
+        (self.work / "batches.json").write_text(json.dumps(batches), encoding="utf-8")
+        if not isinstance(result, str):
+            result = json.dumps({"plan_run_id": "this-week", "batch": "001", **result})
+        (self.work / "result-001.json").write_text(result, encoding="utf-8")
+
     def recommendations(self) -> dict:
         """The file as the engine would read it."""
         return json.loads((self.state / "recommendations.json").read_text(encoding="utf-8"))
@@ -100,13 +108,13 @@ class LeftoverRecommendationsTests(unittest.TestCase):
 
     def test_an_envelope_of_the_wrong_type_is_reported_not_crashed_through(self):
         """A bare JSON array where an object was expected used to raise at .get()."""
-        (self.work / "claude.json").write_text("[]", encoding="utf-8")
+        self.batch("[]")
         module = load_read_verdicts(self.work, self.state)
         self.assertEqual(module.main(), 1)
         self.assertIn("not an object", self.judgement()["detail"])
 
     def test_last_weeks_verdicts_do_not_survive_a_failure(self):
-        (self.work / "claude.json").write_text("[]", encoding="utf-8")
+        self.batch("[]")
         module = load_read_verdicts(self.work, self.state)
         module.main()
         self.assertEqual(self.recommendations()["recommendations"], [])
@@ -125,16 +133,8 @@ class LeftoverRecommendationsTests(unittest.TestCase):
         self.assertIsNone(module.plan_run_id())
 
     def test_a_good_answer_names_the_plan_it_judged(self):
-        (self.work / "claude.json").write_text(
-            json.dumps(
-                {
-                    "is_error": False,
-                    "duration_ms": 900,
-                    "result": json.dumps([{"movie_id": 7, "verdict": "delete", "reason": "feed filler, no plays"}]),
-                }
-            ),
-            encoding="utf-8",
-        )
+        answer = [{"movie_id": 7, "verdict": "delete", "reason": "feed filler, no plays"}]
+        self.batch({"status": "ok", "duration_ms": 900, "verdicts": answer})
         module = load_read_verdicts(self.work, self.state)
         self.assertEqual(module.main(), 0)
         payload = self.recommendations()

@@ -23,9 +23,76 @@ python3 -m curator.provision                      # show provenance-tag changes
 ```
 
 `plan` and `report` write nothing outside their own output files. `execute` is
-the only command that can change anything, and only when `CLEANUP_MODE=act`; in
-`dry-run` it re-validates every safeguard, records its intent, and stops short of
-the call.
+the only command that can change anything. It deletes only when
+`CLEANUP_MODE=act`; in `dry-run` it re-validates every safeguard, records its
+intent, and stops short of the call. It adds the `keep` tag in `act` mode, and in
+a dry run only when `TAG_KEEPS_IN_DRY_RUN=true`.
+
+## What the engine decides
+
+Every film in the library is assessed; there is no cut-off date unless
+`CLEANUP_SCOPE_START` sets one. Each film gets one outcome:
+
+| Outcome        | Meaning                                                                          |
+| -------------- | -------------------------------------------------------------------------------- |
+| `protected`    | a protection below applies; never offered to the judge                           |
+| `out_of_scope` | not released, or added before a boundary that has been set                       |
+| `missing_file` | nothing on disk to reclaim                                                       |
+| `not_due`      | still inside its viewing window                                                  |
+| `review`       | the engine could not assess it, or the judge asked for a person                  |
+| `spared`       | a standing decision not to delete: an earlier judge keep, or `cleanup-dismissed` |
+| `candidate`    | past its window, unprotected, with play history that can be trusted              |
+
+**Protections, in this order.**
+
+1. The allow list: the tags `keep`, `cleanup-keep` and the legacy `keep-review`.
+   `keep` is applied by the rating bar and by every keep the judge hands down;
+   `cleanup-keep` only by a person.
+2. The rating bar: IMDb 6.5 or higher on 5,000 or more votes. The
+   `cleanup-eligible` tag switches the bar off for one film. It no longer
+   authorises anything, and its one other effect is on the `keep` tag (below).
+3. A monitored collection.
+4. Watched by the house: two or more people finished it. This rests on play
+   history, so it is applied only once that history has been shown to be
+   trustworthy, after the window; an untrustworthy count goes to a person.
+
+**What is not a protection.** A request is not: a requested film waits out its
+window like any other and then goes to the judge with `origin: requested` and
+`requested_by` on its record. Nor is an unknown origin a reason to hold a film
+back: a film with no import-list tag and no request is a candidate with
+`origin: unknown`. Requiring an import-list tag once left all but two films of
+the library undeletable and everything else in a queue nobody could clear. How a
+film arrived is evidence for the judge, not a permission.
+
+**The viewing window** is 90 days from the first import, 30 when the IMDb score
+is under 5.5.
+
+**What reaches a person** is only what the engine cannot assess (no usable added
+date, availability unknown, play history unavailable, incomplete, unresolved or
+ambiguous, collection data unavailable) and the judge's own `review` verdicts.
+A film tagged `cleanup-dismissed` is `spared` and is not listed as waiting. A
+changed fact reopens it only where the judge had already recorded a decision
+for the film, because that record is where the facts are kept; a dismissal with
+nothing on record stands until the tag is removed.
+
+**Judging is budgeted.** `plan` hands the judge the largest candidates first, up
+to `CLEANUP_JUDGE_LIMIT`, as `candidates`; the rest are written to
+`judge_deferred`. A deferred candidate was never offered, so no verdict is owed
+for it and it comes back next run. Only an _offered_ candidate with no usable
+verdict counts as unjudged.
+
+**What a verdict does.** `delete` is executed, largest first, up to
+`CLEANUP_MAX_DELETIONS` in any rolling seven days. `keep` adds the `keep` tag,
+so the film joins the allow list for good; the tag is confirmed by re-reading,
+and a keep whose tag did not land is not recorded as settled, so it is judged
+and tagged again next run and the run exits non-zero. `review` goes to the
+digest and stays there until a person acts or the decision lapses.
+
+No `keep` tag, from the rating bar or from the judge, is ever put on a film
+carrying `cleanup-eligible`, `cleanup-dismissed` or `keep-review`: those are a
+person's decision, and `keep` would overrule it. A judge keep on such a film is
+recorded as a decision that lapses after 180 days or when a fact changes, and
+nothing more.
 
 ## Exit codes
 
@@ -33,17 +100,20 @@ the call.
 which is what the staleness alert keys on. The CronJob's shell keeps the first
 non-zero code and still sends the digest.
 
-| Code | Meaning                                                           |
-| ---- | ----------------------------------------------------------------- |
-| 2    | the plan recorded blocking issues                                 |
-| 3    | another run holds the execute lock                                |
-| 4    | a deletion failed or could not be confirmed                       |
-| 5    | refused: `--read-only` in act mode, or a stale or wrong-mode plan |
-| 7    | the recommendations were judged against a different plan          |
-| 9    | a candidate came back unjudged, or a verdict was rejected         |
-| 10   | a deletion was skipped because a safety check could not be read   |
+| Code | Meaning                                                            |
+| ---- | ------------------------------------------------------------------ |
+| 2    | the plan recorded blocking issues                                  |
+| 3    | another run holds the execute lock                                 |
+| 4    | a deletion failed or could not be confirmed                        |
+| 5    | refused: `--read-only` in act mode, or a stale or wrong-mode plan  |
+| 7    | the recommendations were judged against a different plan           |
+| 8    | a `keep` tag could not be confirmed on re-read                     |
+| 9    | an offered candidate came back unjudged, or a verdict was rejected |
+| 10   | a deletion was skipped because a safety check could not be read    |
 
-`report` exits 6 when the digest could not be delivered.
+`report` exits 6 when the digest could not be delivered. A setting that cannot
+be read (`CLEANUP_MAX_DELETIONS`, `CLEANUP_JUDGE_LIMIT`, `CLEANUP_SCOPE_START`)
+stops `plan` or `execute` with exit 1 before anything is fetched or written.
 
 ## Scheduled runs are read-only
 
@@ -57,7 +127,7 @@ defects in this system have actually been: not in the judgement, but in the join
 between four services that disagree about what identifies a film. Every one of
 those was a protection that read correctly, passed its tests, and could not see
 part of the population it guarded. A person between that and an irreversible
-import exclusion is worth more than an unattended thirty films a week.
+import exclusion is worth more than an unattended batch of deletions a week.
 
 ## The digest is the output
 
@@ -82,21 +152,24 @@ committed here maps the private network.
 | `LEDGER_ENDPOINT`, `LEDGER_BUCKET`, `LEDGER_ACCESS_KEY_ID`, `LEDGER_SECRET_ACCESS_KEY` | S3-compatible store for durable state                                       |
 | `CLEANUP_WEBHOOK_URL`, `CLEANUP_WEBHOOK_TOKEN`                                         | where `report` delivers the digest; without the URL it only writes the file |
 | `CLEANUP_MODE`                                                                         | `dry-run` (default) or `act`                                                |
-| `CLEANUP_SCOPE_START`                                                                  | ISO date; defaults to `2026-03-01`                                          |
+| `CLEANUP_SCOPE_START`                                                                  | optional ISO date; films added before it are out of scope. Unset: no limit  |
+| `CLEANUP_JUDGE_LIMIT`                                                                  | candidates `plan` offers the judge per run, largest first; default 150      |
+| `CLEANUP_MAX_DELETIONS`                                                                | deletions `execute` allows in a rolling seven days; default 30              |
+| `TAG_KEEPS_IN_DRY_RUN`                                                                 | `true` lets a dry run add the `keep` tag; deletion unaffected               |
 | `CLEANUP_RUN_ID`                                                                       | optional; generated if absent                                               |
 
 ## What each module is responsible for
 
-| Module         | Responsibility                                                                         |
-| -------------- | -------------------------------------------------------------------------------------- |
-| `model.py`     | value types, the tag vocabulary, timestamp parsing                                     |
-| `clients.py`   | Radarr / Tautulli / request-system HTTP, with result-level validation and pagination   |
-| `evidence.py`  | provenance, first-playable availability, viewing evidence                              |
-| `planner.py`   | scope, protections, authorisation, batching, anomaly detection, allow-list maintenance |
-| `ledger.py`    | durable state in object storage                                                        |
-| `reporting.py` | the weekly digest, and its delivery                                                    |
-| `executor.py`  | recommendation validation, live re-checks, deletion, reconciliation                    |
-| `provision.py` | one-off: per-list provenance tags and the decision tags                                |
+| Module         | Responsibility                                                                          |
+| -------------- | --------------------------------------------------------------------------------------- |
+| `model.py`     | value types, the tag vocabulary, timestamp parsing                                      |
+| `clients.py`   | Radarr / Tautulli / request-system HTTP, with result-level validation and pagination    |
+| `evidence.py`  | provenance, first-playable availability, viewing evidence                               |
+| `planner.py`   | scope, protections, the judge limit and deletion cap, anomaly detection, the allow list |
+| `ledger.py`    | durable state in object storage                                                         |
+| `reporting.py` | the weekly digest, and its delivery                                                     |
+| `executor.py`  | recommendation validation, live re-checks, deletion, reconciliation                     |
+| `provision.py` | one-off: per-list provenance tags and the decision tags                                 |
 
 ## Eight things that are easy to get wrong
 
@@ -125,10 +198,10 @@ the import lists.
 
 **An outage is not an answer.** A request system that is configured and does not
 respond blocks the run rather than degrading it. An empty request set reads
-exactly like "nobody asked for any of this", and for a film carrying an
-import-list provenance tag that difference is the entire authorisation to delete
-it — execution only re-reads requests made _since_ the plan, so a request made
-before an outage would never be seen again. The same rule is why a `get_metadata`
+exactly like "nobody asked for any of this", so the judge would be told the
+wrong origin for every requested film, and a keep it hands down on that is a
+permanent tag. Execution cannot make up for it either: it only re-reads requests
+made _since_ the plan. The same rule is why a `get_metadata`
 timeout is now raised rather than returned as "no such item": swallowed, it let
 the active-session check quietly drop the film somebody was watching. The
 sharpest version is an outage written into a _durable_ cache: the rating-key
@@ -160,10 +233,12 @@ refused rather than read.
 **A snapshot taken before a batch is not evidence about the batch's last film.**
 Live re-validation covers everything Radarr holds, per film. The two checks that
 live outside Radarr — who is watching right now, and what has been requested or
-finished since the plan — were read once, before the loop. A batch of up to
-thirty deletions takes minutes; starting a film takes seconds. So both are
-re-read immediately before each deletion, and an answer that cannot be got is a
-refusal rather than a pass.
+finished since the plan — were read once, before the loop. A batch of deletions
+takes minutes; starting a film takes seconds. So both are re-read immediately
+before each deletion, and an answer that cannot be got is a refusal rather than
+a pass. A request made _before_ the plan is not a refusal: it is on the
+candidate's record. A film can be requested more than once, so it is the newest
+request that is compared with the plan, not the one that brought the film in.
 
 ## The first in-cluster run
 

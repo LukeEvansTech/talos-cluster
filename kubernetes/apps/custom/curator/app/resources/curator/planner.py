@@ -23,13 +23,14 @@ from .model import (
     Availability,
     Film,
     HistoryStatus,
-    Origin,
     Outcome,
     Provenance,
     Viewing,
 )
 
 MAX_DELETIONS_PER_RUN = 30
+# Bounds one run's judging cost and time; the rest of a backlog waits its turn.
+DEFAULT_JUDGE_LIMIT = 150
 SUBJECT_EXACT_BELOW = 25
 # Long enough not to re-litigate weekly, short enough to catch a change within a season.
 DEFAULT_RECONSIDER_DAYS = 180
@@ -43,13 +44,19 @@ ANOMALY_LIMITS = {
     "invalid_added_pct": 1.0,
 }
 
+# What the judge's two non-delete verdicts are recorded as. A spare is settled; a
+# review is still waiting on a person, and the planner tells them apart by this.
+VERDICT_SPARED = "spared"
+VERDICT_REVIEW = "queued for review"
+
 
 @dataclass
 class PlanContext:
     """Everything the planner needs that is not the film itself."""
 
     now: datetime
-    scope_start: datetime
+    # None means the whole library is in scope.
+    scope_start: datetime | None
     monitored_collection_tmdb_ids: frozenset[int]
     coverage_start: datetime | None
     history_ok: bool
@@ -124,12 +131,15 @@ def in_monitored_collection(film: Film, ctx: PlanContext) -> bool:
 
 def _protection_gate(
     film: Film,
-    provenance: Provenance,
     ctx: PlanContext,
     result: Assessment,
     monitored: bool,
 ) -> bool:
-    """Apply the absolute protections. True when one of them fired."""
+    """Apply the protections that need no play evidence. True when one fired.
+
+    A request is deliberately absent: a requested film waits out its window like
+    any other and reaches the judge with its origin on the record.
+    """
     vetoes = sorted(film.tags & VETO_TAGS)
     if vetoes:
         result.outcome = Outcome.PROTECTED
@@ -152,11 +162,6 @@ def _protection_gate(
         result.outcome = Outcome.REVIEW
         result.blockers.append("collection data unavailable, so collection protection cannot be checked")
         return True
-
-    if provenance.origin is Origin.REQUESTED:
-        result.outcome = Outcome.PROTECTED
-        result.protections.append(f"explicitly requested by {provenance.requested_by or 'a household member'}")
-        return True
     return False
 
 
@@ -178,7 +183,7 @@ def _scope_gate(
         result.blockers.append("record has no usable added date")
         return True
 
-    if film.added < ctx.scope_start:
+    if ctx.scope_start and film.added < ctx.scope_start:
         result.outcome = Outcome.OUT_OF_SCOPE
         result.reasons.append(f"added {film.added.date()}, before the {ctx.scope_start.date()} scope boundary")
         return True
@@ -216,9 +221,11 @@ def _evidence_gate(viewing: Viewing, result: Assessment) -> bool:
         result.blockers.append(f"play history {viewing.status.value}: " + "; ".join(viewing.notes))
         return True
 
+    # Last of the protections, and here rather than with the others because it is the
+    # only one that rests on play history: an untrustworthy count goes to a person above.
     if viewing.distinct_completers >= 2:
-        result.outcome = Outcome.REVIEW
-        result.reasons.append(f"{viewing.distinct_completers} distinct users finished it; belongs in the human queue")
+        result.outcome = Outcome.PROTECTED
+        result.protections.append(f"watched by the house: {viewing.distinct_completers} distinct users finished it")
         return True
     return False
 
@@ -232,8 +239,10 @@ def assess(
 ) -> Assessment:
     """Decide what may be done with one film, before any question of taste.
 
-    Order matters: protections come before eligibility, so a film that is both
-    protected and past its window reports as protected.
+    Order matters: the allow list, the rating bar and a monitored collection
+    come before eligibility, so a film that is both protected and past its window
+    reports as protected. Two or more completers protect too, but only once the
+    play history has been shown to be trustworthy.
     """
     monitored = in_monitored_collection(film, ctx)
     window = window_days(film)
@@ -250,48 +259,39 @@ def assess(
         subject_counts={g: ctx.genre_counts.get(g, 0) for g in film.genres},
     )
 
-    if _protection_gate(film, provenance, ctx, result, monitored):
+    if _protection_gate(film, ctx, result, monitored):
         return result
     if _scope_gate(film, ctx, result, available_for, window):
         return result
     if _evidence_gate(viewing, result):
         return result
 
-    # Feed provenance or a human tag authorises deletion; the tag doesn't relabel the origin.
-    authorised_by = None
-    if provenance.origin is Origin.FEED:
-        authorised_by = "import-list provenance"
-    elif TAG_HUMAN_ELIGIBLE in film.tags:
-        authorised_by = f"human decision tag {TAG_HUMAN_ELIGIBLE}"
-
-    if not authorised_by:
-        result.outcome = Outcome.REVIEW
-        result.blockers.append(
-            "origin unknown: no request record and no import-list provenance tag, so "
-            "delete-by-default is not authorised for this film"
-        )
-        return result
-
+    # No origin gate: how a film arrived is evidence for the judge, not a permission.
+    # Requiring an import-list tag left all but two films of a whole library undeletable.
     fingerprint = fact_fingerprint(film, provenance, viewing, monitored, result.siblings_owned, result.subject_counts)
     stored = ctx.decisions.get(film.movie_id)
+    # Before the stored decision: dismissing is how a person answers a review the judge
+    # asked for, and that review would otherwise keep the film listed as waiting.
+    if TAG_HUMAN_DISMISSED in film.tags:
+        # Applied via the UI with no ledger record, so requiring one would make the tag inert.
+        if not (stored and stored.get("fact_fingerprint") != fingerprint):
+            result.outcome = Outcome.SPARED
+            result.reasons.append("dismissed by a person; no relevant fact has changed since")
+            return result
+
     if stored and decision_still_binding(stored, fingerprint, ctx.now):
-        result.outcome = Outcome.REVIEW
-        verdict = stored.get("verdict", "spared")
+        verdict = stored.get("verdict", VERDICT_SPARED)
+        # The judge's own review stays in front of a person until they act on it;
+        # a spare is settled and asks nothing of anyone.
+        result.outcome = Outcome.REVIEW if verdict == VERDICT_REVIEW else Outcome.SPARED
         result.reasons.append(
             f"already {verdict} on {stored.get('decided_at', '?')[:10]}: "
             f"{stored.get('reason', 'no reason recorded')}"
         )
         return result
 
-    if TAG_HUMAN_DISMISSED in film.tags:
-        # Applied via the UI with no ledger record, so requiring one would make the tag inert.
-        if not (stored and stored.get("fact_fingerprint") != fingerprint):
-            result.outcome = Outcome.REVIEW
-            result.reasons.append("dismissed by a person; no relevant fact has changed since")
-            return result
-
     result.outcome = Outcome.CANDIDATE
-    result.reasons.append(f"eligible: authorised by {authorised_by}, past its {window}-day window")
+    result.reasons.append(f"eligible: past its {window}-day window, origin {provenance.origin.value}")
     return result
 
 
@@ -347,6 +347,54 @@ def select_batch(
     remaining = max(cap - already_deleted_this_window, 0)
     ordered = sorted(approved, key=lambda a: a.film.size_bytes, reverse=True)
     return ordered[:remaining], ordered[remaining:]
+
+
+def select_for_judgement(
+    candidates: list[Assessment], limit: int = DEFAULT_JUDGE_LIMIT
+) -> tuple[list[Assessment], list[Assessment]]:
+    """Split the candidates into those the judge is asked about this run, and the rest.
+
+    Largest first, the order deletion takes them in. The remainder is deferred,
+    not unjudged: it is never offered, so no verdict is owed for it and it comes
+    back next run.
+    """
+    return select_batch(candidates, cap=limit)
+
+
+def count_owned_siblings(movies: list[dict], collections: list[dict]) -> dict[int, int]:
+    """How many *other* entries of a film's collection are already in the library.
+
+    "Collection support" is one of the reasons to keep a film, and it is
+    unanswerable from a collection name alone.
+    """
+    # Only films on disk count. A collection entry Radarr is still looking for
+    # is not evidence that the library holds part of the set.
+    owned = {m.get("tmdbId") for m in movies if m.get("tmdbId") and m.get("hasFile")}
+    by_movie: dict[int, int] = {}
+    tmdb_to_id = {m["tmdbId"]: m["id"] for m in movies if m.get("tmdbId")}
+    for collection in collections:
+        members = [e.get("tmdbId") for e in (collection.get("movies") or []) if e.get("tmdbId")]
+        held = [t for t in members if t in owned]
+        for tmdb_id in held:
+            movie_id = tmdb_to_id.get(tmdb_id)
+            if movie_id is not None:
+                by_movie[movie_id] = len(held) - 1
+    return by_movie
+
+
+def count_genres(movies: list[dict]) -> dict[str, int]:
+    """How many films the library holds per genre.
+
+    "A subject the library demonstrably follows" is meant to be counted, not
+    assumed, so the count has to come from the library rather than a guess.
+    """
+    counts: dict[str, int] = {}
+    for movie in movies:
+        if not movie.get("hasFile"):
+            continue
+        for genre in movie.get("genres") or []:
+            counts[genre] = counts.get(genre, 0) + 1
+    return counts
 
 
 def _drop_pct(current: float, baseline: float) -> float:

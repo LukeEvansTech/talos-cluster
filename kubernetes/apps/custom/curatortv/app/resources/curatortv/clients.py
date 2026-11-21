@@ -14,6 +14,8 @@ import urllib.parse
 import urllib.request
 from typing import Any
 
+from .model import utc
+
 # The external-id schemes that identify a *show* in Plex guids and Sonarr records.
 SHOW_GUID_SOURCES = ("tvdb", "tmdb", "imdb")
 
@@ -365,6 +367,39 @@ class Tautulli:
         return ids
 
 
+def merge_request(out: dict, key, record: dict) -> None:
+    """Fold one request into the record for its title.
+
+    The earliest request stays as ``requested_by`` / ``created_at``; the newest
+    is kept beside it as ``latest_by`` / ``latest_at``. Compared by date rather
+    than by arrival, so nothing rests on how the request system orders a page.
+    ``undated`` marks a title with a request whose date could not be read.
+    """
+    stamp = utc(record.get("created_at"))
+    current = out.get(key)
+    if current is None:
+        out[key] = {
+            **record,
+            "latest_by": record.get("requested_by"),
+            "latest_at": record.get("created_at"),
+            "undated": stamp is None,
+        }
+        return
+    if stamp is None:
+        current["undated"] = True
+        return
+    earliest = utc(current.get("created_at"))
+    if earliest is None or stamp < earliest:
+        current.update(
+            requested_by=record.get("requested_by"),
+            created_at=record.get("created_at"),
+            is_auto_request=record.get("is_auto_request"),
+        )
+    latest = utc(current.get("latest_at"))
+    if latest is None or stamp > latest:
+        current.update(latest_by=record.get("requested_by"), latest_at=record.get("created_at"))
+
+
 class RequestSystem:  # pylint: disable=too-few-public-methods
     """Jellyseerr/Overseerr requests -- the only proof a person asked for a show."""
 
@@ -377,6 +412,10 @@ class RequestSystem:  # pylint: disable=too-few-public-methods
 
         Both keys, because Seerr records the TMDb id reliably and the TVDB id only
         when it could resolve one; a lookup tries TVDB first and falls back.
+        A show is routinely requested more than once, a season at a time:
+        ``requested_by`` and ``created_at`` describe the earliest request and
+        ``latest_by`` and ``latest_at`` the newest, which is what a "requested
+        since the plan" check has to see.
         Absence here is not evidence of anything: most of the library has no
         record either way.
         """
@@ -401,7 +440,7 @@ class RequestSystem:  # pylint: disable=too-few-public-methods
                 for source, field in (("tvdb", "tvdbId"), ("tmdb", "tmdbId")):
                     value = media.get(field)
                     if isinstance(value, int) and value:
-                        out[(source, value)] = record
+                        merge_request(out, (source, value), record)
             info = (payload or {}).get("pageInfo") or {}
             skip += page_size
             if len(results) < page_size or skip >= int(info.get("results") or 0):

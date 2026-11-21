@@ -26,6 +26,7 @@ configMapGenerator:
       - ./resources/curatortv/reporting.py
       - ./resources/curatortv/provision.py
       - ./resources/curatortv/s3.py
+      - ./resources/curatortv/settings.py
       - ./resources/curatortv/store.py
 generatorOptions:
   disableNameSuffixHash: true

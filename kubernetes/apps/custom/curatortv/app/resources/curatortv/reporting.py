@@ -96,18 +96,45 @@ def _history_line(plan: dict) -> str:
     )
 
 
+def _tokens(judgement: dict) -> str:
+    """The judge's input and output token totals, when the record states both."""
+    usage = judgement.get("usage")
+    counts = [usage.get(key) for key in ("input_tokens", "output_tokens")] if isinstance(usage, dict) else []
+    if len(counts) != 2 or not all(isinstance(count, int) for count in counts):
+        return ""
+    return f"; {counts[0]:,} tokens in, {counts[1]:,} out"
+
+
 def _judgement_line(judgement: dict | None) -> str:
-    """One line on whether the model was asked, and what it cost."""
+    """One line on whether the model was asked, and what it used."""
     if not judgement:
         return "Judgement: no record written."
     status = judgement.get("status", "unknown")
     detail = judgement.get("detail") or ""
-    if status == "judged":
+    if status in ("judged", "partial"):
         tally = judgement.get("verdicts") or {}
         verdicts = ", ".join(f"{count} {verdict}" for verdict, count in sorted(tally.items())) or "nothing"
-        cost = judgement.get("cost_usd")
-        return f"Judgement: {verdicts}" + (f", ${cost}" if cost else "") + "."
+        line = f"Judgement: {verdicts}{_tokens(judgement)}."
+        # Some batches answered and some did not: the verdicts above are real, and incomplete.
+        return line if status == "judged" else f"{line} INCOMPLETE: {detail}"
     return f"Judgement {status}: {detail}"
+
+
+def _candidate_count(plan: dict) -> str:
+    """How many candidates the plan found, and how many of them the judge was not asked about."""
+    offered, deferred = (len(plan.get(key) or []) for key in ("candidates", "judge_deferred"))
+    return f"{offered + deferred:,} candidates" + (f" · {deferred:,} deferred" if deferred else "")
+
+
+def _deferred_line(plan: dict) -> list[str]:
+    """Candidates the judge was not asked about this run, which is not a failure."""
+    deferred = plan.get("judge_deferred") or []
+    if not deferred:
+        return []
+    return [
+        f"Deferred: {len(deferred):,} candidates ({_gb(deferred):,.0f} GB) are past the judge limit of "
+        f"{plan.get('judge_limit', '?')} and wait for a later run."
+    ]
 
 
 def _nothing_to_report(reason: str, detail: str) -> Digest:
@@ -248,13 +275,13 @@ def render(
     counts = plan.get("counts") or {}
     review = plan.get("review") or []
     missing = plan.get("missing_file") or []
-    candidates = plan.get("candidates") or []
     blocks = plan.get("blocks") or []
     qualify = len(plan.get("keep_tag_additions") or [])
     keep_tags = (result or {}).get("keep_tags_added") or {}
     library = sum(int(v) for v in counts.values())
     # The judge can send a series to a person rather than to deletion, and that
-    # decision is made after the plan's own review list was written.
+    # decision is made after the plan's own review list was written. The plan's list
+    # holds only what the engine could not assess and reviews the judge asked for earlier.
     escalated = (result or {}).get("escalated") or []
     queue = review + escalated
 
@@ -266,7 +293,7 @@ def render(
     elif problems:
         title = f"TV cleanup: {problems[0]}"
 
-    push = [f"<b>{_esc(mode.upper())}</b> · {library:,} series · {len(candidates)} candidates"]
+    push = [f"<b>{_esc(mode.upper())}</b> · {library:,} series · {_candidate_count(plan)}"]
     if problems:
         push.append("<b>Needs attention:</b>")
         push.extend(f"· {_esc(issue)}" for issue in problems[:PUSH_LISTED])
@@ -289,6 +316,7 @@ def render(
         f"Recovery: {plan.get('recycle_bin')}",
         f"Play history: {_history_line(plan)}",
         _judgement_line(judgement),
+        *_deferred_line(plan),
         "",
     ]
     if blocks:

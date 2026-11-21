@@ -10,8 +10,37 @@ The engine is a small Python app checked into `kubernetes/apps/custom/curator/ap
 shipped to both `curator` and `curatorjudge` as one ConfigMap. Its own
 `app/resources/curator/README.md` is the primary design document: the eight things that are easy
 to get wrong, the first in-cluster run, and how to undo a deletion. This page covers the operational
-detail that sits above the readme: the constants, the CronJob schedule, and how an execution
-failure is meant to be read.
+detail that sits above the readme: the rules in brief, the constants, the CronJob schedule, and how
+an execution failure is meant to be read.
+
+## What it decides
+
+The whole library is assessed; there is no cut-off date unless `CLEANUP_SCOPE_START` is set, and
+the manifests do not set it. A film is protected, in this order, by:
+
+1. the allow list: the tags `keep`, `cleanup-keep` or the legacy `keep-review`;
+2. the rating bar: IMDb 6.5 or higher on 5,000 or more votes, unless it is tagged
+   `cleanup-eligible`. That tag no longer authorises anything: it switches the bar off, and like
+   `cleanup-dismissed` and `keep-review` it keeps every automatic `keep` tag off the film, a judge
+   keep's included;
+3. a monitored collection;
+4. the house having watched it: two or more people finished it.
+
+Everything else that is released, on disk, and past its viewing window (90 days from first import,
+30 when IMDb is under 5.5) is a candidate, provided its play history can be trusted. Neither a
+request nor an unknown origin holds a film back any longer: `origin` (`feed`, `requested` or
+`unknown`), `requested_by` and `original_language` go on the record the judge sees.
+
+Only two things reach a person, as "Waiting on you" in the digest: what the engine could not
+assess (no usable added date, availability unknown, play history unavailable, incomplete,
+unresolved or ambiguous, collection data unavailable), and the judge's own `review` verdicts. A
+film the judge kept earlier, or one tagged `cleanup-dismissed`, has the outcome `spared` and is not
+listed. A dismissal is reopened by a changed fact only where the judge had already recorded a
+decision for the film; one with nothing on record stands until the tag is removed.
+
+The judge is offered the largest `CLEANUP_JUDGE_LIMIT` candidates each run (150 here, set on this
+app's HelmRelease because the plan is where the split is recorded). The rest are written to the
+plan as `judge_deferred`: they owe no verdict, do not fail the run, and are counted in the digest.
 
 ## Tunable constants
 
@@ -20,7 +49,8 @@ them as starting points, not measured thresholds.
 
 | Constant                                      | Value                    | What it gates                                                                                                                                                                    |
 | --------------------------------------------- | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `MAX_DELETIONS_PER_RUN` (`planner.py`)        | 30                       | Rolling 7-day cap (`ledger.deletions_in_window` subtracts recent confirmed deletions before this applies), largest files first.                                                  |
+| `MAX_DELETIONS_PER_RUN` (`planner.py`)        | 30                       | Rolling 7-day cap (`ledger.deletions_in_window` subtracts recent confirmed deletions before this applies), largest files first. `CLEANUP_MAX_DELETIONS` overrides it; `curatorjudge` sets 100 while the first backlog drains. |
+| `DEFAULT_JUDGE_LIMIT` (`planner.py`)          | 150                      | Candidates offered to the judge per run, largest first. `CLEANUP_JUDGE_LIMIT` overrides it.                                                                                      |
 | `DEFAULT_RECONSIDER_DAYS` (`planner.py`)      | 180                      | How long a spare or dismissal stands before re-judging.                                                                                                                          |
 | `SUBJECT_EXACT_BELOW` (`planner.py`)          | 25                       | Genre/subject counts below this are fingerprinted exactly, above it bucketed, so a decision only reopens when the count materially changes.                                      |
 | `ANOMALY_LIMITS` (`planner.py`)               | 10% / 2% / 5% / 20% / 1% | Drop in library size / keep-tagged films / import exclusions / play-history rows / invalid-added-date fraction that blocks a run as a probable break rather than ordinary drift. |
@@ -41,8 +71,10 @@ seconds.
 
 `CuratorPlanStale` and `CuratorjudgeStale` (each app's `prometheusrule.yaml`) fire when the CronJob
 has not succeeded in 8 days, the GickupBackupStale shape with a creation-time fallback. `execute`
-exits 9 for a week with an unjudged candidate or a rejected verdict and 10 when a safety check could
-not be read, so neither resets the alert; the README in `resources/curator/` lists every exit code.
+exits 9 for a week in which an offered candidate went unjudged or a verdict was rejected, 8 when a
+`keep` tag could not be confirmed, and 10 when a safety check could not be read, so none of them
+resets the alert; the README in `resources/curator/` lists every exit code. Candidates deferred
+past the judge limit are not unjudged and do not fail a run.
 
 ## Execute failure semantics
 

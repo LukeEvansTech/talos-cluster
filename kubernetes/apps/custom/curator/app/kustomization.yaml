@@ -26,6 +26,7 @@ configMapGenerator:
       - ./resources/curator/reporting.py
       - ./resources/curator/provision.py
       - ./resources/curator/s3.py
+      - ./resources/curator/settings.py
       - ./resources/curator/store.py
 generatorOptions:
   disableNameSuffixHash: true

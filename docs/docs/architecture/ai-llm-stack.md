@@ -193,9 +193,6 @@ The model column is where to change it:
 | `curatorjudge`   | `custom`  | `ANTHROPIC_AUTH_TOKEN` | `JUDGE_MODEL` (HelmRelease); `claude-opus`, key `curator` |
 | `curatortvjudge` | `custom`  | `ANTHROPIC_AUTH_TOKEN` | `JUDGE_MODEL` (HelmRelease); `claude-opus`, key `curator` |
 
-The two judge rows are the gateway side, provisioned ahead of the judges. Until their own change moves them onto the
-`curator` key, both judges still call Anthropic directly and neither row describes a live caller.
-
 Every other key is used inside `ai` or by hand, reading its own `litellm-key-<name>` Secret.
 Scope does not stop router fallbacks, so a `self-hosted`-only key can still reach `claude`:
 

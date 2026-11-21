@@ -73,6 +73,11 @@ def unknown_provenance() -> Provenance:
     return Provenance(origin=Origin.UNKNOWN, evidence=("no request record and no provenance tag",))
 
 
+def requested_provenance(who: str = "Sam") -> Provenance:
+    """Provenance proving somebody asked for the film."""
+    return Provenance(origin=Origin.REQUESTED, evidence=(f"request system: requested by {who}",), requested_by=who)
+
+
 def import_event(when: datetime, **extra) -> dict:
     """A Radarr ``downloadFolderImported`` history row."""
     return {"eventType": "downloadFolderImported", "date": when.isoformat(), **extra}
@@ -128,6 +133,9 @@ class FakeRadarr:
         self.movies_by_id = dict(movies)
         self.tags_by_id = tags or {}
         self.deleted: list[int] = []
+        self.tag_calls: list[tuple[list[int], int]] = []
+        # Ids whose tag the editor endpoint accepts and then never applies.
+        self.tags_that_do_not_land: set[int] = set()
         self.delete_behaviour: dict[int, object] = {}
         self.read_errors: dict[int, Exception] = {}
         self.read_errors_after: dict[int, tuple[int, Exception]] = {}
@@ -163,6 +171,21 @@ class FakeRadarr:
     def tags(self) -> list[dict]:
         """Tag definitions."""
         return [{"id": i, "label": label} for i, label in self.tags_by_id.items()]
+
+    def create_tag(self, label: str):
+        """Create a tag with the next free id."""
+        new_id = max(self.tags_by_id, default=0) + 1
+        self.tags_by_id[new_id] = label
+        return 201, {"id": new_id, "label": label}
+
+    def add_tag(self, movie_ids: list[int], tag_id: int):
+        """Apply a tag the way the editor endpoint does, and record the call."""
+        self.tag_calls.append((list(movie_ids), tag_id))
+        for movie_id in movie_ids:
+            record = self.movies_by_id.get(movie_id)
+            if record is not None and movie_id not in self.tags_that_do_not_land:
+                record["tags"] = sorted(set(record.get("tags") or []) | {tag_id})
+        return 202, None
 
     def delete_movie(self, movie_id: int, add_exclusion: bool = True):  # pylint: disable=unused-argument
         """Delete, honouring any behaviour injected for this id."""

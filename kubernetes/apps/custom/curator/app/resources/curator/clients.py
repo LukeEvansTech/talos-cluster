@@ -14,6 +14,8 @@ import urllib.parse
 import urllib.request
 from typing import Any
 
+from .model import utc
+
 
 class SourceError(RuntimeError):
     """A source could not be read in a way the caller must not paper over."""
@@ -346,6 +348,39 @@ class Tautulli:
         return ids
 
 
+def merge_request(out: dict, key, record: dict) -> None:
+    """Fold one request into the record for its title.
+
+    The earliest request stays as ``requested_by`` / ``created_at``; the newest
+    is kept beside it as ``latest_by`` / ``latest_at``. Compared by date rather
+    than by arrival, so nothing rests on how the request system orders a page.
+    ``undated`` marks a title with a request whose date could not be read.
+    """
+    stamp = utc(record.get("created_at"))
+    current = out.get(key)
+    if current is None:
+        out[key] = {
+            **record,
+            "latest_by": record.get("requested_by"),
+            "latest_at": record.get("created_at"),
+            "undated": stamp is None,
+        }
+        return
+    if stamp is None:
+        current["undated"] = True
+        return
+    earliest = utc(current.get("created_at"))
+    if earliest is None or stamp < earliest:
+        current.update(
+            requested_by=record.get("requested_by"),
+            created_at=record.get("created_at"),
+            is_auto_request=record.get("is_auto_request"),
+        )
+    latest = utc(current.get("latest_at"))
+    if latest is None or stamp > latest:
+        current.update(latest_by=record.get("requested_by"), latest_at=record.get("created_at"))
+
+
 class RequestSystem:  # pylint: disable=too-few-public-methods
     """Jellyseerr/Overseerr requests -- the only proof a person asked for a film."""
 
@@ -354,7 +389,12 @@ class RequestSystem:  # pylint: disable=too-few-public-methods
         self.headers = {"X-Api-Key": api_key}
 
     def movie_requests(self, page_size: int = 100, max_pages: int = 100) -> dict[int, dict]:
-        """Every movie request, keyed by tmdbId.
+        """Every requested film, keyed by tmdbId.
+
+        A film can be requested more than once. ``requested_by`` and
+        ``created_at`` describe the earliest request, which is how the film came
+        to be here; ``latest_by`` and ``latest_at`` describe the newest, which is
+        what a "requested since the plan" check has to see.
 
         Absence here is not evidence of anything: the request system is lightly
         used, so most of the library has no record either way.
@@ -375,12 +415,15 @@ class RequestSystem:  # pylint: disable=too-few-public-methods
                 tmdb_id = media.get("tmdbId")
                 if tmdb_id is None:
                     continue
-                requested_by = (item.get("requestedBy") or {}).get("displayName")
-                out[int(tmdb_id)] = {
-                    "requested_by": requested_by,
-                    "created_at": item.get("createdAt"),
-                    "is_auto_request": bool(item.get("isAutoRequest")),
-                }
+                merge_request(
+                    out,
+                    int(tmdb_id),
+                    {
+                        "requested_by": (item.get("requestedBy") or {}).get("displayName"),
+                        "created_at": item.get("createdAt"),
+                        "is_auto_request": bool(item.get("isAutoRequest")),
+                    },
+                )
             info = (payload or {}).get("pageInfo") or {}
             skip += page_size
             if len(results) < page_size or skip >= int(info.get("results") or 0):
