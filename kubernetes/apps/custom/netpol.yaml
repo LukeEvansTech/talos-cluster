@@ -39,3 +39,28 @@ spec:
             http:
               - method: POST
                 path: "/publish/(film|tv)"
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/cilium.io/ciliumnetworkpolicy_v2.json
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: deny-curator-judges-to-gateway
+spec:
+  # The gateway reaches curator's button endpoints with no path limit, so a judge going round
+  # allow-curator-from-judges through it could change tags with no arr key. The judges use only
+  # in-cluster Service names; enableDefaultDeny false leaves the rest of their egress as it was.
+  description: "Deny the curator judges egress to the gateways (network namespace)"
+  endpointSelector:
+    matchExpressions:
+      - key: app.kubernetes.io/name
+        operator: In
+        values:
+          - curatorfilmjudge
+          - curatortvjudge
+  enableDefaultDeny:
+    egress: false
+    ingress: false
+  egressDeny:
+    - toEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: network
