@@ -64,7 +64,9 @@ spec:
                 cpu: 25m
                 memory: 128Mi
               limits:
-                memory: 512Mi
+                # Headroom for a working set that grows with the library; the fix for the
+                # 2026-11-21 OOM kills at 512Mi is the slimmer import sweep in clients.py.
+                memory: 1Gi
             securityContext:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: true
