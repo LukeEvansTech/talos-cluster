@@ -372,6 +372,16 @@ class RequestTests(JudgeScriptTests):
                 self.assertIn(expected, result["why"])
                 self.assertNotIn("verdicts", result)
 
+    def test_a_rejected_key_is_reported_without_the_gateways_own_text(self):
+        """That text can quote part of the key, and the reason ends up in logs and on a phone."""
+        for error in (
+            SDK.AuthenticationError("Received API Key = sk-...9xQ2", 401),
+            SDK.PermissionDeniedError("sk-...9xQ2", 403),
+        ):
+            with self.subTest(error=type(error).__name__):
+                result, _ = self.ask(error)
+                self.assertNotIn("9xQ2", result["why"])
+
     def test_json_that_does_not_match_the_schema_fails_the_batch(self):
         bad = {
             "not JSON at all": "I would delete the first one.",

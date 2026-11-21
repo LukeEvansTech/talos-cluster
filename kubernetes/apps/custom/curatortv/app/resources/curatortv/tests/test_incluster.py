@@ -122,13 +122,13 @@ class LateEvidenceWindowTests(unittest.TestCase):
 
     def test_a_play_from_before_the_plan_is_ignored(self):
         old = int((NOW - timedelta(days=30)).timestamp())
-        _, watched, known = late_evidence(_History(finished(5000, old)), None, self.CROSSWALK, NOW)
+        _, watched, known, _ = late_evidence(_History(finished(5000, old)), None, self.CROSSWALK, NOW)
         self.assertTrue(known)
         self.assertEqual(watched, set())
 
     def test_a_play_after_the_plan_is_caught(self):
         new = int((NOW + timedelta(minutes=20)).timestamp())
-        _, watched, _ = late_evidence(_History(finished(5000, new)), None, self.CROSSWALK, NOW)
+        _, watched, _, _ = late_evidence(_History(finished(5000, new)), None, self.CROSSWALK, NOW)
         self.assertEqual(watched, {("tvdb", "555"), ("imdb", "tt555")})
 
     def test_an_unknown_plan_time_refuses_rather_than_guesses(self):
@@ -146,7 +146,7 @@ class FirstViewingIsCaughtTests(unittest.TestCase):
 
     def test_a_first_viewing_on_an_unknown_key_is_caught(self):
         history = _History(finished(9999, self.AFTER), metadata={9999: {"guids": ["tvdb://555", "imdb://tt555"]}})
-        _, watched, known = late_evidence(history, None, {}, NOW)
+        _, watched, known, _ = late_evidence(history, None, {}, NOW)
         self.assertTrue(known)
         self.assertEqual(watched, {("tvdb", "555"), ("imdb", "tt555")})
         self.assertEqual(history.lookups, [9999])

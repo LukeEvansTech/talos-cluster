@@ -229,14 +229,17 @@ def late_evidence(tautulli, seerr, crosswalk: dict[int, dict] | None, since: dat
     a request: one made before the plan is on the candidate's record for the
     judge, and only one made since stops the deletion.
 
-    Returns ``(requests, watched_ids, known)``. ``known`` is False when either
-    source could not be read -- an unavailable safety check is an unresolved
-    one, so the caller skips rather than proceeding.
+    Returns ``(requests, watched_ids, known, played_ids)``. ``known`` is False
+    when either source could not be read -- an unavailable safety check is an
+    unresolved one, so the caller skips rather than proceeding. ``played_ids``
+    is every show with a play of any length since the plan, or None when one
+    such play could not be tied to a show.
     """
     requests: dict[tuple[str, int], dict] = {}
     watched: set[tuple[str, str]] = set()
+    played: set[tuple[str, str]] | None = set()
     if since is None:
-        return {}, set(), False
+        return {}, set(), False, None
 
     if seerr is not None:
         try:
@@ -244,41 +247,53 @@ def late_evidence(tautulli, seerr, crosswalk: dict[int, dict] | None, since: dat
                 if requested_since(request, since):
                     requests[key] = request
         except SourceError:
-            return {}, set(), False
+            return {}, set(), False, None
 
     if tautulli is None:
-        return requests, watched, False
+        return requests, watched, False, None
     try:
         rows, meta = tautulli.episode_history()
     except SourceError:
-        return {}, set(), False
+        return {}, set(), False, None
     if not meta.get("complete"):
-        return {}, set(), False
+        return {}, set(), False, None
 
     cutoff = since.timestamp()
     by_key: dict[int, dict] = dict(crosswalk or {})
     for row in rows:
-        if int(row.get("percent_complete") or 0) < COMPLETION_PERCENT:
-            continue
         stopped = row.get("stopped") or row.get("date")
         if not str(stopped).isdigit() or int(stopped) <= cutoff:
             continue
-        key = row.get("grandparent_rating_key")
-        if key in (None, "") or not str(key).isdigit():
+        finished = int(row.get("percent_complete") or 0) >= COMPLETION_PERCENT
+        ids = _row_show_ids(row, by_key, tautulli)
+        if not ids and finished:
             # A finished episode we cannot tie to a show: refuse rather than guess.
-            return requests, watched, False
-
-        entry = by_key.get(int(key))
-        if entry is None:
-            # The crosswalk only has shows seen by the plan; one played for the first
-            # time since is missing from it, exactly the play this gate exists to catch.
-            entry = _resolve_key(tautulli, int(key))
-            by_key[int(key)] = entry
-        ids = show_identity(entry.get("tvdb"), entry.get("tmdb"), entry.get("imdb"))
+            return requests, watched, False, None
         if not ids:
-            return requests, watched, False
-        watched |= ids
-    return requests, watched, True
+            # Unfinished, so it protects nothing, but "nobody has played it" can no
+            # longer be shown for any series.
+            played = None
+            continue
+        if played is not None:
+            played |= ids
+        if finished:
+            watched |= ids
+    return requests, watched, True, played
+
+
+def _row_show_ids(row: dict, by_key: dict[int, dict], tautulli) -> set[tuple[str, str]]:
+    """The show a history row belongs to, as external ids; empty when it cannot be told."""
+    text = str(row.get("grandparent_rating_key") or "")
+    if not text.isdigit():
+        return set()
+    key = int(text)
+    entry = by_key.get(key)
+    if entry is None:
+        # The crosswalk only has shows seen by the plan; one played for the first
+        # time since is missing from it, exactly the play this gate exists to catch.
+        entry = _resolve_key(tautulli, key)
+        by_key[key] = entry
+    return show_identity(entry.get("tvdb"), entry.get("tmdb"), entry.get("imdb"))
 
 
 def _resolve_key(tautulli, rating_key: int) -> dict:
@@ -311,8 +326,30 @@ def late_evidence_block(
     return None
 
 
-def volatile_block(
-    show: Show, tautulli, seerr, crosswalk: dict[int, dict] | None, since: datetime | None
+def unplayed_block(assessment: Assessment, played_ids: set[tuple[str, str]] | None) -> str | None:
+    """Whether a series that was due only because nobody had played it has been played since.
+
+    A continuing series with no plays runs its window from its first import, not
+    its newest episode's. A play of any length since the plan takes that away,
+    and an unfinished one is invisible to every other check here.
+    """
+    show = assessment.show
+    if show.ended or assessment.viewing.play_count:
+        return None
+    if played_ids is None:
+        return "could not tell whether it was played since the plan"
+    if show_identity(show.tvdb_id, show.tmdb_id, show.imdb_id) & played_ids:
+        return "played since the plan was made, so its window no longer runs from its first import"
+    return None
+
+
+def volatile_block(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+    show: Show,
+    tautulli,
+    seerr,
+    crosswalk: dict[int, dict] | None,
+    since: datetime | None,
+    assessment: Assessment | None = None,
 ) -> str | None:
     """Re-read, for one series, the evidence that moves while the batch is running.
 
@@ -332,10 +369,11 @@ def volatile_block(
     if show_identity(show.tvdb_id, show.tmdb_id, show.imdb_id) & playing:
         return "somebody started watching it during this run"
 
-    requests, watched_ids, known = late_evidence(tautulli, seerr, crosswalk, since)
+    requests, watched_ids, known, played_ids = late_evidence(tautulli, seerr, crosswalk, since)
     if not known:
         return "could not re-read plays and requests during this run"
-    return late_evidence_block(show, requests, watched_ids)
+    late = late_evidence_block(show, requests, watched_ids)
+    return late or (unplayed_block(assessment, played_ids) if assessment else None)
 
 
 def execute(  # pylint: disable=too-many-arguments,too-many-positional-arguments
@@ -378,7 +416,7 @@ def execute(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         now_playing, activity_known = set(), False
         result.skipped.append({"why": f"activity check unavailable: {exc}", "unavailable": True})
 
-    requests, watched_ids, late_known = late_evidence(tautulli, seerr, crosswalk, planned_at)
+    requests, watched_ids, late_known, played_ids = late_evidence(tautulli, seerr, crosswalk, planned_at)
     if not late_known:
         result.skipped.extend(
             {
@@ -406,9 +444,9 @@ def execute(  # pylint: disable=too-many-arguments,too-many-positional-arguments
             result.skipped.append({**record, "why": "could not confirm nobody is watching it", "unavailable": True})
             continue
 
-        late = late_evidence_block(show, requests, watched_ids)
+        late = late_evidence_block(show, requests, watched_ids) or unplayed_block(assessment, played_ids)
         if late:
-            result.skipped.append({**record, "why": late})
+            result.skipped.append({**record, "why": late, "unavailable": late.startswith(UNAVAILABLE)})
             continue
 
         try:
@@ -434,7 +472,7 @@ def execute(  # pylint: disable=too-many-arguments,too-many-positional-arguments
 
         # Last, the check closest in time to the delete; run in dry-run too, or a report
         # would describe a batch nobody is going to run.
-        moved = volatile_block(show, tautulli, seerr, crosswalk, planned_at)
+        moved = volatile_block(show, tautulli, seerr, crosswalk, planned_at, assessment)
         if moved:
             result.skipped.append({**record, "why": moved, "unavailable": moved.startswith(UNAVAILABLE)})
             continue

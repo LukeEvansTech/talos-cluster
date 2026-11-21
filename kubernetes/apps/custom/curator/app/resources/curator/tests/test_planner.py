@@ -284,6 +284,33 @@ class StandingDecisionTests(unittest.TestCase):
         result = run(film, viewing=viewing, ctx=context(decisions={film.movie_id: decision}))
         self.assertIs(result.outcome, Outcome.SPARED)
 
+    def test_a_dismissal_answers_a_review_the_judge_asked_for(self):
+        """Tagging it dismissed is how a person replies; it must not stay listed as waiting."""
+        film = make_film(tags={"cleanup-dismissed", "src-tmdb-popular"})
+        viewing = make_viewing()
+        decision = {
+            "movie_id": film.movie_id,
+            "verdict": "queued for review",
+            "reason": "does not recognise it",
+            "decided_at": "2026-06-01T00:00:00+00:00",
+            "reconsider_after": (NOW + timedelta(days=30)).isoformat(),
+            "fact_fingerprint": fact_fingerprint(film, feed_provenance(), viewing, False),
+        }
+        result = run(film, viewing=viewing, ctx=context(decisions={film.movie_id: decision}))
+        self.assertIs(result.outcome, Outcome.SPARED)
+        self.assertIn("dismissed by a person", result.reasons[0])
+
+    def test_a_dismissal_after_a_review_is_still_reopened_by_a_changed_fact(self):
+        film = make_film(tags={"cleanup-dismissed", "src-tmdb-popular"})
+        decision = {
+            "movie_id": film.movie_id,
+            "verdict": "queued for review",
+            "reconsider_after": (NOW + timedelta(days=30)).isoformat(),
+            "fact_fingerprint": "the-facts-as-they-were",
+        }
+        result = run(film, ctx=context(decisions={film.movie_id: decision}))
+        self.assertIs(result.outcome, Outcome.CANDIDATE)
+
     def test_decision_record_carries_a_reconsideration_date(self):
         record = build_decision_record(run(), "spared", "cult standing", "run-1", NOW, False)
         self.assertIn("reconsider_after", record)

@@ -330,6 +330,33 @@ class StandingDecisionTests(unittest.TestCase):
         result = run(show, viewing=viewing, ctx=context(decisions={show.series_id: decision}))
         self.assertIs(result.outcome, Outcome.SPARED)
 
+    def test_a_dismissal_answers_a_review_the_judge_asked_for(self):
+        """Tagging it dismissed is how a person replies; it must not stay listed as waiting."""
+        show = make_show(tags={"cleanup-dismissed", "kometa"})
+        viewing = make_viewing()
+        decision = {
+            "series_id": show.series_id,
+            "verdict": "queued for review",
+            "reason": "does not recognise it",
+            "decided_at": "2026-06-01T00:00:00+00:00",
+            "reconsider_after": (NOW + timedelta(days=30)).isoformat(),
+            "fact_fingerprint": fact_fingerprint(show, feed_provenance(), viewing),
+        }
+        result = run(show, viewing=viewing, ctx=context(decisions={show.series_id: decision}))
+        self.assertIs(result.outcome, Outcome.SPARED)
+        self.assertIn("dismissed by a person", result.reasons[0])
+
+    def test_a_dismissal_after_a_review_is_still_reopened_by_a_changed_fact(self):
+        show = make_show(tags={"cleanup-dismissed", "kometa"})
+        decision = {
+            "series_id": show.series_id,
+            "verdict": "queued for review",
+            "reconsider_after": (NOW + timedelta(days=30)).isoformat(),
+            "fact_fingerprint": "the-facts-as-they-were",
+        }
+        result = run(show, ctx=context(decisions={show.series_id: decision}))
+        self.assertIs(result.outcome, Outcome.CANDIDATE)
+
     def test_decision_record_carries_a_reconsideration_date(self):
         record = build_decision_record(run(), "spared", "cult standing", "run-1", NOW)
         self.assertIn("reconsider_after", record)

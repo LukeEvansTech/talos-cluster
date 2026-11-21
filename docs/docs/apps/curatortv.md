@@ -28,7 +28,9 @@ The engine lives in `kubernetes/apps/custom/curatortv/app/resources/curatortv/`,
   judge's record and is not a permission: a requested series and one of unknown origin are both
   candidates once their window has passed.
 - **Late arrivals:** each deletion re-reads the series' import history and episode-file count, and
-  skips a series that gained anything since the plan.
+  skips a series that gained anything since the plan. A continuing series that was due only because
+  nobody had played it is also skipped if any part of an episode has been played since the plan,
+  finished or not.
 - **No collections:** collection protection and `siblings_owned` are gone.
 - **Scope:** `upcoming` series are out of scope; nothing else is, since `CLEANUP_SCOPE_START` is
   no longer set.

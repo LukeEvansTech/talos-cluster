@@ -145,10 +145,11 @@ def judge_batch(client, sdk, model: str, system: str, candidates: str, id_field:
             messages=[{"role": "user", "content": candidates}],
             output_config={"format": {"type": "json_schema", "schema": verdict_schema(id_field)}},
         )
-    except sdk.AuthenticationError as exc:
-        why = f"the gateway rejected the key (HTTP 401): {exc.message}"
-    except sdk.PermissionDeniedError as exc:
-        why = f"the key may not use model group {model!r} (HTTP 403): {exc.message}"
+    except sdk.AuthenticationError:
+        # The gateway's own text for these two can quote part of the key, so it is left out.
+        why = "the gateway rejected the key (HTTP 401)"
+    except sdk.PermissionDeniedError:
+        why = f"the key may not use model group {model!r} (HTTP 403)"
     except sdk.NotFoundError as exc:
         why = f"the gateway has no model group {model!r} (HTTP 404): {exc.message}"
     except sdk.BadRequestError as exc:

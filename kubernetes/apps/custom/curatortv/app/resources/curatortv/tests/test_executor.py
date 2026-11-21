@@ -15,6 +15,7 @@ from curatortv.executor import (
     restore_snapshot,
     revalidate,
     validate_recommendations,
+    volatile_block,
 )
 from curatortv.ledger import Ledger
 from curatortv.model import Assessment, Outcome
@@ -370,7 +371,7 @@ class RequestsAroundThePlanTests(unittest.TestCase):
 
     def test_requests_known_before_the_plan_are_not_read_as_late_evidence(self):
         seerr = _Seerr({("tvdb", 70001): {"requested_by": "Sam", "created_at": stamp(-10)}})
-        requests, _, known = late_evidence(FakeTautulli(), seerr, {}, PLANNED_AT)
+        requests, _, known, _ = late_evidence(FakeTautulli(), seerr, {}, PLANNED_AT)
         self.assertEqual((requests, known), ({}, True))
 
 
@@ -406,6 +407,99 @@ class ViewersSinceThePlanTests(unittest.TestCase):
     def test_the_viewing_the_plan_already_knew_does_not_stop_it(self):
         result = self.run_one([self.finished(100, -5000)])
         self.assertEqual([d["series_id"] for d in result.deleted], [1])
+
+
+class UnplayedSeriesTests(unittest.TestCase):
+    """A continuing series due only because nobody had played it is re-checked for any play.
+
+    Its window ran from its first import. One unfinished play since the plan
+    puts it back on the newest episode's clock, and no other live check sees a
+    play that was neither finished nor still running.
+    """
+
+    CROSSWALK = {5000: {"tvdb": 70001, "tmdb": 1000, "imdb": "tt0000001"}}
+
+    def play(self, percent: int, minutes_from_plan: int, show_key: int | None = 5000) -> dict:
+        """One play of an episode, stopped relative to the plan."""
+        when = int((PLANNED_AT + timedelta(minutes=minutes_from_plan)).timestamp())
+        return {"grandparent_rating_key": show_key, "user_id": 200, "percent_complete": percent, "stopped": when}
+
+    def candidate(self, status: str = "continuing", plays: int = 0) -> Assessment:
+        """A candidate with ``plays`` plays on record when the plan was made."""
+        return replace(assessment(), show=make_show(status=status), viewing=make_viewing(plays=plays))
+
+    def run_one(self, rows, status="continuing", plays=0):
+        """Execute one candidate in a dry run against these history rows."""
+        tautulli = FakeTautulli()
+        tautulli.history_rows = rows
+        return execute(
+            [self.candidate(status, plays)],
+            FakeSonarr({1: series_record(status=status)}, TAGS),
+            tautulli,
+            Ledger(FakeS3(), run_id="run-test", dry_run=True),
+            TAGS,
+            dry_run=True,
+            crosswalk=self.CROSSWALK,
+            planned_at=PLANNED_AT,
+        )
+
+    def test_an_unfinished_play_since_the_plan_stops_the_deletion(self):
+        result = self.run_one([self.play(40, 5)])
+        self.assertEqual(result.deleted, [])
+        self.assertIn("played since the plan was made", result.skipped[0]["why"])
+        self.assertFalse(result.skipped[0]["unavailable"])
+
+    def test_an_unfinished_play_from_before_the_plan_is_not_news(self):
+        result = self.run_one([self.play(40, -5000)])
+        self.assertEqual([d["series_id"] for d in result.deleted], [1])
+
+    def test_an_ended_series_does_not_rest_on_being_unplayed(self):
+        """Its window runs from its first import whoever has played it."""
+        result = self.run_one([self.play(40, 5)], status="ended")
+        self.assertEqual([d["series_id"] for d in result.deleted], [1])
+
+    def test_a_series_already_played_at_the_plan_does_not_rest_on_it_either(self):
+        result = self.run_one([self.play(40, 5)], plays=3)
+        self.assertEqual([d["series_id"] for d in result.deleted], [1])
+
+    def test_a_play_of_another_series_stops_nothing(self):
+        crosswalk = {**self.CROSSWALK, 6000: {"tvdb": 4242, "tmdb": 4243, "imdb": "tt4242"}}
+        tautulli = FakeTautulli()
+        tautulli.history_rows = [self.play(40, 5, show_key=6000)]
+        self.assertIsNone(volatile_block(make_show(), tautulli, None, crosswalk, PLANNED_AT, self.candidate()))
+
+    def test_a_play_that_cannot_be_tied_to_a_show_is_a_check_that_could_not_be_made(self):
+        result = self.run_one([self.play(40, 5, show_key=None)])
+        self.assertEqual(result.deleted, [])
+        self.assertIn("could not tell whether it was played", result.skipped[0]["why"])
+        self.assertTrue(result.skipped[0]["unavailable"])
+
+    def test_an_untied_play_does_not_stop_a_series_that_does_not_rest_on_it(self):
+        result = self.run_one([self.play(40, 5, show_key=None)], status="ended")
+        self.assertEqual([d["series_id"] for d in result.deleted], [1])
+
+    def test_the_check_is_repeated_immediately_before_the_deletion(self):
+        tautulli = FakeTautulli()
+        tautulli.history_rows = [self.play(40, 5)]
+        why = volatile_block(
+            make_show(status="continuing"), tautulli, None, self.CROSSWALK, PLANNED_AT, self.candidate()
+        )
+        self.assertIn("played since the plan was made", why or "")
+
+    def test_late_evidence_reports_every_show_played_since_the_plan(self):
+        tautulli = FakeTautulli()
+        tautulli.history_rows = [self.play(40, 5), self.play(96, 6), self.play(10, -5000)]
+        _, watched, known, played = late_evidence(tautulli, None, self.CROSSWALK, PLANNED_AT)
+        self.assertTrue(known)
+        self.assertIn(("tvdb", "70001"), played)
+        self.assertIn(("tvdb", "70001"), watched)
+
+    def test_an_unfinished_play_alone_is_not_a_completion(self):
+        tautulli = FakeTautulli()
+        tautulli.history_rows = [self.play(40, 5)]
+        _, watched, known, played = late_evidence(tautulli, None, self.CROSSWALK, PLANNED_AT)
+        self.assertEqual((watched, known), (set(), True))
+        self.assertIn(("tvdb", "70001"), played)
 
 
 class ReconcileTests(unittest.TestCase):

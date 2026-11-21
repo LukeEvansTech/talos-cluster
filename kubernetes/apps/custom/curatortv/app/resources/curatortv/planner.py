@@ -268,6 +268,15 @@ def assess(
     # Requiring a feed tag parked everything else in a queue nobody could clear.
     fingerprint = fact_fingerprint(show, provenance, viewing, result.subject_counts)
     stored = ctx.decisions.get(show.series_id)
+    # Before the stored decision: dismissing is how a person answers a review the judge
+    # asked for, and that review would otherwise keep the series listed as waiting.
+    if TAG_HUMAN_DISMISSED in show.tags:
+        # Applied via the UI with no ledger record, so requiring one would make the tag inert.
+        if not (stored and stored.get("fact_fingerprint") != fingerprint):
+            result.outcome = Outcome.SPARED
+            result.reasons.append("dismissed by a person; no relevant fact has changed since")
+            return result
+
     if stored and decision_still_binding(stored, fingerprint, ctx.now):
         verdict = stored.get("verdict", VERDICT_SPARED)
         # The judge's own review stays in front of a person until they act on it;
@@ -278,13 +287,6 @@ def assess(
             f"{stored.get('reason', 'no reason recorded')}"
         )
         return result
-
-    if TAG_HUMAN_DISMISSED in show.tags:
-        # Applied via the UI with no ledger record, so requiring one would make the tag inert.
-        if not (stored and stored.get("fact_fingerprint") != fingerprint):
-            result.outcome = Outcome.SPARED
-            result.reasons.append("dismissed by a person; no relevant fact has changed since")
-            return result
 
     result.outcome = Outcome.CANDIDATE
     result.reasons.append(f"eligible: past its {window}-day window, origin {provenance.origin.value}")

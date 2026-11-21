@@ -110,6 +110,11 @@ gained `cleanup-dismissed`, as well as any veto tag, since the plan.
 import history and episode-file count are re-read; anything imported after the
 plan, or more files than the plan saw, skips the series this week.
 
+**A play stops a deletion that rested on there being none.** A continuing
+series that was due only because nobody had played it is skipped if anybody has
+played any part of an episode since the plan. An unfinished play is invisible to
+the completion check, and it puts the series back on its newest episode's clock.
+
 **Provenance comes from Kometa tags.** Sonarr here has no import lists. A series
 is `feed` when it carries any tag in `FEED_TAGS` (default `kometa`), `requested`
 when Seerr has a request for its TVDB ID (or TMDb ID as a fallback), and
