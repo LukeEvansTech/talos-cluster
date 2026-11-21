@@ -23,8 +23,9 @@ in `kubernetes/apps/custom/curator/app/helmrelease.yaml`.
   APIs, when a button is pressed. The next weekly plan reads them; the contract is in
   [Curatorfilm](curatorfilm.md). It never deletes, never sets `keep`, and never touches the
   engines' volumes.
-- **Reads** the allow list (titles carrying `cleanup-keep`) from both services every six hours.
-  The Ops page says whether the live tags could be read.
+- **Reads** the allow list from both services every six hours: every protected title with the
+  reason (`keep`, `keep-review`, `cleanup-keep`, or the rating bar). Only `cleanup-keep` is the
+  app's to add or remove. The Ops page says whether the live tags could be read.
 
 ## Configuration
 
