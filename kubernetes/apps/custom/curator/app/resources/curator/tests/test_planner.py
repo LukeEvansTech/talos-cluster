@@ -190,18 +190,19 @@ class OriginTests(unittest.TestCase):
         self.assertEqual(result.blockers, [])
         self.assertEqual(result.to_json()["origin"], "unknown")
 
-    def test_the_eligible_tag_only_switches_off_the_rating_bar(self):
+    def test_the_eligible_tag_switches_off_the_rating_bar_and_stands_in_for_the_judge(self):
         over_the_bar = {"imdb_score": 7.4, "imdb_votes": 90000}
         self.assertIs(run(make_film(tags=frozenset(), **over_the_bar)).outcome, Outcome.PROTECTED)
         result = run(make_film(tags={"cleanup-eligible"}, **over_the_bar), provenance=unknown_provenance())
-        self.assertIs(result.outcome, Outcome.CANDIDATE)
+        self.assertIs(result.outcome, Outcome.PROPOSED)
+        self.assertEqual((result.proposal["verdict"], result.proposal["by"]), ("delete", "person"))
         self.assertIs(result.provenance.origin, Origin.UNKNOWN)
 
-    def test_the_eligible_tag_changes_nothing_below_the_bar(self):
+    def test_the_eligible_tag_keeps_a_film_below_the_bar_from_the_judge_too(self):
         with_tag = run(make_film(tags={"cleanup-eligible"}), provenance=unknown_provenance())
         without = run(make_film(tags=frozenset()), provenance=unknown_provenance())
-        self.assertIs(with_tag.outcome, Outcome.CANDIDATE)
-        self.assertEqual(with_tag.reasons, without.reasons)
+        self.assertIs(with_tag.outcome, Outcome.PROPOSED)
+        self.assertIs(without.outcome, Outcome.CANDIDATE)
 
     def test_human_eligible_still_loses_to_a_veto(self):
         film = make_film(tags={"cleanup-eligible", "keep"})

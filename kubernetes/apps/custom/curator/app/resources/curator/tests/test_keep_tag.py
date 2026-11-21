@@ -24,7 +24,7 @@ from curator.__main__ import apply_keep_tags
 from curator.ledger import Ledger
 from curator.planner import keep_tag_targets
 
-from .fixtures import FakeRadarr, FakeS3, FakeTautulli, make_film
+from .fixtures import FakeRadarr, FakeS3, FakeTautulli, make_film, propose
 from .test_executor import movie_record
 
 
@@ -135,7 +135,9 @@ class _Radarr(FakeRadarr):  # pylint: disable=too-few-public-methods
 
 
 class JudgeKeepsThroughExecute(unittest.TestCase):
-    """End to end through ``cmd_execute``: a keep joins the allow list, and stays out of a dry run."""
+    """End to end through ``cmd_execute``: a keep joins the allow list once its wait is over."""
+
+    CANDIDATE = {"origin": "unknown", "availability_source": "radarr-history", "history_status": "ok"}
 
     def setUp(self):
         self.root = Path(tempfile.mkdtemp())
@@ -144,37 +146,45 @@ class JudgeKeepsThroughExecute(unittest.TestCase):
             1: movie_record(1, tags=[8]),
             2: movie_record(2, tags=[8], tmdb_id=2000),
             3: movie_record(3, tags=[5], tmdb_id=3000),
+            4: movie_record(4, tags=[8], tmdb_id=4000),
         }
         self.radarr = _Radarr(movies, dict(LABELS))
         self.store = FakeS3()
-        recommendations = {
-            "plan_run_id": "plan-1",
-            "recommendations": [
-                {"movie_id": 1, "verdict": "delete", "reason": "trending add nobody watched"},
-                {"movie_id": 2, "verdict": "keep", "reason": "cult standing, still revived"},
-                {"movie_id": 3, "verdict": "keep", "reason": "cult standing, still revived"},
-            ],
-        }
-        (self.root / "recs.json").write_text(json.dumps(recommendations), encoding="utf-8")
 
-    def execute(self, mode: str = "dry-run", flag: str = "false") -> tuple[int, dict]:
-        """Run execute in ``mode`` and return its exit code and result file."""
-        candidate = {"origin": "unknown", "availability_source": "radarr-history", "history_status": "ok"}
+    def execute(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+        self, mode: str = "dry-run", flag: str = "false", age_days: float = 7.0, judged: str = ""
+    ) -> tuple[int, dict]:
+        """Run execute in ``mode`` and return its exit code and result file.
+
+        Three verdicts from an earlier run are on record: delete film 1, keep 2
+        and keep 3 (which a person has since marked cleanup-eligible). ``judged``
+        is this run's verdict on film 4, when it gives one.
+        """
+        dry_run = mode == "dry-run"
+        ledger = Ledger(self.store, "run-execute", dry_run=dry_run)
         plan = {
             "run_id": "plan-1",
             "mode": mode,
             "generated_at": (datetime.now(timezone.utc) - timedelta(minutes=30)).isoformat(),
             "blocks": [],
-            "candidates": [{"movie_id": n, **candidate} for n in (1, 2, 3)],
+            "candidates": [{"movie_id": 4, **self.CANDIDATE}] if judged else [],
+            "proposed": [
+                propose(ledger, {"movie_id": 1, **self.CANDIDATE}, "delete", age_days=age_days),
+                propose(ledger, {"movie_id": 2, **self.CANDIDATE}, "keep", age_days=age_days),
+                propose(ledger, {"movie_id": 3, **self.CANDIDATE}, "keep", age_days=age_days),
+            ],
             "keep_tag_additions": [],
         }
+        verdicts = [{"movie_id": 4, "verdict": judged, "reason": "cult standing, still revived"}] if judged else []
         (self.root / "plan.json").write_text(json.dumps(plan), encoding="utf-8")
-        dry_run = mode == "dry-run"
+        (self.root / "recs.json").write_text(
+            json.dumps({"plan_run_id": "plan-1", "recommendations": verdicts}), encoding="utf-8"
+        )
         sources = SimpleNamespace(
             radarr=self.radarr,
             tautulli=FakeTautulli(),
             seerr=None,
-            ledger=Ledger(self.store, "run-execute", dry_run=dry_run),
+            ledger=ledger,
             run_id="run-execute",
         )
         args = argparse.Namespace(
@@ -195,7 +205,11 @@ class JudgeKeepsThroughExecute(unittest.TestCase):
         """The spare decisions on record."""
         return self.store.list_keys(f"{prefix}decisions/")
 
-    def test_an_act_run_tags_the_keep_and_deletes_the_delete(self):
+    def proposed(self, prefix: str = "") -> list[str]:
+        """The proposals still on record."""
+        return self.store.list_keys(f"{prefix}proposals/")
+
+    def test_an_act_run_tags_the_due_keep_and_deletes_the_due_delete(self):
         code, result = self.execute("act")
         self.assertEqual(code, 0)
         self.assertEqual(self.radarr.deleted, [1])
@@ -204,6 +218,10 @@ class JudgeKeepsThroughExecute(unittest.TestCase):
         # Film 3 carries cleanup-eligible: a person's decision outranks the judge.
         self.assertEqual(result["judge_keeps_tagged"]["withdrawn"], 1)
 
+    def test_what_was_carried_out_leaves_the_record_and_what_was_not_stays(self):
+        self.execute("act")
+        self.assertEqual(self.proposed(), ["proposals/3.json"])
+
     def test_a_dry_run_writes_no_tag_and_deletes_nothing(self):
         code, result = self.execute("dry-run")
         self.assertEqual(code, 0)
@@ -211,13 +229,32 @@ class JudgeKeepsThroughExecute(unittest.TestCase):
         self.assertEqual(self.radarr.deleted, [])
         self.assertEqual(result["judge_keeps_tagged"]["applied"], 0)
         self.assertTrue(all(d.get("simulated") for d in result["deleted"]))
+        self.assertEqual(len(self.proposed("dry-run/")), 3)
 
-    def test_a_dry_run_tags_keeps_only_when_the_flag_allows_it(self):
+    def test_a_dry_run_tags_due_keeps_only_when_the_flag_allows_it(self):
         code, result = self.execute("dry-run", flag="true")
         self.assertEqual(code, 0)
         self.assertEqual(self.radarr.tag_calls, [([2], 1)])
         self.assertEqual(self.radarr.deleted, [])
         self.assertEqual(result["judge_keeps_tagged"]["applied"], 1)
+        self.assertNotIn("dry-run/proposals/2.json", self.proposed("dry-run/"))
+
+    def test_a_keep_inside_its_wait_is_not_tagged_in_any_mode(self):
+        """The window is the point: a keep is permanent, so a person gets the same week to refuse it."""
+        for mode, flag in (("act", "false"), ("dry-run", "true")):
+            with self.subTest(mode=mode):
+                _, result = self.execute(mode, flag=flag, age_days=1)
+                self.assertEqual(self.radarr.tag_calls, [])
+                self.assertEqual(self.radarr.deleted, [])
+                self.assertEqual(result["judge_keeps_tagged"]["requested"], 0)
+
+    def test_a_keep_given_this_run_is_put_on_record_and_not_tagged(self):
+        for mode, flag in (("act", "false"), ("dry-run", "true")):
+            with self.subTest(mode=mode):
+                _, result = self.execute(mode, flag=flag, age_days=1, judged="keep")
+                self.assertEqual(self.radarr.tag_calls, [])
+                self.assertEqual(result["proposals"]["recorded"], {"delete": 0, "keep": 1})
+                self.assertIn(f"{'dry-run/' if mode == 'dry-run' else ''}proposals/4.json", self.store.list_keys(""))
 
     def test_an_unconfirmed_tag_fails_the_run_and_is_not_recorded_as_settled(self):
         """Recorded as a spare it would never be judged again, and never be tagged either."""
@@ -226,10 +263,12 @@ class JudgeKeepsThroughExecute(unittest.TestCase):
         self.assertEqual(code, 8)
         self.assertEqual(result["judge_keeps_tagged"]["unconfirmed"], [2])
         self.assertNotIn("decisions/2.json", self.decisions())
+        self.assertIn("proposals/2.json", self.proposed())
 
     def test_a_confirmed_keep_is_recorded(self):
         self.execute("act")
         self.assertIn("decisions/2.json", self.decisions())
+        self.assertNotIn("proposals/2.json", self.proposed())
 
     def test_the_digest_reports_the_judges_keep_tags(self):
         _, result = self.execute("act")

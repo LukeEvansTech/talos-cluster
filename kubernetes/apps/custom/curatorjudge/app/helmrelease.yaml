@@ -149,9 +149,13 @@ spec:
               TAUTULLI_URL: http://tautulli.media.svc.cluster.local
               SEERR_URL: http://seerr.media.svc.cluster.local
               LEDGER_DIR: /state/ledger
-              # Deletions per rolling 7 days. Raised from the engine's 30 to work through the backlog;
+              # Deletions per weekly run, counted over six days so a second run in the same week
+              # still counts the first. Raised from the engine's 30 to work through the backlog;
               # drop this line once it is gone.
               CLEANUP_MAX_DELETIONS: "100"
+              # Days a verdict waits, as a proposal a person can still overrule with a tag, before
+              # execute acts on it; six, so it is due at the next weekly run.
+              CLEANUP_GRACE_DAYS: "6"
               # Must match curator's mode (ledger namespaces dry-run state separately); --read-only
               # above enforces the same rule independently, so acting needs two deliberate edits.
               CLEANUP_MODE: dry-run

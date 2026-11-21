@@ -160,6 +160,15 @@ class RevalidationTests(unittest.TestCase):
             self.assertFalse(ok)
             self.assertIn("watching it right now", why)
 
+    def test_a_persons_delete_needs_cleanup_eligible_still_on_the_series(self):
+        """A person's delete rests on the tag alone; taking it off during the run withdraws it."""
+        tags = {**TAGS, 9: "cleanup-eligible"}
+        ok, why, _ = revalidate(1, FakeSonarr({1: series_record()}, tags), tags, set(), by_person=True)
+        self.assertFalse(ok)
+        self.assertIn("cleanup-eligible was removed", why)
+        ok, _, _ = revalidate(1, FakeSonarr({1: series_record(tags=[9])}, tags), tags, set(), by_person=True)
+        self.assertTrue(ok)
+
     def test_active_playback_of_another_series_does_not_block(self):
         self.assertTrue(revalidate(1, FakeSonarr({1: series_record()}, TAGS), TAGS, {("tvdb", "9999")})[0])
 

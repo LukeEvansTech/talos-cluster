@@ -14,7 +14,7 @@ from typing import Any
 
 from .clients import Radarr, SourceError, Tautulli
 from .evidence import COMPLETION_PERCENT
-from .model import TAG_HUMAN_DISMISSED, VETO_TAGS, Assessment, utc
+from .model import TAG_HUMAN_DISMISSED, TAG_HUMAN_ELIGIBLE, VETO_TAGS, Assessment, utc
 
 # Every skip whose reason starts with this is a check that could not run, not a protection
 # that fired; the run reports those as a failure (exit 10).
@@ -139,13 +139,20 @@ def revalidate(
     monitored_collection_tmdb_ids: set[int],
     now_playing_ids: set[tuple[str, str]],
     reopened_dismissal: bool = False,
+    by_person: bool = False,
 ) -> tuple[bool, str, dict | None]:
-    """Re-check every protection against live state, and return the live record."""
+    """Re-check every protection against live state, and return the live record.
+
+    ``by_person`` marks a delete a person asked for with ``cleanup-eligible``: it
+    rests on that tag alone, so the tag has to still be there now.
+    """
     live = radarr.movie(movie_id)
     if live is None:
         return False, "film is no longer in Radarr", None
 
     labels = {tag_labels.get(t, str(t)) for t in live.get("tags", [])}
+    if by_person and TAG_HUMAN_ELIGIBLE not in labels:
+        return False, "cleanup-eligible was removed since the plan", live
     vetoed = VETO_TAGS if reopened_dismissal else VETO_TAGS | {TAG_HUMAN_DISMISSED}
     vetoes = sorted(labels & vetoed)
     if vetoes:
@@ -400,6 +407,7 @@ def execute(  # pylint: disable=too-many-arguments,too-many-positional-arguments
                 monitored_collection_tmdb_ids,
                 now_playing,
                 reopened_dismissal=assessment.reopened_dismissal,
+                by_person=assessment.marked_by_person,
             )
         except SourceError as exc:
             result.skipped.append({**record, "why": f"could not re-read live state: {exc}", "unavailable": True})

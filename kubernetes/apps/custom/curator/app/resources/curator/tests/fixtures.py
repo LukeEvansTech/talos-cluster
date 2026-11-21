@@ -6,6 +6,7 @@ import json
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+from curator import proposals
 from curator.model import (
     Availability,
     Completion,
@@ -94,6 +95,24 @@ def play_row(rating_key: int, user_id: int, percent: int, row_id: int, date: int
         "date": date,
         "media_type": "movie",
     }
+
+
+def propose(  # pylint: disable=too-many-arguments
+    ledger, entry: dict, verdict: str = "delete", by: str = "judge", age_days: float = 7.0, grace_days: int = 6
+) -> dict:
+    """Put a proposal on record for a plan entry, and return the entry as a plan lists it.
+
+    ``age_days`` is how long ago the verdict was given: at the default its wait is over.
+    """
+    made = datetime.now(timezone.utc) - timedelta(days=age_days)
+    proposal = (
+        proposals.judged(verdict, "never played and no standing to name", made, grace_days)
+        if by == "judge"
+        else proposals.by_person(None, made)
+    )
+    planned = {**entry, "proposal": proposal}
+    ledger.write_proposal(proposals.record(planned, "movie_id", "run-earlier"))
+    return planned
 
 
 class FakeS3:

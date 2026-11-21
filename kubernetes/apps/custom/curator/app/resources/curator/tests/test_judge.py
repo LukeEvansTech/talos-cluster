@@ -500,6 +500,14 @@ class RunTests(JudgeScriptTests):
         self.assertEqual(judgement["verdicts"], {"delete": 5})
         self.assertIn("across 3 batches", judgement["detail"])
 
+    def test_the_record_names_the_model_group_that_answered(self):
+        self.run_judge(self.good(1, 2), self.good(3, 4), self.good(5))
+        self.assertEqual(self.read()[2]["model"], GROUP)
+
+    def test_with_no_batch_answered_no_model_is_named(self):
+        self.run_judge(*(SDK.APIConnectionError("refused") for _ in range(3)))
+        self.assertIsNone(self.read()[2]["model"])
+
     def test_every_batch_failing_judges_nothing(self):
         self.run_judge(*(SDK.APIConnectionError("refused") for _ in range(3)))
         code, recommendations, judgement = self.read()

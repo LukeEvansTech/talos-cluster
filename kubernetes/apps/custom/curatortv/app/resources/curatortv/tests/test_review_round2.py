@@ -25,7 +25,16 @@ from curatortv.executor import execute
 from curatortv.ledger import Ledger
 from curatortv.model import HistoryStatus
 
-from .fixtures import FakeS3, FakeSonarr, FakeTautulli, days_ago, make_availability, make_show, series_record
+from .fixtures import (
+    FakeS3,
+    FakeSonarr,
+    FakeTautulli,
+    days_ago,
+    make_availability,
+    make_show,
+    propose,
+    series_record,
+)
 from .test_executor import TAGS, assessment
 
 PLANNED_AT = datetime.now(timezone.utc) - timedelta(minutes=30)
@@ -109,28 +118,26 @@ class UnconfirmedKeepTagsStayUndecided(unittest.TestCase):
             dict(TAGS),
         )
         self.store = FakeS3()
+        ledger = Ledger(self.store, "run-execute", dry_run=True)
         candidate = {"origin": "feed", "availability_source": "sonarr-history", "history_status": "ok"}
+        # Both keeps were handed down by an earlier run and their wait is over.
         plan = {
             "run_id": "plan-1",
             "mode": "dry-run",
             "generated_at": (now - timedelta(minutes=30)).isoformat(),
             "blocks": [],
-            "candidates": [{"series_id": 1, **candidate}, {"series_id": 2, **candidate}],
-        }
-        recommendations = {
-            "plan_run_id": "plan-1",
-            "recommendations": [
-                {"series_id": 1, "verdict": "keep", "reason": "acclaimed completed series"},
-                {"series_id": 2, "verdict": "keep", "reason": "acclaimed completed series"},
-            ],
+            "candidates": [],
+            "proposed": [propose(ledger, {"series_id": n, **candidate}, "keep") for n in (1, 2)],
         }
         (self.root / "plan.json").write_text(json.dumps(plan), encoding="utf-8")
-        (self.root / "recs.json").write_text(json.dumps(recommendations), encoding="utf-8")
+        (self.root / "recs.json").write_text(
+            json.dumps({"plan_run_id": "plan-1", "recommendations": []}), encoding="utf-8"
+        )
         sources = SimpleNamespace(
             sonarr=self.sonarr,
             tautulli=FakeTautulli(),
             seerr=None,
-            ledger=Ledger(self.store, "run-execute", dry_run=True),
+            ledger=ledger,
             run_id="run-execute",
         )
         for name, value in (("build_sources", lambda: sources), ("log", lambda _message: None)):
@@ -164,6 +171,9 @@ class UnconfirmedKeepTagsStayUndecided(unittest.TestCase):
         self.assertEqual(result["judge_keeps_tagged"]["unconfirmed"], [2])
         self.assertIn("dry-run/decisions/1.json", self.store.store)
         self.assertNotIn("dry-run/decisions/2.json", self.store.store)
+        # The unconfirmed keep stays a proposal, so next week tries the tag again.
+        self.assertNotIn("dry-run/proposals/1.json", self.store.store)
+        self.assertIn("dry-run/proposals/2.json", self.store.store)
 
     def test_a_rejected_tag_write_records_nothing(self):
         self.sonarr.add_tag = lambda series_ids, tag_id: (500, None)
@@ -171,6 +181,7 @@ class UnconfirmedKeepTagsStayUndecided(unittest.TestCase):
         self.assertNotEqual(code, 0)
         self.assertEqual(sorted(result["judge_keeps_tagged"]["unconfirmed"]), [1, 2])
         self.assertFalse([k for k in self.store.store if "/decisions/" in k])
+        self.assertEqual(len([k for k in self.store.store if "/proposals/" in k]), 2)
 
     def test_the_digest_reports_unconfirmed_keeps(self):
         now = datetime.now(timezone.utc)

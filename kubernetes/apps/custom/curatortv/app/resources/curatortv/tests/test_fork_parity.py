@@ -16,7 +16,8 @@ FILM = next(
     HERE.parents[4].glob("*/curator/app/resources/curator"),
     HERE.parents[3] / "curator" / "app" / "resources" / "curator",
 )
-SHARED = ("s3.py", "settings.py", "store.py")
+# proposals and review take the id field's name as an argument, so they too are shared whole.
+SHARED = ("proposals.py", "review.py", "s3.py", "settings.py", "store.py")
 # The two judge apps ship these unchanged: the id field reaches them in the batch list.
 JUDGE_SHARED = ("judge.py", "read_verdicts.py")
 

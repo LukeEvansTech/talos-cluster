@@ -1,8 +1,9 @@
 # Curatorjudge
 
 The taste half of the weekly Radarr library cleanup, in the `custom` namespace. Reads the plan
-`curator` left on the shared volume, asks Claude which candidates are worth keeping, and applies
-whatever the engine still agrees with half an hour later. `curator`'s own
+`curator` left on the shared volume, asks Claude which candidates are worth keeping, and puts
+each verdict on record to wait out a review window; it then carries out the verdicts from earlier
+runs whose wait is over and that the engine still agrees with. `curator`'s own
 `app/resources/curator/README.md` covers the engine side; this page covers the judge's own
 CronJob, its trust boundary, and how a failed run is meant to be read.
 
@@ -15,7 +16,7 @@ The CronJob runs three containers in order, all on the same Python image:
 2. `judge` (`judge.py`) sends each batch to Claude through the cluster's LiteLLM gateway, one
    request per batch, and writes one result file per batch.
 3. `app` (`read_verdicts.py`, then the engine's `execute` and `report`) merges the results,
-   applies what still holds, and sends the digest.
+   records them as proposals, carries out the proposals that are due, and sends the digest.
 
 Only `judge` talks to a model, and it is treated as the least-trusted step in the pipeline:
 
@@ -27,8 +28,10 @@ Only `judge` talks to a model, and it is treated as the least-trusted step in th
 
 A wrong or hostile answer out of `judge` can therefore only choose badly among films the executor
 independently re-clears; it cannot forge a candidate, bypass a protection, or reach the library
-directly. A `keep` is the one answer with a lasting effect of its own: it becomes a `keep` tag in
-`act` mode, so both `keep` and `delete` need a reason of at least 12 characters.
+directly. A `keep` is the one answer with a lasting effect of its own: once its wait is over it
+becomes a `keep` tag in `act` mode, so both `keep` and `delete` need a reason of at least 12
+characters. Neither is acted on in the run that gives it; see
+[the review window](curator.md#the-review-window).
 
 ## The judge never sees the state volume
 
@@ -124,8 +127,8 @@ failed otherwise. `read_verdicts.py` takes none of it on trust: a file that name
 another batch is refused, as is one whose `verdicts` is not a list of objects. A verdict naming a
 film that belongs to a different batch is dropped, because the judge never saw that film's
 record. The merged result is `recommendations.json`, and `judgement.json` carries the status
-(`judged`, `partial`, `failed`, `malformed` or `not asked`), the per-batch failures, and the
-input and output token totals the digest reports.
+(`judged`, `partial`, `failed`, `malformed` or `not asked`), the per-batch failures, the input
+and output token totals the digest reports, and the model group that answered.
 
 One failed batch does not discard the others. Its films have no verdict this run, `execute` counts
 them as unjudged and exits 9, and `read_verdicts.py` itself exits 1, so the Job fails and the
@@ -137,12 +140,29 @@ staleness alert is not reset.
 | ----------------------- | ------------------------ | ----- | ------------------------------------------------------------- |
 | `CLEANUP_JUDGE_LIMIT`   | `curator` (the planner)  | 150   | Candidates offered to the judge per run, largest first.       |
 | `CLEANUP_JUDGE_BATCH`   | `curatorjudge`, `prompt` | 50    | Candidates per request.                                       |
-| `CLEANUP_MAX_DELETIONS` | `curatorjudge`, `app`    | 100   | Deletions in a rolling seven days; the engine's default is 30. |
+| `CLEANUP_MAX_DELETIONS` | `curatorjudge`, `app`    | 100   | Deletions per weekly run; the engine's default is 30.         |
+| `CLEANUP_GRACE_DAYS`    | `curatorjudge`, `app`    | 6     | Days a verdict waits before `execute` acts on it.             |
 
 The judge limit is applied where the plan is written, not here: `plan.json` lists the offered
 candidates as `candidates` and the rest as `judge_deferred`. A deferred candidate is not an
 unjudged one, so it does not fail the run; the digest says how many were deferred. The deletion
 cap is raised to 100 to work through the first backlog and is meant to go back to the default.
+
+## The digest and the review document
+
+`report` reads the proposals from the ledger and builds the review document on every run. It reads
+the ledger and not this run's result, so a run that was blocked, or whose `execute` never
+finished, still lists every verdict that is waiting. The digest leads with the number a person can
+act on: its title says how many titles go at the next run and on what date (`would go` in a dry
+run), and its text lists them with the judge's reasons.
+
+Publishing the document is optional and off here. With `CLEANUP_REVIEW_URL` set, `report` renders
+the digest, puts it in the document, and posts the document there signed with the Radarr API key
+this step already holds; the push then links to `CLEANUP_REVIEW_LINK` when that is set, through
+the `chaski` route's `url` parameter, which is left off the notification when the digest names no
+link. A receiver that did not take the document is named in the digest and makes `report` exit 11.
+With `CLEANUP_REVIEW_URL` unset, as in this manifest, nothing is sent and the digest mentions no
+page. The contract is in [Curator](curator.md#the-review-document) and the engine's README.
 
 ## Never retry: `backoffLimit: 0`
 
@@ -164,4 +184,7 @@ that Secret. The key and the model group are declared with the gateway, under
 [AI and LLM stack](../architecture/ai-llm-stack.md) for how virtual keys are issued and rotated.
 
 A key the gateway does not accept, or one that may not use the group, fails every batch with the
-gateway's own error in the digest (`401` or `403`), and the run deletes nothing.
+gateway's own error in the digest (`401` or `403`), and the run gives no new verdicts. It does not
+stop deletion: `execute` still acts on proposals from earlier runs that are now due, then exits 9
+for the unjudged candidates. A failed judge run is therefore not proof that nothing was deleted;
+the digest's execution section says what was.

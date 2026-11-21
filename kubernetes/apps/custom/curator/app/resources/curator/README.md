@@ -22,11 +22,11 @@ python3 -m curator selftest                       # fixture tests, no network
 python3 -m curator.provision                      # show provenance-tag changes
 ```
 
-`plan` and `report` write nothing outside their own output files. `execute` is
-the only command that can change anything. It deletes only when
-`CLEANUP_MODE=act`; in `dry-run` it re-validates every safeguard, records its
-intent, and stops short of the call. It adds the `keep` tag in `act` mode, and in
-a dry run only when `TAG_KEEPS_IN_DRY_RUN=true`.
+`plan` changes nothing in Radarr, and `report` changes nothing at all; it
+publishes a review document only when a receiver is configured. `execute` is the only command that can change the library. It
+deletes only when `CLEANUP_MODE=act`; in `dry-run` it re-validates every
+safeguard, records its intent, and stops short of the call. It adds the `keep`
+tag in `act` mode, and in a dry run only when `TAG_KEEPS_IN_DRY_RUN=true`.
 
 ## What the engine decides
 
@@ -41,6 +41,7 @@ Every film in the library is assessed; there is no cut-off date unless
 | `not_due`      | still inside its viewing window                                                  |
 | `review`       | the engine could not assess it, or the judge asked for a person                  |
 | `spared`       | a standing decision not to delete: an earlier judge keep, or `cleanup-dismissed` |
+| `proposed`     | a verdict is on record and waiting out its review window; not judged again       |
 | `candidate`    | past its window, unprotected, with play history that can be trusted              |
 
 **Protections, in this order.**
@@ -49,8 +50,8 @@ Every film in the library is assessed; there is no cut-off date unless
    `keep` is applied by the rating bar and by every keep the judge hands down;
    `cleanup-keep` only by a person.
 2. The rating bar: IMDb 6.5 or higher on 5,000 or more votes. The
-   `cleanup-eligible` tag switches the bar off for one film. It no longer
-   authorises anything, and its one other effect is on the `keep` tag (below).
+   `cleanup-eligible` tag switches the bar off for one film: it is a person's
+   delete (below), and it also keeps the `keep` tag off the film.
 3. A monitored collection.
 4. Watched by the house: two or more people finished it. This rests on play
    history, so it is applied only once that history has been shown to be
@@ -81,12 +82,41 @@ to `CLEANUP_JUDGE_LIMIT`, as `candidates`; the rest are written to
 for it and it comes back next run. Only an _offered_ candidate with no usable
 verdict counts as unjudged.
 
-**What a verdict does.** `delete` is executed, largest first, up to
-`CLEANUP_MAX_DELETIONS` in any rolling seven days. `keep` adds the `keep` tag,
-so the film joins the allow list for good; the tag is confirmed by re-reading,
-and a keep whose tag did not land is not recorded as settled, so it is judged
-and tagged again next run and the run exits non-zero. `review` goes to the
-digest and stays there until a person acts or the decision lapses.
+**What a verdict does.** Nothing, in the run that gives it. A `delete` or a
+`keep` is written to the ledger as a proposal, with the facts it rested on and a
+due date `CLEANUP_GRACE_DAYS` later (6, so the next weekly run), and is listed
+in the digest's review window and the review document for the days in between.
+`review` is recorded as a decision at once, goes to the digest, and stays there
+until a person acts or the decision lapses.
+
+**What a due proposal does.** A film with a proposal on record has the outcome
+`proposed`: it is listed in the plan's `proposed`, not sent to the judge again,
+and `execute` acts on it once it is due, provided the ledger holds the same
+verdict the plan lists. A due `delete` goes through every live re-check and is
+deleted, a person's deletes first and then largest first, up to
+`CLEANUP_MAX_DELETIONS` a run. A due `keep` gets the `keep` tag, so the film
+joins the allow list for good; the tag is confirmed by re-reading, and a keep
+whose tag did not land stays a proposal, so it is tried again next run and the
+run exits non-zero. A dry run deletes nothing, so its proposals stay on record
+under the `dry-run/` prefix and are reported again each week.
+
+**When a proposal lapses.** It stands only while the film would otherwise still
+be a candidate and its fact fingerprint and play count are unchanged. A
+protection that now applies, play history that can no longer be trusted,
+somebody playing the film or its collection changing all end it. The plan lists
+these as `lapsed_proposals`, `execute` removes them, and a film that is a
+candidate again is judged afresh and waits again.
+
+**A person outranks the judge, through two tags.** `cleanup-keep` protects a
+film for good, which ends any proposal for it. `cleanup-eligible` is a person's
+delete: the film is never sent to the judge, becomes a delete proposal due at
+the next run, and goes ahead of the judge's own under the cap. It overrides the
+rating bar, a keep the judge proposed, and a spare or a review the judge
+recorded. It does not override `keep`, `cleanup-keep`, `keep-review`, a
+monitored collection, the viewing window, two completers, play history that
+cannot be trusted, or any live re-check; beside `cleanup-dismissed`, the
+dismissal wins. Taking the tag off withdraws it, up to the moment of deletion:
+`execute` re-reads the tag in its last live check of each title a person marked.
 
 No `keep` tag, from the rating bar or from the judge, is ever put on a film
 carrying `cleanup-eligible`, `cleanup-dismissed` or `keep-review`: those are a
@@ -111,9 +141,14 @@ non-zero code and still sends the digest.
 | 9    | an offered candidate came back unjudged, or a verdict was rejected |
 | 10   | a deletion was skipped because a safety check could not be read    |
 
-`report` exits 6 when the digest could not be delivered. A setting that cannot
-be read (`CLEANUP_MAX_DELETIONS`, `CLEANUP_JUDGE_LIMIT`, `CLEANUP_SCOPE_START`)
-stops `plan` or `execute` with exit 1 before anything is fetched or written.
+`report` exits 6 when the digest could not be delivered, and 11 when a review
+page is configured and did not take the document (or the proposals for it
+could not be read). With no review page configured it exits 12 instead when the
+proposals could not be read, since the digest then cannot say what falls due.
+A setting that cannot be read
+(`CLEANUP_MAX_DELETIONS`, `CLEANUP_GRACE_DAYS`, `CLEANUP_JUDGE_LIMIT`,
+`CLEANUP_SCOPE_START`) stops `plan` or `execute` with exit 1 before anything is
+fetched or written.
 
 ## Scheduled runs are read-only
 
@@ -138,6 +173,360 @@ than that it had nothing to say. Four things it refuses to paper over: an absent
 plan, a plan left over from an earlier week, a result belonging to a different
 run ID, and a judgement that was never obtained.
 
+The digest leads with the number a person can act on: its title says how many
+titles go at the next run and on what date (`would go` in a dry run), and its
+text lists every proposal on record (going, waiting and being kept) with its
+size, due date and reason, uncut, since without a review page it is the only
+full list. That count comes from the review
+document below, which `report` builds on every run.
+
+## The review document
+
+`report` builds the review document from the proposals in the ledger, not from
+this run's result, so a run that was blocked or whose `execute` never finished
+still lists every verdict that is waiting. Publishing it is optional:
+
+- With `CLEANUP_REVIEW_URL` unset, nothing is sent, the digest mentions no page,
+  and the push carries no link. The manifests leave it unset.
+- With it set, `report` renders the digest, puts it in the document, and posts
+  the document there before it delivers the digest. The push links to
+  `CLEANUP_REVIEW_LINK` when that is set as well. A receiver that refuses the
+  document or cannot be reached is named in the digest, and `report` exits 11.
+
+Both engines build the document with the same `review.py`, so this contract
+covers the `tv` library too. Everything below is what a receiver can rely on;
+`tests/review_example.json` is the example, and a test asserts the builder
+produces it.
+
+**Request.** `POST <CLEANUP_REVIEW_URL>/publish/<library>`, where `library` is
+`film` from this engine and `tv` from `curatortv`, with
+`Content-Type: application/json`. Any 2xx answer is success. Anything else, or
+no answer within 30 seconds, fails the publish; it is not retried, and the next
+week's document replaces it.
+
+**Body.** One JSON object, serialised compactly (no whitespace), with its keys
+sorted and every non-ASCII character escaped as `\uXXXX`, so the body is ASCII.
+
+**Signature.** Header `X-Curator-Signature: sha256=<hex>`, where `<hex>` is the
+lowercase hex HMAC-SHA256 of these bytes: the library name in UTF-8, one newline
+(`0x0A`), then the request body exactly as sent. The key is the library's arr
+API key in UTF-8: Radarr's for `film`, Sonarr's for `tv`. Signing the library
+name with the body means a document signed for one library does not verify as
+the other's. A receiver computes the HMAC over the raw body before parsing it,
+compares in constant time, and refuses an unknown library or `version`. With no
+API key the engine signs nothing and the publish fails.
+
+**Top-level fields.** Every field is always present.
+
+| Field          | Type            | Meaning                                                                                  |
+| -------------- | --------------- | ---------------------------------------------------------------------------------------- |
+| `version`      | integer         | `2`. Version 1 had every field here except `summary`                                     |
+| `library`      | string          | `film` or `tv`, the same as the path                                                     |
+| `generated_at` | string          | ISO 8601 UTC time `report` built the document                                            |
+| `run_id`       | string          | the plan's run ID; empty when this run has no current plan                               |
+| `mode`         | string          | `act` or `dry-run`                                                                       |
+| `blocks`       | array of string | why this run acted on nothing (a blocked, missing or stale plan); empty in a normal run  |
+| `cap`          | integer         | deletions allowed per run                                                                |
+| `next_run_at`  | string          | ISO 8601 UTC time of the next weekly run: seven days after this run's plan, or after now |
+| `going`        | array of title  | due deletes the next run takes, in its order (a person's first, then largest), to `cap`  |
+| `later`        | array of title  | deletes past the cap, then deletes not due by the next run, largest first                |
+| `kept`         | array of title  | keep proposals, largest first; each is tagged `keep` once due                            |
+| `needs_you`    | array of title  | what the engine could not assess and the judge's `review` verdicts, largest first        |
+| `deleted`      | array of title  | this run's deletions, or would-be deletions in a dry run                                 |
+| `summary`      | object          | how the run went (version 2; below)                                                      |
+
+A title appears in at most one of `going`, `later`, `kept` and `needs_you`.
+
+**A title.** Every field is always present. Text fields come from metadata
+providers and from a model: treat them as untrusted and escape them on display.
+
+| Field          | Type            | Meaning                                                                                 |
+| -------------- | --------------- | --------------------------------------------------------------------------------------- |
+| `id`           | integer         | Radarr movie ID or Sonarr series ID                                                     |
+| `title`        | string          | up to 300 characters; `#<id>` when the record has none                                  |
+| `year`         | number or null  | release year                                                                            |
+| `size_gb`      | number or null  | size on disk when the verdict was given                                                 |
+| `imdb_score`   | number or null  | IMDb rating                                                                             |
+| `imdb_votes`   | number or null  | IMDb vote count                                                                         |
+| `plays`        | number or null  | plays recorded when the verdict was given                                               |
+| `finished_by`  | number or null  | distinct people who finished it (film) or finished an episode (TV)                      |
+| `origin`       | string          | `feed`, `requested`, `unknown`, or empty                                                |
+| `requested_by` | string          | who requested it, up to 80 characters; empty when nobody did or it is not known         |
+| `overview`     | string          | synopsis, up to 400 characters                                                          |
+| `verdict`      | string          | `delete`, `keep` or `review`                                                            |
+| `by`           | string          | `judge`, `person` (a `cleanup-eligible` tag) or `engine`; empty on a `deleted` entry    |
+| `reason`       | string          | the judge's reason, the person-tag note or the engine's blocker; up to 600 characters   |
+| `proposed_at`  | string          | ISO 8601 time the proposal was made; empty outside `going`, `later` and `kept`          |
+| `due_at`       | string          | ISO 8601 time it falls due; empty outside `going`, `later` and `kept`                   |
+| `simulated`    | boolean         | `true` only on a `deleted` entry from a dry run                                         |
+| `actions`      | array of string | what a receiver may offer: `keep` adds `cleanup-keep`, `delete` adds `cleanup-eligible` |
+
+`actions` is `["keep"]` on a delete proposal, `["delete"]` on a keep proposal,
+`["keep", "delete"]` on a judge's `review`, `["keep"]` on a title the engine
+could not assess (`cleanup-eligible` does not override the check that stopped
+it), and empty on a `deleted` entry.
+
+**`summary`.** Every key is always present; a part is `null` where noted.
+
+| Field                        | Type              | Meaning                                                                                  |
+| ---------------------------- | ----------------- | ---------------------------------------------------------------------------------------- |
+| `plan`                       | object or null    | the plan's funnel; `null` when this run has no current plan                              |
+| `plan.counts`                | object of integer | titles per outcome, keyed by outcome name (see the table at the top); a zero is left out |
+| `plan.titles`                | integer           | the sum of `counts`: the whole library                                                   |
+| `plan.offered`               | integer           | candidates offered to the judge this run                                                 |
+| `plan.deferred`              | integer           | candidates past the judge limit, left for a later run                                    |
+| `plan.judge_limit`           | integer or null   | the judge limit in force                                                                 |
+| `plan.proposed`              | integer           | titles with a standing proposal, not judged again                                        |
+| `plan.lapsed`                | integer           | proposals the plan ended because a fact changed                                          |
+| `plan.review`                | integer           | titles the plan put in front of a person                                                 |
+| `plan.missing_file`          | integer           | titles with nothing on disk                                                              |
+| `judge`                      | object            | the judge step                                                                           |
+| `judge.status`               | string            | `judged`, `partial`, `failed`, `malformed`, `not asked`, or `missing` (no record)        |
+| `judge.detail`               | string            | the judge step's own account, up to 600 characters                                       |
+| `judge.batches`              | integer or null   | requests made to the gateway                                                             |
+| `judge.failed_batches`       | integer or null   | requests that produced no usable verdicts                                                |
+| `judge.input_tokens`         | integer or null   | input tokens across every batch that got a reply                                         |
+| `judge.output_tokens`        | integer or null   | output tokens across every batch that got a reply                                        |
+| `judge.model`                | string or null    | the gateway model group that answered                                                    |
+| `executor`                   | object or null    | what `execute` did; `null` when it left no result for this plan                          |
+| `executor.deleted`           | integer           | titles deleted                                                                           |
+| `executor.would_delete`      | integer           | titles a dry run would have deleted                                                      |
+| `executor.size_gb`           | number            | size of both together, to one decimal place                                              |
+| `executor.skipped`           | integer           | due deletes set aside at the last check                                                  |
+| `executor.failed`            | integer           | deletions the service refused                                                            |
+| `executor.uncertain`         | integer           | deletions whose outcome could not be confirmed                                           |
+| `executor.deferred`          | integer           | due deletes held back by the cap                                                         |
+| `executor.keep_tags_applied` | integer           | `keep` tags confirmed this run, from the rating bar and from due judge keeps             |
+| `digest`                     | object            | the digest exactly as delivered                                                          |
+| `digest.title`               | string            | the push title                                                                           |
+| `digest.message`             | string            | the push message, in Pushover's HTML subset                                              |
+| `digest.text`                | string            | the full Markdown report `report` writes and logs                                        |
+
+A judgement or a result left on the volume by an earlier run is not reported as
+this run's: the judge part then reads `failed`, and `executor` is `null`.
+
+**Example.** A dry run with one of each kind of title:
+
+<!-- review-example -->
+
+```json
+{
+  "version": 2,
+  "library": "film",
+  "generated_at": "2026-09-12T08:30:00+00:00",
+  "run_id": "run-20260912T080000-a1b2c3",
+  "mode": "dry-run",
+  "blocks": [],
+  "cap": 2,
+  "next_run_at": "2026-09-19T08:00:00+00:00",
+  "going": [
+    {
+      "id": 3,
+      "title": "Marked By Hand",
+      "year": 2014,
+      "size_gb": 2.1,
+      "imdb_score": 4.6,
+      "imdb_votes": 2310,
+      "plays": 0,
+      "finished_by": 0,
+      "origin": "feed",
+      "requested_by": "",
+      "overview": "A synopsis from the metadata provider.",
+      "verdict": "delete",
+      "by": "person",
+      "reason": "Marked for deletion by a person (cleanup-eligible).",
+      "proposed_at": "2026-09-05T08:30:00+00:00",
+      "due_at": "2026-09-05T08:30:00+00:00",
+      "simulated": false,
+      "actions": ["keep"]
+    },
+    {
+      "id": 1,
+      "title": "Shark Lake 3",
+      "year": 2014,
+      "size_gb": 40.2,
+      "imdb_score": 4.6,
+      "imdb_votes": 2310,
+      "plays": 0,
+      "finished_by": 0,
+      "origin": "feed",
+      "requested_by": "",
+      "overview": "A synopsis from the metadata provider.",
+      "verdict": "delete",
+      "by": "judge",
+      "reason": "Straight-to-video sequel nobody has played.",
+      "proposed_at": "2026-09-05T08:30:00+00:00",
+      "due_at": "2026-09-11T08:30:00+00:00",
+      "simulated": false,
+      "actions": ["keep"]
+    }
+  ],
+  "later": [
+    {
+      "id": 4,
+      "title": "Late Arrival",
+      "year": 2014,
+      "size_gb": 8.5,
+      "imdb_score": 4.6,
+      "imdb_votes": 2310,
+      "plays": 0,
+      "finished_by": 0,
+      "origin": "requested",
+      "requested_by": "sam",
+      "overview": "A synopsis from the metadata provider.",
+      "verdict": "delete",
+      "by": "judge",
+      "reason": "Straight-to-video sequel nobody has played.",
+      "proposed_at": "2026-09-12T08:10:00+00:00",
+      "due_at": "2026-09-18T08:10:00+00:00",
+      "simulated": false,
+      "actions": ["keep"]
+    }
+  ],
+  "kept": [
+    {
+      "id": 2,
+      "title": "A Kept Classic",
+      "year": 2014,
+      "size_gb": 6.0,
+      "imdb_score": 4.6,
+      "imdb_votes": 2310,
+      "plays": 0,
+      "finished_by": 0,
+      "origin": "feed",
+      "requested_by": "",
+      "overview": "A synopsis from the metadata provider.",
+      "verdict": "keep",
+      "by": "judge",
+      "reason": "Cult standing; people would expect to find it.",
+      "proposed_at": "2026-09-05T08:30:00+00:00",
+      "due_at": "2026-09-11T08:30:00+00:00",
+      "simulated": false,
+      "actions": ["delete"]
+    }
+  ],
+  "needs_you": [
+    {
+      "id": 8,
+      "title": "Could Go Either Way",
+      "year": null,
+      "size_gb": 3.0,
+      "imdb_score": null,
+      "imdb_votes": null,
+      "plays": null,
+      "finished_by": null,
+      "origin": "",
+      "requested_by": "",
+      "overview": "",
+      "verdict": "review",
+      "by": "judge",
+      "reason": "Split audience.",
+      "proposed_at": "",
+      "due_at": "",
+      "simulated": false,
+      "actions": ["keep", "delete"]
+    },
+    {
+      "id": 9,
+      "title": "No Date",
+      "year": null,
+      "size_gb": 1.5,
+      "imdb_score": null,
+      "imdb_votes": null,
+      "plays": null,
+      "finished_by": null,
+      "origin": "",
+      "requested_by": "",
+      "overview": "",
+      "verdict": "review",
+      "by": "engine",
+      "reason": "record has no usable added date",
+      "proposed_at": "",
+      "due_at": "",
+      "simulated": false,
+      "actions": ["keep"]
+    }
+  ],
+  "deleted": [
+    {
+      "id": 7,
+      "title": "Gone Already",
+      "year": 2011,
+      "size_gb": 3.2,
+      "imdb_score": null,
+      "imdb_votes": null,
+      "plays": null,
+      "finished_by": null,
+      "origin": "",
+      "requested_by": "",
+      "overview": "",
+      "verdict": "delete",
+      "by": "",
+      "reason": "",
+      "proposed_at": "",
+      "due_at": "",
+      "simulated": true,
+      "actions": []
+    }
+  ],
+  "summary": {
+    "plan": {
+      "counts": {
+        "candidate": 2,
+        "missing_file": 1,
+        "not_due": 120,
+        "proposed": 3,
+        "protected": 5800,
+        "review": 1,
+        "spared": 40
+      },
+      "titles": 5967,
+      "offered": 2,
+      "deferred": 0,
+      "judge_limit": 150,
+      "proposed": 3,
+      "lapsed": 1,
+      "review": 1,
+      "missing_file": 1
+    },
+    "judge": {
+      "status": "judged",
+      "detail": "2 recommendations in 41000ms",
+      "batches": 1,
+      "failed_batches": 0,
+      "input_tokens": 48210,
+      "output_tokens": 3120,
+      "model": "claude-opus"
+    },
+    "executor": {
+      "deleted": 0,
+      "would_delete": 1,
+      "size_gb": 3.2,
+      "skipped": 1,
+      "failed": 0,
+      "uncertain": 0,
+      "deferred": 0,
+      "keep_tags_applied": 0
+    },
+    "digest": {
+      "title": "Library cleanup: 2 would go on 19 Sep",
+      "message": "<b>DRY-RUN</b> · 5,967 films · 2 candidates\n<b>2 would go on 19 Sep</b> unless you keep them",
+      "text": "# Library cleanup\n\nRun run-20260912T080000-a1b2c3 · mode dry-run\n"
+    }
+  }
+}
+```
+
+## Accepting a new baseline
+
+A blocked plan keeps the old baseline, so a real, deliberate fall in the library
+blocks every later run too. `CLEANUP_ACCEPT_BASELINE=<run ID>` names the blocked
+run whose figures a person has read and accepts: the next `plan` takes that
+run's stored snapshot as the baseline before it compares anything. A snapshot
+that could not have been a baseline is refused, and one no newer than the
+current baseline is ignored, so the setting is honoured once and is harmless to
+leave in place.
+
 ## Configuration
 
 All of it from the environment, because this repository is public and a hostname
@@ -154,7 +543,11 @@ committed here maps the private network.
 | `CLEANUP_MODE`                                                                         | `dry-run` (default) or `act`                                                |
 | `CLEANUP_SCOPE_START`                                                                  | optional ISO date; films added before it are out of scope. Unset: no limit  |
 | `CLEANUP_JUDGE_LIMIT`                                                                  | candidates `plan` offers the judge per run, largest first; default 150      |
-| `CLEANUP_MAX_DELETIONS`                                                                | deletions `execute` allows in a rolling seven days; default 30              |
+| `CLEANUP_MAX_DELETIONS`                                                                | deletions `execute` allows per run, counted over six days; default 30       |
+| `CLEANUP_GRACE_DAYS`                                                                   | days a verdict waits before `execute` acts on it; default 6                 |
+| `CLEANUP_REVIEW_URL`                                                                   | where `report` publishes the review document; unset, nothing is published   |
+| `CLEANUP_REVIEW_LINK`                                                                  | page the push opens; sent only when `CLEANUP_REVIEW_URL` is set too         |
+| `CLEANUP_ACCEPT_BASELINE`                                                              | run ID of a blocked run whose snapshot becomes the baseline; honoured once  |
 | `TAG_KEEPS_IN_DRY_RUN`                                                                 | `true` lets a dry run add the `keep` tag; deletion unaffected               |
 | `CLEANUP_RUN_ID`                                                                       | optional; generated if absent                                               |
 
@@ -166,6 +559,9 @@ committed here maps the private network.
 | `clients.py`   | Radarr / Tautulli / request-system HTTP, with result-level validation and pagination    |
 | `evidence.py`  | provenance, first-playable availability, viewing evidence                               |
 | `planner.py`   | scope, protections, the judge limit and deletion cap, anomaly detection, the allow list |
+| `proposals.py` | the review window: when a verdict stands, when it is due, what goes on record           |
+| `acting.py`    | what `execute` does around a deletion: tags, proposals, decisions, an accepted baseline |
+| `review.py`    | the review document and its summary, and publishing it signed                           |
 | `ledger.py`    | durable state in object storage                                                         |
 | `reporting.py` | the weekly digest, and its delivery                                                     |
 | `executor.py`  | recommendation validation, live re-checks, deletion, reconciliation                     |

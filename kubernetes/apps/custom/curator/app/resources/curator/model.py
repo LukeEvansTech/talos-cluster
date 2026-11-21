@@ -45,6 +45,7 @@ class Outcome(str, Enum):
     MISSING_FILE = "missing_file"  # nothing to reclaim; belongs in its own report
     REVIEW = "review"  # cannot be assessed, or the judge asked for a person
     SPARED = "spared"  # a standing keep or dismissal; nothing is asked of anyone
+    PROPOSED = "proposed"  # a verdict on record and waiting out its review window; not re-judged
     CANDIDATE = "candidate"  # eligible for Claude's judgement
     OUT_OF_SCOPE = "out_of_scope"
 
@@ -185,6 +186,12 @@ class Assessment:
     # Set when the planner reopened a dismissal because its facts changed; the executor
     # then vetoes only a dismissal added after the plan.
     reopened_dismissal: bool = False
+    # A delete a person asked for with cleanup-eligible; execute re-reads that tag before acting.
+    marked_by_person: bool = False
+    # Set once the gates have passed: what a spare or a proposal is later checked against.
+    fingerprint: str | None = None
+    # The verdict waiting on this title, when the outcome is PROPOSED.
+    proposal: dict[str, Any] | None = None
 
     def to_json(self) -> dict[str, Any]:
         """Serialise for the candidate hand-off and the run report."""
@@ -226,4 +233,6 @@ class Assessment:
             "reasons": list(self.reasons),
             "blockers": list(self.blockers),
             "protections": list(self.protections),
+            "fact_fingerprint": self.fingerprint,
+            "proposal": dict(self.proposal) if self.proposal else None,
         }
