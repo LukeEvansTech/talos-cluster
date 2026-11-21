@@ -177,7 +177,7 @@ LiteLLM `model_name` groups make the serving tier transparent to clients:
 
 The in-cluster apps below, all outside the `ai` namespace, route through LiteLLM at
 `http://litellm.ai.svc.cluster.local:4000/v1` and, except `suggestarr`, `paperless-ai` and the two curator judges, the `claude` model,
-falling back to `self-hosted` and then `openrouter/auto`. The judges call `claude-opus`, which has no fallback.
+falling back to `self-hosted` and then `openrouter/auto`. The judges' key reaches only `claude-opus`, which has no fallback.
 The model column is where to change it:
 
 | App              | Namespace | Key env var            | Model setting                                             |
@@ -192,6 +192,9 @@ The model column is where to change it:
 | `suggestarr`     | `media`   | none (AI settings)     | its AI settings                                           |
 | `curatorjudge`   | `custom`  | `ANTHROPIC_AUTH_TOKEN` | `JUDGE_MODEL` (HelmRelease); `claude-opus`, key `curator` |
 | `curatortvjudge` | `custom`  | `ANTHROPIC_AUTH_TOKEN` | `JUDGE_MODEL` (HelmRelease); `claude-opus`, key `curator` |
+
+The two judge rows are the gateway side, provisioned ahead of the judges. Until their own change moves them onto the
+`curator` key, both judges still call Anthropic directly and neither row describes a live caller.
 
 Every other key is used inside `ai` or by hand, reading its own `litellm-key-<name>` Secret.
 Scope does not stop router fallbacks, so a `self-hosted`-only key can still reach `claude`:
