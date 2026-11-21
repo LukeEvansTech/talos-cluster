@@ -1,7 +1,7 @@
 # curator
 
 The deterministic half of the weekly Radarr library cleanup. Judgement — is this
-film worth keeping? — belongs to the `curatorjudge` app next door. Everything
+film worth keeping? — belongs to the `curatorfilmjudge` app next door. Everything
 that has to be _reliable_ rather than tasteful lives here.
 
 The split exists because the two halves fail differently. A wrong judgement costs

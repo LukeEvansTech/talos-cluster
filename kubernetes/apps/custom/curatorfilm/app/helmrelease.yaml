@@ -3,17 +3,17 @@
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
-  name: curator
+  name: curatorfilm
 spec:
   interval: 1h
   chartRef:
     kind: OCIRepository
-    name: curator
+    name: curatorfilm
   values:
     controllers:
       # Assesses the library and writes cleanup-plan/plan.json; read-only, never deletes
-      # or tags. curatorjudge judges the plan half an hour later.
-      curator:
+      # or tags. curatorfilmjudge judges the plan half an hour later.
+      curatorfilm:
         type: cronjob
         cronjob:
           ttlSecondsAfterFinished: 86400
@@ -52,7 +52,7 @@ spec:
               # LEDGER_DIR selects the filesystem backend, so the ledger is snapshotted
               # with the volume.
               LEDGER_DIR: /state/ledger
-              # Set here, not on curatorjudge: the plan names the candidates the judge is
+              # Set here, not on curatorfilmjudge: the plan names the candidates the judge is
               # asked about, largest first, and defers the rest.
               CLEANUP_JUDGE_LIMIT: "150"
               # plan writes nothing either way; set so the ledger namespaces its
@@ -60,7 +60,7 @@ spec:
               CLEANUP_MODE: dry-run
             envFrom:
               - secretRef:
-                  name: curator-secret
+                  name: curatorfilm-secret
             resources:
               requests:
                 cpu: 25m
@@ -85,13 +85,13 @@ spec:
     persistence:
       code:
         type: configMap
-        name: curator-code
+        name: curatorfilm-code
         globalMounts:
           - path: /app/curator
             readOnly: true
       # Created by the volsync component from the APP substitution in ks.yaml.
       state:
-        existingClaim: curator
+        existingClaim: curatorfilm
         globalMounts:
           - path: /state
       tmp:

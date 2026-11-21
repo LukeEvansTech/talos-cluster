@@ -45,7 +45,7 @@ def _judge_script() -> Path:
     """
     here = Path(__file__).resolve()
     for parent in here.parents:
-        candidate = parent / "curatorjudge" / "app" / "resources" / "curatorjudge" / "read_verdicts.py"
+        candidate = parent / "curatorfilmjudge" / "app" / "resources" / "curatorfilmjudge" / "read_verdicts.py"
         if candidate.is_file():
             return candidate
     return here.with_name("read_verdicts-not-mounted.py")

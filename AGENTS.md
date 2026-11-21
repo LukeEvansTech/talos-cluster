@@ -244,7 +244,7 @@ through the toolbox, the read-only MCP servers. Two rules apply to how it is don
 - **Logs of a pod that is gone are in VictoriaLogs.** Failed Jobs are reaped after 24 hours and
   their pods with them, so `kubectl logs` has nothing; query LogsQL through the API proxy:
   `kubectl get --raw "/api/v1/namespaces/observability/services/victoria-logs-server:9428/proxy/select/logsql/query?query=<urlencoded>&start=<RFC3339>&limit=500"`
-  with a query such as `kubernetes.pod_namespace:media AND kubernetes.pod_name:curatorjudge-29830050* | sort by (_time)`.
+  with a query such as `kubernetes.pod_namespace:media AND kubernetes.pod_name:curatorfilmjudge-29830050* | sort by (_time)`.
 - **Uptime and alerts have read-only APIs through the same proxy.** Gatus:
   `kubectl get --raw "/api/v1/namespaces/observability/services/gatus:8080/proxy/api/v1/endpoints/statuses?page=1&pageSize=500"`
   (count `.results[-1].success`). Firing alerts:
@@ -344,7 +344,7 @@ Flag consequential, repository-specific breakage. Prefer silence over style comm
   exporter creates at that first event (LiteLLM, most Python clients). The first sample is never
   counted; also match `X unless X offset 1h`. Ask for a test in `.github/scripts/tests/prometheus/`
   that feeds the series as absent then 1.
-- A change to the `curator` engine or `curatorjudge` with no matching change to `curatortv` or
+- A change to the `curatorfilm` engine or `curatorfilmjudge` with no matching change to `curatortv` or
   `curatortvjudge`, or the reverse, unless the PR body says why the sibling differs. The TV pair
   is a fork of the film pair, and a defect in one has twice been live in the other.
 

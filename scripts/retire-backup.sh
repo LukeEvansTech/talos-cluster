@@ -92,7 +92,7 @@ fi
 claims=$(jq -R . <<<"$claims_txt" | jq -sc 'map(select(. != ""))')
 
 # Refuse before changing anything if a running controller outside these HelmReleases mounts a
-# claim: another app sharing it (curatorjudge writes to curator's) would keep writing.
+# claim: another app sharing it (curatorfilmjudge writes to curatorfilm's) would keep writing.
 foreign=$(jq -r --argjson h "$hrs_json" --argjson k "$kss_json" --argjson c "$claims" "$mine_jq"'
     .items[]
     | (.spec.template.spec // .spec.jobTemplate.spec.template.spec) as $pod

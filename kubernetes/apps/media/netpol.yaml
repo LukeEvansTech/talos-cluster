@@ -64,8 +64,8 @@ spec:
             - key: app.kubernetes.io/name
               operator: In
               values:
-                - curator
-                - curatorjudge
+                - curatorfilm
+                - curatorfilmjudge
                 - curatortv
                 - curatortvjudge
 ---

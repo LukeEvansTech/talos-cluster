@@ -21,7 +21,7 @@ spec:
             max by (job_name) (kube_job_status_failed{namespace="volsync-system", job_name=~"restoretest-.*"}) > 0
           labels:
             severity: warning
-        # Age of the last success, as CuratorPlanStale; the creation-time fallback covers a
+        # Age of the last success, as CuratorfilmPlanStale; the creation-time fallback covers a
         # CronJob that never succeeded. Weekly schedule, so 8 days means a missed run.
         - alert: VolsyncRestoreTestStale
           annotations:

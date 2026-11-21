@@ -11,11 +11,11 @@ resources:
   - ./helmrelease.yaml
   - ./prometheusrule.yaml
 configMapGenerator:
-  - name: curatorjudge-prompt
+  - name: curatorfilmjudge-prompt
     files:
-      - ./resources/curatorjudge/build_prompt.py
-      - ./resources/curatorjudge/judge.py
-      - ./resources/curatorjudge/read_verdicts.py
+      - ./resources/curatorfilmjudge/build_prompt.py
+      - ./resources/curatorfilmjudge/judge.py
+      - ./resources/curatorfilmjudge/read_verdicts.py
       - ./resources/taste.md
 generatorOptions:
   disableNameSuffixHash: true

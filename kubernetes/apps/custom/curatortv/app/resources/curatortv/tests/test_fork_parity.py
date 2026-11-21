@@ -13,8 +13,8 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent.parent
 # Globbed across namespaces, so the two engines need not share one.
 FILM = next(
-    HERE.parents[4].glob("*/curator/app/resources/curator"),
-    HERE.parents[3] / "curator" / "app" / "resources" / "curator",
+    HERE.parents[4].glob("*/curatorfilm/app/resources/curator"),
+    HERE.parents[3] / "curatorfilm" / "app" / "resources" / "curator",
 )
 # proposals and review take the id field's name as an argument, so they too are shared whole.
 SHARED = ("proposals.py", "review.py", "s3.py", "settings.py", "store.py")
@@ -36,13 +36,13 @@ class SharedModulesMatchTheFilmEngine(unittest.TestCase):
                 self.assertEqual(tv, film, f"{name} differs between curatortv and curator")
 
     def test_shared_judge_scripts_are_identical(self):
-        film_judge = FILM.parents[3] / "curatorjudge" / "app" / "resources" / "curatorjudge"
+        film_judge = FILM.parents[3] / "curatorfilmjudge" / "app" / "resources" / "curatorfilmjudge"
         tv_judge = HERE.parents[3] / "curatortvjudge" / "app" / "resources" / "curatortvjudge"
         for name in JUDGE_SHARED:
             with self.subTest(script=name):
                 tv = (tv_judge / name).read_text(encoding="utf-8")
                 film = (film_judge / name).read_text(encoding="utf-8")
-                self.assertEqual(tv, film, f"{name} differs between curatortvjudge and curatorjudge")
+                self.assertEqual(tv, film, f"{name} differs between curatortvjudge and curatorfilmjudge")
 
 
 if __name__ == "__main__":

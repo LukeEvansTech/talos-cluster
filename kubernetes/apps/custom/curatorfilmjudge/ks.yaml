@@ -3,25 +3,24 @@
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
-  name: &app curator
+  name: &app curatorfilmjudge
   namespace: &namespace custom
 spec:
   commonMetadata:
     labels:
       app.kubernetes.io/name: *app
-  components:
-    # Holds the baseline, standing decisions, the Plex crosswalk, and every deletion's
-    # intent/outcome; losing it re-litigates every settled judgement.
-    - ../../../../components/volsync
   dependsOn:
+    # Owns the volume this reads the plan from, and the ConfigMap holding the
+    # engine code this runs `execute` from.
+    - name: curatorfilm
+      namespace: *namespace
+    # The judge step calls Claude through this gateway, with a key it issues.
+    - name: litellm
+      namespace: ai
     - name: onepassword-connect
       namespace: external-secrets
   interval: 1h
-  path: ./kubernetes/apps/custom/curator/app
-  postBuild:
-    substitute:
-      APP: *app
-      VOLSYNC_CAPACITY: 2Gi
+  path: ./kubernetes/apps/custom/curatorfilmjudge/app
   prune: true
   retryInterval: 2m
   sourceRef:

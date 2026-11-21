@@ -23,7 +23,7 @@ from unittest import mock
 # The fixture suite is stdlib-only; the SDK is installed only in the judge pod.
 HAVE_SDK = importlib.util.find_spec("anthropic") is not None
 
-JUDGE_APP = "curatorjudge"
+JUDGE_APP = "curatorfilmjudge"
 ID = "movie_id"
 GROUP = "claude-opus"
 TASTE = "RULES: delete what nobody would miss."

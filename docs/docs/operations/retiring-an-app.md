@@ -56,7 +56,7 @@ just kube retire-backup <ns> <each Kustomization name in the app's ks.yaml>
 `scripts/retire-backup.sh` reads the HelmReleases each Kustomization applies from its inventory
 (`memini-models` applies `llama-embed` and `llama-rerank`) and every claim their controllers mount,
 StatefulSet claims included. It refuses if a running controller from another app mounts one of those
-claims (`curatorjudge` writes to `curator`'s): suspend or scale that writer yourself, then run it
+claims (`curatorfilmjudge` writes to `curatorfilm`'s): suspend or scale that writer yourself, then run it
 again. It then suspends the Kustomizations and HelmReleases so Flux neither reverts the manual
 trigger nor scales the app back up, deletes any `zeroscaler` HPA, scales the Deployments and
 StatefulSets to 0, suspends the CronJobs, waits until every Job and pod that mounts a claim has
