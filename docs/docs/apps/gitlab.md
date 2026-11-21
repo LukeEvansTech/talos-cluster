@@ -41,4 +41,7 @@ crash-loops behind it. Check `/var/log/gitlab/puma/current` rather than the pod 
 The pod runs as root and the Linux package sets its own file modes, so the pod has no
 `fsGroup`. With `fsGroup: 0`, every mount made the files on the PVC group-writable, so
 `/etc/gitlab/ssh_host_*_key` ended up at `0660`. sshd refuses keys that loose and restarted
-every second, logging about 1.8 million lines a day.
+every second, logging about 1.8 million lines a day. Removing `fsGroup` does not undo modes
+already on the PVC: the keys were reset once with `chmod 0600 /etc/gitlab/ssh_host_*_key`
+inside the pod on 2026-11-21, and need the same if the PVC is ever restored from an older
+backup.
