@@ -104,7 +104,7 @@ def main() -> int:
     """Write the batches, or leave a skip marker."""
     clear_stale()
     if not PLAN.is_file():
-        return skip(f"no plan at {PLAN}; did the curator job run?")
+        return skip(f"no plan at {PLAN}; did the curatorfilm job run?")
 
     try:
         plan = json.loads(PLAN.read_text(encoding="utf-8"))

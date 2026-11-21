@@ -6,7 +6,7 @@ metadata:
   name: curator
   namespace: ai
 spec:
-  # Cross-namespace key for the curatorjudge and curatortvjudge CronJobs: PushSecret mirrors it
+  # Cross-namespace key for the curatorfilmjudge and curatortvjudge CronJobs: PushSecret mirrors it
   # to the litellm 1Password item (docs/docs/architecture/ai-llm-stack.md In-cluster consumers).
   proxyRef: litellm
   keyAlias: curator

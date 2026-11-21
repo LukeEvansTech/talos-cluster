@@ -1,15 +1,17 @@
 ---
-# The curator and curatortv engines are a fork whose fixes have drifted apart, and their fixture
+# The curatorfilm and curatortv engines are a fork whose fixes have drifted apart, and their fixture
 # suites (with test_fork_parity) otherwise run only in a local pre-commit hook. Both are stdlib-only.
+# The film engine's Python package keeps the name `curator`, so each entry names its app directory
+# and its package separately.
 name: Curator Tests
 
 on:
   pull_request:
     paths:
-      - "kubernetes/apps/*/curator/app/resources/**"
+      - "kubernetes/apps/*/curatorfilm/app/resources/**"
       - "kubernetes/apps/*/curatortv/app/resources/**"
       # The suites load each judge's read_verdicts.py.
-      - "kubernetes/apps/*/curatorjudge/app/resources/**"
+      - "kubernetes/apps/*/curatorfilmjudge/app/resources/**"
       - "kubernetes/apps/*/curatortvjudge/app/resources/**"
       - ".github/workflows/curator-tests.yml"
 
@@ -18,7 +20,7 @@ permissions:
 
 jobs:
   curator-tests:
-    name: Curator engine tests
+    name: Curator engine tests (${{ matrix.app }})
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -26,18 +28,21 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        engine:
-          - curator
-          - curatortv
+        include:
+          - app: curatorfilm
+            package: curator
+          - app: curatortv
+            package: curatortv
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - name: Run the ${{ matrix.engine }} fixture suite
+      - name: Run the ${{ matrix.app }} fixture suite
         # Globbed, not a fixed namespace, so an engine can move without editing this.
         working-directory: kubernetes/apps
         env:
-          ENGINE: ${{ matrix.engine }}
-        run: cd ./*/"$ENGINE"/app/resources && python3 -m unittest discover -s "$ENGINE/tests" -t .
+          APP: ${{ matrix.app }}
+          PACKAGE: ${{ matrix.package }}
+        run: cd ./*/"$APP"/app/resources && python3 -m unittest discover -s "$PACKAGE/tests" -t .

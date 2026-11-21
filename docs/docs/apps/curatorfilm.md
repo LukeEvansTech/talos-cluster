@@ -1,14 +1,14 @@
-# Curator
+# Curatorfilm
 
 The deterministic half of the weekly Radarr library cleanup, in the `custom` namespace. Assesses
-every film and writes `cleanup-plan/plan.json`; it never deletes or changes a tag. `curatorjudge`
+every film and writes `cleanup-plan/plan.json`; it never deletes or changes a tag. `curatorfilmjudge`
 reads that plan half an hour later and supplies the taste half of the decision, and nothing it
 decides is acted on until it has waited a week in which a person can overrule it.
 
 ## Purpose
 
-The engine is a small Python app checked into `kubernetes/apps/custom/curator/app/resources/curator/`,
-shipped to both `curator` and `curatorjudge` as one ConfigMap. Its own
+The engine is a small Python app checked into `kubernetes/apps/custom/curatorfilm/app/resources/curator/`,
+shipped to both `curatorfilm` and `curatorfilmjudge` as one ConfigMap. Its own
 `app/resources/curator/README.md` is the primary design document: the eight things that are easy
 to get wrong, the first in-cluster run, and how to undo a deletion. This page covers the operational
 detail that sits above the readme: the rules in brief, the constants, the CronJob schedule, and how
@@ -103,7 +103,7 @@ them as starting points, not measured thresholds.
 
 | Constant                                      | Value                    | What it gates                                                                                                                                                                    |
 | --------------------------------------------- | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `MAX_DELETIONS_PER_RUN` (`planner.py`)        | 30                       | Deletions per run, a person's deletes first and then largest files first; `ledger.deletions_in_window` subtracts confirmed deletions inside `CAP_WINDOW_DAYS`. `CLEANUP_MAX_DELETIONS` overrides it; `curatorjudge` sets 100 while the first backlog drains. |
+| `MAX_DELETIONS_PER_RUN` (`planner.py`)        | 30                       | Deletions per run, a person's deletes first and then largest files first; `ledger.deletions_in_window` subtracts confirmed deletions inside `CAP_WINDOW_DAYS`. `CLEANUP_MAX_DELETIONS` overrides it; `curatorfilmjudge` sets 100 while the first backlog drains. |
 | `CAP_WINDOW_DAYS` (`planner.py`)              | 6                        | How far back the cap counts. A day short of the weekly schedule: last week's deletions were recorded minutes after the time this week's run counts from, so a 7-day window still held all of them and every second run deleted nothing. A second run in the same week still counts the first. |
 | `DEFAULT_GRACE_DAYS` (`proposals.py`)         | 6                        | Days a verdict waits before `execute` acts on it. A day short of the schedule for the same reason; `CLEANUP_GRACE_DAYS` overrides it.                                            |
 | `DEFAULT_JUDGE_LIMIT` (`planner.py`)          | 150                      | Candidates offered to the judge per run, largest first. `CLEANUP_JUDGE_LIMIT` overrides it.                                                                                      |
@@ -117,15 +117,15 @@ them as starting points, not measured thresholds.
 
 ## CronJob timing
 
-`curator` runs Saturdays at 08:00, `curatorjudge` at 08:30 (`app/helmrelease.yaml` in each app).
-The 30-minute gap is a fixed schedule, not a wait on completion. `curator`'s
+`curatorfilm` runs Saturdays at 08:00, `curatorfilmjudge` at 08:30 (`app/helmrelease.yaml` in each app).
+The 30-minute gap is a fixed schedule, not a wait on completion. `curatorfilm`'s
 `activeDeadlineSeconds: 1800` is sized for a cold run, which resolves every new Plex rating key in
 the identity crosswalk one at a time; a warm run (everything already cached) takes about fifteen
 seconds.
 
 ## Alerting
 
-`CuratorPlanStale` and `CuratorjudgeStale` (each app's `prometheusrule.yaml`) fire when the CronJob
+`CuratorfilmPlanStale` and `CuratorfilmjudgeStale` (each app's `prometheusrule.yaml`) fire when the CronJob
 has not succeeded in 8 days, the GickupBackupStale shape with a creation-time fallback. `execute`
 exits 9 for a week in which an offered candidate went unjudged or a verdict was rejected, 8 when a
 `keep` tag could not be confirmed, and 10 when a safety check could not be read; `report` exits 11
@@ -149,7 +149,7 @@ removed whenever convenient.
 
 ## Execute failure semantics
 
-`curatorjudge`'s CronJob (the one that runs `execute`) sets `backoffLimit: 0`. A Kubernetes Job
+`curatorfilmjudge`'s CronJob (the one that runs `execute`) sets `backoffLimit: 0`. A Kubernetes Job
 with `backoffLimit: 0` does not retry, so a non-zero exit only marks the Job failed; it never
 triggers Kubernetes itself to re-run the pipeline.
 

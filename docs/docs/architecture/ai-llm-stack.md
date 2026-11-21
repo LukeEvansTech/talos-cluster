@@ -164,7 +164,7 @@ LiteLLM `model_name` groups make the serving tier transparent to clients:
   key (`ANTHROPIC_API_KEY` in the `litellm` item) has an expiry date recorded on that item, and
   an expired key falls back to `self-hosted` silently.
 - **`claude-opus`**: Claude Opus 5.5 on the same Anthropic key and provider budget as `claude`,
-  for the library-cleanup judges (`curatorjudge`, `curatortvjudge`). It is in no `fallbacks` or
+  for the library-cleanup judges (`curatorfilmjudge`, `curatortvjudge`). It is in no `fallbacks` or
   `context_window_fallbacks` chain, as source or as target, and must stay that way: the judges
   delete on the verdict, so a spent budget, an expired key or a rejected request has to reach
   them as an error, never as another model's answer. Its per-token prices are pinned in
@@ -180,18 +180,18 @@ The in-cluster apps below, all outside the `ai` namespace, route through LiteLLM
 falling back to `self-hosted` and then `openrouter/auto`. The judges' key reaches only `claude-opus`, which has no fallback.
 The model column is where to change it:
 
-| App              | Namespace | Key env var            | Model setting                                             |
-| ---------------- | --------- | ---------------------- | --------------------------------------------------------- |
-| `subspy`         | `default` | `OPENAI_API_KEY`       | `OPENAI_MODEL` (HelmRelease)                              |
-| `jobops`         | `default` | `LLM_API_KEY`          | `MODEL` (HelmRelease), overridable in its UI              |
-| `lurcher`        | `default` | `LLM_API_KEY`          | `LLM_MODEL` (HelmRelease)                                 |
-| `paperless-ai`   | `default` | `CUSTOM_API_KEY`       | `CUSTOM_MODEL` (HelmRelease); `self-hosted`               |
-| `sakuga`         | `custom`  | `SAKUGA_LLM_KEY`       | `SAKUGA_LLM_MODEL` (HelmRelease); vision                  |
-| `sleeper`        | `default` | `SLEEPER_LLM_KEY`      | `SLEEPER_LLM_MODEL` (HelmRelease); vision                 |
-| `todoist-sort`   | `custom`  | `ANTHROPIC_API_KEY`    | `[llm] model` in `app/resources/config.toml`              |
-| `suggestarr`     | `media`   | none (AI settings)     | its AI settings                                           |
-| `curatorjudge`   | `custom`  | `ANTHROPIC_AUTH_TOKEN` | `JUDGE_MODEL` (HelmRelease); `claude-opus`, key `curator` |
-| `curatortvjudge` | `custom`  | `ANTHROPIC_AUTH_TOKEN` | `JUDGE_MODEL` (HelmRelease); `claude-opus`, key `curator` |
+| App                | Namespace | Key env var            | Model setting                                             |
+| ------------------ | --------- | ---------------------- | --------------------------------------------------------- |
+| `subspy`           | `default` | `OPENAI_API_KEY`       | `OPENAI_MODEL` (HelmRelease)                              |
+| `jobops`           | `default` | `LLM_API_KEY`          | `MODEL` (HelmRelease), overridable in its UI              |
+| `lurcher`          | `default` | `LLM_API_KEY`          | `LLM_MODEL` (HelmRelease)                                 |
+| `paperless-ai`     | `default` | `CUSTOM_API_KEY`       | `CUSTOM_MODEL` (HelmRelease); `self-hosted`               |
+| `sakuga`           | `custom`  | `SAKUGA_LLM_KEY`       | `SAKUGA_LLM_MODEL` (HelmRelease); vision                  |
+| `sleeper`          | `default` | `SLEEPER_LLM_KEY`      | `SLEEPER_LLM_MODEL` (HelmRelease); vision                 |
+| `todoist-sort`     | `custom`  | `ANTHROPIC_API_KEY`    | `[llm] model` in `app/resources/config.toml`              |
+| `suggestarr`       | `media`   | none (AI settings)     | its AI settings                                           |
+| `curatorfilmjudge` | `custom`  | `ANTHROPIC_AUTH_TOKEN` | `JUDGE_MODEL` (HelmRelease); `claude-opus`, key `curator` |
+| `curatortvjudge`   | `custom`  | `ANTHROPIC_AUTH_TOKEN` | `JUDGE_MODEL` (HelmRelease); `claude-opus`, key `curator` |
 
 Every other key is used inside `ai` or by hand, reading its own `litellm-key-<name>` Secret.
 Scope does not stop router fallbacks, so a `self-hosted`-only key can still reach `claude`:

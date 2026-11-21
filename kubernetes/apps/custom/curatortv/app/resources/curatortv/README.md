@@ -1,7 +1,7 @@
 # curatortv
 
 The deterministic half of the weekly Sonarr library cleanup, forked from the
-film engine in `kubernetes/apps/custom/curator/app/resources/curator/`. Judgement
+film engine in `kubernetes/apps/custom/curatorfilm/app/resources/curator/`. Judgement
 belongs to `curatortvjudge`. The film engine's readme is the design document for
 everything shared: what the engine decides and in what order, the fail-closed
 rules, why a zero play count has four meanings, why the identity join runs from

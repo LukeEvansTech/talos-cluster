@@ -585,7 +585,7 @@ def load_recommendations(args: argparse.Namespace, plan: dict) -> list | int:
 def execute_exit_code(result: ExecutionResult, untagged: set[int], unjudged: list[int], rejected: list[dict]) -> int:
     """The exit code for a finished execute run; the README lists each one."""
     # A failed deletion is a safe no-op to retry; an uncertain one is recorded and left,
-    # since a retry could double up on a DELETE that already landed (docs/docs/apps/curator.md).
+    # since a retry could double up on a DELETE that already landed (docs/docs/apps/curatorfilm.md).
     if result.uncertain:
         log(
             f"exiting non-zero: {len(result.uncertain)} deletion(s) could not be "

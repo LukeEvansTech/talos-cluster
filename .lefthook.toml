@@ -125,7 +125,8 @@ glob = ["*.py"]
 exclude = ["docs/**"]
 
 # No CI job runs the curator engines' fixture suites, and the two engines are a fork whose fixes
-# drift apart (test_fork_parity); both suites take under a second.
+# drift apart (test_fork_parity); both suites take under a second. Each entry is app:package, since
+# the film engine's package keeps the name `curator`.
 [pre-commit.commands.test-curator-engines]
-run = "for d in curator curatortv; do (cd kubernetes/apps/*/$d/app/resources && mise x -- python3 -m unittest discover -q -s $d/tests -t .) || exit 1; done"
-glob = ["kubernetes/apps/*/curator/app/resources/**/*.py", "kubernetes/apps/*/curatortv/app/resources/**/*.py", "kubernetes/apps/*/curatorjudge/app/resources/**/*.py", "kubernetes/apps/*/curatortvjudge/app/resources/**/*.py"]
+run = "for d in curatorfilm:curator curatortv:curatortv; do (cd kubernetes/apps/*/${d%%:*}/app/resources && mise x -- python3 -m unittest discover -q -s ${d#*:}/tests -t .) || exit 1; done"
+glob = ["kubernetes/apps/*/curatorfilm/app/resources/**/*.py", "kubernetes/apps/*/curatortv/app/resources/**/*.py", "kubernetes/apps/*/curatorfilmjudge/app/resources/**/*.py", "kubernetes/apps/*/curatortvjudge/app/resources/**/*.py"]

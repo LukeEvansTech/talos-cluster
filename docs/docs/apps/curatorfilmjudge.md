@@ -1,9 +1,9 @@
-# Curatorjudge
+# Curatorfilmjudge
 
 The taste half of the weekly Radarr library cleanup, in the `custom` namespace. Reads the plan
-`curator` left on the shared volume, asks Claude which candidates are worth keeping, and puts
+`curatorfilm` left on the shared volume, asks Claude which candidates are worth keeping, and puts
 each verdict on record to wait out a review window; it then carries out the verdicts from earlier
-runs whose wait is over and that the engine still agrees with. `curator`'s own
+runs whose wait is over and that the engine still agrees with. `curatorfilm`'s own
 `app/resources/curator/README.md` covers the engine side; this page covers the judge's own
 CronJob, its trust boundary, and how a failed run is meant to be read.
 
@@ -31,7 +31,7 @@ independently re-clears; it cannot forge a candidate, bypass a protection, or re
 directly. A `keep` is the one answer with a lasting effect of its own: once its wait is over it
 becomes a `keep` tag in `act` mode, so both `keep` and `delete` need a reason of at least 12
 characters. Neither is acted on in the run that gives it; see
-[the review window](curator.md#the-review-window).
+[the review window](curatorfilm.md#the-review-window).
 
 ## The judge never sees the state volume
 
@@ -136,12 +136,12 @@ staleness alert is not reset.
 
 ## Limits and deferral
 
-| Setting                 | Where it is set          | Value | Effect                                                        |
-| ----------------------- | ------------------------ | ----- | ------------------------------------------------------------- |
-| `CLEANUP_JUDGE_LIMIT`   | `curator` (the planner)  | 150   | Candidates offered to the judge per run, largest first.       |
-| `CLEANUP_JUDGE_BATCH`   | `curatorjudge`, `prompt` | 50    | Candidates per request.                                       |
-| `CLEANUP_MAX_DELETIONS` | `curatorjudge`, `app`    | 100   | Deletions per weekly run; the engine's default is 30.         |
-| `CLEANUP_GRACE_DAYS`    | `curatorjudge`, `app`    | 6     | Days a verdict waits before `execute` acts on it.             |
+| Setting                 | Where it is set              | Value | Effect                                                  |
+| ----------------------- | ---------------------------- | ----- | ------------------------------------------------------- |
+| `CLEANUP_JUDGE_LIMIT`   | `curatorfilm` (the planner)  | 150   | Candidates offered to the judge per run, largest first. |
+| `CLEANUP_JUDGE_BATCH`   | `curatorfilmjudge`, `prompt` | 50    | Candidates per request.                                 |
+| `CLEANUP_MAX_DELETIONS` | `curatorfilmjudge`, `app`    | 100   | Deletions per weekly run; the engine's default is 30.   |
+| `CLEANUP_GRACE_DAYS`    | `curatorfilmjudge`, `app`    | 6     | Days a verdict waits before `execute` acts on it.       |
 
 The judge limit is applied where the plan is written, not here: `plan.json` lists the offered
 candidates as `candidates` and the rest as `judge_deferred`. A deferred candidate is not an
@@ -162,7 +162,7 @@ this step already holds; the push then links to `CLEANUP_REVIEW_LINK` when that 
 the `chaski` route's `url` parameter, which is left off the notification when the digest names no
 link. A receiver that did not take the document is named in the digest and makes `report` exit 11.
 With `CLEANUP_REVIEW_URL` unset, as in this manifest, nothing is sent and the digest mentions no
-page. The contract is in [Curator](curator.md#the-review-document) and the engine's README.
+page. The contract is in [Curatorfilm](curatorfilm.md#the-review-document) and the engine's README.
 
 ## Never retry: `backoffLimit: 0`
 
@@ -177,7 +177,7 @@ records it and leaves it rather than re-issuing the DELETE.
 ## The gateway key
 
 The judge's only credential is a LiteLLM virtual key, scoped to the `claude-opus` group and
-mirrored to the `litellm` 1Password item as `LITELLM_CURATOR_API_KEY`. The `curatorjudge-gateway`
+mirrored to the `litellm` 1Password item as `LITELLM_CURATOR_API_KEY`. The `curatorfilmjudge-gateway`
 `ExternalSecret` templates it into its own Secret as `ANTHROPIC_AUTH_TOKEN`; nothing else is in
 that Secret. The key and the model group are declared with the gateway, under
 `kubernetes/apps/ai/`, and the Flux Kustomization depends on `litellm` for that reason. See

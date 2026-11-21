@@ -11,9 +11,9 @@ resources:
   - ./helmrelease.yaml
   - ./prometheusrule.yaml
 configMapGenerator:
-  # Mounted at /app/curator as `python3 -m curator`; curatorjudge mounts the same
+  # Mounted at /app/curator as `python3 -m curator`; curatorfilmjudge mounts the same
   # ConfigMap to run `execute`, so the name is fixed rather than hashed. Tests aren't shipped.
-  - name: curator-code
+  - name: curatorfilm-code
     files:
       - ./resources/curator/__init__.py
       - ./resources/curator/__main__.py

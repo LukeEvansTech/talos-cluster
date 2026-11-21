@@ -3,29 +3,29 @@
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
-  name: curatorjudge
+  name: curatorfilmjudge
 spec:
   interval: 1h
   chartRef:
     kind: OCIRepository
-    name: curatorjudge
+    name: curatorfilmjudge
   values:
     controllers:
       # Three steps (prompt, ask, act) keep the least-trusted part of the pipeline small: only
       # 'ask' talks to Claude, holding no credential but the gateway key. The executor re-checks
       # every protection live, so a hostile answer can only choose among films already cleared.
-      curatorjudge:
+      curatorfilmjudge:
         type: cronjob
         cronjob:
           ttlSecondsAfterFinished: 86400
-          # Half an hour after curator, which needs a couple of minutes cold.
+          # Half an hour after curatorfilm, which needs a couple of minutes cold.
           schedule: "30 8 * * 6"
           timeZone: "${TIMEZONE}"
           concurrencyPolicy: Forbid
           successfulJobsHistory: 3
           failedJobsHistory: 3
           # Never retry: this pipeline ends in DELETEs, and a retry would re-run judgement against
-          # an already-acted plan (docs/docs/apps/curatorjudge.md).
+          # an already-acted plan (docs/docs/apps/curatorfilmjudge.md).
           backoffLimit: 0
           activeDeadlineSeconds: 3600
         pod:
@@ -105,7 +105,7 @@ spec:
               HOME: /tmp/home
             envFrom:
               - secretRef:
-                  name: curatorjudge-gateway
+                  name: curatorfilmjudge-gateway
             resources:
               requests:
                 cpu: 50m
@@ -156,7 +156,7 @@ spec:
               # Days a verdict waits, as a proposal a person can still overrule with a tag, before
               # execute acts on it; six, so it is due at the next weekly run.
               CLEANUP_GRACE_DAYS: "6"
-              # Must match curator's mode (ledger namespaces dry-run state separately); --read-only
+              # Must match curatorfilm's mode (ledger namespaces dry-run state separately); --read-only
               # above enforces the same rule independently, so acting needs two deliberate edits.
               CLEANUP_MODE: dry-run
               # Fans out to Pushover. The route verifies its own token, which
@@ -164,7 +164,7 @@ spec:
               CLEANUP_WEBHOOK_URL: http://chaski.default.svc.cluster.local:8080/hooks/library-cleanup
             envFrom:
               - secretRef:
-                  name: curatorjudge-secret
+                  name: curatorfilmjudge-secret
             resources: *small
             securityContext: *hardened
     defaultPodOptions:
@@ -179,15 +179,15 @@ spec:
     persistence:
       prompt:
         type: configMap
-        name: curatorjudge-prompt
+        name: curatorfilmjudge-prompt
         defaultMode: 0555
         globalMounts:
           - path: /prompt
             readOnly: true
-      # Owned by the curator app; mounted here to run execute.
+      # Owned by the curatorfilm app; mounted here to run execute.
       code:
         type: configMap
-        name: curator-code
+        name: curatorfilm-code
         globalMounts:
           - path: /app/curator
             readOnly: true
@@ -195,9 +195,9 @@ spec:
       # could rewrite plan.json to add a protected film to `candidates`, which the executor's live
       # re-checks don't cover; the prompt builder gets it read-only, only the executor writes.
       state:
-        existingClaim: curator
+        existingClaim: curatorfilm
         advancedMounts:
-          curatorjudge:
+          curatorfilmjudge:
             prompt:
               - path: /state
                 readOnly: true

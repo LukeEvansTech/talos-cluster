@@ -1,15 +1,15 @@
 # Curatortv
 
 The deterministic half of the weekly Sonarr library cleanup, in the `custom` namespace. A fork of
-[Curator](curator.md) with TV semantics: it assesses every series and writes `cleanup-plan/plan.json`
+[Curatorfilm](curatorfilm.md) with TV semantics: it assesses every series and writes `cleanup-plan/plan.json`
 on its own volume, and `curatortvjudge` reads that plan half an hour later. The shared design
 (fail-closed sources, the identity join, per-deletion re-checks, execute failure semantics) is on
-the [Curator](curator.md) page and in the film engine's README; this page covers what differs.
+the [Curatorfilm](curatorfilm.md) page and in the film engine's README; this page covers what differs.
 
 The engine lives in `kubernetes/apps/custom/curatortv/app/resources/curatortv/`, shipped as the
 `curatortv-code` ConfigMap. Its `README.md` is the design note for the TV differences.
 
-## What differs from Curator
+## What differs from Curatorfilm
 
 - **Unit of deletion:** a whole series, keyed `series_id` in the plan, recommendations, ledger and
   judge prompt. The delete adds an import-list exclusion keyed on TVDB id.
@@ -39,7 +39,7 @@ The engine lives in `kubernetes/apps/custom/curatortv/app/resources/curatortv/`,
   dry run, so Reclaimerr (which spares anything tagged `keep`) sees them. Deletion stays
   impossible. See [Curatortvjudge](curatortvjudge.md).
 - **The review window:** the same as for films (see
-  [Curator](curator.md#the-review-window)), with proposals keyed `series_id`. A series'
+  [Curatorfilm](curatorfilm.md#the-review-window)), with proposals keyed `series_id`. A series'
   fingerprint has its season count where a film's has its collection, so a new season ends a
   proposal and the series is judged again. `CLEANUP_ACCEPT_BASELINE` works the same way too.
 
@@ -68,4 +68,4 @@ Uncalibrated starting points, like the film engine's.
 
 `CuratortvPlanStale` and `CuratortvjudgeStale` (each app's `prometheusrule.yaml`) fire when the
 CronJob has not succeeded in 8 days, the GickupBackupStale shape with a creation-time fallback. The
-film pair has the same alerts, `CuratorPlanStale` and `CuratorjudgeStale`.
+film pair has the same alerts, `CuratorfilmPlanStale` and `CuratorfilmjudgeStale`.

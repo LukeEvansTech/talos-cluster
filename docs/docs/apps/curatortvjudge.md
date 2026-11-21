@@ -1,13 +1,13 @@
 # Curatortvjudge
 
 The taste half of the weekly Sonarr library cleanup, in the `custom` namespace. It is
-[Curatorjudge](curatorjudge.md) pointed at the TV engine: the same three steps (`prompt`, `judge`,
+[Curatorfilmjudge](curatorfilmjudge.md) pointed at the TV engine: the same three steps (`prompt`, `judge`,
 `app`), the same `judge.py` and `read_verdicts.py`, the same hardening, `backoffLimit: 0`, a judge
 that never mounts the state volume, and an executor run with `--read-only` and
 `CLEANUP_MODE: dry-run`. Read that page for the request to the gateway, the files between the
 steps, the trust boundary and the failure semantics; this page covers what differs.
 
-## What differs from Curatorjudge
+## What differs from Curatorfilmjudge
 
 - **Inputs:** reads the plan from the `curatortv` volume and runs `python3 -m curatortv` from the
   `curatortv-code` ConfigMap.
@@ -25,7 +25,7 @@ steps, the trust boundary and the failure semantics; this page covers what diffe
 - **Review document:** built from the series proposals as the `tv` library. Like the film
   judge's, it is published only when `CLEANUP_REVIEW_URL` is set, to `/publish/tv` signed with the
   Sonarr API key, and this manifest does not set it.
-- **Digest:** same webhook as Curatorjudge; every title starts `TV cleanup` so the two are
+- **Digest:** same webhook as Curatorfilmjudge; every title starts `TV cleanup` so the two are
   distinguishable on the phone.
 
 ## Keep tags are written in a dry run

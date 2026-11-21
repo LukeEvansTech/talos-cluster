@@ -17,7 +17,7 @@ spec:
         type: cronjob
         cronjob:
           ttlSecondsAfterFinished: 86400
-          # An hour after curator, so the two never walk Tautulli's history at once.
+          # An hour after curatorfilm, so the two never walk Tautulli's history at once.
           schedule: "0 9 * * 6"
           timeZone: "${TIMEZONE}"
           concurrencyPolicy: Forbid
