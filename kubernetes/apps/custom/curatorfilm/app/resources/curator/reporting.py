@@ -207,7 +207,7 @@ def _window_lines(review: dict | None, result: dict | None, unpublished: str | N
         *_proposal_lines(going),
         f"Waiting their turn or not yet due: {len(later)}",
         *_proposal_lines(later),
-        f"Being kept, tagged when their wait is over: {len(kept)}",
+        f"Being kept for a year once their wait is over: {len(kept)}",
         *_proposal_lines(kept),
     ]
     if made:
@@ -283,16 +283,19 @@ def _execution_lines(result: dict | None) -> list[str]:
 
 
 def _judge_keep_lines(result: dict | None) -> list[str]:
-    """The keep tags the judge's verdicts added, which outlive the run."""
-    tagged = (result or {}).get("judge_keeps_tagged") or {}
-    if not (tagged.get("requested") or tagged.get("withdrawn")):
+    """The judge's keeps that fell due: each is kept for a year, then judged again. No tag is written."""
+    kept = (result or {}).get("judge_keeps") or {}
+    vetoed, left = len(kept.get("vetoed") or []), len(kept.get("left_for_person") or [])
+    if not (kept.get("due") or vetoed or left):
         return []
-    return [
-        f"## Keep tag from the judge: {tagged.get('requested', 0)} requested, "
-        f"{tagged.get('applied', 0)} applied, {tagged.get('withdrawn', 0)} withdrawn",
-        f"{tagged.get('note', '')}".strip(),
-        "",
-    ]
+    lines = [f"## Kept for a year by the judge: {kept.get('kept', 0)} of {kept.get('due', 0)} due"]
+    if kept.get("kept"):
+        lines.append(f"Judged again after {kept.get('kept_until')}, or sooner if a fact changes; no tag is written.")
+    if vetoed:
+        lines.append(f"{vetoed} already kept for good by a tag; their proposals closed.")
+    if left:
+        lines.append(f"{left} marked cleanup-eligible by a person, whose delete replaces the keep.")
+    return [*lines, ""]
 
 
 def _problems(
@@ -323,9 +326,7 @@ def _problems(
         problems.append(
             f"{unavailable} deletion{'s' if unavailable != 1 else ''} skipped: a safety check was unavailable"
         )
-    untagged = sum(
-        len((result.get(key) or {}).get("unconfirmed") or []) for key in ("keep_tags_added", "judge_keeps_tagged")
-    )
+    untagged = len((result.get("keep_tags_added") or {}).get("unconfirmed") or [])
     if untagged:
         problems.append(f"{untagged} keep tag{'s' if untagged != 1 else ''} not confirmed")
     unjudged = len(result.get("unjudged") or [])

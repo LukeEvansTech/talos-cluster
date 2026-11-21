@@ -25,30 +25,31 @@ python3 -m curator.provision                      # show provenance-tag changes
 `plan` changes nothing in Radarr, and `report` changes nothing at all; it
 publishes a review document only when a receiver is configured. `execute` is the only command that can change the library. It
 deletes only when `CLEANUP_MODE=act`; in `dry-run` it re-validates every
-safeguard, records its intent, and stops short of the call. It adds the `keep`
-tag in `act` mode, and in a dry run only when `TAG_KEEPS_IN_DRY_RUN=true`.
+safeguard, records its intent, and stops short of the call. It adds the rating
+bar's `keep` tag in `act` mode, and in a dry run only when
+`TAG_KEEPS_IN_DRY_RUN=true`. A judge's keep never becomes a tag.
 
 ## What the engine decides
 
 Every film in the library is assessed; there is no cut-off date unless
 `CLEANUP_SCOPE_START` sets one. Each film gets one outcome:
 
-| Outcome        | Meaning                                                                          |
-| -------------- | -------------------------------------------------------------------------------- |
-| `protected`    | a protection below applies; never offered to the judge                           |
-| `out_of_scope` | not released, or added before a boundary that has been set                       |
-| `missing_file` | nothing on disk to reclaim                                                       |
-| `not_due`      | still inside its viewing window                                                  |
-| `review`       | the engine could not assess it, or the judge asked for a person                  |
-| `spared`       | a standing decision not to delete: an earlier judge keep, or `cleanup-dismissed` |
-| `proposed`     | a verdict is on record and waiting out its review window; not judged again       |
-| `candidate`    | past its window, unprotected, with play history that can be trusted              |
+| Outcome        | Meaning                                                                        |
+| -------------- | ------------------------------------------------------------------------------ |
+| `protected`    | a protection below applies; never offered to the judge                         |
+| `out_of_scope` | not released, or added before a boundary that has been set                     |
+| `missing_file` | nothing on disk to reclaim                                                     |
+| `not_due`      | still inside its viewing window                                                |
+| `review`       | the engine could not assess it, or the judge asked for a person                |
+| `spared`       | a standing decision not to delete: a year's judge keep, or `cleanup-dismissed` |
+| `proposed`     | a verdict is on record and waiting out its review window; not judged again     |
+| `candidate`    | past its window, unprotected, with play history that can be trusted            |
 
 **Protections, in this order.**
 
 1. The allow list: the tags `keep`, `cleanup-keep` and the legacy `keep-review`.
-   `keep` is applied by the rating bar and by every keep the judge hands down;
-   `cleanup-keep` only by a person.
+   `keep` is applied by the rating bar (and was applied by the judge before
+   judge keeps became one-year decisions); `cleanup-keep` only by a person.
 2. The rating bar: IMDb 6.5 or higher on 5,000 or more votes. The
    `cleanup-eligible` tag switches the bar off for one film: it is a person's
    delete (below), and it also keeps the `keep` tag off the film.
@@ -94,11 +95,23 @@ until a person acts or the decision lapses.
 and `execute` acts on it once it is due, provided the ledger holds the same
 verdict the plan lists. A due `delete` goes through every live re-check and is
 deleted, a person's deletes first and then largest first, up to
-`CLEANUP_MAX_DELETIONS` a run. A due `keep` gets the `keep` tag, so the film
-joins the allow list for good; the tag is confirmed by re-reading, and a keep
-whose tag did not land stays a proposal, so it is tried again next run and the
-run exits non-zero. A dry run deletes nothing, so its proposals stay on record
-under the `dry-run/` prefix and are reported again each week.
+`CLEANUP_MAX_DELETIONS` a run. A due `keep` writes no tag: it becomes a stored
+decision (`spared`, with `kept_until` and `reconsider_after` set
+`CLEANUP_KEEP_DAYS` ahead, 365 by default) carrying the fact fingerprint, so the
+film is not judged again until that date, or until a fact it rested on changes.
+A due keep on a film a person has since tagged `cleanup-keep` (or that carries
+`keep` or `keep-review`) closes with no decision, since the tag already keeps it
+for good; one tagged `cleanup-eligible` is left for that person's delete. A dry
+run deletes nothing, so its due deletes stay on record under the `dry-run/`
+prefix and are reported again each week; a due keep closes into a `dry-run/`
+decision as it would in `act` mode.
+
+**Three tiers of keeping.** Keep for good is a person (`cleanup-keep`), the
+rating bar, or an existing `keep` tag: never judged again. Keep for a year is
+the judge's keep: judged again after `CLEANUP_KEEP_DAYS`, with that year's plays.
+Everything else goes through the weekly cycle. The judge never grants for good;
+during the review week a person can promote its keep (`cleanup-keep`) or overrule
+it (`cleanup-eligible`).
 
 **When a proposal lapses.** It stands only while the film would otherwise still
 be a candidate and its fact fingerprint and play count are unchanged. A
@@ -118,11 +131,9 @@ cannot be trusted, or any live re-check; beside `cleanup-dismissed`, the
 dismissal wins. Taking the tag off withdraws it, up to the moment of deletion:
 `execute` re-reads the tag in its last live check of each title a person marked.
 
-No `keep` tag, from the rating bar or from the judge, is ever put on a film
-carrying `cleanup-eligible`, `cleanup-dismissed` or `keep-review`: those are a
-person's decision, and `keep` would overrule it. A judge keep on such a film is
-recorded as a decision that lapses after 180 days or when a fact changes, and
-nothing more.
+The rating bar never puts `keep` on a film carrying `cleanup-eligible`,
+`cleanup-dismissed` or `keep-review`: those are a person's decision, and `keep`
+would overrule it.
 
 ## Exit codes
 
@@ -137,7 +148,7 @@ non-zero code and still sends the digest.
 | 4    | a deletion failed or could not be confirmed                        |
 | 5    | refused: `--read-only` in act mode, or a stale or wrong-mode plan  |
 | 7    | the recommendations were judged against a different plan           |
-| 8    | a `keep` tag could not be confirmed on re-read                     |
+| 8    | a rating-bar `keep` tag could not be confirmed on re-read          |
 | 9    | an offered candidate came back unjudged, or a verdict was rejected |
 | 10   | a deletion was skipped because a safety check could not be read    |
 
@@ -231,7 +242,7 @@ API key the engine signs nothing and the publish fails.
 | `next_run_at`  | string          | ISO 8601 UTC time of the next weekly run: seven days after this run's plan, or after now |
 | `going`        | array of title  | due deletes the next run takes, in its order (a person's first, then largest), to `cap`  |
 | `later`        | array of title  | deletes past the cap, then deletes not due by the next run, largest first                |
-| `kept`         | array of title  | keep proposals, largest first; each is tagged `keep` once due                            |
+| `kept`         | array of title  | keep proposals, largest first; each is kept for a year once due                          |
 | `needs_you`    | array of title  | what the engine could not assess and the judge's `review` verdicts, largest first        |
 | `deleted`      | array of title  | this run's deletions, or would-be deletions in a dry run                                 |
 | `summary`      | object          | how the run went (version 2; below)                                                      |
@@ -262,7 +273,8 @@ providers and from a model: treat them as untrusted and escape them on display.
 | `simulated`    | boolean         | `true` only on a `deleted` entry from a dry run                                         |
 | `actions`      | array of string | what a receiver may offer: `keep` adds `cleanup-keep`, `delete` adds `cleanup-eligible` |
 
-`actions` is `["keep"]` on a delete proposal, `["delete"]` on a keep proposal,
+`actions` is `["keep"]` on a delete proposal, `["keep", "delete"]` on a keep
+proposal (the judge's keep lasts a year, so `keep` there is Keep forever),
 `["keep", "delete"]` on a judge's `review`, `["keep"]` on a title the engine
 could not assess (`cleanup-eligible` does not override the check that stopped
 it), and empty on a `deleted` entry.
@@ -297,7 +309,7 @@ it), and empty on a `deleted` entry.
 | `executor.failed`            | integer           | deletions the service refused                                                            |
 | `executor.uncertain`         | integer           | deletions whose outcome could not be confirmed                                           |
 | `executor.deferred`          | integer           | due deletes held back by the cap                                                         |
-| `executor.keep_tags_applied` | integer           | `keep` tags confirmed this run, from the rating bar and from due judge keeps             |
+| `executor.keep_tags_applied` | integer           | rating-bar `keep` tags confirmed this run; a judge's keep is a decision, not a tag       |
 | `digest`                     | object            | the digest exactly as delivered                                                          |
 | `digest.title`               | string            | the push title                                                                           |
 | `digest.message`             | string            | the push message, in Pushover's HTML subset                                              |
@@ -403,7 +415,7 @@ this run's: the judge part then reads `failed`, and `executor` is `null`.
       "proposed_at": "2026-09-05T08:30:00+00:00",
       "due_at": "2026-09-11T08:30:00+00:00",
       "simulated": false,
-      "actions": ["delete"]
+      "actions": ["keep", "delete"]
     }
   ],
   "needs_you": [
@@ -546,10 +558,11 @@ committed here maps the private network.
 | `CLEANUP_JUDGE_LIMIT`                                                                  | candidates `plan` offers the judge per run, largest first; default 150      |
 | `CLEANUP_MAX_DELETIONS`                                                                | deletions `execute` allows per run, counted over six days; default 30       |
 | `CLEANUP_GRACE_DAYS`                                                                   | days a verdict waits before `execute` acts on it; default 6                 |
+| `CLEANUP_KEEP_DAYS`                                                                    | days a judge's due keep spares a film before re-judging; default 365        |
 | `CLEANUP_REVIEW_URL`                                                                   | where `report` publishes the review document; unset, nothing is published   |
 | `CLEANUP_REVIEW_LINK`                                                                  | page the push opens; sent only when `CLEANUP_REVIEW_URL` is set too         |
 | `CLEANUP_ACCEPT_BASELINE`                                                              | run ID of a blocked run whose snapshot becomes the baseline; honoured once  |
-| `TAG_KEEPS_IN_DRY_RUN`                                                                 | `true` lets a dry run add the `keep` tag; deletion unaffected               |
+| `TAG_KEEPS_IN_DRY_RUN`                                                                 | `true` lets a dry run add the rating bar's `keep` tag; deletion unaffected  |
 | `CLEANUP_RUN_ID`                                                                       | optional; generated if absent                                               |
 
 ## What each module is responsible for
@@ -596,8 +609,8 @@ the import lists.
 **An outage is not an answer.** A request system that is configured and does not
 respond blocks the run rather than degrading it. An empty request set reads
 exactly like "nobody asked for any of this", so the judge would be told the
-wrong origin for every requested film, and a keep it hands down on that is a
-permanent tag. Execution cannot make up for it either: it only re-reads requests
+wrong origin for every requested film, and a keep it hands down on that spares
+the film for a year. Execution cannot make up for it either: it only re-reads requests
 made _since_ the plan. The same rule is why a `get_metadata`
 timeout is now raised rather than returned as "no such item": swallowed, it let
 the active-session check quietly drop the film somebody was watching. The

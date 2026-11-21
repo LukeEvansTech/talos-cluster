@@ -1,5 +1,8 @@
 """The bookkeeping a run does around its deletions: tags, proposals and decisions.
 
+Only the rating bar writes the ``keep`` tag. A judge's keep becomes a decision
+that spares the film for a year (``settle_keeps``); only a person keeps for good.
+
 Apart from the command-line module so both stay readable. Nothing here deletes;
 ``executor`` does that, after re-checking each title against live state.
 """
@@ -7,7 +10,7 @@ Apart from the command-line module so both stay readable. Nothing here deletes;
 from __future__ import annotations
 
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from . import proposals
@@ -16,6 +19,7 @@ from .ledger import Ledger
 from .model import (
     TAG_HUMAN_ELIGIBLE,
     TAG_KEEP,
+    VETO_TAGS,
     Assessment,
     Availability,
     Completion,
@@ -108,7 +112,7 @@ def apply_keep_tags(  # pylint: disable=too-many-arguments
     tag_labels: dict[int, str] | None = None,
     tag_in_dry_run: bool = False,
 ) -> dict[str, Any]:
-    """Give the permanent ``keep`` tag to films that have earned it.
+    """Give the ``keep`` tag to films the rating bar protects.
 
     Add-only. The editor endpoint answers 202, meaning queued and nothing more,
     so each tag is confirmed by re-reading rather than assumed.
@@ -260,30 +264,7 @@ def record_verdicts(  # pylint: disable=too-many-arguments,too-many-positional-a
     return escalated, recorded
 
 
-def _closes_untagged(item) -> bool:
-    """A due keep that will never be tagged, and should close as a spare instead.
-
-    ``cleanup-dismissed``, ``keep-review`` or an existing ``keep`` stops the tag for
-    good. ``cleanup-eligible`` does too, but that title's proposal is replaced by
-    the person's delete at the next plan, so it is left for that.
-    """
-    return not keep_tag_applies(item) and TAG_HUMAN_ELIGIBLE not in item.tags
-
-
-def _settled(tagged: dict[str, Any], due: dict[int, dict], live: dict[int, dict], closes) -> list[int]:
-    """The due keeps whose proposal closes this run: tagged and confirmed, or never to be tagged.
-
-    Waiting for a tag that is never applied would hold a proposal open for good,
-    so such a keep closes as a recorded spare, which lapses after the usual 180
-    days or when a fact changes. ``tagged`` gains the count.
-    """
-    suppressed = sorted(ident for ident in due if ident in live and closes(live[ident]))
-    tagged["settled_untagged"] = len(suppressed)
-    return sorted(set(tagged.get("confirmed") or []) | set(suppressed))
-
-
 def settle_keeps(  # pylint: disable=too-many-arguments,too-many-positional-arguments
-    radarr: Radarr,
     entries: list[dict],
     standing: dict[int, dict],
     movies: dict[int, dict],
@@ -291,38 +272,56 @@ def settle_keeps(  # pylint: disable=too-many-arguments,too-many-positional-argu
     monitored: set[int],
     ledger: Ledger,
     run_id: str,
-    tag_in_dry_run: bool = False,
+    keep_days: int = proposals.DEFAULT_KEEP_DAYS,
 ) -> dict[str, Any]:
-    """Give the due keeps their tag, and close each proposal whose tag is confirmed.
+    """Close each due keep as a stored decision that spares the film for ``keep_days``.
 
-    A keep the judge handed down joins the allow list only now, a review window
-    after the verdict. One whose tag did not land stays a proposal, so the next
-    run tries again rather than treating it as settled.
+    The judge never grants forever: no tag is written, so the film is judged again
+    once the decision's date passes, or sooner when a fact it rested on changes.
+    Each film is re-read first. A veto tag (``cleanup-keep``, ``keep``,
+    ``keep-review``) already holds it for good, so its proposal closes with no
+    decision. ``cleanup-eligible`` is a person's delete, which replaces the
+    proposal at the next plan, so that one is left for it.
     """
     due = {entry["movie_id"]: entry for entry in entries if proposals.backed(entry, standing.get(entry["movie_id"]))}
-    tagged = apply_keep_tags(
-        radarr,
-        [{"movie_id": movie_id} for movie_id in due],
-        ledger.dry_run,
-        live=movies,
-        tag_labels=tag_labels,
-        tag_in_dry_run=tag_in_dry_run,
-    )
     now = datetime.now(timezone.utc)
-    for movie_id in _settled(tagged, due, movies, lambda record: _closes_untagged(to_film(record, tag_labels))):
-        film = to_film(movies[movie_id], tag_labels)
-        ledger.write_decision(
-            build_decision_record(
-                rehydrate(due[movie_id], film),
-                verdict=VERDICT_SPARED,
-                reason=str(due[movie_id]["proposal"].get("reason") or ""),
-                run_id=run_id,
-                now=now,
-                monitored=bool(film.tmdb_id and film.tmdb_id in monitored),
-            )
+    kept: list[int] = []
+    vetoed: list[int] = []
+    left: list[int] = []
+    for movie_id, entry in sorted(due.items()):
+        record = movies.get(movie_id)
+        if record is None:
+            # The next plan finds it gone and lapses the proposal.
+            continue
+        film = to_film(record, tag_labels)
+        if film.tags & VETO_TAGS:
+            vetoed.append(movie_id)
+            ledger.delete_proposal(movie_id)
+            continue
+        if TAG_HUMAN_ELIGIBLE in film.tags:
+            left.append(movie_id)
+            continue
+        decision = build_decision_record(
+            rehydrate(entry, film),
+            verdict=VERDICT_SPARED,
+            reason=str(entry["proposal"].get("reason") or ""),
+            run_id=run_id,
+            now=now,
+            monitored=bool(film.tmdb_id and film.tmdb_id in monitored),
+            reconsider_days=keep_days,
         )
+        ledger.write_decision({**decision, "kept_until": decision["reconsider_after"]})
         ledger.delete_proposal(movie_id)
-    return tagged
+        kept.append(movie_id)
+    return {
+        "due": len(due),
+        "kept": len(kept),
+        "kept_ids": kept,
+        "kept_until": (now + timedelta(days=keep_days)).date().isoformat() if kept else None,
+        "keep_days": keep_days,
+        "vetoed": vetoed,
+        "left_for_person": left,
+    }
 
 
 def due_deletes(

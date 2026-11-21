@@ -85,8 +85,12 @@ def _item(item_id: int, facts: dict, detail: dict) -> dict[str, Any]:
 
 
 def _proposal_item(record: dict, id_key: str) -> dict[str, Any]:
-    """A stored proposal. A delete can be kept; a keep can be deleted instead."""
-    actions = [ACT_KEEP] if record.get("verdict") == proposals.DELETE else [ACT_DELETE]
+    """A stored proposal. A delete can be kept; a keep can be kept for good or deleted instead.
+
+    The judge's keep lasts a year, so ``keep`` on a kept title promotes it to
+    ``cleanup-keep``, which is for good.
+    """
+    actions = [ACT_KEEP] if record.get("verdict") == proposals.DELETE else [ACT_KEEP, ACT_DELETE]
     facts = {**(record.get("entry") or {}), "title": record.get("title") or (record.get("entry") or {}).get("title")}
     return _item(record[id_key], facts, {**record, "actions": actions})
 
@@ -177,10 +181,9 @@ def _executor_summary(result: dict | None) -> dict[str, Any] | None:
     if result is None:
         return None
     deleted = [item for item in result.get("deleted") or [] if isinstance(item, dict)]
-    tagged = 0
-    for key in ("keep_tags_added", "judge_keeps_tagged"):
-        record = result.get(key)
-        tagged += (_int(record.get("applied")) or 0) if isinstance(record, dict) else 0
+    # Rating-bar tags only: a judge's keep is a stored decision for a year, not a tag.
+    record = result.get("keep_tags_added")
+    tagged = (_int(record.get("applied")) or 0) if isinstance(record, dict) else 0
     return {
         "deleted": sum(1 for item in deleted if item.get("simulated") is not True),
         "would_delete": sum(1 for item in deleted if item.get("simulated") is True),

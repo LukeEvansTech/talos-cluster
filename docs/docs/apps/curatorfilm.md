@@ -22,8 +22,7 @@ the manifests do not set it. A film is protected, in this order, by:
 1. the allow list: the tags `keep`, `cleanup-keep` or the legacy `keep-review`;
 2. the rating bar: IMDb 6.5 or higher on 5,000 or more votes, unless it is tagged
    `cleanup-eligible`, which is a person's delete (see the review window below). Like
-   `cleanup-dismissed` and `keep-review`, that tag keeps every automatic `keep` tag off the film,
-   a judge keep's included;
+   `cleanup-dismissed` and `keep-review`, that tag keeps the rating bar's `keep` tag off the film;
 3. a monitored collection;
 4. the house having watched it: two or more people finished it.
 
@@ -38,6 +37,20 @@ unresolved or ambiguous, collection data unavailable), and the judge's own `revi
 film the judge kept earlier, or one tagged `cleanup-dismissed`, has the outcome `spared` and is not
 listed. A dismissal is reopened by a changed fact only where the judge had already recorded a
 decision for the film; one with nothing on record stands until the tag is removed.
+
+## Three tiers of keeping
+
+| Tier             | How a film gets there                                                       | What happens                                                                 |
+| ---------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| Keep for good    | A person (`cleanup-keep`), the rating bar, or an existing `keep` tag        | Never judged again                                                           |
+| Keep for a year  | The judge keeps it                                                          | Judged again after `CLEANUP_KEEP_DAYS` (365), with that year's plays         |
+| Normal           | Everything else                                                             | Goes through the weekly cycle                                                |
+
+The judge never keeps a film for good. When its `keep` falls due, no tag is written: it becomes a
+stored decision, kept until a date `CLEANUP_KEEP_DAYS` ahead, and the plan reports the film as
+`spared` until then. A changed fact (somebody played it, its collection changed) reopens it early,
+as for any stored decision. During the review week a kept film can be kept for good
+(`cleanup-keep`) or deleted instead (`cleanup-eligible`).
 
 The judge is offered the largest `CLEANUP_JUDGE_LIMIT` candidates each run (150 here, set on this
 app's HelmRelease because the plan is where the split is recorded). The rest are written to the
@@ -60,10 +73,13 @@ run, with the judge's reason, and doing nothing lets it proceed.
   A film that is a candidate again is judged afresh and waits again.
 - `execute` acts only on a proposal that the plan upheld, that the ledger also holds with the same
   verdict and dates, and that is due. Due deletes go through every live re-check and the cap, a
-  person's first and then largest first. Due keeps get the `keep` tag, and only a confirmed tag
-  closes the proposal.
-- A dry run records proposals under the `dry-run/` prefix and reports what it would have done to
-  the due ones. Nothing is deleted, so they stay on record and are reported again the next week.
+  person's first and then largest first. A due keep writes no tag: it closes as a decision that
+  spares the film for `CLEANUP_KEEP_DAYS`. One that a person tagged `cleanup-keep` in the meantime
+  closes with no decision, since the tag already keeps it for good; one tagged `cleanup-eligible`
+  is left for that person's delete.
+- A dry run records proposals and decisions under the `dry-run/` prefix and reports what it would
+  have done to the due ones. Nothing is deleted, so due deletes stay on record and are reported
+  again the next week; a due keep closes into its dry-run decision, as it would in `act` mode.
 
 Two tags let a person overrule the judge, one in each direction. They are set in Radarr, and
 anything built on the review document (below) should set exactly these and nothing else:
@@ -86,7 +102,8 @@ first. Take the tag off before the run to withdraw it.
 ## The review document
 
 Each run's `report` step builds a review document from the proposals on record: what goes at the
-next run, what waits behind the cap, what is being kept, what needs a person, what this run
+next run, what waits behind the cap, what is being kept for a year (each offering both keep for
+good and delete instead), what needs a person, what this run
 deleted, and (version 2) a summary of the plan's funnel, the judge's batches and tokens, the
 executor's totals and the digest as sent. The digest's going count comes from it.
 
@@ -106,11 +123,12 @@ them as starting points, not measured thresholds.
 | `MAX_DELETIONS_PER_RUN` (`planner.py`)        | 30                       | Deletions per run, a person's deletes first and then largest files first; `ledger.deletions_in_window` subtracts confirmed deletions inside `CAP_WINDOW_DAYS`. `CLEANUP_MAX_DELETIONS` overrides it; `curatorfilmjudge` sets 100 while the first backlog drains. |
 | `CAP_WINDOW_DAYS` (`planner.py`)              | 6                        | How far back the cap counts. A day short of the weekly schedule: last week's deletions were recorded minutes after the time this week's run counts from, so a 7-day window still held all of them and every second run deleted nothing. A second run in the same week still counts the first. |
 | `DEFAULT_GRACE_DAYS` (`proposals.py`)         | 6                        | Days a verdict waits before `execute` acts on it. A day short of the schedule for the same reason; `CLEANUP_GRACE_DAYS` overrides it.                                            |
+| `DEFAULT_KEEP_DAYS` (`proposals.py`)          | 365                      | Days a judge's due keep spares a film before it is judged again. `CLEANUP_KEEP_DAYS` overrides it; `curatorfilmjudge` sets 365.                                                  |
 | `DEFAULT_JUDGE_LIMIT` (`planner.py`)          | 150                      | Candidates offered to the judge per run, largest first. `CLEANUP_JUDGE_LIMIT` overrides it.                                                                                      |
-| `DEFAULT_RECONSIDER_DAYS` (`planner.py`)      | 180                      | How long a spare or dismissal stands before re-judging.                                                                                                                          |
+| `DEFAULT_RECONSIDER_DAYS` (`planner.py`)      | 180                      | How long any other spare or dismissal stands before re-judging.                                                                                                                  |
 | `SUBJECT_EXACT_BELOW` (`planner.py`)          | 25                       | Genre/subject counts below this are fingerprinted exactly, above it bucketed, so a decision only reopens when the count materially changes.                                      |
 | `ANOMALY_LIMITS` (`planner.py`)               | 10% / 2% / 5% / 20% / 1% | Drop in library size / keep-tagged films / import exclusions / play-history rows / invalid-added-date fraction that blocks a run as a probable break rather than ordinary drift. |
-| `KEEP_BAR_VOTES` / `KEEP_BAR_SCORE`           | 5000 votes / 6.5         | IMDb rating bar for the permanent allow-list tag.                                                                                                                                |
+| `KEEP_BAR_VOTES` / `KEEP_BAR_SCORE`           | 5000 votes / 6.5         | IMDb rating bar for the `keep` tag, which keeps a film for good.                                                                                                                 |
 | `COMPLETION_PERCENT` (`evidence.py`)          | 85%                      | Runtime watched to count as a completed play.                                                                                                                                    |
 | `ABANDONED_PERCENT` (`evidence.py`)           | 20%                      | Below this is a bounce, not evidence of value.                                                                                                                                   |
 | `PUSH_LIMIT` / `TITLE_LIMIT` (`reporting.py`) | 1000 / 240 characters    | Cut below Pushover's own 1024/250 limits, so the cut lands somewhere the report can mark it rather than where Pushover chooses.                                                  |
@@ -128,7 +146,7 @@ seconds.
 `CuratorfilmPlanStale` and `CuratorfilmjudgeStale` (each app's `prometheusrule.yaml`) fire when the CronJob
 has not succeeded in 8 days, the GickupBackupStale shape with a creation-time fallback. `execute`
 exits 9 for a week in which an offered candidate went unjudged or a verdict was rejected, 8 when a
-`keep` tag could not be confirmed, and 10 when a safety check could not be read; `report` exits 11
+rating-bar `keep` tag could not be confirmed, and 10 when a safety check could not be read; `report` exits 11
 when a configured review page did not take the document, and 12 when no page is configured and
 the proposals could not be read for the digest. None of them resets the alert; the README in
 `resources/curator/` lists every exit code. Candidates deferred past the judge limit are not

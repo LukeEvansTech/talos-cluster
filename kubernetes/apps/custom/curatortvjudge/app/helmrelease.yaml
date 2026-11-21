@@ -155,6 +155,9 @@ spec:
               # Days a verdict waits, as a proposal a person can still overrule with a tag, before
               # execute acts on it; six, so it is due at the next weekly run.
               CLEANUP_GRACE_DAYS: "6"
+              # Days a judge's keep spares a title once its wait is over; it is then judged again.
+              # Only a person (cleanup-keep) or the rating bar keeps a title for good.
+              CLEANUP_KEEP_DAYS: "365"
               # Must match curatortv's mode (ledger namespaces dry-run state separately); --read-only
               # above enforces the same rule independently, so acting needs two deliberate edits.
               CLEANUP_MODE: dry-run
@@ -162,7 +165,8 @@ spec:
               # and the push opens the page (docs/docs/apps/curator.md).
               CLEANUP_REVIEW_URL: http://curator.custom.svc.cluster.local:8080
               CLEANUP_REVIEW_LINK: https://curator.${SECRET_DOMAIN}/
-              # Reclaimerr spares anything tagged keep, so keeps are written even in a dry run;
+              # Reclaimerr spares anything tagged keep, so the rating bar's keeps are written even in a
+              # dry run (a judge's keep is never a tag);
               # deletion stays off (docs/docs/apps/curatortvjudge.md).
               TAG_KEEPS_IN_DRY_RUN: "true"
               FEED_TAGS: kometa
