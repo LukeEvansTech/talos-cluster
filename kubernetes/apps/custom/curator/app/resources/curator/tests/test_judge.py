@@ -37,7 +37,7 @@ def _judge_dir() -> Path:
     """
     here = Path(__file__).resolve()
     for parent in here.parents:
-        candidate = parent / JUDGE_APP / "app" / "resources"
+        candidate = parent / JUDGE_APP / "app" / "resources" / JUDGE_APP
         if (candidate / "judge.py").is_file():
             return candidate
     return here.with_name("judge-scripts-not-mounted")

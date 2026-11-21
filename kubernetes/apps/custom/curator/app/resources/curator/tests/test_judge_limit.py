@@ -16,6 +16,7 @@ import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any
 from unittest import mock
 
 from curator import __main__ as cli
@@ -37,7 +38,7 @@ from .fixtures import (
 )
 from .test_executor import movie_record
 
-RUN = {
+RUN: dict[str, Any] = {
     "snapshot": {},
     "blocks": [],
     "recycle_bin": "/recycle, 14 days",
@@ -51,7 +52,7 @@ RUN = {
 
 def context(**overrides) -> PlanContext:
     """A plan context with no scope boundary, as the manifests now run."""
-    base = {
+    base: dict[str, Any] = {
         "now": NOW,
         "scope_start": None,
         "monitored_collection_tmdb_ids": frozenset(),

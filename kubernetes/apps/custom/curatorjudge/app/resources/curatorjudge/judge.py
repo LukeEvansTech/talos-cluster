@@ -117,9 +117,9 @@ def read_reply(response, model: str, id_field: str) -> dict:
         return {**record, "status": "failed", "why": f"reply came from model {record['model']!r}, not {model!r}"}
     if record["stop_reason"] != "end_turn":
         why = f"stop_reason was {record['stop_reason']!r}, not 'end_turn'"
-        details = getattr(response, "stop_details", None)
-        if record["stop_reason"] == "refusal" and getattr(details, "category", None):
-            why += f" (category {details.category})"
+        category = getattr(getattr(response, "stop_details", None), "category", None)
+        if record["stop_reason"] == "refusal" and category:
+            why += f" (category {category})"
         return {**record, "status": "failed", "why": why}
     text = next((block.text for block in response.content if block.type == "text"), None)
     if text is None:
@@ -179,6 +179,7 @@ def judge_all(client, sdk, model: str, manifest: dict, clock=time.monotonic) -> 
     for batch in manifest["batches"]:
         name = str(batch["name"])
         began = clock()
+        result: dict
         if began - started > START_BUDGET_SECONDS:
             result = {"status": "failed", "why": "not attempted: the judge step's time budget was spent", "usage": {}}
         else:

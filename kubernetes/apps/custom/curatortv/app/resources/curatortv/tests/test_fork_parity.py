@@ -35,8 +35,8 @@ class SharedModulesMatchTheFilmEngine(unittest.TestCase):
                 self.assertEqual(tv, film, f"{name} differs between curatortv and curator")
 
     def test_shared_judge_scripts_are_identical(self):
-        film_judge = FILM.parents[3] / "curatorjudge" / "app" / "resources"
-        tv_judge = HERE.parents[3] / "curatortvjudge" / "app" / "resources"
+        film_judge = FILM.parents[3] / "curatorjudge" / "app" / "resources" / "curatorjudge"
+        tv_judge = HERE.parents[3] / "curatortvjudge" / "app" / "resources" / "curatortvjudge"
         for name in JUDGE_SHARED:
             with self.subTest(script=name):
                 tv = (tv_judge / name).read_text(encoding="utf-8")

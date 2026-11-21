@@ -86,7 +86,9 @@ def read_manifest(run_id: str | None) -> tuple[dict | None, str]:
 
 def usage_of(result: dict) -> dict:
     """The token counts a result states, keeping only whole numbers."""
-    usage = result.get("usage") if isinstance(result.get("usage"), dict) else {}
+    usage = result.get("usage")
+    if not isinstance(usage, dict):
+        return {}
     return {k: usage[k] for k in USAGE_KEYS if isinstance(usage.get(k), int) and not isinstance(usage.get(k), bool)}
 
 
