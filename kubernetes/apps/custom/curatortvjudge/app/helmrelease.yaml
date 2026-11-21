@@ -158,6 +158,10 @@ spec:
               # Must match curatortv's mode (ledger namespaces dry-run state separately); --read-only
               # above enforces the same rule independently, so acting needs two deliberate edits.
               CLEANUP_MODE: dry-run
+              # report posts the review document to <url>/publish/tv, signed with the same arr key,
+              # and the push opens the page (docs/docs/apps/curator.md).
+              CLEANUP_REVIEW_URL: http://curator.custom.svc.cluster.local:8080
+              CLEANUP_REVIEW_LINK: https://curator.${SECRET_DOMAIN}/
               # Reclaimerr spares anything tagged keep, so keeps are written even in a dry run;
               # deletion stays off (docs/docs/apps/curatortvjudge.md).
               TAG_KEEPS_IN_DRY_RUN: "true"

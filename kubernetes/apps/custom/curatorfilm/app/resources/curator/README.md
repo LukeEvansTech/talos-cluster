@@ -187,11 +187,12 @@ this run's result, so a run that was blocked or whose `execute` never finished
 still lists every verdict that is waiting. Publishing it is optional:
 
 - With `CLEANUP_REVIEW_URL` unset, nothing is sent, the digest mentions no page,
-  and the push carries no link. The manifests leave it unset.
+  and the push carries no link.
 - With it set, `report` renders the digest, puts it in the document, and posts
   the document there before it delivers the digest. The push links to
   `CLEANUP_REVIEW_LINK` when that is set as well. A receiver that refuses the
   document or cannot be reached is named in the digest, and `report` exits 11.
+  Both judges' manifests set it to the `curator` app in the same namespace.
 
 Both engines build the document with the same `review.py`, so this contract
 covers the `tv` library too. Everything below is what a receiver can rely on;

@@ -24,7 +24,8 @@ steps, the trust boundary and the failure semantics; this page covers what diffe
   `CLEANUP_MAX_DELETIONS` is 10, the engine's own default. `CLEANUP_GRACE_DAYS` is 6, as for films.
 - **Review document:** built from the series proposals as the `tv` library. Like the film
   judge's, it is published only when `CLEANUP_REVIEW_URL` is set, to `/publish/tv` signed with the
-  Sonarr API key, and this manifest does not set it.
+  Sonarr API key. This manifest sets it to the [Curator](curator.md) Service, and the push opens
+  `https://curator.${SECRET_DOMAIN}/`.
 - **Digest:** same webhook as Curatorfilmjudge; every title starts `TV cleanup` so the two are
   distinguishable on the phone.
 

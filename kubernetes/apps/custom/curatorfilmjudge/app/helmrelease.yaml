@@ -159,6 +159,10 @@ spec:
               # Must match curatorfilm's mode (ledger namespaces dry-run state separately); --read-only
               # above enforces the same rule independently, so acting needs two deliberate edits.
               CLEANUP_MODE: dry-run
+              # report posts the review document to <url>/publish/film, signed with the same arr key,
+              # and the push opens the page (docs/docs/apps/curator.md).
+              CLEANUP_REVIEW_URL: http://curator.custom.svc.cluster.local:8080
+              CLEANUP_REVIEW_LINK: https://curator.${SECRET_DOMAIN}/
               # Fans out to Pushover. The route verifies its own token, which
               # is why the digest carries one.
               CLEANUP_WEBHOOK_URL: http://chaski.default.svc.cluster.local:8080/hooks/library-cleanup

@@ -17,6 +17,9 @@ spec:
           - thunderbird
           # securo trusts two proxy hops of X-Forwarded-For, so only the gateway may reach it.
           - securo
+          # curator sets review tags on Radarr and Sonarr; only the two judges that publish to it
+          # may reach it from inside the cluster (custom/netpol.yaml).
+          - curator
   ingress:
     - fromEndpoints:
         - {}

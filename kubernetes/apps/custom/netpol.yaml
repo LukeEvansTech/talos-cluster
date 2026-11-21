@@ -11,3 +11,56 @@ spec:
     - fromEndpoints:
         - matchLabels:
             io.kubernetes.pod.namespace: network
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/cilium.io/ciliumnetworkpolicy_v2.json
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: allow-curator-from-judges
+spec:
+  # curator is left out of allow-same-namespace (components/netpol): its buttons write tags. Only
+  # the signed publish endpoint is open to the judges, since the judge pod's LLM step holds no
+  # arr key and must not reach the unauthenticated button endpoints.
+  description: "Allow the curator judges to publish review documents to curator"
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: curator
+  ingress:
+    - fromEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: curatorfilmjudge
+        - matchLabels:
+            app.kubernetes.io/name: curatortvjudge
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
+          rules:
+            http:
+              - method: POST
+                path: "/publish/(film|tv)"
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/cilium.io/ciliumnetworkpolicy_v2.json
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: deny-curator-judges-to-gateway
+spec:
+  # The gateway reaches curator's button endpoints with no path limit, so a judge going round
+  # allow-curator-from-judges through it could change tags with no arr key. The judges use only
+  # in-cluster Service names; enableDefaultDeny false leaves the rest of their egress as it was.
+  description: "Deny the curator judges egress to the gateways (network namespace)"
+  endpointSelector:
+    matchExpressions:
+      - key: app.kubernetes.io/name
+        operator: In
+        values:
+          - curatorfilmjudge
+          - curatortvjudge
+  enableDefaultDeny:
+    egress: false
+    ingress: false
+  egressDeny:
+    - toEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: network

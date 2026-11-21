@@ -156,13 +156,15 @@ finished, still lists every verdict that is waiting. The digest leads with the n
 act on: its title says how many titles go at the next run and on what date (`would go` in a dry
 run), and its text lists them with the judge's reasons.
 
-Publishing the document is optional and off here. With `CLEANUP_REVIEW_URL` set, `report` renders
+Publishing the document is optional and on here. With `CLEANUP_REVIEW_URL` set, `report` renders
 the digest, puts it in the document, and posts the document there signed with the Radarr API key
 this step already holds; the push then links to `CLEANUP_REVIEW_LINK` when that is set, through
 the `chaski` route's `url` parameter, which is left off the notification when the digest names no
 link. A receiver that did not take the document is named in the digest and makes `report` exit 11.
-With `CLEANUP_REVIEW_URL` unset, as in this manifest, nothing is sent and the digest mentions no
-page. The contract is in [Curatorfilm](curatorfilm.md#the-review-document) and the engine's README.
+This manifest sets it to the [Curator](curator.md) Service,
+`http://curator.custom.svc.cluster.local:8080`, and the link to `https://curator.${SECRET_DOMAIN}/`,
+the page where the week's verdicts can be overruled before the next run. With
+`CLEANUP_REVIEW_URL` unset nothing is sent and the digest mentions no page. The contract is in [Curatorfilm](curatorfilm.md#the-review-document) and the engine's README.
 
 ## Never retry: `backoffLimit: 0`
 

@@ -73,6 +73,28 @@ spec:
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
+  name: allow-curatorapp-from-custom
+spec:
+  # Its own rule, not a line in allow-curator-from-custom: the review app sets two tags and has
+  # no business with seerr or tautulli.
+  description: "Allow the curator review app (custom) to reach radarr and sonarr"
+  endpointSelector:
+    matchExpressions:
+      - key: app.kubernetes.io/name
+        operator: In
+        values:
+          - radarr
+          - sonarr
+  ingress:
+    - fromEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: custom
+            app.kubernetes.io/name: curator
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/cilium.io/ciliumnetworkpolicy_v2.json
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
   name: allow-world-ingress
 spec:
   description: "Allow world ingress only to the pod behind this namespace's LoadBalancer service"

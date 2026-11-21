@@ -1,0 +1,39 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: curator
+  namespace: custom
+spec:
+  groups:
+    - name: curator
+      rules:
+        # Age of the last accepted document per library, the outcome the page exists for; /health
+        # stays green while the judges fail to publish. Weekly runs, so 8 days means a missed week.
+        # The metric reads 0 for a library that has never published, which also fires.
+        - alert: CuratorDocumentStale
+          annotations:
+            summary: >-
+              curator has not accepted a {{ $labels.library }} review document in over
+              8 days, so its review page shows an old week.
+            description: >-
+              The last {{ $labels.library }} document arrived
+              {{ $value | humanizeDuration }} ago. Check the Ops page for refused
+              publishes, and the latest curatorfilmjudge or curatortvjudge Job's logs for
+              REVIEW PAGE NOT UPDATED.
+          expr: |-
+            time() - curator_last_document_timestamp_seconds > 691200
+          for: 2h
+          labels:
+            severity: warning
+        - alert: CuratorMetricsMissing
+          annotations:
+            summary: >-
+              curator /metrics has not been scraped for 30m, so review document delivery
+              is unmonitored.
+          expr: |-
+            absent(curator_last_document_timestamp_seconds)
+          for: 30m
+          labels:
+            severity: warning

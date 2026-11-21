@@ -92,8 +92,8 @@ executor's totals and the digest as sent. The digest's going count comes from it
 
 Publishing it is optional. Set `CLEANUP_REVIEW_URL` on the judge's HelmRelease and `report` posts
 it there, signed with the Radarr API key, and the push links to `CLEANUP_REVIEW_LINK` if that is
-set too. The manifests set neither, so today nothing is published, the digest mentions no page, and
-the push carries no link. The request, signature and every field are specified in the engine's
+set too. `curatorfilmjudge` sets both: the document goes to the [Curator](curator.md) app, and
+the push opens its page at `https://curator.${SECRET_DOMAIN}/`. The request, signature and every field are specified in the engine's
 README, under "The review document", with a complete example the tests hold the builder to.
 
 ## Tunable constants
