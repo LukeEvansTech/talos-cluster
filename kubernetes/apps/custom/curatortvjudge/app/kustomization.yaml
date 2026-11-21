@@ -14,6 +14,7 @@ configMapGenerator:
   - name: curatortvjudge-prompt
     files:
       - ./resources/build_prompt.py
+      - ./resources/judge.py
       - ./resources/read_verdicts.py
       - ./resources/taste.md
 generatorOptions:

@@ -1,8 +1,9 @@
 """Command-line entry point: ``plan``, ``execute``, ``report`` and ``selftest``.
 
 ``plan`` and ``report`` are read-only and always safe to run. ``execute`` is the
-only command that can change anything, and only when ``CLEANUP_MODE=act`` and it
-was not given ``--read-only``.
+only command that can delete anything, and only when ``CLEANUP_MODE=act`` and it
+was not given ``--read-only``. It can add the ``keep`` tag in a dry run when
+``TAG_KEEPS_IN_DRY_RUN=true`` (see the README).
 """
 
 from __future__ import annotations
@@ -42,38 +43,31 @@ from .model import (
     utc,
 )
 from .planner import (
+    DEFAULT_JUDGE_LIMIT,
     MAX_DELETIONS_PER_RUN,
+    VERDICT_REVIEW,
+    VERDICT_SPARED,
     PlanContext,
     assess,
     build_decision_record,
     check_anomalies,
+    count_genres,
+    count_owned_siblings,
     keep_tag_applies,
     keep_tag_targets,
     select_batch,
+    select_for_judgement,
     snapshot_valid,
     summarise,
 )
 from .s3 import S3Client, S3Config
+from .settings import env, env_int, scope_start, tag_keeps_in_dry_run
 from .store import FileStore
-
-DEFAULT_SCOPE_START = "2026-03-01"
 
 
 def log(message: str) -> None:
     """Timestamped progress line on stdout."""
     print(f"[{datetime.now(timezone.utc).strftime('%H:%M:%S')}] {message}", flush=True)
-
-
-def env(name: str, required: bool = True) -> str:
-    """Read a configuration value from the environment.
-
-    Hosts and keys are supplied by the caller, never baked in: this repository is
-    public, and a hostname committed here maps the private network.
-    """
-    value = os.environ.get(name, "").strip()
-    if required and not value:
-        raise SystemExit(f"missing required environment variable {name}")
-    return value
 
 
 def to_film(record: dict, tag_labels: dict[int, str]) -> Film:
@@ -244,42 +238,6 @@ def resolve_identities(
     return crosswalk, unattributed
 
 
-def count_owned_siblings(movies: list[dict], collections: list[dict]) -> dict[int, int]:
-    """How many *other* entries of a film's collection are already in the library.
-
-    "Collection support" is one of the three reasons to keep a film, and it is
-    unanswerable from a collection name alone.
-    """
-    # Only films on disk count. A collection entry Radarr is still looking for
-    # is not evidence that the library holds part of the set.
-    owned = {m.get("tmdbId") for m in movies if m.get("tmdbId") and m.get("hasFile")}
-    by_movie: dict[int, int] = {}
-    tmdb_to_id = {m["tmdbId"]: m["id"] for m in movies if m.get("tmdbId")}
-    for collection in collections:
-        members = [e.get("tmdbId") for e in (collection.get("movies") or []) if e.get("tmdbId")]
-        held = [t for t in members if t in owned]
-        for tmdb_id in held:
-            movie_id = tmdb_to_id.get(tmdb_id)
-            if movie_id is not None:
-                by_movie[movie_id] = len(held) - 1
-    return by_movie
-
-
-def count_genres(movies: list[dict]) -> dict[str, int]:
-    """How many films the library holds per genre.
-
-    "A subject the library demonstrably follows" is meant to be counted, not
-    assumed, so the count has to come from the library rather than a guess.
-    """
-    counts: dict[str, int] = {}
-    for movie in movies:
-        if not movie.get("hasFile"):
-            continue
-        for genre in movie.get("genres") or []:
-            counts[genre] = counts.get(genre, 0) + 1
-    return counts
-
-
 def assess_library(
     movies: list[dict],
     tag_labels: dict[int, str],
@@ -424,14 +382,15 @@ def build_plan_payload(
     run: dict[str, Any],
 ) -> dict[str, Any]:
     """Assemble the plan document handed to the model and stored in the ledger."""
-    candidates = [a for a in assessments if a.outcome is Outcome.CANDIDATE]
+    judge_limit = run.get("judge_limit", DEFAULT_JUDGE_LIMIT)
+    offered, deferred = select_for_judgement([a for a in assessments if a.outcome is Outcome.CANDIDATE], judge_limit)
     coverage_start = run["coverage_start"]
     horizon = run["horizon"]
     return {
         "run_id": run_id,
         "generated_at": now.isoformat(),
         "mode": "dry-run" if dry_run else "act",
-        "scope_start": ctx.scope_start.isoformat(),
+        "scope_start": ctx.scope_start.isoformat() if ctx.scope_start else None,
         "counts": summarise(assessments),
         "snapshot": run["snapshot"],
         "blocks": run["blocks"],
@@ -449,7 +408,11 @@ def build_plan_payload(
             }
             for f in run["keep_targets"]
         ],
-        "candidates": [a.to_json() for a in candidates],
+        # `candidates` is what the judge is asked about and all execute may act on. The
+        # rest of the candidates wait in `judge_deferred`, where no verdict is owed.
+        "judge_limit": judge_limit,
+        "candidates": [a.to_json() for a in offered],
+        "judge_deferred": [a.to_json() for a in deferred],
         "review": [a.to_json() for a in assessments if a.outcome is Outcome.REVIEW],
         "missing_file": [a.to_json() for a in assessments if a.outcome is Outcome.MISSING_FILE],
         "multi_user_completions": [a.to_json() for a in assessments if a.viewing.distinct_completers >= 2],
@@ -476,14 +439,16 @@ def source_blocks(
     if not history_ok:
         blocks.append(f"play history not usable: {history_note}")
     if not requests_ok:
-        # An empty request set reads like nobody asked; for an import-list film that
-        # gap is the whole authorisation to delete it.
+        # An empty request set reads like nobody asked. The judge would be given the wrong
+        # origin for every requested film, and a keep it hands down on that is permanent.
         blocks.append("request system unreachable: a requested film could not be told from a feed pull")
     return blocks
 
 
 def cmd_plan(args: argparse.Namespace) -> int:
     """Assess the whole library and emit the candidate set for judgement."""
+    # Read first: a setting that cannot be used should stop the run before it fetches anything.
+    boundary, judge_limit = scope_start(), env_int("CLEANUP_JUDGE_LIMIT", DEFAULT_JUDGE_LIMIT)
     sources = build_sources()
     radarr, ledger = sources.radarr, sources.ledger
     now = datetime.now(timezone.utc)
@@ -520,7 +485,7 @@ def cmd_plan(args: argparse.Namespace) -> int:
 
     ctx = PlanContext(
         now=now,
-        scope_start=utc(os.environ.get("CLEANUP_SCOPE_START") or DEFAULT_SCOPE_START) or now,
+        scope_start=boundary,
         monitored_collection_tmdb_ids=frozenset(monitored),
         coverage_start=coverage_start,
         history_ok=history_ok,
@@ -576,11 +541,15 @@ def cmd_plan(args: argparse.Namespace) -> int:
             "unattributed": len(unattributed),
             "horizon": library.horizon,
             "keep_targets": keep_targets,
+            "judge_limit": judge_limit,
         },
     )
     (out / "plan.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
-    ledger.record_plan({k: v for k, v in payload.items() if k != "review"})
-    log(f"wrote {out / 'plan.json'}: {len(payload['candidates'])} candidates, " f"{len(blocks)} blocking issues")
+    ledger.record_plan({k: v for k, v in payload.items() if k not in ("review", "judge_deferred")})
+    log(
+        f"wrote {out / 'plan.json'}: {len(payload['candidates'])} candidates for the judge, "
+        f"{len(payload['judge_deferred'])} deferred, {len(blocks)} blocking issues"
+    )
     for block in blocks:
         log(f"  BLOCK: {block}")
     return 0
@@ -600,7 +569,9 @@ def rehydrate(planned: dict, film: Film, reason: str = "") -> Assessment:
         siblings_owned=int(planned.get("siblings_owned") or 0),
         subject_counts=dict(planned.get("subject_counts") or {}),
         reopened_dismissal=planned.get("reopened_dismissal") is True,
-        provenance=Provenance(Origin(planned["origin"]), tuple(planned.get("origin_evidence") or ())),
+        provenance=Provenance(
+            Origin(planned["origin"]), tuple(planned.get("origin_evidence") or ()), planned.get("requested_by")
+        ),
         availability=Availability(None, planned["availability_source"], film.has_file),
         viewing=Viewing(
             status=HistoryStatus(planned["history_status"]),
@@ -618,21 +589,26 @@ def rehydrate(planned: dict, film: Film, reason: str = "") -> Assessment:
     )
 
 
-def apply_keep_tags(
+def apply_keep_tags(  # pylint: disable=too-many-arguments
     radarr: Radarr,
     additions: list[dict],
     dry_run: bool,
     live: dict[int, dict] | None = None,
     tag_labels: dict[int, str] | None = None,
+    tag_in_dry_run: bool = False,
 ) -> dict[str, Any]:
-    """Give the permanent allow-list tag to films that have earned it.
+    """Give the permanent ``keep`` tag to films that have earned it.
 
     Add-only. The editor endpoint answers 202, meaning queued and nothing more,
-    so the count is confirmed by re-reading rather than assumed.
+    so each tag is confirmed by re-reading rather than assumed.
+
+    A dry run writes nothing unless ``tag_in_dry_run`` is set: an add-only tag
+    is reversible, and without it a rehearsal leaves every other tool that
+    honours ``keep`` blind to the decisions made here.
 
     The plan is half an hour old by the time this runs, so each target is
-    re-checked against its live tags first: `keep` is an absolute veto, and
-    applying it to a film somebody has just marked `cleanup-eligible` would
+    re-checked against its live tags first: ``keep`` is an absolute veto, and
+    applying it to a film somebody has just marked ``cleanup-eligible`` would
     reverse that person's decision.
     """
     movie_ids = [a["movie_id"] for a in additions if isinstance(a.get("movie_id"), int)]
@@ -648,7 +624,7 @@ def apply_keep_tags(
         movie_ids = kept
     if not movie_ids:
         return {"requested": 0, "applied": 0, "withdrawn": withdrawn, "note": "nothing qualified"}
-    if dry_run:
+    if dry_run and not tag_in_dry_run:
         return {
             "requested": len(movie_ids),
             "applied": 0,
@@ -663,9 +639,22 @@ def apply_keep_tags(
     tag_id = tags[TAG_KEEP]
 
     status, _ = radarr.add_tag(movie_ids, tag_id)
+    # Confirmed per film by re-reading, whatever the status said: a keep counted
+    # as applied when it never landed is recorded as settled and never retried.
     wanted = set(movie_ids)
-    applied = sum(1 for m in radarr.movies() if m["id"] in wanted and tag_id in m.get("tags", []))
-    return {"requested": len(movie_ids), "applied": applied, "http": status}
+    confirmed = sorted(m["id"] for m in radarr.movies() if m["id"] in wanted and tag_id in m.get("tags", []))
+    unconfirmed = sorted(wanted - set(confirmed))
+    note = "applied in a dry run (TAG_KEEPS_IN_DRY_RUN)" if dry_run else "applied"
+    if unconfirmed:
+        note = f"HTTP {status}; {len(unconfirmed)} not confirmed on re-read"
+    return {
+        "requested": len(movie_ids),
+        "applied": len(confirmed),
+        "withdrawn": withdrawn,
+        "http": status,
+        "note": note,
+        "unconfirmed": unconfirmed,
+    }
 
 
 def plan_refusal(plan: dict, run_mode: str, now: datetime) -> str | None:
@@ -705,8 +694,12 @@ def record_judge_decisions(
     monitored: set[int],
     ledger: Ledger,
     run_id: str,
+    unconfirmed: set[int] | frozenset[int] = frozenset(),
 ) -> list[dict]:
     """Persist what the judge decided, and collect what it sent to a person.
+
+    A keep whose tag could not be confirmed is not recorded, so next week judges
+    and tags it again rather than treating it as settled.
 
     Returns the escalations, because the plan's review list was written before
     judgement: without carrying them out of here, a film the judge deliberately
@@ -716,6 +709,8 @@ def record_judge_decisions(
     escalated: list[dict] = []
     for item in accepted:
         if item["verdict"] not in ("keep", "review") or item["movie_id"] not in movies:
+            continue
+        if item["verdict"] == "keep" and item["movie_id"] in unconfirmed:
             continue
         film = to_film(movies[item["movie_id"]], tag_labels)
         if item["verdict"] == "review":
@@ -731,7 +726,7 @@ def record_judge_decisions(
         ledger.write_decision(
             build_decision_record(
                 rehydrate(by_id[item["movie_id"]], film),
-                verdict=("spared" if item["verdict"] == "keep" else "queued for review"),
+                verdict=(VERDICT_SPARED if item["verdict"] == "keep" else VERDICT_REVIEW),
                 reason=item["reason"],
                 run_id=run_id,
                 now=now,
@@ -741,7 +736,7 @@ def record_judge_decisions(
     return escalated
 
 
-def execute_exit_code(result: ExecutionResult, unjudged: list[int], rejected: list[dict]) -> int:
+def execute_exit_code(result: ExecutionResult, untagged: set[int], unjudged: list[int], rejected: list[dict]) -> int:
     """The exit code for a finished execute run; the README lists each one."""
     # A failed deletion is a safe no-op to retry; an uncertain one is recorded and left,
     # since a retry could double up on a DELETE that already landed (docs/docs/apps/curator.md).
@@ -758,6 +753,9 @@ def execute_exit_code(result: ExecutionResult, unjudged: list[int], rejected: li
     if unavailable:
         log(f"exiting non-zero: {unavailable} skip(s) because a safety check could not be read")
         return 10
+    if untagged:
+        log(f"exiting non-zero: {len(untagged)} keep tag(s) not confirmed; they are re-judged next run")
+        return 8
     # A week nobody judged must not count as a success, or it resets the staleness alert.
     if unjudged or rejected:
         log(f"exiting non-zero: {len(unjudged)} candidate(s) unjudged, {len(rejected)} verdict(s) rejected")
@@ -765,11 +763,13 @@ def execute_exit_code(result: ExecutionResult, unjudged: list[int], rejected: li
     return 0
 
 
-def cmd_execute(args: argparse.Namespace) -> int:
+def cmd_execute(args: argparse.Namespace) -> int:  # pylint: disable=too-many-locals
     """Apply Claude's recommendations, re-validating every safeguard first."""
+    # Read first: a cap that cannot be used should stop the run before it tags or deletes anything.
+    cap = env_int("CLEANUP_MAX_DELETIONS", MAX_DELETIONS_PER_RUN)
     sources = build_sources()
     radarr, ledger = sources.radarr, sources.ledger
-    # The CronJob passes --read-only, so acting needs edits in two places; a half-made
+    # The CronJob passes --read-only, so deleting needs edits in two places; a half-made
     # change then refuses loudly rather than deleting quietly (README: read-only runs).
     if getattr(args, "read_only", False) and not ledger.dry_run:
         log("refusing to execute: --read-only was passed but CLEANUP_MODE is act")
@@ -806,7 +806,8 @@ def cmd_execute(args: argparse.Namespace) -> int:
     for bad in rejected:
         log(f"  rejected recommendation: {bad}")
     # A candidate the judge left out is safe but reaches nobody: neither deleted nor
-    # put in front of a person. Counting it is what makes that visible.
+    # put in front of a person. Counting it is what makes that visible. Candidates past
+    # the judge limit are not in `candidates` at all, so none of them is counted here.
     unjudged = sorted(set(by_id) - {item["movie_id"] for item in accepted})
     if unjudged:
         log(f"  {len(unjudged)} candidate(s) came back with no usable verdict")
@@ -833,6 +834,7 @@ def cmd_execute(args: argparse.Namespace) -> int:
             for item in accepted
             if item["verdict"] == "delete" and item["movie_id"] in movies
         ]
+        in_dry_run = tag_keeps_in_dry_run()
         # Applied before any deletion: catches a plan built before this protection rule
         # from deleting a film assessment would now protect.
         tagged = apply_keep_tags(
@@ -841,10 +843,20 @@ def cmd_execute(args: argparse.Namespace) -> int:
             ledger.dry_run,
             live=movies,
             tag_labels=tag_labels,
+            tag_in_dry_run=in_dry_run,
+        )
+        # Bar targets are PROTECTED and never candidates, so the two sets cannot overlap.
+        judge_tagged = apply_keep_tags(
+            radarr,
+            [{"movie_id": i["movie_id"]} for i in accepted if i["verdict"] == "keep"],
+            ledger.dry_run,
+            live=movies,
+            tag_labels=tag_labels,
+            tag_in_dry_run=in_dry_run,
         )
 
         already = ledger.deletions_in_window()
-        selected, deferred = select_batch(approved, MAX_DELETIONS_PER_RUN, already)
+        selected, deferred = select_batch(approved, cap, already)
         log(
             f"{len(approved)} approved, {already} already deleted this window, "
             f"acting on {len(selected)}, deferring {len(deferred)}"
@@ -863,7 +875,10 @@ def cmd_execute(args: argparse.Namespace) -> int:
             planned_at=utc(plan.get("generated_at")),
         )
 
-        escalated = record_judge_decisions(accepted, movies, by_id, tag_labels, monitored, ledger, sources.run_id)
+        untagged = set(tagged.get("unconfirmed") or []) | set(judge_tagged.get("unconfirmed") or [])
+        escalated = record_judge_decisions(
+            accepted, movies, by_id, tag_labels, monitored, ledger, sources.run_id, unconfirmed=untagged
+        )
         summary = {
             "run_id": sources.run_id,
             # Separate CronJobs generate their own run ids; this ties the result back to
@@ -873,6 +888,8 @@ def cmd_execute(args: argparse.Namespace) -> int:
             "mode": "dry-run" if ledger.dry_run else "act",
             "escalated": escalated,
             "keep_tags_added": tagged,
+            "judge_keeps_tagged": judge_tagged,
+            "deletion_cap": cap,
             "deferred": [a.film.movie_id for a in deferred],
             "rejected_recommendations": rejected,
             **result.as_dict(),
@@ -880,9 +897,10 @@ def cmd_execute(args: argparse.Namespace) -> int:
         Path(args.out).write_text(json.dumps(summary, indent=2), encoding="utf-8")
         log(
             f"deleted={len(result.deleted)} skipped={len(result.skipped)} "
-            f"failed={len(result.failed)} uncertain={len(result.uncertain)}"
+            f"failed={len(result.failed)} uncertain={len(result.uncertain)} "
+            f"keep-tagged={tagged.get('applied', 0)}+{judge_tagged.get('applied', 0)}"
         )
-        return execute_exit_code(result, unjudged, rejected)
+        return execute_exit_code(result, untagged, unjudged, rejected)
     finally:
         ledger.release_lock()
 
@@ -939,7 +957,7 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument(
         "--read-only",
         action="store_true",
-        help="refuse to act even if CLEANUP_MODE says otherwise",
+        help="refuse to delete even if CLEANUP_MODE says otherwise",
     )
     run.set_defaults(func=cmd_execute)
 

@@ -14,6 +14,9 @@ spec:
     # engine code this runs `execute` from.
     - name: curatortv
       namespace: *namespace
+    # The judge step calls Claude through this gateway, with a key it issues.
+    - name: litellm
+      namespace: ai
     - name: onepassword-connect
       namespace: external-secrets
   interval: 1h

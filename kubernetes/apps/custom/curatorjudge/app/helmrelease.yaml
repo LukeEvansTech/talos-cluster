@@ -12,7 +12,7 @@ spec:
   values:
     controllers:
       # Three steps (prompt, ask, act) keep the least-trusted part of the pipeline small: only
-      # 'ask' talks to Claude, holding no credential but the OAuth token. The executor re-checks
+      # 'ask' talks to Claude, holding no credential but the gateway key. The executor re-checks
       # every protection live, so a hostile answer can only choose among films already cleared.
       curatorjudge:
         type: cronjob
@@ -31,8 +31,8 @@ spec:
         pod:
           automountServiceAccountToken: false
         initContainers:
-          # 1. Plan -> prompt. Refuses a stale or blocked plan, or one with nothing to judge,
-          #    leaving a marker so later steps skip paying for a rejected judgement.
+          # 1. Plan -> one batch file per request. Refuses a stale or blocked plan, or one with
+          #    nothing to judge, leaving a marker so later steps skip paying for a rejected judgement.
           prompt:
             image: &python
               repository: docker.io/library/python
@@ -44,6 +44,8 @@ spec:
               PYTHONDONTWRITEBYTECODE: "1"
               PYTHONUNBUFFERED: "1"
               TZ: "${TIMEZONE}"
+              # Films per request to the judge; read by the prompt step only.
+              CLEANUP_JUDGE_BATCH: "50"
             resources: &small
               requests:
                 cpu: 10m
@@ -56,15 +58,13 @@ spec:
               capabilities:
                 drop:
                   - ALL
-          # 2. Ask Claude. No public Anthropic image exists, so the CLI installs at start-up into a
-          #    writable /tmp prefix (root filesystem is read-only); version pinned, visible in git.
+          # 2. Ask Claude through the LiteLLM gateway, one request per batch. The SDK installs at
+          #    start-up into a writable /tmp prefix (root filesystem is read-only); version pinned here.
           judge:
             # The chart falls back to alphabetical key order for initContainers, so without this
             # `judge` ran before `prompt` existed, every time.
             dependsOn: prompt
-            image:
-              repository: docker.io/library/node
-              tag: 26-alpine@sha256:6bd9ab43c0ec0190ca7b2d193906cb8b7edf6e7f4afa43ddeccd6452710bffb5
+            image: *python
             command:
               - /bin/sh
               - -c
@@ -85,36 +85,33 @@ spec:
                   printf '%s' "$$1" > /work/judge-failed
                   exit 0
                 }
-                npm install -g --silent --prefix /tmp/npm \
-                  "@anthropic-ai/claude-code@$${CLAUDE_CODE_VERSION}" \
-                  || fail "could not install the CLI"
-                # One turn, every tool denied. This is a single structured
-                # judgement, not an agent: it has no business reaching a
-                # filesystem or a network.
-                /tmp/npm/bin/claude -p \
-                  --output-format json \
-                  --max-turns 1 \
-                  --model "$${JUDGE_MODEL}" \
-                  --disallowed-tools "Bash,Read,Write,Edit,Glob,Grep,WebFetch,WebSearch,Task,NotebookEdit" \
-                  < /work/prompt.txt > /work/claude.json \
-                  || fail "claude -p exited non-zero"
+                pip install --quiet --no-cache-dir --disable-pip-version-check \
+                  --target /tmp/sdk "anthropic==$${ANTHROPIC_SDK_VERSION}" \
+                  || fail "could not install the SDK"
+                # judge.py records each batch's outcome itself and exits 0; this
+                # catches only an interpreter that could not start.
+                PYTHONPATH=/tmp/sdk python3 /prompt/judge.py \
+                  || fail "judge.py exited non-zero"
+                exit 0
             env:
-              CLAUDE_CODE_VERSION: "2.1.269"
-              JUDGE_MODEL: claude-opus-5
-              # The CLI writes its own state; both must be writable and both
-              # live on the emptyDir that dies with the pod.
-              HOME: /tmp/claude-home
-              npm_config_cache: /tmp/npm-cache
-              TZ: "${TIMEZONE}"
+              <<: *pythonEnv
+              ANTHROPIC_SDK_VERSION: "2.10.0"
+              # The SDK's zero-argument client reads this and ANTHROPIC_AUTH_TOKEN from the Secret.
+              ANTHROPIC_BASE_URL: http://litellm.ai.svc.cluster.local:4000
+              # A gateway model group, not a model id. It is kept out of the router's fallbacks,
+              # and judge.py refuses a reply the gateway attributes to any other group.
+              JUDGE_MODEL: claude-opus
+              # pip wants a writable home; this one dies with the pod.
+              HOME: /tmp/home
             envFrom:
               - secretRef:
-                  name: curatorjudge-token
+                  name: curatorjudge-gateway
             resources:
               requests:
                 cpu: 50m
-                memory: 256Mi
+                memory: 128Mi
               limits:
-                memory: 1Gi
+                memory: 512Mi
             securityContext: *hardened
         containers:
           # 3. Validate the answer, apply what the engine still agrees with, then send the digest.
@@ -152,7 +149,9 @@ spec:
               TAUTULLI_URL: http://tautulli.media.svc.cluster.local
               SEERR_URL: http://seerr.media.svc.cluster.local
               LEDGER_DIR: /state/ledger
-              CLEANUP_SCOPE_START: "2026-03-01"
+              # Deletions per rolling 7 days. Raised from the engine's 30 to work through the backlog;
+              # drop this line once it is gone.
+              CLEANUP_MAX_DELETIONS: "100"
               # Must match curator's mode (ledger namespaces dry-run state separately); --read-only
               # above enforces the same rule independently, so acting needs two deliberate edits.
               CLEANUP_MODE: dry-run
@@ -200,8 +199,7 @@ spec:
                 readOnly: true
             app:
               - path: /state
-      # Hand-off between the three steps, and the only writable place the judge
-      # has: npm prefix, npm cache and the CLI's own state all land here.
+      # Hand-off between the three steps: batches in, one result file per batch out.
       work:
         type: emptyDir
         globalMounts:

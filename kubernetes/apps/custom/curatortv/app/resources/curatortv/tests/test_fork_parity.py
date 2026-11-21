@@ -16,7 +16,9 @@ FILM = next(
     HERE.parents[4].glob("*/curator/app/resources/curator"),
     HERE.parents[3] / "curator" / "app" / "resources" / "curator",
 )
-SHARED = ("s3.py", "store.py")
+SHARED = ("s3.py", "settings.py", "store.py")
+# The two judge apps ship these unchanged: the id field reaches them in the batch list.
+JUDGE_SHARED = ("judge.py", "read_verdicts.py")
 
 
 class SharedModulesMatchTheFilmEngine(unittest.TestCase):
@@ -31,6 +33,15 @@ class SharedModulesMatchTheFilmEngine(unittest.TestCase):
                 tv = (HERE / name).read_text(encoding="utf-8").replace("curatortv", "curator")
                 film = (FILM / name).read_text(encoding="utf-8")
                 self.assertEqual(tv, film, f"{name} differs between curatortv and curator")
+
+    def test_shared_judge_scripts_are_identical(self):
+        film_judge = FILM.parents[3] / "curatorjudge" / "app" / "resources"
+        tv_judge = HERE.parents[3] / "curatortvjudge" / "app" / "resources"
+        for name in JUDGE_SHARED:
+            with self.subTest(script=name):
+                tv = (tv_judge / name).read_text(encoding="utf-8")
+                film = (film_judge / name).read_text(encoding="utf-8")
+                self.assertEqual(tv, film, f"{name} differs between curatortvjudge and curatorjudge")
 
 
 if __name__ == "__main__":

@@ -45,21 +45,25 @@ from .model import (
     utc,
 )
 from .planner import (
+    DEFAULT_JUDGE_LIMIT,
     MAX_DELETIONS_PER_RUN,
+    VERDICT_REVIEW,
+    VERDICT_SPARED,
     PlanContext,
     assess,
     build_decision_record,
     check_anomalies,
+    count_genres,
     keep_tag_applies,
     keep_tag_targets,
     select_batch,
+    select_for_judgement,
     snapshot_valid,
     summarise,
 )
 from .s3 import S3Client, S3Config
+from .settings import env, env_int, scope_start, tag_keeps_in_dry_run
 from .store import FileStore
-
-DEFAULT_SCOPE_START = "2026-03-01"
 
 
 def log(message: str) -> None:
@@ -67,28 +71,11 @@ def log(message: str) -> None:
     print(f"[{datetime.now(timezone.utc).strftime('%H:%M:%S')}] {message}", flush=True)
 
 
-def env(name: str, required: bool = True) -> str:
-    """Read a configuration value from the environment.
-
-    Hosts and keys are supplied by the caller, never baked in: this repository is
-    public, and a hostname committed here maps the private network.
-    """
-    value = os.environ.get(name, "").strip()
-    if required and not value:
-        raise SystemExit(f"missing required environment variable {name}")
-    return value
-
-
 def feed_tags() -> frozenset[str]:
     """Tag labels that prove a feed added a series, from ``FEED_TAGS``."""
     raw = os.environ.get("FEED_TAGS", "")
     labels = frozenset(t.strip() for t in raw.split(",") if t.strip())
     return labels or DEFAULT_FEED_TAGS
-
-
-def tag_keeps_in_dry_run() -> bool:
-    """Whether a dry run may still add the ``keep`` tag."""
-    return os.environ.get("TAG_KEEPS_IN_DRY_RUN", "").strip().lower() == "true"
 
 
 def to_show(record: dict, tag_labels: dict[int, str]) -> Show:
@@ -114,6 +101,7 @@ def to_show(record: dict, tag_labels: dict[int, str]) -> Show:
         imdb_votes=int(votes) if isinstance(votes, int) and votes else None,
         genres=tuple(record.get("genres") or ()),
         network=record.get("network"),
+        original_language=(record.get("originalLanguage") or {}).get("name"),
         overview=record.get("overview") or "",
         episode_file_count=files,
         season_count=int(stats.get("seasonCount") or 0),
@@ -278,21 +266,6 @@ def resolve_identities(
     return crosswalk, unattributed
 
 
-def count_genres(series: list[dict]) -> dict[str, int]:
-    """How many series with episodes on disk the library holds per genre.
-
-    "A subject the library demonstrably follows" is meant to be counted, not
-    assumed, so the count has to come from the library rather than a guess.
-    """
-    counts: dict[str, int] = {}
-    for record in series:
-        if not int((record.get("statistics") or {}).get("episodeFileCount") or 0):
-            continue
-        for genre in record.get("genres") or []:
-            counts[genre] = counts.get(genre, 0) + 1
-    return counts
-
-
 def assess_library(
     series: list[dict],
     tag_labels: dict[int, str],
@@ -426,14 +399,15 @@ def build_plan_payload(
     run: dict[str, Any],
 ) -> dict[str, Any]:
     """Assemble the plan document handed to the model and stored in the ledger."""
-    candidates = [a for a in assessments if a.outcome is Outcome.CANDIDATE]
+    judge_limit = run.get("judge_limit", DEFAULT_JUDGE_LIMIT)
+    offered, deferred = select_for_judgement([a for a in assessments if a.outcome is Outcome.CANDIDATE], judge_limit)
     coverage_start = run["coverage_start"]
     horizon = run["horizon"]
     return {
         "run_id": run_id,
         "generated_at": now.isoformat(),
         "mode": "dry-run" if dry_run else "act",
-        "scope_start": ctx.scope_start.isoformat(),
+        "scope_start": ctx.scope_start.isoformat() if ctx.scope_start else None,
         "counts": summarise(assessments),
         "snapshot": run["snapshot"],
         "blocks": run["blocks"],
@@ -451,7 +425,11 @@ def build_plan_payload(
             }
             for s in run["keep_targets"]
         ],
-        "candidates": [a.to_json() for a in candidates],
+        # `candidates` is what the judge is asked about and all execute may act on. The
+        # rest of the candidates wait in `judge_deferred`, where no verdict is owed.
+        "judge_limit": judge_limit,
+        "candidates": [a.to_json() for a in offered],
+        "judge_deferred": [a.to_json() for a in deferred],
         "review": [a.to_json() for a in assessments if a.outcome is Outcome.REVIEW],
         "missing_file": [a.to_json() for a in assessments if a.outcome is Outcome.MISSING_FILE],
         "multi_user_viewers": [a.to_json() for a in assessments if a.viewing.distinct_viewers >= 2],
@@ -478,14 +456,16 @@ def source_blocks(
     if not history_ok:
         blocks.append(f"play history not usable: {history_note}")
     if not requests_ok:
-        # An empty request set reads like nobody asked; for a feed-tagged show that
-        # gap is the whole authorisation to delete it.
+        # An empty request set reads like nobody asked. The judge would be given the wrong
+        # origin for every requested show, and a keep it hands down on that is permanent.
         blocks.append("request system unreachable: a requested show could not be told from a feed pull")
     return blocks
 
 
 def cmd_plan(args: argparse.Namespace) -> int:
     """Assess the whole library and emit the candidate set for judgement."""
+    # Read first: a setting that cannot be used should stop the run before it fetches anything.
+    boundary, judge_limit = scope_start(), env_int("CLEANUP_JUDGE_LIMIT", DEFAULT_JUDGE_LIMIT)
     sources = build_sources()
     sonarr, ledger = sources.sonarr, sources.ledger
     now = datetime.now(timezone.utc)
@@ -510,7 +490,7 @@ def cmd_plan(args: argparse.Namespace) -> int:
 
     ctx = PlanContext(
         now=now,
-        scope_start=utc(os.environ.get("CLEANUP_SCOPE_START") or DEFAULT_SCOPE_START) or now,
+        scope_start=boundary,
         coverage_start=coverage_start,
         history_ok=history_ok,
         decisions=ledger.read_decisions(),
@@ -564,11 +544,15 @@ def cmd_plan(args: argparse.Namespace) -> int:
             "unattributed": len(unattributed),
             "horizon": library.horizon,
             "keep_targets": keep_targets,
+            "judge_limit": judge_limit,
         },
     )
     (out / "plan.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
-    ledger.record_plan({k: v for k, v in payload.items() if k != "review"})
-    log(f"wrote {out / 'plan.json'}: {len(payload['candidates'])} candidates, " f"{len(blocks)} blocking issues")
+    ledger.record_plan({k: v for k, v in payload.items() if k not in ("review", "judge_deferred")})
+    log(
+        f"wrote {out / 'plan.json'}: {len(payload['candidates'])} candidates for the judge, "
+        f"{len(payload['judge_deferred'])} deferred, {len(blocks)} blocking issues"
+    )
     for block in blocks:
         log(f"  BLOCK: {block}")
     return 0
@@ -585,7 +569,9 @@ def rehydrate(planned: dict, show: Show, reason: str = "") -> Assessment:
         outcome=Outcome.CANDIDATE,
         subject_counts=dict(planned.get("subject_counts") or {}),
         reopened_dismissal=planned.get("reopened_dismissal") is True,
-        provenance=Provenance(Origin(planned["origin"]), tuple(planned.get("origin_evidence") or ())),
+        provenance=Provenance(
+            Origin(planned["origin"]), tuple(planned.get("origin_evidence") or ()), planned.get("requested_by")
+        ),
         availability=Availability(None, planned["availability_source"], show.has_file),
         viewing=Viewing(
             status=HistoryStatus(planned["history_status"]),
@@ -616,9 +602,9 @@ def apply_keep_tags(  # pylint: disable=too-many-arguments
     Add-only. The editor endpoint answers 202, meaning queued and nothing more,
     so the count is confirmed by re-reading rather than assumed.
 
-    Unlike the film engine this may write in a dry run, when ``tag_in_dry_run``
-    is set: Reclaimerr protects anything tagged ``keep``, and an add-only tag is
-    reversible, whereas a dry run that writes nothing leaves Reclaimerr blind.
+    This may write in a dry run, when ``tag_in_dry_run`` is set: Reclaimerr
+    protects anything tagged ``keep``, and an add-only tag is reversible, whereas
+    a dry run that writes nothing leaves Reclaimerr blind.
 
     The plan is half an hour old by the time this runs, so each target is
     re-checked against its live tags first: applying ``keep`` to a series somebody
@@ -735,7 +721,7 @@ def record_judge_decisions(
         ledger.write_decision(
             build_decision_record(
                 rehydrate(by_id[item["series_id"]], show),
-                verdict=("spared" if item["verdict"] == "keep" else "queued for review"),
+                verdict=(VERDICT_SPARED if item["verdict"] == "keep" else VERDICT_REVIEW),
                 reason=item["reason"],
                 run_id=run_id,
                 now=now,
@@ -789,6 +775,8 @@ def execute_exit_code(result: ExecutionResult, untagged: set[int], unjudged: lis
 
 def cmd_execute(args: argparse.Namespace) -> int:  # pylint: disable=too-many-locals
     """Apply Claude's recommendations, re-validating every safeguard first."""
+    # Read first: a cap that cannot be used should stop the run before it tags or deletes anything.
+    cap = env_int("CLEANUP_MAX_DELETIONS", MAX_DELETIONS_PER_RUN)
     sources = build_sources()
     sonarr, ledger = sources.sonarr, sources.ledger
     # The CronJob passes --read-only, so deleting needs edits in two places; a half-made
@@ -819,7 +807,8 @@ def cmd_execute(args: argparse.Namespace) -> int:  # pylint: disable=too-many-lo
     for bad in rejected:
         log(f"  rejected recommendation: {bad}")
     # A candidate the judge left out is safe but reaches nobody: neither deleted nor
-    # put in front of a person. Counting it is what makes that visible.
+    # put in front of a person. Counting it is what makes that visible. Candidates past
+    # the judge limit are not in `candidates` at all, so none of them is counted here.
     unjudged = sorted(set(by_id) - {item["series_id"] for item in accepted})
     if unjudged:
         log(f"  {len(unjudged)} candidate(s) came back with no usable verdict")
@@ -864,7 +853,7 @@ def cmd_execute(args: argparse.Namespace) -> int:  # pylint: disable=too-many-lo
         )
 
         already = ledger.deletions_in_window()
-        selected, deferred = select_batch(approved, MAX_DELETIONS_PER_RUN, already)
+        selected, deferred = select_batch(approved, cap, already)
         log(
             f"{len(approved)} approved, {already} already deleted this window, "
             f"acting on {len(selected)}, deferring {len(deferred)}"
@@ -901,6 +890,7 @@ def cmd_execute(args: argparse.Namespace) -> int:  # pylint: disable=too-many-lo
             "escalated": escalated,
             "keep_tags_added": tagged,
             "judge_keeps_tagged": judge_tagged,
+            "deletion_cap": cap,
             "deferred": [a.show.series_id for a in deferred],
             "rejected_recommendations": rejected,
             **result.as_dict(),

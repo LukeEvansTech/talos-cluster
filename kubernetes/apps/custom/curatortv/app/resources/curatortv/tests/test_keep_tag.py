@@ -1,10 +1,10 @@
 """Allow-list maintenance, and the one place this engine writes in a dry run.
 
-The film engine writes nothing in a dry run. This one may add ``keep``, behind
-``TAG_KEEPS_IN_DRY_RUN``, because Reclaimerr protects anything carrying it. The
-tests below pin both halves of that: the tag is applied only when the flag is
-set and only where a person has not decided otherwise, and a dry run still
-never reaches a delete.
+A dry run may add ``keep``, behind ``TAG_KEEPS_IN_DRY_RUN``, because Reclaimerr
+protects anything carrying it; the film engine has the same flag and its
+manifest leaves it off. The tests below pin both halves of that: the tag is
+applied only when the flag is set and only where a person has not decided
+otherwise, and a dry run still never reaches a delete.
 """
 
 from __future__ import annotations
@@ -60,7 +60,7 @@ class KeepTagTargetTests(unittest.TestCase):
 
 
 class DryRunKeepTagTests(unittest.TestCase):
-    """The deliberate deviation from the film engine."""
+    """A dry run writes the tag only when the flag says it may."""
 
     def sonarr(self, tags=None) -> FakeSonarr:
         """One series, with the given live tag ids."""

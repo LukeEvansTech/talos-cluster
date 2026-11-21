@@ -7,6 +7,7 @@ exercised from a fixture rather than from a live cluster.
 from __future__ import annotations
 
 from collections.abc import Iterable
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 
 from .clients import find_request
@@ -102,7 +103,8 @@ def resolve_availability(
     file by months. The window runs from imports instead. An ended show runs
     from its first import; a continuing one from the newest *episode's* first
     import, since a season that arrived last month is not something anybody has
-    had a chance to watch.
+    had a chance to watch. ``settle_window`` takes that back for a continuing
+    show nobody has played, once the play history is known.
     """
     firsts = first_import_per_episode(history)
     if firsts:
@@ -154,6 +156,26 @@ def resolve_availability(
         source="ledger-bootstrap",
         has_file=True,
         evidence=(f"no import event in retained history{horizon}; first observed now",),
+    )
+
+
+def settle_window(show: Show, availability: Availability, viewing: Viewing) -> Availability:
+    """Run a continuing series' window from its first import when nobody has played it.
+
+    The newest-episode clock gives a new season a full window, which only means
+    something to a household that has started the show. Left unconditional it
+    made an airing series nobody watches permanently not due. The zero has to be
+    trustworthy: a history that is incomplete or unresolved keeps the later clock.
+    """
+    first, start = availability.first_playable, availability.window_start
+    if show.ended or first is None or start is None or start <= first:
+        return availability
+    if not viewing.trustworthy or viewing.play_count:
+        return availability
+    return replace(
+        availability,
+        window_start=first,
+        evidence=availability.evidence + ("no plays in a complete history: window runs from the first import",),
     )
 
 

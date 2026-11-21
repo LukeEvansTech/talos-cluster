@@ -20,6 +20,9 @@ from .model import TAG_HUMAN_DISMISSED, VETO_TAGS, Assessment, utc
 # that fired; the run reports those as a failure (exit 10).
 UNAVAILABLE = "could not"
 
+# Below this a reason cannot name anything specific to the film.
+MIN_REASON_LENGTH = 12
+
 
 @dataclass
 class ExecutionResult:
@@ -48,7 +51,9 @@ def validate_recommendations(
     A recommendation for a film the engine never offered is not a judgement call
     that went the wrong way -- it is a sign the two halves disagree about what
     was being judged, and acting on it would bypass every check that produced the
-    candidate list.
+    candidate list. Both ``delete`` and ``keep`` need a stated reason: a keep
+    becomes a permanent ``keep`` tag, so it is as consequential as a delete, only
+    in the other direction.
     """
     accepted: list[dict] = []
     rejected: list[dict] = []
@@ -60,7 +65,7 @@ def validate_recommendations(
         movie_id = item.get("movie_id")
         verdict = str(item.get("verdict", "")).lower()
         reason = str(item.get("reason", "")).strip()
-        if not isinstance(movie_id, int):
+        if not isinstance(movie_id, int) or isinstance(movie_id, bool):
             rejected.append({"item": item, "why": "movie_id missing or not an integer"})
             continue
         if movie_id not in candidates:
@@ -69,8 +74,8 @@ def validate_recommendations(
         if verdict not in ("delete", "keep", "review"):
             rejected.append({"movie_id": movie_id, "why": f"unknown verdict {verdict!r}"})
             continue
-        if verdict == "delete" and len(reason) < 12:
-            rejected.append({"movie_id": movie_id, "why": "delete without a stated reason"})
+        if verdict in ("delete", "keep") and len(reason) < MIN_REASON_LENGTH:
+            rejected.append({"movie_id": movie_id, "why": f"{verdict} without a stated reason"})
             continue
         if movie_id in seen:
             # A film judged twice has been judged two ways. Taking both would
@@ -165,6 +170,19 @@ def revalidate(
     return True, "all protections re-checked against live state", live
 
 
+def requested_since(request: dict, since: datetime) -> bool:
+    """Whether a title's newest request was made after ``since``, or cannot be shown not to have been.
+
+    The newest request, not the first: a requested title can be a candidate, so
+    a later request must not hide behind the one that brought it in. A request
+    with no usable date cannot be placed before the plan, so it counts.
+    """
+    if request.get("undated"):
+        return True
+    latest = utc(request.get("latest_at") or request.get("created_at"))
+    return latest is None or latest > since
+
+
 def late_evidence(tautulli, seerr, crosswalk: dict[int, dict] | None, since: datetime | None):
     """Re-read the two things that change outside Radarr, at execution time.
 
@@ -173,6 +191,8 @@ def late_evidence(tautulli, seerr, crosswalk: dict[int, dict] | None, since: dat
     completion reaches the candidate list by design, because the viewing window
     already gave the household its chance and a single play is not protection.
     Treating that pre-existing play as new would silently overturn that rule.
+    The same holds for a request: one made before the plan is on the candidate's
+    record for the judge, and only one made since stops the deletion.
 
     Returns ``(requests_by_tmdb, watched_ids, known)``. ``known`` is False
     when either source could not be read -- an unavailable safety check is an
@@ -186,8 +206,7 @@ def late_evidence(tautulli, seerr, crosswalk: dict[int, dict] | None, since: dat
     if seerr is not None:
         try:
             for tmdb_id, request in seerr.movie_requests().items():
-                created = utc(request.get("created_at"))
-                if created and created > since:
+                if requested_since(request, since):
                     requests_by_tmdb[tmdb_id] = request
         except SourceError:
             return {}, set(), False
@@ -260,7 +279,8 @@ def late_evidence_block(film, requests_by_tmdb: dict[int, dict], watched_ids: se
     on, so both are reachable, and neither leaves a trace the other checks see.
     """
     if film.tmdb_id and film.tmdb_id in requests_by_tmdb:
-        who = (requests_by_tmdb[film.tmdb_id] or {}).get("requested_by") or "someone"
+        request = requests_by_tmdb[film.tmdb_id] or {}
+        who = request.get("latest_by") or request.get("requested_by") or "someone"
         return f"requested by {who} since the plan was made"
     # Either identifier will do: the crosswalk holds IMDb-only entries, so matching
     # tmdb alone silently dropped those completions.
@@ -277,8 +297,8 @@ def volatile_block(film, tautulli, seerr, crosswalk: dict[int, dict] | None, sin
 
     ``revalidate`` re-reads Radarr per film, but the two checks that live
     outside Radarr -- who is watching now, and what has been requested or
-    finished since the plan -- were read once, before the loop. A batch of up to
-    thirty deletions takes minutes, and starting a film is a thing that takes
+    finished since the plan -- were read once, before the loop. A batch of
+    deletions takes minutes, and starting a film is a thing that takes
     seconds: the last deletion in a batch was being judged on evidence gathered
     before the first one happened. So this runs immediately before the
     destructive call, and an answer it cannot get is a refusal.

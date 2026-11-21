@@ -248,6 +248,46 @@ class RequestSystemTests(unittest.TestCase):
         self.assertIsNotNone(find_request(requests, 1, 4057))
         self.assertIsNone(find_request(requests, 1, 2))
 
+    def request(self, who: str, created: str | None, media: dict | None = None) -> dict:
+        """One TV request as the request system lists it."""
+        return {
+            "type": "tv",
+            "media": media or {"tvdbId": 75710, "tmdbId": 4057},
+            "requestedBy": {"displayName": who},
+            "createdAt": created,
+        }
+
+    def requests(self, *items: dict) -> dict:
+        """What the client makes of one page of requests."""
+        payload = {"pageInfo": {"results": len(items)}, "results": list(items)}
+        return RequestSystem("http://r", "k", opener=_Opener([payload])).tv_requests()
+
+    def test_two_requests_keep_the_earliest_as_origin_and_the_newest_beside_it(self):
+        """A show is requested a season at a time; both ends matter."""
+        old = self.request("Sam", "2026-03-01T10:00:00.000Z")
+        new = self.request("Alex", "2026-09-11T10:00:00.000Z")
+        for order in ((old, new), (new, old)):
+            with self.subTest(first=order[0]["requestedBy"]["displayName"]):
+                record = find_request(self.requests(*order), 75710, None)
+                self.assertEqual((record["requested_by"], record["created_at"]), ("Sam", "2026-03-01T10:00:00.000Z"))
+                self.assertEqual((record["latest_by"], record["latest_at"]), ("Alex", "2026-09-11T10:00:00.000Z"))
+                self.assertFalse(record["undated"])
+
+    def test_each_id_keeps_its_own_record(self):
+        """A later request that carries only the TMDb id updates that key and leaves the TVDB one."""
+        old = self.request("Sam", "2026-03-01T10:00:00.000Z")
+        new = self.request("Alex", "2026-09-11T10:00:00.000Z", media={"tmdbId": 4057})
+        requests = self.requests(old, new)
+        self.assertEqual(requests[("tvdb", 75710)]["latest_by"], "Sam")
+        self.assertEqual(requests[("tmdb", 4057)]["latest_by"], "Alex")
+        self.assertEqual(requests[("tmdb", 4057)]["requested_by"], "Sam")
+
+    def test_a_request_with_no_date_marks_the_series_undated(self):
+        dated = self.request("Sam", "2026-03-01T10:00:00.000Z")
+        for order in ((dated, self.request("Alex", None)), (self.request("Alex", None), dated)):
+            with self.subTest(first=order[0]["requestedBy"]["displayName"]):
+                self.assertTrue(find_request(self.requests(*order), 75710, None)["undated"])
+
 
 if __name__ == "__main__":
     unittest.main()

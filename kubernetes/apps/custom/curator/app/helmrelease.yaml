@@ -52,9 +52,9 @@ spec:
               # LEDGER_DIR selects the filesystem backend, so the ledger is snapshotted
               # with the volume.
               LEDGER_DIR: /state/ledger
-              # Films added before this are the never-reviewed backlog, out of scope
-              # (see the app README).
-              CLEANUP_SCOPE_START: "2026-03-01"
+              # Set here, not on curatorjudge: the plan names the candidates the judge is
+              # asked about, largest first, and defers the rest.
+              CLEANUP_JUDGE_LIMIT: "150"
               # plan writes nothing either way; set so the ledger namespaces its
               # records the same as execute will.
               CLEANUP_MODE: dry-run

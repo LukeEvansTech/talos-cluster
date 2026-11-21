@@ -186,8 +186,9 @@ def new_content_block(
 ) -> str | None:
     """Whether the series gained episodes after the plan was made.
 
-    A new episode restarts a continuing show's window, and nothing else in the
-    live re-checks sees one arrive. Any import after the plan counts, upgrades
+    A new episode restarts the window of a continuing show somebody has played,
+    and nothing else in the live re-checks sees one arrive. It is checked for
+    every series all the same. Any import after the plan counts, upgrades
     included: refusing a series for a week costs nothing, deleting a new season
     the day it lands does.
     """
@@ -205,13 +206,28 @@ def new_content_block(
     return None
 
 
+def requested_since(request: dict, since: datetime) -> bool:
+    """Whether a title's newest request was made after ``since``, or cannot be shown not to have been.
+
+    The newest request, not the first: a requested title can be a candidate, so
+    a later request must not hide behind the one that brought it in. A request
+    with no usable date cannot be placed before the plan, so it counts.
+    """
+    if request.get("undated"):
+        return True
+    latest = utc(request.get("latest_at") or request.get("created_at"))
+    return latest is None or latest > since
+
+
 def late_evidence(tautulli, seerr, crosswalk: dict[int, dict] | None, since: datetime | None):
     """Re-read the two things that change outside Sonarr, at execution time.
 
     Only evidence dated **after** ``since`` -- the moment the plan was made --
     counts. A series one person has been watching reaches the candidate list by
     design, so treating those pre-existing plays as new would silently overturn
-    that rule. An episode finished since the plan does block.
+    that rule. An episode finished since the plan does block. The same holds for
+    a request: one made before the plan is on the candidate's record for the
+    judge, and only one made since stops the deletion.
 
     Returns ``(requests, watched_ids, known)``. ``known`` is False when either
     source could not be read -- an unavailable safety check is an unresolved
@@ -225,8 +241,7 @@ def late_evidence(tautulli, seerr, crosswalk: dict[int, dict] | None, since: dat
     if seerr is not None:
         try:
             for key, request in seerr.tv_requests().items():
-                created = utc(request.get("created_at"))
-                if created and created > since:
+                if requested_since(request, since):
                     requests[key] = request
         except SourceError:
             return {}, set(), False
@@ -289,7 +304,7 @@ def late_evidence_block(
     """
     request = find_request(requests, show.tvdb_id, show.tmdb_id)
     if request is not None:
-        who = (request or {}).get("requested_by") or "someone"
+        who = (request or {}).get("latest_by") or (request or {}).get("requested_by") or "someone"
         return f"requested by {who} since the plan was made"
     if show_identity(show.tvdb_id, show.tmdb_id, show.imdb_id) & watched_ids:
         return "an episode was finished since the plan was made"

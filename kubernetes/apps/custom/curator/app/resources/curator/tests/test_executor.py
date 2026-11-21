@@ -6,9 +6,10 @@ import unittest
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 
-from curator.clients import SourceError
+from curator.clients import RequestSystem, SourceError
 from curator.executor import (
     execute,
+    late_evidence,
     reconcile,
     recycle_bin_ready,
     restore_snapshot,
@@ -27,6 +28,7 @@ from .fixtures import (
     make_film,
     make_viewing,
 )
+from .test_clients import _Opener
 
 TAGS = {1: "keep", 2: "keep-review", 3: "cleanup-keep", 4: "src-tmdb-popular"}
 
@@ -111,6 +113,21 @@ class RecommendationValidationTests(unittest.TestCase):
     def test_delete_without_a_reason_is_rejected(self):
         _, rejected = validate_recommendations([{"movie_id": 1, "verdict": "delete", "reason": "bad"}], self.candidates)
         self.assertIn("without a stated reason", rejected[0]["why"])
+
+    def test_keep_without_a_reason_is_rejected(self):
+        """A keep becomes a permanent tag, so it needs a reason as much as a delete does."""
+        _, rejected = validate_recommendations([{"movie_id": 1, "verdict": "keep", "reason": "good"}], self.candidates)
+        self.assertEqual(rejected[0]["why"], "keep without a stated reason")
+
+    def test_review_needs_no_long_reason(self):
+        accepted, _ = validate_recommendations([{"movie_id": 1, "verdict": "review", "reason": ""}], self.candidates)
+        self.assertEqual(len(accepted), 1)
+
+    def test_a_boolean_is_not_an_id(self):
+        _, rejected = validate_recommendations(
+            [{"movie_id": True, "verdict": "delete", "reason": "a perfectly good reason"}], self.candidates
+        )
+        self.assertIn("not an integer", rejected[0]["why"])
 
     def test_non_integer_id_is_rejected(self):
         _, rejected = validate_recommendations(
@@ -347,6 +364,151 @@ class ExecutionTests(unittest.TestCase):
         self.assertEqual(len(result.failed), 1)
         self.assertEqual(len(result.deleted), 1)
         self.assertEqual(radarr.deleted, [2])
+
+
+class _Seerr:  # pylint: disable=too-few-public-methods
+    """A request system holding a fixed set of requests, or failing."""
+
+    def __init__(self, requests: dict[int, dict] | None = None, error: Exception | None = None):
+        self.requests = requests or {}
+        self.error = error
+
+    def movie_requests(self) -> dict[int, dict]:
+        """Every request, keyed by tmdb id."""
+        if self.error:
+            raise self.error
+        return self.requests
+
+
+def stamp(minutes_from_plan: int) -> str:
+    """An ISO timestamp that many minutes after the plan was made."""
+    return (PLANNED_AT + timedelta(minutes=minutes_from_plan)).isoformat()
+
+
+class RequestsAroundThePlanTests(unittest.TestCase):
+    """A request is on the candidate's record; only one made since the plan stops a deletion."""
+
+    def run_one(self, seerr, tautulli=None, approved=None):
+        """Execute one approved film (tmdb id 1000) in a dry run."""
+        return execute(
+            approved or [assessment()],
+            FakeRadarr({1: movie_record()}, TAGS),
+            tautulli or FakeTautulli(),
+            Ledger(FakeS3(), run_id="run-test", dry_run=True),
+            TAGS,
+            set(),
+            dry_run=True,
+            seerr=seerr,
+            crosswalk={5000: {"tmdb": 1000, "imdb": "tt0000001"}},
+            planned_at=PLANNED_AT,
+        )
+
+    def test_a_request_made_before_the_plan_does_not_stop_the_deletion(self):
+        """It was a protection once. Now the film waited out its window with the request on record."""
+        seerr = _Seerr({1000: {"requested_by": "Sam", "created_at": stamp(-60 * 24 * 200)}})
+        result = self.run_one(seerr)
+        self.assertEqual([d["movie_id"] for d in result.deleted], [1])
+        self.assertEqual(result.skipped, [])
+
+    def test_a_request_made_since_the_plan_stops_it(self):
+        seerr = _Seerr({1000: {"requested_by": "Alex", "created_at": stamp(5)}})
+        result = self.run_one(seerr)
+        self.assertEqual(result.deleted, [])
+        self.assertEqual(result.skipped[0]["why"], "requested by Alex since the plan was made")
+
+    def test_a_second_request_since_the_plan_is_not_hidden_by_the_first(self):
+        """A requested film can be a candidate now, so its newest request is the one that counts."""
+        seerr = _Seerr(
+            {
+                1000: {
+                    "requested_by": "Sam",
+                    "created_at": stamp(-60 * 24 * 200),
+                    "latest_by": "Alex",
+                    "latest_at": stamp(5),
+                }
+            }
+        )
+        result = self.run_one(seerr)
+        self.assertEqual(result.deleted, [])
+        self.assertEqual(result.skipped[0]["why"], "requested by Alex since the plan was made")
+
+    def test_the_real_client_surfaces_the_newer_of_two_requests(self):
+        """Whichever order the request system lists them in."""
+
+        def request(who: str, created: str) -> dict:
+            return {
+                "type": "movie",
+                "media": {"tmdbId": 1000},
+                "requestedBy": {"displayName": who},
+                "createdAt": created,
+            }
+
+        old, new = request("Sam", stamp(-60 * 24 * 200)), request("Alex", stamp(5))
+        for order in ([old, new], [new, old]):
+            with self.subTest(first=order[0]["requestedBy"]["displayName"]):
+                payload = {"pageInfo": {"results": 2}, "results": order}
+                # Read twice: once before the batch, once immediately before the deletion.
+                seerr = RequestSystem("http://r", "k", opener=_Opener([payload, payload]))
+                result = self.run_one(seerr)
+                self.assertEqual(result.deleted, [])
+                self.assertEqual(result.skipped[0]["why"], "requested by Alex since the plan was made")
+
+    def test_a_request_that_cannot_be_dated_stops_it(self):
+        """Not provably before the plan, so it is treated as since."""
+        for request in ({"requested_by": "Sam", "created_at": None}, {"requested_by": "Sam", "undated": True}):
+            with self.subTest(request=request):
+                result = self.run_one(_Seerr({1000: request}))
+                self.assertEqual(result.deleted, [])
+                self.assertIn("since the plan was made", result.skipped[0]["why"])
+
+    def test_a_request_for_another_film_stops_nothing(self):
+        seerr = _Seerr({4242: {"requested_by": "Alex", "created_at": stamp(5)}})
+        self.assertEqual(len(self.run_one(seerr).deleted), 1)
+
+    def test_an_unreachable_request_system_skips_rather_than_proceeds(self):
+        result = self.run_one(_Seerr(error=SourceError("seerr down")))
+        self.assertEqual(result.deleted, [])
+        self.assertTrue(result.skipped[0]["unavailable"])
+
+    def test_requests_known_before_the_plan_are_not_read_as_late_evidence(self):
+        seerr = _Seerr({1000: {"requested_by": "Sam", "created_at": stamp(-10)}})
+        requests, _, known = late_evidence(FakeTautulli(), seerr, {}, PLANNED_AT)
+        self.assertEqual((requests, known), ({}, True))
+
+
+class CompletionsSinceThePlanTests(unittest.TestCase):
+    """Two completers protect a film; the second one can arrive after the plan."""
+
+    def finished(self, user_id: int, minutes_from_plan: int) -> dict:
+        """A completed play of the film's Plex item, stopped relative to the plan."""
+        when = int((PLANNED_AT + timedelta(minutes=minutes_from_plan)).timestamp())
+        return {"rating_key": 5000, "user_id": user_id, "percent_complete": 96, "stopped": when}
+
+    def run_one(self, rows):
+        """Execute a candidate one person had finished when the plan was made."""
+        tautulli = FakeTautulli()
+        tautulli.history_rows = rows
+        one_completer = replace(assessment(), viewing=make_viewing(completers=1))
+        return execute(
+            [one_completer],
+            FakeRadarr({1: movie_record()}, TAGS),
+            tautulli,
+            Ledger(FakeS3(), run_id="run-test", dry_run=True),
+            TAGS,
+            set(),
+            dry_run=True,
+            crosswalk={5000: {"tmdb": 1000, "imdb": "tt0000001"}},
+            planned_at=PLANNED_AT,
+        )
+
+    def test_a_second_person_finishing_it_since_the_plan_stops_the_deletion(self):
+        result = self.run_one([self.finished(100, -5000), self.finished(200, 5)])
+        self.assertEqual(result.deleted, [])
+        self.assertEqual(result.skipped[0]["why"], "completed by someone since the plan was made")
+
+    def test_the_one_completion_the_plan_already_knew_does_not_stop_it(self):
+        result = self.run_one([self.finished(100, -5000)])
+        self.assertEqual([d["movie_id"] for d in result.deleted], [1])
 
 
 class ReconcileTests(unittest.TestCase):

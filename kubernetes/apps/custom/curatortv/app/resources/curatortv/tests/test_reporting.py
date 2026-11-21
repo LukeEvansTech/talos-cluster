@@ -41,7 +41,7 @@ def plan(**overrides) -> dict:
         "counts": {"protected": 4405, "out_of_scope": 1210, "review": 2, "candidate": 1},
         "blocks": [],
         "review": [
-            show(1, "Outcome", 12.0, "origin unknown: no request record and no provenance tag"),
+            show(1, "Outcome", 12.0, "record has no usable added date"),
             show(2, "Deep Water", 8.0, "play history incomplete: coverage starts after release"),
         ],
         "missing_file": [],
@@ -165,7 +165,7 @@ class ReviewQueueTests(unittest.TestCase):
 
     def test_series_are_grouped_by_the_short_form_of_their_blocker(self):
         digest = reporting.render(plan(), result(), None, NOW)
-        self.assertIn("1 × origin unknown", digest.push)
+        self.assertIn("1 × record has no usable added date", digest.push)
         self.assertNotIn("no request record", digest.push)
 
     def test_the_queue_size_and_volume_are_both_reported(self):
@@ -242,9 +242,76 @@ class EscalationTests(unittest.TestCase):
         self.assertIn("unsure", digest.text)
 
     def test_a_successful_judgement_reports_its_verdicts(self):
-        record = judgement(verdicts={"keep": 3, "delete": 1}, cost_usd=0.42)
+        record = judgement(verdicts={"keep": 3, "delete": 1})
         digest = reporting.render(plan(), result(), record, NOW)
         self.assertIn("1 delete, 3 keep", digest.text)
+
+    def test_a_judgement_reports_the_tokens_it_used(self):
+        record = judgement(verdicts={"delete": 4}, usage={"input_tokens": 61234, "output_tokens": 4321})
+        digest = reporting.render(plan(), result(), record, NOW)
+        self.assertIn("Judgement: 4 delete; 61,234 tokens in, 4,321 out.", digest.text)
+
+    def test_token_counts_that_are_missing_or_not_numbers_are_left_out(self):
+        for usage in (None, {}, {"input_tokens": 5}, {"input_tokens": "many", "output_tokens": 1}):
+            with self.subTest(usage=usage):
+                digest = reporting.render(plan(), result(), judgement(verdicts={"keep": 1}, usage=usage), NOW)
+                self.assertIn("Judgement: 1 keep.", digest.text)
+
+    def test_a_partial_judgement_shows_its_verdicts_and_is_a_problem(self):
+        """Some batches answered and one did not: the verdicts are real, and the week is not clean."""
+        record = judgement(
+            status="partial",
+            detail="2 of 3 batches judged; batch 002 (50 titles): rate limited",
+            verdicts={"delete": 80, "keep": 20},
+        )
+        digest = reporting.render(plan(), result(unjudged=list(range(50))), record, NOW)
+        self.assertIn("80 delete, 20 keep", digest.text)
+        self.assertIn("INCOMPLETE: 2 of 3 batches judged", digest.text)
+        self.assertIn("judgement partial", digest.title)
+        self.assertIn("50 candidates came back with no verdict", digest.push)
+
+
+class JudgeLimitTests(unittest.TestCase):
+    """Candidates past the judge limit wait for a later run; that is not a failure."""
+
+    def deferred(self) -> dict:
+        """A plan offering one candidate and deferring two."""
+        return plan(
+            counts={"protected": 10, "candidate": 3},
+            review=[],
+            judge_limit=1,
+            judge_deferred=[show(8, "Later", 3.0), show(9, "Later Still", 2.0)],
+        )
+
+    def test_the_digest_says_how_many_were_deferred(self):
+        digest = reporting.render(self.deferred(), result(), judgement(), NOW)
+        self.assertIn("Deferred: 2 candidates (5 GB) are past the judge limit of 1", digest.text)
+        self.assertIn("3 candidates · 2 deferred", digest.push)
+
+    def test_deferral_is_not_a_problem(self):
+        digest = reporting.render(self.deferred(), result(), judgement(), NOW)
+        self.assertEqual(digest.title, "TV cleanup: 0 to review")
+        self.assertNotIn("Needs attention", digest.push)
+
+    def test_nothing_is_said_when_nothing_was_deferred(self):
+        digest = reporting.render(plan(), result(), judgement(), NOW)
+        self.assertNotIn("Deferred", digest.text)
+        self.assertNotIn("deferred", digest.push)
+
+
+class WaitingOnYouTests(unittest.TestCase):
+    """Only what the engine could not assess, and the judge's own reviews, reach a person."""
+
+    def test_the_queue_is_the_plans_review_list_plus_the_judges_reviews(self):
+        escalated = [{"series_id": 7, "title": "Unknown Quantity", "year": 2026, "size_gb": 3.0, "reason": "unsure"}]
+        digest = reporting.render(plan(), result(escalated=escalated), judgement(), NOW)
+        self.assertIn("## Waiting on you: 3 series", digest.text)
+
+    def test_candidates_and_deferred_candidates_are_not_waiting_on_anyone(self):
+        waiting = plan(review=[], judge_deferred=[show(8, "Later", 3.0)])
+        digest = reporting.render(waiting, result(), judgement(), NOW)
+        self.assertNotIn("Waiting on you", digest.text)
+        self.assertNotIn("waiting on you", digest.push)
 
 
 class FakeOpener:

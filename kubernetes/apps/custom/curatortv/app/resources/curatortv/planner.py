@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Any
 
-from .evidence import days_available, window_days
+from .evidence import days_available, settle_window, window_days
 from .model import (
     TAG_HUMAN_DISMISSED,
     TAG_HUMAN_ELIGIBLE,
@@ -22,7 +22,6 @@ from .model import (
     Assessment,
     Availability,
     HistoryStatus,
-    Origin,
     Outcome,
     Provenance,
     Show,
@@ -32,6 +31,8 @@ from .model import (
 # A series is tens to hundreds of GB and a whole run's worth of seasons to restore,
 # so a third of the film cap already reclaims more and risks more per bad batch.
 MAX_DELETIONS_PER_RUN = 10
+# Bounds one run's judging cost and time; the rest of a backlog waits its turn.
+DEFAULT_JUDGE_LIMIT = 30
 SUBJECT_EXACT_BELOW = 25
 # Long enough not to re-litigate weekly, short enough to catch a change within a season.
 DEFAULT_RECONSIDER_DAYS = 180
@@ -47,6 +48,14 @@ ANOMALY_LIMITS = {
 
 KEEP_BAR_VOTES = 5000
 KEEP_BAR_SCORE = 6.5
+# A rating says how well a reality series is made, not whether anyone here wants it,
+# so the bar neither protects one nor tags it; the judge sees it whatever its score.
+REALITY_GENRE = "reality"
+
+# What the judge's two non-delete verdicts are recorded as. A spare is settled; a
+# review is still waiting on a person, and the planner tells them apart by this.
+VERDICT_SPARED = "spared"
+VERDICT_REVIEW = "queued for review"
 
 
 @dataclass
@@ -54,7 +63,8 @@ class PlanContext:
     """Everything the planner needs that is not the series itself."""
 
     now: datetime
-    scope_start: datetime
+    # None means the whole library is in scope.
+    scope_start: datetime | None
     coverage_start: datetime | None
     history_ok: bool
     decisions: dict[int, dict] = field(default_factory=dict)
@@ -114,15 +124,29 @@ def decision_still_binding(decision: dict, fingerprint: str, now: datetime) -> b
     return True
 
 
+def is_reality(show: Show) -> bool:
+    """Whether the series' genres include Reality."""
+    return any(genre.strip().lower() == REALITY_GENRE for genre in show.genres)
+
+
 def meets_keep_bar(show: Show, bar_votes: int = KEEP_BAR_VOTES, bar_score: float = KEEP_BAR_SCORE) -> bool:
-    """Whether a series clears the permanent allow-list bar on its ratings alone."""
+    """Whether a series clears the permanent allow-list bar on its ratings alone.
+
+    A reality series never does, whatever its rating.
+    """
+    if is_reality(show):
+        return False
     if show.imdb_votes is None or show.imdb_score is None:
         return False
     return show.imdb_votes >= bar_votes and show.imdb_score >= bar_score
 
 
-def _protection_gate(show: Show, provenance: Provenance, result: Assessment) -> bool:
-    """Apply the absolute protections. True when one of them fired."""
+def _protection_gate(show: Show, result: Assessment) -> bool:
+    """Apply the protections that need no play evidence. True when one fired.
+
+    A request is deliberately absent: a requested series waits out its window
+    like any other and reaches the judge with its origin on the record.
+    """
     vetoes = sorted(show.tags & VETO_TAGS)
     if vetoes:
         result.outcome = Outcome.PROTECTED
@@ -134,11 +158,6 @@ def _protection_gate(show: Show, provenance: Provenance, result: Assessment) -> 
     if meets_keep_bar(show) and TAG_HUMAN_ELIGIBLE not in show.tags:
         result.outcome = Outcome.PROTECTED
         result.protections.append(f"meets the allow-list bar ({show.imdb_votes} votes at {show.imdb_score})")
-        return True
-
-    if provenance.origin is Origin.REQUESTED:
-        result.outcome = Outcome.PROTECTED
-        result.protections.append(f"explicitly requested by {provenance.requested_by or 'a household member'}")
         return True
     return False
 
@@ -161,7 +180,7 @@ def _scope_gate(
         result.blockers.append("record has no usable added date")
         return True
 
-    if show.added < ctx.scope_start:
+    if ctx.scope_start and show.added < ctx.scope_start:
         result.outcome = Outcome.OUT_OF_SCOPE
         result.reasons.append(f"added {show.added.date()}, before the {ctx.scope_start.date()} scope boundary")
         return True
@@ -199,10 +218,12 @@ def _evidence_gate(viewing: Viewing, result: Assessment) -> bool:
         result.blockers.append(f"play history {viewing.status.value}: " + "; ".join(viewing.notes))
         return True
 
+    # Last of the protections, and here rather than with the others because it is the
+    # only one that rests on play history: an untrustworthy count goes to a person above.
     if viewing.distinct_viewers >= 2:
-        result.outcome = Outcome.REVIEW
-        result.reasons.append(
-            f"{viewing.distinct_viewers} distinct users finished episodes; belongs in the human queue"
+        result.outcome = Outcome.PROTECTED
+        result.protections.append(
+            f"watched by the house: {viewing.distinct_viewers} distinct users finished an episode"
         )
         return True
     return False
@@ -217,9 +238,12 @@ def assess(
 ) -> Assessment:
     """Decide what may be done with one series, before any question of taste.
 
-    Order matters: protections come before eligibility, so a series that is both
-    protected and past its window reports as protected.
+    Order matters: the allow list and the rating bar come before eligibility, so
+    a series that is both protected and past its window reports as protected. Two
+    or more viewers protect too, but only once the play history has been shown to
+    be trustworthy.
     """
+    availability = settle_window(show, availability, viewing)
     window = window_days(show)
     available_for = days_available(availability, ctx.now)
     result = Assessment(
@@ -233,33 +257,22 @@ def assess(
         subject_counts={g: ctx.genre_counts.get(g, 0) for g in show.genres},
     )
 
-    if _protection_gate(show, provenance, result):
+    if _protection_gate(show, result):
         return result
     if _scope_gate(show, ctx, result, available_for, window):
         return result
     if _evidence_gate(viewing, result):
         return result
 
-    # Feed provenance or a human tag authorises deletion; the tag doesn't relabel the origin.
-    authorised_by = None
-    if provenance.origin is Origin.FEED:
-        authorised_by = "feed provenance"
-    elif TAG_HUMAN_ELIGIBLE in show.tags:
-        authorised_by = f"human decision tag {TAG_HUMAN_ELIGIBLE}"
-
-    if not authorised_by:
-        result.outcome = Outcome.REVIEW
-        result.blockers.append(
-            "origin unknown: no request record and no feed tag, so "
-            "delete-by-default is not authorised for this series"
-        )
-        return result
-
+    # No origin gate: how a series arrived is evidence for the judge, not a permission.
+    # Requiring a feed tag parked everything else in a queue nobody could clear.
     fingerprint = fact_fingerprint(show, provenance, viewing, result.subject_counts)
     stored = ctx.decisions.get(show.series_id)
     if stored and decision_still_binding(stored, fingerprint, ctx.now):
-        result.outcome = Outcome.REVIEW
-        verdict = stored.get("verdict", "spared")
+        verdict = stored.get("verdict", VERDICT_SPARED)
+        # The judge's own review stays in front of a person until they act on it;
+        # a spare is settled and asks nothing of anyone.
+        result.outcome = Outcome.REVIEW if verdict == VERDICT_REVIEW else Outcome.SPARED
         result.reasons.append(
             f"already {verdict} on {stored.get('decided_at', '?')[:10]}: "
             f"{stored.get('reason', 'no reason recorded')}"
@@ -269,12 +282,12 @@ def assess(
     if TAG_HUMAN_DISMISSED in show.tags:
         # Applied via the UI with no ledger record, so requiring one would make the tag inert.
         if not (stored and stored.get("fact_fingerprint") != fingerprint):
-            result.outcome = Outcome.REVIEW
+            result.outcome = Outcome.SPARED
             result.reasons.append("dismissed by a person; no relevant fact has changed since")
             return result
 
     result.outcome = Outcome.CANDIDATE
-    result.reasons.append(f"eligible: authorised by {authorised_by}, past its {window}-day window")
+    result.reasons.append(f"eligible: past its {window}-day window, origin {provenance.origin.value}")
     return result
 
 
@@ -288,7 +301,8 @@ def keep_tag_targets(
     Add-only, with two exclusions that stop maintenance overturning a person: a
     ``keep-review`` item is never promoted, because that queue exists so a human
     decides; and a series marked ``cleanup-eligible`` is never re-protected, or
-    the rating rule reverses the override every week.
+    the rating rule reverses the override every week. A reality series is never
+    a target, because the bar does not apply to it.
     """
     return [s for s in shows if keep_tag_applies(s) and meets_keep_bar(s, bar_votes, bar_score)]
 
@@ -319,6 +333,33 @@ def select_batch(
     remaining = max(cap - already_deleted_this_window, 0)
     ordered = sorted(approved, key=lambda a: a.show.size_bytes, reverse=True)
     return ordered[:remaining], ordered[remaining:]
+
+
+def select_for_judgement(
+    candidates: list[Assessment], limit: int = DEFAULT_JUDGE_LIMIT
+) -> tuple[list[Assessment], list[Assessment]]:
+    """Split the candidates into those the judge is asked about this run, and the rest.
+
+    Largest first, the order deletion takes them in. The remainder is deferred,
+    not unjudged: it is never offered, so no verdict is owed for it and it comes
+    back next run.
+    """
+    return select_batch(candidates, cap=limit)
+
+
+def count_genres(series: list[dict]) -> dict[str, int]:
+    """How many series with episodes on disk the library holds per genre.
+
+    "A subject the library demonstrably follows" is meant to be counted, not
+    assumed, so the count has to come from the library rather than a guess.
+    """
+    counts: dict[str, int] = {}
+    for record in series:
+        if not int((record.get("statistics") or {}).get("episodeFileCount") or 0):
+            continue
+        for genre in record.get("genres") or []:
+            counts[genre] = counts.get(genre, 0) + 1
+    return counts
 
 
 def _drop_pct(current: float, baseline: float) -> float:

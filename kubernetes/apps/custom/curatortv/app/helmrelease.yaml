@@ -49,8 +49,9 @@ spec:
               TAUTULLI_URL: http://tautulli.media.svc.cluster.local
               SEERR_URL: http://seerr.media.svc.cluster.local
               LEDGER_DIR: /state/ledger
-              # Series added before this are the never-reviewed backlog, out of scope.
-              CLEANUP_SCOPE_START: "2026-03-01"
+              # Set here, not on curatortvjudge: the plan names the candidates the judge is
+              # asked about, largest first, and defers the rest.
+              CLEANUP_JUDGE_LIMIT: "30"
               # Kometa tags every show it adds; Sonarr here has no import lists of its own.
               FEED_TAGS: kometa
               # plan writes nothing either way; set so the ledger namespaces its

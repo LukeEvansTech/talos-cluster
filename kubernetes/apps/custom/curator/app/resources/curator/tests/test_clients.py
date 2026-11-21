@@ -7,7 +7,7 @@ import json
 import unittest
 import urllib.error
 
-from curator.clients import SourceError, Tautulli
+from curator.clients import RequestSystem, SourceError, Tautulli
 
 from .fixtures import play_row
 
@@ -141,6 +141,43 @@ class TautulliPaginationTests(unittest.TestCase):
         )
         _, meta = client.movie_history(page_size=500)
         self.assertFalse(meta["complete"])
+
+
+class RequestSystemTests(unittest.TestCase):
+    """A film requested twice keeps both ends: who first asked, and who asked last."""
+
+    def request(self, tmdb_id: int, who: str, created: str | None, kind: str = "movie") -> dict:
+        """One request as the request system lists it."""
+        return {"type": kind, "media": {"tmdbId": tmdb_id}, "requestedBy": {"displayName": who}, "createdAt": created}
+
+    def requests(self, *items: dict) -> dict[int, dict]:
+        """What the client makes of one page of requests."""
+        payload = {"pageInfo": {"results": len(items)}, "results": list(items)}
+        return RequestSystem("http://r", "k", opener=_Opener([payload])).movie_requests()
+
+    def test_a_single_request_is_both_the_first_and_the_latest(self):
+        record = self.requests(self.request(603, "Sam", "2026-03-01T10:00:00.000Z"))[603]
+        self.assertEqual((record["requested_by"], record["latest_by"]), ("Sam", "Sam"))
+        self.assertEqual(record["created_at"], record["latest_at"])
+        self.assertFalse(record["undated"])
+
+    def test_two_requests_keep_the_earliest_as_origin_and_the_newest_beside_it(self):
+        old = self.request(603, "Sam", "2026-03-01T10:00:00.000Z")
+        new = self.request(603, "Alex", "2026-09-11T10:00:00.000Z")
+        for order in ((old, new), (new, old)):
+            with self.subTest(first=order[0]["requestedBy"]["displayName"]):
+                record = self.requests(*order)[603]
+                self.assertEqual((record["requested_by"], record["created_at"]), ("Sam", "2026-03-01T10:00:00.000Z"))
+                self.assertEqual((record["latest_by"], record["latest_at"]), ("Alex", "2026-09-11T10:00:00.000Z"))
+
+    def test_a_request_with_no_date_marks_the_film_undated(self):
+        dated = self.request(603, "Sam", "2026-03-01T10:00:00.000Z")
+        for order in ((dated, self.request(603, "Alex", None)), (self.request(603, "Alex", None), dated)):
+            with self.subTest(first=order[0]["requestedBy"]["displayName"]):
+                self.assertTrue(self.requests(*order)[603]["undated"])
+
+    def test_series_requests_are_not_film_requests(self):
+        self.assertEqual(self.requests(self.request(603, "Sam", "2026-03-01T10:00:00.000Z", kind="tv")), {})
 
 
 if __name__ == "__main__":

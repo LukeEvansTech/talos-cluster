@@ -1,9 +1,15 @@
 #!/usr/bin/env python3
-"""Validate the judge's answer into a recommendations file, and record what happened.
+"""Validate the judge's answers into a recommendations file, and record what happened.
 
 The engine checks every id against the candidate set regardless, but a malformed
 answer should fail here, where the message says so, rather than looking like a
 run in which the model simply kept everything.
+
+The judge is asked in batches and leaves one result file for each. They are
+merged here, and a batch that failed or left nothing usable does not discard the
+others: its titles carry no verdict this run, which the engine reports as
+unjudged, and the run still exits non-zero. The judge step is the least trusted
+in the pipeline, so nothing in a result file is taken on its word.
 
 Two files come out, always. `recommendations.json` is what the engine reads, and
 holds an empty list whenever nothing usable was judged -- an absent file would
@@ -13,17 +19,18 @@ should not read as a week in which it had nothing to say.
 
 Both live on a volume that outlives the run, so last week's copies are sitting
 there until something overwrites them. Two things follow. The refusal is written
-*first*, before the answer is parsed, so that a crash anywhere below leaves a run
+*first*, before any answer is parsed, so that a crash anywhere below leaves a run
 that judged nothing rather than one that appears to have re-issued last week's
 verdicts. And both files name the plan they belong to, so the engine can tell
-this week's answer from a leftover even if this script never runs at all.
+this week's answer from a leftover even if this script never runs at all. The
+batch list and every result file are held to the same rule: one that names
+another plan is refused.
 """
 
 from __future__ import annotations
 
 import json
 import os
-import re
 import sys
 from pathlib import Path
 
@@ -32,7 +39,7 @@ PLAN = Path(os.environ.get("PLAN_PATH", "/state/cleanup-plan/plan.json"))
 OUT = Path(os.environ.get("RECOMMENDATIONS_PATH", "/state/cleanup-plan/recommendations.json"))
 RECORD = Path(os.environ.get("JUDGEMENT_PATH", "/state/cleanup-plan/judgement.json"))
 
-FENCE = re.compile(r"^\s*```(?:json)?\s*|\s*```\s*$")
+USAGE_KEYS = ("input_tokens", "output_tokens")
 
 
 def plan_run_id() -> str | None:
@@ -61,6 +68,149 @@ def write_state(run_id: str | None, status: str, detail: str, recommendations: l
     )
 
 
+def read_manifest(run_id: str | None) -> tuple[dict | None, str]:
+    """The batch list the prompt step wrote for this plan, or why it cannot be used."""
+    path = WORK / "batches.json"
+    try:
+        manifest = json.loads(path.read_text(encoding="utf-8"))
+    except OSError:
+        return None, f"no batch list at {path}; did the prompt step run?"
+    except json.JSONDecodeError as exc:
+        return None, f"batch list at {path} was not JSON: {exc}"
+    if not isinstance(manifest, dict) or not isinstance(manifest.get("batches"), list) or not manifest["batches"]:
+        return None, f"batch list at {path} names no batches"
+    if run_id is None or manifest.get("plan_run_id") != run_id:
+        return None, f"batch list was written for plan {manifest.get('plan_run_id')!r}, not {run_id!r}"
+    return manifest, ""
+
+
+def usage_of(result: dict) -> dict:
+    """The token counts a result states, keeping only whole numbers."""
+    usage = result.get("usage") if isinstance(result.get("usage"), dict) else {}
+    return {k: usage[k] for k in USAGE_KEYS if isinstance(usage.get(k), int) and not isinstance(usage.get(k), bool)}
+
+
+def read_batch(name: str, run_id: str | None) -> dict:
+    """One batch's verdicts, or the reason it has none.
+
+    ``verdicts`` is None for a batch that cannot be used. ``malformed`` tells a
+    result that is there and wrong from one the judge never produced.
+    """
+
+    def unusable(why: str, malformed: bool = False, usage: dict | None = None) -> dict:
+        return {"name": name, "verdicts": None, "why": why, "malformed": malformed, "usage": usage or {}, "ms": None}
+
+    path = WORK / f"result-{name}.json"
+    if not path.is_file():
+        return unusable(f"no judge result at {path}")
+
+    try:
+        result = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        return unusable(f"judge result was not JSON: {exc}", True)
+
+    if not isinstance(result, dict):
+        return unusable(f"judge result was a JSON {type(result).__name__}, not an object", True)
+
+    if result.get("plan_run_id") != run_id or result.get("batch") != name:
+        found = f"plan {result.get('plan_run_id')!r} batch {result.get('batch')!r}"
+        return unusable(f"judge result belongs to {found}, not this run's batch {name}", True)
+
+    usage = usage_of(result)
+    if result.get("status") != "ok":
+        return unusable(str(result.get("why") or "the judge recorded a failure without a reason"), False, usage)
+
+    verdicts = result.get("verdicts")
+    if not isinstance(verdicts, list):
+        return unusable(f"expected a list of verdicts, got {type(verdicts).__name__}", True, usage)
+
+    bad = [v for v in verdicts if not isinstance(v, dict)]
+    if bad:
+        return unusable(f"{len(bad)} entries are not objects, first {bad[0]!r}", True, usage)
+
+    return {
+        "name": name,
+        "verdicts": verdicts,
+        "why": "",
+        "malformed": False,
+        "usage": usage,
+        "ms": result.get("duration_ms"),
+    }
+
+
+def own_verdicts(result: dict, owner: dict, id_field: str) -> tuple[list, int]:
+    """A batch's verdicts, less any that name a title another batch was given.
+
+    The judge never saw that title's record, so the verdict is not one. Passed
+    on, it would stand in for the rightful batch's answer, or for none at all if
+    that batch failed. An id no batch holds is passed on for the engine to reject.
+    """
+    kept, misfiled = [], 0
+    for verdict in result["verdicts"]:
+        ident = verdict.get(id_field)
+        holder = owner.get(ident) if isinstance(ident, int) and not isinstance(ident, bool) else None
+        if holder is not None and holder != result["name"]:
+            misfiled += 1
+            continue
+        kept.append(verdict)
+    return kept, misfiled
+
+
+def merge(manifest: dict, run_id: str | None, crash: str = "") -> tuple[str, str, int, list, dict]:
+    """Every batch read and combined: status, detail, exit code, verdicts, record fields.
+
+    ``crash`` is the judge step's own account of stopping early. The batches it
+    finished before that still count.
+    """
+    batches = [b for b in manifest["batches"] if isinstance(b, dict)]
+    id_field = str(manifest.get("id_field") or "")
+    owner = {ident: str(b.get("name")) for b in batches for ident in b.get("ids") or []}
+    results = [read_batch(str(b.get("name")), run_id) for b in batches]
+    sizes = {str(b.get("name")): len(b.get("ids") or []) for b in batches}
+
+    recommendations: list = []
+    misfiled = 0
+    for result in results:
+        if result["verdicts"] is None:
+            continue
+        kept, dropped = own_verdicts(result, owner, id_field)
+        recommendations += kept
+        misfiled += dropped
+
+    good = [r for r in results if r["verdicts"] is not None]
+    failed = [r for r in results if r["verdicts"] is None]
+    tally: dict[str, int] = {}
+    for item in recommendations:
+        verdict = str(item.get("verdict", "?"))
+        tally[verdict] = tally.get(verdict, 0) + 1
+    extra = {
+        "verdicts": tally,
+        # Tokens the judge used across every batch that got a reply, failed ones included.
+        "usage": {key: sum(r["usage"].get(key, 0) for r in results) for key in USAGE_KEYS},
+        "batches": {
+            "asked": len(results),
+            "judged": len(good),
+            "failed": [{"batch": r["name"], "candidates": sizes.get(r["name"], 0), "why": r["why"]} for r in failed],
+        },
+        "misfiled": misfiled,
+    }
+
+    faults = [crash] if crash else []
+    faults += [f"batch {r['name']} ({sizes.get(r['name'], 0)} titles): {r['why']}" for r in failed]
+    if misfiled:
+        faults.append(f"{misfiled} verdict(s) named a title from another batch and were dropped")
+
+    if not faults:
+        spent = sum(r["ms"] for r in good if isinstance(r["ms"], (int, float)) and not isinstance(r["ms"], bool))
+        across = f" across {len(good)} batches" if len(good) > 1 else ""
+        return "judged", f"{len(recommendations)} recommendations in {spent}ms{across}", 0, recommendations, extra
+    if good:
+        detail = f"{len(good)} of {len(results)} batches judged; " + "; ".join(faults)
+        return "partial", detail, 1, recommendations, extra
+    status = "malformed" if not crash and all(r["malformed"] for r in failed) else "failed"
+    return status, "; ".join(faults), 1, [], extra
+
+
 def main() -> int:
     """Write recommendations.json and judgement.json."""
     run_id = plan_run_id()
@@ -77,52 +227,16 @@ def main() -> int:
     if (WORK / "skip").is_file():
         return finish("not asked", (WORK / "skip").read_text(encoding="utf-8").strip(), 0)
 
-    if (WORK / "judge-failed").is_file():
-        # Recorded here and exits 0 on purpose, so it gets reported rather than killing the pod.
-        return finish("failed", (WORK / "judge-failed").read_text(encoding="utf-8").strip(), 1)
+    # The judge step exits 0 whatever happens, so that this step runs and reports it.
+    marker = WORK / "judge-failed"
+    crash = (marker.read_text(encoding="utf-8").strip() or "the judge step failed") if marker.is_file() else ""
 
-    raw = WORK / "claude.json"
-    if not raw.is_file():
-        return finish("failed", f"no judge output at {raw}", 1)
+    manifest, refusal = read_manifest(run_id)
+    if manifest is None:
+        return finish("failed", "; ".join(part for part in (crash, refusal) if part), 1)
 
-    try:
-        envelope = json.loads(raw.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as exc:
-        return finish("failed", f"judge envelope was not JSON: {exc}", 1)
-
-    if not isinstance(envelope, dict):
-        return finish("failed", f"judge envelope was a JSON {type(envelope).__name__}, not an object", 1)
-
-    if envelope.get("is_error"):
-        return finish("failed", str(envelope.get("result") or envelope.get("subtype")), 1)
-
-    cost = envelope.get("total_cost_usd")
-    body = FENCE.sub("", str(envelope.get("result", "")).strip())
-    try:
-        verdicts = json.loads(body)
-    except json.JSONDecodeError as exc:
-        print(body[:400], file=sys.stderr)
-        return finish("malformed", f"judge did not return JSON: {exc}", 1, cost_usd=cost)
-
-    if not isinstance(verdicts, list):
-        return finish("malformed", f"expected a JSON array, got {type(verdicts).__name__}", 1, cost_usd=cost)
-
-    bad = [v for v in verdicts if not isinstance(v, dict)]
-    if bad:
-        return finish("malformed", f"{len(bad)} entries are not objects, first {bad[0]!r}", 1, cost_usd=cost)
-
-    tally: dict[str, int] = {}
-    for item in verdicts:
-        verdict = str(item.get("verdict", "?"))
-        tally[verdict] = tally.get(verdict, 0) + 1
-    return finish(
-        "judged",
-        f"{len(verdicts)} recommendations in {envelope.get('duration_ms')}ms",
-        0,
-        recommendations=verdicts,
-        verdicts=tally,
-        cost_usd=cost,
-    )
+    status, detail, code, recommendations, extra = merge(manifest, run_id, crash)
+    return finish(status, detail, code, recommendations, **extra)
 
 
 if __name__ == "__main__":

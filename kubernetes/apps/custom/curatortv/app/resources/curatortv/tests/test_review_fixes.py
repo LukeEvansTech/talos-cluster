@@ -146,7 +146,8 @@ class DismissalWorksFromTheUiAlone(unittest.TestCase):
     def test_tag_alone_prevents_candidacy(self):
         show = make_show(tags={"cleanup-dismissed", "kometa"})
         result = assess(show, feed_provenance(), make_availability(), make_viewing(), context())
-        self.assertIs(result.outcome, Outcome.REVIEW)
+        # Spared, not queued: a dismissal is a decision already made, so nobody is asked again.
+        self.assertIs(result.outcome, Outcome.SPARED)
         self.assertIn("dismissed by a person", result.reasons[0])
 
     def test_a_changed_fact_still_reopens_it(self):
