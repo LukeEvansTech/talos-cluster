@@ -100,14 +100,17 @@ See the [AI / LLM stack](../architecture/ai-llm-stack.md) page for how it fits t
   `max by (service)`, so it only fires once every scrape endpoint of a backend is unreachable.
   Its 15m `for:` absorbs pod restarts and cold GGUF loads; a fully-scaled-to-zero pod drops its
   endpoint entirely and goes stale rather than reporting `up == 0`, which this alert doesn't cover.
-- The four `LiteLLMClaude*` alerts watch the `claude` budget. `BudgetLow` and `SpendFast` read
-  the remaining budget and 24h spend. `BudgetMetricAbsent` covers what `BudgetLow` cannot: the
-  budget filter sets the remaining-budget gauge on every `claude` call, so a successful call with
-  no gauge means `provider_budget_config` is unset. `RequestRejected` fires on any Anthropic 400
-  that failed over, since
+- The four `LiteLLMClaude*` alerts watch the Anthropic provider budget, which the `claude` and
+  `claude-opus` groups share, so they select on `api_provider="anthropic"` and never on one
+  model's name. `BudgetLow` and `SpendFast` read the remaining budget and 24h spend.
+  `BudgetMetricAbsent` covers what `BudgetLow` cannot: the budget filter sets the
+  remaining-budget gauge on every Anthropic call, so a successful call with no gauge means
+  `provider_budget_config` is unset. `RequestRejected` fires on any Anthropic 400, since
   that is always a request param Anthropic does not accept (add it to `additional_drop_params` in
-  `models/claude.yaml`). A reply whose `model` is not `claude` is the same failure seen from a
-  client.
+  the group's file under `models/`). It reads two counters because the groups fail differently:
+  a 400 on `claude` fails over and shows in the fallback counter, while `claude-opus` has no
+  fallback, so its 400 reaches the caller and shows only as a failed response. On `claude`, a
+  reply whose `model` is not `claude` is the same failure seen from a client.
 
 ## Adding a cloud provider
 

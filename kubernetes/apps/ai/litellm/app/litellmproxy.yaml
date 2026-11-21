@@ -72,6 +72,7 @@ spec:
         time_period: 30d
     # Free local model before paid OpenRouter, including once the budget is spent.
     # A self-hosted <-> claude bounce is capped by max_fallbacks (5 hops).
+    # claude-opus stays out of both lists, as source and target (models/claude-opus.yaml).
     fallbacks:
       - self-hosted:
           - claude

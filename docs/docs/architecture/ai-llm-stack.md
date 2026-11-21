@@ -163,6 +163,12 @@ LiteLLM `model_name` groups make the serving tier transparent to clients:
   scope, is what bounds fallback spend. The
   key (`ANTHROPIC_API_KEY` in the `litellm` item) has an expiry date recorded on that item, and
   an expired key falls back to `self-hosted` silently.
+- **`claude-opus`**: Claude Opus 5.5 on the same Anthropic key and provider budget as `claude`,
+  for the library-cleanup judges (`curatorjudge`, `curatortvjudge`). It is in no `fallbacks` or
+  `context_window_fallbacks` chain, as source or as target, and must stay that way: the judges
+  delete on the verdict, so a spent budget, an expired key or a rejected request has to reach
+  them as an error, never as another model's answer. Its per-token prices are pinned in
+  `models/claude-opus.yaml`, so its spend always counts against the budget.
 - **`self-hosted-uncensored`**: the same `llama-nvidia` backend under a second name. Kept as
   its own group because its fallback semantics differ: no cloud fallback by design (a cloud
   model would reintroduce refusals), and existing clients keep working unchanged.
@@ -170,19 +176,22 @@ LiteLLM `model_name` groups make the serving tier transparent to clients:
 ## In-cluster consumers
 
 The in-cluster apps below, all outside the `ai` namespace, route through LiteLLM at
-`http://litellm.ai.svc.cluster.local:4000/v1` and, except `suggestarr` and `paperless-ai`, the `claude` model,
-falling back to `self-hosted` and then `openrouter/auto`. The model column is where to change it:
+`http://litellm.ai.svc.cluster.local:4000/v1` and, except `suggestarr`, `paperless-ai` and the two curator judges, the `claude` model,
+falling back to `self-hosted` and then `openrouter/auto`. The judges call `claude-opus`, which has no fallback.
+The model column is where to change it:
 
-| App             | Namespace | Key env var         | Model setting                                  |
-| --------------- | --------- | ------------------- | ---------------------------------------------- |
-| `subspy`        | `default` | `OPENAI_API_KEY`    | `OPENAI_MODEL` (HelmRelease)                   |
-| `jobops`        | `default` | `LLM_API_KEY`       | `MODEL` (HelmRelease), overridable in its UI   |
-| `lurcher`       | `default` | `LLM_API_KEY`       | `LLM_MODEL` (HelmRelease)                      |
-| `paperless-ai`  | `default` | `CUSTOM_API_KEY`    | `CUSTOM_MODEL` (HelmRelease); `self-hosted`    |
-| `sakuga`        | `custom`  | `SAKUGA_LLM_KEY`    | `SAKUGA_LLM_MODEL` (HelmRelease); vision       |
-| `sleeper`       | `default` | `SLEEPER_LLM_KEY`   | `SLEEPER_LLM_MODEL` (HelmRelease); vision      |
-| `todoist-sort`  | `custom`  | `ANTHROPIC_API_KEY` | `[llm] model` in `app/resources/config.toml`   |
-| `suggestarr`    | `media`   | none (AI settings)  | its AI settings                                |
+| App              | Namespace | Key env var            | Model setting                                             |
+| ---------------- | --------- | ---------------------- | --------------------------------------------------------- |
+| `subspy`         | `default` | `OPENAI_API_KEY`       | `OPENAI_MODEL` (HelmRelease)                              |
+| `jobops`         | `default` | `LLM_API_KEY`          | `MODEL` (HelmRelease), overridable in its UI              |
+| `lurcher`        | `default` | `LLM_API_KEY`          | `LLM_MODEL` (HelmRelease)                                 |
+| `paperless-ai`   | `default` | `CUSTOM_API_KEY`       | `CUSTOM_MODEL` (HelmRelease); `self-hosted`               |
+| `sakuga`         | `custom`  | `SAKUGA_LLM_KEY`       | `SAKUGA_LLM_MODEL` (HelmRelease); vision                  |
+| `sleeper`        | `default` | `SLEEPER_LLM_KEY`      | `SLEEPER_LLM_MODEL` (HelmRelease); vision                 |
+| `todoist-sort`   | `custom`  | `ANTHROPIC_API_KEY`    | `[llm] model` in `app/resources/config.toml`              |
+| `suggestarr`     | `media`   | none (AI settings)     | its AI settings                                           |
+| `curatorjudge`   | `custom`  | `ANTHROPIC_AUTH_TOKEN` | `JUDGE_MODEL` (HelmRelease); `claude-opus`, key `curator` |
+| `curatortvjudge` | `custom`  | `ANTHROPIC_AUTH_TOKEN` | `JUDGE_MODEL` (HelmRelease); `claude-opus`, key `curator` |
 
 Every other key is used inside `ai` or by hand, reading its own `litellm-key-<name>` Secret.
 Scope does not stop router fallbacks, so a `self-hosted`-only key can still reach `claude`:
@@ -200,8 +209,9 @@ Scope does not stop router fallbacks, so a `self-hosted`-only key can still reac
 `.github/scripts/check_virtualkey_docs.py` fails when a `LiteLLMVirtualKey` has no row in this
 section, so a new key's spend is never missing from it.
 
-The seven apps in the first table live outside the `ai` namespace, so none of them mounts an `ai` Secret directly. Each
-gets an operator-issued **scoped** key instead of the account-wide master key: a
+The apps in the first table live outside the `ai` namespace, so none of them mounts an `ai` Secret directly. Each
+gets an operator-issued **scoped** key instead of the account-wide master key (the two judges share one, `curator`, mirrored as
+`LITELLM_CURATOR_API_KEY` and scoped to `claude-opus` alone): a
 `LiteLLMVirtualKey` CR in `litellm/app/virtualkeys/<app>.yaml` (`ai` namespace) mints the key
 and writes it to an in-namespace Secret; a
 paired `PushSecret` then writes that key back to the `litellm` 1Password item as property
