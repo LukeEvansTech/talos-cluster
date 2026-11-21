@@ -12,7 +12,7 @@ import unittest
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from curatortv.__main__ import rehydrate
+from curatortv.acting import rehydrate
 from curatortv.clients import SourceError
 from curatortv.evidence import resolve_viewing
 from curatortv.executor import execute, reconcile

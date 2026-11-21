@@ -192,6 +192,15 @@ class RevalidationTests(unittest.TestCase):
         self.assertFalse(ok)
         self.assertIn("watching it right now", why)
 
+    def test_a_persons_delete_needs_cleanup_eligible_still_on_the_film(self):
+        """A person's delete rests on the tag alone; taking it off during the run withdraws it."""
+        tags = {**TAGS, 9: "cleanup-eligible"}
+        ok, why, _ = revalidate(1, FakeRadarr({1: movie_record()}, tags), tags, set(), set(), by_person=True)
+        self.assertFalse(ok)
+        self.assertIn("cleanup-eligible was removed", why)
+        ok, _, _ = revalidate(1, FakeRadarr({1: movie_record(tags=[9])}, tags), tags, set(), set(), by_person=True)
+        self.assertTrue(ok)
+
     def test_active_playback_of_another_film_does_not_block(self):
         radarr = FakeRadarr({1: movie_record()}, TAGS)
         ok, _, _ = revalidate(1, radarr, TAGS, set(), {("tmdb", "9999")})

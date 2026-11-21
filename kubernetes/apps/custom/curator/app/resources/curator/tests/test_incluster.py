@@ -330,7 +330,8 @@ class HumanEligibilityBeatsTheBarTests(unittest.TestCase):
     def test_a_high_rated_film_marked_eligible_is_not_bar_protected(self):
         film = make_film(tags=frozenset({"src-x", "cleanup-eligible"}), imdb_votes=200_000, imdb_score=7.4)
         result = assess(film, feed_provenance(), make_availability(), make_viewing(), context())
-        self.assertIs(result.outcome, Outcome.CANDIDATE)
+        self.assertIs(result.outcome, Outcome.PROPOSED)
+        self.assertEqual(result.proposal["by"], "person")
 
     def test_without_the_tag_the_bar_still_protects(self):
         film = make_film(tags=frozenset({"src-x"}), imdb_votes=200_000, imdb_score=7.4)

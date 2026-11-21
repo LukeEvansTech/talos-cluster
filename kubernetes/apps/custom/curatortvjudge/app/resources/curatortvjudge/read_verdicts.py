@@ -137,6 +137,7 @@ def read_batch(name: str, run_id: str | None) -> dict:
         "malformed": False,
         "usage": usage,
         "ms": result.get("duration_ms"),
+        "model": result.get("model") if isinstance(result.get("model"), str) else None,
     }
 
 
@@ -195,6 +196,8 @@ def merge(manifest: dict, run_id: str | None, crash: str = "") -> tuple[str, str
             "failed": [{"batch": r["name"], "candidates": sizes.get(r["name"], 0), "why": r["why"]} for r in failed],
         },
         "misfiled": misfiled,
+        # The gateway group that answered; judge.py refuses a reply from any other.
+        "model": ", ".join(sorted({r["model"] for r in good if r.get("model")})) or None,
     }
 
     faults = [crash] if crash else []

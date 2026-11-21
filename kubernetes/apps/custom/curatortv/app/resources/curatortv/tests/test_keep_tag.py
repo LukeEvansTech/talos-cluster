@@ -25,7 +25,7 @@ from curatortv.__main__ import apply_keep_tags
 from curatortv.ledger import Ledger
 from curatortv.planner import keep_tag_applies, keep_tag_targets
 
-from .fixtures import FakeS3, FakeSonarr, FakeTautulli, make_show, series_record
+from .fixtures import FakeS3, FakeSonarr, FakeTautulli, make_show, propose, series_record
 
 LABELS = {1: "keep", 5: "cleanup-eligible", 6: "cleanup-dismissed", 7: "keep-review", 8: "kometa"}
 
@@ -113,46 +113,21 @@ class DryRunKeepTagTests(unittest.TestCase):
 
 
 class DryRunExecuteNeverDeletes(unittest.TestCase):
-    """End to end through ``cmd_execute``: keeps land, deletions do not."""
+    """End to end through ``cmd_execute``: due keeps land, deletions do not."""
+
+    CANDIDATE = {"origin": "feed", "availability_source": "sonarr-history", "history_status": "ok"}
 
     def setUp(self):
         self.root = Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, self.root, ignore_errors=True)
-        now = datetime.now(timezone.utc)
         series = {
             1: series_record(1, tags=[8]),
             2: series_record(2, tags=[8], tvdb_id=70002, tmdb_id=2000, imdb_id="tt0000002"),
             3: series_record(3, tags=[5], tvdb_id=70003, tmdb_id=3000, imdb_id="tt0000003"),
+            4: series_record(4, tags=[8], tvdb_id=70004, tmdb_id=4000, imdb_id="tt0000004"),
         }
         self.sonarr = FakeSonarr(series, dict(LABELS))
         self.ledger = Ledger(FakeS3(), "run-execute", dry_run=True)
-
-        def candidate(series_id):
-            return {
-                "series_id": series_id,
-                "origin": "feed",
-                "availability_source": "sonarr-history",
-                "history_status": "ok",
-            }
-
-        plan = {
-            "run_id": "plan-1",
-            "mode": "dry-run",
-            "generated_at": (now - timedelta(minutes=30)).isoformat(),
-            "blocks": [],
-            "candidates": [candidate(1), candidate(2), candidate(3)],
-            "keep_tag_additions": [],
-        }
-        recommendations = {
-            "plan_run_id": "plan-1",
-            "recommendations": [
-                {"series_id": 1, "verdict": "delete", "reason": "trending add nobody watched"},
-                {"series_id": 2, "verdict": "keep", "reason": "acclaimed completed series"},
-                {"series_id": 3, "verdict": "keep", "reason": "acclaimed completed series"},
-            ],
-        }
-        (self.root / "plan.json").write_text(json.dumps(plan), encoding="utf-8")
-        (self.root / "recs.json").write_text(json.dumps(recommendations), encoding="utf-8")
         sources = SimpleNamespace(
             sonarr=self.sonarr, tautulli=FakeTautulli(), seerr=None, ledger=self.ledger, run_id="run-execute"
         )
@@ -161,8 +136,31 @@ class DryRunExecuteNeverDeletes(unittest.TestCase):
             patcher.start()
             self.addCleanup(patcher.stop)
 
-    def execute(self, flag: str) -> dict:
-        """Run execute --read-only in dry-run mode and return the result file."""
+    def execute(self, flag: str, age_days: float = 7.0, judged: str = "") -> dict:
+        """Run execute --read-only in dry-run mode and return the result file.
+
+        Three verdicts from an earlier run are on record: delete series 1, keep 2
+        and keep 3 (which a person has since marked cleanup-eligible). ``judged``
+        is this run's verdict on series 4, when it gives one.
+        """
+        plan = {
+            "run_id": "plan-1",
+            "mode": "dry-run",
+            "generated_at": (datetime.now(timezone.utc) - timedelta(minutes=30)).isoformat(),
+            "blocks": [],
+            "candidates": [{"series_id": 4, **self.CANDIDATE}] if judged else [],
+            "proposed": [
+                propose(self.ledger, {"series_id": 1, **self.CANDIDATE}, "delete", age_days=age_days),
+                propose(self.ledger, {"series_id": 2, **self.CANDIDATE}, "keep", age_days=age_days),
+                propose(self.ledger, {"series_id": 3, **self.CANDIDATE}, "keep", age_days=age_days),
+            ],
+            "keep_tag_additions": [],
+        }
+        verdicts = [{"series_id": 4, "verdict": judged, "reason": "acclaimed completed series"}] if judged else []
+        (self.root / "plan.json").write_text(json.dumps(plan), encoding="utf-8")
+        (self.root / "recs.json").write_text(
+            json.dumps({"plan_run_id": "plan-1", "recommendations": verdicts}), encoding="utf-8"
+        )
         args = argparse.Namespace(
             plan=str(self.root / "plan.json"),
             recommendations=str(self.root / "recs.json"),
@@ -173,7 +171,7 @@ class DryRunExecuteNeverDeletes(unittest.TestCase):
             self.assertEqual(cli.cmd_execute(args), 0)
         return json.loads((self.root / "result.json").read_text(encoding="utf-8"))
 
-    def test_judge_keeps_are_tagged_and_nothing_is_deleted(self):
+    def test_due_judge_keeps_are_tagged_and_nothing_is_deleted(self):
         result = self.execute("true")
         self.assertEqual(self.sonarr.delete_calls, [])
         self.assertEqual(self.sonarr.tag_calls, [([2], 1)])
@@ -183,11 +181,29 @@ class DryRunExecuteNeverDeletes(unittest.TestCase):
         self.assertTrue(all(d.get("simulated") for d in result["deleted"]))
         self.assertIn("keep_tags_added", result)
 
+    def test_a_tagged_keep_leaves_the_record_and_the_rehearsed_delete_stays(self):
+        self.execute("true")
+        self.assertEqual(sorted(self.ledger.read_proposals()), [1, 3])
+        self.assertIn(2, self.ledger.read_decisions())
+
     def test_without_the_flag_nothing_is_written(self):
         result = self.execute("false")
         self.assertEqual(self.sonarr.delete_calls, [])
         self.assertEqual(self.sonarr.tag_calls, [])
         self.assertEqual(result["judge_keeps_tagged"]["applied"], 0)
+        self.assertEqual(sorted(self.ledger.read_proposals()), [1, 2, 3])
+
+    def test_a_keep_inside_its_wait_is_not_tagged_even_with_the_flag(self):
+        """The flag lets a rehearsal tag; it does not shorten the week a person has to refuse the keep."""
+        result = self.execute("true", age_days=1)
+        self.assertEqual(self.sonarr.tag_calls, [])
+        self.assertEqual(result["judge_keeps_tagged"]["requested"], 0)
+
+    def test_a_keep_given_this_run_is_put_on_record_and_not_tagged(self):
+        result = self.execute("true", age_days=1, judged="keep")
+        self.assertEqual(self.sonarr.tag_calls, [])
+        self.assertEqual(result["proposals"]["recorded"], {"delete": 0, "keep": 1})
+        self.assertEqual(self.ledger.read_proposals()[4]["verdict"], "keep")
 
 
 if __name__ == "__main__":

@@ -9,6 +9,7 @@ Layout under the bucket::
 
     baseline/current.json          last validated run snapshot
     decisions/<series_id>.json      standing spare/dismissal + the facts it rested on
+    proposals/<series_id>.json      a verdict waiting out its review window
     firstseen/<series_id>.json      fallback availability when history has aged out
     crosswalk/plex.json            Plex rating key -> external IDs
     runs/<run_id>/plan.json        the whole assessed population for one run
@@ -87,6 +88,30 @@ class Ledger:
         """Persist one spare/dismissal so next week does not re-judge it."""
         self._write(f"decisions/{record['series_id']}.json", record)
 
+    def read_proposals(self) -> dict[int, dict]:
+        """Every verdict waiting out its review window, keyed by Sonarr series id."""
+        records: dict[int, dict] = {}
+        for key in self.client.list_keys(self._key("proposals/")):
+            raw = self.client.get(key)
+            if raw is None:
+                continue
+            try:
+                record = json.loads(raw)
+            except json.JSONDecodeError:
+                continue
+            series_id = record.get("series_id") if isinstance(record, dict) else None
+            if isinstance(series_id, int) and not isinstance(series_id, bool):
+                records[series_id] = record
+        return records
+
+    def write_proposal(self, record: dict) -> None:
+        """Put a verdict on record, replacing any earlier one for the same title."""
+        self._write(f"proposals/{record['series_id']}.json", record)
+
+    def delete_proposal(self, series_id: int) -> None:
+        """Take a proposal off the record once it has been carried out or has lapsed."""
+        self.client.delete(self._key(f"proposals/{series_id}.json"))
+
     def read_first_seen(self) -> dict[int, datetime]:
         """Persisted first-observed-playable timestamps."""
         record = self._read("firstseen/index.json") or {}
@@ -128,6 +153,10 @@ class Ledger:
     def record_plan(self, payload: dict) -> None:
         """Store the whole assessed population for this run."""
         self._write(f"runs/{self.run_id}/plan.json", payload)
+
+    def read_plan(self, run_id: str) -> dict | None:
+        """The plan an earlier run stored, or None when there is none under that id."""
+        return self._read(f"runs/{run_id}/plan.json")
 
     def record_intent(self, series: dict, evidence: dict) -> None:
         """Write what is about to happen, BEFORE it happens."""

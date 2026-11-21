@@ -40,14 +40,18 @@ non-zero code and still sends the digest.
 | 9    | an offered candidate came back unjudged, or a verdict was rejected |
 | 10   | a deletion was skipped because a safety check could not be read    |
 
-`report` exits 6 when the digest could not be delivered.
+`report` exits 6 when the digest could not be delivered, and 11 when a review
+page is configured and did not take the document; with none configured, 12
+when the proposals could not be read for the digest.
 
 ## `keep` is written in a dry run here
 
 Both engines can add the `keep` tag in a dry run when
 `TAG_KEEPS_IN_DRY_RUN=true`, even under `--read-only`; only this one's manifest
-sets it. The tag goes to the series over the rating bar and to every series the
-judge verdicts `keep`. Reclaimerr protects anything tagged `keep`, so a dry run
+sets it. The tag goes to the series over the rating bar at once, and to a series
+the judge verdicts `keep` once that verdict has waited out its review window.
+The flag does not shorten the wait: a judge's keep is a proposal first in every
+mode. Reclaimerr protects anything tagged `keep`, so a dry run
 that writes nothing leaves it blind to every decision this engine has made; and
 an add-only tag is reversible by removing it, which a deletion is not.
 
@@ -60,8 +64,8 @@ A judge `keep` is therefore permanent rather than a 180-day spare: once tagged,
 the series is an absolute veto until a person removes the tag. The result file
 reports both writes, as `keep_tags_added` (rating bar) and `judge_keeps_tagged`. Each
 tag is confirmed by re-reading the series; a judge keep whose tag cannot be
-confirmed is not recorded as a decision, so it is judged and tagged again next
-run, and the run exits non-zero.
+confirmed is not recorded as a decision and stays a proposal, so it is tried
+again next run, and the run exits non-zero.
 
 ## What changes for a series
 
@@ -132,7 +136,19 @@ gone. Genre `subject_counts` remain.
 scope, as before.
 
 **Budgets.** `CLEANUP_JUDGE_LIMIT` defaults to 30 candidates a run and
-`CLEANUP_MAX_DELETIONS` to 10 deletions in a rolling seven days.
+`CLEANUP_MAX_DELETIONS` to 10 deletions a run, counted over six days.
+
+**The review window** is the film engine's, keyed `series_id`: a verdict is a
+proposal that waits `CLEANUP_GRACE_DAYS` (default 6) before `execute` acts on
+it, `cleanup-keep` ends it, and `cleanup-eligible` is a person's delete that is
+never sent to the judge. A series' fingerprint has its season count and status
+where a film's has its collection, so a new season or a series ending lapses a
+proposal and the series is judged again. `report` builds the same review
+document (`review.py` is shared) as the `tv` library; when `CLEANUP_REVIEW_URL`
+is set it posts it to `/publish/tv` signed with the Sonarr API key, and
+otherwise sends nothing and mentions no page. `CLEANUP_ACCEPT_BASELINE` accepts
+a blocked run's figures as it does for films. The film engine's readme has the
+rules in full, and the review document's contract.
 
 ## Configuration
 

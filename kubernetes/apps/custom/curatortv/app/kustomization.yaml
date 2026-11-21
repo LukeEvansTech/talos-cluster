@@ -17,13 +17,16 @@ configMapGenerator:
     files:
       - ./resources/curatortv/__init__.py
       - ./resources/curatortv/__main__.py
+      - ./resources/curatortv/acting.py
       - ./resources/curatortv/clients.py
       - ./resources/curatortv/evidence.py
       - ./resources/curatortv/executor.py
       - ./resources/curatortv/ledger.py
       - ./resources/curatortv/model.py
       - ./resources/curatortv/planner.py
+      - ./resources/curatortv/proposals.py
       - ./resources/curatortv/reporting.py
+      - ./resources/curatortv/review.py
       - ./resources/curatortv/provision.py
       - ./resources/curatortv/s3.py
       - ./resources/curatortv/settings.py

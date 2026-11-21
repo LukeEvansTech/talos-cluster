@@ -20,6 +20,7 @@ from typing import Any
 from unittest import mock
 
 from curatortv import __main__ as cli
+from curatortv import proposals
 from curatortv.__main__ import build_plan_payload, to_show
 from curatortv.ledger import Ledger
 from curatortv.planner import PlanContext, assess
@@ -34,6 +35,7 @@ from .fixtures import (
     make_availability,
     make_show,
     make_viewing,
+    propose,
     series_record,
     unknown_provenance,
 )
@@ -169,32 +171,34 @@ class SettingsTests(unittest.TestCase):
             scope_start()
 
 
-class ExecuteTests(unittest.TestCase):
-    """Deferred candidates owe no verdict, and the deletion cap comes from the environment."""
+class ExecuteTests(unittest.TestCase):  # pylint: disable=too-many-public-methods
+    """Deferred candidates owe no verdict, a verdict waits out its window, and the cap comes from the environment."""
+
+    CANDIDATE = {"origin": "unknown", "availability_source": "sonarr-history", "history_status": "ok"}
 
     def setUp(self):
         self.root = Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, self.root, ignore_errors=True)
-        candidate = {"origin": "unknown", "availability_source": "sonarr-history", "history_status": "ok"}
-        plan = {
+        self.plan = {
             "run_id": "plan-1",
             "mode": "dry-run",
             "generated_at": (datetime.now(timezone.utc) - timedelta(minutes=30)).isoformat(),
             "blocks": [],
             "judge_limit": 3,
-            "candidates": [{"series_id": n, **candidate} for n in (1, 2, 3)],
-            "judge_deferred": [{"series_id": n, **candidate} for n in (4, 5)],
+            "candidates": [{"series_id": n, **self.CANDIDATE} for n in (1, 2, 3)],
+            "judge_deferred": [{"series_id": n, **self.CANDIDATE} for n in (4, 5)],
+            "proposed": [],
         }
-        (self.root / "plan.json").write_text(json.dumps(plan), encoding="utf-8")
-        series = {
-            n: series_record(n, tvdb_id=70000 + n, tmdb_id=1000 * n, imdb_id=f"tt000000{n}") for n in (1, 2, 3, 4, 5)
+        records = {
+            n: series_record(n, tvdb_id=70000 + n, tmdb_id=1000 * n, imdb_id=f"tt000000{n}") for n in range(1, 9)
         }
-        self.sonarr = FakeSonarr(series, {1: "keep"})
+        self.sonarr = FakeSonarr(records, {1: "keep", 5: "cleanup-eligible"})
+        self.ledger = Ledger(FakeS3(), "run-execute", dry_run=True)
         sources = SimpleNamespace(
             sonarr=self.sonarr,
             tautulli=FakeTautulli(),
             seerr=None,
-            ledger=Ledger(FakeS3(), "run-execute", dry_run=True),
+            ledger=self.ledger,
             run_id="run-execute",
         )
         for name, value in (("build_sources", lambda: sources), ("log", lambda _message: None)):
@@ -202,22 +206,36 @@ class ExecuteTests(unittest.TestCase):
             patcher.start()
             self.addCleanup(patcher.stop)
 
-    def execute(self, verdicts: dict[int, str], cap: str | None = None) -> tuple[int, dict]:
+    def due(self, item_id: int, by: str = "judge", age_days: float = 7.0, verdict: str = "delete") -> dict:
+        """Put a proposal for this series on record and list it in the plan, as an earlier run would have."""
+        entry = propose(self.ledger, {"series_id": item_id, **self.CANDIDATE}, verdict, by, age_days)
+        self.plan["proposed"].append(entry)
+        return entry
+
+    def resize(self, item_id: int, size: int) -> None:
+        """Change how much disk a live series takes."""
+        self.sonarr.series_by_id[item_id]["statistics"]["sizeOnDisk"] = size
+
+    def execute(self, verdicts: dict[int, str], **settings: str) -> tuple[int, dict]:
         """Run execute against ``{series_id: verdict}`` and return its exit code and result."""
         recommendations = [
             {"series_id": series_id, "verdict": verdict, "reason": "never played and no standing to name"}
             for series_id, verdict in verdicts.items()
         ]
+        (self.root / "plan.json").write_text(json.dumps(self.plan), encoding="utf-8")
         path = self.root / "recs.json"
         path.write_text(json.dumps({"plan_run_id": "plan-1", "recommendations": recommendations}), encoding="utf-8")
         args = argparse.Namespace(
             plan=str(self.root / "plan.json"), recommendations=str(path), out=str(self.root / "r.json"), read_only=True
         )
-        with mock.patch.dict(os.environ, {} if cap is None else {"CLEANUP_MAX_DELETIONS": cap}):
-            if cap is None:
-                os.environ.pop("CLEANUP_MAX_DELETIONS", None)
+        with mock.patch.dict(os.environ, settings):
+            for name in ("CLEANUP_MAX_DELETIONS", "CLEANUP_GRACE_DAYS"):
+                if name not in settings:
+                    os.environ.pop(name, None)
             code = cli.cmd_execute(args)
         return code, json.loads((self.root / "r.json").read_text(encoding="utf-8"))
+
+    REVIEW_ALL = {1: "review", 2: "review", 3: "review"}
 
     def test_deferred_candidates_do_not_fail_the_run(self):
         """Every candidate that was offered has a verdict, so the week is a clean one."""
@@ -235,28 +253,148 @@ class ExecuteTests(unittest.TestCase):
         self.assertEqual(code, 9)
         self.assertEqual(result["deleted"], [])
         self.assertIn("not in this run's candidate set", result["rejected_recommendations"][0]["why"])
+        self.assertNotIn(4, self.ledger.read_proposals())
+
+    def test_a_verdict_is_put_on_record_and_not_carried_out_in_the_run_that_gave_it(self):
+        code, result = self.execute({1: "delete", 2: "keep", 3: "review"})
+        self.assertEqual(code, 0)
+        self.assertEqual(result["deleted"], [])
+        self.assertEqual(self.sonarr.tag_calls, [])
+        self.assertEqual(result["proposals"]["recorded"], {"delete": 1, "keep": 1})
+        stored = self.ledger.read_proposals()
+        self.assertEqual({key: value["verdict"] for key, value in stored.items()}, {1: "delete", 2: "keep"})
+        self.assertEqual(stored[1]["by"], "judge")
+
+    def test_a_verdict_waits_six_days_by_default(self):
+        self.execute({1: "delete", 2: "review", 3: "review"})
+        stored = self.ledger.read_proposals()[1]
+        waited = datetime.fromisoformat(stored["due_at"]) - datetime.fromisoformat(stored["proposed_at"])
+        self.assertEqual(waited, timedelta(days=6))
+
+    def test_the_wait_can_be_set_from_the_environment(self):
+        _, result = self.execute({1: "delete", 2: "review", 3: "review"}, CLEANUP_GRACE_DAYS="2")
+        stored = self.ledger.read_proposals()[1]
+        waited = datetime.fromisoformat(stored["due_at"]) - datetime.fromisoformat(stored["proposed_at"])
+        self.assertEqual(waited, timedelta(days=2))
+        self.assertEqual(result["proposals"]["grace_days"], 2)
+
+    def test_a_wait_of_nothing_still_does_not_act_in_the_run_that_judged(self):
+        """Even due at once, a verdict is not in this run's plan, so it waits for the next run."""
+        _, result = self.execute({1: "delete", 2: "review", 3: "review"}, CLEANUP_GRACE_DAYS="0")
+        self.assertEqual(result["deleted"], [])
+        self.assertIn(1, self.ledger.read_proposals())
+
+    def test_a_review_is_recorded_as_a_decision_and_not_as_a_proposal(self):
+        _, result = self.execute(self.REVIEW_ALL)
+        self.assertEqual(self.ledger.read_proposals(), {})
+        self.assertEqual(sorted(self.ledger.read_decisions()), [1, 2, 3])
+        self.assertEqual(len(result["escalated"]), 3)
+
+    def test_a_due_delete_is_carried_out(self):
+        self.due(6)
+        code, result = self.execute(self.REVIEW_ALL)
+        self.assertEqual(code, 0)
+        self.assertEqual([item["series_id"] for item in result["deleted"]], [6])
+        self.assertEqual(result["proposals"]["due"], {"delete": 1, "keep": 0})
+
+    def test_a_rehearsal_leaves_the_proposal_standing(self):
+        """Nothing was deleted, so next week has to find it due again rather than judge it again."""
+        self.due(6)
+        _, result = self.execute(self.REVIEW_ALL)
+        self.assertTrue(result["deleted"][0]["simulated"])
+        self.assertEqual(self.sonarr.deleted, [])
+        self.assertIn(6, self.ledger.read_proposals())
+
+    def test_a_proposal_still_inside_its_wait_is_left_alone(self):
+        self.due(6, age_days=1)
+        _, result = self.execute(self.REVIEW_ALL)
+        self.assertEqual(result["deleted"], [])
+        self.assertEqual(result["proposals"]["due"], {"delete": 0, "keep": 0})
+
+    def test_a_due_delete_with_nothing_on_record_is_not_acted_on(self):
+        """The plan is a file on a volume; a deletion needs the ledger to agree with it."""
+        self.due(6)
+        self.ledger.delete_proposal(6)
+        code, result = self.execute(self.REVIEW_ALL)
+        self.assertEqual(code, 0)
+        self.assertEqual(result["deleted"], [])
+        self.assertIn("no matching proposal", result["skipped"][0]["why"])
+
+    def test_a_due_delete_whose_record_says_something_else_is_not_acted_on(self):
+        entry = self.due(6)
+        entry["proposal"]["due_at"] = "2020-01-01T00:00:00+00:00"
+        _, result = self.execute(self.REVIEW_ALL)
+        self.assertEqual(result["deleted"], [])
+        self.assertIn("no matching proposal", result["skipped"][0]["why"])
+
+    def test_a_lapsed_proposal_is_taken_off_the_record(self):
+        propose(self.ledger, {"series_id": 6, **self.CANDIDATE})
+        self.plan["lapsed_proposals"] = [{"series_id": 6, "why": "now protected: carries cleanup-keep"}]
+        _, result = self.execute(self.REVIEW_ALL)
+        self.assertNotIn(6, self.ledger.read_proposals())
+        self.assertEqual(result["proposals"]["lapsed"], 1)
+        self.assertEqual(result["deleted"], [])
+
+    def test_a_person_marked_delete_is_recorded_and_carried_out_at_once(self):
+        self.sonarr.series_by_id[7]["tags"] = [5]
+        planned = {"series_id": 7, **self.CANDIDATE, "proposal": proposals.by_person(None, datetime.now(timezone.utc))}
+        self.plan["proposed"].append(planned)
+        _, result = self.execute(self.REVIEW_ALL)
+        self.assertEqual([item["series_id"] for item in result["deleted"]], [7])
+        self.assertEqual(result["proposals"]["marked_by_person"], 1)
+        self.assertEqual(self.ledger.read_proposals()[7]["by"], "person")
+
+    def test_a_persons_delete_is_withdrawn_when_the_tag_has_gone(self):
+        """Undoing on the page between the plan and the run has to work."""
+        self.due(7, by="person")
+        code, result = self.execute(self.REVIEW_ALL)
+        self.assertEqual(code, 0)
+        self.assertEqual(result["deleted"], [])
+        self.assertIn("cleanup-eligible was removed", result["skipped"][0]["why"])
+
+    def test_a_persons_delete_goes_ahead_of_larger_titles_under_the_cap(self):
+        self.due(6)
+        self.resize(6, 90_000_000_000)
+        self.sonarr.series_by_id[7]["tags"] = [5]
+        self.due(7, by="person")
+        _, result = self.execute(self.REVIEW_ALL, CLEANUP_MAX_DELETIONS="1")
+        self.assertEqual([item["series_id"] for item in result["deleted"]], [7])
+        self.assertEqual(result["deferred"], [6])
 
     def test_the_default_deletion_cap_is_unchanged(self):
-        _, result = self.execute({1: "delete", 2: "delete", 3: "delete"})
+        for item_id in (6, 7, 8):
+            self.due(item_id)
+        _, result = self.execute(self.REVIEW_ALL)
         self.assertEqual(result["deletion_cap"], 10)
         self.assertEqual(len(result["deleted"]), 3)
 
     def test_the_cap_can_be_set_from_the_environment(self):
-        _, result = self.execute({1: "delete", 2: "delete", 3: "delete"}, cap="1")
+        for item_id in (6, 7, 8):
+            self.due(item_id)
+        _, result = self.execute(self.REVIEW_ALL, CLEANUP_MAX_DELETIONS="1")
         self.assertEqual(result["deletion_cap"], 1)
         self.assertEqual(len(result["deleted"]), 1)
         self.assertEqual(len(result["deferred"]), 2)
 
+    def test_the_cap_takes_the_largest_first(self):
+        for item_id in (6, 7, 8):
+            self.due(item_id)
+        self.resize(8, 90_000_000_000)
+        _, result = self.execute(self.REVIEW_ALL, CLEANUP_MAX_DELETIONS="1")
+        self.assertEqual([item["series_id"] for item in result["deleted"]], [8])
+
     def test_a_cap_that_cannot_be_read_stops_before_anything_is_done(self):
-        path = self.root / "recs.json"
-        path.write_text(json.dumps({"plan_run_id": "plan-1", "recommendations": []}), encoding="utf-8")
-        args = argparse.Namespace(
-            plan=str(self.root / "plan.json"), recommendations=str(path), out=str(self.root / "r.json"), read_only=True
-        )
-        with mock.patch.dict(os.environ, {"CLEANUP_MAX_DELETIONS": "lots"}), self.assertRaises(SystemExit):
-            cli.cmd_execute(args)
+        self.due(6)
+        with self.assertRaises(SystemExit):
+            self.execute(self.REVIEW_ALL, CLEANUP_MAX_DELETIONS="lots")
         self.assertFalse((self.root / "r.json").exists())
         self.assertEqual(self.sonarr.tag_calls, [])
+
+    def test_a_wait_that_cannot_be_read_stops_before_anything_is_done(self):
+        with self.assertRaises(SystemExit):
+            self.execute({1: "delete", 2: "review", 3: "review"}, CLEANUP_GRACE_DAYS="a week")
+        self.assertFalse((self.root / "r.json").exists())
+        self.assertEqual(self.ledger.read_proposals(), {})
 
 
 if __name__ == "__main__":

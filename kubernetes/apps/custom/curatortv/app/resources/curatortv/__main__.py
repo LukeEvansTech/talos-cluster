@@ -19,7 +19,16 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from . import reporting
+from . import proposals, reporting, review
+from .acting import (
+    adopt_baseline,
+    apply_keep_tags,
+    due_deletes,
+    record_verdicts,
+    settle_keeps,
+    sync_proposals,
+    to_show,
+)
 from .clients import RequestSystem, Sonarr, SourceError, Tautulli
 from .evidence import (
     build_crosswalk,
@@ -30,32 +39,17 @@ from .evidence import (
 )
 from .executor import ExecutionResult, execute, reconcile, recycle_bin_ready, validate_recommendations
 from .ledger import Ledger
-from .model import (
-    DEFAULT_FEED_TAGS,
-    TAG_KEEP,
-    Assessment,
-    Availability,
-    EpisodeProgress,
-    HistoryStatus,
-    Origin,
-    Outcome,
-    Provenance,
-    Show,
-    Viewing,
-    utc,
-)
+from .model import DEFAULT_FEED_TAGS, TAG_KEEP, Assessment, Outcome, utc
 from .planner import (
+    CAP_WINDOW_DAYS,
     DEFAULT_JUDGE_LIMIT,
     MAX_DELETIONS_PER_RUN,
-    VERDICT_REVIEW,
-    VERDICT_SPARED,
     PlanContext,
     assess,
-    build_decision_record,
     check_anomalies,
     count_genres,
-    keep_tag_applies,
     keep_tag_targets,
+    lapsed_proposals,
     select_batch,
     select_for_judgement,
     snapshot_valid,
@@ -76,36 +70,6 @@ def feed_tags() -> frozenset[str]:
     raw = os.environ.get("FEED_TAGS", "")
     labels = frozenset(t.strip() for t in raw.split(",") if t.strip())
     return labels or DEFAULT_FEED_TAGS
-
-
-def to_show(record: dict, tag_labels: dict[int, str]) -> Show:
-    """Project a Sonarr series record onto the fields decisions depend on."""
-    ratings = record.get("ratings") or {}
-    stats = record.get("statistics") or {}
-    votes = ratings.get("votes")
-    value = ratings.get("value")
-    files = int(stats.get("episodeFileCount") or 0)
-    return Show(
-        series_id=record["id"],
-        tvdb_id=record.get("tvdbId") or None,
-        tmdb_id=record.get("tmdbId") or None,
-        imdb_id=record.get("imdbId") or None,
-        title=record.get("title", ""),
-        year=record.get("year") or None,
-        status=record.get("status", ""),
-        has_file=files > 0,
-        size_bytes=int(stats.get("sizeOnDisk") or 0),
-        added=utc(record.get("added")),
-        tags=frozenset(tag_labels.get(t, str(t)) for t in record.get("tags", [])),
-        imdb_score=float(value) if isinstance(value, (int, float)) and value else None,
-        imdb_votes=int(votes) if isinstance(votes, int) and votes else None,
-        genres=tuple(record.get("genres") or ()),
-        network=record.get("network"),
-        original_language=(record.get("originalLanguage") or {}).get("name"),
-        overview=record.get("overview") or "",
-        episode_file_count=files,
-        season_count=int(stats.get("seasonCount") or 0),
-    )
 
 
 @dataclass
@@ -430,6 +394,9 @@ def build_plan_payload(
         "judge_limit": judge_limit,
         "candidates": [a.to_json() for a in offered],
         "judge_deferred": [a.to_json() for a in deferred],
+        # Verdicts already on record: not judged again, and all execute acts on once due.
+        "proposed": [a.to_json() for a in assessments if a.outcome is Outcome.PROPOSED],
+        "lapsed_proposals": run.get("lapsed") or [],
         "review": [a.to_json() for a in assessments if a.outcome is Outcome.REVIEW],
         "missing_file": [a.to_json() for a in assessments if a.outcome is Outcome.MISSING_FILE],
         "multi_user_viewers": [a.to_json() for a in assessments if a.viewing.distinct_viewers >= 2],
@@ -462,6 +429,16 @@ def source_blocks(
     return blocks
 
 
+def starting_baseline(ledger: Ledger) -> dict | None:
+    """The baseline this run is compared against, after any an operator has accepted."""
+    baseline = ledger.read_baseline()
+    accept = env("CLEANUP_ACCEPT_BASELINE", required=False)
+    if accept:
+        baseline, note = adopt_baseline(ledger, accept, baseline)
+        log(note)
+    return baseline
+
+
 def cmd_plan(args: argparse.Namespace) -> int:
     """Assess the whole library and emit the candidate set for judgement."""
     # Read first: a setting that cannot be used should stop the run before it fetches anything.
@@ -488,12 +465,14 @@ def cmd_plan(args: argparse.Namespace) -> int:
     coverage_start = datetime.fromtimestamp(min(stamps), tz=timezone.utc) if stamps else None
     log(f"play history covers from {coverage_start.date() if coverage_start else 'unknown'}")
 
+    standing = ledger.read_proposals()
     ctx = PlanContext(
         now=now,
         scope_start=boundary,
         coverage_start=coverage_start,
         history_ok=history_ok,
         decisions=ledger.read_decisions(),
+        proposals=standing,
         genre_counts=count_genres(library.series),
     )
     assessments = assess_library(
@@ -515,14 +494,15 @@ def cmd_plan(args: argparse.Namespace) -> int:
     log(f"assessment: {counts}")
 
     snapshot = build_snapshot(library.series, library.tag_labels, library.exclusions, history_meta, history_ok, now)
-    blocks = check_anomalies(snapshot, ledger.read_baseline()) + source_blocks(
+    baseline = starting_baseline(ledger)
+    blocks = check_anomalies(snapshot, baseline) + source_blocks(
         bin_ok, bin_detail, history_ok, history_note, library.requests_ok
     )
 
     problems = snapshot_valid(snapshot)
     if problems:
         log(f"snapshot rejected as a baseline: {problems}")
-    elif not blocks or ledger.read_baseline() is None:
+    elif not blocks or baseline is None:
         ledger.write_baseline(snapshot)
         log("baseline recorded")
 
@@ -545,115 +525,19 @@ def cmd_plan(args: argparse.Namespace) -> int:
             "horizon": library.horizon,
             "keep_targets": keep_targets,
             "judge_limit": judge_limit,
+            "lapsed": lapsed_proposals(standing, assessments),
         },
     )
     (out / "plan.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
-    ledger.record_plan({k: v for k, v in payload.items() if k not in ("review", "judge_deferred")})
+    ledger.record_plan({k: v for k, v in payload.items() if k not in ("review", "judge_deferred", "proposed")})
     log(
         f"wrote {out / 'plan.json'}: {len(payload['candidates'])} candidates for the judge, "
-        f"{len(payload['judge_deferred'])} deferred, {len(blocks)} blocking issues"
+        f"{len(payload['judge_deferred'])} deferred, {len(payload['proposed'])} proposed, "
+        f"{len(payload['lapsed_proposals'])} lapsed, {len(blocks)} blocking issues"
     )
     for block in blocks:
         log(f"  BLOCK: {block}")
     return 0
-
-
-def rehydrate(planned: dict, show: Show, reason: str = "") -> Assessment:
-    """Rebuild an assessment from a plan entry plus the live series record.
-
-    Only the evidence needed for execution is restored; the protections are
-    re-derived from live state rather than trusted from the plan.
-    """
-    return Assessment(
-        show=show,
-        outcome=Outcome.CANDIDATE,
-        subject_counts=dict(planned.get("subject_counts") or {}),
-        reopened_dismissal=planned.get("reopened_dismissal") is True,
-        provenance=Provenance(
-            Origin(planned["origin"]), tuple(planned.get("origin_evidence") or ()), planned.get("requested_by")
-        ),
-        availability=Availability(None, planned["availability_source"], show.has_file),
-        viewing=Viewing(
-            status=HistoryStatus(planned["history_status"]),
-            identity_via=planned.get("identity_via", "unresolved"),
-            rating_keys=tuple(planned.get("rating_keys") or ()),
-            # Carried through: the fingerprint counts viewers, and dropping them would
-            # record a spare against viewers=0, stale the day it's made.
-            progress=tuple(
-                EpisodeProgress(user_id=int(v["user_id"]), episodes=int(v["episodes"]))
-                for v in (planned.get("viewers") or [])
-            ),
-            play_count=int(planned.get("play_count") or 0),
-        ),
-        reasons=[reason] if reason else [],
-    )
-
-
-def apply_keep_tags(  # pylint: disable=too-many-arguments
-    sonarr: Sonarr,
-    additions: list[dict],
-    dry_run: bool,
-    live: dict[int, dict] | None = None,
-    tag_labels: dict[int, str] | None = None,
-    tag_in_dry_run: bool = False,
-) -> dict[str, Any]:
-    """Give the permanent ``keep`` tag to series that have earned it.
-
-    Add-only. The editor endpoint answers 202, meaning queued and nothing more,
-    so the count is confirmed by re-reading rather than assumed.
-
-    This may write in a dry run, when ``tag_in_dry_run`` is set: Reclaimerr
-    protects anything tagged ``keep``, and an add-only tag is reversible, whereas
-    a dry run that writes nothing leaves Reclaimerr blind.
-
-    The plan is half an hour old by the time this runs, so each target is
-    re-checked against its live tags first: applying ``keep`` to a series somebody
-    has just marked ``cleanup-eligible`` would reverse that person's decision.
-    """
-    series_ids = [a["series_id"] for a in additions if isinstance(a.get("series_id"), int)]
-    withdrawn = 0
-    if live is not None:
-        kept = []
-        for series_id in series_ids:
-            record = live.get(series_id)
-            if record is None or not keep_tag_applies(to_show(record, tag_labels or {})):
-                withdrawn += 1
-                continue
-            kept.append(series_id)
-        series_ids = kept
-    if not series_ids:
-        return {"requested": 0, "applied": 0, "withdrawn": withdrawn, "note": "nothing qualified"}
-    if dry_run and not tag_in_dry_run:
-        return {
-            "requested": len(series_ids),
-            "applied": 0,
-            "withdrawn": withdrawn,
-            "note": "dry run: not applied",
-        }
-
-    tags = {t["label"]: t["id"] for t in sonarr.tags()}
-    if TAG_KEEP not in tags:
-        sonarr.create_tag(TAG_KEEP)
-        tags = {t["label"]: t["id"] for t in sonarr.tags()}
-    tag_id = tags[TAG_KEEP]
-
-    status, _ = sonarr.add_tag(series_ids, tag_id)
-    # Confirmed per series by re-reading, whatever the status said: a keep counted
-    # as applied when it never landed is recorded as settled and never retried.
-    wanted = set(series_ids)
-    confirmed = sorted(s["id"] for s in sonarr.all_series() if s["id"] in wanted and tag_id in s.get("tags", []))
-    unconfirmed = sorted(wanted - set(confirmed))
-    note = "applied in a dry run (TAG_KEEPS_IN_DRY_RUN)" if dry_run else "applied"
-    if unconfirmed:
-        note = f"HTTP {status}; {len(unconfirmed)} not confirmed on re-read"
-    return {
-        "requested": len(series_ids),
-        "applied": len(confirmed),
-        "withdrawn": withdrawn,
-        "http": status,
-        "note": note,
-        "unconfirmed": unconfirmed,
-    }
 
 
 def plan_refusal(plan: dict, run_mode: str, now: datetime) -> str | None:
@@ -680,54 +564,6 @@ def plan_refusal(plan: dict, run_mode: str, now: datetime) -> str | None:
     if age_hours > max_age:
         return f"plan is {age_hours:.1f}h old, over the {max_age}h limit"
     return None
-
-
-def record_judge_decisions(
-    accepted: list[dict],
-    series: dict[int, dict],
-    by_id: dict[int, dict],
-    tag_labels: dict[int, str],
-    ledger: Ledger,
-    run_id: str,
-    unconfirmed: set[int] | frozenset[int] = frozenset(),
-) -> list[dict]:
-    """Persist what the judge decided, and collect what it sent to a person.
-
-    A keep whose tag could not be confirmed is not recorded, so next week judges
-    and tags it again rather than treating it as settled.
-
-    Returns the escalations, because the plan's review list was written before
-    judgement: without carrying them out of here, a series the judge deliberately
-    put in front of somebody would wait until next week's plan to be seen.
-    """
-    now = datetime.now(timezone.utc)
-    escalated: list[dict] = []
-    for item in accepted:
-        if item["verdict"] not in ("keep", "review") or item["series_id"] not in series:
-            continue
-        if item["verdict"] == "keep" and item["series_id"] in unconfirmed:
-            continue
-        show = to_show(series[item["series_id"]], tag_labels)
-        if item["verdict"] == "review":
-            escalated.append(
-                {
-                    "series_id": show.series_id,
-                    "title": show.title,
-                    "year": show.year,
-                    "size_gb": show.size_gb,
-                    "reason": item["reason"],
-                }
-            )
-        ledger.write_decision(
-            build_decision_record(
-                rehydrate(by_id[item["series_id"]], show),
-                verdict=(VERDICT_SPARED if item["verdict"] == "keep" else VERDICT_REVIEW),
-                reason=item["reason"],
-                run_id=run_id,
-                now=now,
-            )
-        )
-    return escalated
 
 
 def load_recommendations(args: argparse.Namespace, plan: dict) -> list | int:
@@ -764,7 +600,10 @@ def execute_exit_code(result: ExecutionResult, untagged: set[int], unjudged: lis
         log(f"exiting non-zero: {unavailable} skip(s) because a safety check could not be read")
         return 10
     if untagged:
-        log(f"exiting non-zero: {len(untagged)} keep tag(s) not confirmed; they are re-judged next run")
+        log(
+            f"exiting non-zero: {len(untagged)} keep tag(s) not confirmed; "
+            "their proposals stand and are tried again next run"
+        )
         return 8
     # A week nobody judged must not count as a success, or it resets the staleness alert.
     if unjudged or rejected:
@@ -777,6 +616,7 @@ def cmd_execute(args: argparse.Namespace) -> int:  # pylint: disable=too-many-lo
     """Apply Claude's recommendations, re-validating every safeguard first."""
     # Read first: a cap that cannot be used should stop the run before it tags or deletes anything.
     cap = env_int("CLEANUP_MAX_DELETIONS", MAX_DELETIONS_PER_RUN)
+    grace_days = env_int("CLEANUP_GRACE_DAYS", proposals.DEFAULT_GRACE_DAYS)
     sources = build_sources()
     sonarr, ledger = sources.sonarr, sources.ledger
     # The CronJob passes --read-only, so deleting needs edits in two places; a half-made
@@ -825,12 +665,7 @@ def cmd_execute(args: argparse.Namespace) -> int:  # pylint: disable=too-many-lo
         return 3
 
     try:
-        series = {s["id"]: s for s in sonarr.all_series()}
-        approved = [
-            rehydrate(by_id[item["series_id"]], to_show(series[item["series_id"]], tag_labels), item["reason"])
-            for item in accepted
-            if item["verdict"] == "delete" and item["series_id"] in series
-        ]
+        series = {item["id"]: item for item in sonarr.all_series()}
         in_dry_run = tag_keeps_in_dry_run()
         # Applied before any deletion: catches a plan built before this protection rule
         # from deleting a series assessment would now protect.
@@ -842,20 +677,22 @@ def cmd_execute(args: argparse.Namespace) -> int:  # pylint: disable=too-many-lo
             tag_labels=tag_labels,
             tag_in_dry_run=in_dry_run,
         )
-        # Bar targets are PROTECTED and never candidates, so the two sets cannot overlap.
-        judge_tagged = apply_keep_tags(
-            sonarr,
-            [{"series_id": i["series_id"]} for i in accepted if i["verdict"] == "keep"],
-            ledger.dry_run,
-            live=series,
-            tag_labels=tag_labels,
-            tag_in_dry_run=in_dry_run,
-        )
 
-        already = ledger.deletions_in_window()
-        selected, deferred = select_batch(approved, cap, already)
+        # On record before anything slow: a run cut short keeps the verdicts it was given.
+        standing = ledger.read_proposals()
+        synced = sync_proposals(plan, standing, ledger, sources.run_id)
+        escalated, recorded = record_verdicts(accepted, series, by_id, tag_labels, ledger, sources.run_id, grace_days)
+
+        # Only what this plan upheld is acted on, and only once its wait is over; a verdict
+        # given in this run is not in the plan's list, so it cannot be carried out today.
+        due_delete, due_keep = proposals.split_due(plan.get("proposed") or [], datetime.now(timezone.utc))
+        judge_tagged = settle_keeps(sonarr, due_keep, standing, series, tag_labels, ledger, sources.run_id, in_dry_run)
+        approved, set_aside, marked = due_deletes(due_delete, standing, series, tag_labels)
+
+        already = ledger.deletions_in_window(CAP_WINDOW_DAYS)
+        selected, deferred = select_batch(approved, cap, already, first=marked)
         log(
-            f"{len(approved)} approved, {already} already deleted this window, "
+            f"{len(approved)} due, {already} already deleted this window, "
             f"acting on {len(selected)}, deferring {len(deferred)}"
         )
 
@@ -869,17 +706,20 @@ def cmd_execute(args: argparse.Namespace) -> int:  # pylint: disable=too-many-lo
             seerr=sources.seerr,
             crosswalk=ledger.read_crosswalk(),
             planned_at=utc(plan.get("generated_at")),
+            # As this run's plan saw them: the verdict is a week old, the file count is not.
             planned_files={
-                sid: int(item["episode_file_count"])
-                for sid, item in by_id.items()
-                if isinstance(item.get("episode_file_count"), int)
+                entry["series_id"]: int(entry["episode_file_count"])
+                for entry in due_delete
+                if isinstance(entry.get("episode_file_count"), int)
             },
         )
+        result.skipped.extend(set_aside)
+        for item in result.deleted:
+            # A rehearsal deleted nothing, so its proposal stays and is reported again next run.
+            if not item.get("simulated"):
+                ledger.delete_proposal(item["series_id"])
 
         untagged = set(tagged.get("unconfirmed") or []) | set(judge_tagged.get("unconfirmed") or [])
-        escalated = record_judge_decisions(
-            accepted, series, by_id, tag_labels, ledger, sources.run_id, unconfirmed=untagged
-        )
         summary = {
             "run_id": sources.run_id,
             # Separate CronJobs generate their own run ids; this ties the result back to
@@ -893,28 +733,91 @@ def cmd_execute(args: argparse.Namespace) -> int:  # pylint: disable=too-many-lo
             "deletion_cap": cap,
             "deferred": [a.show.series_id for a in deferred],
             "rejected_recommendations": rejected,
+            "proposals": {
+                "grace_days": grace_days,
+                "recorded": recorded,
+                "marked_by_person": synced["marked"],
+                "lapsed": synced["lapsed"],
+                "due": {proposals.DELETE: len(due_delete), proposals.KEEP: len(due_keep)},
+            },
             **result.as_dict(),
         }
         Path(args.out).write_text(json.dumps(summary, indent=2), encoding="utf-8")
         log(
             f"deleted={len(result.deleted)} skipped={len(result.skipped)} "
             f"failed={len(result.failed)} uncertain={len(result.uncertain)} "
-            f"keep-tagged={tagged.get('applied', 0)}+{judge_tagged.get('applied', 0)}"
+            f"keep-tagged={tagged.get('applied', 0)}+{judge_tagged.get('applied', 0)} "
+            f"proposed={recorded[proposals.DELETE]} delete, {recorded[proposals.KEEP]} keep"
         )
         return execute_exit_code(result, untagged, unjudged, rejected)
     finally:
         ledger.release_lock()
 
 
+def review_document(plan: dict | None, result: dict | None, judgement: dict | None, now: datetime):
+    """The review document for this run, or why it could not be built.
+
+    Built from the ledger, not from this run's result: a run that was blocked or cut
+    short still lists every verdict that is waiting, so none falls due unseen.
+    """
+    dry_run = os.environ.get("CLEANUP_MODE", "dry-run").lower() != "act"
+    try:
+        cap = env_int("CLEANUP_MAX_DELETIONS", MAX_DELETIONS_PER_RUN)
+        records = Ledger(build_store(), run_id="report", dry_run=dry_run).read_proposals()
+    except (OSError, ValueError, RuntimeError, SystemExit) as exc:
+        # Reported, not raised: the digest still has to go out, and it is where this gets read.
+        return None, f"the proposals on record could not be read: {exc}"
+    current, blocks = reporting.current_plan(plan, now)
+    facts = {"cap": cap, "mode": "dry-run" if dry_run else "act", "blocks": blocks}
+    return review.build("tv", "series_id", current, result, records, now, facts, judgement=judgement), ""
+
+
+def report_exit_code(unpublished: str, unreported: str) -> int:
+    """11: a configured review page did not take the document. 12: the review window could not be read."""
+    if unpublished:
+        return 11
+    return 12 if unreported else 0
+
+
 def cmd_report(args: argparse.Namespace) -> int:
-    """Render the run's digest and deliver it."""
+    """Render the run's digest and deliver it; publish the review document if a receiver is configured."""
     out = Path(args.out)
-    digest = reporting.render(
-        reporting.read(Path(args.plan)),
-        reporting.read(Path(args.result)),
-        reporting.read(Path(args.judgement)) if args.judgement else None,
-        datetime.now(timezone.utc),
-    )
+    now = datetime.now(timezone.utc)
+    plan, result = reporting.read(Path(args.plan)), reporting.read(Path(args.result))
+    judgement = reporting.read(Path(args.judgement)) if args.judgement else None
+    page_url = env("CLEANUP_REVIEW_URL", required=False)
+    document, unbuilt = review_document(plan, result, judgement, now)
+    if unbuilt:
+        log(f"review window not reported: {unbuilt}")
+    # Without a review page nothing is published and no page is mentioned, but a window that
+    # could not be read is still a fault: the proposals it lists are what the next run acts on.
+    unpublished = unbuilt if page_url else ""
+    unreported = "" if page_url else unbuilt
+
+    def render() -> reporting.Digest:
+        return reporting.render(
+            plan,
+            result,
+            judgement,
+            now,
+            page=document,
+            unpublished=unpublished if page_url else None,
+            unreported=unreported,
+        )
+
+    digest = render()
+    if page_url and document is not None:
+        # The document carries the digest exactly as it goes out, so it is rendered first.
+        record = review.digest_record(digest.title, digest.push, digest.text)
+        sent = {**document, "summary": {**document["summary"], "digest": record}}
+        try:
+            log(review.publish(page_url, "tv", env("SONARR_API_KEY", required=False), sent))
+        except review.PublishError as exc:
+            unpublished = str(exc)
+            digest = render()
+    if unpublished:
+        # Loud for the same reason as the digest: a page left a week stale is read as current.
+        log(f"REVIEW PAGE NOT UPDATED: {unpublished}")
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(digest.text, encoding="utf-8")
     print(digest.text, flush=True)
@@ -922,15 +825,17 @@ def cmd_report(args: argparse.Namespace) -> int:
     url = env("CLEANUP_WEBHOOK_URL", required=False)
     if not url:
         log("no CLEANUP_WEBHOOK_URL: digest written but not delivered")
-        return 0
+        return report_exit_code(unpublished, unreported)
+    # The push opens the review page only when there is one to open.
+    link = env("CLEANUP_REVIEW_LINK", required=False) if page_url else ""
     try:
-        log(reporting.post(url, env("CLEANUP_WEBHOOK_TOKEN", required=False), digest))
+        log(reporting.post(url, env("CLEANUP_WEBHOOK_TOKEN", required=False), digest, link=link or ""))
     except reporting.NotificationError as exc:
         # Loud on purpose: an undelivered digest looks, from the phone, like a week
         # the job never ran at all.
         log(f"DIGEST NOT DELIVERED: {exc}")
         return 6
-    return 0
+    return report_exit_code(unpublished, unreported)
 
 
 def cmd_selftest(_args: argparse.Namespace) -> int:

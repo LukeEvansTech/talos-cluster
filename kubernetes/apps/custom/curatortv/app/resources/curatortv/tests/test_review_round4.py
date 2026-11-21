@@ -26,7 +26,17 @@ from curatortv.evidence import build_crosswalk, resolve_viewing
 from curatortv.ledger import Ledger
 from curatortv.model import HistoryStatus
 
-from .fixtures import FakeS3, FakeSonarr, FakeTautulli, days_ago, make_availability, make_show, play_row, series_record
+from .fixtures import (
+    FakeS3,
+    FakeSonarr,
+    FakeTautulli,
+    days_ago,
+    make_availability,
+    make_show,
+    play_row,
+    propose,
+    series_record,
+)
 from .test_clients import _Opener
 from .test_stalestate import _Crosswalk, _metadata_client
 
@@ -109,17 +119,17 @@ class UnavailableChecksAreNotACleanWeek(unittest.TestCase):
         self.root = Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, self.root, ignore_errors=True)
         candidate = {"origin": "feed", "availability_source": "sonarr-history", "history_status": "ok"}
+        ledger = Ledger(FakeS3(), "run-execute", dry_run=True)
+        # The delete was handed down by an earlier run and its wait is over.
         plan = {
             "run_id": "plan-1",
             "mode": "dry-run",
             "generated_at": (datetime.now(timezone.utc) - timedelta(minutes=30)).isoformat(),
             "blocks": [],
-            "candidates": [{"series_id": 1, "episode_file_count": 10, **candidate}],
+            "candidates": [],
+            "proposed": [propose(ledger, {"series_id": 1, "episode_file_count": 10, **candidate})],
         }
-        recs = {
-            "plan_run_id": "plan-1",
-            "recommendations": [{"series_id": 1, "verdict": "delete", "reason": "trending add nobody watched"}],
-        }
+        recs = {"plan_run_id": "plan-1", "recommendations": []}
         (self.root / "plan.json").write_text(json.dumps(plan), encoding="utf-8")
         (self.root / "recs.json").write_text(json.dumps(recs), encoding="utf-8")
         self.sonarr = FakeSonarr({1: series_record(1)}, {1: "keep"})
@@ -128,7 +138,7 @@ class UnavailableChecksAreNotACleanWeek(unittest.TestCase):
             sonarr=self.sonarr,
             tautulli=self.tautulli,
             seerr=None,
-            ledger=Ledger(FakeS3(), "run-execute", dry_run=True),
+            ledger=ledger,
             run_id="run-execute",
         )
         for name, value in (("build_sources", lambda: sources), ("log", lambda _message: None)):
@@ -168,7 +178,16 @@ class UnavailableChecksAreNotACleanWeek(unittest.TestCase):
         self.sonarr.import_history[1] = [
             {"eventType": "downloadFolderImported", "date": datetime.now(timezone.utc).isoformat()}
         ]
-        self.assertEqual(self.execute()[0], 0)
+        code, result = self.execute()
+        self.assertEqual(code, 0)
+        self.assertEqual(result["deleted"], [])
+        self.assertIn("imported", result["skipped"][0]["why"])
+
+    def test_with_nothing_in_the_way_the_due_delete_is_rehearsed(self):
+        """The control for the tests above: without their fault, this series would go."""
+        code, result = self.execute()
+        self.assertEqual(code, 0)
+        self.assertEqual([item["series_id"] for item in result["deleted"]], [1])
 
     def test_the_digest_names_unavailable_checks(self):
         now = datetime.now(timezone.utc)

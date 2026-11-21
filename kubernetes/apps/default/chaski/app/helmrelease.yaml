@@ -111,8 +111,9 @@ spec:
             token:
               header: X-Chaski-Token
               secret: '{{ env "TRIAGE_WEBHOOK_TOKEN" }}'
-        # Same off-cluster sender and token as queue-triage, kept as its own route so a deletion
-        # digest doesn't read like a stuck queue.
+        # Same token as queue-triage, kept as its own route so a deletion digest doesn't read
+        # like a stuck queue. The push opens the review page only when the digest names one; an
+        # empty url is left off the notification.
         library-cleanup:
           target: triage
           title: "{{ .payload.title }}"
@@ -120,6 +121,8 @@ spec:
           params:
             format: html
             priority: high
+            url: "{{ if .payload.url }}{{ .payload.url }}{{ end }}"
+            url_title: "{{ if .payload.url }}Review and keep{{ end }}"
           verify:
             token:
               header: X-Chaski-Token

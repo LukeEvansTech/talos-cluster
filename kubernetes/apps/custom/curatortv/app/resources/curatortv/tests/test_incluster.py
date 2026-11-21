@@ -208,7 +208,7 @@ class KeepBarIsAProtectionTests(unittest.TestCase):
 
     def test_a_high_rated_series_marked_eligible_is_not_bar_protected(self):
         show = make_show(tags=frozenset({"kometa", "cleanup-eligible"}), imdb_votes=200_000, imdb_score=7.4)
-        self.assertIs(assessed(show), Outcome.CANDIDATE)
+        self.assertIs(assessed(show), Outcome.PROPOSED)
 
     def test_keep_and_eligible_together_still_protect(self):
         show = make_show(tags=frozenset({"keep", "cleanup-eligible"}), imdb_votes=200_000, imdb_score=7.4)

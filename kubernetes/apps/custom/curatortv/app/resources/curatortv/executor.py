@@ -14,7 +14,7 @@ from typing import Any
 
 from .clients import Sonarr, SourceError, Tautulli, find_request, guid_ids
 from .evidence import COMPLETION_PERCENT, IMPORT_EVENT
-from .model import TAG_HUMAN_DISMISSED, VETO_TAGS, Assessment, Show, utc
+from .model import TAG_HUMAN_DISMISSED, TAG_HUMAN_ELIGIBLE, VETO_TAGS, Assessment, Show, utc
 
 # Every skip whose reason starts with this is a check that could not run, not a protection
 # that fired; the run reports those as a failure (exit 10).
@@ -153,13 +153,20 @@ def revalidate(
     tag_labels: dict[int, str],
     now_playing_ids: set[tuple[str, str]],
     reopened_dismissal: bool = False,
+    by_person: bool = False,
 ) -> tuple[bool, str, dict | None]:
-    """Re-check every protection against live state, and return the live record."""
+    """Re-check every protection against live state, and return the live record.
+
+    ``by_person`` marks a delete a person asked for with ``cleanup-eligible``: it
+    rests on that tag alone, so the tag has to still be there now.
+    """
     live = sonarr.series(series_id)
     if live is None:
         return False, "series is no longer in Sonarr", None
 
     labels = {tag_labels.get(t, str(t)) for t in live.get("tags", [])}
+    if by_person and TAG_HUMAN_ELIGIBLE not in labels:
+        return False, "cleanup-eligible was removed since the plan", live
     vetoed = VETO_TAGS if reopened_dismissal else VETO_TAGS | {TAG_HUMAN_DISMISSED}
     vetoes = sorted(labels & vetoed)
     if vetoes:
@@ -451,7 +458,12 @@ def execute(  # pylint: disable=too-many-arguments,too-many-positional-arguments
 
         try:
             ok, why, live = revalidate(
-                show.series_id, sonarr, tag_labels, now_playing, reopened_dismissal=assessment.reopened_dismissal
+                show.series_id,
+                sonarr,
+                tag_labels,
+                now_playing,
+                reopened_dismissal=assessment.reopened_dismissal,
+                by_person=assessment.marked_by_person,
             )
             grown = (
                 new_content_block(

@@ -19,7 +19,16 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from . import reporting
+from . import proposals, reporting, review
+from .acting import (
+    adopt_baseline,
+    apply_keep_tags,
+    due_deletes,
+    record_verdicts,
+    settle_keeps,
+    sync_proposals,
+    to_film,
+)
 from .clients import Radarr, RequestSystem, SourceError, Tautulli
 from .evidence import (
     build_crosswalk,
@@ -29,32 +38,18 @@ from .evidence import (
 )
 from .executor import ExecutionResult, execute, reconcile, recycle_bin_ready, validate_recommendations
 from .ledger import Ledger
-from .model import (
-    TAG_KEEP,
-    Assessment,
-    Availability,
-    Completion,
-    Film,
-    HistoryStatus,
-    Origin,
-    Outcome,
-    Provenance,
-    Viewing,
-    utc,
-)
+from .model import TAG_KEEP, Assessment, Outcome, utc
 from .planner import (
+    CAP_WINDOW_DAYS,
     DEFAULT_JUDGE_LIMIT,
     MAX_DELETIONS_PER_RUN,
-    VERDICT_REVIEW,
-    VERDICT_SPARED,
     PlanContext,
     assess,
-    build_decision_record,
     check_anomalies,
     count_genres,
     count_owned_siblings,
-    keep_tag_applies,
     keep_tag_targets,
+    lapsed_proposals,
     select_batch,
     select_for_judgement,
     snapshot_valid,
@@ -68,33 +63,6 @@ from .store import FileStore
 def log(message: str) -> None:
     """Timestamped progress line on stdout."""
     print(f"[{datetime.now(timezone.utc).strftime('%H:%M:%S')}] {message}", flush=True)
-
-
-def to_film(record: dict, tag_labels: dict[int, str]) -> Film:
-    """Project a Radarr movie record onto the fields decisions depend on."""
-    ratings = (record.get("ratings") or {}).get("imdb") or {}
-    votes = ratings.get("votes")
-    value = ratings.get("value")
-    return Film(
-        movie_id=record["id"],
-        tmdb_id=record.get("tmdbId"),
-        imdb_id=record.get("imdbId"),
-        title=record.get("title", ""),
-        year=record.get("year"),
-        status=record.get("status", ""),
-        has_file=bool(record.get("hasFile")),
-        size_bytes=int(record.get("sizeOnDisk") or 0),
-        added=utc(record.get("added")),
-        tags=frozenset(tag_labels.get(t, str(t)) for t in record.get("tags", [])),
-        imdb_score=float(value) if isinstance(value, (int, float)) and value else None,
-        imdb_votes=int(votes) if isinstance(votes, int) and votes else None,
-        collection_title=(record.get("collection") or {}).get("title"),
-        genres=tuple(record.get("genres") or ()),
-        studio=record.get("studio"),
-        original_language=(record.get("originalLanguage") or {}).get("name"),
-        overview=record.get("overview") or "",
-        file_date_added=utc((record.get("movieFile") or {}).get("dateAdded")),
-    )
 
 
 @dataclass
@@ -413,6 +381,9 @@ def build_plan_payload(
         "judge_limit": judge_limit,
         "candidates": [a.to_json() for a in offered],
         "judge_deferred": [a.to_json() for a in deferred],
+        # Verdicts already on record: not judged again, and all execute acts on once due.
+        "proposed": [a.to_json() for a in assessments if a.outcome is Outcome.PROPOSED],
+        "lapsed_proposals": run.get("lapsed") or [],
         "review": [a.to_json() for a in assessments if a.outcome is Outcome.REVIEW],
         "missing_file": [a.to_json() for a in assessments if a.outcome is Outcome.MISSING_FILE],
         "multi_user_completions": [a.to_json() for a in assessments if a.viewing.distinct_completers >= 2],
@@ -443,6 +414,16 @@ def source_blocks(
         # origin for every requested film, and a keep it hands down on that is permanent.
         blocks.append("request system unreachable: a requested film could not be told from a feed pull")
     return blocks
+
+
+def starting_baseline(ledger: Ledger) -> dict | None:
+    """The baseline this run is compared against, after any an operator has accepted."""
+    baseline = ledger.read_baseline()
+    accept = env("CLEANUP_ACCEPT_BASELINE", required=False)
+    if accept:
+        baseline, note = adopt_baseline(ledger, accept, baseline)
+        log(note)
+    return baseline
 
 
 def cmd_plan(args: argparse.Namespace) -> int:
@@ -483,6 +464,7 @@ def cmd_plan(args: argparse.Namespace) -> int:
     coverage_start = datetime.fromtimestamp(min(stamps), tz=timezone.utc) if stamps else None
     log(f"play history covers from {coverage_start.date() if coverage_start else 'unknown'}")
 
+    standing = ledger.read_proposals()
     ctx = PlanContext(
         now=now,
         scope_start=boundary,
@@ -490,6 +472,7 @@ def cmd_plan(args: argparse.Namespace) -> int:
         coverage_start=coverage_start,
         history_ok=history_ok,
         decisions=ledger.read_decisions(),
+        proposals=standing,
         collections_loaded=bool(collections),
         siblings_owned=count_owned_siblings(library.movies, collections),
         genre_counts=count_genres(library.movies),
@@ -512,14 +495,15 @@ def cmd_plan(args: argparse.Namespace) -> int:
     log(f"assessment: {counts}")
 
     snapshot = build_snapshot(movies, tag_labels, collections, exclusions, history_meta, history_ok, now)
-    blocks = check_anomalies(snapshot, ledger.read_baseline()) + source_blocks(
+    baseline = starting_baseline(ledger)
+    blocks = check_anomalies(snapshot, baseline) + source_blocks(
         bin_ok, bin_detail, history_ok, history_note, library.requests_ok
     )
 
     problems = snapshot_valid(snapshot)
     if problems:
         log(f"snapshot rejected as a baseline: {problems}")
-    elif not blocks or ledger.read_baseline() is None:
+    elif not blocks or baseline is None:
         ledger.write_baseline(snapshot)
         log("baseline recorded")
 
@@ -542,119 +526,19 @@ def cmd_plan(args: argparse.Namespace) -> int:
             "horizon": library.horizon,
             "keep_targets": keep_targets,
             "judge_limit": judge_limit,
+            "lapsed": lapsed_proposals(standing, assessments),
         },
     )
     (out / "plan.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
-    ledger.record_plan({k: v for k, v in payload.items() if k not in ("review", "judge_deferred")})
+    ledger.record_plan({k: v for k, v in payload.items() if k not in ("review", "judge_deferred", "proposed")})
     log(
         f"wrote {out / 'plan.json'}: {len(payload['candidates'])} candidates for the judge, "
-        f"{len(payload['judge_deferred'])} deferred, {len(blocks)} blocking issues"
+        f"{len(payload['judge_deferred'])} deferred, {len(payload['proposed'])} proposed, "
+        f"{len(payload['lapsed_proposals'])} lapsed, {len(blocks)} blocking issues"
     )
     for block in blocks:
         log(f"  BLOCK: {block}")
     return 0
-
-
-def rehydrate(planned: dict, film: Film, reason: str = "") -> Assessment:
-    """Rebuild an assessment from a plan entry plus the live movie record.
-
-    Only the evidence needed for execution is restored; the protections are
-    re-derived from live state rather than trusted from the plan.
-    """
-    return Assessment(
-        film=film,
-        outcome=Outcome.CANDIDATE,
-        # Carried so the decision fingerprint covers the evidence a keep was
-        # actually granted on: losing the last owned sibling should reopen it.
-        siblings_owned=int(planned.get("siblings_owned") or 0),
-        subject_counts=dict(planned.get("subject_counts") or {}),
-        reopened_dismissal=planned.get("reopened_dismissal") is True,
-        provenance=Provenance(
-            Origin(planned["origin"]), tuple(planned.get("origin_evidence") or ()), planned.get("requested_by")
-        ),
-        availability=Availability(None, planned["availability_source"], film.has_file),
-        viewing=Viewing(
-            status=HistoryStatus(planned["history_status"]),
-            identity_via=planned.get("identity_via", "unresolved"),
-            rating_keys=tuple(planned.get("rating_keys") or ()),
-            # Carried through: the fingerprint counts completers, and dropping it would
-            # record a spare against completers=0, stale the day it's made.
-            completions=tuple(
-                Completion(user_id=int(c["user_id"]), percent=int(c["percent"]))
-                for c in (planned.get("completions") or [])
-            ),
-            play_count=int(planned.get("play_count") or 0),
-        ),
-        reasons=[reason] if reason else [],
-    )
-
-
-def apply_keep_tags(  # pylint: disable=too-many-arguments
-    radarr: Radarr,
-    additions: list[dict],
-    dry_run: bool,
-    live: dict[int, dict] | None = None,
-    tag_labels: dict[int, str] | None = None,
-    tag_in_dry_run: bool = False,
-) -> dict[str, Any]:
-    """Give the permanent ``keep`` tag to films that have earned it.
-
-    Add-only. The editor endpoint answers 202, meaning queued and nothing more,
-    so each tag is confirmed by re-reading rather than assumed.
-
-    A dry run writes nothing unless ``tag_in_dry_run`` is set: an add-only tag
-    is reversible, and without it a rehearsal leaves every other tool that
-    honours ``keep`` blind to the decisions made here.
-
-    The plan is half an hour old by the time this runs, so each target is
-    re-checked against its live tags first: ``keep`` is an absolute veto, and
-    applying it to a film somebody has just marked ``cleanup-eligible`` would
-    reverse that person's decision.
-    """
-    movie_ids = [a["movie_id"] for a in additions if isinstance(a.get("movie_id"), int)]
-    withdrawn = 0
-    if live is not None:
-        kept = []
-        for movie_id in movie_ids:
-            record = live.get(movie_id)
-            if record is None or not keep_tag_applies(to_film(record, tag_labels or {})):
-                withdrawn += 1
-                continue
-            kept.append(movie_id)
-        movie_ids = kept
-    if not movie_ids:
-        return {"requested": 0, "applied": 0, "withdrawn": withdrawn, "note": "nothing qualified"}
-    if dry_run and not tag_in_dry_run:
-        return {
-            "requested": len(movie_ids),
-            "applied": 0,
-            "withdrawn": withdrawn,
-            "note": "dry run: not applied",
-        }
-
-    tags = {t["label"]: t["id"] for t in radarr.tags()}
-    if TAG_KEEP not in tags:
-        radarr.create_tag(TAG_KEEP)
-        tags = {t["label"]: t["id"] for t in radarr.tags()}
-    tag_id = tags[TAG_KEEP]
-
-    status, _ = radarr.add_tag(movie_ids, tag_id)
-    # Confirmed per film by re-reading, whatever the status said: a keep counted
-    # as applied when it never landed is recorded as settled and never retried.
-    wanted = set(movie_ids)
-    confirmed = sorted(m["id"] for m in radarr.movies() if m["id"] in wanted and tag_id in m.get("tags", []))
-    unconfirmed = sorted(wanted - set(confirmed))
-    note = "applied in a dry run (TAG_KEEPS_IN_DRY_RUN)" if dry_run else "applied"
-    if unconfirmed:
-        note = f"HTTP {status}; {len(unconfirmed)} not confirmed on re-read"
-    return {
-        "requested": len(movie_ids),
-        "applied": len(confirmed),
-        "withdrawn": withdrawn,
-        "http": status,
-        "note": note,
-        "unconfirmed": unconfirmed,
-    }
 
 
 def plan_refusal(plan: dict, run_mode: str, now: datetime) -> str | None:
@@ -686,56 +570,6 @@ def plan_refusal(plan: dict, run_mode: str, now: datetime) -> str | None:
     return None
 
 
-def record_judge_decisions(
-    accepted: list[dict],
-    movies: dict[int, dict],
-    by_id: dict[int, dict],
-    tag_labels: dict[int, str],
-    monitored: set[int],
-    ledger: Ledger,
-    run_id: str,
-    unconfirmed: set[int] | frozenset[int] = frozenset(),
-) -> list[dict]:
-    """Persist what the judge decided, and collect what it sent to a person.
-
-    A keep whose tag could not be confirmed is not recorded, so next week judges
-    and tags it again rather than treating it as settled.
-
-    Returns the escalations, because the plan's review list was written before
-    judgement: without carrying them out of here, a film the judge deliberately
-    put in front of somebody would wait until next week's plan to be seen.
-    """
-    now = datetime.now(timezone.utc)
-    escalated: list[dict] = []
-    for item in accepted:
-        if item["verdict"] not in ("keep", "review") or item["movie_id"] not in movies:
-            continue
-        if item["verdict"] == "keep" and item["movie_id"] in unconfirmed:
-            continue
-        film = to_film(movies[item["movie_id"]], tag_labels)
-        if item["verdict"] == "review":
-            escalated.append(
-                {
-                    "movie_id": film.movie_id,
-                    "title": film.title,
-                    "year": film.year,
-                    "size_gb": film.size_gb,
-                    "reason": item["reason"],
-                }
-            )
-        ledger.write_decision(
-            build_decision_record(
-                rehydrate(by_id[item["movie_id"]], film),
-                verdict=(VERDICT_SPARED if item["verdict"] == "keep" else VERDICT_REVIEW),
-                reason=item["reason"],
-                run_id=run_id,
-                now=now,
-                monitored=bool(film.tmdb_id and film.tmdb_id in monitored),
-            )
-        )
-    return escalated
-
-
 def execute_exit_code(result: ExecutionResult, untagged: set[int], unjudged: list[int], rejected: list[dict]) -> int:
     """The exit code for a finished execute run; the README lists each one."""
     # A failed deletion is a safe no-op to retry; an uncertain one is recorded and left,
@@ -754,7 +588,10 @@ def execute_exit_code(result: ExecutionResult, untagged: set[int], unjudged: lis
         log(f"exiting non-zero: {unavailable} skip(s) because a safety check could not be read")
         return 10
     if untagged:
-        log(f"exiting non-zero: {len(untagged)} keep tag(s) not confirmed; they are re-judged next run")
+        log(
+            f"exiting non-zero: {len(untagged)} keep tag(s) not confirmed; "
+            "their proposals stand and are tried again next run"
+        )
         return 8
     # A week nobody judged must not count as a success, or it resets the staleness alert.
     if unjudged or rejected:
@@ -767,6 +604,7 @@ def cmd_execute(args: argparse.Namespace) -> int:  # pylint: disable=too-many-lo
     """Apply Claude's recommendations, re-validating every safeguard first."""
     # Read first: a cap that cannot be used should stop the run before it tags or deletes anything.
     cap = env_int("CLEANUP_MAX_DELETIONS", MAX_DELETIONS_PER_RUN)
+    grace_days = env_int("CLEANUP_GRACE_DAYS", proposals.DEFAULT_GRACE_DAYS)
     sources = build_sources()
     radarr, ledger = sources.radarr, sources.ledger
     # The CronJob passes --read-only, so deleting needs edits in two places; a half-made
@@ -824,16 +662,7 @@ def cmd_execute(args: argparse.Namespace) -> int:  # pylint: disable=too-many-lo
         return 3
 
     try:
-        movies = {m["id"]: m for m in radarr.movies()}
-        approved = [
-            rehydrate(
-                by_id[item["movie_id"]],
-                to_film(movies[item["movie_id"]], tag_labels),
-                item["reason"],
-            )
-            for item in accepted
-            if item["verdict"] == "delete" and item["movie_id"] in movies
-        ]
+        movies = {item["id"]: item for item in radarr.movies()}
         in_dry_run = tag_keeps_in_dry_run()
         # Applied before any deletion: catches a plan built before this protection rule
         # from deleting a film assessment would now protect.
@@ -845,20 +674,26 @@ def cmd_execute(args: argparse.Namespace) -> int:  # pylint: disable=too-many-lo
             tag_labels=tag_labels,
             tag_in_dry_run=in_dry_run,
         )
-        # Bar targets are PROTECTED and never candidates, so the two sets cannot overlap.
-        judge_tagged = apply_keep_tags(
-            radarr,
-            [{"movie_id": i["movie_id"]} for i in accepted if i["verdict"] == "keep"],
-            ledger.dry_run,
-            live=movies,
-            tag_labels=tag_labels,
-            tag_in_dry_run=in_dry_run,
+
+        # On record before anything slow: a run cut short keeps the verdicts it was given.
+        standing = ledger.read_proposals()
+        synced = sync_proposals(plan, standing, ledger, sources.run_id)
+        escalated, recorded = record_verdicts(
+            accepted, movies, by_id, tag_labels, monitored, ledger, sources.run_id, grace_days
         )
 
-        already = ledger.deletions_in_window()
-        selected, deferred = select_batch(approved, cap, already)
+        # Only what this plan upheld is acted on, and only once its wait is over; a verdict
+        # given in this run is not in the plan's list, so it cannot be carried out today.
+        due_delete, due_keep = proposals.split_due(plan.get("proposed") or [], datetime.now(timezone.utc))
+        judge_tagged = settle_keeps(
+            radarr, due_keep, standing, movies, tag_labels, monitored, ledger, sources.run_id, in_dry_run
+        )
+        approved, set_aside, marked = due_deletes(due_delete, standing, movies, tag_labels)
+
+        already = ledger.deletions_in_window(CAP_WINDOW_DAYS)
+        selected, deferred = select_batch(approved, cap, already, first=marked)
         log(
-            f"{len(approved)} approved, {already} already deleted this window, "
+            f"{len(approved)} due, {already} already deleted this window, "
             f"acting on {len(selected)}, deferring {len(deferred)}"
         )
 
@@ -874,11 +709,13 @@ def cmd_execute(args: argparse.Namespace) -> int:  # pylint: disable=too-many-lo
             crosswalk=ledger.read_crosswalk(),
             planned_at=utc(plan.get("generated_at")),
         )
+        result.skipped.extend(set_aside)
+        for item in result.deleted:
+            # A rehearsal deleted nothing, so its proposal stays and is reported again next run.
+            if not item.get("simulated"):
+                ledger.delete_proposal(item["movie_id"])
 
         untagged = set(tagged.get("unconfirmed") or []) | set(judge_tagged.get("unconfirmed") or [])
-        escalated = record_judge_decisions(
-            accepted, movies, by_id, tag_labels, monitored, ledger, sources.run_id, unconfirmed=untagged
-        )
         summary = {
             "run_id": sources.run_id,
             # Separate CronJobs generate their own run ids; this ties the result back to
@@ -892,28 +729,91 @@ def cmd_execute(args: argparse.Namespace) -> int:  # pylint: disable=too-many-lo
             "deletion_cap": cap,
             "deferred": [a.film.movie_id for a in deferred],
             "rejected_recommendations": rejected,
+            "proposals": {
+                "grace_days": grace_days,
+                "recorded": recorded,
+                "marked_by_person": synced["marked"],
+                "lapsed": synced["lapsed"],
+                "due": {proposals.DELETE: len(due_delete), proposals.KEEP: len(due_keep)},
+            },
             **result.as_dict(),
         }
         Path(args.out).write_text(json.dumps(summary, indent=2), encoding="utf-8")
         log(
             f"deleted={len(result.deleted)} skipped={len(result.skipped)} "
             f"failed={len(result.failed)} uncertain={len(result.uncertain)} "
-            f"keep-tagged={tagged.get('applied', 0)}+{judge_tagged.get('applied', 0)}"
+            f"keep-tagged={tagged.get('applied', 0)}+{judge_tagged.get('applied', 0)} "
+            f"proposed={recorded[proposals.DELETE]} delete, {recorded[proposals.KEEP]} keep"
         )
         return execute_exit_code(result, untagged, unjudged, rejected)
     finally:
         ledger.release_lock()
 
 
+def review_document(plan: dict | None, result: dict | None, judgement: dict | None, now: datetime):
+    """The review document for this run, or why it could not be built.
+
+    Built from the ledger, not from this run's result: a run that was blocked or cut
+    short still lists every verdict that is waiting, so none falls due unseen.
+    """
+    dry_run = os.environ.get("CLEANUP_MODE", "dry-run").lower() != "act"
+    try:
+        cap = env_int("CLEANUP_MAX_DELETIONS", MAX_DELETIONS_PER_RUN)
+        records = Ledger(build_store(), run_id="report", dry_run=dry_run).read_proposals()
+    except (OSError, ValueError, RuntimeError, SystemExit) as exc:
+        # Reported, not raised: the digest still has to go out, and it is where this gets read.
+        return None, f"the proposals on record could not be read: {exc}"
+    current, blocks = reporting.current_plan(plan, now)
+    facts = {"cap": cap, "mode": "dry-run" if dry_run else "act", "blocks": blocks}
+    return review.build("film", "movie_id", current, result, records, now, facts, judgement=judgement), ""
+
+
+def report_exit_code(unpublished: str, unreported: str) -> int:
+    """11: a configured review page did not take the document. 12: the review window could not be read."""
+    if unpublished:
+        return 11
+    return 12 if unreported else 0
+
+
 def cmd_report(args: argparse.Namespace) -> int:
-    """Render the run's digest and deliver it."""
+    """Render the run's digest and deliver it; publish the review document if a receiver is configured."""
     out = Path(args.out)
-    digest = reporting.render(
-        reporting.read(Path(args.plan)),
-        reporting.read(Path(args.result)),
-        reporting.read(Path(args.judgement)) if args.judgement else None,
-        datetime.now(timezone.utc),
-    )
+    now = datetime.now(timezone.utc)
+    plan, result = reporting.read(Path(args.plan)), reporting.read(Path(args.result))
+    judgement = reporting.read(Path(args.judgement)) if args.judgement else None
+    page_url = env("CLEANUP_REVIEW_URL", required=False)
+    document, unbuilt = review_document(plan, result, judgement, now)
+    if unbuilt:
+        log(f"review window not reported: {unbuilt}")
+    # Without a review page nothing is published and no page is mentioned, but a window that
+    # could not be read is still a fault: the proposals it lists are what the next run acts on.
+    unpublished = unbuilt if page_url else ""
+    unreported = "" if page_url else unbuilt
+
+    def render() -> reporting.Digest:
+        return reporting.render(
+            plan,
+            result,
+            judgement,
+            now,
+            page=document,
+            unpublished=unpublished if page_url else None,
+            unreported=unreported,
+        )
+
+    digest = render()
+    if page_url and document is not None:
+        # The document carries the digest exactly as it goes out, so it is rendered first.
+        record = review.digest_record(digest.title, digest.push, digest.text)
+        sent = {**document, "summary": {**document["summary"], "digest": record}}
+        try:
+            log(review.publish(page_url, "film", env("RADARR_API_KEY", required=False), sent))
+        except review.PublishError as exc:
+            unpublished = str(exc)
+            digest = render()
+    if unpublished:
+        # Loud for the same reason as the digest: a page left a week stale is read as current.
+        log(f"REVIEW PAGE NOT UPDATED: {unpublished}")
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(digest.text, encoding="utf-8")
     print(digest.text, flush=True)
@@ -921,15 +821,17 @@ def cmd_report(args: argparse.Namespace) -> int:
     url = env("CLEANUP_WEBHOOK_URL", required=False)
     if not url:
         log("no CLEANUP_WEBHOOK_URL: digest written but not delivered")
-        return 0
+        return report_exit_code(unpublished, unreported)
+    # The push opens the review page only when there is one to open.
+    link = env("CLEANUP_REVIEW_LINK", required=False) if page_url else ""
     try:
-        log(reporting.post(url, env("CLEANUP_WEBHOOK_TOKEN", required=False), digest))
+        log(reporting.post(url, env("CLEANUP_WEBHOOK_TOKEN", required=False), digest, link=link or ""))
     except reporting.NotificationError as exc:
         # Loud on purpose: an undelivered digest looks, from the phone, like a week
         # the job never ran at all.
         log(f"DIGEST NOT DELIVERED: {exc}")
         return 6
-    return 0
+    return report_exit_code(unpublished, unreported)
 
 
 def cmd_selftest(_args: argparse.Namespace) -> int:

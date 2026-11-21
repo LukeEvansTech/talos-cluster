@@ -12,7 +12,7 @@ import unittest
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from curator.__main__ import apply_keep_tags, rehydrate
+from curator.acting import apply_keep_tags, rehydrate
 from curator.clients import SourceError
 from curator.evidence import resolve_availability, resolve_viewing
 from curator.executor import execute, reconcile

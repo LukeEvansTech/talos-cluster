@@ -21,14 +21,19 @@ steps, the trust boundary and the failure semantics; this page covers what diffe
 - **Verdicts:** the schema's id field is `series_id`. The batch list carries the field name, which
   is how the two apps share `judge.py` and `read_verdicts.py` unchanged.
 - **Limits:** `CLEANUP_JUDGE_LIMIT` is 30 (set on `curatortv`), `CLEANUP_JUDGE_BATCH` is 15 and
-  `CLEANUP_MAX_DELETIONS` is 10, the engine's own default.
+  `CLEANUP_MAX_DELETIONS` is 10, the engine's own default. `CLEANUP_GRACE_DAYS` is 6, as for films.
+- **Review document:** built from the series proposals as the `tv` library. Like the film
+  judge's, it is published only when `CLEANUP_REVIEW_URL` is set, to `/publish/tv` signed with the
+  Sonarr API key, and this manifest does not set it.
 - **Digest:** same webhook as Curatorjudge; every title starts `TV cleanup` so the two are
   distinguishable on the phone.
 
 ## Keep tags are written in a dry run
 
-`TAG_KEEPS_IN_DRY_RUN: "true"` lets the `app` step add the `keep` tag to rating-bar series and to
-every series the judge verdicts `keep`, even though the run is a dry run with `--read-only`. The
+`TAG_KEEPS_IN_DRY_RUN: "true"` lets the `app` step add the `keep` tag to rating-bar series, and to
+every series whose `keep` from the judge has waited out its review window, even though the run is
+a dry run with `--read-only`. The flag does not shorten that wait: in every mode a judge's keep is
+a proposal first, so a person has the same week to refuse it as they have to refuse a delete. The
 film engine supports the same flag and its manifest leaves it off, so this is the one place the TV
 pipeline writes where the film pipeline does not. It exists for Reclaimerr, which spares anything
 tagged `keep`: without it, a dry run leaves Reclaimerr blind to every decision made here.
@@ -42,7 +47,8 @@ tagged `keep`: without it, a dry run leaves Reclaimerr blind to every decision m
 
 The result file reports both writes as `keep_tags_added` and `judge_keeps_tagged`, and the digest
 lists them. Each tag is confirmed by re-reading the series: a keep whose tag did not land is not
-recorded as a decision, so it is retried next week, and the run exits non-zero.
+recorded as a decision and stays a proposal, so it is retried next week, and the run exits
+non-zero.
 
 ## Shared credentials
 

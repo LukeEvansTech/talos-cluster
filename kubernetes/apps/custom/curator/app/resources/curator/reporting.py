@@ -137,12 +137,120 @@ def _deferred_line(plan: dict) -> list[str]:
     ]
 
 
-def _nothing_to_report(reason: str, detail: str) -> Digest:
-    """A run that produced no plan still has to say so."""
+def _day(stamp: Any) -> str:
+    """A date as a person says it, or a fallback when the stamp cannot be read."""
+    try:
+        moment = datetime.fromisoformat(str(stamp).replace("Z", "+00:00"))
+    except ValueError:
+        return "the next run"
+    return f"{moment.day} {moment:%b}"
+
+
+def _going(review: dict) -> str:
+    """How many titles the next run takes, which is the one number a person has to act on."""
+    count = len(review.get("going") or [])
+    day = _day(review.get("next_run_at"))
+    if not count:
+        return f"nothing due on {day}"
+    return f"{count} {'go' if review.get('mode') == 'act' else 'would go'} on {day}"
+
+
+def _title(queue: list, review: dict | None, blocks: list, problems: list[str]) -> str:
+    """The headline: a block first, then anything else that went wrong, then the ordinary week."""
+    if blocks:
+        return f"Library cleanup BLOCKED: {len(blocks)} issue" + ("s" if len(blocks) != 1 else "")
+    if problems:
+        return f"Library cleanup: {problems[0]}"
+    if review is None:
+        return f"Library cleanup: {len(queue)} to review"
+    return f"Library cleanup: {_going(review)}" + (f" · {len(queue)} to review" if queue else "")
+
+
+def _window_push(review: dict | None) -> list[str]:
+    """The review window on the phone: what goes next, and what is waiting behind it."""
+    if review is None:
+        return []
+    later, kept = len(review.get("later") or []), len(review.get("kept") or [])
+    line = f"<b>{_esc(_going(review))}</b>" + (" unless you keep them" if review.get("going") else "")
+    extras = [f"{later} waiting" if later else "", f"{kept} being kept" if kept else ""]
+    return [line + "".join(f" · {extra}" for extra in extras if extra)]
+
+
+def _proposal_lines(items: list[dict]) -> list[str]:
+    """Every proposal with its size, due date and reason.
+
+    Not cut at ``TEXT_LISTED``: with no review page this report is the only place a
+    person can read what falls due, so every title it acts on has to be in it.
+    """
+    return [
+        f"  - {_label(i)} {float(i.get('size_gb') or 0):.0f} GB, due {_day(i.get('due_at'))}: {i.get('reason')}"
+        for i in items
+    ]
+
+
+def _window_lines(review: dict | None, result: dict | None, unpublished: str | None, unreported: str) -> list[str]:
+    """The review window in the text report: the proposals on record and what this run added.
+
+    The line about the review page appears only when one is configured (``unpublished`` is not None).
+    """
+    if review is None:
+        if unreported:
+            return [f"Review window: NOT REPORTED ({unreported})", ""]
+        return [f"Review page: NOT UPDATED ({unpublished})", ""] if unpublished else []
+    going, later, kept = (review.get(key) or [] for key in ("going", "later", "kept"))
+    made = (result or {}).get("proposals") or {}
+    recorded = made.get("recorded") or {}
+    lines = [
+        "## Review window",
+        "",
+        f"{_going(review).capitalize()}: {_gb(going):,.0f} GB (at most {review.get('cap')} a run)",
+        *_proposal_lines(going),
+        f"Waiting their turn or not yet due: {len(later)}",
+        *_proposal_lines(later),
+        f"Being kept, tagged when their wait is over: {len(kept)}",
+        *_proposal_lines(kept),
+    ]
+    if made:
+        lines.append(
+            f"This run: {recorded.get('delete', 0)} delete and {recorded.get('keep', 0)} keep proposed "
+            f"(each waits {made.get('grace_days')} days), {made.get('marked_by_person', 0)} marked by a person, "
+            f"{made.get('lapsed', 0)} lapsed"
+        )
+    if unpublished is not None:
+        lines.append(f"Review page: NOT UPDATED ({unpublished})" if unpublished else "Review page: updated")
+    return [*lines, ""]
+
+
+def current_plan(plan: dict | None, now: datetime, stale_after_hours: float = 12.0) -> tuple[dict | None, list[str]]:
+    """This run's plan if it has one, and the reasons the run acted on nothing.
+
+    For the review page, which has to say why nothing is going when a run was
+    blocked or never planned.
+    """
+    if plan is None:
+        return None, ["no plan was written for this run"]
+    age = _age_hours(plan, now)
+    if age is None:
+        return None, ["the plan carries no usable date"]
+    if age > stale_after_hours:
+        return None, [f"the newest plan is {age:.0f}h old, so this run's planner did not write one"]
+    return plan, [str(block) for block in plan.get("blocks") or []]
+
+
+def _nothing_to_report(reason: str, detail: str, window: tuple) -> Digest:
+    """A run that produced no plan still has to say so, and still lists what falls due.
+
+    ``window`` is the review document, ``unpublished`` and ``unreported``, as
+    ``render`` takes them: the proposals on record do not depend on this run's plan.
+    """
+    page, unpublished, unreported = window
+    push = [f"<b>{_esc(reason)}</b>", _esc(detail), *_window_push(page)]
+    push += [f"· {_esc(issue)}" for issue in _problems([], {}, None, unpublished, unreported)]
+    lines = _window_lines(page, None, unpublished, unreported)
     return Digest(
         title=f"Library cleanup: {reason}",
-        push=f"<b>{_esc(reason)}</b>\n{_esc(detail)}",
-        text=f"# Library cleanup\n\n{reason}\n\n{detail}\n",
+        push=_clip("\n".join(push)),
+        text="\n".join(["# Library cleanup", "", reason, "", detail, "", *lines]).rstrip("\n") + "\n",
     )
 
 
@@ -187,7 +295,9 @@ def _judge_keep_lines(result: dict | None) -> list[str]:
     ]
 
 
-def _problems(blocks: list, result: dict | None, judgement: dict | None) -> list[str]:
+def _problems(
+    blocks: list, result: dict | None, judgement: dict | None, unpublished: str | None = None, unreported: str = ""
+) -> list[str]:
     """Everything that should stop this reading as a quiet week.
 
     The phone is where the distinction is most often lost: a judgement that
@@ -195,9 +305,12 @@ def _problems(blocks: list, result: dict | None, judgement: dict | None) -> list
     reports "0 deleted" -- indistinguishable from a week with nothing to do.
     """
     problems = [str(b) for b in blocks]
+    # A list a person may be about to act on is a week stale: said whatever else happened.
+    page = [f"review page not updated: {unpublished}"[:120]] if unpublished else []
+    if unreported:
+        page.append(f"review window not reported: {unreported}"[:120])
     if result is None:
-        problems.append("execute did not finish")
-        return problems
+        return [*problems, "execute did not finish", *page]
     status = (judgement or {}).get("status")
     if status not in (None, "judged", "not asked"):
         problems.append(f"judgement {status}: {(judgement or {}).get('detail', '')}"[:120])
@@ -218,7 +331,7 @@ def _problems(blocks: list, result: dict | None, judgement: dict | None) -> list
     unjudged = len(result.get("unjudged") or [])
     if unjudged:
         problems.append(f"{unjudged} candidate{'s' if unjudged != 1 else ''} came back with no verdict")
-    return problems
+    return [*problems, *page]
 
 
 def _clip(message: str) -> str:
@@ -252,21 +365,37 @@ def render(
     judgement: dict | None,
     now: datetime,
     stale_after_hours: float = 12.0,
+    page: dict | None = None,
+    unpublished: str | None = None,
+    unreported: str = "",
 ) -> Digest:
-    """Build the digest for one run."""
+    """Build the digest for one run.
+
+    ``page`` is the review document, built from the proposals on record whether
+    or not it is published. ``unpublished`` is None when no review page is
+    configured, empty when the document reached it, and otherwise why it did
+    not. ``unreported`` says why
+    there is no document at all when no page is configured: the proposals that
+    fall due could not be read, which is a problem whether or not anything is
+    published.
+    """
     if plan is None:
         return _nothing_to_report(
             "no plan",
             "The curator job writes the plan this reads. Check whether it ran.",
+            (page, unpublished, unreported),
         )
 
     age = _age_hours(plan, now)
     if age is None:
-        return _nothing_to_report("plan unreadable", "The plan carries no usable generated_at.")
+        return _nothing_to_report(
+            "plan unreadable", "The plan carries no usable generated_at.", (page, unpublished, unreported)
+        )
     if age > stale_after_hours:
         return _nothing_to_report(
             "plan is stale",
             f"The newest plan is {age:.0f}h old, so this week's curator job did not produce one.",
+            (page, unpublished, unreported),
         )
 
     result, judgement = _this_weeks(plan, result, judgement)
@@ -285,13 +414,8 @@ def render(
     escalated = (result or {}).get("escalated") or []
     queue = review + escalated
 
-    problems = _problems(blocks, result, judgement)
-
-    title = f"Library cleanup: {len(queue)} to review"
-    if blocks:
-        title = f"Library cleanup BLOCKED: {len(blocks)} issue" + ("s" if len(blocks) != 1 else "")
-    elif problems:
-        title = f"Library cleanup: {problems[0]}"
+    problems = _problems(blocks, result, judgement, unpublished, unreported)
+    title = _title(queue, page, blocks, problems)
 
     push = [f"<b>{_esc(mode.upper())}</b> · {library:,} films · {_candidate_count(plan)}"]
     if problems:
@@ -304,6 +428,7 @@ def render(
         deleted = result.get("deleted") or []
         verb = "would delete" if all(i.get("simulated") for i in deleted) else "DELETED"
         push.append(f"{verb} {len(deleted)} · {_gb(deleted):,.0f} GB")
+    push += _window_push(page)
     if missing:
         push.append(f"{len(missing)} monitored films have no file")
 
@@ -321,7 +446,13 @@ def render(
     ]
     if blocks:
         text += ["## Blocked", "", *(f"- {b}" for b in blocks), ""]
+        text += [
+            "If a fall listed above is expected, accept this run's figures as the new baseline by setting "
+            f"CLEANUP_ACCEPT_BASELINE={plan.get('run_id')} on the planner (curator) for its next run.",
+            "",
+        ]
     text += ["## Execution", "", *_execution_lines(result), ""]
+    text += _window_lines(page, result, unpublished, unreported)
     if qualify or keep_tags:
         applied = keep_tags.get("applied")
         outcome = f"{applied} applied" if applied is not None else "execute did not reach it"
@@ -346,9 +477,13 @@ def render(
     return Digest(title=title[:TITLE_LIMIT], push=_clip("\n".join(push)), text="\n".join(text) + "\n")
 
 
-def post(url: str, token: str, digest: Digest, opener=None, timeout: int = 20) -> str:
-    """Deliver the digest to the webhook. Raises rather than reporting silence as success."""
-    payload = json.dumps({"title": digest.title, "message": digest.push}).encode()
+def post(url: str, token: str, digest: Digest, opener=None, timeout: int = 20, link: str = "") -> str:
+    """Deliver the digest to the webhook. Raises rather than reporting silence as success.
+
+    ``link`` is where the push should open, sent as ``url`` only when there is one.
+    """
+    fields = {"title": digest.title, "message": digest.push, **({"url": link} if link else {})}
+    payload = json.dumps(fields).encode()
     request = urllib.request.Request(
         url,
         data=payload,
@@ -374,4 +509,4 @@ def read(path) -> dict | None:
         return None
 
 
-__all__ = ["Digest", "NotificationError", "post", "read", "render"]
+__all__ = ["Digest", "NotificationError", "current_plan", "post", "read", "render"]

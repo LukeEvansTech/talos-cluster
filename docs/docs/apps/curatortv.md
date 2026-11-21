@@ -35,9 +35,13 @@ The engine lives in `kubernetes/apps/custom/curatortv/app/resources/curatortv/`,
 - **Scope:** `upcoming` series are out of scope; nothing else is, since `CLEANUP_SCOPE_START` is
   no longer set.
 - **Keep tags in a dry run:** with `TAG_KEEPS_IN_DRY_RUN=true` the executor adds `keep` to
-  rating-bar series and to judge `keep` verdicts even in a dry run, so Reclaimerr (which spares
-  anything tagged `keep`) sees them. Deletion stays impossible. See
-  [Curatortvjudge](curatortvjudge.md).
+  rating-bar series at once, and to a judge's `keep` once its review window has passed, even in a
+  dry run, so Reclaimerr (which spares anything tagged `keep`) sees them. Deletion stays
+  impossible. See [Curatortvjudge](curatortvjudge.md).
+- **The review window:** the same as for films (see
+  [Curator](curator.md#the-review-window)), with proposals keyed `series_id`. A series'
+  fingerprint has its season count where a film's has its collection, so a new season ends a
+  proposal and the series is judged again. `CLEANUP_ACCEPT_BASELINE` works the same way too.
 
 ## Tunable constants
 
@@ -45,7 +49,8 @@ Uncalibrated starting points, like the film engine's.
 
 | Constant                                 | Value                    | What it gates                                                                     |
 | ---------------------------------------- | ------------------------ | --------------------------------------------------------------------------------- |
-| `MAX_DELETIONS_PER_RUN` (`planner.py`)   | 10                       | Rolling 7-day cap, largest first; `CLEANUP_MAX_DELETIONS` overrides it. Series are far larger than films. |
+| `MAX_DELETIONS_PER_RUN` (`planner.py`)   | 10                       | Deletions per run, a person's first and then largest first, counted over `CAP_WINDOW_DAYS` (6); `CLEANUP_MAX_DELETIONS` overrides it. Series are far larger than films. |
+| `DEFAULT_GRACE_DAYS` (`proposals.py`)    | 6                        | Days a verdict waits before `execute` acts on it; `CLEANUP_GRACE_DAYS` overrides it. |
 | `DEFAULT_JUDGE_LIMIT` (`planner.py`)     | 30                       | Candidates offered to the judge per run, largest first; `CLEANUP_JUDGE_LIMIT` overrides it. |
 | `WINDOW_DAYS` (`evidence.py`)            | 180                      | Viewing window before a series can be a candidate.                                |
 | `SHORT_WINDOW_DAYS` (`evidence.py`)      | 60                       | Window when the IMDb score is below 5.5.                                          |

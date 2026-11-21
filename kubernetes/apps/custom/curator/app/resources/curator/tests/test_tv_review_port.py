@@ -27,7 +27,7 @@ from curator.executor import revalidate
 from curator.ledger import Ledger
 from curator.model import HistoryStatus
 
-from .fixtures import FakeRadarr, FakeS3, FakeTautulli, days_ago, make_availability, make_film, play_row
+from .fixtures import FakeRadarr, FakeS3, FakeTautulli, days_ago, make_availability, make_film, play_row, propose
 from .test_executor import movie_record
 from .test_failclosed import _Opener, envelope
 
@@ -148,21 +148,26 @@ class ExecuteExitCodes(unittest.TestCase):
         self.root = Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, self.root, ignore_errors=True)
         candidate = {"origin": "feed", "availability_source": "radarr-history", "history_status": "ok"}
+        ledger = Ledger(FakeS3(), "run-execute", dry_run=True)
         plan = {
             "run_id": "plan-1",
             "mode": "dry-run",
             "generated_at": (datetime.now(timezone.utc) - timedelta(minutes=30)).isoformat(),
             "blocks": [],
             "candidates": [{"movie_id": 1, **candidate}, {"movie_id": 2, **candidate}],
+            # Film 3's delete was handed down by an earlier run and its wait is over.
+            "proposed": [propose(ledger, {"movie_id": 3, **candidate})],
         }
         (self.root / "plan.json").write_text(json.dumps(plan), encoding="utf-8")
-        self.radarr = _Radarr({1: movie_record(1), 2: movie_record(2, tmdb_id=2000)}, {1: "keep"})
+        self.radarr = _Radarr(
+            {1: movie_record(1), 2: movie_record(2, tmdb_id=2000), 3: movie_record(3, tmdb_id=3000)}, {1: "keep"}
+        )
         self.tautulli = FakeTautulli()
         sources = SimpleNamespace(
             radarr=self.radarr,
             tautulli=self.tautulli,
             seerr=None,
-            ledger=Ledger(FakeS3(), "run-execute", dry_run=True),
+            ledger=ledger,
             run_id="run-execute",
         )
         for name, value in (("build_sources", lambda: sources), ("log", lambda _message: None)):
@@ -184,10 +189,6 @@ class ExecuteExitCodes(unittest.TestCase):
         {"movie_id": 1, "verdict": "review", "reason": "unsure"},
         {"movie_id": 2, "verdict": "review", "reason": "unsure"},
     ]
-    DELETE_ONE = [
-        {"movie_id": 1, "verdict": "delete", "reason": "trending add nobody watched"},
-        {"movie_id": 2, "verdict": "review", "reason": "unsure"},
-    ]
 
     def test_an_empty_answer_is_not_a_success(self):
         self.assertEqual(self.execute([])[0], 9)
@@ -202,16 +203,24 @@ class ExecuteExitCodes(unittest.TestCase):
     def test_a_fully_judged_week_still_succeeds(self):
         self.assertEqual(self.execute(self.REVIEW_BOTH)[0], 0)
 
+    def test_a_fully_judged_week_rehearses_the_due_delete(self):
+        """The control for the two tests below: without their fault, film 3 would go."""
+        code, result = self.execute(self.REVIEW_BOTH)
+        self.assertEqual(code, 0)
+        self.assertEqual([item["movie_id"] for item in result["deleted"]], [3])
+
     def test_an_unreachable_activity_check_exits_10(self):
         self.tautulli.raise_error = SourceError("tautulli down")
-        code, result = self.execute(self.DELETE_ONE)
+        code, result = self.execute(self.REVIEW_BOTH)
         self.assertEqual(code, 10)
-        self.assertTrue(any(s.get("unavailable") for s in result["skipped"]))
+        self.assertEqual(result["deleted"], [])
+        self.assertTrue(any(s.get("unavailable") and s.get("movie_id") == 3 for s in result["skipped"]))
 
     def test_a_protection_skip_is_still_a_clean_run(self):
-        self.radarr.movies_by_id[1]["tags"] = [1]
-        code, result = self.execute(self.DELETE_ONE)
+        self.radarr.movies_by_id[3]["tags"] = [1]
+        code, result = self.execute(self.REVIEW_BOTH)
         self.assertEqual(code, 0)
+        self.assertEqual(result["deleted"], [])
         self.assertIn("protection tag", result["skipped"][0]["why"])
 
     def test_the_digest_names_unavailable_checks(self):

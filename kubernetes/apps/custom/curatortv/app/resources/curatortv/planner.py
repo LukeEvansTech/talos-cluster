@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Any
 
+from . import proposals
 from .evidence import days_available, settle_window, window_days
 from .model import (
     TAG_HUMAN_DISMISSED,
@@ -31,6 +32,10 @@ from .model import (
 # A series is tens to hundreds of GB and a whole run's worth of seasons to restore,
 # so a third of the film cap already reclaims more and risks more per bad batch.
 MAX_DELETIONS_PER_RUN = 10
+# A day short of the weekly schedule. Last week's deletions were recorded minutes after the
+# moment this week's run counts from, so a seven-day window would still hold every one of
+# them and each second run would delete nothing.
+CAP_WINDOW_DAYS = 6
 # Bounds one run's judging cost and time; the rest of a backlog waits its turn.
 DEFAULT_JUDGE_LIMIT = 30
 SUBJECT_EXACT_BELOW = 25
@@ -68,6 +73,8 @@ class PlanContext:
     coverage_start: datetime | None
     history_ok: bool
     decisions: dict[int, dict] = field(default_factory=dict)
+    # Verdicts on record and waiting out their review window, keyed by id.
+    proposals: dict[int, dict] = field(default_factory=dict)
     genre_counts: dict[str, int] = field(default_factory=dict)
 
 
@@ -229,6 +236,55 @@ def _evidence_gate(viewing: Viewing, result: Assessment) -> bool:
     return False
 
 
+def _settled(show: Show, viewing: Viewing, ctx: PlanContext, result: Assessment, fingerprint: str) -> bool:
+    """Apply what a person or an earlier run already decided about a series. True when something did.
+
+    Reached only once every gate has passed, so nothing here can outrank a protection.
+    """
+    stored = ctx.decisions.get(show.series_id)
+    # Before the stored decision: dismissing is how a person answers a review the judge
+    # asked for, and that review would otherwise keep the series listed as waiting.
+    if TAG_HUMAN_DISMISSED in show.tags:
+        # Applied via the UI with no ledger record, so requiring one would make the tag inert.
+        if not (stored and stored.get("fact_fingerprint") != fingerprint):
+            result.outcome = Outcome.SPARED
+            result.reasons.append("dismissed by a person; no relevant fact has changed since")
+            return True
+
+    standing = ctx.proposals.get(show.series_id)
+    # A person's delete takes the judge's place: it is never sent for a verdict, and no
+    # stored spare, review or standing keep outranks it. The gates above still do, and so
+    # does a dismissal beside it, even one a changed fact has reopened for the judge.
+    if TAG_HUMAN_ELIGIBLE in show.tags and TAG_HUMAN_DISMISSED not in show.tags:
+        result.outcome = Outcome.PROPOSED
+        result.proposal = proposals.by_person(standing, ctx.now)
+        result.reasons.append("marked cleanup-eligible by a person; due at this run")
+        return True
+
+    if stored and decision_still_binding(stored, fingerprint, ctx.now):
+        verdict = stored.get("verdict", VERDICT_SPARED)
+        # The judge's own review stays in front of a person until they act on it;
+        # a spare is settled and asks nothing of anyone.
+        result.outcome = Outcome.REVIEW if verdict == VERDICT_REVIEW else Outcome.SPARED
+        result.reasons.append(
+            f"already {verdict} on {stored.get('decided_at', '?')[:10]}: "
+            f"{stored.get('reason', 'no reason recorded')}"
+        )
+        return True
+
+    # A verdict already on record is not asked for again while its facts hold; one whose
+    # facts moved falls through and is judged afresh.
+    if standing and proposals.stands(standing, fingerprint, viewing.play_count):
+        result.outcome = Outcome.PROPOSED
+        result.proposal = proposals.summary(standing)
+        result.reasons.append(
+            f"{standing.get('verdict')} proposed on {str(standing.get('proposed_at'))[:10]}, "
+            f"due {str(standing.get('due_at'))[:10]}: {standing.get('reason', 'no reason recorded')}"
+        )
+        return True
+    return False
+
+
 def assess(
     show: Show,
     provenance: Provenance,
@@ -267,25 +323,8 @@ def assess(
     # No origin gate: how a series arrived is evidence for the judge, not a permission.
     # Requiring a feed tag parked everything else in a queue nobody could clear.
     fingerprint = fact_fingerprint(show, provenance, viewing, result.subject_counts)
-    stored = ctx.decisions.get(show.series_id)
-    # Before the stored decision: dismissing is how a person answers a review the judge
-    # asked for, and that review would otherwise keep the series listed as waiting.
-    if TAG_HUMAN_DISMISSED in show.tags:
-        # Applied via the UI with no ledger record, so requiring one would make the tag inert.
-        if not (stored and stored.get("fact_fingerprint") != fingerprint):
-            result.outcome = Outcome.SPARED
-            result.reasons.append("dismissed by a person; no relevant fact has changed since")
-            return result
-
-    if stored and decision_still_binding(stored, fingerprint, ctx.now):
-        verdict = stored.get("verdict", VERDICT_SPARED)
-        # The judge's own review stays in front of a person until they act on it;
-        # a spare is settled and asks nothing of anyone.
-        result.outcome = Outcome.REVIEW if verdict == VERDICT_REVIEW else Outcome.SPARED
-        result.reasons.append(
-            f"already {verdict} on {stored.get('decided_at', '?')[:10]}: "
-            f"{stored.get('reason', 'no reason recorded')}"
-        )
+    result.fingerprint = fingerprint
+    if _settled(show, viewing, ctx, result, fingerprint):
         return result
 
     result.outcome = Outcome.CANDIDATE
@@ -325,6 +364,7 @@ def select_batch(
     approved: list[Assessment],
     cap: int = MAX_DELETIONS_PER_RUN,
     already_deleted_this_window: int = 0,
+    first: frozenset[int] = frozenset(),
 ) -> tuple[list[Assessment], list[Assessment]]:
     """Take the largest series first, up to what remains of the run's budget.
 
@@ -333,7 +373,9 @@ def select_batch(
     stalls permanently. Anomaly detection stops a run; volume does not.
     """
     remaining = max(cap - already_deleted_this_window, 0)
-    ordered = sorted(approved, key=lambda a: a.show.size_bytes, reverse=True)
+    # Ids in `first` go ahead of size: a person's own delete must not queue for weeks
+    # behind a backlog of larger titles the judge chose.
+    ordered = sorted(approved, key=lambda a: (a.show.series_id in first, a.show.size_bytes), reverse=True)
     return ordered[:remaining], ordered[remaining:]
 
 
@@ -429,6 +471,60 @@ def check_anomalies(snapshot: dict[str, Any], baseline: dict[str, Any] | None) -
         blocks.append(f"{invalid} series have an unusable added date")
 
     return blocks
+
+
+def lapsed_proposals(standing: dict[int, dict], assessments: Iterable[Assessment]) -> list[dict[str, Any]]:
+    """Proposals on record that this plan no longer upholds, each with why.
+
+    Anything but a PROPOSED outcome ends one: a protection that now applies, evidence
+    that can no longer be trusted, facts that moved, or a series that has left the library.
+    """
+    assessed = {a.show.series_id: a for a in assessments if a.show.series_id in standing}
+    lapsed = []
+    for item_id, stored in sorted(standing.items()):
+        found = assessed.get(item_id)
+        if found is not None and found.outcome is Outcome.PROPOSED:
+            continue
+        why = "no longer in the library"
+        if found is not None:
+            detail = (found.protections or found.blockers or found.reasons or ["no reason recorded"])[0]
+            why = f"now {found.outcome.value}: {detail}"
+        lapsed.append(
+            {
+                "series_id": item_id,
+                "title": stored.get("title"),
+                "verdict": stored.get("verdict"),
+                "by": stored.get("by"),
+                "why": why,
+            }
+        )
+    return lapsed
+
+
+def accepted_baseline(named: dict | None, baseline: dict | None) -> tuple[dict[str, Any] | None, str]:
+    """The snapshot of an earlier run that an operator has accepted as the new baseline.
+
+    ``named`` is that run's stored plan. Its figures were reported when it was blocked,
+    so accepting them is accepting something a person has seen, which accepting whatever
+    the next run finds would not be. A snapshot no newer than the baseline is refused,
+    which is what makes the setting safe to leave in place: it is honoured once.
+    """
+    snapshot = (named or {}).get("snapshot")
+    if not isinstance(snapshot, dict):
+        return None, "no plan with a snapshot is on record for that run in this mode"
+    problems = snapshot_valid(snapshot)
+    if problems:
+        return None, f"that run's snapshot cannot be a baseline: {'; '.join(problems)}"
+    taken = proposals.when(snapshot.get("taken_at"))
+    if taken is None:
+        return None, "that run's snapshot carries no usable taken_at"
+    if baseline is not None:
+        current = proposals.when(baseline.get("taken_at"))
+        if current is None:
+            return None, "the baseline on record carries no usable taken_at to compare with"
+        if taken <= current:
+            return None, "the baseline is already as new as that run; nothing to accept"
+    return snapshot, f"accepted the snapshot taken {taken.isoformat()} as the baseline"
 
 
 def build_decision_record(
