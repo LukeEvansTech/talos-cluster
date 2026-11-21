@@ -1,0 +1,55 @@
+---
+# promtool unit tests for the curator review app's alerts; run by
+# .github/scripts/check_prometheus_rules.py. The film document stops arriving at the start; the tv
+# one arrives a week in, so only film crosses the 8-day threshold.
+rule_files:
+  - kubernetes/apps/custom/curator/app/prometheusrule.yaml
+evaluation_interval: 1m
+tests:
+  # CuratorDocumentStale: threshold 691200s (192h) plus 2h wait, per library.
+  - interval: 5m
+    input_series:
+      - series: 'curator_last_document_timestamp_seconds{library="film"}'
+        values: "0x2400"
+      - series: 'curator_last_document_timestamp_seconds{library="tv"}'
+        values: "0x2016 604800x400"
+    alert_rule_test:
+      - eval_time: 191h
+        alertname: CuratorDocumentStale
+        exp_alerts: []
+      - eval_time: 196h
+        alertname: CuratorDocumentStale
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              library: film
+            exp_annotations:
+              summary: >-
+                curator has not accepted a film review document in over 8 days, so its review page
+                shows an old week.
+              description: >-
+                The last film document arrived 8d 4h 0m 0s ago. Check the Ops page for refused
+                publishes, and the latest curatorfilmjudge or curatortvjudge Job's logs for REVIEW PAGE
+                NOT UPDATED.
+      - eval_time: 196h
+        alertname: CuratorMetricsMissing
+        exp_alerts: []
+
+  # CuratorMetricsMissing: no series at all for 30m.
+  - interval: 1m
+    input_series:
+      - series: 'up{job="unrelated"}'
+        values: "1x60"
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: CuratorMetricsMissing
+        exp_alerts: []
+      - eval_time: 45m
+        alertname: CuratorMetricsMissing
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+            exp_annotations:
+              summary: >-
+                curator /metrics has not been scraped for 30m, so review document delivery is
+                unmonitored.

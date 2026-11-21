@@ -1,0 +1,118 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: curator
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: curator
+  values:
+    controllers:
+      curator:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        # Recreate avoids a multi-attach deadlock on this RWO ceph-block PVC, and keeps one
+        # writer on the SQLite database.
+        strategy: Recreate
+        containers:
+          app:
+            image:
+              repository: ghcr.io/lukeevanstech/curator
+              tag: 0.1.0@sha256:e64196636359ac5d56db799f95af3e2ae86d9a309be746051c96798e1514aaab
+            env:
+              TZ: ${TIMEZONE}
+              CURATOR_TZ: ${TIMEZONE}
+              CURATOR_DATA: /data
+              CURATOR_PUBLIC_URL: https://curator.${SECRET_DOMAIN}
+              RADARR_URL: http://radarr.media.svc.cluster.local
+              SONARR_URL: http://sonarr.media.svc.cluster.local
+              RADARR_LINK_URL: https://radarr.${SECRET_DOMAIN}
+              SONARR_LINK_URL: https://sonarr.${SECRET_DOMAIN}
+            envFrom:
+              - secretRef:
+                  name: curator-secret
+            probes:
+              liveness:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /health
+                    port: &port 8080
+                  initialDelaySeconds: 10
+                  periodSeconds: 30
+                  timeoutSeconds: 5
+                  failureThreshold: 3
+              readiness:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /health
+                    port: *port
+                  initialDelaySeconds: 5
+                  periodSeconds: 10
+                  timeoutSeconds: 10
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop:
+                  - ALL
+            resources:
+              requests:
+                cpu: 10m
+                memory: 128Mi
+              limits:
+                memory: 512Mi
+    defaultPodOptions:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+    service:
+      app:
+        controller: curator
+        ports:
+          http:
+            port: *port
+    # /metrics carries when each library's last document arrived; /health cannot see that.
+    serviceMonitor:
+      app:
+        serviceName: "{{ .Release.Name }}"
+        endpoints:
+          - port: http
+            scheme: http
+            path: /metrics
+            interval: 1m
+            scrapeTimeout: 10s
+    route:
+      app:
+        annotations:
+          gatus.home-operations.com/endpoint: |-
+            name: curator
+            group: internal
+            url: http://curator.custom.svc.cluster.local:8080/health
+            conditions: ["[STATUS] == 200"]
+        hostnames:
+          - "{{ .Release.Name }}.${SECRET_DOMAIN}"
+        parentRefs:
+          - name: envoy-internal
+            namespace: network
+    persistence:
+      data:
+        existingClaim: curator
+        globalMounts:
+          - path: /data
+      tmp:
+        type: emptyDir
+        globalMounts:
+          - path: /tmp

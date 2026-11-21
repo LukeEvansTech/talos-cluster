@@ -10,6 +10,7 @@ components:
 resources:
   - ./namespace.yaml
   - ./netpol.yaml
+  - ./curator/ks.yaml
   - ./curatorfilm/ks.yaml
   - ./curatorfilmjudge/ks.yaml
   - ./curatortv/ks.yaml

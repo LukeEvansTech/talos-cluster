@@ -65,6 +65,7 @@ nav = [
     { "CertWarden" = "apps/certwarden.md" },
     { "changedetection.io" = "apps/changedetection.md" },
     { "Cloudflare DNS" = "apps/cloudflare-dns.md" },
+    { "Curator" = "apps/curator.md" },
     { "Curatorfilm" = "apps/curatorfilm.md" },
     { "Curatorfilmjudge" = "apps/curatorfilmjudge.md" },
     { "Curatortv" = "apps/curatortv.md" },
