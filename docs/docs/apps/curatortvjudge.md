@@ -2,32 +2,36 @@
 
 The taste half of the weekly Sonarr library cleanup, in the `custom` namespace. It is
 [Curatorjudge](curatorjudge.md) pointed at the TV engine: the same three steps (`prompt`, `judge`,
-`app`), the same hardening, `backoffLimit: 0`, a judge that never mounts the state volume, and an
-executor run with `--read-only` and `CLEANUP_MODE: dry-run`. Read that page for the trust boundary
-and failure semantics; this page covers what differs.
+`app`), the same `judge.py` and `read_verdicts.py`, the same hardening, `backoffLimit: 0`, a judge
+that never mounts the state volume, and an executor run with `--read-only` and
+`CLEANUP_MODE: dry-run`. Read that page for the request to the gateway, the files between the
+steps, the trust boundary and the failure semantics; this page covers what differs.
 
 ## What differs from Curatorjudge
 
 - **Inputs:** reads the plan from the `curatortv` volume and runs `python3 -m curatortv` from the
   `curatortv-code` ConfigMap.
-- **Rubric:** `taste.md` defaults to **keep**, where the film rubric defaults to delete. A delete
-  needs a nameable, series-specific reason (poorly received and unwatched, a Kometa add that never
-  caught on, filler with no standing). Ratings with substantial votes, awards, a well-known
-  completed series, or a notable network or creator count as reasons to keep. Size never decides.
-  The engine already protects everything over the rating bar, so the judge sees series below it
-  or with no trusted rating.
-- **Verdicts:** `[{"series_id": …, "verdict": …, "reason": …}]`. Both `delete` and `keep` need a
-  reason of at least 12 characters, because a `keep` is written to Sonarr (below).
+- **Rubric:** `taste.md` has two defaults. Reality, dating, competition and lifestyle series
+  default to **delete** when nobody is watching them, whatever their score. Everything else
+  defaults to **keep**, where the film rubric defaults to delete: a delete needs a nameable,
+  series-specific reason (poorly received and unwatched, a feed add that never caught on, a
+  request nobody followed up). Indian-language series are always deleted. Size never decides. The
+  engine protects every scripted series over the rating bar, so the judge sees series below it,
+  series with no trusted rating, and reality series at any rating.
+- **Verdicts:** the schema's id field is `series_id`. The batch list carries the field name, which
+  is how the two apps share `judge.py` and `read_verdicts.py` unchanged.
+- **Limits:** `CLEANUP_JUDGE_LIMIT` is 30 (set on `curatortv`), `CLEANUP_JUDGE_BATCH` is 15 and
+  `CLEANUP_MAX_DELETIONS` is 10, the engine's own default.
 - **Digest:** same webhook as Curatorjudge; every title starts `TV cleanup` so the two are
   distinguishable on the phone.
 
 ## Keep tags are written in a dry run
 
 `TAG_KEEPS_IN_DRY_RUN: "true"` lets the `app` step add the `keep` tag to rating-bar series and to
-every series the judge verdicts `keep`, even though the run is a dry run with `--read-only`. This
-is the one place the TV pipeline writes where the film pipeline does not, and it exists for
-Reclaimerr, which spares anything tagged `keep`: without it, a dry run leaves Reclaimerr blind to
-every decision made here.
+every series the judge verdicts `keep`, even though the run is a dry run with `--read-only`. The
+film engine supports the same flag and its manifest leaves it off, so this is the one place the TV
+pipeline writes where the film pipeline does not. It exists for Reclaimerr, which spares anything
+tagged `keep`: without it, a dry run leaves Reclaimerr blind to every decision made here.
 
 - It is add-only, so it is undone by removing the tag.
 - Each series' live tags are re-read first; a series carrying `cleanup-eligible`,
@@ -42,5 +46,7 @@ recorded as a decision, so it is retried next week, and the run exits non-zero.
 
 ## Shared credentials
 
-The Claude token reuses the `claude-code-curator` 1Password item (`curatortvjudge-token`), so there
-is one expiry to watch, not two. The digest token is `chaski`'s `TRIAGE_WEBHOOK_TOKEN`, as for films.
+The gateway key is the same LiteLLM virtual key the film judge uses, read from the `litellm`
+1Password item as `LITELLM_CURATOR_API_KEY` into this app's own `curatortvjudge-gateway` Secret, so
+both judges draw on one key and one budget. The digest token is `chaski`'s `TRIAGE_WEBHOOK_TOKEN`,
+as for films.
