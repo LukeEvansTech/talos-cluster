@@ -18,8 +18,9 @@ kind: CiliumNetworkPolicy
 metadata:
   name: allow-curator-from-judges
 spec:
-  # curator is left out of allow-same-namespace (components/netpol): its buttons write tags, so
-  # only the gateway and the two judges that publish review documents may reach it.
+  # curator is left out of allow-same-namespace (components/netpol): its buttons write tags. Only
+  # the signed publish endpoint is open to the judges, since the judge pod's LLM step holds no
+  # arr key and must not reach the unauthenticated button endpoints.
   description: "Allow the curator judges to publish review documents to curator"
   endpointSelector:
     matchLabels:
@@ -30,3 +31,11 @@ spec:
             app.kubernetes.io/name: curatorfilmjudge
         - matchLabels:
             app.kubernetes.io/name: curatortvjudge
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
+          rules:
+            http:
+              - method: POST
+                path: "/publish/(film|tv)"

@@ -46,7 +46,9 @@ The page's buttons write tags, so the app is left out of `allow-same-namespace`
 
 - `allow-cross-namespace-ingress` in `custom` admits the gateway, as for every app here.
 - `allow-curator-from-judges` in `custom` admits `curatorfilmjudge` and `curatortvjudge`, the only
-  pods that publish to it.
+  pods that publish to it, and only for `POST /publish/film` or `/publish/tv` on port 8080 (a
+  Cilium L7 rule). The judge pod's `judge` step talks to the LLM and holds no arr key, so it must
+  not reach the button endpoints, which take no credential of their own.
 - `allow-curatorapp-from-custom` in `media` lets the app reach `radarr` and `sonarr`, and nothing
   else in that namespace.
 
@@ -63,6 +65,14 @@ Prometheus and Gatus reach it through the cluster-wide observability rule.
 - `CuratorMetricsMissing` fires when the metric has been absent for 30 minutes.
 
 `.github/scripts/tests/prometheus/curator.yaml` holds both rules to those shapes.
+
+## Known gaps
+
+- The buttons carry no credential of their own, and the route has no gateway sign-in (as
+  sleeper). Anyone who can reach the internal gateway can press them. Putting the route behind
+  the `pocket-id` component needs a `curator-pocket-id` item in 1Password first.
+- The allow-list refresh exposes only `curator_allow_refresh_ok`, which cannot show a scheduler
+  that stopped after a good run. An alert on its age needs a last-success timestamp from the app.
 
 ## Running a judge by hand
 
