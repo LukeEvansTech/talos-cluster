@@ -49,8 +49,8 @@ Every film in the library is assessed; there is no cut-off date unless
    `keep` is applied by the rating bar and by every keep the judge hands down;
    `cleanup-keep` only by a person.
 2. The rating bar: IMDb 6.5 or higher on 5,000 or more votes. The
-   `cleanup-eligible` tag switches the bar off for one film, and does nothing
-   else.
+   `cleanup-eligible` tag switches the bar off for one film. It no longer
+   authorises anything, and its one other effect is on the `keep` tag (below).
 3. A monitored collection.
 4. Watched by the house: two or more people finished it. This rests on play
    history, so it is applied only once that history has been shown to be
@@ -70,8 +70,10 @@ is under 5.5.
 **What reaches a person** is only what the engine cannot assess (no usable added
 date, availability unknown, play history unavailable, incomplete, unresolved or
 ambiguous, collection data unavailable) and the judge's own `review` verdicts.
-A film tagged `cleanup-dismissed` is `spared` until a fact about it changes, and
-is not listed as waiting.
+A film tagged `cleanup-dismissed` is `spared` and is not listed as waiting. A
+changed fact reopens it only where the judge had already recorded a decision
+for the film, because that record is where the facts are kept; a dismissal with
+nothing on record stands until the tag is removed.
 
 **Judging is budgeted.** `plan` hands the judge the largest candidates first, up
 to `CLEANUP_JUDGE_LIMIT`, as `candidates`; the rest are written to
@@ -85,6 +87,12 @@ so the film joins the allow list for good; the tag is confirmed by re-reading,
 and a keep whose tag did not land is not recorded as settled, so it is judged
 and tagged again next run and the run exits non-zero. `review` goes to the
 digest and stays there until a person acts or the decision lapses.
+
+No `keep` tag, from the rating bar or from the judge, is ever put on a film
+carrying `cleanup-eligible`, `cleanup-dismissed` or `keep-review`: those are a
+person's decision, and `keep` would overrule it. A judge keep on such a film is
+recorded as a decision that lapses after 180 days or when a fact changes, and
+nothing more.
 
 ## Exit codes
 

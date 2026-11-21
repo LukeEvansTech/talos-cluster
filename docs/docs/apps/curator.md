@@ -20,7 +20,9 @@ the manifests do not set it. A film is protected, in this order, by:
 
 1. the allow list: the tags `keep`, `cleanup-keep` or the legacy `keep-review`;
 2. the rating bar: IMDb 6.5 or higher on 5,000 or more votes, unless it is tagged
-   `cleanup-eligible`, which is all that tag now does;
+   `cleanup-eligible`. That tag no longer authorises anything: it switches the bar off, and like
+   `cleanup-dismissed` and `keep-review` it keeps every automatic `keep` tag off the film, a judge
+   keep's included;
 3. a monitored collection;
 4. the house having watched it: two or more people finished it.
 
@@ -33,7 +35,8 @@ Only two things reach a person, as "Waiting on you" in the digest: what the engi
 assess (no usable added date, availability unknown, play history unavailable, incomplete,
 unresolved or ambiguous, collection data unavailable), and the judge's own `review` verdicts. A
 film the judge kept earlier, or one tagged `cleanup-dismissed`, has the outcome `spared` and is not
-listed.
+listed. A dismissal is reopened by a changed fact only where the judge had already recorded a
+decision for the film; one with nothing on record stands until the tag is removed.
 
 The judge is offered the largest `CLEANUP_JUDGE_LIMIT` candidates each run (150 here, set on this
 app's HelmRelease because the plan is where the split is recorded). The rest are written to the
