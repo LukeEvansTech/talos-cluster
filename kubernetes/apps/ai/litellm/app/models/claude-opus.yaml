@@ -1,0 +1,37 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/litellm.home-operations.com/litellmmodel_v1alpha1.json
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMModel
+metadata:
+  name: claude-opus
+  namespace: ai
+spec:
+  # Must stay out of fallbacks and context_window_fallbacks (litellmproxy.yaml), as source and
+  # as target: its callers delete on the verdict, so a failure has to reach them as an error.
+  modelName: claude-opus
+  proxyRef: litellm
+  params:
+    model: anthropic/claude-opus-5-5
+    apiKey: os.environ/ANTHROPIC_API_KEY
+    additional:
+      # Opus 5.5 rejects sampling params and budget_tokens with a 400, as Sonnet 5.5 does
+      # (models/claude.yaml).
+      additional_drop_params:
+        - temperature
+        - top_p
+        - top_k
+        - reasoning_effort
+        - chat_template_kwargs
+  info:
+    mode: chat
+    maxInputTokens: 1000000
+    maxOutputTokens: 128000
+    supportsFunctionCalling: true
+    supportsVision: true
+    extra:
+      # Pinned so spend against the shared anthropic provider budget never depends on
+      # LiteLLM's price map carrying this model.
+      input_cost_per_token: 4.0e-06
+      output_cost_per_token: 2.0e-05
+      cache_creation_input_token_cost: 5.0e-06
+      cache_read_input_token_cost: 2.0e-07

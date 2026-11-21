@@ -61,23 +61,24 @@ spec:
           labels:
             severity: warning
         - alert: LiteLLMClaudeBudgetLow
-          # Not an outage: once the budget is spent, claude callers fall back to self-hosted.
+          # Not an outage for claude, whose callers fall back to self-hosted once the budget is
+          # spent. claude-opus has no fallback, so its callers get errors instead.
           expr: |-
             litellm_provider_remaining_budget_metric{api_provider="anthropic"} < 40
           annotations:
             summary: >-
-              LiteLLM Anthropic budget down to {{ $value | printf "%.0f" }} USD; claude traffic
-              moves to self-hosted when it runs out
+              LiteLLM Anthropic budget down to {{ $value | printf "%.0f" }} USD; when it runs out
+              claude traffic moves to self-hosted and claude-opus calls fail
           labels:
             severity: warning
         - alert: LiteLLMClaudeBudgetMetricAbsent
-          # The budget filter sets the gauge on every claude call, so a call with no gauge means
+          # The budget filter sets the gauge on every Anthropic call, so a call with no gauge means
           # provider_budget_config is unset. New series count, as increase() misses their first call.
           expr: |-
             (
-              sum(increase(litellm_deployment_success_responses_total{litellm_model_name="claude-sonnet-5-5"}[1h])) > 0
+              sum(increase(litellm_deployment_success_responses_total{api_provider="anthropic"}[1h])) > 0
               or
-              sum(litellm_deployment_success_responses_total{litellm_model_name="claude-sonnet-5-5"} unless litellm_deployment_success_responses_total{litellm_model_name="claude-sonnet-5-5"} offset 1h)
+              sum(litellm_deployment_success_responses_total{api_provider="anthropic"} unless litellm_deployment_success_responses_total{api_provider="anthropic"} offset 1h)
             )
             unless on () litellm_provider_remaining_budget_metric{api_provider="anthropic"}
           for: 15m
@@ -87,9 +88,9 @@ spec:
           labels:
             severity: warning
         - alert: LiteLLMClaudeRequestRejected
-          # A 400 from Anthropic is a request param it does not accept, which fails over
-          # silently; chat_template_kwargs did this until it was dropped.
-          # The counter is created at its first event, which increase() never sees, so a
+          # A 400 from Anthropic is a request param it does not accept: claude fails over
+          # silently (the fallback counter), claude-opus has no fallback and only counts a failure.
+          # Each counter is created at its first event, which increase() never sees, so a
           # series that did not exist an hour ago counts too.
           expr: |-
             sum by (exception_class) (
@@ -101,6 +102,16 @@ spec:
               unless
               litellm_deployment_successful_fallbacks_total{exception_status="400",exception_class=~"Anthropic[.].*"} offset 1h
             )
+            or
+            sum by (exception_class) (
+              increase(litellm_deployment_failure_responses_total{exception_status="400",api_provider="anthropic"}[1h])
+            ) > 0
+            or
+            sum by (exception_class) (
+              litellm_deployment_failure_responses_total{exception_status="400",api_provider="anthropic"}
+              unless
+              litellm_deployment_failure_responses_total{exception_status="400",api_provider="anthropic"} offset 1h
+            )
           annotations:
             summary: >-
               Anthropic rejected LiteLLM requests ({{ $labels.exception_class }}); check the
@@ -108,12 +119,13 @@ spec:
           labels:
             severity: warning
         - alert: LiteLLMClaudeSpendFast
-          # $20/day empties the monthly budget in ten days.
+          # $20/day empties the monthly budget in ten days. Keyed on the provider, as the budget
+          # is, so claude and claude-opus spend count together.
           expr: |-
-            sum(increase(litellm_spend_metric_total{model="claude-sonnet-5-5"}[24h])) > 20
+            sum(increase(litellm_spend_metric_total{api_provider="anthropic"}[24h])) > 20
           annotations:
             summary: >-
-              LiteLLM claude spent {{ $value | printf "%.0f" }} USD in the last 24h
+              LiteLLM spent {{ $value | printf "%.0f" }} USD on Anthropic in the last 24h
           labels:
             severity: warning
     # up comes from the llmkube-models ServiceMonitor; max by (service) fires only
