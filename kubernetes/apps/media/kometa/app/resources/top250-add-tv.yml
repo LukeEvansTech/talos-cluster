@@ -1,0 +1,16 @@
+---
+# Sonarr feed for IMDb Top 250, kept apart from the Plex collection because the
+# default file's own add takes no filters (docs/docs/apps/kometa.md).
+collections:
+  IMDb Top 250 Sonarr Feed:
+    imdb_chart: top_shows
+    build_collection: false
+    sync_mode: append # Kometa requires append with build_collection: false
+    filters:
+      tmdb_type.not: news, talk_show, reality, video
+      tmdb_genre.not: Soap, News, Talk
+      original_language.not: hi, ta, te, ml, kn, bn, mr, pa, gu, ur # codespell:ignore te
+    sonarr_add_missing: true
+    sonarr_search: true
+    sonarr_monitor: all
+    sonarr_tag: kometa, kometa-top250

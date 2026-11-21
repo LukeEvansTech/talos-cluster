@@ -14,7 +14,7 @@ collections:
     filters:
       tmdb_type.not: news, talk_show, reality, video
       tmdb_genre.not: Soap, News, Talk
-      original_language.not: hi, ta, te, ml, kn, bn, mr, pa # codespell:ignore te
+      original_language.not: hi, ta, te, ml, kn, bn, mr, pa, gu, ur # codespell:ignore te
       tmdb_vote_average.gte: 7.0
       tmdb_vote_count.gte: 100
     sonarr_add_missing: true

@@ -1,0 +1,13 @@
+---
+# Radarr feed for IMDb Top 250, kept apart from the Plex collection because the
+# default file's own add takes no filters (docs/docs/apps/kometa.md).
+collections:
+  IMDb Top 250 Radarr Feed:
+    imdb_chart: top_movies
+    build_collection: false
+    sync_mode: append # Kometa requires append with build_collection: false
+    filters:
+      original_language.not: hi, ta, te, ml, kn, bn, mr, pa, gu, ur # codespell:ignore te
+    radarr_add_missing: true
+    radarr_search: true
+    radarr_tag: kometa, kometa-top250
