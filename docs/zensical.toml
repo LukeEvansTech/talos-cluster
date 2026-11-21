@@ -76,6 +76,7 @@ nav = [
     { "Forgejo" = "apps/forgejo.md" },
     { "Garage" = "apps/garage.md" },
     { "Gatus" = "apps/gatus.md" },
+    { "GitLab" = "apps/gitlab.md" },
     { "Glasshouse TV monitoring" = "apps/glasshouse.md" },
     { "GPU operator" = "apps/gpu-operator.md" },
     { "Grafana" = "apps/grafana.md" },

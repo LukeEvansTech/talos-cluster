@@ -35,8 +35,10 @@ spec:
                 gitlab_rails['trusted_proxies'] = ['10.42.0.0/16']
                 letsencrypt['enable'] = false
                 gitlab_rails['gitlab_shell_ssh_port'] = 22
+                # Single mode (0) crash-loops Puma on 19.6: a metrics sampler thread autoloads GitlabSchema
+                # mid eager-load. See docs/docs/apps/gitlab.md.
+                puma['worker_processes'] = 2
                 # Memory-constrained profile; one user poking at settings needs none of this.
-                puma['worker_processes'] = 0
                 sidekiq['concurrency'] = 10
                 prometheus_monitoring['enable'] = false
                 gitlab_kas['enable'] = false
@@ -82,7 +84,6 @@ spec:
         runAsNonRoot: false
         runAsUser: 0
         runAsGroup: 0
-        fsGroup: 0
         seccompProfile:
           type: RuntimeDefault
 
