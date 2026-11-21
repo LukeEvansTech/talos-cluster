@@ -8,6 +8,7 @@ import unittest
 import urllib.error
 
 from curatortv.clients import RequestSystem, Sonarr, SourceError, Tautulli, find_request
+from curatortv.evidence import first_import_per_episode
 
 from .fixtures import play_row
 
@@ -55,6 +56,37 @@ def envelope(data, result="success") -> dict:
 def history_page(rows, declared):
     """A Tautulli get_history envelope."""
     return envelope({"data": rows, "recordsFiltered": declared, "recordsTotal": declared})
+
+
+def whole_import_record(series_id: int, episode_id: int, date: str) -> dict:
+    """An import record with every key Sonarr sends, which is about 1.3 KB live."""
+    release = f"Test.Show.S01E{episode_id:02d}.1080p.WEB.h264-GROUP"
+    return {
+        "id": 100000 + episode_id,
+        "seriesId": series_id,
+        "episodeId": episode_id,
+        "date": date,
+        "eventType": "downloadFolderImported",
+        "sourceTitle": release,
+        "languages": [{"id": 1, "name": "English"}],
+        "quality": {
+            "quality": {"id": 3, "name": "WEBDL-1080p", "source": "web", "resolution": 1080},
+            "revision": {"version": 1, "real": 0, "isRepack": False},
+        },
+        "customFormats": [{"id": 7, "name": "x264"}],
+        "customFormatScore": 0,
+        "qualityCutoffNotMet": False,
+        "downloadId": "0123456789ABCDEF0123456789ABCDEF01234567",
+        "data": {
+            "fileId": str(episode_id),
+            "droppedPath": f"/downloads/complete/{release}/{release}.mkv",
+            "importedPath": f"/media/tv/Test Show/Season 01/Test Show - S01E{episode_id:02d}.mkv",
+            "downloadClient": "client",
+            "downloadClientName": "client",
+            "releaseGroup": "GROUP",
+            "size": "1500000000",
+        },
+    }
 
 
 class TautulliValidationTests(unittest.TestCase):
@@ -166,6 +198,21 @@ class SonarrTests(unittest.TestCase):
         self.assertEqual(sorted(events), [1])
         self.assertEqual(len(events[1]), 2)
         self.assertIn("eventType=3", opener.urls[0])
+
+    def test_import_events_keep_only_the_fields_availability_reads(self):
+        """Kept whole, 92k records got the planner OOM-killed at 512Mi (2026-11-21)."""
+        records = [
+            whole_import_record(1, 10, "2026-03-01T00:00:00Z"),
+            whole_import_record(1, 11, "2026-03-02T00:00:00Z"),
+            # An upgrade of episode 10: the later of two imports, so it must not become its first.
+            whole_import_record(1, 10, "2026-04-01T00:00:00Z"),
+        ]
+        opener = _Opener([{"totalRecords": len(records), "records": records}])
+        events = Sonarr("http://s", "k", opener=opener).import_events()
+        for event in events[1]:
+            self.assertEqual(set(event), {"eventType", "episodeId", "date"})
+        self.assertEqual(first_import_per_episode(events[1]), first_import_per_episode(records))
+        self.assertEqual(len(first_import_per_episode(events[1])), 2)
 
     def test_delete_adds_an_import_list_exclusion(self):
         opener = _Opener([None])

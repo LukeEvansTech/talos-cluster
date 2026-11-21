@@ -17,6 +17,10 @@ from typing import Any
 # The external-id schemes that identify a *show* in Plex guids and Sonarr records.
 SHOW_GUID_SOURCES = ("tvdb", "tmdb", "imdb")
 
+# All that evidence.first_import_per_episode reads. A whole record is about 1.3 KB, and
+# 92k of them kept whole got the planner OOM-killed at 512Mi (2026-11-21).
+IMPORT_EVENT_FIELDS = ("eventType", "episodeId", "date")
+
 
 class SourceError(RuntimeError):
     """A source could not be read in a way the caller must not paper over."""
@@ -156,7 +160,8 @@ class Sonarr:
         One paged sweep rather than a request per series. Each record carries its
         ``episodeId``, which is what lets availability take every episode's
         *first* import rather than its latest upgrade. The default budget is 500k
-        rows; the library held about 75k import events on 2026-10-14.
+        rows; the library held about 75k import events on 2026-10-14. Records are
+        cut down to ``IMPORT_EVENT_FIELDS`` as each page arrives.
         """
         events: dict[int, list[dict]] = {}
         page = 1
@@ -171,7 +176,8 @@ class Sonarr:
                     continue
                 series_id = record.get("seriesId")
                 if isinstance(series_id, int):
-                    events.setdefault(series_id, []).append(record)
+                    slim = {field: record.get(field) for field in IMPORT_EVENT_FIELDS}
+                    events.setdefault(series_id, []).append(slim)
             total = int((payload or {}).get("totalRecords") or 0)
             if total > page_size * max_pages:
                 raise SourceError(f"{total} import events exceed the {page_size * max_pages}-row sweep budget")
