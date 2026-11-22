@@ -11,6 +11,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import re
 import shutil
 import tempfile
 import unittest
@@ -19,6 +20,8 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 from unittest import mock
+
+from curatortv import proposals
 
 # The fixture suite is stdlib-only; the SDK is installed only in the judge pod.
 HAVE_SDK = importlib.util.find_spec("anthropic") is not None
@@ -417,8 +420,8 @@ class RequestTests(JudgeScriptTests):
         self.assertEqual((result["status"], result["verdicts"]), ("ok", []))
 
 
-class RunTests(JudgeScriptTests):
-    """Every batch in turn: one failing does not stop or discard the others."""
+class BatchRun(JudgeScriptTests):
+    """A five-candidate plan in three batches, judged against scripted replies."""
 
     def setUp(self):
         super().setUp()
@@ -435,6 +438,10 @@ class RunTests(JudgeScriptTests):
     def good(self, *ids: int):
         """A good reply giving a delete verdict for each id."""
         return reply([verdict(i) for i in ids], tokens=(1000, 100))
+
+
+class RunTests(BatchRun):
+    """Every batch in turn: one failing does not stop or discard the others."""
 
     def test_one_request_and_one_result_file_per_batch(self):
         _, fake = self.run_judge(self.good(1, 2), self.good(3, 4), self.good(5))
@@ -513,6 +520,75 @@ class RunTests(JudgeScriptTests):
         code, recommendations, judgement = self.read()
         self.assertEqual((code, judgement["status"]), (1, "failed"))
         self.assertEqual(recommendations["recommendations"], [])
+
+
+class AskAgainTests(BatchRun):
+    """A title a good reply left out is asked about once more, on its own."""
+
+    def test_a_title_left_out_of_a_reply_is_asked_about_again_on_its_own(self):
+        _, fake = self.run_judge(self.good(1), self.good(2), self.good(3, 4), self.good(5))
+        self.assertEqual(len(fake.messages.calls), 4)
+        first, again = (json.loads(call["messages"][0]["content"]) for call in fake.messages.calls[:2])
+        self.assertEqual(again, [first[1]])
+        result = self.result("001")
+        self.assertEqual([v[ID] for v in result["verdicts"]], [1, 2])
+        self.assertEqual(result["asked_again"], {"titles": 1, "answered": 1, "why": ""})
+        self.assertEqual(result["usage"], {"input_tokens": 2000, "output_tokens": 200})
+
+    def test_the_merged_answer_then_covers_every_title_and_every_token(self):
+        self.run_judge(self.good(1), self.good(2), self.good(3, 4), self.good(5))
+        code, recommendations, judgement = self.read()
+        self.assertEqual((code, judgement["status"]), (0, "judged"))
+        self.assertEqual([r[ID] for r in recommendations["recommendations"]], [1, 2, 3, 4, 5])
+        self.assertEqual(judgement["usage"], {"input_tokens": 4000, "output_tokens": 400})
+
+    def test_a_second_request_that_fails_keeps_the_first_replys_verdicts(self):
+        results, _ = self.run_judge(self.good(1), SDK.RateLimitError("slow down", 429), self.good(3, 4), self.good(5))
+        self.assertEqual([r["status"] for r in results], ["ok", "ok", "ok"])
+        self.assertEqual([v[ID] for v in results[0]["verdicts"]], [1])
+        self.assertEqual((results[0]["asked_again"]["titles"], results[0]["asked_again"]["answered"]), (1, 0))
+        self.assertIn("rate limited", results[0]["asked_again"]["why"])
+        code, recommendations, _ = self.read()
+        self.assertEqual(code, 0)
+        self.assertEqual([r[ID] for r in recommendations["recommendations"]], [1, 3, 4, 5])
+
+    def test_a_second_reply_counts_only_for_the_titles_asked_about_and_once_each(self):
+        second = reply([verdict(1, "keep", "changed its mind"), verdict(2), verdict(2, "keep", "twice"), verdict(4)])
+        results, _ = self.run_judge(self.good(1), second, self.good(3, 4), self.good(5))
+        self.assertEqual([(v[ID], v["verdict"]) for v in results[0]["verdicts"]], [(1, "delete"), (2, "delete")])
+        self.assertEqual(results[0]["asked_again"]["answered"], 1)
+
+    def test_a_title_is_asked_about_again_only_once(self):
+        results, fake = self.run_judge(self.good(1), reply([]), self.good(3, 4), self.good(5))
+        self.assertEqual(len(fake.messages.calls), 4)
+        self.assertEqual(results[0]["asked_again"], {"titles": 1, "answered": 0, "why": ""})
+
+    def test_a_failed_batch_is_not_asked_again(self):
+        _, fake = self.run_judge(SDK.RateLimitError("slow down", 429), self.good(3, 4), self.good(5))
+        self.assertEqual(len(fake.messages.calls), 3)
+
+    def test_nothing_is_asked_again_once_the_time_budget_is_spent(self):
+        ticks = iter([0, 0, 9999, 9999, 9999, 9999, 9999, 9999, 9999])
+        results, fake = self.run_judge(self.good(1), clock=lambda: next(ticks))
+        self.assertEqual(len(fake.messages.calls), 1)
+        self.assertNotIn("asked_again", results[0])
+        self.assertEqual([r["status"] for r in results], ["ok", "failed", "failed"])
+
+
+@unittest.skipUnless(MOUNTED, "judge scripts are not mounted in-cluster")
+class ShippedScheduleTests(unittest.TestCase):
+    """The schedule the report dates the next run from is the CronJob's own, and one the engine can read."""
+
+    def setUp(self):
+        self.manifest = (JUDGE_DIR.parents[1] / "helmrelease.yaml").read_text(encoding="utf-8")
+
+    def test_the_report_is_given_the_cronjobs_own_schedule(self):
+        self.assertRegex(self.manifest, r'\n +schedule: &schedule "[^"\n]+"\n')
+        self.assertRegex(self.manifest, r"\n +CLEANUP_SCHEDULE: \*schedule\n")
+
+    def test_the_shipped_schedule_is_one_the_engine_can_read(self):
+        (schedule,) = re.findall(r'schedule: &schedule "([^"\n]+)"', self.manifest)
+        self.assertIsNotNone(proposals.next_firing(schedule, "Europe/London", datetime.now(timezone.utc)))
 
 
 class MergeTests(JudgeScriptTests):

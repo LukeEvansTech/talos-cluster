@@ -6,6 +6,9 @@ credential but the gateway key, mounts no state volume, and never exits
 non-zero: what happened to each batch is written to /work, where the app step
 reads it and reports. One batch failing does not stop the next.
 
+A reply can pass every rule and still leave a title out. Those titles are asked
+about once more, on their own, in a second request for that batch.
+
 Read from /work, as build_prompt.py left it:
 
 - ``batches.json``: the plan's run id, the id field, and each batch's name and ids;
@@ -15,10 +18,12 @@ Written to /work, one per batch, as ``result-NNN.json``:
 
     {"plan_run_id": ..., "batch": "NNN", "status": "ok" | "failed", "why": ...,
     "verdicts": [...], "model": ..., "stop_reason": ..., "duration_ms": ...,
-    "usage": {"input_tokens": ..., "output_tokens": ...}}
+    "usage": {"input_tokens": ..., "output_tokens": ...},
+    "asked_again": {"titles": ..., "answered": ..., "why": ...}}
 
-``verdicts`` is present only when ``status`` is ``ok``. Every file names the plan,
-so the validator can refuse one that belongs to another run.
+``verdicts`` is present only when ``status`` is ``ok``, and ``asked_again`` only
+when a second request was made; ``usage`` and ``duration_ms`` cover both. Every
+file names the plan, so the validator can refuse one that belongs to another run.
 
 The request goes to the cluster's LiteLLM gateway, which the zero-argument
 client finds through ``ANTHROPIC_BASE_URL`` and ``ANTHROPIC_AUTH_TOKEN``.
@@ -171,10 +176,49 @@ def judge_batch(client, sdk, model: str, system: str, candidates: str, id_field:
     return {"status": "failed", "why": why[:400], "usage": {}}
 
 
+def left_out(result: dict, ids: list, id_field: str) -> list[int]:
+    """The batch's titles a good reply gave no verdict for, in the order they were sent."""
+    if result.get("status") != "ok":
+        return []
+    answered = {verdict[id_field] for verdict in result["verdicts"]}
+    return [i for i in ids if isinstance(i, int) and not isinstance(i, bool) and i not in answered]
+
+
+def ask_again(ask, candidates: str, id_field: str, result: dict, missing: list[int]) -> dict:
+    """The batch's result after one more request, for only the titles the first reply left out.
+
+    ``ask`` sends one request and returns what came of it, as ``judge_batch`` does. Whatever
+    the second request does, the first reply's verdicts stand: a title still without one is
+    counted by the engine and offered again at the next run.
+    """
+    wanted = set(missing)
+    try:
+        records = [r for r in json.loads(candidates) if isinstance(r, dict) and r.get(id_field) in wanted]
+        second = ask(json.dumps(records, indent=1) + "\n")
+    except Exception as exc:  # pylint: disable=broad-exception-caught
+        second = {"status": "failed", "why": f"{type(exc).__name__}: {exc}"[:400], "usage": {}}
+    found: dict[int, dict] = {}
+    for verdict in second.get("verdicts") or []:
+        # Only the titles asked about, once each: the second request showed the judge no other record.
+        if verdict[id_field] in wanted:
+            found.setdefault(verdict[id_field], verdict)
+    first, extra = result.get("usage") or {}, second.get("usage") or {}
+    return {
+        **result,
+        "verdicts": result["verdicts"] + list(found.values()),
+        "usage": {key: first.get(key, 0) + extra.get(key, 0) for key in {**first, **extra}},
+        "asked_again": {"titles": len(missing), "answered": len(found), "why": second.get("why") or ""},
+    }
+
+
 def judge_all(client, sdk, model: str, manifest: dict, clock=time.monotonic) -> list[dict]:
     """Judge every batch in turn, writing one result file each. Returns the results."""
     system = TASTE.read_text(encoding="utf-8")
     id_field = str(manifest.get("id_field") or "")
+
+    def ask(candidates: str) -> dict:
+        return judge_batch(client, sdk, model, system, candidates, id_field)
+
     started = clock()
     results = []
     for batch in manifest["batches"]:
@@ -186,7 +230,11 @@ def judge_all(client, sdk, model: str, manifest: dict, clock=time.monotonic) -> 
         else:
             try:
                 candidates = (WORK / f"candidates-{name}.json").read_text(encoding="utf-8")
-                result = judge_batch(client, sdk, model, system, candidates, id_field)
+                result = ask(candidates)
+                missing = left_out(result, batch.get("ids") or [], id_field)
+                # Held to the batch's own budget: a second request can take as long as a first.
+                if missing and clock() - started <= START_BUDGET_SECONDS:
+                    result = ask_again(ask, candidates, id_field, result, missing)
             except Exception as exc:  # pylint: disable=broad-exception-caught
                 # Anything unforeseen is this batch's failure, recorded like any other, so the
                 # batches after it still run and the step still hands over.
@@ -199,6 +247,9 @@ def judge_all(client, sdk, model: str, manifest: dict, clock=time.monotonic) -> 
         }
         (WORK / f"result-{name}.json").write_text(json.dumps(result, indent=1), encoding="utf-8")
         outcome = "judged" if result["status"] == "ok" else f"FAILED: {result['why']}"
+        again = result.get("asked_again")
+        if again:
+            outcome += f" ({again['titles']} left out and asked again, {again['answered']} answered)"
         print(f"batch {name}: {outcome}", file=sys.stdout if result["status"] == "ok" else sys.stderr, flush=True)
         results.append(result)
     return results

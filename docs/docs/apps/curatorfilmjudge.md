@@ -134,8 +134,16 @@ record. The merged result is `recommendations.json`, and `judgement.json` carrie
 and output token totals the digest reports, and the model group that answered.
 
 One failed batch does not discard the others. Its films have no verdict this run, `execute` counts
-them as unjudged and exits 9, and `read_verdicts.py` itself exits 1, so the Job fails and the
-staleness alert is not reset.
+them as unjudged, and `read_verdicts.py` exits 1, so the Job fails and the staleness alert is not
+reset.
+
+A reply can pass every rule and still leave a film out. `judge.py` asks about those films once
+more, on their own, in a second request for that batch, and records it in the result file as
+`asked_again` (`{"titles": 1, "answered": 1, "why": ""}`); the batch's `usage` and `duration_ms`
+cover both requests. The second request is held to the same time budget as a batch, and whatever
+it returns, the first reply's verdicts stand. A film still without a verdict is counted in the
+digest and offered again at the next run. It does not fail the Job: `execute` exits 9 only when
+no offered candidate got a usable verdict, or a verdict was rejected.
 
 ## Limits and deferral
 
@@ -159,6 +167,13 @@ the ledger and not this run's result, so a run that was blocked, or whose `execu
 finished, still lists every verdict that is waiting. The digest leads with the number a person can
 act on: its title says how many titles go at the next run and on what date (`would go` in a dry
 run), and its text lists them with the judge's reasons.
+
+That date is the CronJob's next firing. The manifest passes its own `schedule` to `report` as
+`CLEANUP_SCHEDULE`, read in the pod's `TZ`, which is the CronJob's `timeZone`. A run started by
+hand on another day therefore still names Saturday, and lists as going only what Saturday's run
+will find due; a verdict it gave itself is due six days later and waits for the Saturday after.
+The engine reads numbers, lists, ranges and steps. Given a month or weekday name, or no schedule,
+it falls back to a week after the plan and logs that it did.
 
 Publishing the document is optional and on here. With `CLEANUP_REVIEW_URL` set, `report` renders
 the digest, puts it in the document, and posts the document there signed with the Radarr API key

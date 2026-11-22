@@ -18,6 +18,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
+from zoneinfo import ZoneInfo
 
 from curator import __main__ as cli
 from curator import reporting, review
@@ -92,7 +93,7 @@ class ReportCommandTests(unittest.TestCase):
             mock.patch.object(reporting, "post", deliver),
             mock.patch("builtins.print"),
         ):
-            for name in ("CLEANUP_WEBHOOK_URL", "CLEANUP_MAX_DELETIONS", "CLEANUP_REVIEW_LINK"):
+            for name in ("CLEANUP_WEBHOOK_URL", "CLEANUP_MAX_DELETIONS", "CLEANUP_REVIEW_LINK", "CLEANUP_SCHEDULE"):
                 if name not in environment:
                     os.environ.pop(name, None)
             return cli.cmd_report(args)
@@ -109,6 +110,19 @@ class ReportCommandTests(unittest.TestCase):
         self.report()
         self.assertEqual(len(self.published[0][3]["going"]), 1)
         self.assertIn("Review page: updated", (self.root / "report.md").read_text(encoding="utf-8"))
+
+    def test_the_next_run_is_dated_from_the_cronjobs_schedule(self):
+        self.report(CLEANUP_SCHEDULE="30 9 * * 6", TZ="Europe/London")
+        fires = datetime.fromisoformat(self.published[0][3]["next_run_at"])
+        local = fires.astimezone(ZoneInfo("Europe/London"))
+        self.assertEqual((local.isoweekday(), local.hour, local.minute), (6, 9, 30))
+        self.assertLess(fires - datetime.now(timezone.utc), timedelta(days=7, minutes=1))
+
+    def test_a_schedule_that_cannot_be_read_does_not_stop_the_document(self):
+        self.assertEqual(self.report(CLEANUP_SCHEDULE="30 9 * * SAT"), 0)
+        plan = json.loads((self.root / "plan.json").read_text(encoding="utf-8"))
+        fires = datetime.fromisoformat(self.published[0][3]["next_run_at"])
+        self.assertEqual(fires, datetime.fromisoformat(plan["generated_at"]) + timedelta(days=7))
 
     def test_a_page_that_refuses_fails_the_run_and_says_so(self):
         def refuse(*_args):

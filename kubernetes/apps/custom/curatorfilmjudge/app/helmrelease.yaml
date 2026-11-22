@@ -19,7 +19,7 @@ spec:
         cronjob:
           ttlSecondsAfterFinished: 86400
           # Half an hour after curatorfilm, which needs a couple of minutes cold.
-          schedule: "30 8 * * 6"
+          schedule: &schedule "30 8 * * 6"
           timeZone: "${TIMEZONE}"
           concurrencyPolicy: Forbid
           successfulJobsHistory: 3
@@ -162,6 +162,9 @@ spec:
               # Must match curatorfilm's mode (ledger namespaces dry-run state separately); --read-only
               # above enforces the same rule independently, so acting needs two deliberate edits.
               CLEANUP_MODE: dry-run
+              # The CronJob's schedule above, read in TZ: report dates the next run from it, so a run
+              # started by hand on another day still names the scheduled one.
+              CLEANUP_SCHEDULE: *schedule
               # report posts the review document to <url>/publish/film, signed with the same arr key,
               # and the push opens the page (docs/docs/apps/curator.md).
               CLEANUP_REVIEW_URL: http://curator.custom.svc.cluster.local:8080

@@ -145,12 +145,13 @@ seconds.
 
 `CuratorfilmPlanStale` and `CuratorfilmjudgeStale` (each app's `prometheusrule.yaml`) fire when the CronJob
 has not succeeded in 8 days, the GickupBackupStale shape with a creation-time fallback. `execute`
-exits 9 for a week in which an offered candidate went unjudged or a verdict was rejected, 8 when a
-rating-bar `keep` tag could not be confirmed, and 10 when a safety check could not be read; `report` exits 11
-when a configured review page did not take the document, and 12 when no page is configured and
-the proposals could not be read for the digest. None of them resets the alert; the README in
-`resources/curator/` lists every exit code. Candidates deferred past the judge limit are not
-unjudged and do not fail a run.
+exits 9 for a week in which no offered candidate got a usable verdict or a verdict was rejected,
+8 when a rating-bar `keep` tag could not be confirmed, and 10 when a safety check could not be
+read; `report` exits 11 when a configured review page did not take the document, and 12 when no
+page is configured and the proposals could not be read for the digest. None of them resets the
+alert; the README in `resources/curator/` lists every exit code. Candidates deferred past the
+judge limit are not unjudged and do not fail a run, and neither does a film the judge left out of
+an answer it otherwise gave.
 
 ## Accepting a new baseline
 
