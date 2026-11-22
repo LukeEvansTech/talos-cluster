@@ -18,7 +18,10 @@ in `kubernetes/apps/custom/curator/app/helmrelease.yaml`.
   key, which each judge already holds; no other token exists for publishing. Every accepted
   document is kept as received, and a refused one is listed on the Ops page.
 - **Shows** what goes at the next run, what needs a person, what is being kept, what went last
-  run, and every past run with the judge's reasons, tokens and cost.
+  run, and every past run with the judge's reasons, tokens and cost. Every title carries its
+  poster and a link to its IMDb page. The app fetches a poster from Radarr or Sonarr the first
+  time the title is shown and keeps it under `posters/` on its volume (about 20 KB each), so the
+  browser still loads nothing from outside the app and a deleted title keeps its picture.
 - **Writes** only two tags, `cleanup-keep` and `cleanup-eligible`, through the Radarr and Sonarr
   APIs, when a button is pressed. The next weekly plan reads them; the contract is in
   [Curatorfilm](curatorfilm.md). It never deletes, never sets `keep`, and never touches the
