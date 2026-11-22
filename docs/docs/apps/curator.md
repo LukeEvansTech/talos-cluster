@@ -22,6 +22,9 @@ in `kubernetes/apps/custom/curator/app/helmrelease.yaml`.
   poster and a link to its IMDb page. The app fetches a poster from Radarr or Sonarr the first
   time the title is shown and keeps it under `posters/` on its volume (about 20 KB each), so the
   browser still loads nothing from outside the app and a deleted title keeps its picture.
+- **Asks one title at a time** on `/review`, opened from the Review pill on This week: Keep, let
+  it go, or decide later, and the next title is drawn. Keep sets the same tag as This week's
+  button; the other two answers change no tag and are kept in the app's own database.
 - **Writes** only two tags, `cleanup-keep` and `cleanup-eligible`, through the Radarr and Sonarr
   APIs, when a button is pressed. The next weekly plan reads them; the contract is in
   [Curatorfilm](curatorfilm.md). It never deletes, never sets `keep`, and never touches the
