@@ -46,6 +46,11 @@ During the review week the review page offers a kept series both Keep forever (`
 Delete instead (`cleanup-eligible`). The result file reports the judge's due keeps as
 `judge_keeps`, and the digest says each is kept for a year.
 
+Reclaimerr does not see a one-year keep, since it is not a tag. Its one cleanup rule only lists
+unwatched series for review and deletes nothing on its own (see
+[Reclaimerr](reclaimerr.md#rules-in-force)), so a kept series can sit on that list without being
+removed.
+
 ## Rating-bar keep tags are written in a dry run
 
 `TAG_KEEPS_IN_DRY_RUN: "true"` lets the `app` step add the `keep` tag to rating-bar series even
