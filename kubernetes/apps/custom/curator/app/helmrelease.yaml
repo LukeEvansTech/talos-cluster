@@ -21,7 +21,7 @@ spec:
           app:
             image:
               repository: ghcr.io/lukeevanstech/curator
-              tag: 0.2.0@sha256:270f21c5e379f5555d3eb95c57c5ddac9b0a70625b6ab32692b6d1eaeb916d84
+              tag: 0.2.1@sha256:435726066b6d950f492c7b182660096ad662445e0c9dbbf6ac1a89915e60c41e
             env:
               TZ: ${TIMEZONE}
               CURATOR_TZ: ${TIMEZONE}
