@@ -535,7 +535,7 @@ class ReviewDocumentTests(unittest.TestCase):
     def test_a_delete_can_be_kept_and_a_keep_deleted_instead(self):
         doc = document([stored(1), stored(2, verdict="keep")])
         self.assertEqual(doc["going"][0]["actions"], ["keep"])
-        self.assertEqual(doc["kept"][0]["actions"], ["delete"])
+        self.assertEqual(doc["kept"][0]["actions"], ["keep", "delete"])
 
     def test_an_item_carries_what_a_person_needs_to_decide(self):
         item = document([stored(1, size_gb=12.5, origin="requested", requested_by="Sam")])["going"][0]
@@ -726,7 +726,8 @@ class DigestTests(unittest.TestCase):
         self.assertIn("2 go on 18 sep: 60 GB (at most 2 a run)", text)
         self.assertRegex(text, rf"  - Film 1 \(2019\) 40 GB, due \d+ \w+: {re.escape(REASON)}")
         self.assertIn("Waiting their turn or not yet due: 1", text)
-        self.assertIn("Being kept, tagged when their wait is over: 1", text)
+        self.assertIn("Being kept for a year once their wait is over: 1", text)
+        self.assertNotIn("tagged", text)
 
     def test_the_text_lists_every_proposal_however_many(self):
         """With no review page the text report is the only full list, so nothing is cut from it."""

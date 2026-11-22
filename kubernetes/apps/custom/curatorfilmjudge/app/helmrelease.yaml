@@ -156,6 +156,9 @@ spec:
               # Days a verdict waits, as a proposal a person can still overrule with a tag, before
               # execute acts on it; six, so it is due at the next weekly run.
               CLEANUP_GRACE_DAYS: "6"
+              # Days a judge's keep spares a title once its wait is over; it is then judged again.
+              # Only a person (cleanup-keep) or the rating bar keeps a title for good.
+              CLEANUP_KEEP_DAYS: "365"
               # Must match curatorfilm's mode (ledger namespaces dry-run state separately); --read-only
               # above enforces the same rule independently, so acting needs two deliberate edits.
               CLEANUP_MODE: dry-run

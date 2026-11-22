@@ -49,8 +49,8 @@ def validate_recommendations(recommendations: list[dict], candidates: dict[int, 
     A recommendation for a series the engine never offered is not a judgement
     call that went the wrong way -- it is a sign the two halves disagree about
     what was being judged. Both ``delete`` and ``keep`` need a stated reason: a
-    keep becomes a permanent ``keep`` tag here, so it is as consequential as a
-    delete, only in the other direction.
+    keep spares the series from judgement for a year, so it is as consequential
+    as a delete, only in the other direction.
     """
     accepted: list[dict] = []
     rejected: list[dict] = []

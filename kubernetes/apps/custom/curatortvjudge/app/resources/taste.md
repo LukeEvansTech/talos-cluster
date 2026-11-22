@@ -22,6 +22,12 @@ and `distinct_viewers` is 0, delete it. A high score does not save it. Keep one
 only when somebody is watching it (`distinct_viewers` is 1 and
 `episodes_completed` shows a run, not a sample) and say so.
 
+## True crime, documentary and factual series: KEEP
+
+The house likes these. An unwatched true-crime, documentary, history, nature or
+other factual series is kept unless it is plainly poorly received. They are not
+reality filler, whatever genre label the database gives them.
+
 ## Everything else: the default is KEEP
 
 A scripted series, documentary series or anime stays unless you can name a
@@ -77,4 +83,4 @@ Reply with a JSON array and nothing else — no prose, no code fence:
 
 One entry per candidate you were given, and no entries for anything else. Both
 `delete` and `keep` need a real reason; the engine rejects a short one. A `keep`
-adds a permanent `keep` tag to the series in Sonarr, so it is a decision too.
+holds the series for a year, after which it is judged again.

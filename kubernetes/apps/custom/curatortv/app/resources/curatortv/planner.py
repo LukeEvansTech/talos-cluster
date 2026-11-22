@@ -266,10 +266,12 @@ def _settled(show: Show, viewing: Viewing, ctx: PlanContext, result: Assessment,
         # The judge's own review stays in front of a person until they act on it;
         # a spare is settled and asks nothing of anyone.
         result.outcome = Outcome.REVIEW if verdict == VERDICT_REVIEW else Outcome.SPARED
-        result.reasons.append(
-            f"already {verdict} on {stored.get('decided_at', '?')[:10]}: "
-            f"{stored.get('reason', 'no reason recorded')}"
-        )
+        # A judge's keep is a spare with an end date; it says so, so nobody reads it as for good.
+        kept_until = stored.get("kept_until")
+        settled = f"already {verdict} on {stored.get('decided_at', '?')[:10]}"
+        if kept_until:
+            settled = f"kept by the judge on {stored.get('decided_at', '?')[:10]} until {str(kept_until)[:10]}"
+        result.reasons.append(f"{settled}: {stored.get('reason', 'no reason recorded')}")
         return True
 
     # A verdict already on record is not asked for again while its facts hold; one whose

@@ -1,10 +1,11 @@
 """Allow-list maintenance, and the one place this engine writes in a dry run.
 
-A dry run may add ``keep``, behind ``TAG_KEEPS_IN_DRY_RUN``, because Reclaimerr
-protects anything carrying it; the film engine has the same flag and its
-manifest leaves it off. The tests below pin both halves of that: the tag is
-applied only when the flag is set and only where a person has not decided
-otherwise, and a dry run still never reaches a delete.
+A dry run may add ``keep`` for the rating bar, behind ``TAG_KEEPS_IN_DRY_RUN``,
+because Reclaimerr protects anything carrying it; the film engine has the same
+flag and its manifest leaves it off. The tag is applied only when the flag is
+set and only where a person has not decided otherwise, and a dry run still never
+reaches a delete. A judge's due keep writes no tag in any mode: it becomes a
+decision that spares the series for ``CLEANUP_KEEP_DAYS``.
 """
 
 from __future__ import annotations
@@ -171,33 +172,56 @@ class DryRunExecuteNeverDeletes(unittest.TestCase):
             self.assertEqual(cli.cmd_execute(args), 0)
         return json.loads((self.root / "result.json").read_text(encoding="utf-8"))
 
-    def test_due_judge_keeps_are_tagged_and_nothing_is_deleted(self):
+    def test_due_judge_keeps_are_kept_for_a_year_and_nothing_is_written_to_sonarr(self):
         result = self.execute("true")
         self.assertEqual(self.sonarr.delete_calls, [])
-        self.assertEqual(self.sonarr.tag_calls, [([2], 1)])
-        self.assertEqual(result["judge_keeps_tagged"]["applied"], 1)
-        # Series 3 carries cleanup-eligible: a person's decision outranks the judge.
-        self.assertEqual(result["judge_keeps_tagged"]["withdrawn"], 1)
+        self.assertEqual(self.sonarr.tag_calls, [], "the flag is for the rating bar; a judge keep is never a tag")
+        self.assertEqual((result["judge_keeps"]["due"], result["judge_keeps"]["kept"]), (2, 1))
+        # Series 3 carries cleanup-eligible: a person's delete outranks the judge.
+        self.assertEqual(result["judge_keeps"]["left_for_person"], [3])
         self.assertTrue(all(d.get("simulated") for d in result["deleted"]))
         self.assertIn("keep_tags_added", result)
 
-    def test_a_tagged_keep_leaves_the_record_and_the_rehearsed_delete_stays(self):
+    def test_a_kept_series_leaves_the_record_and_the_rehearsed_delete_stays(self):
         self.execute("true")
         self.assertEqual(sorted(self.ledger.read_proposals()), [1, 3])
-        self.assertIn(2, self.ledger.read_decisions())
+        decision = self.ledger.read_decisions()[2]
+        until = datetime.fromisoformat(decision["kept_until"])
+        self.assertLess(abs((until - datetime.now(timezone.utc) - timedelta(days=365)).total_seconds()), 120)
 
-    def test_without_the_flag_nothing_is_written(self):
+    def test_without_the_flag_the_keep_is_still_a_decision_and_nothing_is_written(self):
         result = self.execute("false")
         self.assertEqual(self.sonarr.delete_calls, [])
         self.assertEqual(self.sonarr.tag_calls, [])
-        self.assertEqual(result["judge_keeps_tagged"]["applied"], 0)
-        self.assertEqual(sorted(self.ledger.read_proposals()), [1, 2, 3])
+        self.assertEqual(result["judge_keeps"]["kept"], 1)
+        self.assertEqual(sorted(self.ledger.read_proposals()), [1, 3])
 
-    def test_a_keep_inside_its_wait_is_not_tagged_even_with_the_flag(self):
-        """The flag lets a rehearsal tag; it does not shorten the week a person has to refuse the keep."""
+    def test_keep_days_sets_how_long_the_keep_lasts(self):
+        with mock.patch.dict(os.environ, {"CLEANUP_KEEP_DAYS": "30"}):
+            self.execute("false")
+        until = datetime.fromisoformat(self.ledger.read_decisions()[2]["reconsider_after"])
+        self.assertLess(abs((until - datetime.now(timezone.utc) - timedelta(days=30)).total_seconds()), 120)
+
+    def test_keep_days_of_zero_is_refused_before_anything_is_written(self):
+        with mock.patch.dict(os.environ, {"CLEANUP_KEEP_DAYS": "0"}), self.assertRaises(SystemExit):
+            self.execute("false")
+        self.assertEqual(self.ledger.read_decisions(), {})
+
+    def test_a_cleanup_keep_added_in_the_review_week_wins(self):
+        self.sonarr.tags_by_id[9] = "cleanup-keep"
+        self.sonarr.series_by_id[2]["tags"] = [8, 9]
+        result = self.execute("true")
+        self.assertEqual(result["judge_keeps"]["vetoed"], [2])
+        self.assertNotIn(2, self.ledger.read_decisions())
+        self.assertNotIn(2, self.ledger.read_proposals())
+        self.assertEqual(self.sonarr.tag_calls, [])
+
+    def test_a_keep_inside_its_wait_is_not_settled_even_with_the_flag(self):
+        """Nothing shortens the week a person has to refuse the keep, or keep it for good."""
         result = self.execute("true", age_days=1)
         self.assertEqual(self.sonarr.tag_calls, [])
-        self.assertEqual(result["judge_keeps_tagged"]["requested"], 0)
+        self.assertEqual(result["judge_keeps"]["due"], 0)
+        self.assertEqual(self.ledger.read_decisions(), {})
 
     def test_a_keep_given_this_run_is_put_on_record_and_not_tagged(self):
         result = self.execute("true", age_days=1, judged="keep")

@@ -424,7 +424,7 @@ def source_blocks(
         blocks.append(f"play history not usable: {history_note}")
     if not requests_ok:
         # An empty request set reads like nobody asked. The judge would be given the wrong
-        # origin for every requested show, and a keep it hands down on that is permanent.
+        # origin for every requested show, and a keep it hands down on that lasts a year.
         blocks.append("request system unreachable: a requested show could not be told from a feed pull")
     return blocks
 
@@ -600,10 +600,7 @@ def execute_exit_code(result: ExecutionResult, untagged: set[int], unjudged: lis
         log(f"exiting non-zero: {unavailable} skip(s) because a safety check could not be read")
         return 10
     if untagged:
-        log(
-            f"exiting non-zero: {len(untagged)} keep tag(s) not confirmed; "
-            "their proposals stand and are tried again next run"
-        )
+        log(f"exiting non-zero: {len(untagged)} keep tag(s) not confirmed; " "the rating bar tries them again next run")
         return 8
     # A week nobody judged must not count as a success, or it resets the staleness alert.
     if unjudged or rejected:
@@ -617,6 +614,8 @@ def cmd_execute(args: argparse.Namespace) -> int:  # pylint: disable=too-many-lo
     # Read first: a cap that cannot be used should stop the run before it tags or deletes anything.
     cap = env_int("CLEANUP_MAX_DELETIONS", MAX_DELETIONS_PER_RUN)
     grace_days = env_int("CLEANUP_GRACE_DAYS", proposals.DEFAULT_GRACE_DAYS)
+    # How long a judge's due keep spares a title; at least a day, or it would be judged again at once.
+    keep_days = env_int("CLEANUP_KEEP_DAYS", proposals.DEFAULT_KEEP_DAYS, minimum=1)
     sources = build_sources()
     sonarr, ledger = sources.sonarr, sources.ledger
     # The CronJob passes --read-only, so deleting needs edits in two places; a half-made
@@ -666,7 +665,6 @@ def cmd_execute(args: argparse.Namespace) -> int:  # pylint: disable=too-many-lo
 
     try:
         series = {item["id"]: item for item in sonarr.all_series()}
-        in_dry_run = tag_keeps_in_dry_run()
         # Applied before any deletion: catches a plan built before this protection rule
         # from deleting a series assessment would now protect.
         tagged = apply_keep_tags(
@@ -675,7 +673,7 @@ def cmd_execute(args: argparse.Namespace) -> int:  # pylint: disable=too-many-lo
             ledger.dry_run,
             live=series,
             tag_labels=tag_labels,
-            tag_in_dry_run=in_dry_run,
+            tag_in_dry_run=tag_keeps_in_dry_run(),
         )
 
         # On record before anything slow: a run cut short keeps the verdicts it was given.
@@ -686,7 +684,7 @@ def cmd_execute(args: argparse.Namespace) -> int:  # pylint: disable=too-many-lo
         # Only what this plan upheld is acted on, and only once its wait is over; a verdict
         # given in this run is not in the plan's list, so it cannot be carried out today.
         due_delete, due_keep = proposals.split_due(plan.get("proposed") or [], datetime.now(timezone.utc))
-        judge_tagged = settle_keeps(sonarr, due_keep, standing, series, tag_labels, ledger, sources.run_id, in_dry_run)
+        judge_kept = settle_keeps(due_keep, standing, series, tag_labels, ledger, sources.run_id, keep_days)
         approved, set_aside, marked = due_deletes(due_delete, standing, series, tag_labels)
 
         already = ledger.deletions_in_window(CAP_WINDOW_DAYS)
@@ -719,7 +717,6 @@ def cmd_execute(args: argparse.Namespace) -> int:  # pylint: disable=too-many-lo
             if not item.get("simulated"):
                 ledger.delete_proposal(item["series_id"])
 
-        untagged = set(tagged.get("unconfirmed") or []) | set(judge_tagged.get("unconfirmed") or [])
         summary = {
             "run_id": sources.run_id,
             # Separate CronJobs generate their own run ids; this ties the result back to
@@ -729,7 +726,7 @@ def cmd_execute(args: argparse.Namespace) -> int:  # pylint: disable=too-many-lo
             "mode": "dry-run" if ledger.dry_run else "act",
             "escalated": escalated,
             "keep_tags_added": tagged,
-            "judge_keeps_tagged": judge_tagged,
+            "judge_keeps": judge_kept,
             "deletion_cap": cap,
             "deferred": [a.show.series_id for a in deferred],
             "rejected_recommendations": rejected,
@@ -746,10 +743,11 @@ def cmd_execute(args: argparse.Namespace) -> int:  # pylint: disable=too-many-lo
         log(
             f"deleted={len(result.deleted)} skipped={len(result.skipped)} "
             f"failed={len(result.failed)} uncertain={len(result.uncertain)} "
-            f"keep-tagged={tagged.get('applied', 0)}+{judge_tagged.get('applied', 0)} "
+            f"keep-tagged={tagged.get('applied', 0)} kept-for-a-year={judge_kept['kept']} "
             f"proposed={recorded[proposals.DELETE]} delete, {recorded[proposals.KEEP]} keep"
         )
-        return execute_exit_code(result, untagged, unjudged, rejected)
+        # Only the rating bar writes a tag now; a judge's keep is a stored decision.
+        return execute_exit_code(result, set(tagged.get("unconfirmed") or []), unjudged, rejected)
     finally:
         ledger.release_lock()
 

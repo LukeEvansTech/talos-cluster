@@ -369,11 +369,14 @@ class TitleTests(unittest.TestCase):
         ):
             self.assertTrue(digest.title.startswith("TV cleanup"), digest.title)
 
-    def test_judge_keep_tags_are_reported(self):
-        tagged = result(judge_keeps_tagged={"requested": 2, "applied": 2, "withdrawn": 0, "note": "applied"})
-        self.assertIn(
-            "Keep tag from the judge: 2 requested, 2 applied", reporting.render(plan(), tagged, None, NOW).text
+    def test_judge_keeps_are_reported_as_kept_for_a_year(self):
+        kept = result(
+            judge_keeps={"due": 2, "kept": 2, "kept_until": "2027-11-28", "vetoed": [], "left_for_person": []}
         )
+        text = reporting.render(plan(), kept, None, NOW).text
+        self.assertIn("Kept for a year by the judge: 2 of 2 due", text)
+        self.assertIn("Judged again after 2027-11-28", text)
+        self.assertNotIn("Keep tag from the judge", text)
 
 
 if __name__ == "__main__":

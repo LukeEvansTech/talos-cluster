@@ -33,7 +33,9 @@ Each must be true of _this_ film, and you must name which one applies:
 
 - **Collection support** — `siblings_owned` is 1 or more, meaning the library
   already holds other entries from this film's collection. A `collection` name
-  with `siblings_owned` of 0 is not collection support.
+  with `siblings_owned` of 0 is not collection support. For a film scoring under
+  6.0 this is not enough on its own: a weak sequel needs one of the other reasons
+  below as well, and you must name it.
 - **A film people would expect to find** — the test is recognition, not
   credentials. Would someone browsing this library be surprised it was missing,
   or pleased to find it there? Cult standing counts, including films loved for
@@ -93,4 +95,4 @@ Reply with a JSON array and nothing else — no prose, no code fence:
 
 One entry per candidate you were given, and no entries for anything else. Both
 `delete` and `keep` need a real reason; the engine rejects a short one. A `keep`
-adds a permanent `keep` tag to the film in Radarr, so it is a decision too.
+holds the film for a year, after which it is judged again.

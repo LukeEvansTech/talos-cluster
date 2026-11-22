@@ -2,7 +2,8 @@
 
 A judge's ``delete`` or ``keep`` is a proposal: it is recorded with the facts it
 rested on and the date it falls due, sits where a person can overrule it, and is
-acted on by the first run that finds it due. A person's ``cleanup-eligible`` tag
+acted on by the first run that finds it due. A due keep is not a tag: it becomes a
+stored decision that spares the title for ``DEFAULT_KEEP_DAYS``. A person's ``cleanup-eligible`` tag
 is a proposal too, due at once.
 
 Pure functions over plain dicts, so both engines share this file unchanged; the
@@ -19,6 +20,9 @@ from typing import Any
 DEFAULT_GRACE_DAYS = 6
 # How far apart runs are, for telling a person which run a proposal goes at.
 RUN_CADENCE_DAYS = 7
+# How long a judge's keep spares a title once its wait is over (CLEANUP_KEEP_DAYS). Only a
+# person grants forever; the judge's keep is judged again a year on, with that year's plays.
+DEFAULT_KEEP_DAYS = 365
 
 DELETE = "delete"
 KEEP = "keep"

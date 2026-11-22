@@ -125,7 +125,7 @@ def inputs() -> dict:
         "uncertain": [],
         "deferred": [],
         "keep_tags_added": {"requested": 1, "applied": 0},
-        "judge_keeps_tagged": {"requested": 0, "applied": 0},
+        "judge_keeps": {"due": 0, "kept": 0, "vetoed": [], "left_for_person": []},
     }
     judgement = {
         "plan_run_id": PLAN_RUN,
@@ -206,7 +206,8 @@ class FieldTests(unittest.TestCase):
         actions = {name: {tuple(item["actions"]) for item in self.doc[name]} for name in LISTS}
         self.assertEqual(actions["going"], {("keep",)})
         self.assertEqual(actions["later"], {("keep",)})
-        self.assertEqual(actions["kept"], {("delete",)})
+        # A judge's keep lasts a year: the page offers keeping it for good beside deleting it instead.
+        self.assertEqual(actions["kept"], {("keep", "delete")})
         self.assertEqual(actions["needs_you"], {("keep",), ("keep", "delete")})
         self.assertEqual(actions["deleted"], {()})
 
@@ -240,11 +241,20 @@ class FieldTests(unittest.TestCase):
         doc = review.build(LIBRARY, ID_KEY, given["plan"], None, {}, NOW, {"cap": 2}, judgement=failed)
         self.assertEqual((doc["summary"]["judge"]["batches"], doc["summary"]["judge"]["failed_batches"]), (3, 1))
 
-    def test_keep_tags_from_both_sources_are_counted(self):
+    def test_keep_tags_applied_counts_the_rating_bar_only(self):
+        """A judge's keep writes no tag, so an old result's judge count is not added in."""
         given = inputs()
-        result = {**given["result"], "keep_tags_added": {"applied": 2}, "judge_keeps_tagged": {"applied": 3}}
+        result = {**given["result"], "keep_tags_added": {"applied": 2}, "judge_keeps": {"due": 3, "kept": 3}}
         doc = review.build(LIBRARY, ID_KEY, given["plan"], result, {}, NOW, {"cap": 2})
-        self.assertEqual(doc["summary"]["executor"]["keep_tags_applied"], 5)
+        self.assertEqual(doc["summary"]["executor"]["keep_tags_applied"], 2)
+        legacy = {**result, "judge_keeps_tagged": {"applied": 3}}
+        doc = review.build(LIBRARY, ID_KEY, given["plan"], legacy, {}, NOW, {"cap": 2})
+        self.assertEqual(doc["summary"]["executor"]["keep_tags_applied"], 2)
+
+    def test_kept_items_add_no_field_and_keep_the_version(self):
+        doc = build_example()
+        self.assertEqual(doc["version"], 2)
+        self.assertEqual(set(doc["kept"][0]), set(doc["going"][0]))
 
 
 class SignatureTests(unittest.TestCase):

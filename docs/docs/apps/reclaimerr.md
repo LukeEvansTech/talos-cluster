@@ -12,6 +12,24 @@ bjw-s `app-template` deployment mirroring sibling apps (maintainerr, pulsarr).
   app database, logs, and static files.
 - Jellyfin/Plex and \*arr connections are configured through the UI post-deploy, not in Git.
 
+## Rules in force
+
+The rules live in the app's database on the PVC, not in Git. As read from that database on
+2026-11-22:
+
+- **Protect curator keep tags** (films) and **Protect curatortv keep tags** (series): anything
+  tagged `keep`, `keep-review` or `cleanup-keep` in Radarr or Sonarr is protected and never listed.
+- **Unwatched TV after a year:** a series added more than 365 days ago with no recorded viewing is
+  listed as a candidate for review. The rule writes no tag and has automatic deletion off.
+- There is no cleanup rule for films.
+- The scheduled task that deletes candidates (`DELETE_CLEANUP_CANDIDATES`) is disabled, so nothing
+  is removed unless a person approves a candidate in the UI. The history holds one such deletion.
+
+A series the TV judge keeps for a year carries no tag (see
+[Curatortvjudge](curatortvjudge.md#three-tiers-of-keeping)), so it can stay on this review list.
+Nothing deletes it from there unless a person approves it. Turning automatic deletion on here
+would put those series at risk, so retire the candidate rule first.
+
 ## Design decisions
 
 - **bjw-s `app-template` chart** (OCI source, tag matching maintainerr/pulsarr): the standard

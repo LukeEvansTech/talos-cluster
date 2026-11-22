@@ -90,7 +90,7 @@
       "proposed_at": "2026-09-05T08:30:00+00:00",
       "due_at": "2026-09-11T08:30:00+00:00",
       "simulated": false,
-      "actions": ["delete"]
+      "actions": ["keep", "delete"]
     }
   ],
   "needs_you": [

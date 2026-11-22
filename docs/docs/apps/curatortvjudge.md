@@ -21,7 +21,8 @@ steps, the trust boundary and the failure semantics; this page covers what diffe
 - **Verdicts:** the schema's id field is `series_id`. The batch list carries the field name, which
   is how the two apps share `judge.py` and `read_verdicts.py` unchanged.
 - **Limits:** `CLEANUP_JUDGE_LIMIT` is 30 (set on `curatortv`), `CLEANUP_JUDGE_BATCH` is 15 and
-  `CLEANUP_MAX_DELETIONS` is 10, the engine's own default. `CLEANUP_GRACE_DAYS` is 6, as for films.
+  `CLEANUP_MAX_DELETIONS` is 10, the engine's own default. `CLEANUP_GRACE_DAYS` is 6 and
+  `CLEANUP_KEEP_DAYS` is 365, as for films.
 - **Review document:** built from the series proposals as the `tv` library. Like the film
   judge's, it is published only when `CLEANUP_REVIEW_URL` is set, to `/publish/tv` signed with the
   Sonarr API key. This manifest sets it to the [Curator](curator.md) Service, and the push opens
@@ -29,27 +30,44 @@ steps, the trust boundary and the failure semantics; this page covers what diffe
 - **Digest:** same webhook as Curatorfilmjudge; every title starts `TV cleanup` so the two are
   distinguishable on the phone.
 
-## Keep tags are written in a dry run
+## Three tiers of keeping
 
-`TAG_KEEPS_IN_DRY_RUN: "true"` lets the `app` step add the `keep` tag to rating-bar series, and to
-every series whose `keep` from the judge has waited out its review window, even though the run is
-a dry run with `--read-only`. The flag does not shorten that wait: in every mode a judge's keep is
-a proposal first, so a person has the same week to refuse it as they have to refuse a delete. The
-film engine supports the same flag and its manifest leaves it off, so this is the one place the TV
-pipeline writes where the film pipeline does not. It exists for Reclaimerr, which spares anything
-tagged `keep`: without it, a dry run leaves Reclaimerr blind to every decision made here.
+As for films ([Curatorfilm](curatorfilm.md#three-tiers-of-keeping)):
+
+- **Keep for good:** a person (`cleanup-keep`), the rating bar, or an existing `keep` tag. Never
+  judged again.
+- **Keep for a year:** the judge keeps the series. Once its review week is over it becomes a
+  stored decision, kept until a date `CLEANUP_KEEP_DAYS` (365) ahead, and the plan reports it as
+  `spared`. It is judged again after that date, or sooner when a fact it rested on changes
+  (somebody watched an episode). No tag is written.
+- **Normal:** everything else, through the weekly cycle.
+
+During the review week the review page offers a kept series both Keep forever (`cleanup-keep`) and
+Delete instead (`cleanup-eligible`). The result file reports the judge's due keeps as
+`judge_keeps`, and the digest says each is kept for a year.
+
+Reclaimerr does not see a one-year keep, since it is not a tag. Its one cleanup rule only lists
+unwatched series for review and deletes nothing on its own (see
+[Reclaimerr](reclaimerr.md#rules-in-force)), so a kept series can sit on that list without being
+removed.
+
+## Rating-bar keep tags are written in a dry run
+
+`TAG_KEEPS_IN_DRY_RUN: "true"` lets the `app` step add the `keep` tag to rating-bar series even
+though the run is a dry run with `--read-only`. A judge's keep is never a tag, so the flag does
+not touch it. The film engine supports the same flag and its manifest leaves it off, so this is
+the one place the TV pipeline writes where the film pipeline does not. It exists for Reclaimerr,
+which spares anything tagged `keep`: without it, a dry run leaves Reclaimerr blind to the rating
+bar's decisions.
 
 - It is add-only, so it is undone by removing the tag.
 - Each series' live tags are re-read first; a series carrying `cleanup-eligible`,
   `cleanup-dismissed` or `keep-review` is never tagged.
 - Deletion is unaffected: still impossible in dry-run mode or under `--read-only`.
-- A judge `keep` becomes permanent: `keep` is an absolute veto, so the series is not re-judged
-  after the usual 180 days unless a person removes the tag.
 
-The result file reports both writes as `keep_tags_added` and `judge_keeps_tagged`, and the digest
-lists them. Each tag is confirmed by re-reading the series: a keep whose tag did not land is not
-recorded as a decision and stays a proposal, so it is retried next week, and the run exits
-non-zero.
+The result file reports these writes as `keep_tags_added`, and the digest lists them. Each tag is
+confirmed by re-reading the series: one that did not land is tried again next week, and the run
+exits non-zero.
 
 ## Shared credentials
 

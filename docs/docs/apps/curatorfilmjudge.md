@@ -29,9 +29,12 @@ Only `judge` talks to a model, and it is treated as the least-trusted step in th
 A wrong or hostile answer out of `judge` can therefore only choose badly among films the executor
 independently re-clears; it cannot forge a candidate, bypass a protection, or reach the library
 directly. A `keep` is the one answer with a lasting effect of its own: once its wait is over it
-becomes a `keep` tag in `act` mode, so both `keep` and `delete` need a reason of at least 12
-characters. Neither is acted on in the run that gives it; see
-[the review window](curatorfilm.md#the-review-window).
+spares the film from judgement for a year (`CLEANUP_KEEP_DAYS`), so both `keep` and `delete` need
+a reason of at least 12 characters. The judge never keeps a film for good: only a person
+(`cleanup-keep`) or the rating bar does, and no `keep` tag is written for a judge's keep. Neither
+verdict is acted on in the run that gives it; see
+[the review window](curatorfilm.md#the-review-window) and
+[the three tiers of keeping](curatorfilm.md#three-tiers-of-keeping).
 
 ## The judge never sees the state volume
 
@@ -142,6 +145,7 @@ staleness alert is not reset.
 | `CLEANUP_JUDGE_BATCH`   | `curatorfilmjudge`, `prompt` | 50    | Candidates per request.                                 |
 | `CLEANUP_MAX_DELETIONS` | `curatorfilmjudge`, `app`    | 100   | Deletions per weekly run; the engine's default is 30.   |
 | `CLEANUP_GRACE_DAYS`    | `curatorfilmjudge`, `app`    | 6     | Days a verdict waits before `execute` acts on it.       |
+| `CLEANUP_KEEP_DAYS`     | `curatorfilmjudge`, `app`    | 365   | Days a due judge keep spares a film before re-judging.  |
 
 The judge limit is applied where the plan is written, not here: `plan.json` lists the offered
 candidates as `candidates` and the rest as `judge_deferred`. A deferred candidate is not an

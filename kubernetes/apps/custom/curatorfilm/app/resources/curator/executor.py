@@ -52,8 +52,8 @@ def validate_recommendations(
     that went the wrong way -- it is a sign the two halves disagree about what
     was being judged, and acting on it would bypass every check that produced the
     candidate list. Both ``delete`` and ``keep`` need a stated reason: a keep
-    becomes a permanent ``keep`` tag, so it is as consequential as a delete, only
-    in the other direction.
+    spares the film from judgement for a year, so it is as consequential as a
+    delete, only in the other direction.
     """
     accepted: list[dict] = []
     rejected: list[dict] = []

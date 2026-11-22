@@ -21,6 +21,7 @@ from unittest import mock
 
 from curator import __main__ as cli
 from curator import reporting, review
+from curator.acting import to_film
 from curator.ledger import Ledger
 from curator.model import Outcome
 from curator.planner import assess, lapsed_proposals
@@ -39,6 +40,9 @@ from .fixtures import (
 from .test_executor import movie_record
 from .test_planner import context, run
 from .test_review_window import REASON, on_record, snapshot
+
+# Somebody played it since the verdict: a fact a stored decision rests on.
+WATCHED = make_viewing(completers=1)
 
 
 class ReportCommandTests(unittest.TestCase):
@@ -333,10 +337,12 @@ class WeekToWeekTests(unittest.TestCase):
             patcher.start()
             self.addCleanup(patcher.stop)
 
-    def plan(self, film=None) -> dict:
-        """What the planner makes of the library, given the proposals now on record."""
+    def plan(self, film=None, now=None, viewing=None) -> dict:
+        """What the planner makes of the library, given the proposals and decisions now on record."""
         standing = self.ledger.read_proposals()
-        assessed = [run(film, ctx=context(proposals=standing))] if film is not False else []
+        clock = {"now": now} if now else {}
+        ctx = context(proposals=standing, decisions=self.ledger.read_decisions(), **clock)
+        assessed = [run(film, viewing=viewing, ctx=ctx)] if film is not False else []
         return {
             "run_id": "plan-1",
             "mode": "act",
@@ -378,24 +384,67 @@ class WeekToWeekTests(unittest.TestCase):
         self.assertEqual(self.radarr.deleted, [1])
         self.assertEqual(self.ledger.read_proposals(), {})
 
-    def test_a_keep_is_recorded_by_one_run_and_tagged_by_the_next(self):
-        self.execute(self.plan(), "keep")
-        self.assertEqual(self.radarr.tag_calls, [])
-        result = self.execute(self.plan())
-        self.assertEqual(self.radarr.tag_calls, [([1], 1)])
-        self.assertEqual(result["judge_keeps_tagged"]["applied"], 1)
-        self.assertEqual(self.ledger.read_proposals(), {})
-        self.assertIn(1, self.ledger.read_decisions())
+    def live(self):
+        """The film as the planner would read it from the live record, so fingerprints match across runs."""
+        return to_film(self.radarr.movies_by_id[1], self.radarr.tags_by_id)
 
-    def test_a_due_keep_that_a_persons_tag_forbids_is_closed_as_a_spare(self):
-        """cleanup-dismissed keeps keep off; the proposal closes rather than waiting for a tag that never comes."""
-        plan = self.plan()
-        self.execute(plan, "keep")
+    def kept_for_a_year(self) -> dict:
+        """Two runs: the judge keeps the film, and the next run finds the keep due."""
+        self.execute(self.plan(self.live()), "keep")
+        return self.execute(self.plan(self.live()))
+
+    def test_a_due_keep_becomes_a_one_year_decision_with_no_tag(self):
+        result = self.kept_for_a_year()
+        self.assertEqual(self.radarr.tag_calls, [], "the judge never writes keep")
+        self.assertEqual(result["judge_keeps"]["kept"], 1)
+        self.assertEqual(self.ledger.read_proposals(), {})
+        decision = self.ledger.read_decisions()[1]
+        self.assertEqual(decision["verdict"], "spared")
+        until = datetime.fromisoformat(decision["kept_until"])
+        self.assertLess(abs((until - datetime.now(timezone.utc) - timedelta(days=365)).total_seconds()), 120)
+
+    def test_a_kept_film_is_spared_and_not_offered_to_the_judge(self):
+        self.kept_for_a_year()
+        third = self.plan(self.live())
+        self.assertEqual((third["candidates"], third["proposed"]), ([], []))
+        spared = run(self.live(), ctx=context(decisions=self.ledger.read_decisions()))
+        self.assertIs(spared.outcome, Outcome.SPARED)
+        self.assertIn("kept by the judge on", spared.reasons[0])
+        self.assertIn("until", spared.reasons[0])
+
+    def test_a_kept_film_is_a_candidate_again_once_its_year_is_up(self):
+        self.kept_for_a_year()
+        later = self.plan(self.live(), now=datetime.now(timezone.utc) + timedelta(days=366))
+        self.assertEqual([entry["movie_id"] for entry in later["candidates"]], [1])
+
+    def test_a_changed_fact_reopens_a_kept_film_early(self):
+        self.kept_for_a_year()
+        watched = self.plan(self.live(), viewing=WATCHED)
+        self.assertEqual([entry["movie_id"] for entry in watched["candidates"]], [1])
+
+    def test_cleanup_keep_added_in_the_review_week_wins(self):
+        """A person's keep is for good: the proposal lapses and no one-year decision is written."""
+        self.execute(self.plan(self.live()), "keep")
+        self.radarr.movies_by_id[1]["tags"] = [2]
+        second = self.plan(self.live())
+        self.assertEqual(second["proposed"], [])
+        self.assertEqual(second["lapsed_proposals"][0]["why"], "now protected: carries cleanup-keep")
+        result = self.execute(second)
+        self.assertEqual(result["judge_keeps"]["due"], 0)
+        self.assertEqual(self.ledger.read_proposals(), {})
+        self.assertNotIn(1, self.ledger.read_decisions())
+        self.assertEqual(self.radarr.tag_calls, [])
+
+    def test_a_due_keep_on_a_dismissed_film_is_still_kept_for_a_year(self):
+        """cleanup-dismissed is the person's spare; the judge's year is recorded beside it, and no tag is written."""
+        self.execute(self.plan(self.live()), "keep")
+        due = self.plan(self.live())
+        # Dismissed after the plan was written and before execute re-read the record.
         self.radarr.tags_by_id[3] = "cleanup-dismissed"
         self.radarr.movies_by_id[1]["tags"] = [3]
-        result = self.execute(self.plan())
+        result = self.execute(due)
         self.assertEqual(self.radarr.tag_calls, [])
-        self.assertEqual(result["judge_keeps_tagged"]["settled_untagged"], 1)
+        self.assertEqual(result["judge_keeps"]["kept"], 1)
         self.assertEqual(self.ledger.read_proposals(), {})
         self.assertEqual(self.ledger.read_decisions()[1]["verdict"], "spared")
 

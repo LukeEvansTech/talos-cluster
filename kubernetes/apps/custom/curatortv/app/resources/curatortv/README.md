@@ -36,7 +36,7 @@ non-zero code and still sends the digest.
 | 4    | a deletion failed or could not be confirmed                        |
 | 5    | refused: `--read-only` in act mode, or a stale or wrong-mode plan  |
 | 7    | the recommendations were judged against a different plan           |
-| 8    | a `keep` tag could not be confirmed on re-read                     |
+| 8    | a rating-bar `keep` tag could not be confirmed on re-read          |
 | 9    | an offered candidate came back unjudged, or a verdict was rejected |
 | 10   | a deletion was skipped because a safety check could not be read    |
 
@@ -44,28 +44,34 @@ non-zero code and still sends the digest.
 page is configured and did not take the document; with none configured, 12
 when the proposals could not be read for the digest.
 
-## `keep` is written in a dry run here
+## The rating bar's `keep` is written in a dry run here
 
-Both engines can add the `keep` tag in a dry run when
+Both engines can add the rating bar's `keep` tag in a dry run when
 `TAG_KEEPS_IN_DRY_RUN=true`, even under `--read-only`; only this one's manifest
-sets it. The tag goes to the series over the rating bar at once, and to a series
-the judge verdicts `keep` once that verdict has waited out its review window.
-The flag does not shorten the wait: a judge's keep is a proposal first in every
-mode. Reclaimerr protects anything tagged `keep`, so a dry run
-that writes nothing leaves it blind to every decision this engine has made; and
-an add-only tag is reversible by removing it, which a deletion is not.
+sets it. Reclaimerr protects anything tagged `keep`, so a dry run that writes
+nothing leaves it blind to the rating bar's decisions; and an add-only tag is
+reversible by removing it, which a deletion is not.
 
 The live tags are re-read before each addition, and a series carrying
 `cleanup-eligible`, `cleanup-dismissed` or `keep-review` is never tagged: those
 are a person's decision. Deletion is untouched by the flag and stays impossible
-in a dry run or under `--read-only`, exactly as in the film engine.
+in a dry run or under `--read-only`, exactly as in the film engine. The result
+file reports these writes as `keep_tags_added`; each tag is confirmed by
+re-reading the series, and one that did not land is tried again next run, and
+the run exits non-zero.
 
-A judge `keep` is therefore permanent rather than a 180-day spare: once tagged,
-the series is an absolute veto until a person removes the tag. The result file
-reports both writes, as `keep_tags_added` (rating bar) and `judge_keeps_tagged`. Each
-tag is confirmed by re-reading the series; a judge keep whose tag cannot be
-confirmed is not recorded as a decision and stays a proposal, so it is tried
-again next run, and the run exits non-zero.
+## Three tiers of keeping
+
+As in the film engine. Keep for good is a person (`cleanup-keep`), the rating
+bar, or an existing `keep` tag: never judged again. Keep for a year is the
+judge's keep: once its review window has passed it writes no tag, in any mode,
+and becomes a stored decision (`spared`, with `kept_until` set
+`CLEANUP_KEEP_DAYS` ahead, 365 by default) that carries the fact fingerprint,
+so the series is judged again after that date, or sooner when somebody watches
+it or a season arrives. A series a person tags `cleanup-keep` during the review
+week closes with no decision; one tagged `cleanup-eligible` is left for that
+person's delete. Everything else goes through the weekly cycle. The result file
+reports the judge's due keeps as `judge_keeps`.
 
 ## What changes for a series
 
@@ -99,7 +105,7 @@ distinct episodes any one person has finished.
 include `Reality` is neither protected by the bar nor given the `keep` tag by
 it, whatever its rating: for these a rating says little about whether anyone
 here wants them, so the judge sees them all. One that already carries `keep`
-stays protected, and a keep the judge hands down is tagged like any other.
+stays protected, and a keep the judge hands down lasts a year like any other.
 
 **A retired show key taints on title alone.** An episode row's `year` is the
 episode's, not the premiere's, so a play behind an unresolvable show key taints
@@ -155,10 +161,11 @@ rules in full, and the review document's contract.
 As the film engine, with `SONARR_URL` / `SONARR_API_KEY` in place of the Radarr
 pair, plus:
 
-| Variable               | Meaning                                                       |
-| ---------------------- | ------------------------------------------------------------- |
-| `FEED_TAGS`            | comma-separated tag labels proving a feed added a series      |
-| `TAG_KEEPS_IN_DRY_RUN` | `true` lets a dry run add the `keep` tag; deletion unaffected |
+| Variable               | Meaning                                                                    |
+| ---------------------- | -------------------------------------------------------------------------- |
+| `FEED_TAGS`            | comma-separated tag labels proving a feed added a series                   |
+| `TAG_KEEPS_IN_DRY_RUN` | `true` lets a dry run add the rating bar's `keep` tag; deletion unaffected |
+| `CLEANUP_KEEP_DAYS`    | days a judge's due keep spares a series before re-judging; default 365     |
 
 ## Undoing a deletion
 

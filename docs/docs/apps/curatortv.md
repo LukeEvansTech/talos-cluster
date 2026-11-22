@@ -35,9 +35,12 @@ The engine lives in `kubernetes/apps/custom/curatortv/app/resources/curatortv/`,
 - **Scope:** `upcoming` series are out of scope; nothing else is, since `CLEANUP_SCOPE_START` is
   no longer set.
 - **Keep tags in a dry run:** with `TAG_KEEPS_IN_DRY_RUN=true` the executor adds `keep` to
-  rating-bar series at once, and to a judge's `keep` once its review window has passed, even in a
-  dry run, so Reclaimerr (which spares anything tagged `keep`) sees them. Deletion stays
-  impossible. See [Curatortvjudge](curatortvjudge.md).
+  rating-bar series even in a dry run, so Reclaimerr (which spares anything tagged `keep`) sees
+  them. Deletion stays impossible. See [Curatortvjudge](curatortvjudge.md).
+- **Three tiers of keeping:** the same as for films (see
+  [Curatorfilm](curatorfilm.md#three-tiers-of-keeping)). A person or the rating bar keeps a series
+  for good; the judge's keep, once due, is a stored decision that spares it for
+  `CLEANUP_KEEP_DAYS` (365) and writes no tag; everything else goes through the weekly cycle.
 - **The review window:** the same as for films (see
   [Curatorfilm](curatorfilm.md#the-review-window)), with proposals keyed `series_id`. A series'
   fingerprint has its season count where a film's has its collection, so a new season ends a
@@ -57,6 +60,7 @@ Uncalibrated starting points, like the film engine's.
 | `KEEP_BAR_VOTES` / `KEEP_BAR_SCORE`      | 5000 votes / 6.5         | Rating bar for automatic protection and the `keep` tag, as for films.             |
 | `COMPLETION_PERCENT` (`evidence.py`)     | 85%                      | An episode watched this far counts as finished.                                   |
 | `DEFAULT_RECONSIDER_DAYS` (`planner.py`) | 180                      | How long a review decision stands before re-judging.                              |
+| `DEFAULT_KEEP_DAYS` (`proposals.py`)     | 365                      | How long a judge's due keep spares a series; `CLEANUP_KEEP_DAYS` overrides it.    |
 | `ANOMALY_LIMITS` (`planner.py`)          | 10% / 2% / 5% / 20% / 1% | Library size / keep tags / exclusions / history rows / invalid added dates.       |
 
 ## CronJob timing

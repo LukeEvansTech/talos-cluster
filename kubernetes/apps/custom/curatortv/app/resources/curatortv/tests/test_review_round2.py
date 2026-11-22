@@ -2,7 +2,9 @@
 
 Each case is one where the engine would have reported a safe, quiet run while
 being wrong: a watched series read as a verified zero, a new season deleted the
-week it arrived, and a judge keep recorded as settled when the tag never landed.
+week it arrived, and a keep recorded as settled when its tag never landed. Only
+the rating bar writes ``keep`` now; a judge's keep is a stored decision and needs
+no tag to land.
 """
 
 from __future__ import annotations
@@ -104,7 +106,7 @@ class NewEpisodesSincePlanningBlockTheDelete(unittest.TestCase):
 
 
 class UnconfirmedKeepTagsStayUndecided(unittest.TestCase):
-    """A keep whose tag never landed must be retried, not recorded as settled."""
+    """A rating-bar tag that never landed fails the run; a judge's keep is settled without any tag."""
 
     def setUp(self):
         self.root = Path(tempfile.mkdtemp())
@@ -128,6 +130,8 @@ class UnconfirmedKeepTagsStayUndecided(unittest.TestCase):
             "blocks": [],
             "candidates": [],
             "proposed": [propose(ledger, {"series_id": n, **candidate}, "keep") for n in (1, 2)],
+            # The rating bar asks for the same two series to be tagged.
+            "keep_tag_additions": [{"series_id": n} for n in (1, 2)],
         }
         (self.root / "plan.json").write_text(json.dumps(plan), encoding="utf-8")
         (self.root / "recs.json").write_text(
@@ -157,7 +161,7 @@ class UnconfirmedKeepTagsStayUndecided(unittest.TestCase):
             code = cli.cmd_execute(args)
         return code, json.loads((self.root / "result.json").read_text(encoding="utf-8"))
 
-    def test_only_confirmed_keeps_become_decisions(self):
+    def test_an_unconfirmed_rating_bar_tag_fails_the_run(self):
         # The editor answers, but series 2 never gains the tag.
         real_add = self.sonarr.add_tag
 
@@ -167,26 +171,26 @@ class UnconfirmedKeepTagsStayUndecided(unittest.TestCase):
 
         self.sonarr.add_tag = partial
         code, result = self.execute()
-        self.assertNotEqual(code, 0)
-        self.assertEqual(result["judge_keeps_tagged"]["unconfirmed"], [2])
-        self.assertIn("dry-run/decisions/1.json", self.store.store)
-        self.assertNotIn("dry-run/decisions/2.json", self.store.store)
-        # The unconfirmed keep stays a proposal, so next week tries the tag again.
-        self.assertNotIn("dry-run/proposals/1.json", self.store.store)
-        self.assertIn("dry-run/proposals/2.json", self.store.store)
+        self.assertEqual(code, 8)
+        self.assertEqual(result["keep_tags_added"]["unconfirmed"], [2])
 
-    def test_a_rejected_tag_write_records_nothing(self):
-        self.sonarr.add_tag = lambda series_ids, tag_id: (500, None)
+    def test_a_judge_keep_is_settled_with_no_tag_even_when_tag_writes_fail(self):
+        """The judge's year is ledger state: a failing tag editor neither blocks it nor is asked."""
+        calls = []
+        self.sonarr.add_tag = lambda series_ids, tag_id: calls.append(series_ids) or (500, None)
         code, result = self.execute()
-        self.assertNotEqual(code, 0)
-        self.assertEqual(sorted(result["judge_keeps_tagged"]["unconfirmed"]), [1, 2])
-        self.assertFalse([k for k in self.store.store if "/decisions/" in k])
-        self.assertEqual(len([k for k in self.store.store if "/proposals/" in k]), 2)
+        self.assertEqual(code, 8, "the rating bar's failed tags still fail the run")
+        self.assertEqual(sorted(result["keep_tags_added"]["unconfirmed"]), [1, 2])
+        self.assertEqual(calls, [[1, 2]], "only the rating bar wrote")
+        self.assertEqual(result["judge_keeps"]["kept"], 2)
+        self.assertIn("dry-run/decisions/1.json", self.store.store)
+        self.assertIn("dry-run/decisions/2.json", self.store.store)
+        self.assertFalse([k for k in self.store.store if "/proposals/" in k])
 
     def test_the_digest_reports_unconfirmed_keeps(self):
         now = datetime.now(timezone.utc)
         plan = {"run_id": "p", "generated_at": now.isoformat(), "counts": {}}
-        result = {"plan_run_id": "p", "judge_keeps_tagged": {"requested": 2, "applied": 1, "unconfirmed": [2]}}
+        result = {"plan_run_id": "p", "keep_tags_added": {"requested": 2, "applied": 1, "unconfirmed": [2]}}
         digest = reporting.render(plan, result, None, now)
         self.assertIn("1 keep tag not confirmed", digest.push)
 
