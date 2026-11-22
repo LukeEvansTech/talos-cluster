@@ -18,10 +18,13 @@ spec:
           app:
             image:
               repository: ghcr.io/saihgupr/homeassistanttimemachine
-              tag: 2.4.3@sha256:61197cfd6ffa7323016c9daa544eb0fac2c4a6d1c981462ad3d95901adee49f0
+              tag: 2.5.0@sha256:c4d06a126f8b77076df0a5978db6898f63c66be01a147a20b5baf08550df6795
             env:
               TZ: ${TIMEZONE}
               HOME_ASSISTANT_URL: http://homeassistant.home.svc.cluster.local:8123
+              # 2.5.0 puts /api behind a login unless told otherwise, and that includes
+              # the /api/health path both probes use. Keeps the app as it was up to 2.4.x.
+              HATM_API_AUTH: "off"
             envFrom:
               - secretRef:
                   name: homeassistanttimemachine-secret
