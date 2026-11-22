@@ -508,9 +508,9 @@ SATURDAYS = "30 9 * * 6"
 LONDON = "Europe/London"
 
 
-def at(*when: int) -> datetime:
+def at(year: int, month: int, day: int, hour: int, minute: int) -> datetime:
     """A UTC moment."""
-    return datetime(*when, tzinfo=timezone.utc)
+    return datetime(year, month, day, hour, minute, tzinfo=timezone.utc)
 
 
 class NextRunTests(unittest.TestCase):
