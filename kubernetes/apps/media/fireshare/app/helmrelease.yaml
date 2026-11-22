@@ -19,7 +19,7 @@ spec:
           init-config:
             image: &image
               repository: docker.io/shaneisrael/fireshare
-              tag: 1.9.3-lite@sha256:828af6863683892491b1afb02a54e042393fa50831ba352115d7e2f6f376986b
+              tag: 1.9.4-lite@sha256:f87bd7f5b88ef40f0c09d00b48bf2e0014202f7764e9ec6d8a6e1f008f126011
             command:
               - python
               - -c
