@@ -504,6 +504,73 @@ def document(records: list[dict], plan: dict | None = None, result: dict | None 
     return review.build("film", "movie_id", plan, result, {r["movie_id"]: r for r in records}, NOW, facts)
 
 
+SATURDAYS = "30 9 * * 6"
+LONDON = "Europe/London"
+
+
+def at(year: int, month: int, day: int, hour: int, minute: int) -> datetime:
+    """A UTC moment."""
+    return datetime(year, month, day, hour, minute, tzinfo=timezone.utc)
+
+
+class NextRunTests(unittest.TestCase):
+    """The day a person is told: the CronJob's next firing, whenever this run started."""
+
+    def test_a_run_started_by_hand_still_names_the_scheduled_day(self):
+        """A Sunday run, the day after the scheduled one: the next is six days on, not seven."""
+        sunday = at(2026, 11, 22, 10, 5)
+        self.assertEqual(proposals.next_run(sunday, sunday, SATURDAYS, LONDON), at(2026, 11, 28, 9, 30))
+
+    def test_a_run_inside_its_own_slot_names_next_weeks(self):
+        started = at(2026, 11, 28, 9, 35)
+        self.assertEqual(proposals.next_run(started, started, SATURDAYS, LONDON), at(2026, 12, 5, 9, 30))
+
+    def test_a_run_just_ahead_of_the_slot_names_todays(self):
+        self.assertEqual(proposals.next_firing(SATURDAYS, LONDON, at(2026, 11, 28, 9, 0)), at(2026, 11, 28, 9, 30))
+
+    def test_the_schedule_is_read_in_the_cronjobs_time_zone(self):
+        summer = at(2026, 7, 1, 12, 0)
+        self.assertEqual(proposals.next_firing(SATURDAYS, LONDON, summer), at(2026, 7, 4, 8, 30))
+        self.assertEqual(proposals.next_firing(SATURDAYS, "", summer), at(2026, 7, 4, 9, 30))
+
+    def test_lists_ranges_steps_and_both_spellings_of_sunday_are_read(self):
+        sunday = at(2026, 11, 22, 10, 5)
+        cases = {
+            "*/15 * * * *": at(2026, 11, 22, 10, 15),
+            "0 6,18 * * 1-5": at(2026, 11, 23, 6, 0),
+            "30 9 * * 0": at(2026, 11, 29, 9, 30),
+            "30 9 * * 7": at(2026, 11, 29, 9, 30),
+            "0 0 1 * *": at(2026, 12, 1, 0, 0),
+            "5/20 23 * * *": at(2026, 11, 22, 23, 5),
+        }
+        for schedule, expected in cases.items():
+            with self.subTest(schedule=schedule):
+                self.assertEqual(proposals.next_firing(schedule, "", sunday), expected)
+
+    def test_a_day_and_a_weekday_together_fire_on_either(self):
+        """Cron's rule, and Kubernetes': the 13th or a Friday, whichever comes first."""
+        self.assertEqual(proposals.next_firing("0 6 13 * 5", "", at(2026, 11, 22, 10, 5)), at(2026, 11, 27, 6, 0))
+        self.assertEqual(proposals.next_firing("0 6 13 * 5", "", at(2026, 12, 12, 0, 0)), at(2026, 12, 13, 6, 0))
+
+    def test_a_schedule_that_cannot_be_read_falls_back_to_a_week_after_the_plan(self):
+        planned = NOW - timedelta(minutes=30)
+        unreadable = (
+            ("", LONDON),
+            ("30 9 * * SAT", LONDON),
+            ("@weekly", LONDON),
+            ("30 9 ? * 6", LONDON),
+            ("61 9 * * 6", LONDON),
+            ("30 9 * * 6-2", LONDON),
+            ("*/0 9 * * 6", LONDON),
+            ("30 9 * *", LONDON),
+            ("0 0 30 2 *", ""),
+            (SATURDAYS, "Mars/Olympus"),
+        )
+        for schedule, zone in unreadable:
+            with self.subTest(schedule=schedule, zone=zone):
+                self.assertEqual(proposals.next_run(planned, NOW, schedule, zone), planned + timedelta(days=7))
+
+
 class ReviewDocumentTests(unittest.TestCase):
     """What the page is sent: every verdict that is waiting, and who can still change it."""
 
@@ -511,6 +578,13 @@ class ReviewDocumentTests(unittest.TestCase):
         doc = document([stored(1)])
         self.assertEqual([item["id"] for item in doc["going"]], [1])
         self.assertEqual(doc["next_run_at"], (NOW + timedelta(days=7)).isoformat())
+
+    def test_a_run_started_by_hand_lists_only_what_the_scheduled_run_finds_due(self):
+        """The fixed clock is a Friday noon: Saturday's run comes before a verdict given today is due."""
+        doc = document([stored(1), stored(2, made=NOW)], schedule=SATURDAYS, zone=LONDON)
+        self.assertEqual(doc["next_run_at"], "2026-09-12T08:30:00+00:00")
+        self.assertEqual([item["id"] for item in doc["going"]], [1])
+        self.assertEqual([item["id"] for item in doc["later"]], [2])
 
     def test_a_delete_proposed_this_run_is_due_by_the_next_one(self):
         doc = document([stored(1, made=NOW + timedelta(minutes=40))])

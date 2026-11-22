@@ -215,8 +215,9 @@ def build(  # pylint: disable=too-many-arguments,too-many-positional-arguments,t
     """Assemble the document for one library.
 
     ``plan`` is None when this run has no current plan; ``records`` is the
-    ledger's proposals; ``run`` carries the deletion cap, the mode and the
-    reasons this run acted on nothing; ``digest`` is the digest as sent, from
+    ledger's proposals; ``run`` carries the deletion cap, the mode, the
+    reasons this run acted on nothing, and the CronJob's schedule and time
+    zone, which date the next run; ``digest`` is the digest as sent, from
     ``digest_record``. Deletes the next run will find due are listed in the
     order it takes them (a person's first, then largest), cut at the cap; the
     rest are listed as waiting.
@@ -224,7 +225,12 @@ def build(  # pylint: disable=too-many-arguments,too-many-positional-arguments,t
     # A result left on the volume by an earlier run describes that run, not this one.
     if result is not None and (plan is None or result.get("plan_run_id") != plan.get("run_id")):
         result = None
-    next_run = proposals.next_run(proposals.when((plan or {}).get("generated_at")), now)
+    next_run = proposals.next_run(
+        proposals.when((plan or {}).get("generated_at")),
+        now,
+        str(run.get("schedule") or ""),
+        str(run.get("zone") or ""),
+    )
 
     stored = [record for record in records.values() if isinstance(record.get(id_key), int)]
     deletes = [record for record in stored if record.get("verdict") == proposals.DELETE]

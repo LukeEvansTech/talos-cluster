@@ -245,10 +245,16 @@ class ExecuteTests(unittest.TestCase):  # pylint: disable=too-many-public-method
         self.assertEqual(code, 0)
         self.assertEqual(result["unjudged"], [])
 
-    def test_an_offered_candidate_with_no_verdict_still_fails_it(self):
+    def test_a_title_left_out_of_an_answer_is_counted_but_does_not_fail_the_run(self):
+        """The judge answered the week; the title it skipped is in the digest and is offered again."""
         code, result = self.execute({1: "delete", 2: "review"})
-        self.assertEqual(code, 9)
+        self.assertEqual(code, 0)
         self.assertEqual(result["unjudged"], [3])
+
+    def test_a_week_with_no_verdict_at_all_still_fails_it(self):
+        code, result = self.execute({})
+        self.assertEqual(code, 9)
+        self.assertEqual(result["unjudged"], [1, 2, 3])
 
     def test_a_verdict_for_a_deferred_candidate_is_rejected_and_not_acted_on(self):
         code, result = self.execute({1: "review", 2: "review", 3: "review", 4: "delete"})

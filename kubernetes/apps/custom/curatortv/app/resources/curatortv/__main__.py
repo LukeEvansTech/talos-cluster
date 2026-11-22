@@ -582,7 +582,9 @@ def load_recommendations(args: argparse.Namespace, plan: dict) -> list | int:
     return recommendations
 
 
-def execute_exit_code(result: ExecutionResult, untagged: set[int], unjudged: list[int], rejected: list[dict]) -> int:
+def execute_exit_code(
+    result: ExecutionResult, untagged: set[int], unjudged: list[int], rejected: list[dict], judged: int
+) -> int:
     """The exit code for a finished execute run; the README lists each one."""
     # A failed deletion is a safe no-op to retry; an uncertain one is recorded and left,
     # since a retry could double up on a DELETE that already landed (docs/docs/apps/curatorfilm.md).
@@ -602,8 +604,10 @@ def execute_exit_code(result: ExecutionResult, untagged: set[int], unjudged: lis
     if untagged:
         log(f"exiting non-zero: {len(untagged)} keep tag(s) not confirmed; " "the rating bar tries them again next run")
         return 8
-    # A week nobody judged must not count as a success, or it resets the staleness alert.
-    if unjudged or rejected:
+    # A week nobody judged must not count as a success, or it resets the staleness alert. A
+    # title left out of an answer the judge otherwise gave is not that week: the digest counts
+    # it and the next run offers it again.
+    if rejected or (unjudged and not judged):
         log(f"exiting non-zero: {len(unjudged)} candidate(s) unjudged, {len(rejected)} verdict(s) rejected")
         return 9
     return 0
@@ -747,7 +751,7 @@ def cmd_execute(args: argparse.Namespace) -> int:  # pylint: disable=too-many-lo
             f"proposed={recorded[proposals.DELETE]} delete, {recorded[proposals.KEEP]} keep"
         )
         # Only the rating bar writes a tag now; a judge's keep is a stored decision.
-        return execute_exit_code(result, set(tagged.get("unconfirmed") or []), unjudged, rejected)
+        return execute_exit_code(result, set(tagged.get("unconfirmed") or []), unjudged, rejected, len(accepted))
     finally:
         ledger.release_lock()
 
@@ -766,7 +770,11 @@ def review_document(plan: dict | None, result: dict | None, judgement: dict | No
         # Reported, not raised: the digest still has to go out, and it is where this gets read.
         return None, f"the proposals on record could not be read: {exc}"
     current, blocks = reporting.current_plan(plan, now)
-    facts = {"cap": cap, "mode": "dry-run" if dry_run else "act", "blocks": blocks}
+    # The CronJob's own schedule, read in the pod's time zone, which is the CronJob's too.
+    schedule, zone = env("CLEANUP_SCHEDULE", required=False), env("TZ", required=False)
+    if schedule and proposals.next_firing(schedule, zone, now) is None:
+        log(f"CLEANUP_SCHEDULE {schedule!r} could not be read: taking the next run as a week after the plan")
+    facts = {"cap": cap, "mode": "dry-run" if dry_run else "act", "blocks": blocks, "schedule": schedule, "zone": zone}
     return review.build("tv", "series_id", current, result, records, now, facts, judgement=judgement), ""
 
 

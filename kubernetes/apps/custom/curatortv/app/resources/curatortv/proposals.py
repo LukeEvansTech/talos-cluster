@@ -12,14 +12,20 @@ only thing that differs between them is the name of the id field.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone, tzinfo
 from typing import Any
+from zoneinfo import ZoneInfo
 
 # One day short of the weekly schedule: a verdict recorded minutes into one run has to
 # be due already when the next run starts at the same time a week later.
 DEFAULT_GRACE_DAYS = 6
-# How far apart runs are, for telling a person which run a proposal goes at.
+# How far apart runs are, for telling a person which run a proposal goes at when the
+# CronJob's own schedule was not passed in or cannot be read.
 RUN_CADENCE_DAYS = 7
+# The lowest and highest value of each field of a cron line: minute, hour, day, month, weekday.
+CRON_RANGES = ((0, 59), (0, 23), (1, 31), (1, 12), (0, 7))
+# How far ahead a firing is looked for before the schedule counts as unreadable.
+SCHEDULE_HORIZON_DAYS = 366
 # How long a judge's keep spares a title once its wait is over (CLEANUP_KEEP_DAYS). Only a
 # person grants forever; the judge's keep is judged again a year on, with that year's plays.
 DEFAULT_KEEP_DAYS = 365
@@ -135,6 +141,79 @@ def split_due(entries: list[dict], now: datetime) -> tuple[list[dict], list[dict
     return deletes, keeps
 
 
-def next_run(planned_at: datetime | None, now: datetime) -> datetime:
-    """When the run after this one starts, taking the schedule from this run's plan."""
-    return (planned_at or now) + timedelta(days=RUN_CADENCE_DAYS)
+def _cron_field(text: str, low: int, high: int) -> set[int] | None:
+    """The values one cron field allows, or None when it is not numbers, lists, ranges and steps."""
+    allowed: set[int] = set()
+    for part in text.split(","):
+        span, slash, step = part.partition("/")
+        if slash and (not step.isdigit() or int(step) == 0):
+            return None
+        first, dash, last = span.partition("-")
+        if span == "*":
+            start, end = low, high
+        elif first.isdigit() and (last.isdigit() if dash else not last):
+            start = int(first)
+            # "5/15" runs from 5 to the top of the field, as cron reads it.
+            end = int(last) if dash else (high if slash else start)
+        else:
+            return None
+        if not low <= start <= end <= high:
+            return None
+        allowed.update(range(start, end + 1, int(step) if slash else 1))
+    return allowed
+
+
+def _fires_on(day: date, fields: list[set[int]], either: bool) -> bool:
+    """Whether a cron line fires on this date. Cron counts Sunday as 0 or 7."""
+    if day.month not in fields[3]:
+        return False
+    on_date, on_weekday = day.day in fields[2], bool({day.isoweekday() % 7, day.isoweekday()} & fields[4])
+    return (on_date or on_weekday) if either else (on_date and on_weekday)
+
+
+def next_firing(schedule: str, zone: str, after: datetime) -> datetime | None:
+    """When a five-field cron line next fires after ``after``, in UTC, or None if it cannot be read.
+
+    Read as Kubernetes reads a CronJob's ``schedule`` and ``timeZone`` (UTC when ``zone`` is
+    empty). A month or weekday name, ``?`` or an ``@weekly`` style macro is not read.
+    """
+    texts = schedule.split()
+    if len(texts) != 5:
+        return None
+    fields: list[set[int]] = []
+    for text, (low, high) in zip(texts, CRON_RANGES):
+        allowed = _cron_field(text, low, high)
+        if allowed is None:
+            return None
+        fields.append(allowed)
+    try:
+        local: tzinfo = ZoneInfo(zone) if zone else timezone.utc
+    except (KeyError, ValueError, OSError):
+        return None
+    # Cron's rule: when the day and the weekday are both restricted, either one matching is enough.
+    either = all(text not in ("*", "*/1") for text in (texts[2], texts[4]))
+    first = after.astimezone(local).date()
+    for offset in range(SCHEDULE_HORIZON_DAYS + 1):
+        day = first + timedelta(days=offset)
+        if not _fires_on(day, fields, either):
+            continue
+        for hour in sorted(fields[1]):
+            for minute in sorted(fields[0]):
+                fires = datetime(day.year, day.month, day.day, hour, minute, tzinfo=local)
+                if fires > after:
+                    return fires.astimezone(timezone.utc)
+    return None
+
+
+def next_run(planned_at: datetime | None, now: datetime, schedule: str = "", zone: str = "") -> datetime:
+    """When the run after this one starts.
+
+    Taken from the CronJob's own ``schedule`` when the caller has it, so a run started by
+    hand on another day still names the scheduled one. Without a schedule that can be read
+    it is a week after this run's plan, which holds only for a run that started on time.
+
+    A proposal falling due in the minutes between that start and the run's execute step is
+    acted on by it although it was listed as waiting; it has still had its whole wait.
+    """
+    fires = next_firing(schedule, zone, now) if schedule else None
+    return fires or (planned_at or now) + timedelta(days=RUN_CADENCE_DAYS)

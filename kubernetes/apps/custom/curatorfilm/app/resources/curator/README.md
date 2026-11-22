@@ -81,7 +81,9 @@ nothing on record stands until the tag is removed.
 to `CLEANUP_JUDGE_LIMIT`, as `candidates`; the rest are written to
 `judge_deferred`. A deferred candidate was never offered, so no verdict is owed
 for it and it comes back next run. Only an _offered_ candidate with no usable
-verdict counts as unjudged.
+verdict counts as unjudged. The judge step asks once more about a film a reply
+left out; one still unjudged after that is counted in the digest and offered
+again next run. It fails the run only when no offered candidate got a verdict.
 
 **What a verdict does.** Nothing, in the run that gives it. A `delete` or a
 `keep` is written to the ledger as a proposal, with the facts it rested on and a
@@ -141,16 +143,16 @@ would overrule it.
 which is what the staleness alert keys on. The CronJob's shell keeps the first
 non-zero code and still sends the digest.
 
-| Code | Meaning                                                            |
-| ---- | ------------------------------------------------------------------ |
-| 2    | the plan recorded blocking issues                                  |
-| 3    | another run holds the execute lock                                 |
-| 4    | a deletion failed or could not be confirmed                        |
-| 5    | refused: `--read-only` in act mode, or a stale or wrong-mode plan  |
-| 7    | the recommendations were judged against a different plan           |
-| 8    | a rating-bar `keep` tag could not be confirmed on re-read          |
-| 9    | an offered candidate came back unjudged, or a verdict was rejected |
-| 10   | a deletion was skipped because a safety check could not be read    |
+| Code | Meaning                                                           |
+| ---- | ----------------------------------------------------------------- |
+| 2    | the plan recorded blocking issues                                 |
+| 3    | another run holds the execute lock                                |
+| 4    | a deletion failed or could not be confirmed                       |
+| 5    | refused: `--read-only` in act mode, or a stale or wrong-mode plan |
+| 7    | the recommendations were judged against a different plan          |
+| 8    | a rating-bar `keep` tag could not be confirmed on re-read         |
+| 9    | no offered candidate got a verdict, or a verdict was rejected     |
+| 10   | a deletion was skipped because a safety check could not be read   |
 
 `report` exits 6 when the digest could not be delivered, and 11 when a review
 page is configured and did not take the document (or the proposals for it
@@ -230,22 +232,22 @@ API key the engine signs nothing and the publish fails.
 
 **Top-level fields.** Every field is always present.
 
-| Field          | Type            | Meaning                                                                                  |
-| -------------- | --------------- | ---------------------------------------------------------------------------------------- |
-| `version`      | integer         | `2`. Version 1 had every field here except `summary`                                     |
-| `library`      | string          | `film` or `tv`, the same as the path                                                     |
-| `generated_at` | string          | ISO 8601 UTC time `report` built the document                                            |
-| `run_id`       | string          | the plan's run ID; empty when this run has no current plan                               |
-| `mode`         | string          | `act` or `dry-run`                                                                       |
-| `blocks`       | array of string | why this run acted on nothing (a blocked, missing or stale plan); empty in a normal run  |
-| `cap`          | integer         | deletions allowed per run                                                                |
-| `next_run_at`  | string          | ISO 8601 UTC time of the next weekly run: seven days after this run's plan, or after now |
-| `going`        | array of title  | due deletes the next run takes, in its order (a person's first, then largest), to `cap`  |
-| `later`        | array of title  | deletes past the cap, then deletes not due by the next run, largest first                |
-| `kept`         | array of title  | keep proposals, largest first; each is kept for a year once due                          |
-| `needs_you`    | array of title  | what the engine could not assess and the judge's `review` verdicts, largest first        |
-| `deleted`      | array of title  | this run's deletions, or would-be deletions in a dry run                                 |
-| `summary`      | object          | how the run went (version 2; below)                                                      |
+| Field          | Type            | Meaning                                                                                 |
+| -------------- | --------------- | --------------------------------------------------------------------------------------- |
+| `version`      | integer         | `2`. Version 1 had every field here except `summary`                                    |
+| `library`      | string          | `film` or `tv`, the same as the path                                                    |
+| `generated_at` | string          | ISO 8601 UTC time `report` built the document                                           |
+| `run_id`       | string          | the plan's run ID; empty when this run has no current plan                              |
+| `mode`         | string          | `act` or `dry-run`                                                                      |
+| `blocks`       | array of string | why this run acted on nothing (a blocked, missing or stale plan); empty in a normal run |
+| `cap`          | integer         | deletions allowed per run                                                               |
+| `next_run_at`  | string          | ISO 8601 UTC time of the next run: the schedule's next firing, or a week after the plan |
+| `going`        | array of title  | due deletes the next run takes, in its order (a person's first, then largest), to `cap` |
+| `later`        | array of title  | deletes past the cap, then deletes not due by the next run, largest first               |
+| `kept`         | array of title  | keep proposals, largest first; each is kept for a year once due                         |
+| `needs_you`    | array of title  | what the engine could not assess and the judge's `review` verdicts, largest first       |
+| `deleted`      | array of title  | this run's deletions, or would-be deletions in a dry run                                |
+| `summary`      | object          | how the run went (version 2; below)                                                     |
 
 A title appears in at most one of `going`, `later`, `kept` and `needs_you`.
 
@@ -561,6 +563,7 @@ committed here maps the private network.
 | `CLEANUP_KEEP_DAYS`                                                                    | days a judge's due keep spares a film before re-judging; default 365        |
 | `CLEANUP_REVIEW_URL`                                                                   | where `report` publishes the review document; unset, nothing is published   |
 | `CLEANUP_REVIEW_LINK`                                                                  | page the push opens; sent only when `CLEANUP_REVIEW_URL` is set too         |
+| `CLEANUP_SCHEDULE`                                                                     | the CronJob's cron line, read in `TZ`; `report` dates the next run from it  |
 | `CLEANUP_ACCEPT_BASELINE`                                                              | run ID of a blocked run whose snapshot becomes the baseline; honoured once  |
 | `TAG_KEEPS_IN_DRY_RUN`                                                                 | `true` lets a dry run add the rating bar's `keep` tag; deletion unaffected  |
 | `CLEANUP_RUN_ID`                                                                       | optional; generated if absent                                               |

@@ -29,16 +29,16 @@ python3 -m curatortv.provision                      # show decision-tag changes
 which is what the staleness alert keys on. The CronJob's shell keeps the first
 non-zero code and still sends the digest.
 
-| Code | Meaning                                                            |
-| ---- | ------------------------------------------------------------------ |
-| 2    | the plan recorded blocking issues                                  |
-| 3    | another run holds the execute lock                                 |
-| 4    | a deletion failed or could not be confirmed                        |
-| 5    | refused: `--read-only` in act mode, or a stale or wrong-mode plan  |
-| 7    | the recommendations were judged against a different plan           |
-| 8    | a rating-bar `keep` tag could not be confirmed on re-read          |
-| 9    | an offered candidate came back unjudged, or a verdict was rejected |
-| 10   | a deletion was skipped because a safety check could not be read    |
+| Code | Meaning                                                           |
+| ---- | ----------------------------------------------------------------- |
+| 2    | the plan recorded blocking issues                                 |
+| 3    | another run holds the execute lock                                |
+| 4    | a deletion failed or could not be confirmed                       |
+| 5    | refused: `--read-only` in act mode, or a stale or wrong-mode plan |
+| 7    | the recommendations were judged against a different plan          |
+| 8    | a rating-bar `keep` tag could not be confirmed on re-read         |
+| 9    | no offered candidate got a verdict, or a verdict was rejected     |
+| 10   | a deletion was skipped because a safety check could not be read   |
 
 `report` exits 6 when the digest could not be delivered, and 11 when a review
 page is configured and did not take the document; with none configured, 12
