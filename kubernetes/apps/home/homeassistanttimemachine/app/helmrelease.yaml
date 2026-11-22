@@ -22,6 +22,9 @@ spec:
             env:
               TZ: ${TIMEZONE}
               HOME_ASSISTANT_URL: http://homeassistant.home.svc.cluster.local:8123
+              # 2.5.0 puts /api behind a login unless told otherwise, and that includes
+              # the /api/health path both probes use. Keeps the app as it was up to 2.4.x.
+              HATM_API_AUTH: "off"
             envFrom:
               - secretRef:
                   name: homeassistanttimemachine-secret
