@@ -14,7 +14,7 @@ data:
     so the work lands on the first run after someone turns it on.
 
     Wallpapers: Glasshouse Home's time-of-day slots get Bing's latest four photos (newest to
-    morning). Skipped when the TV's morning slot was uploaded after Bing's newest photo went up,
+    morning). Skipped when the TV's four slots were all uploaded after Bing's newest photo went up,
     read from the upload time in /api/home's wallpaper revision; if that cannot be read, upload.
 
     Update: install Glasshouse's latest release when the installed release is at least
@@ -87,8 +87,9 @@ data:
         if not home.get("enabled"):
             return print(host, "wallpapers: skipped, Glasshouse Home is off")
         rev = (home.get("wallpapers") or {}).get("revision") or ""
-        m = re.match(r"own\.(\d{13})-", rev)
-        if m and dt.datetime.fromtimestamp(int(m.group(1)) / 1000, dt.timezone.utc) >= bing_since:
+        stamps = re.findall(r"(\d{13})-\d+", rev) if rev.startswith("own.") else []
+        if len(stamps) == len(SLOTS) and all(
+                dt.datetime.fromtimestamp(int(s) / 1000, dt.timezone.utc) >= bing_since for s in stamps):
             return print(host, "wallpapers: already has", bing[0].get("title"))
         if DRY:
             return print(host, "wallpapers: would upload", [p.get("title") for p in bing])
@@ -107,12 +108,16 @@ data:
         have = str(state.get("installed") or "").split("+")[0]
         if not have or have == latest_ver:
             return print(host, "update: on", have or "?", "(latest", latest_ver + ")")
-        if state.get("state") not in (None, "idle"):
+        # A finished check leaves available/current/error/offline until Glasshouse restarts;
+        # only these mean an update is under way.
+        if state.get("state") in ("checking", "downloading", "installing", "installed"):
             return print(host, "update: busy,", state.get("state"))
         if latest_age < SOAK:
             return print(host, "update:", latest_ver, "is only", latest_age, "old; waiting")
         age = release_age(have)
-        if age is not None and age < EVERY:
+        if age is None:
+            return print(host, "update: cannot read when", have, "was released; skipped")
+        if age < EVERY:
             return print(host, "update: on", have, "released", age.days, "days ago; next after", EVERY.days)
         if DRY:
             return print(host, "update: would install", latest_ver, "over", have)
