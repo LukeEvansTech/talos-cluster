@@ -28,8 +28,10 @@ configMapGenerator:
       - icons/bazarr.svg
       - icons/certwarden.svg
       - icons/cupdate.svg
+      - icons/curator.svg
       - icons/cyberchef.svg
       - icons/dispatcharr.svg
+      - icons/domainpulse.svg
       - icons/epicgames.svg
       - icons/esphome.svg
       - icons/examprep.svg
@@ -72,15 +74,19 @@ configMapGenerator:
       - icons/rackula.svg
       - icons/radarr.svg
       - icons/reclaimerr.svg
+      - icons/reconcilable.svg
       - icons/redditvault.svg
       - icons/repowiki.svg
       - icons/romm.svg
       - icons/sabnzbd.svg
+      - icons/sakuga.svg
       - icons/searxng.svg
       - icons/seerr.svg
       - icons/shlink.svg
+      - icons/sleeper.svg
       - icons/sonarr.svg
       - icons/stacks.svg
+      - icons/subspy.svg
       - icons/suggestarr.svg
       - icons/tandoor.svg
       - icons/tautulli.svg
