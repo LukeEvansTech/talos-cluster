@@ -163,23 +163,44 @@ A setting that cannot be read
 `CLEANUP_SCOPE_START`) stops `plan` or `execute` with exit 1 before anything is
 fetched or written.
 
-## Scheduled runs are read-only
+## Scheduled runs act
 
-The CronJobs pass `--read-only`, which refuses to act whatever `CLEANUP_MODE`
-says. Deleting on a schedule therefore takes two deliberate edits in different
+The CronJobs run with `CLEANUP_MODE=act` and without `--read-only`, so a
+Saturday run deletes what is due. `--read-only` still refuses to act whatever
+`CLEANUP_MODE` says, so going back to rehearsing takes two edits in different
 places, and a half-made change refuses loudly instead of deleting quietly.
 
-This is not a security boundary — anyone who can change one file can change both.
-It is a guard against the change nobody meant to make, and it reflects where the
-defects in this system have actually been: not in the judgement, but in the joins
-between four services that disagree about what identifies a film. Every one of
-those was a protection that read correctly, passed its tests, and could not see
-part of the population it guarded. A person between that and an irreversible
-import exclusion is worth more than an unattended batch of deletions a week.
+What stands between a verdict and a deletion is the review window. A verdict is
+recorded by one run and acted on by the next, six days later, after it has sat
+on the review page where a person can overrule it with a tag. The defects in
+this system have not been in the judgement but in the joins between four
+services that disagree about what identifies a film: each was a protection that
+read correctly, passed its tests, and could not see part of the population it
+guarded. So every due delete still goes through the live re-checks, the cap
+bounds a bad week, and the recycle bin holds what went.
+
+**A run acts on what the page said it would.** The review page lists a proposal
+as going at the next run only when it is due by that run's scheduled start,
+read from `CLEANUP_SCHEDULE`. `execute` measures "due" against the same moment
+(the last firing at or before now) and not against the clock, because the
+judge takes minutes and a proposal falling due in them was listed as waiting.
+A run started by hand between two firings therefore takes what the earlier
+firing was due to take, and nothing newer. Without a schedule that can be read,
+"due" is measured against the clock.
+
+**Beginning the real record from the rehearsals.** Dry-run state lives under
+the `dry-run/` prefix, so a first act run would find no baseline, block, and
+ask for every verdict again. With `CLEANUP_ADOPT_REHEARSAL=true`, `plan` copies
+the dry runs' decisions, proposals, first-seen index, crosswalk and baseline to
+the real record before it reads anything. It does so only while the real record
+has no baseline, so it happens once and never overwrites a decision made for
+real; the baseline is copied last, so a copy cut short is made again in full.
+Rehearsed runs (their plans and simulated intents) are not copied. The dry-run
+copy is left in place.
 
 ## The digest is the output
 
-`report` is what a read-only run is _for_. It renders the plan and the result
+`report` is how a run reaches a person. It renders the plan and the result
 into a Markdown report and pushes a summary to a webhook, on every run — including
 the runs where nothing happened, so that silence means the job did not run rather
 than that it had nothing to say. Four things it refuses to paper over: an absent
@@ -563,7 +584,8 @@ committed here maps the private network.
 | `CLEANUP_KEEP_DAYS`                                                                    | days a judge's due keep spares a film before re-judging; default 365        |
 | `CLEANUP_REVIEW_URL`                                                                   | where `report` publishes the review document; unset, nothing is published   |
 | `CLEANUP_REVIEW_LINK`                                                                  | page the push opens; sent only when `CLEANUP_REVIEW_URL` is set too         |
-| `CLEANUP_SCHEDULE`                                                                     | the CronJob's cron line, read in `TZ`; `report` dates the next run from it  |
+| `CLEANUP_SCHEDULE`                                                                     | the CronJob's cron line, read in `TZ`; dates the next run and what is due   |
+| `CLEANUP_ADOPT_REHEARSAL`                                                              | `true` lets `plan` begin an act ledger with no baseline from the dry runs   |
 | `CLEANUP_ACCEPT_BASELINE`                                                              | run ID of a blocked run whose snapshot becomes the baseline; honoured once  |
 | `TAG_KEEPS_IN_DRY_RUN`                                                                 | `true` lets a dry run add the rating bar's `keep` tag; deletion unaffected  |
 | `CLEANUP_RUN_ID`                                                                       | optional; generated if absent                                               |

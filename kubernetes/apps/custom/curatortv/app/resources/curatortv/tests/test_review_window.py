@@ -510,6 +510,39 @@ def at(year: int, month: int, day: int, hour: int, minute: int) -> datetime:
     return datetime(year, month, day, hour, minute, tzinfo=timezone.utc)
 
 
+class RunStartTests(unittest.TestCase):
+    """What "due" is measured against: the firing this run belongs to, not the clock."""
+
+    def test_minutes_into_the_slot_it_is_the_slot(self):
+        self.assertEqual(proposals.run_start(at(2026, 11, 28, 9, 33), SATURDAYS, LONDON), at(2026, 11, 28, 9, 30))
+
+    def test_on_the_minute_it_is_that_minute(self):
+        self.assertEqual(proposals.run_start(at(2026, 11, 28, 9, 30), SATURDAYS, LONDON), at(2026, 11, 28, 9, 30))
+
+    def test_a_run_started_by_hand_midweek_is_measured_against_the_last_slot(self):
+        self.assertEqual(proposals.run_start(at(2026, 12, 2, 14, 0), SATURDAYS, LONDON), at(2026, 11, 28, 9, 30))
+
+    def test_the_slot_is_read_in_the_cronjobs_zone(self):
+        """British Summer Time: 09:30 in London is 08:30 UTC."""
+        self.assertEqual(proposals.run_start(at(2026, 7, 4, 8, 45), SATURDAYS, LONDON), at(2026, 7, 4, 8, 30))
+
+    def test_a_verdict_falling_due_while_the_judge_answers_is_not_yet_due(self):
+        proposal = {"due_at": at(2026, 11, 28, 9, 31).isoformat()}
+        now = at(2026, 11, 28, 9, 33)
+        self.assertTrue(proposals.is_due(proposal, now))
+        self.assertFalse(proposals.is_due(proposal, proposals.run_start(now, SATURDAYS, LONDON)))
+
+    def test_what_the_page_listed_as_going_is_what_the_run_takes(self):
+        """The page measures against the next firing; the run it names measures against the same moment."""
+        told = proposals.next_run(None, at(2026, 11, 22, 10, 5), SATURDAYS, LONDON)
+        self.assertEqual(proposals.run_start(told + timedelta(minutes=4), SATURDAYS, LONDON), told)
+
+    def test_without_a_schedule_it_is_the_clock(self):
+        now = at(2026, 11, 28, 9, 33)
+        self.assertEqual(proposals.run_start(now), now)
+        self.assertEqual(proposals.run_start(now, "30 9 * * SAT", LONDON), now)
+
+
 class NextRunTests(unittest.TestCase):
     """The day a person is told: the CronJob's next firing, whenever this run started."""
 

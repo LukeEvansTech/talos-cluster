@@ -52,3 +52,8 @@ def scope_start() -> datetime | None:
 def tag_keeps_in_dry_run() -> bool:
     """Whether a dry run may still add the ``keep`` tag."""
     return os.environ.get("TAG_KEEPS_IN_DRY_RUN", "").strip().lower() == "true"
+
+
+def adopt_rehearsal() -> bool:
+    """Whether ``plan`` may carry the dry runs' record into an act ledger that has none."""
+    return os.environ.get("CLEANUP_ADOPT_REHEARSAL", "").strip().lower() == "true"

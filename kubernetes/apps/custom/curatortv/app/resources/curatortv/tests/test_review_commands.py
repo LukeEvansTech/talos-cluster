@@ -360,7 +360,7 @@ class WeekToWeekTests(unittest.TestCase):
             "lapsed_proposals": lapsed_proposals(standing, assessed),
         }
 
-    def execute(self, plan: dict, verdict: str = "") -> dict:
+    def execute(self, plan: dict, verdict: str = "", **settings: str) -> dict:
         """One act-mode run against this plan, with the judge's verdict on its candidate if it has one."""
         verdicts = [{"series_id": 1, "verdict": verdict, "reason": REASON}] if verdict else []
         (self.root / "plan.json").write_text(json.dumps(plan), encoding="utf-8")
@@ -375,7 +375,9 @@ class WeekToWeekTests(unittest.TestCase):
         )
         # No wait, so the second run of a test finds the first run's verdict due.
         with mock.patch.dict(os.environ, {"CLEANUP_GRACE_DAYS": "0", "TAG_KEEPS_IN_DRY_RUN": "false"}):
-            os.environ.pop("CLEANUP_MAX_DELETIONS", None)
+            for name in ("CLEANUP_MAX_DELETIONS", "CLEANUP_SCHEDULE"):
+                os.environ.pop(name, None)
+            os.environ.update(settings)
             self.assertEqual(cli.cmd_execute(args), 0)
         return json.loads((self.root / "result.json").read_text(encoding="utf-8"))
 
@@ -480,6 +482,19 @@ class WeekToWeekTests(unittest.TestCase):
         self.assertEqual(gone["lapsed_proposals"][0]["why"], "no longer in the library")
         self.execute(gone)
         self.assertEqual(self.ledger.read_proposals(), {})
+
+    def test_a_verdict_falling_due_after_the_scheduled_start_waits_for_the_next_run(self):
+        """The page listed it as waiting, so this run leaves it; it is still on record for the next."""
+        self.execute(self.plan(), "delete")
+        second = self.plan()
+        self.assertEqual(len(second["proposed"]), 1)
+        # A slot that last fired a day ago, before the verdict above fell due.
+        fired = datetime.now(timezone.utc) - timedelta(days=1)
+        schedule = f"{fired.minute} {fired.hour} * * {fired.isoweekday() % 7}"
+        result = self.execute(second, CLEANUP_SCHEDULE=schedule, TZ="UTC")
+        self.assertEqual(result["deleted"], [])
+        self.assertEqual(result["proposals"]["due"], {"delete": 0, "keep": 0})
+        self.assertEqual(len(self.ledger.read_proposals()), 1)
 
 
 if __name__ == "__main__":

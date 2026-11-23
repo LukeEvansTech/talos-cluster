@@ -80,6 +80,12 @@ run, with the judge's reason, and doing nothing lets it proceed.
 - A dry run records proposals and decisions under the `dry-run/` prefix and reports what it would
   have done to the due ones. Nothing is deleted, so due deletes stay on record and are reported
   again the next week; a due keep closes into its dry-run decision, as it would in `act` mode.
+- The scheduled runs are in `act` mode. "Due" is measured against the run's scheduled start (the
+  last firing of `CLEANUP_SCHEDULE`), which is what the review page measured against, so a
+  proposal falling due while the judge answers waits for the next run, as the page said.
+- `CLEANUP_ADOPT_REHEARSAL: "true"` on the planner let the first act run begin its record from the
+  dry runs' proposals, decisions and baseline. It acts only while the real record has no
+  baseline, so it is inert after that run and the line can be dropped.
 
 Two tags let a person overrule the judge, one in each direction. They are set in Radarr, and
 anything built on the review document (below) should set exactly these and nothing else:

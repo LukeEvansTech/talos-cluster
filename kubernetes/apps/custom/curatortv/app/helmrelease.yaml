@@ -11,7 +11,7 @@ spec:
     name: curatortv
   values:
     controllers:
-      # Assesses the Sonarr library and writes cleanup-plan/plan.json; read-only, never deletes
+      # Assesses the Sonarr library and writes cleanup-plan/plan.json; never deletes
       # or tags. curatortvjudge judges the plan half an hour later.
       curatortv:
         type: cronjob
@@ -54,9 +54,13 @@ spec:
               CLEANUP_JUDGE_LIMIT: "30"
               # Kometa tags every show it adds; Sonarr here has no import lists of its own.
               FEED_TAGS: kometa
-              # plan writes nothing either way; set so the ledger namespaces its
+              # plan deletes nothing either way; set so the ledger namespaces its
               # records the same as execute will.
-              CLEANUP_MODE: dry-run
+              CLEANUP_MODE: act
+              # The verdicts reviewed so far were recorded by dry runs. This lets plan begin the real
+              # record from them, once, while that record has no baseline; it does nothing afterwards.
+              # Drop this line after the first act run.
+              CLEANUP_ADOPT_REHEARSAL: "true"
             envFrom:
               - secretRef:
                   name: curatortv-secret

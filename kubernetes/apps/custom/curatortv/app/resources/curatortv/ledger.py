@@ -31,6 +31,10 @@ from .s3 import S3Client, S3Error
 
 LOCK_KEY = "locks/execute.json"
 LOCK_TTL_MINUTES = 90
+REHEARSAL = "dry-run/"
+# What a dry run leaves standing, in the order it is carried over. The baseline goes last: it
+# is what marks the real record as begun, so a carry-over cut short is made again in full.
+CARRIED = ("decisions/", "proposals/", "firstseen/", "crosswalk/", "baseline/")
 
 
 class Ledger:
@@ -40,7 +44,7 @@ class Ledger:
         self.client = client
         self.run_id = run_id
         self.dry_run = dry_run
-        self.prefix = "dry-run/" if dry_run else ""
+        self.prefix = REHEARSAL if dry_run else ""
 
     def _key(self, key: str) -> str:
         """Namespace a key so a dry run cannot overwrite real state."""
@@ -67,6 +71,26 @@ class Ledger:
     def write_baseline(self, snapshot: dict[str, Any]) -> None:
         """Record a validated snapshot as the new yardstick."""
         self._write("baseline/current.json", {**snapshot, "recorded_by_run": self.run_id})
+
+    def adopt_rehearsal(self) -> int:
+        """Begin the real record from what the dry runs left standing; how many records came over.
+
+        The verdicts a person reviewed were recorded by dry runs. Without this the first
+        act run starts from nothing: it blocks for want of a baseline, and every verdict is
+        asked for again and waits out a new window. Only a real record with no baseline
+        is begun this way, so it happens once and never overwrites a decision made for real.
+        Runs are not carried: a rehearsed intent or plan is no part of the real history.
+        """
+        if self.dry_run or self.read_baseline() is not None:
+            return 0
+        carried = 0
+        for part in CARRIED:
+            for key in self.client.list_keys(f"{REHEARSAL}{part}"):
+                raw = self.client.get(key)
+                if raw is not None:
+                    self.client.put(key.removeprefix(REHEARSAL), raw)
+                    carried += 1
+        return carried
 
     def read_decisions(self) -> dict[int, dict]:
         """Every standing spare or dismissal, keyed by Sonarr series id."""

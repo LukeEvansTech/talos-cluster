@@ -171,8 +171,8 @@ def _fires_on(day: date, fields: list[set[int]], either: bool) -> bool:
     return (on_date or on_weekday) if either else (on_date and on_weekday)
 
 
-def next_firing(schedule: str, zone: str, after: datetime) -> datetime | None:
-    """When a five-field cron line next fires after ``after``, in UTC, or None if it cannot be read.
+def _cron(schedule: str, zone: str) -> tuple[list[str], list[set[int]], tzinfo] | None:
+    """A five-field cron line as its texts, the values each field allows and its zone, or None.
 
     Read as Kubernetes reads a CronJob's ``schedule`` and ``timeZone`` (UTC when ``zone`` is
     empty). A month or weekday name, ``?`` or an ``@weekly`` style macro is not read.
@@ -190,19 +190,48 @@ def next_firing(schedule: str, zone: str, after: datetime) -> datetime | None:
         local: tzinfo = ZoneInfo(zone) if zone else timezone.utc
     except (KeyError, ValueError, OSError):
         return None
+    return texts, fields, local
+
+
+def _firing(schedule: str, zone: str, at: datetime, forward: bool) -> datetime | None:
+    """The first firing after ``at``, or the last one at or before it, in UTC."""
+    cron = _cron(schedule, zone)
+    if cron is None:
+        return None
+    texts, fields, local = cron
     # Cron's rule: when the day and the weekday are both restricted, either one matching is enough.
     either = all(text not in ("*", "*/1") for text in (texts[2], texts[4]))
-    first = after.astimezone(local).date()
+    first = at.astimezone(local).date()
     for offset in range(SCHEDULE_HORIZON_DAYS + 1):
-        day = first + timedelta(days=offset)
+        day = first + timedelta(days=offset if forward else -offset)
         if not _fires_on(day, fields, either):
             continue
-        for hour in sorted(fields[1]):
-            for minute in sorted(fields[0]):
+        for hour in sorted(fields[1], reverse=not forward):
+            for minute in sorted(fields[0], reverse=not forward):
                 fires = datetime(day.year, day.month, day.day, hour, minute, tzinfo=local)
-                if fires > after:
+                if (fires > at) if forward else (fires <= at):
                     return fires.astimezone(timezone.utc)
     return None
+
+
+def next_firing(schedule: str, zone: str, after: datetime) -> datetime | None:
+    """When a five-field cron line next fires after ``after``, in UTC, or None if it cannot be read."""
+    return _firing(schedule, zone, after, forward=True)
+
+
+def run_start(now: datetime, schedule: str = "", zone: str = "") -> datetime:
+    """The scheduled start of the run that is executing at ``now``: what "due" is measured against.
+
+    The review page lists a proposal as going at the next run only when it is due by that
+    run's scheduled start. A run takes minutes to reach its execute step, so measuring against
+    the clock would act on a proposal the page listed as waiting. Measured against the start,
+    a run acts on exactly what the page said it would, and one started by hand between two
+    firings acts on what the earlier firing was due to take.
+
+    Without a schedule that can be read there is no start to name, and it is ``now``.
+    """
+    fires = _firing(schedule, zone, now, forward=False) if schedule else None
+    return fires or now
 
 
 def next_run(planned_at: datetime | None, now: datetime, schedule: str = "", zone: str = "") -> datetime:
@@ -211,9 +240,6 @@ def next_run(planned_at: datetime | None, now: datetime, schedule: str = "", zon
     Taken from the CronJob's own ``schedule`` when the caller has it, so a run started by
     hand on another day still names the scheduled one. Without a schedule that can be read
     it is a week after this run's plan, which holds only for a run that started on time.
-
-    A proposal falling due in the minutes between that start and the run's execute step is
-    acted on by it although it was listed as waiting; it has still had its whole wait.
     """
     fires = next_firing(schedule, zone, now) if schedule else None
     return fires or (planned_at or now) + timedelta(days=RUN_CADENCE_DAYS)

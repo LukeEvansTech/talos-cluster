@@ -77,9 +77,9 @@ spec:
                   exit 0
                 fi
                 # A judgement this step cannot obtain is recorded and reported,
-                # not allowed to kill the pod before the digest is sent. The run
-                # deletes nothing, so the week's report is worth more than the
-                # judgement it is missing.
+                # not allowed to kill the pod before the digest is sent. What is
+                # due was judged a week ago, so that work and the week's report go
+                # ahead without this week's new verdicts.
                 fail() {
                   echo "$$1" >&2
                   printf '%s' "$$1" > /work/judge-failed
@@ -130,9 +130,8 @@ spec:
                 python3 -m curatortv execute \
                   --plan /state/cleanup-plan/plan.json \
                   --recommendations /state/cleanup-plan/recommendations.json \
-                  --out /state/cleanup-plan/result.json \
-                  --read-only || keep $$?
-                # The digest is the entire output of a read-only run, so it goes
+                  --out /state/cleanup-plan/result.json || keep $$?
+                # The digest is how the run reaches a person, so it goes
                 # out whatever the steps above did. Its own failure earns a red
                 # Job: an undelivered digest is indistinguishable, from the
                 # phone, from a week in which nothing ran at all.
@@ -158,10 +157,11 @@ spec:
               # Days a judge's keep spares a title once its wait is over; it is then judged again.
               # Only a person (cleanup-keep) or the rating bar keeps a title for good.
               CLEANUP_KEEP_DAYS: "365"
-              # Must match curatortv's mode (ledger namespaces dry-run state separately); --read-only
-              # above enforces the same rule independently, so acting needs two deliberate edits.
-              CLEANUP_MODE: dry-run
-              # The CronJob's schedule above, read in TZ: report dates the next run from it, so a run
+              # Must match curatortv's mode: the ledger keeps dry-run state apart, and execute refuses
+              # a plan made in the other mode. Going back to rehearsing takes this and `--read-only` above.
+              CLEANUP_MODE: act
+              # The CronJob's schedule above, read in TZ: execute measures "due" against its last firing
+              # and report dates the next run from it, so a run
               # started by hand on another day still names the scheduled one.
               CLEANUP_SCHEDULE: *schedule
               # report posts the review document to <url>/publish/tv, signed with the same arr key,
@@ -170,7 +170,7 @@ spec:
               CLEANUP_REVIEW_LINK: https://curator.${SECRET_DOMAIN}/
               # Reclaimerr spares anything tagged keep, so the rating bar's keeps are written even in a
               # dry run (a judge's keep is never a tag);
-              # deletion stays off (docs/docs/apps/curatortvjudge.md).
+              # inert in act mode, which tags them anyway (docs/docs/apps/curatortvjudge.md).
               TAG_KEEPS_IN_DRY_RUN: "true"
               FEED_TAGS: kometa
               # Fans out to Pushover. The route verifies its own token, which
