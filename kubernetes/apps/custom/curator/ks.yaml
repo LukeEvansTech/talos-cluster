@@ -25,7 +25,7 @@ spec:
       VOLSYNC_PUID: "65532"
       VOLSYNC_PGID: "65532"
       HOMEPAGE_NAME: Curator
-      HOMEPAGE_ICON: mdi-broom
+      HOMEPAGE_ICON: /icons/dracula/curator.svg
       HOMEPAGE_DESCRIPTION: Library cleanup review
   prune: true
   retryInterval: 2m

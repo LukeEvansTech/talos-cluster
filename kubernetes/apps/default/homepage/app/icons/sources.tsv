@@ -9,8 +9,10 @@ backrest	knock	0.35	https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/
 bazarr	knock	0.35	https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/bazarr.svg
 certwarden	alpha	0.35	https://cdn.jsdelivr.net/npm/@mdi/svg@7.4.47/svg/certificate.svg
 cupdate	invert	0.35	https://cdn.jsdelivr.net/gh/selfhst/icons@main/png/cupdate.png
+curator	alpha	0.35	https://cdn.jsdelivr.net/npm/@mdi/svg@7.4.47/svg/broom.svg
 cyberchef	knock	0.35	https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/cyberchef.svg
 dispatcharr	knock	0.6	https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/dispatcharr.svg
+domainpulse	alpha	0.35	https://cdn.jsdelivr.net/npm/@mdi/svg@7.4.47/svg/heart-pulse.svg
 epicgames	alpha	0.35	https://cdn.jsdelivr.net/npm/simple-icons@13.21.0/icons/epicgames.svg
 esphome	alpha	0.35	https://cdn.jsdelivr.net/npm/simple-icons@13.21.0/icons/esphome.svg
 examprep	alpha	0.35	https://cdn.jsdelivr.net/npm/@mdi/svg@7.4.47/svg/school.svg
@@ -53,15 +55,19 @@ qui	knock	0.35	https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/qui.s
 rackula	knock	0.35	https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/rackula.svg
 radarr	alpha	0.35	https://cdn.jsdelivr.net/npm/simple-icons@13.21.0/icons/radarr.svg
 reclaimerr	knock	0.35	https://cdn.jsdelivr.net/gh/selfhst/icons@main/svg/reclaimerr.svg
+reconcilable	alpha	0.35	https://cdn.jsdelivr.net/npm/@mdi/svg@7.4.47/svg/scale-balance.svg
 redditvault	alpha	0.35	https://cdn.jsdelivr.net/npm/simple-icons@13.21.0/icons/reddit.svg
 repowiki	knock	0.35	https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/mkdocs.svg
 romm	knock	0.35	https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/romm.svg
 sabnzbd	invert	0.35	https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/sabnzbd.svg
+sakuga	alpha	0.35	https://cdn.jsdelivr.net/npm/@mdi/svg@7.4.47/svg/image-filter-frames.svg
 searxng	alpha	0.35	https://cdn.jsdelivr.net/npm/simple-icons@13.21.0/icons/searxng.svg
 seerr	knock	0.35	https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/seerr.svg
 shlink	knock	0.35	https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/shlink.svg
+sleeper	alpha	0.35	https://cdn.jsdelivr.net/npm/@mdi/svg@7.4.47/svg/cards-playing.svg
 sonarr	alpha	0.35	https://cdn.jsdelivr.net/npm/simple-icons@13.21.0/icons/sonarr.svg
 stacks	alpha	0.35	https://cdn.jsdelivr.net/npm/@mdi/svg@7.4.47/svg/layers-triple.svg
+subspy	alpha	0.35	https://cdn.jsdelivr.net/npm/@mdi/svg@7.4.47/svg/reddit.svg
 suggestarr	knock	0.6	https://cdn.jsdelivr.net/gh/selfhst/icons@main/svg/suggestarr.svg
 tandoor	knock	0.35	https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/tandoor-recipes.svg
 tautulli	knock	0.35	https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/tautulli.svg
@@ -74,5 +80,5 @@ watchstate	knock	0.35	https://cdn.jsdelivr.net/gh/selfhst/icons@main/png/watchst
 wazuh	knock	0.35	https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/wazuh.svg
 wizarr	knock	0.35	https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/wizarr.svg
 yourspotify	alpha	0.35	https://cdn.jsdelivr.net/npm/simple-icons@13.21.0/icons/spotify.svg
-zwave	knock	0.35	https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/z-wave-js-ui.svg
 zigbee2mqtt	alpha	0.35	https://cdn.jsdelivr.net/npm/simple-icons@13.21.0/icons/zigbee2mqtt.svg
+zwave	knock	0.35	https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/z-wave-js-ui.svg
