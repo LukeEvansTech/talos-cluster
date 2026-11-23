@@ -11,7 +11,7 @@ spec:
     name: curatorfilm
   values:
     controllers:
-      # Assesses the library and writes cleanup-plan/plan.json; read-only, never deletes
+      # Assesses the library and writes cleanup-plan/plan.json; never deletes
       # or tags. curatorfilmjudge judges the plan half an hour later.
       curatorfilm:
         type: cronjob
@@ -55,9 +55,13 @@ spec:
               # Set here, not on curatorfilmjudge: the plan names the candidates the judge is
               # asked about, largest first, and defers the rest.
               CLEANUP_JUDGE_LIMIT: "150"
-              # plan writes nothing either way; set so the ledger namespaces its
+              # plan deletes nothing either way; set so the ledger namespaces its
               # records the same as execute will.
-              CLEANUP_MODE: dry-run
+              CLEANUP_MODE: act
+              # The verdicts reviewed so far were recorded by dry runs. This lets plan begin the real
+              # record from them, once, while that record has no baseline; it does nothing afterwards.
+              # Drop this line after the first act run.
+              CLEANUP_ADOPT_REHEARSAL: "true"
             envFrom:
               - secretRef:
                   name: curatorfilm-secret

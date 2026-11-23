@@ -3,8 +3,7 @@
 The taste half of the weekly Sonarr library cleanup, in the `custom` namespace. It is
 [Curatorfilmjudge](curatorfilmjudge.md) pointed at the TV engine: the same three steps (`prompt`, `judge`,
 `app`), the same `judge.py` and `read_verdicts.py`, the same hardening, `backoffLimit: 0`, a judge
-that never mounts the state volume, and an executor run with `--read-only` and
-`CLEANUP_MODE: dry-run`. Read that page for the request to the gateway, the files between the
+that never mounts the state volume, and an executor run with `CLEANUP_MODE: act`. Read that page for the request to the gateway, the files between the
 steps, the trust boundary and the failure semantics; this page covers what differs.
 
 ## What differs from Curatorfilmjudge
@@ -54,7 +53,8 @@ removed.
 ## Rating-bar keep tags are written in a dry run
 
 `TAG_KEEPS_IN_DRY_RUN: "true"` lets the `app` step add the `keep` tag to rating-bar series even
-though the run is a dry run with `--read-only`. A judge's keep is never a tag, so the flag does
+when the run is a dry run with `--read-only`. The scheduled run is in `act` mode, which adds
+the tag whatever the flag says, so the flag matters only if the run goes back to rehearsing. A judge's keep is never a tag, so the flag does
 not touch it. The film engine supports the same flag and its manifest leaves it off, so this is
 the one place the TV pipeline writes where the film pipeline does not. It exists for Reclaimerr,
 which spares anything tagged `keep`: without it, a dry run leaves Reclaimerr blind to the rating
@@ -63,7 +63,7 @@ bar's decisions.
 - It is add-only, so it is undone by removing the tag.
 - Each series' live tags are re-read first; a series carrying `cleanup-eligible`,
   `cleanup-dismissed` or `keep-review` is never tagged.
-- Deletion is unaffected: still impossible in dry-run mode or under `--read-only`.
+- Deletion is unaffected by the flag: impossible in dry-run mode or under `--read-only`.
 
 The result file reports these writes as `keep_tags_added`, and the digest lists them. Each tag is
 confirmed by re-reading the series: one that did not land is tried again next week, and the run

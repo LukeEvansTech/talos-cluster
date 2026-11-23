@@ -56,7 +56,7 @@ from .planner import (
     summarise,
 )
 from .s3 import S3Client, S3Config
-from .settings import env, env_int, scope_start, tag_keeps_in_dry_run
+from .settings import adopt_rehearsal, env, env_int, scope_start, tag_keeps_in_dry_run
 from .store import FileStore
 
 
@@ -450,6 +450,9 @@ def cmd_plan(args: argparse.Namespace) -> int:
     out.mkdir(parents=True, exist_ok=True)
 
     log(f"run {sources.run_id} (mode={'DRY RUN' if ledger.dry_run else 'ACT'})")
+    if adopt_rehearsal():
+        # Before anything is read: the proposals and baseline below are the ones carried over.
+        log(f"carried {ledger.adopt_rehearsal()} record(s) over from the dry runs")
     log(f"Sonarr {sonarr.status().get('version')} reachable")
     bin_ok, bin_detail = recycle_bin_ready(sonarr.media_management())
     log(f"recycle bin: {bin_detail}")
@@ -687,7 +690,12 @@ def cmd_execute(args: argparse.Namespace) -> int:  # pylint: disable=too-many-lo
 
         # Only what this plan upheld is acted on, and only once its wait is over; a verdict
         # given in this run is not in the plan's list, so it cannot be carried out today.
-        due_delete, due_keep = proposals.split_due(plan.get("proposed") or [], datetime.now(timezone.utc))
+        # Due as of this run's scheduled start, which is what the review page measured against:
+        # a proposal falling due while the judge was answering was listed as waiting, and waits.
+        started = proposals.run_start(
+            datetime.now(timezone.utc), env("CLEANUP_SCHEDULE", required=False), env("TZ", required=False)
+        )
+        due_delete, due_keep = proposals.split_due(plan.get("proposed") or [], started)
         judge_kept = settle_keeps(due_keep, standing, series, tag_labels, ledger, sources.run_id, keep_days)
         approved, set_aside, marked = due_deletes(due_delete, standing, series, tag_labels)
 

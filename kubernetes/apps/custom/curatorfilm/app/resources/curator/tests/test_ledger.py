@@ -36,6 +36,65 @@ class NamespacingTests(unittest.TestCase):
         self.assertIsNone(Ledger(s3, "r2", dry_run=True).read_baseline())
 
 
+class AdoptRehearsalTests(unittest.TestCase):
+    """The first act run begins from what the dry runs left, once, and never over a real record."""
+
+    def rehearsed(self) -> FakeS3:
+        """A store holding what dry runs leave: a baseline, a proposal, a decision and a run."""
+        s3 = FakeS3()
+        dry = Ledger(s3, "r1", dry_run=True)
+        dry.write_baseline({"library_size": 10})
+        dry.write_proposal({"movie_id": 7, "verdict": "delete"})
+        dry.write_decision({"movie_id": 8, "kind": "spare"})
+        dry.record_plan({"run_id": "r1"})
+        return s3
+
+    def test_the_standing_record_comes_over(self):
+        s3 = self.rehearsed()
+        act = Ledger(s3, "r2", dry_run=False)
+        self.assertEqual(act.adopt_rehearsal(), 3)
+        self.assertEqual(act.read_baseline()["library_size"], 10)
+        self.assertEqual(act.read_proposals()[7]["verdict"], "delete")
+        self.assertEqual(act.read_decisions()[8]["kind"], "spare")
+
+    def test_a_rehearsed_run_is_no_part_of_the_real_history(self):
+        s3 = self.rehearsed()
+        Ledger(s3, "r2", dry_run=False).adopt_rehearsal()
+        self.assertEqual([key for key in s3.store if key.startswith("runs/")], [])
+
+    def test_the_rehearsal_keeps_its_own_copy(self):
+        s3 = self.rehearsed()
+        Ledger(s3, "r2", dry_run=False).adopt_rehearsal()
+        self.assertEqual(list(Ledger(s3, "r3", dry_run=True).read_proposals()), [7])
+
+    def test_a_real_record_already_begun_is_left_alone(self):
+        s3 = self.rehearsed()
+        act = Ledger(s3, "r2", dry_run=False)
+        act.write_baseline({"library_size": 99})
+        self.assertEqual(act.adopt_rehearsal(), 0)
+        self.assertEqual(act.read_proposals(), {})
+        self.assertEqual(act.read_baseline()["library_size"], 99)
+
+    def test_it_happens_once(self):
+        s3 = self.rehearsed()
+        act = Ledger(s3, "r2", dry_run=False)
+        act.adopt_rehearsal()
+        act.delete_proposal(7)
+        self.assertEqual(act.adopt_rehearsal(), 0)
+        self.assertEqual(act.read_proposals(), {})
+
+    def test_a_dry_run_adopts_nothing(self):
+        s3 = self.rehearsed()
+        before = dict(s3.store)
+        self.assertEqual(Ledger(s3, "r2", dry_run=True).adopt_rehearsal(), 0)
+        self.assertEqual(s3.store, before)
+
+    def test_with_no_rehearsal_there_is_nothing_to_adopt(self):
+        act = Ledger(FakeS3(), "r1", dry_run=False)
+        self.assertEqual(act.adopt_rehearsal(), 0)
+        self.assertIsNone(act.read_baseline())
+
+
 class FirstSeenTests(unittest.TestCase):
     """The availability fallback may only ever move backwards in time."""
 
