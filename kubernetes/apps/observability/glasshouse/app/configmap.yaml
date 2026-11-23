@@ -7,53 +7,130 @@ metadata:
   namespace: observability
 data:
   # Standard library only, so it runs on stock python with nothing to install.
-  wallpapers.py: |-
-    """Fill Glasshouse Home's time-of-day wallpapers with Bing's latest photos of the day.
+  tvjobs.py: |-
+    """Keep the Glasshouse TVs current whenever one is on: new wallpapers, and a weekly update.
 
-    The newest photo goes to morning, the day before to afternoon, and so on, so each
-    day moves a picture one slot along. Bing serves baseline 1920x1080 JPEGs, which is
-    exactly what Glasshouse Home accepts, so they are uploaded as they come.
+    Runs every 15 minutes and never wakes a TV: one that is off or unreachable is skipped,
+    so the work lands on the first run after someone turns it on.
 
-    A TV that is off or unreachable, or that does not have Glasshouse Home switched
-    on, is skipped: only failing to reach Bing fails the job.
+    Wallpapers: Glasshouse Home's time-of-day slots get Bing's latest four photos (newest to
+    morning). Skipped when the TV's morning slot was uploaded after Bing's newest photo went up,
+    read from the upload time in /api/home's wallpaper revision; if that cannot be read, upload.
+
+    Update: install Glasshouse's latest release when the installed release is at least
+    UPDATE_EVERY_DAYS old and the latest one has been out UPDATE_SOAK_HOURS. The TV fetches
+    and installs it itself and keeps the previous version for rollback.
+
+    Only failing to reach Bing or GitHub is reported; a TV's own failure never fails the job.
+    Standard library only. DRY_RUN=1 prints what it would do and changes nothing.
     """
+    import datetime as dt
     import json
     import os
+    import re
     import urllib.request
 
     SLOTS = ("morning", "afternoon", "evening", "night")
     BING = "https://www.bing.com/HPImageArchive.aspx?format=js&idx=0&n=4&mkt=en-GB"
-    # The API bearer, read at run time from the mounted glasshouse-secret.
-    BEARER = open("/secrets/token").read().strip()
+    GITHUB = "https://api.github.com/repos/rorygallagher2024/glasshouse/releases"
+    BEARER = open(os.environ.get("TOKEN_FILE", "/secrets/token")).read().strip()
     HOSTS = [h for h in os.environ["TV_HOSTS"].split(",") if h]
+    EVERY = dt.timedelta(days=float(os.environ.get("UPDATE_EVERY_DAYS", "7")))
+    SOAK = dt.timedelta(hours=float(os.environ.get("UPDATE_SOAK_HOURS", "2")))
+    DRY = os.environ.get("DRY_RUN") == "1"
+    NOW = dt.datetime.now(dt.timezone.utc)
 
     def fetch(url, data=None, ctype=None, timeout=60):
-        headers = {"User-Agent": "glasshouse-wallpapers"}
+        headers = {"User-Agent": "glasshouse-tvjobs"}
         if url.startswith("http://"):
             headers["Authorization"] = "Bearer " + BEARER
+        if url.startswith(GITHUB):
+            headers["Accept"] = "application/vnd.github+json"
         if ctype:
             headers["Content-Type"] = ctype
         req = urllib.request.Request(url, data=data, headers=headers)
         with urllib.request.urlopen(req, timeout=timeout) as r:
             return r.read()
 
-    photos = json.loads(fetch(BING))["images"][: len(SLOTS)]
-    images = [(p.get("title") or p["urlbase"], fetch("https://www.bing.com" + p["urlbase"] + "_1920x1080.jpg"))
-              for p in photos]
+    def get(url, timeout=10):
+        return json.loads(fetch(url, timeout=timeout))
 
-    for host in HOSTS:
-        base = "http://" + host + ":8080"
-        try:
-            home = json.loads(fetch(base + "/api/home", timeout=10))
-        except OSError as e:
-            print(host, "skipped, unreachable:", e)
-            continue
+    def control(base, action, value=None, timeout=180):
+        body = {"action": action}
+        if value is not None:
+            body["value"] = value
+        return json.loads(fetch(base + "/api/control", json.dumps(body).encode(), "application/json", timeout))
+
+    def when(stamp):
+        return dt.datetime.fromisoformat(stamp.replace("Z", "+00:00"))
+
+    # Bing's newest photo, and when it went up (fullstartdate is UTC, YYYYMMDDHHMM).
+    bing = get(BING, 60)["images"][: len(SLOTS)]
+    bing_since = dt.datetime.strptime(bing[0]["fullstartdate"], "%Y%m%d%H%M").replace(tzinfo=dt.timezone.utc)
+    images = None  # downloaded on first need
+
+    latest = get(GITHUB + "/latest", 30)
+    latest_ver = latest["tag_name"].lstrip("v")
+    latest_age = NOW - when(latest["published_at"])
+    published = {}
+
+    def release_age(ver):
+        if ver not in published:
+            try:
+                published[ver] = NOW - when(get(GITHUB + "/tags/v" + ver, 30)["published_at"])
+            except OSError:
+                published[ver] = None
+        return published[ver]
+
+    def wallpapers(host, base, home):
+        global images
         if not home.get("enabled"):
-            print(host, "skipped, Glasshouse Home is off")
-            continue
+            return print(host, "wallpapers: skipped, Glasshouse Home is off")
+        rev = (home.get("wallpapers") or {}).get("revision") or ""
+        m = re.match(r"own\.(\d{13})-", rev)
+        if m and dt.datetime.fromtimestamp(int(m.group(1)) / 1000, dt.timezone.utc) >= bing_since:
+            return print(host, "wallpapers: already has", bing[0].get("title"))
+        if DRY:
+            return print(host, "wallpapers: would upload", [p.get("title") for p in bing])
+        if images is None:
+            images = [(p.get("title") or p["urlbase"], fetch("https://www.bing.com" + p["urlbase"] + "_1920x1080.jpg"))
+                      for p in bing]
         for slot, (title, data) in zip(SLOTS, images):
             try:
                 ok = json.loads(fetch(base + "/api/home/wallpapers/upload?slot=" + slot, data, "image/jpeg", 120)).get("ok")
             except OSError as e:
                 ok = e
-            print(host, slot, title, "->", ok)
+            print(host, "wallpapers:", slot, title, "->", ok)
+
+    def update(host, base):
+        state = get(base + "/api/update")
+        have = str(state.get("installed") or "").split("+")[0]
+        if not have or have == latest_ver:
+            return print(host, "update: on", have or "?", "(latest", latest_ver + ")")
+        if state.get("state") not in (None, "idle"):
+            return print(host, "update: busy,", state.get("state"))
+        if latest_age < SOAK:
+            return print(host, "update:", latest_ver, "is only", latest_age, "old; waiting")
+        age = release_age(have)
+        if age is not None and age < EVERY:
+            return print(host, "update: on", have, "released", age.days, "days ago; next after", EVERY.days)
+        if DRY:
+            return print(host, "update: would install", latest_ver, "over", have)
+        check = control(base, "updateCheck", True)
+        if not check.get("available"):
+            return print(host, "update: TV sees nothing to install", check.get("error") or "")
+        r = control(base, "update")
+        print(host, "update:", have, "->", latest_ver, "ok" if r.get("ok") else r)
+
+    for host in HOSTS:
+        base = "http://" + host + ":8080"
+        try:
+            home = get(base + "/api/home")
+        except OSError as e:
+            print(host, "skipped, not on:", e)
+            continue
+        for job in (lambda: wallpapers(host, base, home), lambda: update(host, base)):
+            try:
+                job()
+            except (OSError, ValueError, KeyError) as e:
+                print(host, "failed:", e)

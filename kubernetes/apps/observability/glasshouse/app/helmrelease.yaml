@@ -11,14 +11,14 @@ spec:
     name: glasshouse
   values:
     controllers:
-      # Rotates the TVs' Glasshouse Home backgrounds through Bing's photo of the day.
-      # Several runs a day because a TV in deep sleep misses one; a repeat upload of
-      # the same photos changes nothing on screen.
+      # Every 15 minutes so a TV gets its work soon after someone turns it on; it never
+      # wakes a TV. Sets new Bing wallpapers once per photo and installs the latest
+      # Glasshouse release when the installed one is a week old.
       wallpapers:
         type: cronjob
         cronjob:
-          ttlSecondsAfterFinished: 86400
-          schedule: "20 7-23/4 * * *"
+          ttlSecondsAfterFinished: 3600
+          schedule: "*/15 * * * *"
           timeZone: "${TIMEZONE}"
           concurrencyPolicy: Forbid
           successfulJobsHistory: 3
@@ -26,20 +26,22 @@ spec:
           backoffLimit: 2
         containers:
           app:
-            # Stock python, no build step: wallpapers.py is standard library only and
+            # Stock python, no build step: tvjobs.py is standard library only and
             # mounted from the ConfigMap.
             image:
               repository: docker.io/library/python
               tag: 3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928
             command:
               - python3
-              - /scripts/wallpapers.py
+              - /scripts/tvjobs.py
             env:
               TZ: ${TIMEZONE}
               PYTHONDONTWRITEBYTECODE: "1"
               PYTHONUNBUFFERED: "1"
               # Addresses come from cluster-secrets, as in the ScrapeConfig.
               TV_HOSTS: ${SECRET_GLASSHOUSE_TV1_HOST},${SECRET_GLASSHOUSE_TV2_HOST},${SECRET_GLASSHOUSE_TV3_HOST}
+              UPDATE_EVERY_DAYS: "7"
+              UPDATE_SOAK_HOURS: "2"
             resources:
               requests:
                 cpu: 10m
