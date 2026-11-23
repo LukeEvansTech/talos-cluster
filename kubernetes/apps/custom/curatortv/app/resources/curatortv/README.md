@@ -167,7 +167,7 @@ pair, plus:
 | `TAG_KEEPS_IN_DRY_RUN` | `true` lets a dry run add the rating bar's `keep` tag; deletion unaffected |
 | `CLEANUP_KEEP_DAYS`    | days a judge's due keep spares a series before re-judging; default 365     |
 
-The scheduled runs act, as the film engine's do; its README covers what "due" is measured
+The scheduled runs act, as the film engine's do; its own page covers what "due" is measured
 against and how the real record was begun from the dry runs.
 
 ## Undoing a deletion

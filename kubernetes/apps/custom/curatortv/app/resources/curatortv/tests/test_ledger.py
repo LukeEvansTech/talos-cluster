@@ -39,7 +39,7 @@ class NamespacingTests(unittest.TestCase):
 class AdoptRehearsalTests(unittest.TestCase):
     """The first act run begins from what the dry runs left, once, and never over a real record."""
 
-    def rehearsed(self) -> FakeS3:
+    def rehearsed(self):
         """A store holding what dry runs leave: a baseline, a proposal, a decision and a run."""
         s3 = FakeS3()
         dry = Ledger(s3, "r1", dry_run=True)
