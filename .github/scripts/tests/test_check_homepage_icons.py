@@ -20,6 +20,10 @@ check = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(check)
 
 HP = "kubernetes/apps/default/homepage/app"
+GENERATORS = (
+    "configMapGenerator:\n  - name: homepage-config\n    files:\n      - settings.yaml=./resources/settings.yaml\n"
+    "  - name: homepage-icons\n    files:\n      - icons/application.svg\n      - icons/good.svg\n"
+)
 COMPONENT = 'gethomepage.dev/icon: "${HOMEPAGE_ICON:=/icons/dracula/application.svg}"\n'
 
 
@@ -35,7 +39,7 @@ class HomepageIconTests(unittest.TestCase):
     def run_check(self, files: dict[str, str]) -> list[str]:
         """Write the base tree plus files into a temp dir and run the check there."""
         base = {
-            f"{HP}/kustomization.yaml": "  files:\n    - icons/application.svg\n    - icons/good.svg\n",
+            f"{HP}/kustomization.yaml": GENERATORS,
             f"{HP}/icons/sources.tsv": (
                 "# slug\tmode\tthreshold\tsource\napplication\talpha\t0.35\tu\ngood\talpha\t0.35\tu\n"
             ),
@@ -77,7 +81,7 @@ class HomepageIconTests(unittest.TestCase):
         out = self.run_check({"kubernetes/apps/x/new/ks.yaml": ks("/icons/dracula/new.svg")})
         self.assertEqual(len(out), 3)
         self.assertTrue(any("does not exist" in o for o in out))
-        self.assertTrue(any("not listed" in o for o in out))
+        self.assertTrue(any("homepage-icons generator" in o for o in out))
         self.assertTrue(any("no row" in o for o in out))
 
     def test_quoted_value_passes(self):
@@ -87,6 +91,22 @@ class HomepageIconTests(unittest.TestCase):
     def test_trailing_text_fails(self):
         out = self.run_check({"kubernetes/apps/x/good/ks.yaml": ks('"/icons/dracula/good.svg extra"')})
         self.assertEqual(len(out), 1)
+
+    def test_direct_annotation_is_checked(self):
+        route = "metadata:\n  annotations:\n    gethomepage.dev/icon: mdi-git\n"
+        out = self.run_check({"kubernetes/apps/x/forgejo/app/httproute.yaml": route})
+        self.assertEqual(len(out), 1)
+        self.assertIn("httproute.yaml:3", out[0])
+
+    def test_icon_in_other_generator_fails(self):
+        moved = GENERATORS.replace("      - icons/good.svg\n", "").replace(
+            "./resources/settings.yaml\n", "./resources/settings.yaml\n      - icons/good.svg\n"
+        )
+        out = self.run_check(
+            {f"{HP}/kustomization.yaml": moved, "kubernetes/apps/x/good/ks.yaml": ks("/icons/dracula/good.svg")}
+        )
+        self.assertEqual(len(out), 1)
+        self.assertIn("homepage-icons generator", out[0])
 
     def test_ks_without_component_is_ignored(self):
         self.assertEqual(self.run_check({"kubernetes/apps/x/plain/ks.yaml": "spec:\n  interval: 1h\n"}), [])

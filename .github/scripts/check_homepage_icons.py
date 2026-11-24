@@ -3,8 +3,9 @@
 
 A plain `mdi-*` icon renders white beside the purple-to-pink tiles; six Custom tiles had drifted
 that way before this check existed. Every Flux Kustomization that uses the homepage component
-must set HOMEPAGE_ICON to `/icons/dracula/<slug>.svg`, and that slug needs its SVG, its entry in
-the homepage kustomization's configMapGenerator and its row in icons/sources.tsv, so that
+must set HOMEPAGE_ICON to `/icons/dracula/<slug>.svg`, as must any direct `gethomepage.dev/icon`
+annotation, and that slug needs its SVG, its entry in the `homepage-icons` configMapGenerator (the
+one homepage mounts at /app/public/icons/dracula) and its row in icons/sources.tsv, so that
 `uv run scripts/homepage_icons.py <slug>` can regenerate it.
 """
 
@@ -17,6 +18,7 @@ import sys
 HOMEPAGE = pathlib.Path("kubernetes/apps/default/homepage/app")
 COMPONENT = pathlib.Path("kubernetes/components/homepage/kustomization.yaml")
 ICON_RE = re.compile(r"^\s*HOMEPAGE_ICON:\s*(.*?)\s*(?:\s#.*)?$")
+ANNOTATION_RE = re.compile(r"^\s*gethomepage\.dev/icon:\s*(.*?)\s*(?:\s#.*)?$")
 DEFAULT_RE = re.compile(r"\$\{HOMEPAGE_ICON:=([^}]+)\}")
 DRACULA_RE = re.compile(r"^/icons/dracula/([a-z0-9-]+)\.svg$")
 FIX = "fix: add a sources.tsv row, run `uv run scripts/homepage_icons.py <slug>`, list icons/<slug>.svg"
@@ -29,12 +31,24 @@ def scalar(raw: str) -> str:
     return raw
 
 
+def icon_generator_files(kustomization: str) -> set[str]:
+    """Slugs listed under the homepage-icons configMapGenerator's files, and nowhere else."""
+    slugs: set[str] = set()
+    inside = False
+    for line in kustomization.splitlines():
+        if re.match(r"^\s*-\s*name:", line) or re.match(r"^\S", line):
+            inside = bool(re.match(r"^\s*-\s*name:\s*homepage-icons\s*$", line))
+            continue
+        m = re.match(r"^\s*-\s*icons/([a-z0-9-]+)\.svg\s*$", line)
+        if inside and m:
+            slugs.add(m.group(1))
+    return slugs
+
+
 def check(root: pathlib.Path) -> list[str]:
     """Return one problem line per bad icon reference under root."""
     homepage = root / HOMEPAGE
-    listed = set(
-        re.findall(r"^\s*-\s*icons/([a-z0-9-]+)\.svg\s*$", (homepage / "kustomization.yaml").read_text(), re.M)
-    )
+    listed = icon_generator_files((homepage / "kustomization.yaml").read_text())
     sources = {
         line.split("\t")[0]
         for line in (homepage / "icons/sources.tsv").read_text().splitlines()
@@ -50,6 +64,11 @@ def check(root: pathlib.Path) -> list[str]:
         if "components/homepage" in text and not icons:
             problems.append(f"{rel}: uses the homepage component but sets no HOMEPAGE_ICON")
         refs += [(rel, icon) for icon in icons]
+    for path in sorted((root / "kubernetes").rglob("*.y*ml")):
+        for n, line in enumerate(path.read_text().splitlines(), 1):
+            m = ANNOTATION_RE.match(line)
+            if m and "${" not in m.group(1):
+                refs.append((f"{path.relative_to(root).as_posix()}:{n}", scalar(m.group(1))))
     component = root / COMPONENT
     refs += [(COMPONENT.as_posix(), m) for m in DEFAULT_RE.findall(component.read_text())]
 
@@ -62,7 +81,7 @@ def check(root: pathlib.Path) -> list[str]:
         if not (homepage / f"icons/{slug}.svg").is_file():
             problems.append(f"{where}: icons/{slug}.svg does not exist ({FIX})")
         if slug not in listed:
-            problems.append(f"{where}: icons/{slug}.svg is not listed in {HOMEPAGE}/kustomization.yaml")
+            problems.append(f"{where}: icons/{slug}.svg is not in the homepage-icons generator files")
         if slug not in sources:
             problems.append(f"{where}: {slug} has no row in {HOMEPAGE}/icons/sources.tsv")
     return problems
