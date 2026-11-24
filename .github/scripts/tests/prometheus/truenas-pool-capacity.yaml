@@ -1,0 +1,80 @@
+---
+# promtool unit tests for the pool capacity alerts; run by .github/scripts/check_prometheus_rules.py.
+# Each threshold pushes once when the pool has been over it for 15m, then stays quiet for 13 days
+# while it remains over. A spike shorter than `for` never fires, so it cannot mute a later crossing.
+rule_files:
+  - kubernetes/apps/observability/truenas-exporter/app/prometheusrule.yaml
+  - kubernetes/apps/observability/truenas-exporter/app/br-storage.prometheusrule.yaml
+evaluation_interval: 1m
+tests:
+  # 75% for 2h, a 10m spike to 85%, 75% again for 2h, then 85% for good from 4h15m (sample 51).
+  - interval: 5m
+    input_series:
+      - series: 'zfs_pool_size_bytes{box="truenas",pool="pool"}'
+        values: "100x4200"
+      - series: 'zfs_pool_allocated_bytes{box="truenas",pool="pool"}'
+        values: "75x23 85x1 75x25 85x4150"
+      - series: 'zfs_pool_scrape_timestamp_seconds{box="truenas"}'
+        values: "0+300x4200"
+    alert_rule_test:
+      - eval_time: 2h10m
+        alertname: TrueNASPoolCapacityAbove80
+        exp_alerts: []
+      - eval_time: 4h10m
+        alertname: TrueNASPoolCapacityAbove80
+        exp_alerts: []
+      - eval_time: 4h40m
+        alertname: TrueNASPoolCapacityAbove80
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              pushover_event: "true"
+              pool: pool
+            exp_annotations:
+              summary: >-
+                TrueNAS pool pool is over 80% full (85%).
+      - eval_time: 4h40m
+        alertname: TrueNASPoolCapacityAbove90
+        exp_alerts: []
+      # Its own firing suppresses it from two hours on, for 13 days.
+      - eval_time: 8h
+        alertname: TrueNASPoolCapacityAbove80
+        exp_alerts: []
+      - eval_time: 10d
+        alertname: TrueNASPoolCapacityAbove80
+        exp_alerts: []
+      # The fortnightly reminder: suppression ends 13d after the first firing ended (6h30m).
+      - eval_time: 13d9h
+        alertname: TrueNASPoolCapacityAbove80
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              pushover_event: "true"
+              pool: pool
+            exp_annotations:
+              summary: >-
+                TrueNAS pool pool is over 80% full (85%).
+      - eval_time: 14d
+        alertname: TrueNASPoolCapacityAbove80
+        exp_alerts: []
+      - eval_time: 14d
+        alertname: TrueNASPoolMetricsCollectorStale
+        exp_alerts: []
+  # br's nightly snapshot goes from 85% to 95%.
+  - interval: 5m
+    input_series:
+      - series: 'br_health_pool_size_bytes{pool="pool"}'
+        values: "100x60"
+      - series: 'br_health_pool_allocated_bytes{pool="pool"}'
+        values: "85x23 95x36"
+    alert_rule_test:
+      - eval_time: 2h20m
+        alertname: BrStoragePoolCapacityAbove90
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              pushover_event: "true"
+              pool: pool
+            exp_annotations:
+              summary: >-
+                br-storage pool pool is over 90% full (95%).

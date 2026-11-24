@@ -88,6 +88,23 @@ and `BrStorageSmartSelfTestNoDevices` catches a run that read no disks.
 On the main NAS the self-tests themselves are its SHORT and LONG cron jobs (on the 1st, 16th and 31st,
 plus a monthly LONG), so a new failure shows up after the next scheduled test, not at once.
 
+## Pool capacity alerts
+
+`TrueNASPoolCapacityAbove80` and `TrueNASPoolCapacityAbove90` (and the `BrStorage` pair for the
+off-site box) push once when a pool is over the line for 15 minutes, then stay quiet for 13 days.
+node-exporter's filesystem series can't measure pool capacity on ZFS, because a dataset's size is
+its own used plus the pool's free space, so the root dataset reads almost empty. A cron collector
+on the NAS (`apps/monitoring/zfs-pool-metrics.sh` in `truenas-apps-cr`) publishes zpool size and
+allocated instead; allocated divided by size is the percentage TrueNAS's own `ZpoolCapacity`
+alert shows. br's figures come from br-power's nightly health snapshot.
+
+Each alert suppresses itself if it has fired in the last 13 days (Prometheus keeps 14), which also
+ends each firing after two hours. It carries `pushover_event`, so it sends one push and no
+resolved message. A pool that stays over a threshold therefore gets a reminder about once a
+fortnight, and a spike shorter than the 15-minute `for` never fires, so it cannot mute a later
+real crossing. `TrueNASPoolMetricsCollectorStale` and `TrueNASPoolMetricsMissing` cover the
+collector itself.
+
 ## Disk-temperature baseline alert
 
 `TrueNASDiskTemperatureAboveBaseline` warns when an HDD runs more than 10 °C over its own

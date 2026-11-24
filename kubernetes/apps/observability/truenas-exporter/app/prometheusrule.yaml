@@ -332,3 +332,58 @@ spec:
           for: 2h
           labels:
             severity: warning
+
+    # Host-side cron + textfile collector (truenas-apps-cr apps/monitoring/zfs-pool-metrics.sh): zpool
+    # allocated / size, the figure TrueNAS's own ZpoolCapacity alert shows. node-exporter's
+    # filesystem series can't give it (on ZFS a dataset's size is its own used plus the pool's free).
+    # One push per threshold, then at most a reminder a fortnight: an alert that has fired in the last
+    # 13 days (retention is 14d) suppresses itself, which also ends each firing after 2h. Suppression
+    # keys on a real firing, so a spike shorter than `for` never mutes a later crossing.
+    # pushover_event routes it with no resolved message.
+    - name: truenas-pool-capacity.rules
+      rules:
+        - alert: TrueNASPoolCapacityAbove80
+          annotations:
+            summary: >-
+              TrueNAS pool {{ $labels.pool }} is over 80% full ({{ $value | humanizePercentage }}).
+          expr: |-
+            (max by (pool) (zfs_pool_allocated_bytes{box="truenas"} / zfs_pool_size_bytes{box="truenas"})) > 0.80
+            unless on (pool)
+            max_over_time(ALERTS{alertname="TrueNASPoolCapacityAbove80", alertstate="firing"}[13d] offset 2h)
+          for: 15m
+          labels:
+            severity: warning
+            pushover_event: "true"
+        - alert: TrueNASPoolCapacityAbove90
+          annotations:
+            summary: >-
+              TrueNAS pool {{ $labels.pool }} is over 90% full ({{ $value | humanizePercentage }}).
+          expr: |-
+            (max by (pool) (zfs_pool_allocated_bytes{box="truenas"} / zfs_pool_size_bytes{box="truenas"})) > 0.90
+            unless on (pool)
+            max_over_time(ALERTS{alertname="TrueNASPoolCapacityAbove90", alertstate="firing"}[13d] offset 2h)
+          for: 15m
+          labels:
+            severity: warning
+            pushover_event: "true"
+        # Every 15 min; a frozen file would hide a filling pool.
+        - alert: TrueNASPoolMetricsCollectorStale
+          annotations:
+            summary: >-
+              The zpool capacity collector on the NAS has not run in over 1h.
+              Pool capacity alerts may be blind.
+          expr: |-
+            time() - zfs_pool_scrape_timestamp_seconds{box="truenas"} > 3600
+          for: 15m
+          labels:
+            severity: warning
+        - alert: TrueNASPoolMetricsMissing
+          annotations:
+            summary: >-
+              zpool capacity metrics from the NAS have been absent for 1h; check the collector's
+              cron job and node-exporter's textfile directory.
+          expr: |-
+            absent(zfs_pool_scrape_timestamp_seconds{box="truenas"})
+          for: 1h
+          labels:
+            severity: warning
