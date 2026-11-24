@@ -1,5 +1,10 @@
 # Todoist Sort
 
+!!! note "Archived"
+
+    Retired in November 2026 on the move away from Todoist; the manifests are under
+    `.archive/kubernetes/apps/custom/todoist-sort/`. It held no persistent data.
+
 ## Purpose
 
 Two CronJobs in the `custom` namespace. `sort-inbox` sorts new Todoist Inbox items with an LLM

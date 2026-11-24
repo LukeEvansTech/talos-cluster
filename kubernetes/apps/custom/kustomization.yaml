@@ -23,7 +23,6 @@ resources:
   - ./sakuga/ks.yaml
   - ./sleeper/ks.yaml
   - ./subspy/ks.yaml
-  - ./todoist-sort/ks.yaml
 patches:
   # Every app here sits in the Custom homepage group (first on the page; homepage
   # settings.yaml layout), so a new app lands there without setting it itself.

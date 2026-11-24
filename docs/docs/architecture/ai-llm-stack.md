@@ -188,7 +188,6 @@ The model column is where to change it:
 | `paperless-ai`     | `default` | `CUSTOM_API_KEY`       | `CUSTOM_MODEL` (HelmRelease); `self-hosted`               |
 | `sakuga`           | `custom`  | `SAKUGA_LLM_KEY`       | `SAKUGA_LLM_MODEL` (HelmRelease); vision                  |
 | `sleeper`          | `default` | `SLEEPER_LLM_KEY`      | `SLEEPER_LLM_MODEL` (HelmRelease); vision                 |
-| `todoist-sort`     | `custom`  | `ANTHROPIC_API_KEY`    | `[llm] model` in `app/resources/config.toml`              |
 | `suggestarr`       | `media`   | none (AI settings)     | its AI settings                                           |
 | `curatorfilmjudge` | `custom`  | `ANTHROPIC_AUTH_TOKEN` | `JUDGE_MODEL` (HelmRelease); `claude-opus`, key `curator` |
 | `curatortvjudge`   | `custom`  | `ANTHROPIC_AUTH_TOKEN` | `JUDGE_MODEL` (HelmRelease); `claude-opus`, key `curator` |
