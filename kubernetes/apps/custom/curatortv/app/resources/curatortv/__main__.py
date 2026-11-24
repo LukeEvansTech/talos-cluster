@@ -796,16 +796,28 @@ def review_document(plan: dict | None, result: dict | None, judgement: dict | No
     dry_run = os.environ.get("CLEANUP_MODE", "dry-run").lower() != "act"
     try:
         cap = env_int("CLEANUP_MAX_DELETIONS", MAX_DELETIONS_PER_RUN)
-        records = Ledger(build_store(), run_id="report", dry_run=dry_run).read_proposals()
+        ledger = Ledger(build_store(), run_id="report", dry_run=dry_run)
+        records = ledger.read_proposals()
+        # The CronJob's own schedule, read in the pod's time zone, which is the CronJob's too.
+        schedule, zone = env("CLEANUP_SCHEDULE", required=False), env("TZ", required=False)
+        upcoming = proposals.next_firing(schedule, zone, now) if schedule else None
+        # A run started by hand may have deleted already this week; the next run counts those
+        # against its cap, so the page must not list a full batch as going.
+        spent = ledger.deletions_in_window(CAP_WINDOW_DAYS, upcoming) if upcoming else 0
     except (OSError, ValueError, RuntimeError, SystemExit) as exc:
         # Reported, not raised: the digest still has to go out, and it is where this gets read.
         return None, f"the proposals on record could not be read: {exc}"
     current, blocks = reporting.current_plan(plan, now)
-    # The CronJob's own schedule, read in the pod's time zone, which is the CronJob's too.
-    schedule, zone = env("CLEANUP_SCHEDULE", required=False), env("TZ", required=False)
-    if schedule and proposals.next_firing(schedule, zone, now) is None:
+    if schedule and upcoming is None:
         log(f"CLEANUP_SCHEDULE {schedule!r} could not be read: taking the next run as a week after the plan")
-    facts = {"cap": cap, "mode": "dry-run" if dry_run else "act", "blocks": blocks, "schedule": schedule, "zone": zone}
+    facts = {
+        "spent": spent,
+        "cap": cap,
+        "mode": "dry-run" if dry_run else "act",
+        "blocks": blocks,
+        "schedule": schedule,
+        "zone": zone,
+    }
     return review.build("tv", "series_id", current, result, records, now, facts, judgement=judgement), ""
 
 
