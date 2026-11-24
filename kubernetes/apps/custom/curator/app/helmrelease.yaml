@@ -26,6 +26,8 @@ spec:
               TZ: ${TIMEZONE}
               CURATOR_TZ: ${TIMEZONE}
               CURATOR_DATA: /data
+              # The recycle bin's cleanup setting in Radarr and Sonarr, which the engines read at each run.
+              CURATOR_RECYCLE_DAYS: "3"
               CURATOR_PUBLIC_URL: https://curator.${SECRET_DOMAIN}
               RADARR_URL: http://radarr.media.svc.cluster.local
               SONARR_URL: http://sonarr.media.svc.cluster.local

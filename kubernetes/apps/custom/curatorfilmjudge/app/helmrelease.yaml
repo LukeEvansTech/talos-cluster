@@ -175,7 +175,14 @@ spec:
             envFrom:
               - secretRef:
                   name: curatorfilmjudge-secret
-            resources: *small
+            # execute holds the whole Radarr library and its ledger at once: the first act run
+            # was killed at 256Mi within seconds and finished under this.
+            resources:
+              requests:
+                cpu: 10m
+                memory: 128Mi
+              limits:
+                memory: 1Gi
             securityContext: *hardened
     defaultPodOptions:
       securityContext:
