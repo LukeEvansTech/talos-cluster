@@ -16,10 +16,17 @@ import sys
 
 HOMEPAGE = pathlib.Path("kubernetes/apps/default/homepage/app")
 COMPONENT = pathlib.Path("kubernetes/components/homepage/kustomization.yaml")
-ICON_RE = re.compile(r"^\s*HOMEPAGE_ICON:\s*\"?([^\"\s#]+)")
+ICON_RE = re.compile(r"^\s*HOMEPAGE_ICON:\s*(.*?)\s*(?:\s#.*)?$")
 DEFAULT_RE = re.compile(r"\$\{HOMEPAGE_ICON:=([^}]+)\}")
 DRACULA_RE = re.compile(r"^/icons/dracula/([a-z0-9-]+)\.svg$")
 FIX = "fix: add a sources.tsv row, run `uv run scripts/homepage_icons.py <slug>`, list icons/<slug>.svg"
+
+
+def scalar(raw: str) -> str:
+    """The whole YAML scalar with one pair of matching quotes removed, so trailing text is kept."""
+    if len(raw) >= 2 and raw[0] == raw[-1] and raw[0] in "'\"":
+        return raw[1:-1]
+    return raw
 
 
 def check(root: pathlib.Path) -> list[str]:
@@ -39,7 +46,7 @@ def check(root: pathlib.Path) -> list[str]:
     for ks in sorted((root / "kubernetes").rglob("ks.yaml")):
         text = ks.read_text()
         rel = ks.relative_to(root).as_posix()
-        icons = [m.group(1) for line in text.splitlines() if (m := ICON_RE.match(line))]
+        icons = [scalar(m.group(1)) for line in text.splitlines() if (m := ICON_RE.match(line))]
         if "components/homepage" in text and not icons:
             problems.append(f"{rel}: uses the homepage component but sets no HOMEPAGE_ICON")
         refs += [(rel, icon) for icon in icons]

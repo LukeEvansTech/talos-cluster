@@ -115,7 +115,8 @@ double-applies). Keep `spec` keys alphabetical (this repository's ks.yaml conven
 The `homepage` component needs `HOMEPAGE_NAME`, `HOMEPAGE_DESCRIPTION` and
 `HOMEPAGE_ICON: /icons/dracula/<app>.svg`. Generate that icon: add a row to
 `kubernetes/apps/default/homepage/app/icons/sources.tsv`, run `uv run scripts/homepage_icons.py <app>`,
-and list `icons/<app>.svg` in that app's `kustomization.yaml`. `check_homepage_icons.py` enforces it.
+and list `icons/<app>.svg` under the `homepage-icons` generator's `files` in
+`kubernetes/apps/default/homepage/app/kustomization.yaml`. `check_homepage_icons.py` enforces it.
 
 ### Step 5: Generate `app/kustomization.yaml`
 

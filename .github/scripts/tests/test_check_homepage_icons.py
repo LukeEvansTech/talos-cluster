@@ -80,6 +80,14 @@ class HomepageIconTests(unittest.TestCase):
         self.assertTrue(any("not listed" in o for o in out))
         self.assertTrue(any("no row" in o for o in out))
 
+    def test_quoted_value_passes(self):
+        for icon in ("'/icons/dracula/good.svg'", '"/icons/dracula/good.svg"'):
+            self.assertEqual(self.run_check({"kubernetes/apps/x/good/ks.yaml": ks(icon)}), [], icon)
+
+    def test_trailing_text_fails(self):
+        out = self.run_check({"kubernetes/apps/x/good/ks.yaml": ks('"/icons/dracula/good.svg extra"')})
+        self.assertEqual(len(out), 1)
+
     def test_ks_without_component_is_ignored(self):
         self.assertEqual(self.run_check({"kubernetes/apps/x/plain/ks.yaml": "spec:\n  interval: 1h\n"}), [])
 
