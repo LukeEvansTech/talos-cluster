@@ -167,6 +167,55 @@ spec:
           for: 10m
           labels:
             severity: critical
+        # From truenas-apps-br's self-test collector, republished by br-power: overall health can
+        # read PASSED while every self-test fails, so BrStorageDiskSmartFailed alone misses it.
+        # A result arrives the night after br's SHORT test.
+        - alert: BrStorageDiskSelfTestFailed
+          annotations:
+            summary: >-
+              br-storage disk {{ $labels.serial_number }} ({{ $labels.model_name }}) failed its
+              latest SMART self-test; plan a replacement.
+          expr: |-
+            max by (serial_number, model_name) (br_smart_selftest_last_passed) == 0
+          for: 10m
+          labels:
+            severity: warning
+        # The exporter snapshot keeps advancing while node-exporter serves a frozen textfile, so the
+        # collector's own timestamp needs watching, measured at the snapshot rather than now: the
+        # collector's last run is about 18h old when the next window reads it, and the snapshot is
+        # then held for a day. 36h at the snapshot is one whole window with no run.
+        - alert: BrStorageSmartSelfTestStale
+          annotations:
+            summary: >-
+              br-storage's SMART self-test collector had not run for over 36h when br was last read;
+              check its cron job on br.
+          expr: |-
+            br_exporter_collect_timestamp_seconds
+            - ignoring (box) br_smart_selftest_scrape_timestamp_seconds
+            > 129600
+          for: 30m
+          labels:
+            severity: warning
+        - alert: BrStorageSmartSelfTestMissing
+          annotations:
+            summary: >-
+              No SMART self-test metrics from br-storage; check its collector cron job and
+              node-exporter's textfile directory.
+          expr: |-
+            absent(br_smart_selftest_scrape_timestamp_seconds)
+          for: 26h
+          labels:
+            severity: warning
+        # A run that read no disks keeps the old verdicts and a fresh timestamp, so the two rules
+        # above stay quiet while nothing is being read.
+        - alert: BrStorageSmartSelfTestNoDevices
+          annotations:
+            summary: "br-storage's SMART self-test collector read no disks on its last run."
+          expr: |-
+            br_smart_selftest_devices == 0
+          for: 10m
+          labels:
+            severity: warning
         # Disks are keyed by serial: br power-cycles nightly and sdX letters drift between boots.
         - alert: BrStorageDiskPendingSectors
           annotations:

@@ -1,0 +1,113 @@
+---
+# promtool unit tests for the TrueNAS SMART self-test alerts; run by .github/scripts/check_prometheus_rules.py.
+# SER_BAD's newest self-test failed and SER_OK's passed, so only SER_BAD may fire. The collector
+# then stops after 2h; the stale rule fires and the self-test alert keeps its last verdict.
+rule_files:
+  - kubernetes/apps/observability/truenas-exporter/app/prometheusrule.yaml
+  - kubernetes/apps/observability/truenas-exporter/app/br-storage.prometheusrule.yaml
+evaluation_interval: 1m
+tests:
+  - interval: 5m
+    input_series:
+      - series: 'smart_selftest_last_passed{box="truenas",serial_number="SER_BAD",model_name="M",device="sdac"}'
+        values: "0x72"
+      - series: 'smart_selftest_last_passed{box="truenas",serial_number="SER_OK",model_name="M",device="sdb"}'
+        values: "1x72"
+      - series: 'smart_selftest_devices{box="truenas"}'
+        values: "2x72"
+      - series: 'smart_selftest_scrape_timestamp_seconds{box="truenas"}'
+        values: "0+300x24 7200x48"
+    alert_rule_test:
+      - eval_time: 30m
+        alertname: TrueNASDiskSelfTestFailed
+        exp_alerts: []
+      - eval_time: 2h
+        alertname: TrueNASDiskSelfTestFailed
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              serial_number: SER_BAD
+              model_name: M
+              device: sdac
+            exp_annotations:
+              summary: >-
+                TrueNAS disk SER_BAD (M, sdac) failed its latest SMART self-test; plan a replacement.
+      - eval_time: 2h
+        alertname: TrueNASSmartSelfTestCollectorStale
+        exp_alerts: []
+      - eval_time: 6h
+        alertname: TrueNASSmartSelfTestCollectorStale
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              box: truenas
+            exp_annotations:
+              summary: >-
+                The SMART self-test collector on the NAS has not run in over 3h. Self-test alerts may be blind.
+      - eval_time: 6h
+        alertname: TrueNASSmartSelfTestNoDevices
+        exp_alerts: []
+  # br's series arrive republished by br-power under a br_ prefix; only the failed disk fires.
+  - interval: 5m
+    input_series:
+      - series: 'br_smart_selftest_last_passed{box="truenas",serial_number="BR_BAD",model_name="M",device="sdc"}'
+        values: "0x12"
+      - series: 'br_smart_selftest_last_passed{box="truenas",serial_number="BR_OK",model_name="M",device="sdd"}'
+        values: "1x12"
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: BrStorageDiskSelfTestFailed
+        exp_alerts: []
+      - eval_time: 30m
+        alertname: BrStorageDiskSelfTestFailed
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              serial_number: BR_BAD
+              model_name: M
+            exp_annotations:
+              summary: >-
+                br-storage disk BR_BAD (M) failed its latest SMART self-test; plan a replacement.
+  # br's collector runs 18h before each snapshot (healthy: no alert for days), then stops
+  # after 25h; once a snapshot finds it over 36h old, the stale alert fires.
+  - interval: 5m
+    input_series:
+      - series: "br_exporter_collect_timestamp_seconds"
+        values: "64800+300x900"
+      - series: 'br_smart_selftest_scrape_timestamp_seconds{box="truenas"}'
+        values: "0+300x300 90000x600"
+    alert_rule_test:
+      - eval_time: 24h
+        alertname: BrStorageSmartSelfTestStale
+        exp_alerts: []
+      - eval_time: 40h
+        alertname: BrStorageSmartSelfTestStale
+        exp_alerts: []
+      - eval_time: 50h
+        alertname: BrStorageSmartSelfTestStale
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+            exp_annotations:
+              summary: >-
+                br-storage's SMART self-test collector had not run for over 36h when br was last read; check its cron job on br.
+      - eval_time: 50h
+        alertname: BrStorageSmartSelfTestMissing
+        exp_alerts: []
+  # A br run that read no disks fires the no-devices guard; one that read some does not.
+  - interval: 5m
+    input_series:
+      - series: 'br_smart_selftest_devices{box="truenas"}'
+        values: "24x6 0x12"
+    alert_rule_test:
+      - eval_time: 25m
+        alertname: BrStorageSmartSelfTestNoDevices
+        exp_alerts: []
+      - eval_time: 80m
+        alertname: BrStorageSmartSelfTestNoDevices
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              box: truenas
+            exp_annotations:
+              summary: "br-storage's SMART self-test collector read no disks on its last run."

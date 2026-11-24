@@ -283,3 +283,52 @@ spec:
           for: 168h
           labels:
             severity: warning
+
+    # Host-side cron + textfile collector (truenas-apps-cr apps/monitoring/smart-selftest-metrics.sh):
+    # smartctl-exporter does not read the self-test log, and a disk can fail every self-test while
+    # its overall health reads PASSED, so SmartDeviceTestFailed stays quiet. One NAS disk did
+    # exactly that from June to November 2026 with only a TrueNAS email to show for it.
+    - name: truenas-smart-selftest.rules
+      rules:
+        # Keyed by serial (sdX letters move). Clears once a newer self-test passes or the disk is
+        # pulled. Warning, so Pushover repeats daily while the disk stays in the pool.
+        - alert: TrueNASDiskSelfTestFailed
+          annotations:
+            summary: >-
+              TrueNAS disk {{ $labels.serial_number }} ({{ $labels.model_name }}, {{ $labels.device }})
+              failed its latest SMART self-test; plan a replacement.
+          expr: |-
+            max by (serial_number, model_name, device) (smart_selftest_last_passed{box="truenas"}) == 0
+          for: 1h
+          labels:
+            severity: warning
+        # The collector runs hourly; 3h is two missed runs plus slack.
+        - alert: TrueNASSmartSelfTestCollectorStale
+          annotations:
+            summary: >-
+              The SMART self-test collector on the NAS has not run in over 3h.
+              Self-test alerts may be blind.
+          expr: |-
+            time() - smart_selftest_scrape_timestamp_seconds{box="truenas"} > 10800
+          for: 15m
+          labels:
+            severity: warning
+        - alert: TrueNASSmartSelfTestMetricsMissing
+          annotations:
+            summary: >-
+              SMART self-test metrics from the NAS have been absent for 3h; check the
+              collector's cron job and node-exporter's textfile directory.
+          expr: |-
+            absent(smart_selftest_scrape_timestamp_seconds{box="truenas"})
+          for: 3h
+          labels:
+            severity: warning
+        # A run that read no disks writes no per-disk series, so a failing disk would just go quiet.
+        - alert: TrueNASSmartSelfTestNoDevices
+          annotations:
+            summary: "The SMART self-test collector on the NAS read no disks on its last run."
+          expr: |-
+            smart_selftest_devices{box="truenas"} == 0
+          for: 2h
+          labels:
+            severity: warning
