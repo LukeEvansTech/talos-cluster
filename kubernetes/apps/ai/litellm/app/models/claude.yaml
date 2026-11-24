@@ -21,7 +21,7 @@ spec:
         - top_p
         - top_k
         - reasoning_effort
-        # llama.cpp-only switch (todoist-sort); Anthropic 400s on unknown body keys.
+        # llama.cpp-only switch; Anthropic 400s on unknown body keys.
         - chat_template_kwargs
   info:
     mode: chat
