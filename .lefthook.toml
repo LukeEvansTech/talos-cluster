@@ -110,7 +110,7 @@ glob = ["kubernetes/apps/default/chaski/app/*.yaml", ".github/scripts/tests/chas
 # A plain mdi-* tile icon renders white beside the generated Dracula gradient ones.
 [pre-commit.commands.check-homepage-icons]
 run = "python3 .github/scripts/check_homepage_icons.py"
-glob = ["kubernetes/**/ks.yaml", "kubernetes/components/homepage/**", "kubernetes/apps/default/homepage/app/**", ".github/scripts/check_homepage_icons.py"]
+glob = ["kubernetes/**", ".github/scripts/check_homepage_icons.py"]
 
 # An archived app's virtual key, kustomization entry or dependsOn elsewhere in kubernetes/ outlives
 # the move; see docs/docs/operations/retiring-an-app.md.

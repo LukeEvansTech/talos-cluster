@@ -18,7 +18,7 @@ import sys
 HOMEPAGE = pathlib.Path("kubernetes/apps/default/homepage/app")
 ICON_RE = re.compile(r"^\s*HOMEPAGE_ICON:\s*(.*?)\s*(?:\s#.*)?$")
 ANNOTATION_RE = re.compile(r"^\s*gethomepage\.dev/icon:\s*(.*?)\s*(?:\s#.*)?$")
-DEFAULT_RE = re.compile(r"\$\{HOMEPAGE_ICON:=([^}]+)\}")
+DEFAULT_RE = re.compile(r"\$\{[A-Z_]+:=([^}]+)\}")
 DRACULA_RE = re.compile(r"^/icons/dracula/([a-z0-9-]+)\.svg$")
 FIX = "fix: add a sources.tsv row, run `uv run scripts/homepage_icons.py <slug>`, list icons/<slug>.svg"
 
@@ -71,10 +71,10 @@ def check(root: pathlib.Path) -> list[str]:
             where, value = f"{path.relative_to(root).as_posix()}:{n}", scalar(m.group(1))
             if "${" not in value:
                 refs.append((where, value))
-            elif defaults := DEFAULT_RE.findall(value):
-                refs += [(where, d) for d in defaults]
+            elif d := DEFAULT_RE.fullmatch(value):
+                refs.append((where, d.group(1)))
             else:
-                problems.append(f"{where}: templated icon {value!r} has no ${{VAR:=/icons/dracula/<slug>.svg}} default")
+                problems.append(f"{where}: templated icon {value!r} is not exactly ${{VAR:=/icons/dracula/<slug>.svg}}")
 
     for where, icon in refs:
         m = DRACULA_RE.match(icon)

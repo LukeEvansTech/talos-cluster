@@ -108,7 +108,13 @@ class HomepageIconTests(unittest.TestCase):
         route = "metadata:\n  annotations:\n    gethomepage.dev/icon: ${HOMEPAGE_ICON}\n"
         out = self.run_check({"kubernetes/apps/x/forgejo/app/httproute.yaml": route})
         self.assertEqual(len(out), 1)
-        self.assertIn("has no", out[0])
+        self.assertIn("is not exactly", out[0])
+
+    def test_templated_annotation_with_suffix_fails(self):
+        route = "metadata:\n  annotations:\n    gethomepage.dev/icon: ${HOMEPAGE_ICON:=/icons/dracula/good.svg}.png\n"
+        out = self.run_check({"kubernetes/apps/x/forgejo/app/httproute.yaml": route})
+        self.assertEqual(len(out), 1)
+        self.assertIn("is not exactly", out[0])
 
     def test_icon_in_other_generator_fails(self):
         moved = GENERATORS.replace("      - icons/good.svg\n", "").replace(
