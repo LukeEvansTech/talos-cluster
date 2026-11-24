@@ -6,8 +6,8 @@
 for the storage host's metrics. The exporter setup, port inventory and the "metric reality"
 of TrueNAS SCALE 25.10 are covered in
 [TrueNAS monitoring setup](../operations/truenas-monitoring.md). This page covers what that
-one doesn't: the replication-alert design, the disk-temperature baseline alert and the
-scrapeconfig job-naming decision.
+one doesn't: the replication-alert design, the SMART self-test alerts, the disk-temperature
+baseline alert and the scrapeconfig job-naming decision.
 
 ## Replication alert design
 
@@ -51,6 +51,42 @@ Each alert covers one blind spot the others can't see:
 `TrueNASReplicationDisabled` and `TrueNASReplicationMetricsMissing` are the only two rules
 scoped to a specific task ID. If the DR replication task is ever recreated in TrueNAS, it
 gets a new middleware ID, and both expressions need updating to match.
+
+## SMART self-test alerts
+
+smartctl-exporter reports a disk's overall health and its attributes but not its self-test
+log, and the two can disagree for months. One NAS disk failed every self-test from June
+2026 with `read failure` while its overall health still read PASSED, so
+`SmartDeviceTestFailed` (which watches `smartctl_device_smart_status`) never fired. The only
+notice was TrueNAS's own `SMARTFailedSelfTest` alert, which is a warning and goes out by email.
+
+A cron collector on the NAS (`apps/monitoring/smart-selftest-metrics.sh` in
+`truenas-apps-cr`) now reads each disk's self-test log hourly and writes
+`smart_selftest.prom` for node-exporter's textfile collector, as the replication collector
+does. The newest finished test counts; a test that is still running, was aborted or was cut
+off by a reset is skipped. Disks with no self-test log (the SATADOMs and some NVMe drives) get
+`smart_selftest_log_read 0` and no verdict. A disk whose log can't be read on one run, because
+it is spun down or the command failed, keeps its previous verdict, so a failing disk's alert
+does not clear on a bad read.
+
+- `TrueNASDiskSelfTestFailed`: the newest completed self-test on a disk failed. It is keyed
+  by serial and clears when a later test passes or the disk leaves the box. As a warning it
+  repeats daily on Pushover while the disk stays in.
+- `TrueNASSmartSelfTestCollectorStale`: the collector has not run for 3h (it runs hourly).
+- `TrueNASSmartSelfTestMetricsMissing`: the series are gone for 3h.
+- `TrueNASSmartSelfTestNoDevices`: a run read no disks, which would otherwise make a failing
+  disk's alert resolve quietly.
+
+br-storage runs the same collector (truenas-apps-br), and br-power republishes its series
+as `br_smart_selftest_*` with the rest of br's exporters, so `BrStorageDiskSelfTestFailed`
+covers the off-site box. br is up for about seven hours a night, too short for a LONG test to
+finish on its disks, so it runs SHORT tests only, and a result shows up the night after.
+`BrStorageSmartSelfTestStale` and `BrStorageSmartSelfTestMissing` watch the collector's own
+timestamp, since the nightly exporter snapshot keeps advancing even if br's cron job stops,
+and `BrStorageSmartSelfTestNoDevices` catches a run that read no disks.
+
+On the main NAS the self-tests themselves are its SHORT and LONG cron jobs (on the 1st, 16th and 31st,
+plus a monthly LONG), so a new failure shows up after the next scheduled test, not at once.
 
 ## Disk-temperature baseline alert
 
