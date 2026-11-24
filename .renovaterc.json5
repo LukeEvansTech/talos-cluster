@@ -721,6 +721,15 @@
       allowedVersions: "!/^1\\.0\\.5$/",
     },
     {
+      // 2.7.7 lost a comma in its list of paths served without a login, so /account/login
+      // redirects to itself and the probes on / never pass (Helm rolled the upgrade back).
+      // Drop once a fixed tag ships.
+      description: "tandoor: skip the broken 2.7.7 image",
+      matchDatasources: ["docker"],
+      matchPackageNames: ["ghcr.io/tandoorrecipes/recipes"],
+      allowedVersions: "!/^2\\.7\\.7$/",
+    },
+    {
       // Paper lists new Minecraft versions before any STABLE build exists
       // (e.g. 26.2 shipped ALPHA/BETA only, PR #3533); the itzg image
       // defaults PAPER_CHANNEL to stable-only, so merging early crash-loops
