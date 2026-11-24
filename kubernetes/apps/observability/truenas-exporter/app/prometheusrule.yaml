@@ -61,7 +61,7 @@ spec:
                   smartctl_device_temperature{job="smartctl-exporter", temperature_type="current", device=~"sd.*"}
                   * on (instance, device) group_left (serial_number) smartctl_device{job="smartctl-exporter"}
                 )
-              )[7d:5m]
+              )[7d:15m]
             )
             > 10
           for: 1h

@@ -1,0 +1,62 @@
+---
+# promtool unit tests for the main NAS's HDD temperature baseline alert; run by .github/scripts/check_prometheus_rules.py.
+# SER_A (36 °C) and SER_B (50 °C) swap sda/sdb across a reboot at 155h-157h: quiet, as the rule keys on
+# serial_number (keyed on device, sda would read 14 °C over its median). SER_C holds 36 °C for a week, then
+# runs at 58 °C from 168h, under the absolute > 60 rule: fires after the 1h hold.
+rule_files:
+  - kubernetes/apps/observability/truenas-exporter/app/prometheusrule.yaml
+evaluation_interval: 1m
+tests:
+  - interval: 5m
+    input_series:
+      - series: 'smartctl_device{job="smartctl-exporter",instance="nas:9633",device="sda",serial_number="SER_A"}'
+        values: "1x1859"
+      - series: 'smartctl_device_temperature{job="smartctl-exporter",instance="nas:9633",device="sda",temperature_type="current"}'
+        values: "36x1859 _x24 50x419"
+      - series: 'smartctl_device{job="smartctl-exporter",instance="nas:9633",device="sdb",serial_number="SER_B"}'
+        values: "1x1859"
+      - series: 'smartctl_device_temperature{job="smartctl-exporter",instance="nas:9633",device="sdb",temperature_type="current"}'
+        values: "50x1859 _x24 36x419"
+      - series: 'smartctl_device{job="smartctl-exporter",instance="nas:9633",device="sda",serial_number="SER_B"}'
+        values: "_x1884 1x419"
+      - series: 'smartctl_device{job="smartctl-exporter",instance="nas:9633",device="sdb",serial_number="SER_A"}'
+        values: "_x1884 1x419"
+    alert_rule_test:
+      - eval_time: 162h
+        alertname: TrueNASDiskTemperatureAboveBaseline
+        exp_alerts: []
+      - eval_time: 191h
+        alertname: TrueNASDiskTemperatureAboveBaseline
+        exp_alerts: []
+  # Separate from the swap above: promtool caps the samples one query may load, and a 7-day
+  # subquery over all three disks at once exceeds it.
+  - interval: 5m
+    input_series:
+      - series: 'smartctl_device{job="smartctl-exporter",instance="nas:9633",device="sdc",serial_number="SER_C"}'
+        values: "1x2303"
+      - series: 'smartctl_device_temperature{job="smartctl-exporter",instance="nas:9633",device="sdc",temperature_type="current"}'
+        values: "36x2015 58x287"
+    alert_rule_test:
+      - eval_time: 167h
+        alertname: TrueNASDiskTemperatureAboveBaseline
+        exp_alerts: []
+      - eval_time: 170h
+        alertname: TrueNASDiskTemperatureAboveBaseline
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              serial_number: SER_C
+            exp_annotations:
+              summary: >-
+                TrueNAS disk SER_C is 22°C above its 7-day median; check the chassis fans and fan
+                mode.
+      - eval_time: 191h
+        alertname: TrueNASDiskTemperatureAboveBaseline
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              serial_number: SER_C
+            exp_annotations:
+              summary: >-
+                TrueNAS disk SER_C is 22°C above its 7-day median; check the chassis fans and fan
+                mode.
