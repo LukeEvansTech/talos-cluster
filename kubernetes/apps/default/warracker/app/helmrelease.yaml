@@ -19,7 +19,7 @@ spec:
           app:
             image:
               repository: ghcr.io/sassanix/warracker/main
-              tag: 1.0.6@sha256:8a59ead00c8c4c6df28c1ad3abd5d6de72cb2bab57f294413e1492f57672170c
+              tag: 1.0.7@sha256:72fba72a19ac2f6710068010d3ff3dafcf47d52a4ddc7e8db3e35847fa8bb01c
             env:
               TZ: ${TIMEZONE}
               PYTHONUNBUFFERED: "1"
