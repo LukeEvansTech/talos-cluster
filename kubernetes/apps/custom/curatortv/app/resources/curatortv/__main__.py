@@ -722,7 +722,9 @@ def cmd_execute(args: argparse.Namespace) -> int:  # pylint: disable=too-many-lo
         judge_kept = settle_keeps(due_keep, standing, series, tag_labels, ledger, sources.run_id, keep_days)
         approved, set_aside, marked = due_deletes(due_delete, standing, series, tag_labels)
 
-        already = ledger.deletions_in_window(CAP_WINDOW_DAYS)
+        # Counted back from the same start the page counted from, so the minutes the judge took
+        # cannot let a deletion leave the window and widen the batch the page listed.
+        already = ledger.deletions_in_window(CAP_WINDOW_DAYS, started)
         selected, deferred = select_batch(approved, cap, already, first=marked)
         log(
             f"{len(approved)} due, {already} already deleted this window, "
