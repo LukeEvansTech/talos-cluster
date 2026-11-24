@@ -20,6 +20,7 @@ configMapGenerator:
     files:
       - icons/actual.svg
       - icons/anubis.svg
+      - icons/application.svg
       - icons/arrmcp.svg
       - icons/audiobookshelf.svg
       - icons/autobrr.svg

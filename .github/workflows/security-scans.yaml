@@ -74,6 +74,10 @@ jobs:
       # most of a month's spend (#6327).
       - name: LiteLLM virtual key docs check
         run: python3 .github/scripts/check_virtualkey_docs.py
+      # A plain mdi-* tile icon renders white beside the generated Dracula gradient ones; six
+      # Custom tiles drifted that way before this check (#7705).
+      - name: Homepage icon check
+        run: python3 -m unittest discover -s .github/scripts/tests -p test_check_homepage_icons.py && python3 .github/scripts/check_homepage_icons.py
 
   archived-app-refs:
     name: Archived App References

@@ -112,6 +112,11 @@ The `volsync` component goes in `ks.yaml` `spec.components` **only**, never also
 `app/kustomization.yaml` (Flux applies ks.yaml components on top of the path build; listing in both
 double-applies). Keep `spec` keys alphabetical (this repository's ks.yaml convention).
 
+The `homepage` component needs `HOMEPAGE_NAME`, `HOMEPAGE_DESCRIPTION` and
+`HOMEPAGE_ICON: /icons/dracula/<app>.svg`. Generate that icon: add a row to
+`kubernetes/apps/default/homepage/app/icons/sources.tsv`, run `uv run scripts/homepage_icons.py <app>`,
+and list `icons/<app>.svg` in that app's `kustomization.yaml`. `check_homepage_icons.py` enforces it.
+
 ### Step 5: Generate `app/kustomization.yaml`
 
 ```text
