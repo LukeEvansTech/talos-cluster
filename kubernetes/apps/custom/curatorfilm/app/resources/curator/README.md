@@ -188,7 +188,8 @@ A run started by hand between two firings therefore takes what the earlier
 firing was due to take, and nothing newer. To have it take the next
 firing's list early, set `CLEANUP_RUN_AS` on that one Job to the next firing's
 time (`2026-11-28T08:30:00Z`): `execute` then measures "due" against it, and
-refuses any time that is not exactly the next firing. Without a schedule that can be read,
+refuses any time that is not exactly the next firing, or one more than five
+days ahead, where the cap could lose count of what this run deleted. Without a schedule that can be read,
 "due" is measured against the clock.
 
 **Beginning the real record from the rehearsals.** Dry-run state lives under

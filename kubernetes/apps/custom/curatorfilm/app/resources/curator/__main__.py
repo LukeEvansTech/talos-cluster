@@ -15,7 +15,7 @@ import sys
 import unittest
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -583,6 +583,11 @@ def due_as_of(now: datetime) -> tuple[datetime | None, str]:
     ahead, why = proposals.stand_in(env("CLEANUP_RUN_AS", required=False), now, schedule, zone)
     if why:
         return None, why
+    if ahead and ahead - now > timedelta(days=CAP_WINDOW_DAYS - 1):
+        # The cap counts deletions over CAP_WINDOW_DAYS, back from when the scheduled run reaches
+        # its own deletes. Made earlier than a day inside that, these could have left the count
+        # by then, and the run they stand in for would take a full batch more.
+        return None, f"CLEANUP_RUN_AS is over {CAP_WINDOW_DAYS - 1} days ahead: the cap might not count this run"
     if ahead:
         log(f"started early: acting as the run scheduled for {ahead.isoformat()}")
     return ahead or proposals.run_start(now, schedule, zone), ""

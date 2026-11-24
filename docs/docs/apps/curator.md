@@ -106,7 +106,8 @@ kubectl -n custom create -f early.yaml
 ```
 
 `execute` refuses a time that is not exactly the next firing, so the line cannot reach past what the
-page lists. The scheduled run still happens, and its deletions count the early ones against the cap.
+page lists, and one more than five days ahead, so the scheduled run, which still happens, counts the
+early deletions against its cap.
 
 The judge's `app` container logs the publish outcome; the Runs page and
 `curator_last_document_timestamp_seconds{library="film"}` confirm the document arrived.

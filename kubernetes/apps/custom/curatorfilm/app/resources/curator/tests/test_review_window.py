@@ -605,6 +605,16 @@ class DueAsOfTests(unittest.TestCase):
     def test_told_to_act_as_the_next_run_it_is_that_run(self):
         self.assertEqual(self.read(CLEANUP_RUN_AS="2026-11-28T09:30:00Z"), (at(2026, 11, 28, 9, 30), ""))
 
+    def test_too_far_ahead_for_the_cap_to_count_it_names_no_moment(self):
+        """The cap looks back six days from the scheduled run's deletes; a day of that is kept in hand."""
+        settings = {"CLEANUP_SCHEDULE": SATURDAYS, "TZ": LONDON, "CLEANUP_RUN_AS": "2026-11-28T09:30:00Z"}
+        with mock.patch.dict(os.environ, settings):
+            for early in (at(2026, 11, 21, 10, 30), at(2026, 11, 23, 9, 29)):
+                started, why = cli.due_as_of(early)
+                self.assertIsNone(started)
+                self.assertIn("the cap might not count this run", why)
+            self.assertEqual(cli.due_as_of(at(2026, 11, 23, 9, 30))[0], at(2026, 11, 28, 9, 30))
+
     def test_told_to_act_as_any_other_it_names_no_moment(self):
         started, why = self.read(CLEANUP_RUN_AS="2026-12-05T09:30:00Z")
         self.assertIsNone(started)
