@@ -117,5 +117,7 @@ spec:
           - path: /data
       cache:
         type: emptyDir
+        # The image entrypoint defaults XDG_CACHE_HOME to /cache, and the root filesystem is not
+        # writable there as uid 1000, so every restic command failed to open its cache.
         globalMounts:
-          - path: /root/.cache
+          - path: /cache
