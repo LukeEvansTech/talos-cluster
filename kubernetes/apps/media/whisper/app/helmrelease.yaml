@@ -26,7 +26,7 @@ spec:
             # the line is spoken, so subtitles appeared during silences.
             image:
               repository: docker.io/mccloud/subgen
-              tag: 2026.07.3@sha256:2841515a3b409677669f0a10d77d49160bffb8111db91640fb33a4db06b3396c
+              tag: 2026.11.2@sha256:2c03eb4bc02c7bd88bdddb05a2380de37082354aea0cf9cd060a320461cfc47e
             env: &env
               TRANSCRIBE_DEVICE: cuda
               # Multilingual, so Bazarr can also request task=translate; the turbo and distil
