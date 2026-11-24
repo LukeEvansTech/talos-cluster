@@ -6,3 +6,12 @@ resources:
   - ./externalsecret.yaml
   - ./helmrelease.yaml
   - ./ocirepository.yaml
+configMapGenerator:
+  - name: backrest-seed
+    files:
+      - ./resources/seed-config.sh
+generatorOptions:
+  disableNameSuffixHash: true
+  annotations:
+    # The script writes a literal ${RESTIC_REPOSITORY_BASE} for backrest to expand.
+    kustomize.toolkit.fluxcd.io/substitute: disabled
