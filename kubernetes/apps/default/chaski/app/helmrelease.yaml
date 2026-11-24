@@ -36,18 +36,20 @@ spec:
         kometa:
           apprise:
             url: pover://{{ env "PUSHOVER_USER_KEY" }}@{{ env "KOMETA_PUSHOVER_TOKEN" }}
+      # Links use the route host: the arrs leave applicationUrl empty, so it gave a host-less
+      # link that did nothing when tapped. Pushover's HTML has no <small>, which renders as text.
       routes:
         radarr-download:
           target: radarr
           title: "Movie {{ if .payload.isUpgrade }}Upgraded{{ else }}Added{{ end }}"
           message: |-
             <b>{{ .payload.movie.title }} ({{ .payload.movie.year }})</b>
-            <small>{{ .payload.movie.overview | ellipsis 300 }}</small>
-            <small><b>Client:</b> {{ .payload.downloadClient | default "unknown" }}</small>
+            {{ .payload.movie.overview | ellipsis 300 }}
+            <b>Client:</b> {{ .payload.downloadClient | default "unknown" }}
           params:
             format: html
             priority: low
-            url: "{{ .payload.applicationUrl }}/movie/{{ .payload.movie.tmdbId }}"
+            url: "https://radarr.${SECRET_DOMAIN}/movie/{{ .payload.movie.tmdbId }}"
             url_title: View Movie
           # Kometa's add-missing titles (tagged kometa*) are bulk backfill; pushing each one spent the
           # shared Pushover quota.
@@ -59,11 +61,11 @@ spec:
           title: Movie Requires Manual Interaction
           message: |-
             <b>{{ .payload.movie.title }} ({{ .payload.movie.year }})</b>
-            <small><b>Client:</b> {{ .payload.downloadClient | default "unknown" }}</small>
+            <b>Client:</b> {{ .payload.downloadClient | default "unknown" }}
           params:
             format: html
             priority: high
-            url: "{{ .payload.applicationUrl }}/activity/queue"
+            url: "https://radarr.${SECRET_DOMAIN}/activity/queue"
             url_title: View Queue
           whenExpr: payload.eventType == "ManualInteractionRequired"
         # Sonarr sends this on Import Complete only: one push per download, so a season pack
@@ -73,12 +75,12 @@ spec:
           title: Download Complete
           message: |-
             <b>{{ .payload.series.title }} ({{ printf "S%02dE%02d" (toInt (index .payload.episodes 0).seasonNumber) (toInt (index .payload.episodes 0).episodeNumber) }}{{ if gt (len .payload.episodes) 1 }}, {{ len .payload.episodes }} episodes{{ end }})</b>
-            <small>{{ if eq (len .payload.episodes) 1 }}{{ (index .payload.episodes 0).title }}{{ else }}Multi-episode import{{ end }}</small>
-            <small><b>Client:</b> {{ .payload.downloadClient | default "unknown" }}</small>
+            {{ if eq (len .payload.episodes) 1 }}{{ (index .payload.episodes 0).title }}{{ else }}Multi-episode import{{ end }}
+            <b>Client:</b> {{ .payload.downloadClient | default "unknown" }}
           params:
             format: html
             priority: low
-            url: "{{ .payload.applicationUrl }}/series/{{ .payload.series.titleSlug }}"
+            url: "https://sonarr.${SECRET_DOMAIN}/series/{{ .payload.series.titleSlug }}"
             url_title: View Series
           # Sonarr v4 sends Import Complete as eventType "Download"; "ImportComplete" is accepted too
           # in case a later release gives it its own type. Kometa-tagged series skip, as above, and so do
@@ -92,11 +94,11 @@ spec:
           title: Episode Requires Manual Interaction
           message: |-
             <b>{{ .payload.series.title }}</b>
-            <small><b>Client:</b> {{ .payload.downloadClient | default "unknown" }}</small>
+            <b>Client:</b> {{ .payload.downloadClient | default "unknown" }}
           params:
             format: html
             priority: high
-            url: "{{ .payload.applicationUrl }}/activity/queue"
+            url: "https://sonarr.${SECRET_DOMAIN}/activity/queue"
             url_title: View Queue
           whenExpr: payload.eventType == "ManualInteractionRequired"
         # This sender runs off-cluster, so the route needs its own token: the chart's global
@@ -133,7 +135,7 @@ spec:
           title: "Kometa error{{ if .payload.critical }} (critical){{ end }}"
           message: |-
             <b>{{ .payload.library_name | default "global" }}{{ if .payload.collection }} / {{ .payload.collection }}{{ end }}</b>
-            <small>{{ .payload.error | ellipsis 500 }}</small>
+            {{ .payload.error | ellipsis 500 }}
           params:
             format: html
             priority: high
@@ -143,9 +145,9 @@ spec:
           title: Kometa run finished
           message: |-
             <b>{{ .payload.run_time }}</b>
-            <small>Collections: {{ .payload.collections_created }} created, {{ .payload.collections_modified }} modified, {{ .payload.collections_deleted }} deleted</small>
-            <small>Items: {{ .payload.items_added }} added, {{ .payload.items_removed }} removed</small>
-            <small>Sent to Radarr: {{ .payload.added_to_radarr }}, Sonarr: {{ .payload.added_to_sonarr }}</small>
+            Collections: {{ .payload.collections_created }} created, {{ .payload.collections_modified }} modified, {{ .payload.collections_deleted }} deleted
+            Items: {{ .payload.items_added }} added, {{ .payload.items_removed }} removed
+            Sent to Radarr: {{ .payload.added_to_radarr }}, Sonarr: {{ .payload.added_to_sonarr }}
           params:
             format: html
             priority: low
