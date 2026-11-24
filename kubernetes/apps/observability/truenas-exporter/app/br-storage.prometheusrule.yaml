@@ -167,6 +167,32 @@ spec:
           for: 10m
           labels:
             severity: critical
+        # Pool capacity from the nightly health snapshot, same one-push-then-fortnightly design as the
+        # main NAS's truenas-pool-capacity.rules. Freshness is BrStorageHealthStale's job.
+        - alert: BrStoragePoolCapacityAbove80
+          annotations:
+            summary: >-
+              br-storage pool {{ $labels.pool }} is over 80% full ({{ $value | humanizePercentage }}).
+          expr: |-
+            (max by (pool) (br_health_pool_allocated_bytes / br_health_pool_size_bytes)) > 0.80
+            unless on (pool)
+            max_over_time(ALERTS{alertname="BrStoragePoolCapacityAbove80", alertstate="firing"}[13d] offset 2h)
+          for: 15m
+          labels:
+            severity: warning
+            pushover_event: "true"
+        - alert: BrStoragePoolCapacityAbove90
+          annotations:
+            summary: >-
+              br-storage pool {{ $labels.pool }} is over 90% full ({{ $value | humanizePercentage }}).
+          expr: |-
+            (max by (pool) (br_health_pool_allocated_bytes / br_health_pool_size_bytes)) > 0.90
+            unless on (pool)
+            max_over_time(ALERTS{alertname="BrStoragePoolCapacityAbove90", alertstate="firing"}[13d] offset 2h)
+          for: 15m
+          labels:
+            severity: warning
+            pushover_event: "true"
         # From truenas-apps-br's self-test collector, republished by br-power: overall health can
         # read PASSED while every self-test fails, so BrStorageDiskSmartFailed alone misses it.
         # A result arrives the night after br's SHORT test.
