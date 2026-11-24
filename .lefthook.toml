@@ -107,6 +107,11 @@ exclude = ["docs/**"]
 run = "mise x -- env -u VIRTUAL_ENV uv run -q --no-project --with pyyaml python3 .github/scripts/check_chaski_routes.py"
 glob = ["kubernetes/apps/default/chaski/app/*.yaml", ".github/scripts/tests/chaski/**/*.json", ".github/scripts/check_chaski_routes.py"]
 
+# A plain mdi-* tile icon renders white beside the generated Dracula gradient ones.
+[pre-commit.commands.check-homepage-icons]
+run = "python3 .github/scripts/check_homepage_icons.py"
+glob = ["kubernetes/**", ".github/scripts/check_homepage_icons.py"]
+
 # An archived app's virtual key, kustomization entry or dependsOn elsewhere in kubernetes/ outlives
 # the move; see docs/docs/operations/retiring-an-app.md.
 [pre-commit.commands.check-archived-app-refs]
