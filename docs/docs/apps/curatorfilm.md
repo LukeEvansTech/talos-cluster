@@ -83,9 +83,9 @@ run, with the judge's reason, and doing nothing lets it proceed.
 - The scheduled runs are in `act` mode. "Due" is measured against the run's scheduled start (the
   last firing of `CLEANUP_SCHEDULE`), which is what the review page measured against, so a
   proposal falling due while the judge answers waits for the next run, as the page said.
-- `CLEANUP_ADOPT_REHEARSAL: "true"` on the planner let the first act run begin its record from the
-  dry runs' proposals, decisions and baseline. It acts only while the real record has no
-  baseline, so it is inert after that run and the line can be dropped.
+- The first act run was 24 November 2026. `CLEANUP_ADOPT_REHEARSAL: "true"` on the planner let it
+  begin its record from the dry runs' proposals, decisions and baseline; it acts only while the
+  real record has no baseline, so the line has been removed.
 
 Two tags let a person overrule the judge, one in each direction. They are set in Radarr, and
 anything built on the review document (below) should set exactly these and nothing else:

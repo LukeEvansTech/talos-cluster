@@ -58,10 +58,6 @@ spec:
               # plan deletes nothing either way; set so the ledger namespaces its
               # records the same as execute will.
               CLEANUP_MODE: act
-              # The verdicts reviewed so far were recorded by dry runs. This lets plan begin the real
-              # record from them, once, while that record has no baseline; it does nothing afterwards.
-              # Drop this line after the first act run.
-              CLEANUP_ADOPT_REHEARSAL: "true"
             envFrom:
               - secretRef:
                   name: curatorfilm-secret
