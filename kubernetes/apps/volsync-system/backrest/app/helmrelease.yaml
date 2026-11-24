@@ -14,18 +14,23 @@ spec:
       backrest:
         annotations:
           reloader.stakater.com/auto: "true"
-        # /config is an emptyDir, so without a seed every restart opens on backrest's first-run
-        # setup page. The seed names the instance and keeps backrest's own auth off: sign-in is
-        # the pocket-id component at the gateway, and backrest has no OIDC of its own.
+        # /config is an emptyDir, so the seed rebuilds it on every start: one repository per R2
+        # prefix, with backrest's own auth off because sign-in is the pocket-id component at the
+        # gateway. Why it reads guids itself and never locks: resources/seed-config.sh.
         initContainers:
           seed-config:
             image:
               repository: docker.io/garethgeorge/backrest
               tag: v1.14.1@sha256:b852979754281026230cc69fb11428e6d57c9a97784ab4a444ffc7934c53a215
             command:
-              - "cp"
-              - "/seed/config.json"
-              - "/config/config.json"
+              - "sh"
+              - "/seed/seed-config.sh"
+            env:
+              RCLONE_CONFIG: /tmp/rclone.conf
+              XDG_CACHE_HOME: /tmp
+            envFrom:
+              - secretRef:
+                  name: backrest-secret
             securityContext:
               allowPrivilegeEscalation: false
               capabilities:
@@ -93,15 +98,10 @@ spec:
           - backendRefs:
               - name: backrest
                 port: *port
-    configMaps:
-      seed:
-        data:
-          config.json: |-
-            {"version": 6, "instance": "talos", "auth": {"disabled": true}}
     persistence:
       seed:
         type: configMap
-        identifier: seed
+        name: backrest-seed
         advancedMounts:
           backrest:
             seed-config:
