@@ -573,6 +573,21 @@ def plan_refusal(plan: dict, run_mode: str, now: datetime) -> str | None:
     return None
 
 
+def due_as_of(now: datetime) -> tuple[datetime | None, str]:
+    """The moment this run measures "due" against, or why it cannot name one.
+
+    The scheduled start of the run executing now; for a run started early with
+    ``CLEANUP_RUN_AS``, the next scheduled start it was told to act as.
+    """
+    schedule, zone = env("CLEANUP_SCHEDULE", required=False), env("TZ", required=False)
+    ahead, why = proposals.stand_in(env("CLEANUP_RUN_AS", required=False), now, schedule, zone)
+    if why:
+        return None, why
+    if ahead:
+        log(f"started early: acting as the run scheduled for {ahead.isoformat()}")
+    return ahead or proposals.run_start(now, schedule, zone), ""
+
+
 def execute_exit_code(
     result: ExecutionResult, untagged: set[int], unjudged: list[int], rejected: list[dict], judged: int
 ) -> int:
@@ -642,6 +657,12 @@ def cmd_execute(args: argparse.Namespace) -> int:  # pylint: disable=too-many-lo
         log(f"refusing to execute: {refusal}")
         return 5
 
+    # Named before anything is tagged or deleted: a CLEANUP_RUN_AS that is not the next run stops here.
+    started, refusal = due_as_of(datetime.now(timezone.utc))
+    if started is None:
+        log(f"refusing to execute: {refusal}")
+        return 5
+
     tag_labels = {t["id"]: t["label"] for t in radarr.tags()}
     monitored = monitored_collection_ids(radarr.collections())
     by_id = {item["movie_id"]: item for item in plan.get("candidates", [])}
@@ -691,9 +712,6 @@ def cmd_execute(args: argparse.Namespace) -> int:  # pylint: disable=too-many-lo
         # given in this run is not in the plan's list, so it cannot be carried out today.
         # Due as of this run's scheduled start, which is what the review page measured against:
         # a proposal falling due while the judge was answering was listed as waiting, and waits.
-        started = proposals.run_start(
-            datetime.now(timezone.utc), env("CLEANUP_SCHEDULE", required=False), env("TZ", required=False)
-        )
         due_delete, due_keep = proposals.split_due(plan.get("proposed") or [], started)
         judge_kept = settle_keeps(due_keep, standing, movies, tag_labels, monitored, ledger, sources.run_id, keep_days)
         approved, set_aside, marked = due_deletes(due_delete, standing, movies, tag_labels)

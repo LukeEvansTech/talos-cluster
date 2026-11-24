@@ -94,5 +94,19 @@ kubectl -n custom create job --from=cronjob/curatorfilm curatorfilm-manual-N
 kubectl -n custom create job --from=cronjob/curatorfilmjudge curatorfilmjudge-manual-N
 ```
 
+A run started by hand takes only what the last scheduled run was due to take. To take the next
+run's list early (what the page shows as going), write the judge Job out, add `CLEANUP_RUN_AS` with
+the next firing's time to its `app` container, and create that:
+
+```bash
+kubectl -n custom create job --from=cronjob/curatorfilmjudge curatorfilmjudge-early-N \
+  --dry-run=client -o yaml > early.yaml
+# under the app container's env:  - {name: CLEANUP_RUN_AS, value: "2026-11-28T08:30:00Z"}
+kubectl -n custom create -f early.yaml
+```
+
+`execute` refuses a time that is not exactly the next firing, so the line cannot reach past what the
+page lists. The scheduled run still happens, and its deletions count the early ones against the cap.
+
 The judge's `app` container logs the publish outcome; the Runs page and
 `curator_last_document_timestamp_seconds{library="film"}` confirm the document arrived.
