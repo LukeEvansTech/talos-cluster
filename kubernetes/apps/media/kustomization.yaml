@@ -38,6 +38,7 @@ resources:
   # - ./recyclarr/ks.yaml  # Disabled, using Profilarr instead
   - ./sonarr/ks.yaml
   - ./suggestarr/ks.yaml
+  - ./talos-cluster-jobs/ks.yaml
   - ./tautulli/ks.yaml
   - ./tdarr/ks.yaml
   - ./tracearr/ks.yaml

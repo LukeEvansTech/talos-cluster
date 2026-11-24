@@ -1,0 +1,15 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/source.toolkit.fluxcd.io/gitrepository_v1.json
+# Private repository: scheduled jobs whose scripts and prompts carry details that do not belong in
+# this public repository. Read with a read-only deploy key.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: talos-cluster-jobs
+spec:
+  interval: 15m
+  ref:
+    branch: main
+  secretRef:
+    name: talos-cluster-jobs-deploy
+  url: ssh://git@github.com/LukeEvansTech/talos-cluster-jobs.git
