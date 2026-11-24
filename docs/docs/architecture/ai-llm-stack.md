@@ -182,6 +182,7 @@ The model column is where to change it:
 
 | App                | Namespace | Key env var            | Model setting                                             |
 | ------------------ | --------- | ---------------------- | --------------------------------------------------------- |
+| `changedetection`  | `default` | `LLM_API_KEY`          | `LLM_MODEL` (HelmRelease); `openai/claude`                |
 | `subspy`           | `default` | `OPENAI_API_KEY`       | `OPENAI_MODEL` (HelmRelease)                              |
 | `jobops`           | `default` | `LLM_API_KEY`          | `MODEL` (HelmRelease), overridable in its UI              |
 | `lurcher`          | `default` | `LLM_API_KEY`          | `LLM_MODEL` (HelmRelease)                                 |

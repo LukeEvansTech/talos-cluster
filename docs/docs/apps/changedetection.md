@@ -33,6 +33,29 @@ were established empirically on v0.55.7 and cost real debugging time.
   (Pushover). **Set `notification_muted: true` while tuning a watch**: every filter change
   produces a "change" event and fires a real notification.
 
+## LLM features
+
+Since v0.70 the app can summarise each change in plain language, filter changes against a
+per-watch intent, and fall back to an LLM when a restock watch's page has no usable `schema.org`
+price or stock data. It calls the model through the LiteLLM library, pointed at the in-cluster
+LiteLLM proxy:
+
+- `LLM_MODEL: openai/claude` and `LLM_API_BASE` are set in the HelmRelease; `LLM_API_KEY` comes
+  from the scoped `changedetection` virtual key, mirrored to the `litellm` 1Password item. The
+  `openai/` prefix makes the client speak the OpenAI API to the proxy, whatever the model.
+- **Environment config overrides the UI.** With `LLM_MODEL` set, the model, key and base saved in
+  the UI are ignored (`llm/evaluator.py` reads the environment first). The key also allows
+  `self-hosted` (free, keeps page contents in the cluster, but slower because the env path cannot
+  turn its thinking off) and `openrouter/auto`.
+- **What spends tokens automatically:** a summary for every change that sends a notification, on
+  every watch whose "AI enabled" switch is on (the default, so all of them), plus the intent pass
+  on watches that have an intent set. The diff page's "Summary" button spends only when clicked.
+  Turn AI off for a set of watches with a group set to "off", which overrides the watch's own
+  switch.
+- **The virtual key carries a `maxBudget` of 5 USD** as a trial cap. Once it is spent the proxy
+  refuses the calls and notifications fall back to the raw diff. Read spend on the key in the
+  LiteLLM UI before raising it.
+
 ## RSS/Atom watch recipe
 
 Verified against `https://opentrackers.org/feed/` (WordPress RSS, fixed 20-item window) and
