@@ -16,7 +16,6 @@ import re
 import sys
 
 HOMEPAGE = pathlib.Path("kubernetes/apps/default/homepage/app")
-COMPONENT = pathlib.Path("kubernetes/components/homepage/kustomization.yaml")
 ICON_RE = re.compile(r"^\s*HOMEPAGE_ICON:\s*(.*?)\s*(?:\s#.*)?$")
 ANNOTATION_RE = re.compile(r"^\s*gethomepage\.dev/icon:\s*(.*?)\s*(?:\s#.*)?$")
 DEFAULT_RE = re.compile(r"\$\{HOMEPAGE_ICON:=([^}]+)\}")
@@ -67,10 +66,15 @@ def check(root: pathlib.Path) -> list[str]:
     for path in sorted((root / "kubernetes").rglob("*.y*ml")):
         for n, line in enumerate(path.read_text().splitlines(), 1):
             m = ANNOTATION_RE.match(line)
-            if m and "${" not in m.group(1):
-                refs.append((f"{path.relative_to(root).as_posix()}:{n}", scalar(m.group(1))))
-    component = root / COMPONENT
-    refs += [(COMPONENT.as_posix(), m) for m in DEFAULT_RE.findall(component.read_text())]
+            if not m:
+                continue
+            where, value = f"{path.relative_to(root).as_posix()}:{n}", scalar(m.group(1))
+            if "${" not in value:
+                refs.append((where, value))
+            elif defaults := DEFAULT_RE.findall(value):
+                refs += [(where, d) for d in defaults]
+            else:
+                problems.append(f"{where}: templated icon {value!r} has no ${{VAR:=/icons/dracula/<slug>.svg}} default")
 
     for where, icon in refs:
         m = DRACULA_RE.match(icon)

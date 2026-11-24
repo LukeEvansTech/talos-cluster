@@ -98,6 +98,18 @@ class HomepageIconTests(unittest.TestCase):
         self.assertEqual(len(out), 1)
         self.assertIn("httproute.yaml:3", out[0])
 
+    def test_templated_annotation_default_is_checked(self):
+        route = "metadata:\n  annotations:\n    gethomepage.dev/icon: ${HOMEPAGE_ICON:=mdi-git}\n"
+        out = self.run_check({"kubernetes/apps/x/forgejo/app/httproute.yaml": route})
+        self.assertEqual(len(out), 1)
+        self.assertIn("'mdi-git'", out[0])
+
+    def test_templated_annotation_without_default_fails(self):
+        route = "metadata:\n  annotations:\n    gethomepage.dev/icon: ${HOMEPAGE_ICON}\n"
+        out = self.run_check({"kubernetes/apps/x/forgejo/app/httproute.yaml": route})
+        self.assertEqual(len(out), 1)
+        self.assertIn("has no", out[0])
+
     def test_icon_in_other_generator_fails(self):
         moved = GENERATORS.replace("      - icons/good.svg\n", "").replace(
             "./resources/settings.yaml\n", "./resources/settings.yaml\n      - icons/good.svg\n"
