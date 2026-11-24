@@ -45,8 +45,9 @@ LiteLLM proxy:
   `openai/` prefix makes the client speak the OpenAI API to the proxy, whatever the model.
 - **Environment config overrides the UI.** With `LLM_MODEL` set, the model, key and base saved in
   the UI are ignored (`llm/evaluator.py` reads the environment first). The key also allows
-  `self-hosted` (free, keeps page contents in the cluster, but slower because the env path cannot
-  turn its thinking off) and `openrouter/auto`.
+  `self-hosted` and `openrouter/auto`. `self-hosted` is slower, because the env path cannot turn
+  its thinking off, and it is neither guaranteed free nor in-cluster: the proxy falls back to
+  `claude` and `openrouter/auto` when it fails or a page exceeds its context window.
 - **What spends tokens automatically:** a summary for every change that sends a notification, on
   every watch whose "AI enabled" switch is on (the default, so all of them), plus the intent pass
   on watches that have an intent set. The diff page's "Summary" button spends only when clicked.
