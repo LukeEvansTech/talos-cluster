@@ -15,7 +15,7 @@ import sys
 import unittest
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -585,6 +585,26 @@ def load_recommendations(args: argparse.Namespace, plan: dict) -> list | int:
     return recommendations
 
 
+def due_as_of(now: datetime) -> tuple[datetime | None, str]:
+    """The moment this run measures "due" against, or why it cannot name one.
+
+    The scheduled start of the run executing now; for a run started early with
+    ``CLEANUP_RUN_AS``, the next scheduled start it was told to act as.
+    """
+    schedule, zone = env("CLEANUP_SCHEDULE", required=False), env("TZ", required=False)
+    ahead, why = proposals.stand_in(env("CLEANUP_RUN_AS", required=False), now, schedule, zone)
+    if why:
+        return None, why
+    if ahead and ahead - now > timedelta(days=CAP_WINDOW_DAYS - 1):
+        # The cap counts deletions over CAP_WINDOW_DAYS, back from when the scheduled run reaches
+        # its own deletes. Made earlier than a day inside that, these could have left the count
+        # by then, and the run they stand in for would take a full batch more.
+        return None, f"CLEANUP_RUN_AS is over {CAP_WINDOW_DAYS - 1} days ahead: the cap might not count this run"
+    if ahead:
+        log(f"started early: acting as the run scheduled for {ahead.isoformat()}")
+    return ahead or proposals.run_start(now, schedule, zone), ""
+
+
 def execute_exit_code(
     result: ExecutionResult, untagged: set[int], unjudged: list[int], rejected: list[dict], judged: int
 ) -> int:
@@ -646,6 +666,12 @@ def cmd_execute(args: argparse.Namespace) -> int:  # pylint: disable=too-many-lo
         log(f"refusing to execute: {refusal}")
         return 5
 
+    # Named before anything is tagged or deleted: a CLEANUP_RUN_AS that is not the next run stops here.
+    started, refusal = due_as_of(datetime.now(timezone.utc))
+    if started is None:
+        log(f"refusing to execute: {refusal}")
+        return 5
+
     tag_labels = {t["id"]: t["label"] for t in sonarr.tags()}
     by_id = {item["series_id"]: item for item in plan.get("candidates", [])}
 
@@ -692,14 +718,13 @@ def cmd_execute(args: argparse.Namespace) -> int:  # pylint: disable=too-many-lo
         # given in this run is not in the plan's list, so it cannot be carried out today.
         # Due as of this run's scheduled start, which is what the review page measured against:
         # a proposal falling due while the judge was answering was listed as waiting, and waits.
-        started = proposals.run_start(
-            datetime.now(timezone.utc), env("CLEANUP_SCHEDULE", required=False), env("TZ", required=False)
-        )
         due_delete, due_keep = proposals.split_due(plan.get("proposed") or [], started)
         judge_kept = settle_keeps(due_keep, standing, series, tag_labels, ledger, sources.run_id, keep_days)
         approved, set_aside, marked = due_deletes(due_delete, standing, series, tag_labels)
 
-        already = ledger.deletions_in_window(CAP_WINDOW_DAYS)
+        # Counted back from the same start the page counted from, so the minutes the judge took
+        # cannot let a deletion leave the window and widen the batch the page listed.
+        already = ledger.deletions_in_window(CAP_WINDOW_DAYS, started)
         selected, deferred = select_batch(approved, cap, already, first=marked)
         log(
             f"{len(approved)} due, {already} already deleted this window, "
@@ -773,16 +798,28 @@ def review_document(plan: dict | None, result: dict | None, judgement: dict | No
     dry_run = os.environ.get("CLEANUP_MODE", "dry-run").lower() != "act"
     try:
         cap = env_int("CLEANUP_MAX_DELETIONS", MAX_DELETIONS_PER_RUN)
-        records = Ledger(build_store(), run_id="report", dry_run=dry_run).read_proposals()
+        ledger = Ledger(build_store(), run_id="report", dry_run=dry_run)
+        records = ledger.read_proposals()
+        # The CronJob's own schedule, read in the pod's time zone, which is the CronJob's too.
+        schedule, zone = env("CLEANUP_SCHEDULE", required=False), env("TZ", required=False)
+        upcoming = proposals.next_firing(schedule, zone, now) if schedule else None
+        # A run started by hand may have deleted already this week; the next run counts those
+        # against its cap, so the page must not list a full batch as going.
+        spent = ledger.deletions_in_window(CAP_WINDOW_DAYS, upcoming) if upcoming else 0
     except (OSError, ValueError, RuntimeError, SystemExit) as exc:
         # Reported, not raised: the digest still has to go out, and it is where this gets read.
         return None, f"the proposals on record could not be read: {exc}"
     current, blocks = reporting.current_plan(plan, now)
-    # The CronJob's own schedule, read in the pod's time zone, which is the CronJob's too.
-    schedule, zone = env("CLEANUP_SCHEDULE", required=False), env("TZ", required=False)
-    if schedule and proposals.next_firing(schedule, zone, now) is None:
+    if schedule and upcoming is None:
         log(f"CLEANUP_SCHEDULE {schedule!r} could not be read: taking the next run as a week after the plan")
-    facts = {"cap": cap, "mode": "dry-run" if dry_run else "act", "blocks": blocks, "schedule": schedule, "zone": zone}
+    facts = {
+        "spent": spent,
+        "cap": cap,
+        "mode": "dry-run" if dry_run else "act",
+        "blocks": blocks,
+        "schedule": schedule,
+        "zone": zone,
+    }
     return review.build("tv", "series_id", current, result, records, now, facts, judgement=judgement), ""
 
 

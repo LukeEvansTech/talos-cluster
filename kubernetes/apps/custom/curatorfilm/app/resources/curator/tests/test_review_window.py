@@ -472,6 +472,14 @@ class CapWindowTests(unittest.TestCase):
         self.outcome(ledger, store, 1, timedelta(days=1))
         self.assertEqual(ledger.deletions_in_window(CAP_WINDOW_DAYS), 1)
 
+    def test_counted_back_from_a_later_run_only_what_that_run_will_still_see(self):
+        store = FakeS3()
+        ledger = Ledger(store, "run-early", dry_run=False)
+        self.outcome(ledger, store, 1, timedelta(days=2))
+        later = datetime.now(timezone.utc) + timedelta(days=3)
+        self.assertEqual(ledger.deletions_in_window(CAP_WINDOW_DAYS, later), 1)
+        self.assertEqual(ledger.deletions_in_window(CAP_WINDOW_DAYS, later + timedelta(days=2)), 0)
+
 
 def stored(movie_id: int, verdict: str = "delete", size_gb: float = 10.0, **extra) -> dict:
     """A proposal on record, by the judge unless ``by`` says otherwise."""
@@ -633,6 +641,14 @@ class ReviewDocumentTests(unittest.TestCase):
         self.assertEqual([item["id"] for item in doc["going"]], [2, 3])
         self.assertEqual([item["id"] for item in doc["later"]], [1])
         self.assertEqual(doc["cap"], 2)
+
+    def test_what_was_deleted_early_comes_off_what_the_next_run_can_take(self):
+        """A run started by hand took one; the scheduled run counts it, so only one more goes."""
+        doc = document([stored(1, size_gb=5), stored(2, size_gb=40), stored(3, size_gb=20)], cap=2, spent=1)
+        self.assertEqual([item["id"] for item in doc["going"]], [2])
+        self.assertEqual([item["id"] for item in doc["later"]], [3, 1])
+        self.assertEqual(doc["cap"], 2)
+        self.assertEqual(document([stored(1)], cap=2, spent=5)["going"], [])
 
     def test_a_persons_delete_is_listed_ahead_of_larger_ones(self):
         doc = document([stored(1, size_gb=90), stored(2, size_gb=1, by="person")], cap=1)

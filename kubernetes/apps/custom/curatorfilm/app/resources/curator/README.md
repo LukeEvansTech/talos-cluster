@@ -185,7 +185,11 @@ read from `CLEANUP_SCHEDULE`. `execute` measures "due" against the same moment
 (the last firing at or before now) and not against the clock, because the
 judge takes minutes and a proposal falling due in them was listed as waiting.
 A run started by hand between two firings therefore takes what the earlier
-firing was due to take, and nothing newer. Without a schedule that can be read,
+firing was due to take, and nothing newer. To have it take the next
+firing's list early, set `CLEANUP_RUN_AS` on that one Job to the next firing's
+time (`2026-11-28T08:30:00Z`): `execute` then measures "due" against it, and
+refuses any time that is not exactly the next firing, or one more than five
+days ahead, where the cap could lose count of what this run deleted. Without a schedule that can be read,
 "due" is measured against the clock.
 
 **Beginning the real record from the rehearsals.** Dry-run state lives under
@@ -585,6 +589,7 @@ committed here maps the private network.
 | `CLEANUP_REVIEW_URL`                                                                   | where `report` publishes the review document; unset, nothing is published   |
 | `CLEANUP_REVIEW_LINK`                                                                  | page the push opens; sent only when `CLEANUP_REVIEW_URL` is set too         |
 | `CLEANUP_SCHEDULE`                                                                     | the CronJob's cron line, read in `TZ`; dates the next run and what is due   |
+| `CLEANUP_RUN_AS`                                                                       | the next firing's time, on a Job started early, to act as that run          |
 | `CLEANUP_ADOPT_REHEARSAL`                                                              | `true` lets `plan` begin an act ledger with no baseline from the dry runs   |
 | `CLEANUP_ACCEPT_BASELINE`                                                              | run ID of a blocked run whose snapshot becomes the baseline; honoured once  |
 | `TAG_KEEPS_IN_DRY_RUN`                                                                 | `true` lets a dry run add the rating bar's `keep` tag; deletion unaffected  |

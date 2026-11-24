@@ -220,13 +220,14 @@ class Ledger:
             },
         )
 
-    def deletions_in_window(self, days: int = 7) -> int:
+    def deletions_in_window(self, days: int = 7, at: datetime | None = None) -> int:
         """Confirmed deletions recently recorded, across all runs.
 
         The per-run cap is only a real limit if a second run counts what the
-        first already did.
+        first already did. ``at`` is a later moment to count back from: what a
+        run starting then will still find in its window.
         """
-        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+        cutoff = (at or datetime.now(timezone.utc)) - timedelta(days=days)
         total = 0
         for key in self.client.list_keys(self._key("runs/")):
             if "/outcome/" not in key:

@@ -219,8 +219,9 @@ def build(  # pylint: disable=too-many-arguments,too-many-positional-arguments,t
     reasons this run acted on nothing, and the CronJob's schedule and time
     zone, which date the next run; ``digest`` is the digest as sent, from
     ``digest_record``. Deletes the next run will find due are listed in the
-    order it takes them (a person's first, then largest), cut at the cap; the
-    rest are listed as waiting.
+    order it takes them (a person's first, then largest), cut at the cap less
+    ``spent``, the deletions already made that the next run will count against
+    it; the rest are listed as waiting.
     """
     # A result left on the volume by an earlier run describes that run, not this one.
     if result is not None and (plan is None or result.get("plan_run_id") != plan.get("run_id")):
@@ -242,6 +243,7 @@ def build(  # pylint: disable=too-many-arguments,too-many-positional-arguments,t
     )
     waiting = sorted((record for record in deletes if not proposals.is_due(record, next_run)), key=_size, reverse=True)
     cap = max(int(run.get("cap") or 0), 0)
+    room = max(cap - max(int(run.get("spent") or 0), 0), 0)
     taken = {record[id_key] for record in stored}
 
     return {
@@ -253,8 +255,8 @@ def build(  # pylint: disable=too-many-arguments,too-many-positional-arguments,t
         "blocks": [str(block)[:REASON_LIMIT] for block in run.get("blocks") or []],
         "cap": cap,
         "next_run_at": next_run.isoformat(),
-        "going": [_proposal_item(record, id_key) for record in due[:cap]],
-        "later": [_proposal_item(record, id_key) for record in due[cap:] + waiting],
+        "going": [_proposal_item(record, id_key) for record in due[:room]],
+        "later": [_proposal_item(record, id_key) for record in due[room:] + waiting],
         "kept": [_proposal_item(record, id_key) for record in sorted(keeps, key=_size, reverse=True)],
         "needs_you": _needs_a_person(plan, result, id_key, taken),
         "deleted": [

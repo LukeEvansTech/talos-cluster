@@ -234,6 +234,27 @@ def run_start(now: datetime, schedule: str = "", zone: str = "") -> datetime:
     return fires or now
 
 
+def stand_in(named: str, now: datetime, schedule: str = "", zone: str = "") -> tuple[datetime | None, str]:
+    """The scheduled start a run started early acts as (``CLEANUP_RUN_AS``), or why it cannot.
+
+    A run started by hand takes what the last firing was due to take. Naming the next firing
+    lets it take what that one would: the list the review page already shows as going. Only
+    that firing can be named, to the minute, so the setting cannot reach past what the page
+    shows, and one left on a job is refused once the firing it names has passed.
+    """
+    if not named:
+        return None, ""
+    asked = when(named)
+    if asked is None:
+        return None, f"CLEANUP_RUN_AS {named!r} is not a date and time"
+    fires = next_firing(schedule, zone, now) if schedule else None
+    if fires is None:
+        return None, "CLEANUP_RUN_AS needs a CLEANUP_SCHEDULE that can be read"
+    if asked != fires:
+        return None, f"CLEANUP_RUN_AS names {asked.isoformat()}, but the next scheduled run is {fires.isoformat()}"
+    return fires, ""
+
+
 def next_run(planned_at: datetime | None, now: datetime, schedule: str = "", zone: str = "") -> datetime:
     """When the run after this one starts.
 
