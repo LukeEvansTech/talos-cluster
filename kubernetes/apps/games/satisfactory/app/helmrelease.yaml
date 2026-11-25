@@ -25,6 +25,9 @@ spec:
               AUTOPAUSE: "true"
               AUTOSAVEINTERVAL: "60"
               AUTOSAVENUM: "30"
+              # v1.10.0+ copies the saves into a new /config/backups/<time> folder on every start
+              # and keeps BACKUPLIMIT of them (default 10). VolSync already backs up this volume.
+              BACKUPLIMIT: "3"
               AUTOSAVEONDISCONNECT: "true"
               CRASHREPORT: "false"
               MAXPLAYERS: "5"
