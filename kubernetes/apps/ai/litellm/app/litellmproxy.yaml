@@ -7,7 +7,7 @@ metadata:
   namespace: ai
 spec:
   applyMode: file
-  image: ghcr.io/berriai/litellm:1.110.4@sha256:b24ca460c3793d8122b530a6fc569f73b9017e049b21681c13571a9501d11d4e
+  image: ghcr.io/berriai/litellm:1.111.0@sha256:ce00096d012719d58c52cecfa373f7c6256dd1b0ff08f6fa607e10e9628f1f46
   replicas: 1
   service:
     port: 4000
