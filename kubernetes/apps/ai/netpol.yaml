@@ -20,7 +20,7 @@ metadata:
 spec:
   # LiteLLM consumers in default and custom reach it pod-to-pod; additive to the policy above,
   # scoped to this endpoint only.
-  description: "Allow LiteLLM consumers in default/custom to reach litellm"
+  description: "Allow LiteLLM consumers in default/custom, and arrqueue in media, to reach litellm"
   endpointSelector:
     matchLabels:
       app.kubernetes.io/name: litellm
@@ -32,3 +32,8 @@ spec:
               values:
                 - default
                 - custom
+    # The arrqueue tick's queue judge, and nothing else in media.
+    - fromEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: media
+            app.kubernetes.io/name: arrqueue

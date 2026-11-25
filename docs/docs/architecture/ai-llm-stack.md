@@ -176,8 +176,8 @@ LiteLLM `model_name` groups make the serving tier transparent to clients:
 ## In-cluster consumers
 
 The in-cluster apps below, all outside the `ai` namespace, route through LiteLLM at
-`http://litellm.ai.svc.cluster.local:4000/v1` and, except `suggestarr`, `paperless-ai` and the two curator judges, the `claude` model,
-falling back to `self-hosted` and then `openrouter/auto`. The judges' key reaches only `claude-opus`, which has no fallback.
+`http://litellm.ai.svc.cluster.local:4000/v1` and, except `suggestarr`, `paperless-ai`, the two curator judges and `arrqueue`, the `claude` model,
+falling back to `self-hosted` and then `openrouter/auto`. The judges' keys reach only `claude-opus`, which has no fallback.
 The model column is where to change it:
 
 | App                | Namespace | Key env var            | Model setting                                             |
@@ -192,6 +192,7 @@ The model column is where to change it:
 | `suggestarr`       | `media`   | none (AI settings)     | its AI settings                                           |
 | `curatorfilmjudge` | `custom`  | `ANTHROPIC_AUTH_TOKEN` | `JUDGE_MODEL` (HelmRelease); `claude-opus`, key `curator` |
 | `curatortvjudge`   | `custom`  | `ANTHROPIC_AUTH_TOKEN` | `JUDGE_MODEL` (HelmRelease); `claude-opus`, key `curator` |
+| `arrqueue`         | `media`   | `LITELLM_API_KEY`      | `ARRQUEUE_MODEL` (CronJob); `claude-opus`, 20 USD cap     |
 
 Every other key is used inside `ai` or by hand, reading its own `litellm-key-<name>` Secret.
 Scope does not stop router fallbacks, so a `self-hosted`-only key can still reach `claude`:
@@ -327,17 +328,17 @@ Layer 2 runs the [StackLok ToolHive](https://github.com/stacklok/toolhive) opera
 CRDs + operator charts, see `toolhive/app/ocirepository.yaml` for the current pin) in `ai`, an
 `MCPGroup` (`mcp-tools`), and these MCP servers, all wired into LiteLLM's `mcp_servers`:
 
-| Server    | Source                          | Access                                                    |
-| --------- | ------------------------------- | --------------------------------------------------------- |
-| `kubectl` | kubectl-mcp-server              | cluster read-only, secrets excluded                       |
-| `flux`    | flux-operator-mcp               | Flux read (`--read-only`)                                 |
-| `talos`   | talos-mcp                       | Talos `os:reader` (talosconfig SA)                        |
-| `searxng` | mcp-searxng → `searxng.default` | web search                                                |
-| `github`  | github-mcp-server               | GitHub read-only (`GITHUB_READ_ONLY`, fine-grained PAT)   |
-| `grafana` | grafana/mcp-grafana             | Grafana Viewer SA token (read-only)                       |
-| `arr`     | mcp-arr                         | Sonarr / Radarr / Prowlarr tools (per-app API keys)       |
-| `seerr`   | overseerr-mcp                   | Overseerr request + discovery tools                       |
-| `hamcp`   | ha-mcp                          | Home Assistant tools (scoped long-lived token)            |
+| Server    | Source                          | Access                                                  |
+| --------- | ------------------------------- | ------------------------------------------------------- |
+| `kubectl` | kubectl-mcp-server              | cluster read-only, secrets excluded                     |
+| `flux`    | flux-operator-mcp               | Flux read (`--read-only`)                               |
+| `talos`   | talos-mcp                       | Talos `os:reader` (talosconfig SA)                      |
+| `searxng` | mcp-searxng → `searxng.default` | web search                                              |
+| `github`  | github-mcp-server               | GitHub read-only (`GITHUB_READ_ONLY`, fine-grained PAT) |
+| `grafana` | grafana/mcp-grafana             | Grafana Viewer SA token (read-only)                     |
+| `arr`     | mcp-arr                         | Sonarr / Radarr / Prowlarr tools (per-app API keys)     |
+| `seerr`   | overseerr-mcp                   | Overseerr request + discovery tools                     |
+| `hamcp`   | ha-mcp                          | Home Assistant tools (scoped long-lived token)          |
 
 kubectl + flux share read-only access built from this cluster's API groups with core `secrets`
 omitted, split across two `ClusterRole`s bound to the same ServiceAccount (plus a second SA for
