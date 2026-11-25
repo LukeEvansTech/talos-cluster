@@ -54,6 +54,10 @@ data:
       port: 80
       # Behind Envoy, so client IPs and share URLs come from the forwarded headers.
       trustProxyHeaders: true
+      # 2.1+ reads the client IP (X-Forwarded-For, X-Real-IP) only from peers listed here, the pod
+      # network Envoy runs on. Host and scheme headers still follow trustProxyHeaders alone.
+      trustedProxies:
+        - 10.42.0.0/16
     userDefaults:
       ui:
         darkMode: true
