@@ -10,6 +10,7 @@ configMapGenerator:
   - name: backrest-seed
     files:
       - ./resources/seed-config.sh
+      - ./resources/index-snapshots.sh
 generatorOptions:
   disableNameSuffixHash: true
   annotations:
