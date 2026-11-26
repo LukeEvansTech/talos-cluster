@@ -193,6 +193,7 @@ The model column is where to change it:
 | `curatorfilmjudge` | `custom`  | `ANTHROPIC_AUTH_TOKEN` | `JUDGE_MODEL` (HelmRelease); `claude-opus`, key `curator` |
 | `curatortvjudge`   | `custom`  | `ANTHROPIC_AUTH_TOKEN` | `JUDGE_MODEL` (HelmRelease); `claude-opus`, key `curator` |
 | `arrqueue`         | `media`   | `LITELLM_API_KEY`      | `ARRQUEUE_MODEL` (CronJob); `claude-opus`, 20 USD cap     |
+| `statuewatch`      | `custom`  | set in its CronJob     | its CronJob; `claude`, vision, 10 USD cap                 |
 
 Every other key is used inside `ai` or by hand, reading its own `litellm-key-<name>` Secret.
 Scope does not stop router fallbacks, so a `self-hosted`-only key can still reach `claude`:

@@ -1,0 +1,42 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/litellm.home-operations.com/litellmvirtualkey_v1alpha1.json
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMVirtualKey
+metadata:
+  name: statuewatch
+  namespace: ai
+spec:
+  # Cross-namespace key for the daily statuewatch CronJob (custom namespace, private
+  # talos-cluster-jobs repository): PushSecret mirrors it to the litellm 1Password item
+  # (docs/docs/architecture/ai-llm-stack.md In-cluster consumers).
+  proxyRef: litellm
+  keyAlias: statuewatch
+  secretName: litellm-key-statuewatch
+  secretKey: api-key
+  # Judges the day's new statue listings, title plus one photo each (vision), in one or two
+  # calls a day.
+  maxBudget: "10"
+  models:
+    - claude
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/external-secrets.io/pushsecret_v1alpha1.json
+apiVersion: external-secrets.io/v1alpha1
+kind: PushSecret
+metadata:
+  name: statuewatch
+  namespace: ai
+spec:
+  refreshInterval: 1h
+  secretStoreRefs:
+    - name: onepassword-connect
+      kind: ClusterSecretStore
+  selector:
+    secret:
+      name: litellm-key-statuewatch
+  updatePolicy: Replace
+  data:
+    - match:
+        secretKey: api-key
+        remoteRef:
+          remoteKey: litellm
+          property: LITELLM_STATUEWATCH_API_KEY
