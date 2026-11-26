@@ -19,7 +19,7 @@ spec:
           app:
             image: &image
               repository: docker.io/ccmpbll/ruckus-unleashed-exporter
-              tag: 2026.10.20@sha256:3bb23b049a03fec6739ff803c3c870234f80d37bc58f55acb1dfc2c157019d8d
+              tag: 2026.11.25@sha256:4ebb1ec65679c6a7a94f40b1f2cc2da91aaceb945f0b8293d7a150e886b8c44d
             env:
               RUCKUS_HOST:
                 valueFrom:
