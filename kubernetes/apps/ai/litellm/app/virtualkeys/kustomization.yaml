@@ -12,6 +12,7 @@ resources:
   - ./paperless-ai.yaml
   - ./sakuga.yaml
   - ./sleeper.yaml
+  - ./statuewatch.yaml
   - ./subspy.yaml
   - ./subtitles.yaml
   - ./suggestarr.yaml
