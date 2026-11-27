@@ -34,7 +34,7 @@ run = "uv pip install -r docs/requirements.txt"
 "aqua:charmbracelet/gum" = "latest"
 "aqua:cli/cli" = "2.105.0"
 "aqua:cloudflare/cloudflared" = "2026.11.2"
-"aqua:cue-lang/cue" = "0.17.1"
+"aqua:cue-lang/cue" = "0.18.0"
 # These four mirror the linters super-linter v8 bundles, so lefthook catches findings locally
 # before CI. Local pins may run ahead of what super-linter@9e863354 (v8.6.0) bundles (e.g.
 # editorconfig-checker 3.6.1); fine as long as newer is only stricter, a superset of CI.
