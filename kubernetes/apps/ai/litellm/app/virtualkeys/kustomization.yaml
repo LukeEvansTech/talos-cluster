@@ -16,3 +16,4 @@ resources:
   - ./subspy.yaml
   - ./subtitles.yaml
   - ./suggestarr.yaml
+  - ./toys.yaml

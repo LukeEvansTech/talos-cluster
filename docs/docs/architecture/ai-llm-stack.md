@@ -190,6 +190,7 @@ The model column is where to change it:
 | `sakuga`           | `custom`  | `SAKUGA_LLM_KEY`       | `SAKUGA_LLM_MODEL` (HelmRelease); vision                  |
 | `sleeper`          | `default` | `SLEEPER_LLM_KEY`      | `SLEEPER_LLM_MODEL` (HelmRelease); vision                 |
 | `suggestarr`       | `media`   | none (AI settings)     | its AI settings                                           |
+| `toys`             | `custom`  | `TOYS_LLM_KEY`         | `TOYS_LLM_MODEL` (HelmRelease); vision, 10 USD cap        |
 | `curatorfilmjudge` | `custom`  | `ANTHROPIC_AUTH_TOKEN` | `JUDGE_MODEL` (HelmRelease); `claude-opus`, key `curator` |
 | `curatortvjudge`   | `custom`  | `ANTHROPIC_AUTH_TOKEN` | `JUDGE_MODEL` (HelmRelease); `claude-opus`, key `curator` |
 | `arrqueue`         | `media`   | `LITELLM_API_KEY`      | `ARRQUEUE_MODEL` (CronJob); `claude-opus`, 20 USD cap     |
