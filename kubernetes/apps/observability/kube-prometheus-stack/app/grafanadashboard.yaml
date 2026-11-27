@@ -87,7 +87,7 @@ spec:
   grafanaCom:
     # renovate: depName="Kubernetes / Views / Pods"
     id: 15760
-    revision: 41
+    revision: 42
 ---
 # Vendored from grafana.com 11454 revision 14 (frozen upstream since 2019), with its four legacy
 # tables converted: Grafana 13's automatic migration drops their column renames.
