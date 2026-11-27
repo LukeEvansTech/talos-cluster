@@ -93,6 +93,7 @@ configMapGenerator:
       - icons/tautulli.svg
       - icons/tdarr.svg
       - icons/termix.svg
+      - icons/toys.svg
       - icons/tracearr.svg
       - icons/uptimekuma.svg
       - icons/wallos.svg

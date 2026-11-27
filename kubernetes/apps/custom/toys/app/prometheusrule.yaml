@@ -1,0 +1,37 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: toys
+  namespace: custom
+spec:
+  groups:
+    - name: toys
+      rules:
+        # Alerts on the outcome, not process health: a sweep counts only when it read listings
+        # and its mail did not fail. Sweeps run daily, so 36h is one missed sweep plus slack;
+        # the 1h wait covers a fresh install, when the metric is 0 until the first sweep ends.
+        - alert: ToysNotDelivering
+          annotations:
+            summary: >-
+              toys has not completed a delivering sweep in over 36h, so its listings and
+              its email are stale.
+            description: >-
+              The last delivering toys sweep finished {{ $value | humanizeDuration }} ago.
+              Check its home page for per-source coverage, or kubectl -n custom logs
+              deploy/toys.
+          expr: |-
+            time() - toys_last_success_timestamp_seconds > 129600
+          for: 1h
+          labels:
+            severity: warning
+        - alert: ToysMetricsMissing
+          annotations:
+            summary: >-
+              toys /metrics has not been scraped for 30m, so its sweeps are unmonitored.
+          expr: |-
+            absent(toys_last_success_timestamp_seconds)
+          for: 30m
+          labels:
+            severity: warning
