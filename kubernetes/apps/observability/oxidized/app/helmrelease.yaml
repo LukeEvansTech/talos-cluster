@@ -118,7 +118,7 @@ spec:
           exporter:
             image:
               repository: ghcr.io/akquinet/oxidized-exporter
-              tag: v1.0.8@sha256:15da6b0f8dfea068d887afe30335763cc01ccf6a8eed88b6c9014b9b1e32a6b8
+              tag: v1.1.0@sha256:84ca99e920762f70145423c5b8564ee92a005412b065fd19622ea763c419f372
             args:
               - -U
               - http://localhost:8888
