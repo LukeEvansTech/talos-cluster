@@ -112,3 +112,52 @@ spec:
                     namespace: custom
                   annotations:
                     summary: "DomainPulse has completed no scheduled domain scan in 48h, so its security results are stale."
+            # Run records written by scheduled agent runs, one stream per loop. Rules stay generic:
+            # a loop registers itself through its own records and states its allowance in max_age_s.
+            - name: loops
+              type: vlogs
+              interval: 5m
+              rules:
+                - alert: LoopStale
+                  # Age of the last success against the loop's newest max_age_s (24h when unset). A loop
+                  # that never succeeded ages from its first record; one retired since its last start is skipped.
+                  expr: >-
+                    _time:28d {app="loops"}
+                    | stats by (loop) max(_time) if (event:=finish outcome:in(changed,nothing)) as last_ok,
+                    min(_time) as first_seen, max(_time) if (event:=retire) as retired,
+                    max(_time) if (event:=start) as last_start,
+                    row_max(_time, max_age_s) if (max_age_s:*) as cfg
+                    | unpack_json from cfg fields (max_age_s)
+                    | math round((now() - (last_ok default first_seen)) / 1e9) as age_s,
+                    (retired default 0) - (last_start default 1) as retired_after,
+                    age_s - (max_age_s default 86400) as over
+                    | filter over:>0 retired_after:<0 | fields loop, age_s
+                  for: 10m
+                  labels:
+                    severity: warning
+                    namespace: observability
+                  annotations:
+                    summary: "Loop {{ $labels.loop }} has not completed a successful run within its allowed interval; last success {{ $value | humanizeDuration }} ago. Check the task still fires and read its last run log."
+                - alert: LoopFailed
+                  # The 15m window is three evaluations, so one slow evaluation cannot miss a failure.
+                  # pushover_event: the alert clears when the window passes, which is not a recovery.
+                  expr: >-
+                    _time:15m {app="loops"} event:=finish outcome:=failed
+                    | stats by (loop) count() as runs | fields loop, runs
+                  labels:
+                    severity: warning
+                    namespace: observability
+                    pushover_event: "true"
+                  annotations:
+                    summary: "Loop {{ $labels.loop }} finished a run with outcome failed; read its last run log."
+                - alert: LoopNeedsHuman
+                  # needs_human is grouped on so the text reaches the notification as a label.
+                  expr: >-
+                    _time:30m {app="loops"} event:=finish needs_human:*
+                    | stats by (loop, needs_human) count() as runs | fields loop, needs_human, runs
+                  labels:
+                    severity: warning
+                    namespace: observability
+                    pushover_event: "true"
+                  annotations:
+                    summary: "Loop {{ $labels.loop }} needs a decision from a person: {{ $labels.needs_human }}"
