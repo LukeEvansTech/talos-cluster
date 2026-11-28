@@ -20,7 +20,7 @@ spec:
           app:
             image:
               repository: ghcr.io/lukeevanstech/toys
-              tag: 0.1.0@sha256:ae9feebd85ed67eb1f106aefdb9771778aecadf93db045b21baefb90e72b0332
+              tag: 0.1.1@sha256:6d180e4b5f5f664e050ec75ccf689ca6347258b5213f825655e0b83903cb786d
             env:
               TZ: ${TIMEZONE}
               TOYS_DATA: /data
