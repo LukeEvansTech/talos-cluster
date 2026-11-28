@@ -29,7 +29,7 @@ spec:
           app:
             image:
               repository: prowlercloud/prowler-api
-              tag: 5.52.0@sha256:14d4593d0b8088960716192c144f08cd9eef4b572485ca6ebf555bda2af9422d
+              tag: 5.53.0@sha256:f6bd265677ba03f17ffd75e603dd5a37b927f8f9a124d7ab2fd9370ca462210b
             # Without `command`, args:[beat] appends to the hardcoded prod entrypoint and OOMs.
             command:
               - "../docker-entrypoint.sh"
