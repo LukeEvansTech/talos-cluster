@@ -6,8 +6,6 @@ metadata:
   name: whisper
 spec:
   interval: 1h
-  # First start downloads the model before the pod turns Ready; Helm's 5m default rolls it back.
-  timeout: 15m
   chartRef:
     kind: OCIRepository
     name: whisper
@@ -21,34 +19,30 @@ spec:
               resourceClaimTemplateName: any-nvidia-gpu
         containers:
           app: &container
-            # subgen serves the same /asr and /detect-language API as the webservice it replaced,
-            # but times cues with stable-ts. Plain faster-whisper segments can open minutes before
-            # the line is spoken, so subtitles appeared during silences.
+            # subgen serves the same /asr and /detect-language API as the webservice it replaced.
+            # Since 2026.11.4 it runs whisper.cpp instead of faster-whisper with stable-ts, so the
+            # faster-whisper settings (TRANSCRIBE_DEVICE, COMPUTE_TYPE, SUBGEN_KWARGS) are gone.
             image:
               repository: docker.io/mccloud/subgen
-              tag: 2026.11.2@sha256:2c03eb4bc02c7bd88bdddb05a2380de37082354aea0cf9cd060a320461cfc47e
+              tag: 2026.11.5@sha256:ef98e8dc44054d7efcd89cf56e52e771a782885cd3a71573483e68e1dcf94dda
             env: &env
-              TRANSCRIBE_DEVICE: cuda
               # Multilingual, so Bazarr can also request task=translate; the turbo and distil
               # variants cannot translate.
               WHISPER_MODEL: large-v3
-              # float32 is about twice the VRAM for no accuracy gain.
-              COMPUTE_TYPE: float16
               # One job at a time: the card is shared, and a second film-length job doubled RAM.
               CONCURRENT_TRANSCRIPTIONS: "1"
               # Frees the VRAM between jobs for the other tenants of this card; there is no VRAM
               # isolation between DRA shares.
               CLEAR_VRAM_ON_COMPLETE: "True"
               MODEL_CLEANUP_DELAY: "300"
-              # Parsed with ast.literal_eval, so Python's True, not JSON's true.
-              SUBGEN_KWARGS: "{'vad': True}"
               # Serve Bazarr and dubsub only: no webhooks, folder scans or Plex queueing.
               PROCESS_ADDED_MEDIA: "False"
               PROCESS_MEDIA_ON_PLAY: "False"
               MONITOR: "False"
               SKIP_STARTUP_SCAN: "True"
               DEBUG: "False"
-              # Already holds faster-whisper-large-v3 in Hugging Face cache layout.
+              # whisper.cpp downloads its GGML file here on the first request, not at start; the
+              # faster-whisper folders beside it are unused and can be deleted.
               MODEL_PATH: /models/whisper
               HF_HOME: /models/huggingface
               HOME: /tmp
@@ -67,15 +61,6 @@ spec:
                   timeoutSeconds: 5
                   failureThreshold: 3
               readiness: *probes
-              # The model loads before the server binds, including the first-start download.
-              startup:
-                enabled: true
-                custom: true
-                spec:
-                  tcpSocket:
-                    port: *port
-                  periodSeconds: 10
-                  failureThreshold: 90
             resources:
               requests:
                 cpu: 500m
@@ -108,9 +93,6 @@ spec:
               # which turbo does several times faster at close to large-v3's accuracy. Turbo
               # can't translate, so Bazarr's own requests stay on the whisper service.
               WHISPER_MODEL: large-v3-turbo
-              # Turbo looped one phrase for minutes ("Woo-hoo-hoo..." over a stretch of Paw
-              # Patrol dialogue). Not feeding its own previous text back in breaks such loops.
-              SUBGEN_KWARGS: "{'vad': True, 'condition_on_previous_text': False}"
     defaultPodOptions:
       labels:
         gpu-workload: "true"
