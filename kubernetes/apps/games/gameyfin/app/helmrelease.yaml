@@ -19,7 +19,7 @@ spec:
           app:
             image:
               repository: ghcr.io/gameyfin/gameyfin
-              tag: 2.7.1@sha256:6a51db59870df7ce1b6efbd56a93008e580334591edeac3cf4a55754a8dc2407
+              tag: 2.8.0@sha256:145c20555a2afd0d92fc88c6db03ebbfa8c22ce0691e099c848b8154034126b5
             env:
               TZ: ${TIMEZONE}
               PUID: 1000
