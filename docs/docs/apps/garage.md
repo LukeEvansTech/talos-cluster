@@ -1,8 +1,8 @@
 # Garage
 
 Garage is the cluster's own S3-compatible object store, deployed as a 3-replica StatefulSet in
-`kubernetes/apps/storage/garage` (namespace `storage`). `garage-webui` gives it a browser UI and
-deploys as a dependent Kustomization alongside it.
+`kubernetes/apps/storage/garage` (namespace `storage`). Its browser UI is Garage's own, built into
+the admin API port since v2.6.0 and served at `https://garage.${SECRET_DOMAIN}/ui/`.
 
 ## Least-privilege discovery RBAC
 
@@ -27,7 +27,9 @@ back on explicitly.
 ## Metrics are unauthenticated by design
 
 Garage exposes Prometheus metrics on its admin API port. `metrics_token` is unset in
-`garage.toml`, so `/metrics` answers without authentication.
+`garage.toml`, so `/metrics` answers without authentication. The `admin` route therefore matches
+only `/`, `/ui` and `/v2`, which keeps `/metrics` and `/health` off the gateway; Prometheus scrapes
+the Service directly.
 
 ## Anonymous GET on the S3 API returns 403
 
@@ -59,11 +61,11 @@ The sync target is addressed under the public `${SECRET_DOMAIN}` rather than
 is delegated to an internal resolver, so its wildcard certificate can no longer renew through
 Cloudflare's DNS-01 challenge, and that zone is being retired.
 
-## garage-webui secrets
+## Web UI
 
-`garage-webui` reuses the same admin token Garage itself uses (`GARAGE_ADMIN_TOKEN`) to call the
-admin API, plus a separate login. `AUTH_USER_PASS` must be in `user:bcrypt-hash` form; both values
-come from the `garage` 1Password item.
+The built-in UI replaced the third-party `garage-webui` in November 2026. Its login page asks for an
+admin token and sends it as a bearer token on every `/v2` call, so the gateway adds no sign-in. Use `GARAGE_ADMIN_TOKEN` from the
+`garage` 1Password item, or create a scoped token under **Admin Tokens** in the UI.
 
 ## References
 
@@ -71,4 +73,3 @@ come from the `garage` 1Password item.
   server, its RBAC and its non-secret config.
 - `kubernetes/apps/storage/garage/app/sync-cronjob.yaml`, `sync-externalsecret.yaml` - the
   cluster-to-NAS backup job.
-- `kubernetes/apps/storage/garage/webui/` - the browser UI and its ExternalSecret.
