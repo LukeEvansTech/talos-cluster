@@ -6,6 +6,7 @@ resources:
   - ./externalsecret.yaml
   - ./ocirepository.yaml
   - ./helmrelease.yaml
+  - ./prometheusrule.yaml
   - ./servicemonitor.yaml
 configMapGenerator:
   - name: qbittorrent-scripts

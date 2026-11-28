@@ -1,0 +1,33 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: qbittorrent
+spec:
+  groups:
+    - name: qbittorrent
+      rules:
+        # Batch spikes passed 70% of the limit for minutes at a time; the climb that ends in an
+        # OOM kill gains about 3 GB a day, so 75% for 15m skips the spikes and leaves a day.
+        - alert: QbittorrentMemoryNearLimit
+          annotations:
+            summary: >-
+              qBittorrent in {{ $labels.pod }} has used {{ $value | humanizePercentage }} of
+              its memory limit for 15m.
+            description: >-
+              The qbittorrent container's working set is above 75% of its memory limit. If
+              it keeps climbing the container is OOM-killed at the limit. Check the torrent
+              and file count for a large batch, and see docs/docs/apps/qbittorrent.md before
+              raising the limit.
+          expr: |-
+            max by (namespace, pod) (
+              container_memory_working_set_bytes{namespace="downloads", container="qbittorrent"}
+            )
+            / on (namespace, pod)
+            max by (namespace, pod) (
+              kube_pod_container_resource_limits{namespace="downloads", container="qbittorrent", resource="memory"}
+            ) > 0.75
+          for: 15m
+          labels:
+            severity: warning
