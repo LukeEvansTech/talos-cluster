@@ -120,7 +120,11 @@ spec:
           - port: admin
     route:
       app:
+        # A second route makes app-template suffix this one; keep the name the S3 clients' route had.
+        forceRename: "{{ .Release.Name }}"
         annotations:
+          # The homepage tile sits on this route; point it at the web UI, not the S3 endpoint.
+          gethomepage.dev/href: "https://{{ .Release.Name }}.${SECRET_DOMAIN}/ui/"
           # garage S3 API answers anonymous GET with 403. Treat 200/403 as healthy
           gatus.home-operations.com/endpoint: |
             conditions: ["[STATUS] == any(200, 403)"]
@@ -133,6 +137,28 @@ spec:
           - backendRefs:
               - name: garage
                 port: 3900
+      # Garage's built-in web UI on the admin port; it signs in with an admin token. The path
+      # matches leave the unauthenticated /metrics and /health off the gateway.
+      admin:
+        hostnames:
+          - "{{ .Release.Name }}.${SECRET_DOMAIN}"
+        parentRefs:
+          - name: envoy-internal
+            namespace: network
+        rules:
+          - backendRefs:
+              - name: garage
+                port: 3903
+            matches:
+              - path:
+                  type: Exact
+                  value: /
+              - path:
+                  type: PathPrefix
+                  value: /ui
+              - path:
+                  type: PathPrefix
+                  value: /v2
     persistence:
       config:
         type: configMap

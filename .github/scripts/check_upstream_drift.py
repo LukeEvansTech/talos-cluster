@@ -58,7 +58,6 @@ IGNORE = {
 SOURCE = {
     "corentinth/it-tools": "CorentinTh/it-tools",
     "docker.io/hon95/prometheus-nut-exporter": "hon95/prometheus-nut-exporter",
-    "docker.io/khairul169/garage-webui": "khairul169/garage-webui",
     "docker.io/prodrigestivill/postgres-backup-local": "prodrigestivill/docker-postgres-backup-local",
     "docker.io/pryorda/vmware_exporter": "pryorda/vmware_exporter",
     "guacamole/guacamole": "apache/guacamole-client",
@@ -70,7 +69,6 @@ SOURCE = {
 QUIET = {
     "corentinth/it-tools": "2026-11-16: still the latest release; static toolbox",
     "docker.io/hon95/prometheus-nut-exporter": "2026-11-16: latest release; NUT protocol is stable",
-    "docker.io/khairul169/garage-webui": "2026-11-16: latest release",
     "docker.io/prodrigestivill/postgres-backup-local": "2026-11-16: no tags; Renovate tracks `18`",
     "docker.io/pryorda/vmware_exporter": "2026-11-16: unmaintained since 2024; works, replace when it breaks",
     "ghcr.io/onedr0p/exportarr": "2026-11-16: latest release",
