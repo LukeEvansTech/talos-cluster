@@ -57,10 +57,10 @@ spec:
       limits:
         # 4 Granian workers pushed the pod to ~956Mi and OOMKilled it against a 1Gi limit.
         memory: 1536Mi
-    extraEnvs:
-      # The chart defaults to 4 workers, more than this low-traffic instance needs.
-      - name: GRANIAN_WORKERS
-        value: "2"
+    granian:
+      # Chart 8.4.0 renders GRANIAN_WORKERS from this value; setting it through extraEnvs
+      # as well duplicates the env entry and the server-side apply rejects the Deployment.
+      workers: 2
     metrics:
       enabled: true
       serviceMonitor:
